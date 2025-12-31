@@ -1,15 +1,15 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import OpenAI from "openai";
 
-import { supabaseAdmin } from "../../../src/lib/supabaseServer";
-import { PERSONAS } from "../../../src/lib/persona";
-import { analyzeCues } from "../../../src/lib/cues";
-import { buildNextMove } from "../../../src/lib/flow";
-import { buildSystemPrompt } from "../../../src/lib/promptBuilder";
+import { supabaseAdmin } from "@/lib/supabaseServer";
+import { PERSONAS } from "@/lib/persona";
+import { analyzeCues } from "@/lib/cues";
+import { buildNextMove } from "@/lib/flow";
+import { buildSystemPrompt } from "@/lib/promptBuilder";
+import { generateWithOpenAI } from "@/lib/providers/openai";
 
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 const BodySchema = z.object({
   userId: z.string().min(1),
@@ -17,25 +17,20 @@ const BodySchema = z.object({
   userText: z.string().min(1),
 });
 
-async function ensureConversation(userId: string, conversationId: string) {
-  // Create the conversation row if it doesn't exist (prevents FK insert failures)
-  await supabaseAdmin.from("conversations").upsert(
+async function ensureConversation(db: ReturnType<typeof supabaseAdmin>, userId: string, conversationId: string) {
+  await db.from("conversations").upsert(
     { id: conversationId, user_id: userId },
     { onConflict: "id" }
   );
 }
 
-async function getUserProfile(userId: string) {
-  const { data } = await supabaseAdmin
-    .from("user_profile")
-    .select("*")
-    .eq("user_id", userId)
-    .maybeSingle();
+async function getUserProfile(db: ReturnType<typeof supabaseAdmin>, userId: string) {
+  const { data } = await db.from("user_profile").select("*").eq("user_id", userId).maybeSingle();
   return data;
 }
 
-async function getMemory(userId: string) {
-  const { data } = await supabaseAdmin
+async function getMemory(db: ReturnType<typeof supabaseAdmin>, userId: string) {
+  const { data } = await db
     .from("memory_items")
     .select("*")
     .eq("user_id", userId)
@@ -57,19 +52,21 @@ export async function POST(req: Request) {
 
   const { userId, conversationId, userText } = parsed.data;
 
-  await ensureConversation(userId, conversationId);
+  const db = supabaseAdmin();
 
-  await supabaseAdmin.from("messages").insert({
+  await ensureConversation(db, userId, conversationId);
+
+  await db.from("messages").insert({
     conversation_id: conversationId,
     role: "user",
     content: userText,
   });
 
-  const profile = await getUserProfile(userId);
+  const profile = await getUserProfile(db, userId);
   const persona = PERSONAS[(profile?.persona_variant || "arbor_masc") as keyof typeof PERSONAS];
 
   const cues = analyzeCues(userText);
-  const memory = await getMemory(userId);
+  const memory = await getMemory(db, userId);
 
   const systemPrompt = buildSystemPrompt(persona, memory.memoryFacts);
   const nextMove = buildNextMove({
@@ -83,24 +80,18 @@ export async function POST(req: Request) {
 
   let assistantText = nextMove.prompt;
 
-  // If OpenAI key is set, use LLM; otherwise return nextMove.prompt
   if (process.env.OPENAI_API_KEY) {
-    const model = process.env.OPENAI_MODEL || "gpt-5-mini";
-    const llm = await openai.responses.create({
-      model,
-      input: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userText },
-        { role: "assistant", content: nextMove.prompt },
-      ],
-    });
+    assistantText = await generateWithOpenAI([
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userText },
+    ]);
 
-    assistantText =
-      llm.output_text?.trim() ||
-      "I’m here. Say one sentence about what you want next.";
+    if (!assistantText) {
+      assistantText = "I’m here. Say one sentence about what you want next.";
+    }
   }
 
-  await supabaseAdmin.from("messages").insert({
+  await db.from("messages").insert({
     conversation_id: conversationId,
     role: "assistant",
     content: assistantText,
@@ -112,5 +103,3 @@ export async function POST(req: Request) {
     assistantText,
   });
 }
-
-export const dynamic = "force-dynamic";
