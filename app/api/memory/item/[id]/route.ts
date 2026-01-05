@@ -3,10 +3,17 @@ import { supabaseFromAuthHeader } from "@/lib/supabase/bearer";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { MemoryService } from "@/lib/memory/memoryService";
 
-export async function PATCH(req: NextRequest, ctx: { params: { id: string } }) {
+export async function PATCH(
+  req: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  const { id } = await context.params;
+
   const supabase = supabaseFromAuthHeader(req);
   const { data, error } = await supabase.auth.getUser();
-  if (error || !data?.user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  if (error || !data?.user) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
 
   const body = await req.json();
   const url = new URL(req.url);
@@ -20,16 +27,16 @@ export async function PATCH(req: NextRequest, ctx: { params: { id: string } }) {
     projectId,
   });
 
-  const id = ctx.params.id;
-
   if (body.action === "pin") {
     const item = await svc.pin(id, !!body.pinned);
     return NextResponse.json({ item });
   }
+
   if (body.action === "discard") {
     const item = await svc.discard(id);
     return NextResponse.json({ item });
   }
+
   if (body.action === "confirmFact") {
     const item = await svc.confirmFact(id);
     return NextResponse.json({ item });
