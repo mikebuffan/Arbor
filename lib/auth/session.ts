@@ -14,7 +14,8 @@ export async function getOrCreateUserId(): Promise<string> {
   jar.set(COOKIE_NAME, userId, {
     httpOnly: true,
     sameSite: "lax",
-    secure: true,
+    //secure: true,
+    secure: process.env.NODE_ENV === "production",
     path: "/",
     maxAge: 60 * 60 * 24 * 365,
   });
