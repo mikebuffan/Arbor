@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { randomUUID } from "crypto";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 const COOKIE_NAME = "ff_uid";
 
@@ -23,11 +24,26 @@ export async function getOrCreateUserId(): Promise<string> {
   return userId;
 }
 
-export async function requireUserId(): Promise<string> {
+export async function requireUser(): Promise<{
+  userId: string;
+  supabase: SupabaseClient;
+}> {
   const jar = await cookies();
   const uid = jar.get(COOKIE_NAME)?.value;
-  if (!uid) return getOrCreateUserId();
-  return uid;
+
+  if (process.env.NODE_ENV === "development" && !uid) {
+    return {
+      userId: "dev-user",
+      supabase: supabaseAdmin(), // ✅ CALL IT
+    };
+  }
+
+  const userId = uid ? uid : await getOrCreateUserId();
+
+  return {
+    userId,
+    supabase: supabaseAdmin(), // ✅ CALL IT
+  };
 }
 
 // optional stub (you referenced it)
