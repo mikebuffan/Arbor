@@ -1,5 +1,15 @@
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
+function parseMaybeJson(s: any) {
+  if (typeof s !== "string") return s;
+  const t = s.trim();
+  if (!t) return s;
+  if ((t.startsWith("{") && t.endsWith("}")) || (t.startsWith("[") && t.endsWith("]"))) {
+    try { return JSON.parse(t); } catch { return s; }
+  }
+  return s;
+}
+
 export async function getMemoryContext(params: {
   authedUserId: string;
   projectId?: string | null;
@@ -28,7 +38,7 @@ export async function getMemoryContext(params: {
   // Convert your schema -> the format buildPromptContext expects
   const items = (data ?? []).map((r: any) => ({
     key: r.mem_key,
-    value: r.mem_value,           // still text; OK for now
+    value: parseMaybeJson(r.mem_value),
     display_text: avoidingNull(r.display_text, r.mem_key, r.mem_value),
     reveal_policy: r.reveal_policy,
     pinned: r.pinned,

@@ -53,7 +53,6 @@ async function getOrCreateConversation(params: {
   const { supabase, userId, projectId, conversationId } = params;
 
   if (conversationId) {
-    // Verify conversation belongs to user + project
     const { data, error } = await supabase
       .from("conversations")
       .select("id")
@@ -71,7 +70,7 @@ async function getOrCreateConversation(params: {
     .insert({
       user_id: userId,
       project_id: projectId,
-      title: null, // optional
+      title: null,
     })
     .select("id")
     .single();
@@ -112,6 +111,7 @@ async function cleanupExpiredMessagesBestEffort(supabase: any, userId: string) {
 export async function POST(req: Request) {
   try {
     const { supabase, userId } = await requireUser(req);
+
     const parsed = Body.safeParse(await req.json().catch(() => ({})));
     if (!parsed.success) {
       return NextResponse.json({ ok: false, error: parsed.error.flatten() }, { status: 400 });
@@ -121,7 +121,7 @@ export async function POST(req: Request) {
 
     await cleanupExpiredMessagesBestEffort(supabase, userId);
 
-    // Resolve project (pervasive persona/framework lives here)
+    // Resolve project
     const projectId = maybeProjectId ?? (await getOrCreateDefaultProjectId(supabase, userId));
 
     // Ensure project exists/owned
@@ -131,7 +131,8 @@ export async function POST(req: Request) {
       .eq("id", projectId)
       .eq("user_id", userId)
       .single();
-    if (pErr) {
+
+    if (pErr || !project) {
       return NextResponse.json({ ok: false, error: "Project not found" }, { status: 404 });
     }
 
@@ -143,7 +144,7 @@ export async function POST(req: Request) {
       conversationId,
     });
 
-    // Persist user msg first
+    // Persist user message
     {
       const { error } = await supabase.from("messages").insert({
         project_id: projectId,
@@ -157,15 +158,15 @@ export async function POST(req: Request) {
 
     const history = await loadRecentMessages(supabase, userId, convoId, 30);
 
+    // Memory context (for prompt)
     const mem = await getMemoryContext({
       authedUserId: userId,
       projectId,
       latestUserText: userText,
     });
 
-    const allItems = [...mem.core, ...mem.normal, ...mem.sensitive] as any [];
+    const allItems = [...mem.core, ...mem.normal, ...mem.sensitive] as any[];
 
-    // pick a decay; 30 days is a sane default for “normal” memory scoring
     const decayMs = 1000 * 60 * 60 * 24 * 30;
 
     const memoryBlock = buildPromptContext({
@@ -174,21 +175,23 @@ export async function POST(req: Request) {
       decayMs,
     });
 
-    // Persona/framework pervasive at project level (persona_id/framework_version available here)
+    console.log("MEMORY BLOCK:\n", memoryBlock);
+
     const systemPrompt = `
-      You are Arbor: friend-like, grounded, competent, and honest.
-      - No patronizing softness by default.
-      - Warmth + directness. Real guidance.
-      - Never mention sensitive memories unless the user explicitly references them first.
-      - This is the Firefly/Arbor app.
+You are Arbor: friend-like, grounded, competent, and honest.
+- No patronizing softness by default.
+- Warmth + directness. Real guidance.
+- Never mention sensitive memories unless the user explicitly references them first.
+- This is the Firefly/Arbor app.
 
-      Project persona_id: ${project.persona_id}
-      Framework version: ${project.framework_version}
+Project persona_id: ${project.persona_id}
+Framework version: ${project.framework_version}
 
-      ${memoryBlock}
-      `.trim();
+${memoryBlock}
+`.trim();
 
     const messagesForModel: Msg[] = [{ role: "system", content: systemPrompt }, ...history];
+
     const model = process.env.OPENAI_CHAT_MODEL ?? "gpt-5";
     const completion = await openai.chat.completions.create({
       model,
@@ -197,7 +200,7 @@ export async function POST(req: Request) {
 
     const assistantText = completion.choices[0]?.message?.content ?? "";
 
-    // Persist assistant msg
+    // Persist assistant message
     {
       const { error } = await supabase.from("messages").insert({
         project_id: projectId,
@@ -209,15 +212,17 @@ export async function POST(req: Request) {
       if (error) throw error;
     }
 
-    // Memory extraction + store
+    // Memory extraction + store (AFTER assistant exists)
     const extracted = await extractMemoryFromText({ userText, assistantText });
-    await upsertMemoryItems(userId, extracted, projectId);
-    await reinforceMemoryUse(userId, mem.keysUsed, projectId);
+
     console.log("extracted items count:", extracted.length);
     console.log("extracted items:", extracted);
 
+    await upsertMemoryItems(userId, extracted, projectId);
+    await reinforceMemoryUse(userId, mem.keysUsed, projectId);
+
     // Touch conversation updated_at
-    await supabase  
+    await supabase
       .from("conversations")
       .update({ updated_at: new Date().toISOString() })
       .eq("id", convoId)
