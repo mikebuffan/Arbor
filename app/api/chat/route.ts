@@ -146,6 +146,7 @@ export async function POST(req: Request) {
     // Persist user msg first
     {
       const { error } = await supabase.from("messages").insert({
+        project_id: projectId,
         conversation_id: convoId,
         user_id: userId,
         role: "user",
@@ -198,6 +199,7 @@ export async function POST(req: Request) {
     // Persist assistant msg
     {
       const { error } = await supabase.from("messages").insert({
+        project_id: projectId,
         conversation_id: convoId,
         user_id: userId,
         role: "assistant",
