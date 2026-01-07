@@ -213,6 +213,8 @@ export async function POST(req: Request) {
     const extracted = await extractMemoryFromText({ userText, assistantText });
     await upsertMemoryItems(userId, extracted, projectId);
     await reinforceMemoryUse(userId, mem.keysUsed, projectId);
+    console.log("extracted items count:", extracted.length);
+    console.log("extracted items:", extracted);
 
     // Touch conversation updated_at
     await supabase  
