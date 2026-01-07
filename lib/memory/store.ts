@@ -1,4 +1,3 @@
-// lib/memory/store.ts
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { LOCK_ON_CORRECTION_COUNT } from "@/lib/memory/rules";
 import type { MemoryItem, MemoryUpsertResult } from "@/lib/memory/types";
@@ -24,7 +23,7 @@ function toDisplayText(key: string, memValue: string) {
   return `${key}: ${memValue}`;
 }
 
-/** DB uses reveal_policy string; your extracted MemoryItem uses user_trigger_only boolean */
+/** DB uses reveal_policy string; extracted MemoryItem uses user_trigger_only boolean */
 function revealPolicyFrom(item: MemoryItem): RevealPolicy {
   return item.user_trigger_only ? "user_trigger_only" : "normal";
 }
@@ -43,9 +42,9 @@ function strengthFromImportance(importance?: number): number {
 
 /**
  * IMPORTANT:
- * Your uniqueness index is (user_id, project_id, mem_key).
- * If projectId is null, Postgres allows multiple nulls in a UNIQUE index.
- * So you should prefer projectId (recommended), which you already pass now.
+ * uniqueness index is (user_id, project_id, mem_key)
+ * when projectId is null, UNIQUE won't prevent duplicates (NULL != NULL)
+ * so prefer passing projectId (you already do).
  */
 async function findExisting(params: {
   authedUserId: string;
@@ -78,19 +77,29 @@ async function logEvent(params: {
   const admin = supabaseAdmin();
   const { authedUserId, projectId, key, event_type, payload } = params;
 
-  // If your memory_pending schema differs, this is the only place you'll need to adjust.
+  // memory_pending requires question + ops (NOT NULL)
   const { error } = await admin.from(EVENTS_TABLE).insert({
     user_id: authedUserId,
     project_id: projectId,
+    question: "memory_event",
+    ops: { kind: "memory_event", event_type },
     memory_key: key,
     event_type,
     payload,
   });
 
-  // Don't crash the whole app if event logging fails (optional)
+  // Don't crash the whole app if event logging fails
   if (error) {
     console.warn("memory_pending insert failed:", error);
   }
+}
+
+/** Ensure embedding is a plain number[] (pgvector expects array) */
+function normalizeEmbedding(emb: any): number[] {
+  if (Array.isArray(emb)) return emb;
+  if (emb?.data && Array.isArray(emb.data)) return emb.data;
+  if (emb?.embedding && Array.isArray(emb.embedding)) return emb.embedding;
+  return [];
 }
 
 export async function upsertMemoryItems(
@@ -111,7 +120,8 @@ export async function upsertMemoryItems(
     const pinned = pinnedFrom(item);
     const strength = strengthFromImportance(item.importance);
 
-    const embedding = await embedText(memoryToEmbedString(key, item.value));
+    const rawEmbedding = await embedText(memoryToEmbedString(key, item.value));
+    const embedding = normalizeEmbedding(rawEmbedding);
 
     const existing = await findExisting({ authedUserId, projectId, key });
 
@@ -152,7 +162,6 @@ export async function upsertMemoryItems(
     }
 
     if (existing.is_locked) {
-      // Locked: do not overwrite content, but we can lightly reinforce
       const { error } = await admin
         .from(ITEMS_TABLE)
         .update({
@@ -177,7 +186,6 @@ export async function upsertMemoryItems(
       continue;
     }
 
-    // Update existing: overwrite mem_value + bump strength + update embedding
     const nextStrength = Math.max(Number(existing.strength ?? 1), strength) + 0.2;
 
     const { error } = await admin
@@ -225,7 +233,9 @@ export async function correctMemoryItem(params: {
 
   const memValue = toTextValue(newValue);
   const displayText = toDisplayText(cleanKey, memValue);
-  const embedding = await embedText(memoryToEmbedString(cleanKey, newValue));
+
+  const rawEmbedding = await embedText(memoryToEmbedString(cleanKey, newValue));
+  const embedding = normalizeEmbedding(rawEmbedding);
 
   const existing = await findExisting({ authedUserId, projectId, key: cleanKey });
 
@@ -237,7 +247,7 @@ export async function correctMemoryItem(params: {
       mem_value: memValue,
       display_text: displayText,
       reveal_policy: "normal",
-      pinned: true, // corrections are usually "core"
+      pinned: true, // corrections become "core"
       strength: 3,
       correction_count: 1,
       is_locked: false,
@@ -306,7 +316,6 @@ export async function reinforceMemoryUse(
     if (!existing) continue;
     if (existing.is_locked) continue;
 
-    // Reinforcement = strength bump + updated reinforcement timestamp
     const nextStrength = Number(existing.strength ?? 1) + 0.15;
 
     const { error } = await admin

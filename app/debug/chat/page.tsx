@@ -1,62 +1,33 @@
 "use client";
+import { useState } from "react";
+import { createClient } from "@supabase/supabase-js";
 
-import { useMemo, useState } from "react";
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-
-type ChatResponse =
-  | {
-      ok: true;
-      projectId: string;
-      conversationId: string;
-      assistantText: string;
-    }
-  | { ok: false; error: any };
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 export default function DebugChatPage() {
-  // Create the client once
-  const supabase: SupabaseClient = useMemo(() => {
-    return createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
-  }, []);
-
-  // Auth UI
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-
-  // Chat UI
   const [msg, setMsg] = useState("Whazzup?");
   const [reply, setReply] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Persist these across sends
+  // Persist across sends (this is what makes it a “thread”)
   const [projectId, setProjectId] = useState<string | null>(null);
   const [conversationId, setConversationId] = useState<string | null>(null);
 
   async function signIn() {
-    setLoading(true);
-    setReply("");
-    try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw error;
-
-      // optional: confirm session
-      const { data } = await supabase.auth.getSession();
-      if (!data.session) throw new Error("Signed in, but no session returned.");
-
-      setReply(JSON.stringify({ ok: true, message: "Signed in." }, null, 2));
-    } catch (e: any) {
-      setReply(e?.message ?? String(e));
-    } finally {
-      setLoading(false);
-    }
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    setReply("Signed in.");
   }
 
   function newThread() {
-    // Keep projectId (persona/framework scope), reset conversationId (new thread)
+    // Keep projectId so Arbor/framework persists, but reset conversation to start a new thread
     setConversationId(null);
-    setReply(JSON.stringify({ ok: true, message: "Started a new thread (conversationId reset)." }, null, 2));
+    setReply("New thread started (next send will create a new conversation).");
   }
 
   async function send() {
@@ -68,11 +39,10 @@ export default function DebugChatPage() {
       const token = data.session?.access_token;
       if (!token) throw new Error("Not logged in");
 
-      const body = {
-        userText: msg,
-        projectId,       // keep same project across threads (global Arbor persona)
-        conversationId,  // reuse for continuity; null => server creates new conversation
-      };
+      // IMPORTANT: omit nulls by sending undefined instead
+      const body: any = { userText: msg };
+      if (projectId) body.projectId = projectId;
+      if (conversationId) body.conversationId = conversationId;
 
       const res = await fetch("/api/chat", {
         method: "POST",
@@ -83,11 +53,11 @@ export default function DebugChatPage() {
         body: JSON.stringify(body),
       });
 
-      const json = (await res.json()) as ChatResponse;
+      const json = await res.json();
 
-      // Persist IDs so next send stays in same conversation
-      if (json && (json as any).projectId) setProjectId((json as any).projectId);
-      if (json && (json as any).conversationId) setConversationId((json as any).conversationId);
+      // Capture IDs so the next send continues the same thread
+      if (json.projectId) setProjectId(json.projectId);
+      if (json.conversationId) setConversationId(json.conversationId);
 
       setReply(JSON.stringify(json, null, 2));
     } catch (e: any) {
@@ -101,33 +71,16 @@ export default function DebugChatPage() {
     <div style={{ padding: 16, fontFamily: "system-ui", maxWidth: 900 }}>
       <h1>Debug Chat</h1>
 
-      <div style={{ display: "flex", gap: 8, marginBottom: 12, alignItems: "center" }}>
-        <input
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="email"
-          style={{ flex: 1, padding: 6 }}
-        />
-        <input
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="password"
-          type="password"
-          style={{ flex: 1, padding: 6 }}
-        />
-        <button onClick={signIn} disabled={loading}>
-          Sign in
-        </button>
+      <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+        <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email" />
+        <input value={password} onChange={(e) => setPassword(e.target.value)} placeholder="password" type="password" />
+        <button onClick={signIn} disabled={loading}>Sign in</button>
+        <button onClick={newThread} disabled={loading}>New thread</button>
       </div>
 
-      <div style={{ display: "flex", gap: 8, marginBottom: 12, alignItems: "center" }}>
-        <button onClick={newThread} disabled={loading}>
-          New thread
-        </button>
-        <div style={{ fontSize: 12, opacity: 0.75 }}>
-          <div>projectId: {projectId ?? "(null: server will create/use Default Project)"}</div>
-          <div>conversationId: {conversationId ?? "(null: next send creates new conversation)"}</div>
-        </div>
+      <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 8 }}>
+        <div>projectId: {projectId ?? "(null: server will create/use Default Project)"}</div>
+        <div>conversationId: {conversationId ?? "(null: next send creates new conversation)"}</div>
       </div>
 
       <textarea

@@ -12,9 +12,15 @@ export const dynamic = "force-dynamic";
 
 type Msg = { role: "user" | "assistant" | "system"; content: string };
 
+// Accept nulls from the client and treat them as "unset"
+const NullableUuid = z.preprocess(
+  (v) => (v === null || v === "" ? undefined : v),
+  z.string().uuid().optional()
+);
+
 const Body = z.object({
-  projectId: z.string().uuid().optional(),
-  conversationId: z.string().uuid().optional(),
+  projectId: NullableUuid,
+  conversationId: NullableUuid,
   userText: z.string().min(1),
 });
 
@@ -121,22 +127,21 @@ export async function POST(req: Request) {
 
     await cleanupExpiredMessagesBestEffort(supabase, userId);
 
-    // Resolve project
+    // 1) Resolve project (persona/framework lives here)
     const projectId = maybeProjectId ?? (await getOrCreateDefaultProjectId(supabase, userId));
 
-    // Ensure project exists/owned
+    // 2) Ensure project exists/owned
     const { data: project, error: pErr } = await supabase
       .from("projects")
       .select("id, persona_id, framework_version")
       .eq("id", projectId)
       .eq("user_id", userId)
       .single();
-
-    if (pErr || !project) {
+    if (pErr) {
       return NextResponse.json({ ok: false, error: "Project not found" }, { status: 404 });
     }
 
-    // Resolve conversation under project
+    // 3) Resolve conversation (persist this ID client-side to keep the thread)
     const convoId = await getOrCreateConversation({
       supabase,
       userId,
@@ -144,7 +149,7 @@ export async function POST(req: Request) {
       conversationId,
     });
 
-    // Persist user message
+    // 4) Persist user msg
     {
       const { error } = await supabase.from("messages").insert({
         project_id: projectId,
@@ -158,7 +163,7 @@ export async function POST(req: Request) {
 
     const history = await loadRecentMessages(supabase, userId, convoId, 30);
 
-    // Memory context (for prompt)
+    // 5) Memory context BEFORE model call
     const mem = await getMemoryContext({
       authedUserId: userId,
       projectId,
@@ -166,7 +171,6 @@ export async function POST(req: Request) {
     });
 
     const allItems = [...mem.core, ...mem.normal, ...mem.sensitive] as any[];
-
     const decayMs = 1000 * 60 * 60 * 24 * 30;
 
     const memoryBlock = buildPromptContext({
@@ -174,8 +178,6 @@ export async function POST(req: Request) {
       userText,
       decayMs,
     });
-
-    console.log("MEMORY BLOCK:\n", memoryBlock);
 
     const systemPrompt = `
 You are Arbor: friend-like, grounded, competent, and honest.
@@ -200,7 +202,7 @@ ${memoryBlock}
 
     const assistantText = completion.choices[0]?.message?.content ?? "";
 
-    // Persist assistant message
+    // 6) Persist assistant msg
     {
       const { error } = await supabase.from("messages").insert({
         project_id: projectId,
@@ -212,7 +214,7 @@ ${memoryBlock}
       if (error) throw error;
     }
 
-    // Memory extraction + store (AFTER assistant exists)
+    // 7) Extract + store memory AFTER assistant is known
     const extracted = await extractMemoryFromText({ userText, assistantText });
 
     console.log("extracted items count:", extracted.length);
@@ -221,7 +223,7 @@ ${memoryBlock}
     await upsertMemoryItems(userId, extracted, projectId);
     await reinforceMemoryUse(userId, mem.keysUsed, projectId);
 
-    // Touch conversation updated_at
+    // 8) Touch conversation updated_at
     await supabase
       .from("conversations")
       .update({ updated_at: new Date().toISOString() })
@@ -236,9 +238,6 @@ ${memoryBlock}
     });
   } catch (err: any) {
     console.error("chat route error:", err);
-    return NextResponse.json(
-      { ok: false, error: err?.message ?? "server_error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ ok: false, error: err?.message ?? "server_error" }, { status: 500 });
   }
 }
