@@ -3,27 +3,36 @@ import { openai } from "@/lib/providers/openai";
 import { SENSITIVE_CATEGORIES } from "./rules";
 import type { MemoryItem } from "./types";
 
-const MemoryValueSchema = z.union([
+// Accept primitive OR object for value
+const LooseValue = z.union([
+  z.record(z.string(), z.any()),
   z.string(),
   z.number(),
   z.boolean(),
-  z.record(z.string(), z.any()),
-  z.array(z.any()),
   z.null(),
 ]);
 
+// Make optional fields optional so we can default them
 const MemoryItemSchema = z.object({
   key: z.string().min(3),
-  value: MemoryValueSchema,
-  tier: z.enum(["core", "normal", "sensitive"]),
-  user_trigger_only: z.boolean(),
-  importance: z.number().int().min(1).max(10),
-  confidence: z.number().min(0).max(1),
+  value: LooseValue,
+
+  // optional -> we will default
+  tier: z.enum(["core", "normal", "sensitive"]).optional(),
+  user_trigger_only: z.boolean().optional(),
+  importance: z.number().int().min(1).max(10).optional(),
+  confidence: z.number().min(0).max(1).optional(),
 });
 
 const ExtractionSchema = z.object({
-  items: z.array(MemoryItemSchema).max(20),
+  items: z.array(MemoryItemSchema).max(20).default([]),
 });
+
+function normalizeValueToRecord(v: unknown): Record<string, any> {
+  // Your MemoryItem type expects Record<string, any>
+  if (v && typeof v === "object" && !Array.isArray(v)) return v as Record<string, any>;
+  return { value: v }; // wrap primitives: "green" -> { value: "green" }
+}
 
 export async function extractMemoryFromText(params: {
   userText: string;
@@ -32,21 +41,28 @@ export async function extractMemoryFromText(params: {
   const { userText, assistantText } = params;
 
   const system = `
-You extract stable, user-affirmed memory for a "friend-like" AI.
-STRICT RULES:
+You extract stable, user-affirmed memory for a friend-like AI.
+
+Return STRICT JSON with this shape:
+{
+  "items": [
+    {
+      "key": "preferences.color",
+      "value": { "value": "green" },
+      "tier": "normal",
+      "user_trigger_only": false,
+      "importance": 6,
+      "confidence": 0.9
+    }
+  ]
+}
+
+Rules:
 - Do not invent.
-- Do not infer demographics unless explicitly stated by the user.
-- Prefer "friend basics": important people, pets, preferences, boundaries, ongoing projects, name/tone preferences, key life anchors.
-- If it's sensitive (diagnoses, trauma, self-harm, medical, substance use, sex), store it but mark:
-  tier="sensitive" and user_trigger_only=true.
-- If uncertain, omit.
-Key naming:
-- people.<Name>
-- preferences.<topic>
-- boundaries.<topic>
-- projects.<name>
-- user.<field>
-Return JSON only with shape: {"items":[...]}.
+- If value is a primitive, wrap it as { "value": <primitive> }.
+- If sensitive (diagnoses/trauma/self-harm/medical/substance use/sex): tier="sensitive" and user_trigger_only=true.
+- If uncertain, omit the item.
+Return JSON only.
 `.trim();
 
   const user = `
@@ -60,7 +76,6 @@ Return JSON only.
   const model = process.env.OPENAI_CHAT_MODEL ?? "gpt-5";
   const resp = await openai.chat.completions.create({
     model,
-    response_format: { type: "json_object" },
     messages: [
       { role: "system", content: system },
       { role: "user", content: user },
@@ -69,39 +84,34 @@ Return JSON only.
 
   const raw = resp.choices[0]?.message?.content ?? "{}";
 
-  function normalizeValueToRecord(
-    key: string,
-    value: unknown
-  ): Record<string, any> {
-    // already an object (and not an array)
-    if (value && typeof value === "object" && !Array.isArray(value)) {
-      return value as Record<string, any>;
-    }
-
-    // normalize primitives/arrays/null into a standard shape
-    return { value };
-  }
-
   let parsed: z.infer<typeof ExtractionSchema>;
   try {
     parsed = ExtractionSchema.parse(JSON.parse(raw));
   } catch (e) {
-    // TEMP DEBUG (keep until stable)
     console.warn("Memory extraction parse failed. raw=", raw);
     return [];
   }
 
-  return parsed.items.map((it) => {
+  return (parsed.items ?? []).map((it) => {
     const lk = it.key.toLowerCase();
     const isSensitive = SENSITIVE_CATEGORIES.some((c) => lk.includes(c));
 
-    const normalized: MemoryItem = {
-      ...it,
-      value: normalizeValueToRecord(it.key, it.value),
-      tier: isSensitive || it.tier === "sensitive" ? "sensitive" : it.tier,
-      user_trigger_only: isSensitive || it.tier === "sensitive" ? true : it.user_trigger_only,
-    };
+    const tier =
+      isSensitive ? "sensitive" : (it.tier ?? "normal");
 
-    return normalized;
+    const user_trigger_only =
+      isSensitive ? true : (it.user_trigger_only ?? false);
+
+    const importance = it.importance ?? (tier === "core" ? 9 : 6);
+    const confidence = it.confidence ?? 0.9;
+
+    return {
+      key: it.key,
+      value: normalizeValueToRecord(it.value),
+      tier,
+      user_trigger_only,
+      importance,
+      confidence,
+    };
   });
 }
