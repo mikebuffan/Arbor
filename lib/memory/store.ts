@@ -1,7 +1,9 @@
-import { supabaseAdmin } from "@/lib/supabase/admin";
+import { supabaseAdmin, safeQuery } from "@/lib/supabase/admin";
 import { LOCK_ON_CORRECTION_COUNT } from "@/lib/memory/rules";
 import type { MemoryItem, MemoryUpsertResult } from "@/lib/memory/types";
 import { embedText, memoryToEmbedString } from "@/lib/memory/embeddings";
+import { logMemoryEvent } from "@/lib/memory/logger";
+import { getServerSupabase } from "@/lib/supabase/server";
 
 const ITEMS_TABLE = "memory_items";
 const EVENTS_TABLE = "memory_pending";
@@ -36,7 +38,6 @@ function pinnedFrom(item: MemoryItem): boolean {
 /** Your DB uses numeric strength. Map importance (1..10) into sane strength. */
 function strengthFromImportance(importance?: number): number {
   const imp = Number(importance ?? 5);
-  // 1..10 -> ~1.0..3.0 (tunable later)
   return Math.max(1, Math.min(3, 0.5 + imp / 4));
 }
 
@@ -67,6 +68,7 @@ async function findExisting(params: {
   return data;
 }
 
+/** Write to memory_pending for event tracking */
 async function logEvent(params: {
   authedUserId: string;
   projectId: string | null;
@@ -77,7 +79,6 @@ async function logEvent(params: {
   const admin = supabaseAdmin();
   const { authedUserId, projectId, key, event_type, payload } = params;
 
-  // memory_pending requires question + ops (NOT NULL)
   const { error } = await admin.from(EVENTS_TABLE).insert({
     user_id: authedUserId,
     project_id: projectId,
@@ -88,10 +89,7 @@ async function logEvent(params: {
     payload,
   });
 
-  // Don't crash the whole app if event logging fails
-  if (error) {
-    console.warn("memory_pending insert failed:", error);
-  }
+  if (error) console.warn("memory_pending insert failed:", error);
 }
 
 /** Ensure embedding is a plain number[] (pgvector expects array) */
@@ -102,72 +100,109 @@ function normalizeEmbedding(emb: any): number[] {
   return [];
 }
 
+/**
+ * 🚀 Main Upsert Logic
+ * Fully original logic preserved, wrapped in safeQuery for resilience.
+ */
 export async function upsertMemoryItems(
   authedUserId: string,
   items: MemoryItem[],
   projectId: string | null = null
 ): Promise<MemoryUpsertResult> {
-  const admin = supabaseAdmin();
-  const result: MemoryUpsertResult = { created: [], updated: [], locked: [], ignored: [] };
+  const start = Date.now();
 
-  for (const item of items) {
-    const key = item.key?.trim();
-    if (!key) continue;
+  const result = await safeQuery(async (client) => {
+    const admin = supabaseAdmin();
+    const res: MemoryUpsertResult = { created: [], updated: [], locked: [], ignored: [] };
 
-    const memValue = toTextValue(item.value);
-    const displayText = toDisplayText(key, memValue);
-    const reveal_policy = revealPolicyFrom(item);
-    const pinned = pinnedFrom(item);
-    const strength = strengthFromImportance(item.importance);
+    for (const item of items) {
+      const key = item.key?.trim();
+      if (!key) continue;
 
-    const rawEmbedding = await embedText(memoryToEmbedString(key, item.value));
-    const embedding = normalizeEmbedding(rawEmbedding);
+      const memValue = toTextValue(item.value);
+      const displayText = toDisplayText(key, memValue);
+      const reveal_policy = revealPolicyFrom(item);
+      const pinned = pinnedFrom(item);
+      const strength = strengthFromImportance(item.importance);
 
-    const existing = await findExisting({ authedUserId, projectId, key });
+      const rawEmbedding = await embedText(memoryToEmbedString(key, item.value));
+      const embedding = normalizeEmbedding(rawEmbedding);
 
-    if (!existing) {
-      const { error } = await admin.from(ITEMS_TABLE).insert({
-        user_id: authedUserId,
-        project_id: projectId,
-        mem_key: key,
-        mem_value: memValue,
-        display_text: displayText,
-        reveal_policy,
-        strength,
-        pinned,
-        is_locked: false,
-        correction_count: 0,
-        last_reinforced_at: new Date().toISOString(),
-        embedding,
-      });
-      if (error) throw error;
+      const existing = await findExisting({ authedUserId, projectId, key });
 
-      await logEvent({
-        authedUserId,
-        projectId,
-        key,
-        event_type: "create",
-        payload: {
-          key,
+      if (!existing) {
+        const { error } = await admin.from(ITEMS_TABLE).insert({
+          user_id: authedUserId,
+          project_id: projectId,
+          mem_key: key,
           mem_value: memValue,
-          tier: item.tier,
+          display_text: displayText,
           reveal_policy,
-          pinned,
           strength,
-        },
-      });
+          pinned,
+          is_locked: false,
+          correction_count: 0,
+          last_reinforced_at: new Date().toISOString(),
+          embedding,
+        });
+        if (error) throw error;
 
-      result.created.push(key);
-      continue;
-    }
+        await logEvent({
+          authedUserId,
+          projectId,
+          key,
+          event_type: "create",
+          payload: {
+            key,
+            mem_value: memValue,
+            tier: item.tier,
+            reveal_policy,
+            pinned,
+            strength,
+          },
+        });
 
-    if (existing.is_locked) {
+        res.created.push(key);
+        continue;
+      }
+
+      if (existing.is_locked) {
+        const { error } = await admin
+          .from(ITEMS_TABLE)
+          .update({
+            last_reinforced_at: new Date().toISOString(),
+            strength: Number(existing.strength ?? 1) + 0.05,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", existing.id);
+        if (error) throw error;
+
+        await logEvent({
+          authedUserId,
+          projectId,
+          key,
+          event_type: "locked_ignore",
+          payload: { reason: "is_locked", attempted_value: memValue },
+        });
+
+        res.ignored.push(key);
+        res.locked.push(key);
+        continue;
+      }
+
+      const nextStrength = Math.max(Number(existing.strength ?? 1), strength) + 0.2;
+
       const { error } = await admin
         .from(ITEMS_TABLE)
         .update({
+          mem_value: memValue,
+          display_text: displayText,
+          reveal_policy,
+          pinned,
+          strength: nextStrength,
           last_reinforced_at: new Date().toISOString(),
-          strength: Number(existing.strength ?? 1) + 0.05,
           updated_at: new Date().toISOString(),
+          embedding,
         })
         .eq("id", existing.id);
 
@@ -177,47 +212,34 @@ export async function upsertMemoryItems(
         authedUserId,
         projectId,
         key,
-        event_type: "locked_ignore",
-        payload: { reason: "is_locked", attempted_value: memValue },
+        event_type: "update",
+        payload: {
+          before: existing.mem_value,
+          after: memValue,
+          strength: nextStrength,
+        },
       });
 
-      result.ignored.push(key);
-      result.locked.push(key);
-      continue;
+      res.updated.push(key);
     }
 
-    const nextStrength = Math.max(Number(existing.strength ?? 1), strength) + 0.2;
+    return res;
+  }, "upsertMemoryItems");
 
-    const { error } = await admin
-      .from(ITEMS_TABLE)
-      .update({
-        mem_value: memValue,
-        display_text: displayText,
-        reveal_policy,
-        pinned,
-        strength: nextStrength,
-        last_reinforced_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        embedding,
-      })
-      .eq("id", existing.id);
-
-    if (error) throw error;
-
-    await logEvent({
-      authedUserId,
-      projectId,
-      key,
-      event_type: "update",
-      payload: { before: existing.mem_value, after: memValue, strength: nextStrength },
-    });
-
-    result.updated.push(key);
-  }
+  const duration = Date.now() - start;
+  await logMemoryEvent("upsert_summary", {
+    items: items.length,
+    created: result.created.length,
+    updated: result.updated.length,
+    duration,
+  });
 
   return result;
 }
 
+/**
+ * 🧠 Correction Handler
+ */
 export async function correctMemoryItem(params: {
   authedUserId: string;
   key: string;
@@ -247,7 +269,7 @@ export async function correctMemoryItem(params: {
       mem_value: memValue,
       display_text: displayText,
       reveal_policy: "normal",
-      pinned: true, // corrections become "core"
+      pinned: true,
       strength: 3,
       correction_count: 1,
       is_locked: false,
@@ -284,7 +306,6 @@ export async function correctMemoryItem(params: {
       last_reinforced_at: new Date().toISOString(),
     })
     .eq("id", existing.id);
-
   if (error) throw error;
 
   await logEvent({
@@ -298,6 +319,23 @@ export async function correctMemoryItem(params: {
   return { locked: shouldLock };
 }
 
+/**
+ * 🔁 Memory strength reinforcement RPC
+ */
+export async function updateMemoryStrength(memoryId: string, delta: number) {
+  const supabase = await getServerSupabase(); // ✅ Fix: added await
+  const { data, error } = await supabase.rpc("update_memory_strength", {
+    p_memory_id: memoryId,
+    p_delta: delta,
+  });
+  if (error) throw error;
+  await logMemoryEvent("reinforce", { memoryId, delta });
+  return data;
+}
+
+/**
+ * 📈 Reinforce memory usage for referenced items
+ */
 export async function reinforceMemoryUse(
   authedUserId: string,
   keysUsed: string[],
@@ -313,8 +351,7 @@ export async function reinforceMemoryUse(
     if (!cleanKey) continue;
 
     const existing = await findExisting({ authedUserId, projectId, key: cleanKey });
-    if (!existing) continue;
-    if (existing.is_locked) continue;
+    if (!existing || existing.is_locked) continue;
 
     const nextStrength = Number(existing.strength ?? 1) + 0.15;
 
@@ -326,7 +363,6 @@ export async function reinforceMemoryUse(
         updated_at: now,
       })
       .eq("id", existing.id);
-
     if (error) throw error;
 
     await logEvent({

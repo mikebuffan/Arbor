@@ -1,7 +1,11 @@
 import type { MemoryItemRow } from "@/lib/memory/memoryService";
 import { selectItemsForPrompt } from "@/lib/memory/selectForPrompt";
 
-export function buildPromptContext(args: {
+/**
+ * Builds contextual memory blocks for use in system prompt.
+ * Applies decay, reveal policy gating, and organizes by category.
+ */
+export function assembleMemoryBlock(args: {
   allItems: MemoryItemRow[];
   userText: string;
   decayMs: number;
@@ -9,19 +13,18 @@ export function buildPromptContext(args: {
   const { allItems, userText, decayMs } = args;
   const now = Date.now();
 
-  // 1) Apply decay (does NOT delete)
+  // 1) Apply temporal decay
   const decayed = allItems.filter((i) => {
     if (i.discarded_at) return false;
     if (i.pinned || i.is_locked) return true;
-
     const t = new Date(i.last_reinforced_at ?? i.updated_at).getTime();
     return now - t <= decayMs;
   });
 
-  // 2) Apply reveal policy gating (user-trigger-only)
+  // 2) Apply reveal policy gating
   const allowed = selectItemsForPrompt(decayed as any, userText);
 
-  // 3) Group for model prompt
+  // 3) Group by category
   const by = (cat: string) => allowed.filter((i) => i.category === cat);
   const context = {
     people: by("people").map((i) => i.text),

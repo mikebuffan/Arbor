@@ -1,18 +1,19 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireUser } from "@/lib/auth/requireUser";
-import { openai } from "@/lib/providers/openai";
+import { openAIChat } from "@/lib/providers/openai";
 import { getMemoryContext } from "@/lib/memory/retrieval";
 import { buildPromptContext } from "@/lib/prompt/buildPromptContext";
 import { extractMemoryFromText } from "@/lib/memory/extractor";
-import { upsertMemoryItems, reinforceMemoryUse } from "@/lib/memory/store";
+import { upsertMemoryItems, reinforceMemoryUse, updateMemoryStrength } from "@/lib/memory/store";
+import { postcheckResponse } from "@/lib/safety/postcheck";
+import { logMemoryEvent } from "@/lib/memory/logger";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 type Msg = { role: "user" | "assistant" | "system"; content: string };
 
-// Accept nulls from the client and treat them as "unset"
 const NullableUuid = z.preprocess(
   (v) => (v === null || v === "" ? undefined : v),
   z.string().uuid().optional()
@@ -117,14 +118,12 @@ async function cleanupExpiredMessagesBestEffort(supabase: any, userId: string) {
 export async function POST(req: Request) {
   try {
     const { supabase, userId } = await requireUser(req);
-
     const parsed = Body.safeParse(await req.json().catch(() => ({})));
     if (!parsed.success) {
       return NextResponse.json({ ok: false, error: parsed.error.flatten() }, { status: 400 });
     }
 
     const { projectId: maybeProjectId, conversationId, userText } = parsed.data;
-
     await cleanupExpiredMessagesBestEffort(supabase, userId);
 
     // 1) Resolve project (persona/framework lives here)
@@ -141,94 +140,73 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "Project not found" }, { status: 404 });
     }
 
-    // 3) Resolve conversation (persist this ID client-side to keep the thread)
-    const convoId = await getOrCreateConversation({
-      supabase,
-      userId,
-      projectId,
-      conversationId,
+    // 3) Resolve conversation
+    const convoId = await getOrCreateConversation({ supabase, userId, projectId, conversationId });
+
+    // 4) Persist user message
+    await supabase.from("messages").insert({
+      project_id: projectId,
+      conversation_id: convoId,
+      user_id: userId,
+      role: "user",
+      content: userText,
     });
 
-    // 4) Persist user msg
-    {
-      const { error } = await supabase.from("messages").insert({
-        project_id: projectId,
-        conversation_id: convoId,
-        user_id: userId,
-        role: "user",
-        content: userText,
-      });
-      if (error) throw error;
-    }
-
-    const history = await loadRecentMessages(supabase, userId, convoId, 30);
-
-    // 5) Memory context BEFORE model call
-    const mem = await getMemoryContext({
+    // 5) Build system prompt using new contextual builder
+    const systemPrompt = await buildPromptContext({
       authedUserId: userId,
       projectId,
+      conversationId: convoId,
       latestUserText: userText,
     });
 
-    const allItems = [...mem.core, ...mem.normal, ...mem.sensitive] as any[];
-    const decayMs = 1000 * 60 * 60 * 24 * 30;
-
-    const memoryBlock = buildPromptContext({
-      allItems,
-      userText,
-      decayMs,
-    });
-
-    const systemPrompt = `
-You are Arbor: friend-like, grounded, competent, and honest.
-- No patronizing softness by default.
-- Warmth + directness. Real guidance.
-- Never mention sensitive memories unless the user explicitly references them first.
-- This is the Firefly/Arbor app.
-
-Project persona_id: ${project.persona_id}
-Framework version: ${project.framework_version}
-
-${memoryBlock}
-`.trim();
-
+    const history = await loadRecentMessages(supabase, userId, convoId, 30);
     const messagesForModel: Msg[] = [{ role: "system", content: systemPrompt }, ...history];
 
-    const model = process.env.OPENAI_CHAT_MODEL ?? "gpt-5";
-    const completion = await openai.chat.completions.create({
-      model,
+    // 6) Generate assistant reply
+    const aiResponse = await openAIChat({
+      model: process.env.OPENAI_CHAT_MODEL ?? "gpt-5",
       messages: messagesForModel,
     });
+    const assistantText = (aiResponse as any)?.choices?.[0]?.message?.content ?? "";
 
-    const assistantText = completion.choices[0]?.message?.content ?? "";
-
-    // 6) Persist assistant msg
-    {
-      const { error } = await supabase.from("messages").insert({
-        project_id: projectId,
-        conversation_id: convoId,
-        user_id: userId,
-        role: "assistant",
-        content: assistantText,
-      });
-      if (error) throw error;
+    // 7) Safety & postcheck
+    const postcheck = await postcheckResponse({
+      authedUserId: userId,
+      projectId,
+      assistantText,
+    });
+    if (!postcheck.approved) {
+      return NextResponse.json(
+        { ok: true, assistantText: postcheck.replacement, flagged: true },
+        { status: 200 }
+      );
     }
 
-    // 7) Extract + store memory AFTER assistant is known
+    // 8) Persist assistant message
+    await supabase.from("messages").insert({
+      project_id: projectId,
+      conversation_id: convoId,
+      user_id: userId,
+      role: "assistant",
+      content: assistantText,
+    });
+
+    // 9) Memory extraction & reinforcement
     const extracted = await extractMemoryFromText({ userText, assistantText });
-
-    console.log("extracted items count:", extracted.length);
-    console.log("extracted items:", extracted);
-
     await upsertMemoryItems(userId, extracted, projectId);
-    await reinforceMemoryUse(userId, mem.keysUsed, projectId);
+    await reinforceMemoryUse(userId, [], projectId);
+    await updateMemoryStrength("conversation", 0.2);
 
-    // 8) Touch conversation updated_at
+    // 10) Update conversation timestamp
     await supabase
       .from("conversations")
       .update({ updated_at: new Date().toISOString() })
       .eq("id", convoId)
       .eq("user_id", userId);
+
+    // 11) Log event
+    await logMemoryEvent("chat_completed", { userId, projectId });
 
     return NextResponse.json({
       ok: true,

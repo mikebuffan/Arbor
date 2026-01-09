@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { openai } from "@/lib/providers/openai";
-import { SENSITIVE_CATEGORIES } from "./rules";
-import type { MemoryItem } from "./types";
+import { SENSITIVE_CATEGORIES } from "@/lib/memory/rules";
+import type { MemoryItem } from "@/lib/memory/types";
+import { logMemoryEvent } from "@/lib/memory/logger";
 
 // Accept string/number/bool/object/null, then normalize to a record
 const ValueSchema = z.union([
@@ -36,6 +37,10 @@ export async function extractMemoryFromText(params: {
   assistantText?: string;
 }): Promise<MemoryItem[]> {
   const { userText, assistantText } = params;
+
+  if (/i\s+meant|correction|let\s+me\s+clarify/i.test(userText)) {
+    await logMemoryEvent("correction_detected", { text: userText });
+  }
 
   const system = `
 You extract stable, user-affirmed memory for a "friend-like" AI.
