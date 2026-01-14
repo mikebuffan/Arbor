@@ -16,6 +16,7 @@
 
 # next.js
 /.next/
+**/.next/
 /out/
 .vercel/
 
@@ -51,3 +52,5 @@ next-env.d.ts
 .DS_Store
 Thumbs.db
 .vscode/
+.gitignore
+.gitignore
