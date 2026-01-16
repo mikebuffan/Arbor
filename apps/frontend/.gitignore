@@ -1,0 +1,15 @@
+# env
+.env
+.env.*
+
+# Flutter
+.dart_tool/
+.packages
+.pub/
+build/
+
+# React Native / Node
+node_modules/
+
+# Next build outputs (if any tools generate them)
+.next/
