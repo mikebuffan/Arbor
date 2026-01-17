@@ -124,6 +124,13 @@ export async function POST(req: Request) {
     }
 
     const { projectId: maybeProjectId, conversationId, userText } = parsed.data;
+
+      console.log("CHAT BODY RAW:", parsed.data);
+      console.log("CHAT TYPES:", {
+        projectId: typeof maybeProjectId,
+        conversationId: typeof conversationId,
+      });
+
     await cleanupExpiredMessagesBestEffort(supabase, userId);
 
     // 1) Resolve project (persona/framework lives here)
@@ -196,7 +203,8 @@ export async function POST(req: Request) {
     const extracted = await extractMemoryFromText({ userText, assistantText });
     await upsertMemoryItems(userId, extracted, projectId);
     await reinforceMemoryUse(userId, [], projectId);
-    await updateMemoryStrength("conversation", 0.2);
+    await updateMemoryStrength(convoId, 0.2);
+
 
     // 10) Update conversation timestamp
     await supabase
@@ -215,7 +223,7 @@ export async function POST(req: Request) {
       assistantText,
     });
   } catch (err: any) {
-    console.error("chat route error:", err);
+    console.error("chat route error:", err, err?.code, err?.message, err?.details);
     return NextResponse.json({ ok: false, error: err?.message ?? "server_error" }, { status: 500 });
   }
 }
