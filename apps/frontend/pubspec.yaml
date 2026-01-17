@@ -1,4 +1,4 @@
-name: arbor
+name: frontend
 description: Arbor mobile app (Flutter) - frontend.
 publish_to: "none"
 version: 0.0.1+1
@@ -10,6 +10,7 @@ dependencies:
   flutter:
     sdk: flutter
   http: ^1.2.2
+  supabase_flutter: ^2.8.0
   shared_preferences: ^2.2.3
 
 dev_dependencies:

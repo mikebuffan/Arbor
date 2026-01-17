@@ -25,6 +25,25 @@ const Body = z.object({
   userText: z.string().min(1),
 });
 
+function getCorsHeaders(req: Request) {
+  const origin = req.headers.get("origin") ?? "*";
+
+  return {
+    // If you want to lock later: set to your real origins and keep Vary: Origin
+    "access-control-allow-origin": origin,
+    "vary": "origin",
+
+    "access-control-allow-methods": "POST, OPTIONS",
+    // IMPORTANT: allow common extra headers browsers/libraries often send
+    "access-control-allow-headers": "content-type, authorization, apikey, x-client-info",
+    "access-control-max-age": "86400",
+  };
+}
+
+export async function OPTIONS(req: Request) {
+  return new Response(null, { status: 204, headers: getCorsHeaders(req) });
+}
+
 async function getOrCreateDefaultProjectId(supabase: any, userId: string): Promise<string> {
   const { data: existing, error: e1 } = await supabase
     .from("projects")
@@ -120,7 +139,7 @@ export async function POST(req: Request) {
     const { supabase, userId } = await requireUser(req);
     const parsed = Body.safeParse(await req.json().catch(() => ({})));
     if (!parsed.success) {
-      return NextResponse.json({ ok: false, error: parsed.error.flatten() }, { status: 400 });
+      return NextResponse.json({ ok: false, error: parsed.error.flatten() }, { status: 400, headers: getCorsHeaders(req), });
     }
 
     const { projectId: maybeProjectId, conversationId, userText } = parsed.data;
@@ -144,7 +163,7 @@ export async function POST(req: Request) {
       .eq("user_id", userId)
       .single();
     if (pErr) {
-      return NextResponse.json({ ok: false, error: "Project not found" }, { status: 404 });
+      return NextResponse.json({ ok: false, error: "Project not found" }, { status: 404, headers: getCorsHeaders(req), });
     }
 
     // 3) Resolve conversation
@@ -186,7 +205,7 @@ export async function POST(req: Request) {
     if (!postcheck.approved) {
       return NextResponse.json(
         { ok: true, assistantText: postcheck.replacement, flagged: true },
-        { status: 200 }
+        { status: 200, headers: getCorsHeaders(req), }
       );
     }
 
@@ -216,14 +235,18 @@ export async function POST(req: Request) {
     // 11) Log event
     await logMemoryEvent("chat_completed", { userId, projectId });
 
-    return NextResponse.json({
-      ok: true,
-      projectId,
-      conversationId: convoId,
-      assistantText,
-    });
+    return NextResponse.json(
+      {
+        ok: true,
+        projectId,
+        conversationId: convoId,
+        assistantText,
+      },
+      { status: 200, headers: getCorsHeaders(req), }
+    );
+
   } catch (err: any) {
     console.error("chat route error:", err, err?.code, err?.message, err?.details);
-    return NextResponse.json({ ok: false, error: err?.message ?? "server_error" }, { status: 500 });
+    return NextResponse.json({ ok: false, error: err?.message ?? "server_error" }, { status: 500, headers: getCorsHeaders(req), });
   }
 }

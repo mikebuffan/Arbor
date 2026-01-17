@@ -1,0 +1,7 @@
+name: arbor
+description: Arbor mobile app (Flutter) - root.
+publish_to: "none"
+version: 0.0.1+1
+
+environment:
+  sdk: '^3.10.0'
