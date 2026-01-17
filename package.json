@@ -1,1 +1,10 @@
-// root placeholder
+{
+  "name": "arbor-monorepo",
+  "private": true,
+  "packageManager": "pnpm@9.15.4",
+  "scripts": {
+    "dev:backend": "pnpm --filter firefly-backend dev",
+    "build:backend": "pnpm --filter firefly-backend build",
+    "start:backend": "pnpm --filter firefly-backend start"
+  }
+}
