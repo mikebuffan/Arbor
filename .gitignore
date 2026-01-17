@@ -38,3 +38,9 @@ out/
 Thumbs.db
 .vscode/
 *.tsbuildinfo
+apps/frontend/android/build.gradle.kts
+apps/frontend/android/gradle.properties
+apps/frontend/android/app/build.gradle.kts
+apps/frontend/android/settings.gradle.kts
+apps/frontend/android/gradle/wrapper/gradle-wrapper.properties
+apps/frontend/.metadata

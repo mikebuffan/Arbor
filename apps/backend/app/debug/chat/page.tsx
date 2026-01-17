@@ -10,7 +10,7 @@ const supabase = createClient(
 export default function DebugChatPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [msg, setMsg] = useState("Whazzup?");
+  const [msg, setMsg] = useState("I am feeling a little weird today.");
   const [reply, setReply] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -19,10 +19,14 @@ export default function DebugChatPage() {
   const [conversationId, setConversationId] = useState<string | null>(null);
 
   async function signIn() {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw error;
-    setReply("Signed in.");
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      setReply(`Sign-in failed: ${error.message}`);
+      return;
+    }
+    setReply(`Signed in as ${data.user?.email ?? "unknown"}`);
   }
+
 
   function newThread() {
     // Keep projectId so Arbor/framework persists, but reset conversation to start a new thread
@@ -40,9 +44,12 @@ export default function DebugChatPage() {
       if (!token) throw new Error("Not logged in");
 
       // IMPORTANT: omit nulls by sending undefined instead
+      const UUID_RE =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
       const body: any = { userText: msg };
-      if (projectId) body.projectId = projectId;
-      if (conversationId) body.conversationId = conversationId;
+      if (projectId && UUID_RE.test(projectId)) body.projectId = projectId;
+      if (conversationId && UUID_RE.test(conversationId)) body.conversationId = conversationId;
 
       const res = await fetch("/api/chat", {
         method: "POST",

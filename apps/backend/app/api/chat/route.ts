@@ -125,11 +125,11 @@ export async function POST(req: Request) {
 
     const { projectId: maybeProjectId, conversationId, userText } = parsed.data;
 
-      console.log("CHAT BODY RAW:", parsed.data);
-      console.log("CHAT TYPES:", {
-        projectId: typeof maybeProjectId,
-        conversationId: typeof conversationId,
-      });
+      //console.log("CHAT BODY RAW:", parsed.data);
+      //console.log("CHAT TYPES:", {
+      //  projectId: typeof maybeProjectId,
+      //  conversationId: typeof conversationId,
+      //});
 
     await cleanupExpiredMessagesBestEffort(supabase, userId);
 

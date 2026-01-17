@@ -1,15 +1,25 @@
-# env
-.env
-.env.*
-
-# Flutter
+# Flutter / Dart
 .dart_tool/
 .packages
 .pub/
 build/
+.flutter-plugins
+.flutter-plugins-dependencies
 
 # React Native / Node
 node_modules/
 
 # Next build outputs (if any tools generate them)
 .next/
+
+# IDE
+.idea/
+*.iml
+
+# Android
+**/android/local.properties
+**/android/.gradle/
+
+# env
+.env
+.env.*
