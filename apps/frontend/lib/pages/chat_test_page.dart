@@ -2,6 +2,125 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:frontend/api/arbor_api.dart'; // exports chatApi (ChatApi instance)
 
+class ArborHeader extends StatelessWidget {
+  final bool isAuthed;
+  final String? userId;
+  final VoidCallback? onNewThread;
+
+  const ArborHeader({
+    super.key,
+    required this.isAuthed,
+    this.userId,
+    this.onNewThread,   
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Title + Subtitle
+        Text(
+          'ARBOR',
+          style: t.headlineMedium?.copyWith(
+            fontWeight: FontWeight.w500,
+            letterSpacing: 2.0,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'a reflective companion',
+          style: t.bodySmall?.copyWith(
+            color: Colors.white70,
+            letterSpacing: 0.3,
+          ),
+        ),
+
+        const SizedBox(height: 14),
+
+        // Auth + Controls row
+        Row(
+          children: [
+            _AuthPill(isAuthed: isAuthed),
+            const SizedBox(width: 12),
+
+            // Optional: keep this if you want New Thread visible only when authed
+            if (onNewThread != null) ...[
+              const Spacer(),
+              TextButton(
+                onPressed: isAuthed ? onNewThread : null,
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.white70,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    side: BorderSide(color: Colors.white.withOpacity(0.10)),
+                  ),
+                  backgroundColor: Colors.white.withOpacity(0.04),
+                ),
+                child: const Text('New thread'),
+              ),
+            ],
+          ],
+        ),
+
+        // Optional: hide userId in “pretty mode” (recommended). Keep off by default.
+        // If you want it while debugging, uncomment:
+        /*
+        if (isAuthed && (userId?.isNotEmpty ?? false)) ...[
+          const SizedBox(height: 8),
+          Text(
+            'userId: $userId',
+            style: t.bodySmall?.copyWith(color: Colors.white54),
+          ),
+        ],
+        */
+
+        const SizedBox(height: 18),
+        Divider(color: Colors.white.withOpacity(0.08), height: 1),
+        const SizedBox(height: 18),
+      ],
+    );
+  }
+}
+
+class _AuthPill extends StatelessWidget {
+  final bool isAuthed;
+
+  const _AuthPill({required this.isAuthed});
+
+  @override
+  Widget build(BuildContext context) {
+    final label = isAuthed ? 'Signed in' : 'Not signed in';
+    final icon = isAuthed ? Icons.verified_rounded : Icons.lock_outline_rounded;
+    final iconColor = isAuthed ? Colors.greenAccent : Colors.orangeAccent;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.04),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.white.withOpacity(0.10)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: iconColor),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Colors.white70,
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class ChatTestPage extends StatefulWidget {
   const ChatTestPage({super.key});
 
@@ -9,10 +128,18 @@ class ChatTestPage extends StatefulWidget {
   State<ChatTestPage> createState() => _ChatTestPageState();
 }
 
+class _ChatMessage {
+  final bool isUser;
+  final String text;
+
+  _ChatMessage({required this.isUser, required this.text});
+}
+
 class _ChatTestPageState extends State<ChatTestPage> {
+  final List<_ChatMessage> _messages = [];
   final _emailCtrl = TextEditingController();
-  final _passCtrl = TextEditingController();
-  final _msgCtrl = TextEditingController(text: 'Good morning. I am feeling a little weird today.');
+  final _passCtrl = TextEditingController();    
+  final _msgCtrl = TextEditingController(text: '');
 
   bool _loading = false;
   String _output = '';
@@ -109,11 +236,11 @@ class _ChatTestPageState extends State<ChatTestPage> {
         _conversationId = res.conversationId;
       });
 
-      _setOut(
-        'assistantText:\n${res.assistantText}\n\n'
-        'projectId: ${res.projectId}\n'
-        'conversationId: ${res.conversationId}',
-      );
+      setState(() {
+        _messages.add(_ChatMessage(isUser: true, text: text));
+        _messages.add(_ChatMessage(isUser: false, text: res.assistantText));
+      });
+
     } catch (e) {
       _setOut(e.toString());
     } finally {
@@ -134,128 +261,158 @@ class _ChatTestPageState extends State<ChatTestPage> {
     final authed = _isAuthed;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Arbor Chat Test'),
-        actions: [
-          if (authed)
-            TextButton(
-              onPressed: _loading ? null : _signOut,
-              child: const Text('Sign out'),
-            ),
-        ],
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            // Auth row
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.white24),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Auth: ${authed ? "SIGNED IN" : "SIGNED OUT"}'),
-                  const SizedBox(height: 6),
-                  Text('userId: ${_userId ?? "(none)"}'),
-                  const SizedBox(height: 12),
-                  if (!authed) ...[
-                    TextField(
-                      controller: _emailCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'Email',
-                        border: OutlineInputBorder(),
-                      ),
+      backgroundColor: const Color(0xFF0E0316), // deep charcoal/purple-black
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 980),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.04), // glass
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.white.withOpacity(0.08)),
+                ),
+                child: Column(
+                  children: [
+                    // Header + auth pill
+                    ArborHeader(
+                      isAuthed: authed,
+                      userId: _userId,
+                      onNewThread: authed ? _newThread : null,
                     ),
-                    const SizedBox(height: 10),
-                    TextField(
-                      controller: _passCtrl,
-                      obscureText: true,
-                      decoration: const InputDecoration(
-                        labelText: 'Password',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        ElevatedButton(
-                          onPressed: _loading ? null : _signIn,
-                          child: Text(_loading ? 'Signing in…' : 'Sign in'),
+
+                    // Login / debug line (your Step 1 block)
+                    if (!authed) ...[
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.03),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: Colors.white.withOpacity(0.08)),
                         ),
-                      ],
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            TextField(
+                              controller: _emailCtrl,
+                              decoration: InputDecoration(
+                                labelText: 'Email',
+                                border: const OutlineInputBorder(),
+                                filled: true,
+                                fillColor: Colors.white.withOpacity(0.03),
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            TextField(
+                              controller: _passCtrl,
+                              obscureText: true,
+                              decoration: InputDecoration(
+                                labelText: 'Password',
+                                border: const OutlineInputBorder(), 
+                                filled: true,
+                                fillColor: Colors.white.withOpacity(0.03),
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            Row(
+                              children: [
+                                ElevatedButton(
+                                  onPressed: _loading ? null : _signIn,
+                                  child: Text(_loading ? 'Signing in…' : 'Sign in'),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ] else ...[
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'projectId: ${_projectId ?? "(null)"}   conversationId: ${_conversationId ?? "(null)"}',
+                              style: const TextStyle(fontSize: 12, color: Colors.white70),
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: _loading ? null : _signOut,
+                            child: const Text('Sign out'),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+
+                    // Message box
+                    TextField(
+                      controller: _msgCtrl,
+                      minLines: 2,
+                      maxLines: 6,
+                      decoration: InputDecoration(
+                        labelText: 'What’s on your mind?',
+                        border: const OutlineInputBorder(),
+                        filled: true,
+                        fillColor: Colors.white.withOpacity(0.03),
+                      ),
                     ),
-                  ] else ...[
+
+                    const SizedBox(height: 12),
+
+                    // Send
                     Row(
                       children: [
                         ElevatedButton(
-                          onPressed: _loading ? null : _newThread,
-                          child: const Text('New thread'),
+                          onPressed: (_loading || !authed) ? null : _send,
+                          child: Text(_loading ? 'Arbor is thinking…' : 'Send'),
                         ),
                         const SizedBox(width: 12),
-                        Text(
-                          'projectId: ${_projectId ?? "(null)"}\nconversationId: ${_conversationId ?? "(null)"}',
-                          style: const TextStyle(fontSize: 12, color: Colors.white70),
-                        ),
+                        if (!authed)
+                          const Text('Sign in to send', style: TextStyle(color: Colors.white70)),
                       ],
                     ),
+
+                    const SizedBox(height: 16),
+
+                    // Output
+                    Expanded(
+                      child: ListView.separated(
+                        padding: const EdgeInsets.only(top: 8),
+                        itemCount: _messages.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 10),
+                        itemBuilder: (context, i) {
+                          final m = _messages[i];
+                          return Align(
+                            alignment: m.isUser ? Alignment.centerRight : Alignment.centerLeft,
+                            child: Container(
+                              constraints: const BoxConstraints(maxWidth: 560),
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                              decoration: BoxDecoration(
+                                color: m.isUser
+                                    ? const Color(0xFFF3387A).withOpacity(0.18) // fuchsia glass
+                                    : Colors.white.withOpacity(0.05),           // neutral glass
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: Colors.white.withOpacity(0.08),
+                                ),
+                              ),
+                              child: Text(
+                                m.text,
+                                style: const TextStyle(color: Colors.white70, height: 1.4),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
                   ],
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // Message box
-            TextField(
-              controller: _msgCtrl,
-              minLines: 2,
-              maxLines: 6,
-              decoration: const InputDecoration(
-                labelText: 'Message',
-                border: OutlineInputBorder(),
-              ),
-            ),
-
-            const SizedBox(height: 12),
-
-            // Send
-            Row(
-              children: [
-                ElevatedButton(
-                  onPressed: (_loading || !authed) ? null : _send,
-                  child: Text(_loading ? 'Sending…' : 'Send'),
-                ),
-                const SizedBox(width: 12),
-                if (!authed)
-                  const Text('Sign in to send', style: TextStyle(color: Colors.white70)),
-              ],
-            ),
-
-            const SizedBox(height: 16),
-
-            // Output
-            Expanded(
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.black54,
-                  border: Border.all(color: Colors.white24),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: SingleChildScrollView(
-                  child: SelectableText(
-                    _output.isEmpty ? '(no output yet)' : _output,
-                    style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
-                  ),
                 ),
               ),
             ),
-          ],
+          ),
         ),
       ),
     );

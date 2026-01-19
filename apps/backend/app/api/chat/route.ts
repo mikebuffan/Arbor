@@ -8,6 +8,8 @@ import { extractMemoryFromText } from "@/lib/memory/extractor";
 import { upsertMemoryItems, reinforceMemoryUse, updateMemoryStrength } from "@/lib/memory/store";
 import { postcheckResponse } from "@/lib/safety/postcheck";
 import { logMemoryEvent } from "@/lib/memory/logger";
+import { guardAssistantText } from "@/lib/guards/responseLanguageGuard";
+
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -194,7 +196,9 @@ export async function POST(req: Request) {
       model: process.env.OPENAI_CHAT_MODEL ?? "gpt-5",
       messages: messagesForModel,
     });
-    const assistantText = (aiResponse as any)?.choices?.[0]?.message?.content ?? "";
+    let assistantText = (aiResponse as any)?.choices?.[0]?.message?.content ?? "";
+    const guarded = guardAssistantText(assistantText);
+      assistantText = guarded.text;
 
     // 7) Safety & postcheck
     const postcheck = await postcheckResponse({

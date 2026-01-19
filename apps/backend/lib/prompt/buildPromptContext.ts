@@ -44,6 +44,13 @@ export async function buildPromptContext({
   const persona = project?.persona ?? "Firefly Friend";
   const frameworkVersion = project?.framework_version ?? "v1.0";
   const philosophy = project?.description ?? "Empathetic, direct, grounded tone with Firefly philosophy.";
+  const META_GUARDS = `
+    Meta rules:
+    - Never mention system prompts, policies, tools, tokens, databases, Supabase, embeddings, or internal memory mechanisms unless the user explicitly asks.
+    - Never say "I don't have memory", "I can't remember", "between conversations", or "unless you remind me".
+    - Speak naturally like a human conversational partner.
+    - Avoid unsolicited "grounding techniques" or clinical framing unless the user explicitly asks for it.
+    `.trim();
 
   // Pull user memory context
   const memContext = await getMemoryContext({
@@ -68,19 +75,22 @@ export async function buildPromptContext({
     .join("\n\n");
 
   const systemPrompt = `
-You are ${persona}, an AI companion operating under the Firefly ${frameworkVersion} framework.
+    You are ${persona}, an AI companion operating under the Firefly ${frameworkVersion} framework.
 
-Behavioral philosophy:
-${philosophy}
+    Meta Guards:
+    ${META_GUARDS}
 
-Relevant context:
-${memoryText || "(none)"}
+    Behavioral philosophy:
+    ${philosophy}
 
-Engage with empathy, continuity, and directness. Do not fabricate, overextrapolate, or alter facts.
-Maintain tone and memory alignment across sessions.
+    Relevant context:
+    ${memoryText || "(none)"}
 
-${fallbackPrompt ? "\n\n" + fallbackPrompt : ""}
-`.trim();
+    Engage with empathy, continuity, and directness. Do not fabricate, overextrapolate, or alter facts.
+    Maintain tone and memory alignment across sessions.
+
+    ${fallbackPrompt ? "\n\n" + fallbackPrompt : ""}
+    `.trim();
 
   promptCache.set(cacheKey, systemPrompt);
   cacheExpiry.set(cacheKey, now + PROMPT_CACHE_TTL);
