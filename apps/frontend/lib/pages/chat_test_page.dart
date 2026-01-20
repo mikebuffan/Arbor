@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter/services.dart';
 import 'package:frontend/api/arbor_api.dart'; // exports chatApi (ChatApi instance)
+import 'dart:async';
 
 class ArborHeader extends StatelessWidget {
   final bool isAuthed;
@@ -140,9 +142,15 @@ class _ChatTestPageState extends State<ChatTestPage> {
   final _emailCtrl = TextEditingController();
   final _passCtrl = TextEditingController();    
   final _msgCtrl = TextEditingController(text: '');
+  final _msgFocus = FocusNode();
+
+  final _scrollCtrl = ScrollController();
+  bool _isTyping = false;
 
   bool _loading = false;
   String _output = '';
+
+  StreamSubscription<AuthState>? _authSub;
 
   // Persist thread ids
   String? _projectId;
@@ -187,6 +195,18 @@ class _ChatTestPageState extends State<ChatTestPage> {
     }
   }
 
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollCtrl.hasClients) return;
+      _scrollCtrl.animateTo(
+        _scrollCtrl.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOut,
+      );
+    });
+  }
+
+
   Future<void> _signOut() async {
     setState(() {
       _loading = true;
@@ -210,49 +230,112 @@ class _ChatTestPageState extends State<ChatTestPage> {
   void _newThread() {
     setState(() {
       _conversationId = null;
-      _output = 'New thread started (next send will create a new conversation).';
+      _messages.clear();
     });
   }
 
+
   Future<void> _send() async {
+    if (_loading) return;
+
     setState(() {
       _loading = true;
-      _output = '';
+      _isTyping = false;
     });
 
     try {
       if (!_isAuthed) throw Exception('Not logged in');
+
       final text = _msgCtrl.text.trim();
       if (text.isEmpty) throw Exception('Message is empty');
 
+      // 1) Show the user's message immediately
+      setState(() {
+        _messages.add(_ChatMessage(isUser: true, text: text));
+        _isTyping = true;
+      });
+
+      // Clear input for “snappy” feel
+      _msgCtrl.clear();
+      _msgFocus.requestFocus();
+      _scrollToBottom();
+
+      // 2) Call backend
       final res = await chatApi.sendMessage(
         projectId: _projectId,
         conversationId: _conversationId,
         userText: text,
       );
 
+      // 3) Persist ids + show assistant
       setState(() {
         _projectId = res.projectId;
         _conversationId = res.conversationId;
-      });
-
-      setState(() {
-        _messages.add(_ChatMessage(isUser: true, text: text));
+        _isTyping = false;
         _messages.add(_ChatMessage(isUser: false, text: res.assistantText));
       });
 
+      _scrollToBottom();
     } catch (e) {
-      _setOut(e.toString());
+      // Show the error as an assistant bubble (feels nicer than a debug box)
+      setState(() {
+        _isTyping = false;
+        _messages.add(_ChatMessage(isUser: false, text: '⚠️ ${e.toString()}'));
+      });
+      _scrollToBottom();
     } finally {
       setState(() => _loading = false);
     }
   }
 
+  // Put this near your fields (keep it where it is if you want)
+  VoidCallback? _msgListener;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // 1) Auth listener
+    _authSub = _supabase.auth.onAuthStateChange.listen((data) {
+      final session = data.session;
+      if (!mounted) return;
+
+      if (session == null) {
+        setState(() {
+          _projectId = null;
+          _conversationId = null;
+          _messages.clear();
+          _isTyping = false;
+        });
+      } else {
+        // optional: just rebuild to refresh "authed" UI
+        setState(() {});
+      }
+    });
+
+    // 2) Text change listener (enables/disables Send as you type)
+    _msgListener = () {
+      if (!mounted) return;
+      setState(() {});
+    };
+    _msgCtrl.addListener(_msgListener!);
+  }
+
   @override
   void dispose() {
+    // Remove listeners BEFORE disposing controllers
+    if (_msgListener != null) {
+      _msgCtrl.removeListener(_msgListener!);
+    }
+
+    _authSub?.cancel();
+
     _emailCtrl.dispose();
     _passCtrl.dispose();
     _msgCtrl.dispose();
+    _scrollCtrl.dispose();
+    _msgFocus.dispose();
+
     super.dispose();
   }
 
@@ -334,7 +417,7 @@ class _ChatTestPageState extends State<ChatTestPage> {
                         children: [
                           Expanded(
                             child: Text(
-                              'projectId: ${_projectId ?? "(null)"}   conversationId: ${_conversationId ?? "(null)"}',
+                              'Ready.',
                               style: const TextStyle(fontSize: 12, color: Colors.white70),
                             ),
                           ),
@@ -348,15 +431,60 @@ class _ChatTestPageState extends State<ChatTestPage> {
                     ],
 
                     // Message box
-                    TextField(
-                      controller: _msgCtrl,
-                      minLines: 2,
-                      maxLines: 6,
-                      decoration: InputDecoration(
-                        labelText: 'What’s on your mind?',
-                        border: const OutlineInputBorder(),
-                        filled: true,
-                        fillColor: Colors.white.withOpacity(0.03),
+                    Shortcuts(
+                      shortcuts: <ShortcutActivator, Intent>{
+                        // Enter sends
+                        const SingleActivator(LogicalKeyboardKey.enter): const _SendIntent(),
+                        // Shift+Enter inserts newline
+                        const SingleActivator(LogicalKeyboardKey.enter, shift: true): const _NewlineIntent(),
+                        // Optional: Ctrl+Enter sends (Windows habit)
+                        const SingleActivator(LogicalKeyboardKey.enter, control: true): const _SendIntent(),
+                      },
+                      child: Actions(
+                        actions: <Type, Action<Intent>>{
+                          _SendIntent: CallbackAction<_SendIntent>(
+                            onInvoke: (intent) {
+                              if (_loading || !_isAuthed) return null;
+                              // Only send if there's real text
+                              if (_msgCtrl.text.trim().isEmpty) return null;
+                              _send();
+                              return null;
+                            },
+                          ),
+                          _NewlineIntent: CallbackAction<_NewlineIntent>(
+                            onInvoke: (intent) {
+                              final t = _msgCtrl.text;
+                              final sel = _msgCtrl.selection;
+
+                              // Insert newline at caret (or replace selection)
+                              final start = sel.start >= 0 ? sel.start : t.length;
+                              final end = sel.end >= 0 ? sel.end : t.length;
+
+                              final newText = t.replaceRange(start, end, "\n");
+                              _msgCtrl.value = TextEditingValue(
+                                text: newText,
+                                selection: TextSelection.collapsed(offset: start + 1),
+                              );
+                              return null;
+                            },
+                          ),
+                        },
+                        child: Focus(
+                          autofocus: true,
+                          child: TextField(
+                            focusNode: _msgFocus,
+                            controller: _msgCtrl,
+                            minLines: 2,
+                            maxLines: 6,
+                            textInputAction: TextInputAction.newline,
+                            decoration: InputDecoration(
+                              labelText: 'What’s on your mind?',
+                              border: const OutlineInputBorder(),
+                              filled: true,
+                              fillColor: Colors.white.withOpacity(0.03),
+                            ),
+                          ),
+                        ),
                       ),
                     ),
 
@@ -366,7 +494,7 @@ class _ChatTestPageState extends State<ChatTestPage> {
                     Row(
                       children: [
                         ElevatedButton(
-                          onPressed: (_loading || !authed) ? null : _send,
+                          onPressed: (_loading || !authed || _msgCtrl.text.trim().isEmpty) ? null : _send,
                           child: Text(_loading ? 'Arbor is thinking…' : 'Send'),
                         ),
                         const SizedBox(width: 12),
@@ -380,11 +508,17 @@ class _ChatTestPageState extends State<ChatTestPage> {
                     // Output
                     Expanded(
                       child: ListView.separated(
+                        controller: _scrollCtrl,
                         padding: const EdgeInsets.only(top: 8),
-                        itemCount: _messages.length,
+                        itemCount: _messages.length + (_isTyping ? 1 : 0),
                         separatorBuilder: (_, __) => const SizedBox(height: 10),
                         itemBuilder: (context, i) {
-                          final m = _messages[i];
+                          final isTypingRow = _isTyping && i == _messages.length;
+
+                          final m = isTypingRow
+                              ? _ChatMessage(isUser: false, text: 'Arbor is thinking…')
+                              : _messages[i];
+
                           return Align(
                             alignment: m.isUser ? Alignment.centerRight : Alignment.centerLeft,
                             child: Container(
@@ -392,16 +526,18 @@ class _ChatTestPageState extends State<ChatTestPage> {
                               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                               decoration: BoxDecoration(
                                 color: m.isUser
-                                    ? const Color(0xFFF3387A).withOpacity(0.18) // fuchsia glass
-                                    : Colors.white.withOpacity(0.05),           // neutral glass
+                                    ? const Color(0xFFF3387A).withOpacity(0.18)
+                                    : Colors.white.withOpacity(0.05),
                                 borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: Colors.white.withOpacity(0.08),
-                                ),
+                                border: Border.all(color: Colors.white.withOpacity(0.08)),
                               ),
                               child: Text(
                                 m.text,
-                                style: const TextStyle(color: Colors.white70, height: 1.4),
+                                style: TextStyle(
+                                  color: Colors.white70,
+                                  height: 1.4,
+                                  fontStyle: isTypingRow ? FontStyle.italic : FontStyle.normal,
+                                ),
                               ),
                             ),
                           );
@@ -417,4 +553,12 @@ class _ChatTestPageState extends State<ChatTestPage> {
       ),
     );
   }
+}
+
+class _SendIntent extends Intent {
+  const _SendIntent();
+}
+
+class _NewlineIntent extends Intent {
+  const _NewlineIntent();
 }

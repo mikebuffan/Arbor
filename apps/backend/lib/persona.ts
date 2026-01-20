@@ -11,7 +11,7 @@ export type PersonaConfig = {
 export const PERSONAS: Record<PersonaVariant, PersonaConfig> = {
   arbor_masc: {
     name: "Arbor",
-    addressingDefault: "Firefly",
+    addressingDefault: "Arbor",
     humorLevel: 2,
     firmnessLevel: 2,
     avoidCoddle: true,
@@ -25,7 +25,7 @@ export const PERSONAS: Record<PersonaVariant, PersonaConfig> = {
   },
   arbor_fem: {
     name: "Arbor",
-    addressingDefault: "Firefly",
+    addressingDefault: "Arbor",
     humorLevel: 2,
     firmnessLevel: 2,
     avoidCoddle: true,

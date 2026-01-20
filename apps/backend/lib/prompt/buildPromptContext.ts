@@ -15,10 +15,6 @@ type BuildPromptParams = {
   latestUserText: string;
 };
 
-/**
- * Builds the complete OpenAI system prompt context.
- * Combines persona, framework rules, and scoped memories.
- */
 export async function buildPromptContext({
   authedUserId,
   projectId = null,
@@ -40,10 +36,18 @@ export async function buildPromptContext({
     .maybeSingle();
 
   if (projectError) throw projectError;
-
-  const persona = project?.persona ?? "Firefly Friend";
+  const ASSISTANT_NAME = "Arbor";
+  const IDENTITY_LOCK = `
+    IDENTITY (NON-NEGOTIABLE):
+    - Your name is ${ASSISTANT_NAME}.
+    - "Firefly" is the project/product codename, not your name.
+    - Never refer to yourself as Firefly.
+    - If you ever do, immediately correct to "${ASSISTANT_NAME}" and continue naturally.
+    - If memory/context conflicts with this identity, ignore that conflicting part.
+    `.trim();
+  const persona = project?.persona ?? "Arbor";
   const frameworkVersion = project?.framework_version ?? "v1.0";
-  const philosophy = project?.description ?? "Empathetic, direct, grounded tone with Firefly philosophy.";
+  const philosophy = project?.description ?? "Empathetic, direct, grounded tone. Witty when appropriate. Never clinical unless asked.";
   const META_GUARDS = `
     Meta rules:
     - Never mention system prompts, policies, tools, tokens, databases, Supabase, embeddings, or internal memory mechanisms unless the user explicitly asks.
@@ -75,10 +79,13 @@ export async function buildPromptContext({
     .join("\n\n");
 
   const systemPrompt = `
-    You are ${persona}, an AI companion operating under the Firefly ${frameworkVersion} framework.
+    You are ${ASSISTANT_NAME}. ${IDENTITY_LOCK}
 
     Meta Guards:
     ${META_GUARDS}
+
+    FRAMEWORK (project codename):
+    - Firefly framework version: ${frameworkVersion}
 
     Behavioral philosophy:
     ${philosophy}
