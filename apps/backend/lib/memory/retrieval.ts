@@ -44,7 +44,7 @@ export async function getMemoryContext(params: {
 
   if (useVectorSearch && latestUserText?.length > 10) {
     const embedding = await openAIEmbed(latestUserText);
-   const { data, error }: { data: any[] | null; error: any } = await safeQuery(async (c) => {
+    const { data, error }: { data: any[] | null; error: any } = await safeQuery(async (c) => {
     const { data, error } = await c.rpc("match_memories", {
       query_embedding: embedding,
       match_threshold: 0.75,
@@ -55,7 +55,7 @@ export async function getMemoryContext(params: {
   }, "matchMemories");
 
     if (error) throw error;
-    items = data ?? [];
+    items = (data ?? []).filter((r: any) => r?.scope !== "anchor" && r?.kind !== "anchor" && r?.kind !== "correction");
   } else {
     const q = admin
       .from("memory_items")
@@ -64,6 +64,9 @@ export async function getMemoryContext(params: {
       )
       .eq("user_id", authedUserId)
       .is("discarded_at", null)
+      .neq("scope", "anchor")
+      .neq("kind", "anchor")
+      .neq("kind", "correction")
       .order("pinned", { ascending: false })
       .order("strength", { ascending: false })
       .order("last_reinforced_at", { ascending: false })
@@ -71,7 +74,7 @@ export async function getMemoryContext(params: {
 
     const { data, error } = projectId ? await q.eq("project_id", projectId) : await q;
     if (error) throw error;
-    items = data ?? [];
+    items = (data ?? []).filter((r: any) => r?.scope !== "anchor");
   }
 
   const parsed = items.map((r: any) => ({

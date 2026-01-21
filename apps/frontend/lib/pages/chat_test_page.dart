@@ -143,6 +143,8 @@ class _ChatTestPageState extends State<ChatTestPage> {
   final _passCtrl = TextEditingController();    
   final _msgCtrl = TextEditingController(text: '');
   final _msgFocus = FocusNode();
+  final _emailFocus = FocusNode();
+  final _passFocus = FocusNode();
 
   final _scrollCtrl = ScrollController();
   bool _isTyping = false;
@@ -295,7 +297,13 @@ class _ChatTestPageState extends State<ChatTestPage> {
   void initState() {
     super.initState();
 
-    // 1) Auth listener
+    //Autofocus
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (!_isAuthed) _emailFocus.requestFocus();
+    });
+    
+    // Auth listener
     _authSub = _supabase.auth.onAuthStateChange.listen((data) {
       final session = data.session;
       if (!mounted) return;
@@ -313,7 +321,7 @@ class _ChatTestPageState extends State<ChatTestPage> {
       }
     });
 
-    // 2) Text change listener (enables/disables Send as you type)
+    // Text change listener (enables/disables Send as you type)
     _msgListener = () {
       if (!mounted) return;
       setState(() {});
@@ -332,6 +340,8 @@ class _ChatTestPageState extends State<ChatTestPage> {
 
     _emailCtrl.dispose();
     _passCtrl.dispose();
+    _emailFocus.dispose();
+    _passFocus.dispose();
     _msgCtrl.dispose();
     _scrollCtrl.dispose();
     _msgFocus.dispose();
@@ -380,7 +390,14 @@ class _ChatTestPageState extends State<ChatTestPage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             TextField(
+                              autofocus: true,
                               controller: _emailCtrl,
+                              focusNode: _emailFocus,
+                              keyboardType: TextInputType.emailAddress,
+                              textInputAction: TextInputAction.next,
+                              onSubmitted: (_) {
+                                _passFocus.requestFocus();
+                              },
                               decoration: InputDecoration(
                                 labelText: 'Email',
                                 border: const OutlineInputBorder(),
@@ -392,6 +409,12 @@ class _ChatTestPageState extends State<ChatTestPage> {
                             TextField(
                               controller: _passCtrl,
                               obscureText: true,
+                              focusNode: _passFocus,
+                              textInputAction: TextInputAction.done,
+                              onSubmitted: (_) {
+                                if (_loading) return;
+                                _signIn();
+                              },
                               decoration: InputDecoration(
                                 labelText: 'Password',
                                 border: const OutlineInputBorder(), 
@@ -470,8 +493,9 @@ class _ChatTestPageState extends State<ChatTestPage> {
                           ),
                         },
                         child: Focus(
-                          autofocus: true,
+                          autofocus: authed,
                           child: TextField(
+                            autofocus: true,
                             focusNode: _msgFocus,
                             controller: _msgCtrl,
                             minLines: 2,

@@ -3,10 +3,35 @@ import { getMemoryContext } from "@/lib/memory/retrieval";
 import { assembleMemoryBlock } from "@/lib/memory/assembleMemoryBlock";
 import { logMemoryEvent } from "@/lib/memory/logger";
 import type { MemoryItem } from "@/lib/memory/types";
+import { getProjectAnchors, anchorsToPromptBlock } from "@/lib/memory/anchors"; 
 
 const promptCache = new Map<string, string>();
 const PROMPT_CACHE_TTL = 1000 * 30; // 30 seconds
 const cacheExpiry = new Map<string, number>();
+
+export function invalidatePromptCache(params: {
+  authedUserId: string;
+  projectId?: string | null;
+  conversationId?: string | null;
+}) {
+  const { authedUserId, projectId = null, conversationId = null } = params;
+
+  // matches the cacheKey logic in buildPromptContext
+  const exactKey = `${authedUserId}:${projectId}:${conversationId}`;
+  promptCache.delete(exactKey);
+  cacheExpiry.delete(exactKey);
+
+  // also clear “any conversationId” variants for that project,
+  // since callers often omit conversationId or it changes.
+  const prefix = `${authedUserId}:${projectId}:`;
+  for (const k of Array.from(promptCache.keys())) {
+    if (k.startsWith(prefix)) {
+      promptCache.delete(k);
+      cacheExpiry.delete(k);
+    }
+  }
+}
+
 
 type BuildPromptParams = {
   authedUserId: string;
@@ -55,6 +80,10 @@ export async function buildPromptContext({
     - Speak naturally like a human conversational partner.
     - Avoid unsolicited "grounding techniques" or clinical framing unless the user explicitly asks for it.
     `.trim();
+  const anchors = projectId 
+    ? await getProjectAnchors({ authedUserId, projectId })
+    : [];
+  const anchorBlock = anchorsToPromptBlock(anchors);
 
   // Pull user memory context
   const memContext = await getMemoryContext({
@@ -83,6 +112,8 @@ export async function buildPromptContext({
 
     Meta Guards:
     ${META_GUARDS}
+
+    ${anchorBlock ? "\n" + anchorBlock + "\n" : ""} 
 
     FRAMEWORK (project codename):
     - Firefly framework version: ${frameworkVersion}
