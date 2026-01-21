@@ -50,6 +50,7 @@ export async function getMemoryContext(params: {
       match_threshold: 0.75,
       match_count: 30,
       p_project_id: projectId,
+      p_user_id: authedUserId,
     });
     return { data, error };
   }, "matchMemories");
