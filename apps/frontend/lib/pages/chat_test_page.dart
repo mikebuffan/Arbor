@@ -586,3 +586,4 @@ class _SendIntent extends Intent {
 class _NewlineIntent extends Intent {
   const _NewlineIntent();
 }
+

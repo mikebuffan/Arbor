@@ -136,3 +136,4 @@ export async function buildPromptContext({
   await logMemoryEvent("prompt_built", { authedUserId, projectId, tokenLength: systemPrompt.length });
   return systemPrompt;
 }
+
