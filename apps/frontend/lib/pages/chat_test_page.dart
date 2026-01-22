@@ -7,12 +7,16 @@ import 'dart:async';
 class ArborHeader extends StatelessWidget {
   final bool isAuthed;
   final String? userId;
+  final String? projectId;
+  final String? conversationId;
   final VoidCallback? onNewThread;
 
   const ArborHeader({
     super.key,
     required this.isAuthed,
     this.userId,
+    required this.projectId,
+    required this.conversationId,
     this.onNewThread,   
   });
 
@@ -70,15 +74,15 @@ class ArborHeader extends StatelessWidget {
 
         // Optional: hide userId in “pretty mode” (recommended). Keep off by default.
         // If you want it while debugging, uncomment:
-        /*
+        
         if (isAuthed && (userId?.isNotEmpty ?? false)) ...[
           const SizedBox(height: 8),
           Text(
-            'userId: $userId',
+            'userId: $userId, projectId: $projectId, conversationId: $conversationId', 
             style: t.bodySmall?.copyWith(color: Colors.white54),
           ),
         ],
-        */
+        
 
         const SizedBox(height: 18),
         Divider(color: Colors.white.withOpacity(0.08), height: 1),
@@ -208,7 +212,6 @@ class _ChatTestPageState extends State<ChatTestPage> {
     });
   }
 
-
   Future<void> _signOut() async {
     setState(() {
       _loading = true;
@@ -235,7 +238,6 @@ class _ChatTestPageState extends State<ChatTestPage> {
       _messages.clear();
     });
   }
-
 
   Future<void> _send() async {
     if (_loading) return;
