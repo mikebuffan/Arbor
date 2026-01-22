@@ -15,8 +15,8 @@ class ArborHeader extends StatelessWidget {
     super.key,
     required this.isAuthed,
     this.userId,
-    required this.projectId,
-    required this.conversationId,
+    this.projectId,
+    this.conversationId,
     this.onNewThread,   
   });
 
