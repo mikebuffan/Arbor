@@ -80,6 +80,13 @@ async function getOrCreateConversation(params: {
 }) {
   const { supabase, userId, projectId, conversationId } = params;
 
+  console.log("[CHAT IN]", {
+    projectId,
+    conversationId,
+    userId: userId,
+    hasAuth: Boolean(userId),
+  });
+
   if (conversationId) {
     const { data, error } = await supabase
       .from("conversations")

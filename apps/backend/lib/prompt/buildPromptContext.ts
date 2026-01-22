@@ -32,7 +32,6 @@ export function invalidatePromptCache(params: {
   }
 }
 
-
 type BuildPromptParams = {
   authedUserId: string;
   projectId?: string | null;
@@ -84,6 +83,13 @@ export async function buildPromptContext({
     ? await getProjectAnchors({ authedUserId, projectId })
     : [];
   const anchorBlock = anchorsToPromptBlock(anchors);
+    
+  console.log("[ANCHORS FETCHED]", {
+    projectId,
+    userId: authedUserId,
+    count: anchors?.length ?? 0,
+    keys: (anchors ?? []).map(a => a.mem_key),
+  });  
 
   // Pull user memory context
   const memContext = await getMemoryContext({
@@ -134,6 +140,7 @@ export async function buildPromptContext({
   cacheExpiry.set(cacheKey, now + PROMPT_CACHE_TTL);
 
   await logMemoryEvent("prompt_built", { authedUserId, projectId, tokenLength: systemPrompt.length });
+  console.log("[ANCHOR BLOCK]", anchorsToPromptBlock(anchors ?? []));
   return systemPrompt;
 }
 
