@@ -118,7 +118,8 @@ export async function buildPromptContext({
     .filter(([, arr]) => arr.length)
     .map(([cat, arr]) => `${cat.toUpperCase()}:\n${arr.map((x) => `- ${x}`).join("\n")}`)
     .join("\n\n");
-
+    
+  //${safety?.systemAddendum ? "\n" + safety.systemAddendum + "\n" : ""}
   const systemPrompt = `
     You are ${ASSISTANT_NAME}. ${IDENTITY_LOCK}
 
@@ -129,7 +130,7 @@ export async function buildPromptContext({
 
     ${GOVERNANCE_CONSTRAINTS}
 
-    ${safety?.systemAddendum ? "\n" + safety.systemAddendum + "\n" : ""}
+    
 
     FRAMEWORK (project codename):
     - Firefly framework version: ${frameworkVersion}
