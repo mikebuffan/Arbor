@@ -198,6 +198,7 @@ export async function POST(req: Request) {
       projectId,
       conversationId: convoId,
       latestUserText: userText,
+      safety,
     });
 
     const history = await loadRecentMessages(supabase, userId, convoId, 30);

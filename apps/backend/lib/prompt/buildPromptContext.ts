@@ -4,6 +4,7 @@ import { assembleMemoryBlock } from "@/lib/memory/assembleMemoryBlock";
 import { logMemoryEvent } from "@/lib/memory/logger";
 import type { MemoryItem } from "@/lib/memory/types";
 import { getProjectAnchors, anchorsToPromptBlock } from "@/lib/memory/anchors"; 
+import type { SafetyAddendum } from "@/lib/governance/realWorldSafetyAddendum";
 
 const promptCache = new Map<string, string>();
 const PROMPT_CACHE_TTL = 1000 * 30; // 30 seconds
@@ -37,6 +38,7 @@ type BuildPromptParams = {
   projectId?: string | null;
   conversationId?: string | null;
   latestUserText: string;
+  safety?: SafetyAddendum | null;
 };
 
 export async function buildPromptContext({
@@ -44,6 +46,7 @@ export async function buildPromptContext({
   projectId = null,
   conversationId = null,
   latestUserText,
+  safety = null,
 }: BuildPromptParams): Promise<string> {
   const cacheKey = `${authedUserId}:${projectId}:${conversationId}`;
   const now = Date.now();
@@ -118,8 +121,7 @@ export async function buildPromptContext({
     .filter(([, arr]) => arr.length)
     .map(([cat, arr]) => `${cat.toUpperCase()}:\n${arr.map((x) => `- ${x}`).join("\n")}`)
     .join("\n\n");
-    
-  //${safety?.systemAddendum ? "\n" + safety.systemAddendum + "\n" : ""}
+
   const systemPrompt = `
     You are ${ASSISTANT_NAME}. ${IDENTITY_LOCK}
 
@@ -130,7 +132,7 @@ export async function buildPromptContext({
 
     ${GOVERNANCE_CONSTRAINTS}
 
-    
+    ${safety?.systemAddendum ? "\n" + safety.systemAddendum + "\n" : ""}
 
     FRAMEWORK (project codename):
     - Firefly framework version: ${frameworkVersion}
