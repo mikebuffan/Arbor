@@ -79,6 +79,12 @@ export async function buildPromptContext({
     - Speak naturally like a human conversational partner.
     - Avoid unsolicited "grounding techniques" or clinical framing unless the user explicitly asks for it.
     `.trim();
+  const GOVERNANCE_CONSTRAINTS = `
+    GOVERNANCE CONSTRAINTS:
+    - Do not use dependency-forming language.
+    - Do not claim consciousness or inner experience.
+    - Maintain supportive but non-therapeutic tone.
+    `.trim();
   const anchors = projectId 
     ? await getProjectAnchors({ authedUserId, projectId })
     : [];
@@ -120,6 +126,10 @@ export async function buildPromptContext({
     ${META_GUARDS}
 
     ${anchorBlock ? "\n" + anchorBlock + "\n" : ""} 
+
+    ${GOVERNANCE_CONSTRAINTS}
+
+    ${safety?.systemAddendum ? "\n" + safety.systemAddendum + "\n" : ""}
 
     FRAMEWORK (project codename):
     - Firefly framework version: ${frameworkVersion}

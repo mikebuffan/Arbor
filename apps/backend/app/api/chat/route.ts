@@ -10,6 +10,7 @@ import { postcheckResponse } from "@/lib/safety/postcheck";
 import { logMemoryEvent } from "@/lib/memory/logger";
 import { guardAssistantText } from "@/lib/guards/responseLanguageGuard";
 import { evaluateDecisionContext } from "@/lib/governance/evaluateDecisionContext";
+import { realWorldSafetyAddendum } from "@/lib/governance/realWorldSafetyAddendum";
 
 
 export const runtime = "nodejs";
@@ -183,6 +184,7 @@ export async function POST(req: Request) {
     });
 
     const decisionContext = evaluateDecisionContext({ userText });
+    const safety = realWorldSafetyAddendum(decisionContext);
 
     console.log("[DECISION CONTEXT]", {
       projectId,
@@ -209,6 +211,9 @@ export async function POST(req: Request) {
     let assistantText = (aiResponse as any)?.choices?.[0]?.message?.content ?? "";
     const guarded = guardAssistantText(assistantText);
       assistantText = guarded.text;
+      if (safety?.assistantPreface) {
+        assistantText = `${safety.assistantPreface}\n\n${assistantText}`;
+      }
 
     // 7) Safety & postcheck
     const postcheck = await postcheckResponse({
