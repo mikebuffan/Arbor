@@ -9,6 +9,7 @@ import { upsertMemoryItems, reinforceMemoryUse, updateMemoryStrength } from "@/l
 import { postcheckResponse } from "@/lib/safety/postcheck";
 import { logMemoryEvent } from "@/lib/memory/logger";
 import { guardAssistantText } from "@/lib/guards/responseLanguageGuard";
+import { evaluateDecisionContext } from "@/lib/governance/evaluateDecisionContext";
 
 
 export const runtime = "nodejs";
@@ -153,12 +154,6 @@ export async function POST(req: Request) {
 
     const { projectId: maybeProjectId, conversationId, userText } = parsed.data;
 
-      //console.log("CHAT BODY RAW:", parsed.data);
-      //console.log("CHAT TYPES:", {
-      //  projectId: typeof maybeProjectId,
-      //  conversationId: typeof conversationId,
-      //});
-
     await cleanupExpiredMessagesBestEffort(supabase, userId);
 
     // 1) Resolve project (persona/framework lives here)
@@ -185,6 +180,14 @@ export async function POST(req: Request) {
       user_id: userId,
       role: "user",
       content: userText,
+    });
+
+    const decisionContext = evaluateDecisionContext({ userText });
+
+    console.log("[DECISION CONTEXT]", {
+      projectId,
+      conversationId,
+      decisionContext,
     });
 
     // 5) Build system prompt using new contextual builder

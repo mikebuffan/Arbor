@@ -376,6 +376,8 @@ class _ChatTestPageState extends State<ChatTestPage> {
                     ArborHeader(
                       isAuthed: authed,
                       userId: _userId,
+                      projectId: _projectId,
+                      conversationId: _conversationId,
                       onNewThread: authed ? _newThread : null,
                     ),
 
