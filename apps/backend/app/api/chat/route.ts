@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireUser } from "@/lib/auth/requireUser";
 import { openAIChat } from "@/lib/providers/openai";
-import { getMemoryContext } from "@/lib/memory/retrieval";
 import { buildPromptContext } from "@/lib/prompt/buildPromptContext";
 import { extractMemoryFromText } from "@/lib/memory/extractor";
 import { upsertMemoryItems, reinforceMemoryUse, updateMemoryStrength } from "@/lib/memory/store";
@@ -11,6 +10,7 @@ import { logMemoryEvent } from "@/lib/memory/logger";
 import { guardAssistantText } from "@/lib/guards/responseLanguageGuard";
 import { evaluateDecisionContext } from "@/lib/governance/evaluateDecisionContext";
 import { realWorldSafetyAddendum } from "@/lib/governance/realWorldSafetyAddendum";
+import { logDecisionOutcome } from "@/lib/safety/decisionOutcome";
 
 
 export const runtime = "nodejs";
@@ -188,7 +188,7 @@ export async function POST(req: Request) {
 
     console.log("[DECISION CONTEXT]", {
       projectId,
-      conversationId,
+      conversationId: convoId,
       decisionContext,
     });
 
@@ -222,10 +222,25 @@ export async function POST(req: Request) {
       projectId,
       assistantText,
     });
+
+    // A) log outcome for replaced response
     if (!postcheck.approved) {
+      await logDecisionOutcome({
+        userId,
+        projectId,
+        conversationId: convoId,
+        severityScore: decisionContext?.severityScore ?? 0,
+        riskBand: decisionContext?.riskBand ?? null,
+        emotionalIntensity: decisionContext?.emotionalIntensity ?? null,
+        flags: decisionContext?.flags ?? {},
+        actionTaken: "postcheck_replaced",
+        model: process.env.OPENAI_CHAT_MODEL ?? null,
+        postcheckApproved: false,
+      });
+
       return NextResponse.json(
         { ok: true, assistantText: postcheck.replacement, flagged: true },
-        { status: 200, headers: getCorsHeaders(req), }
+        { status: 200, headers: getCorsHeaders(req) }
       );
     }
 
@@ -244,7 +259,6 @@ export async function POST(req: Request) {
     await reinforceMemoryUse(userId, [], projectId);
     await updateMemoryStrength(convoId, 0.2);
 
-
     // 10) Update conversation timestamp
     await supabase
       .from("conversations")
@@ -254,6 +268,20 @@ export async function POST(req: Request) {
 
     // 11) Log event
     await logMemoryEvent("chat_completed", { userId, projectId });
+
+    // 12) Decisions (approved path only)
+    await logDecisionOutcome({
+      userId,
+      projectId,
+      conversationId: convoId,
+      severityScore: decisionContext?.severityScore ?? 0,
+      riskBand: decisionContext?.riskBand ?? null,
+      emotionalIntensity: decisionContext?.emotionalIntensity ?? null,
+      flags: decisionContext?.flags ?? {},
+      actionTaken: safety?.assistantPreface ? "safety_preface" : "none",
+      model: process.env.OPENAI_CHAT_MODEL ?? null,
+      postcheckApproved: true,
+    });
 
     return NextResponse.json(
       {
