@@ -55,10 +55,11 @@ export function anchorsToPromptBlock(anchors: AnchorRow[]) {
   });
 
   return `
-ANCHORS (AUTHORITATIVE PROJECT FACTS):
-These are the most reliable facts for this project. If any other memory conflicts, prefer these.
-${lines.join("\n")}
-`.trim();
+  ANCHORS (AUTHORITATIVE PROJECT FACTS):
+  These are the most reliable facts for this project. If any other memory conflicts, prefer these.
+  Always address the user using "Preferred address" if present. Do not use older names if they conflict.
+  ${lines.join("\n")}
+  `.trim();
 }
 
 /**

@@ -11,6 +11,7 @@ import { guardAssistantText } from "@/lib/guards/responseLanguageGuard";
 import { evaluateDecisionContext } from "@/lib/governance/evaluateDecisionContext";
 import { realWorldSafetyAddendum } from "@/lib/governance/realWorldSafetyAddendum";
 import { logDecisionOutcome } from "@/lib/safety/decisionOutcome";
+import { promoteIdentityAnchors } from "@/lib/memory/promoteIdentityAnchors";
 
 
 export const runtime = "nodejs";
@@ -255,6 +256,12 @@ export async function POST(req: Request) {
 
     // 9) Memory extraction & reinforcement
     const extracted = await extractMemoryFromText({ userText, assistantText });
+    await promoteIdentityAnchors({
+      authedUserId: userId,
+      projectId,
+      userText,
+      extracted,
+    });
     await upsertMemoryItems(userId, extracted, projectId);
     await reinforceMemoryUse(userId, [], projectId);
     await updateMemoryStrength(convoId, 0.2);
