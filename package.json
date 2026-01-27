@@ -6,5 +6,9 @@
     "dev:backend": "pnpm --filter firefly-backend dev",
     "build:backend": "pnpm --filter firefly-backend build",
     "start:backend": "pnpm --filter firefly-backend start"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "vitest": "^4.0.18"
   }
 }

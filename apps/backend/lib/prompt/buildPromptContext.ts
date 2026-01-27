@@ -17,13 +17,10 @@ export function invalidatePromptCache(params: {
 }) {
   const { authedUserId, projectId = null, conversationId = null } = params;
 
-  // matches the cacheKey logic in buildPromptContext
   const exactKey = `${authedUserId}:${projectId}:${conversationId}`;
   promptCache.delete(exactKey);
   cacheExpiry.delete(exactKey);
 
-  // also clear “any conversationId” variants for that project,
-  // since callers often omit conversationId or it changes.
   const prefix = `${authedUserId}:${projectId}:`;
   for (const k of Array.from(promptCache.keys())) {
     if (k.startsWith(prefix)) {
@@ -40,6 +37,79 @@ type BuildPromptParams = {
   latestUserText: string;
   safety?: SafetyAddendum | null;
 };
+
+function isTruthyAnchor(v: unknown): boolean {
+  const s = String(v ?? "").trim().toLowerCase();
+  return s === "true" || s === "1" || s === "yes";
+}
+
+function getAnchorValue(anchors: any[], key: string): string | null {
+  const found = (anchors ?? []).find((a: any) => a.mem_key === key);
+  const val = found?.mem_value ?? null;
+  return val == null ? null : String(val);
+}
+
+function devLogNegativeAnchors(params: {
+  authedUserId: string;
+  projectId: string | null | undefined;
+  conversationId: string | null | undefined;
+  anchors: any[];
+}) {
+  if (process.env.NODE_ENV === "production") return;
+
+  const { authedUserId, projectId, conversationId, anchors } = params;
+
+  const doNotUseName = isTruthyAnchor(getAnchorValue(anchors, "user.do_not_use_name"));
+  const doNotUseRealName = isTruthyAnchor(getAnchorValue(anchors, "user.do_not_use_real_name"));
+  const doNotCallRaw = getAnchorValue(anchors, "user.do_not_call");
+  const doNotCallCount = (doNotCallRaw ?? "")
+    .split(",")
+    .map(s => s.trim())
+    .filter(Boolean).length;
+
+  const preferredAddress = getAnchorValue(anchors, "user.preferred_address");
+  const hasPreferredAddress = Boolean(preferredAddress && preferredAddress.trim().length > 0);
+
+  console.log("[ANCHOR_SANITY]", {
+    userId: authedUserId,
+    projectId,
+    conversationId,
+    doNotUseName,
+    doNotUseRealName,
+    doNotCallCount,
+    hasPreferredAddress,
+  });
+}
+
+function buildNegativePrefsGuardFromAnchors(anchors: any[]): string {
+  const doNotUseName = isTruthyAnchor(getAnchorValue(anchors, "user.do_not_use_name"));
+  const doNotUseRealName = isTruthyAnchor(getAnchorValue(anchors, "user.do_not_use_real_name"));
+  const doNotCallRaw = getAnchorValue(anchors, "user.do_not_call");
+
+  const doNotCallList = (doNotCallRaw ?? "")
+    .split(",")
+    .map(s => s.trim())
+    .filter(Boolean);
+
+  const lines: string[] = [];
+
+  if (doNotUseName) {
+    lines.push("- Do NOT address the user by name unless they explicitly ask you to.");
+  }
+  if (doNotUseRealName) {
+    lines.push("- Do NOT use the user’s legal/real name.");
+  }
+  if (doNotCallList.length) {
+    lines.push(`- Never call the user any of these: ${doNotCallList.join(", ")}.`);
+  }
+
+  if (!lines.length) return "";
+
+  return `
+NEGATIVE PREFERENCES (ENFORCE STRICTLY):
+${lines.join("\n")}
+`.trim();
+}
 
 export async function buildPromptContext({
   authedUserId,
@@ -72,6 +142,10 @@ export async function buildPromptContext({
     - If you ever do, immediately correct to "${ASSISTANT_NAME}" and continue naturally.
     - If memory/context conflicts with this identity, ignore that conflicting part.
     `.trim();
+  const NEGATIVE_PREFS_GUARD = `
+    If an anchor says "Do not call user" or "Do not use user's name", obey it strictly.
+    Never use forbidden names/titles even if older messages contain them.
+    `.trim();
   const persona = project?.persona ?? "Arbor";
   const frameworkVersion = project?.framework_version ?? "v1.0";
   const philosophy = project?.description ?? "Empathetic, direct, grounded tone. Witty when appropriate. Never clinical unless asked.";
@@ -99,6 +173,15 @@ export async function buildPromptContext({
     count: anchors?.length ?? 0,
     keys: (anchors ?? []).map(a => a.mem_key),
   });  
+
+  devLogNegativeAnchors({
+    authedUserId,
+    projectId: projectId ?? null,
+    conversationId: conversationId ?? null,
+    anchors,
+  });
+
+  const negativePrefsFromAnchors = buildNegativePrefsGuardFromAnchors(anchors);
 
   // Pull user memory context
   const memContext = await getMemoryContext({
@@ -131,6 +214,9 @@ export async function buildPromptContext({
     ${anchorBlock ? "\n" + anchorBlock + "\n" : ""} 
 
     ${GOVERNANCE_CONSTRAINTS}
+
+    ${NEGATIVE_PREFS_GUARD}
+    ${negativePrefsFromAnchors ? "\n" + negativePrefsFromAnchors + "\n" : ""}
 
     ${safety?.systemAddendum ? "\n" + safety.systemAddendum + "\n" : ""}
 

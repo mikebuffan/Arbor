@@ -22,8 +22,6 @@ export async function getProjectAnchors(params: {
   const { authedUserId, projectId } = params;
   const admin = supabaseAdmin();
 
-  // We treat anchors as project-scoped authoritative facts.
-  // If projectId is null, return empty (no project to anchor to).
   if (!projectId) return [] as AnchorRow[];
 
   const { data, error } = await admin
@@ -45,7 +43,6 @@ export async function getProjectAnchors(params: {
 export function anchorsToPromptBlock(anchors: AnchorRow[]) {
   if (!anchors?.length) return "";
 
-  // Prefer display_text, otherwise render key/value
   const lines = anchors.map((a) => {
     const text =
       (a.display_text && a.display_text.trim()) ||
@@ -62,13 +59,6 @@ export function anchorsToPromptBlock(anchors: AnchorRow[]) {
   `.trim();
 }
 
-/**
- * Upsert-like behavior WITHOUT relying on a Postgres constraint name.
- * (Partial unique indexes can't be used with Supabase onConflict reliably.)
- * Strategy:
- * 1) Try update existing active row by (user_id, project_id, mem_key)
- * 2) If none updated, insert new row
- */
 export async function setProjectAnchor(params: {
   authedUserId: string;
   projectId: string;
