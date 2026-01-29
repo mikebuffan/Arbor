@@ -8,67 +8,34 @@ import { getServerSupabase } from "@/lib/supabase/server";
 const ITEMS_TABLE = "memory_items";
 const EVENTS_TABLE = "memory_pending";
 
-type RevealPolicy = "normal" | "user_trigger_only" | "never";
-
-/** Store text in mem_value (your schema), even if caller passes object */
-function toTextValue(v: any): string {
-  if (typeof v === "string") return v;
-  try {
-    return JSON.stringify(v);
-  } catch {
-    return String(v);
-  }
+function toJsonValue(v: any): Record<string, any> {
+  if (typeof v === "string") return { text: v };
+  if (v && typeof v === "object") return v;
+  return {};
 }
 
-/** A stable display string if caller doesn't provide one */
-function toDisplayText(key: string, memValue: string) {
-  return `${key}: ${memValue}`;
+function normalizeEmbedding(emb: any): number[] {
+  if (Array.isArray(emb)) return emb;
+  if (emb?.data && Array.isArray(emb.data)) return emb.data;
+  if (emb?.embedding && Array.isArray(emb.embedding)) return emb.embedding;
+  return [];
 }
 
-/** DB uses reveal_policy string; extracted MemoryItem uses user_trigger_only boolean */
-function revealPolicyFrom(item: MemoryItem): RevealPolicy {
-  return item.user_trigger_only ? "user_trigger_only" : "normal";
-}
-
-/** DB uses pinned boolean to represent "core" memory in your retrieval mapping */
-function pinnedFrom(item: MemoryItem): boolean {
-  return item.tier === "core";
-}
-
-/** Your DB uses numeric strength. Map importance (1..10) into sane strength. */
-function strengthFromImportance(importance?: number): number {
-  const imp = Number(importance ?? 5);
-  return Math.max(1, Math.min(3, 0.5 + imp / 4));
-}
-
-/**
- * IMPORTANT:
- * uniqueness index is (user_id, project_id, mem_key)
- * when projectId is null, UNIQUE won't prevent duplicates (NULL != NULL)
- * so prefer passing projectId (you already do).
- */
-async function findExisting(params: {
-  authedUserId: string;
-  projectId: string | null;
-  key: string;
-}) {
+async function findExisting(params: { authedUserId: string; key: string }) {
   const admin = supabaseAdmin();
-  const { authedUserId, projectId, key } = params;
+  const { authedUserId, key } = params;
 
-  let q = admin
+  const { data, error } = await admin
     .from(ITEMS_TABLE)
     .select("*")
     .eq("user_id", authedUserId)
-    .eq("mem_key", key);
+    .eq("key", key)
+    .maybeSingle();
 
-  q = projectId ? q.eq("project_id", projectId) : q.is("project_id", null);
-
-  const { data, error } = await q.maybeSingle();
   if (error) throw error;
   return data;
 }
 
-/** Write to memory_pending for event tracking */
 async function logEvent(params: {
   authedUserId: string;
   projectId: string | null;
@@ -92,18 +59,6 @@ async function logEvent(params: {
   if (error) console.warn("memory_pending insert failed:", error);
 }
 
-/** Ensure embedding is a plain number[] (pgvector expects array) */
-function normalizeEmbedding(emb: any): number[] {
-  if (Array.isArray(emb)) return emb;
-  if (emb?.data && Array.isArray(emb.data)) return emb.data;
-  if (emb?.embedding && Array.isArray(emb.embedding)) return emb.embedding;
-  return [];
-}
-
-/**
- * 🚀 Main Upsert Logic
- * Fully original logic preserved, wrapped in safeQuery for resilience.
- */
 export async function upsertMemoryItems(
   authedUserId: string,
   items: MemoryItem[],
@@ -111,120 +66,128 @@ export async function upsertMemoryItems(
 ): Promise<MemoryUpsertResult> {
   const start = Date.now();
 
-  const result = await safeQuery(async (client) => {
-    const admin = supabaseAdmin();
-    const res: MemoryUpsertResult = { created: [], updated: [], locked: [], ignored: [] };
+  const result = await safeQuery<MemoryUpsertResult>(
+    async (_client) => {
+      const admin = supabaseAdmin();
+      const res: MemoryUpsertResult = { created: [], updated: [], locked: [], ignored: [] };
 
-    for (const item of items) {
-      const key = item.key?.trim();
-      if (!key) continue;
+      for (const item of items) {
+        const key = item.key?.trim();
+        if (!key) continue;
 
-      const memValue = toTextValue(item.value);
-      const displayText = toDisplayText(key, memValue);
-      const reveal_policy = revealPolicyFrom(item);
-      const pinned = pinnedFrom(item);
-      const strength = strengthFromImportance(item.importance);
+        const nowIso = new Date().toISOString();
 
-      const rawEmbedding = await embedText(memoryToEmbedString(key, item.value));
-      const embedding = normalizeEmbedding(rawEmbedding);
+        const value = toJsonValue(item.value);
+        const tier = item.tier ?? "normal";
+        const user_trigger_only = !!item.user_trigger_only;
+        const importance = Number(item.importance ?? 5);
+        const confidence = Number(item.confidence ?? 0.75);
+        const pinned = tier === "core";
 
-      const existing = await findExisting({ authedUserId, projectId, key });
+        const rawEmbedding = await embedText(memoryToEmbedString(key, item.value));
+        const embedding = normalizeEmbedding(rawEmbedding);
 
-      if (!existing) {
-        const { error } = await admin.from(ITEMS_TABLE).insert({
-          user_id: authedUserId,
-          project_id: projectId,
-          mem_key: key,
-          mem_value: memValue,
-          display_text: displayText,
-          reveal_policy,
-          strength,
-          pinned,
-          is_locked: false,
-          correction_count: 0,
-          last_reinforced_at: new Date().toISOString(),
-          embedding,
-        });
-        if (error) throw error;
+        const existing = await findExisting({ authedUserId, key });
 
-        await logEvent({
-          authedUserId,
-          projectId,
-          key,
-          event_type: "create",
-          payload: {
+        if (!existing) {
+          const { error } = await admin.from(ITEMS_TABLE).insert({
+            user_id: authedUserId,
+            project_id: projectId,
             key,
-            mem_value: memValue,
-            tier: item.tier,
-            reveal_policy,
+            value,
+            tier,
+            scope: item.scope ?? "conversation",
+            user_trigger_only,
+            importance,
+            confidence,
+            locked: false,
             pinned,
-            strength,
-          },
-        });
+            status: "active",
+            deleted_at: null,
+            mention_count: 0,
+            correction_count: 0,
+            last_seen_at: nowIso,
+            last_reinforced_at: nowIso,
+            updated_at: nowIso,
+            embedding,
+          });
 
-        res.created.push(key);
-        continue;
-      }
+          if (error) throw error;
 
-      if (existing.is_locked) {
+          await logEvent({
+            authedUserId,
+            projectId,
+            key,
+            event_type: "create",
+            payload: { key, tier, user_trigger_only, importance, confidence },
+          });
+
+          res.created.push(key);
+          continue;
+        }
+
+        if (existing.locked) {
+          const { error } = await admin
+            .from(ITEMS_TABLE)
+            .update({
+              mention_count: Number(existing.mention_count ?? 0) + 1,
+              last_seen_at: nowIso,
+              last_reinforced_at: nowIso,
+              updated_at: nowIso,
+            })
+            .eq("id", existing.id);
+
+          if (error) throw error;
+
+          await logEvent({
+            authedUserId,
+            projectId,
+            key,
+            event_type: "locked_ignore",
+            payload: { reason: "locked", attempted_value: value },
+          });
+
+          res.ignored.push(key);
+          res.locked.push(key);
+          continue;
+        }
+
         const { error } = await admin
           .from(ITEMS_TABLE)
           .update({
-            last_reinforced_at: new Date().toISOString(),
-            strength: Number(existing.strength ?? 1) + 0.05,
-            updated_at: new Date().toISOString(),
+            project_id: projectId ?? existing.project_id ?? null,
+            value,
+            tier: tier ?? existing.tier ?? "normal",
+            scope: item.scope ?? existing.scope ?? "conversation",
+            user_trigger_only,
+            importance: Math.max(Number(existing.importance ?? 5), importance),
+            confidence,
+            pinned: pinned || !!existing.pinned,
+            mention_count: Number(existing.mention_count ?? 0) + 1,
+            last_seen_at: nowIso,
+            last_reinforced_at: nowIso,
+            updated_at: nowIso,
+            embedding,
           })
           .eq("id", existing.id);
+
         if (error) throw error;
 
         await logEvent({
           authedUserId,
           projectId,
           key,
-          event_type: "locked_ignore",
-          payload: { reason: "is_locked", attempted_value: memValue },
+          event_type: "update",
+          payload: { before: existing.value, after: value },
         });
 
-        res.ignored.push(key);
-        res.locked.push(key);
-        continue;
+        res.updated.push(key);
       }
 
-      const nextStrength = Math.max(Number(existing.strength ?? 1), strength) + 0.2;
-
-      const { error } = await admin
-        .from(ITEMS_TABLE)
-        .update({
-          mem_value: memValue,
-          display_text: displayText,
-          reveal_policy,
-          pinned,
-          strength: nextStrength,
-          last_reinforced_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          embedding,
-        })
-        .eq("id", existing.id);
-
-      if (error) throw error;
-
-      await logEvent({
-        authedUserId,
-        projectId,
-        key,
-        event_type: "update",
-        payload: {
-          before: existing.mem_value,
-          after: memValue,
-          strength: nextStrength,
-        },
-      });
-
-      res.updated.push(key);
-    }
-
-    return res;
-  }, "upsertMemoryItems");
+      return res;
+    },
+    "upsertMemoryItems"
+  );
 
   const duration = Date.now() - start;
   await logMemoryEvent("upsert_summary", {
@@ -237,9 +200,6 @@ export async function upsertMemoryItems(
   return result;
 }
 
-/**
- * 🧠 Correction Handler
- */
 export async function correctMemoryItem(params: {
   authedUserId: string;
   key: string;
@@ -253,29 +213,37 @@ export async function correctMemoryItem(params: {
   const cleanKey = key.trim();
   if (!cleanKey) return { locked: false };
 
-  const memValue = toTextValue(newValue);
-  const displayText = toDisplayText(cleanKey, memValue);
+  const nowIso = new Date().toISOString();
+  const value = toJsonValue(newValue);
 
   const rawEmbedding = await embedText(memoryToEmbedString(cleanKey, newValue));
   const embedding = normalizeEmbedding(rawEmbedding);
 
-  const existing = await findExisting({ authedUserId, projectId, key: cleanKey });
+  const existing = await findExisting({ authedUserId, key: cleanKey });
 
   if (!existing) {
     const { error } = await admin.from(ITEMS_TABLE).insert({
       user_id: authedUserId,
       project_id: projectId,
-      mem_key: cleanKey,
-      mem_value: memValue,
-      display_text: displayText,
-      reveal_policy: "normal",
+      key: cleanKey,
+      value,
+      tier: "core",
+      scope: "global",
+      user_trigger_only: false,
+      importance: 10,
+      confidence: 1.0,
+      locked: false,
       pinned: true,
-      strength: 3,
+      status: "active",
+      deleted_at: null,
+      mention_count: 0,
       correction_count: 1,
-      is_locked: false,
-      last_reinforced_at: new Date().toISOString(),
+      last_seen_at: nowIso,
+      last_reinforced_at: nowIso,
+      updated_at: nowIso,
       embedding,
     });
+
     if (error) throw error;
 
     await logEvent({
@@ -283,29 +251,34 @@ export async function correctMemoryItem(params: {
       projectId,
       key: cleanKey,
       event_type: "correct_create",
-      payload: { newValue, correction_count: 1 },
+      payload: { newValue: value, correction_count: 1 },
     });
 
     return { locked: false };
   }
 
-  const nextCorrectionCount = (existing.correction_count ?? 0) + 1;
+  const nextCorrectionCount = Number(existing.correction_count ?? 0) + 1;
   const shouldLock = nextCorrectionCount >= LOCK_ON_CORRECTION_COUNT;
 
   const { error } = await admin
     .from(ITEMS_TABLE)
     .update({
-      mem_value: memValue,
-      display_text: displayText,
+      project_id: projectId ?? existing.project_id ?? null,
+      value,
       embedding,
       correction_count: nextCorrectionCount,
-      is_locked: shouldLock,
+      locked: shouldLock,
+      tier: "core",
       pinned: true,
-      strength: Math.max(Number(existing.strength ?? 1), 2.5),
-      updated_at: new Date().toISOString(),
-      last_reinforced_at: new Date().toISOString(),
+      importance: 10,
+      confidence: 1.0,
+      mention_count: Number(existing.mention_count ?? 0) + 1,
+      last_seen_at: nowIso,
+      last_reinforced_at: nowIso,
+      updated_at: nowIso,
     })
     .eq("id", existing.id);
+
   if (error) throw error;
 
   await logEvent({
@@ -313,29 +286,48 @@ export async function correctMemoryItem(params: {
     projectId,
     key: cleanKey,
     event_type: shouldLock ? "lock" : "correct",
-    payload: { newValue, correction_count: nextCorrectionCount },
+    payload: { newValue: value, correction_count: nextCorrectionCount },
   });
 
   return { locked: shouldLock };
 }
 
-/**
- * 🔁 Memory strength reinforcement RPC
- */
 export async function updateMemoryStrength(memoryId: string, delta: number) {
-  const supabase = await getServerSupabase(); // ✅ Fix: added await
-  const { data, error } = await supabase.rpc("update_memory_strength", {
-    p_memory_id: memoryId,
-    p_delta: delta,
-  });
+  const supabase = await getServerSupabase();
+
+  const inc = Math.max(1, Math.round(delta * 10));
+
+  const nowIso = new Date().toISOString();
+
+  const { data: existing, error: readErr } = await supabase
+    .from(ITEMS_TABLE)
+    .select("id, mention_count")
+    .eq("id", memoryId)
+    .maybeSingle();
+
+  if (readErr) throw readErr;
+  if (!existing) return null;
+
+  const next = Number(existing.mention_count ?? 0) + inc;
+
+  const { data, error } = await supabase
+    .from(ITEMS_TABLE)
+    .update({
+      mention_count: next,
+      last_seen_at: nowIso,
+      last_reinforced_at: nowIso,
+      updated_at: nowIso,
+    })
+    .eq("id", memoryId)
+    .select("id, mention_count")
+    .maybeSingle();
+
   if (error) throw error;
-  await logMemoryEvent("reinforce", { memoryId, delta });
+
+  await logMemoryEvent("reinforce", { memoryId, delta, mention_count: next });
   return data;
 }
 
-/**
- * 📈 Reinforce memory usage for referenced items
- */
 export async function reinforceMemoryUse(
   authedUserId: string,
   keysUsed: string[],
@@ -344,25 +336,27 @@ export async function reinforceMemoryUse(
   const admin = supabaseAdmin();
   if (!keysUsed.length) return;
 
-  const now = new Date().toISOString();
+  const nowIso = new Date().toISOString();
 
   for (const key of keysUsed) {
     const cleanKey = key.trim();
     if (!cleanKey) continue;
 
-    const existing = await findExisting({ authedUserId, projectId, key: cleanKey });
-    if (!existing || existing.is_locked) continue;
+    const existing = await findExisting({ authedUserId, key: cleanKey });
+    if (!existing || existing.locked) continue;
 
-    const nextStrength = Number(existing.strength ?? 1) + 0.15;
+    const nextCount = Number(existing.mention_count ?? 0) + 1;
 
     const { error } = await admin
       .from(ITEMS_TABLE)
       .update({
-        strength: nextStrength,
-        last_reinforced_at: now,
-        updated_at: now,
+        mention_count: nextCount,
+        last_seen_at: nowIso,
+        last_reinforced_at: nowIso,
+        updated_at: nowIso,
       })
       .eq("id", existing.id);
+
     if (error) throw error;
 
     await logEvent({
@@ -370,7 +364,7 @@ export async function reinforceMemoryUse(
       projectId,
       key: cleanKey,
       event_type: "reinforce",
-      payload: { reinforce: true, strength: nextStrength },
+      payload: { mention_count: nextCount },
     });
   }
 }

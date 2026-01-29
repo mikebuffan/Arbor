@@ -9,10 +9,6 @@
   export const MemoryMode = z.enum(["recording", "respectful", "listening"]);
   export type MemoryMode = z.infer<typeof MemoryMode>;
 
-  /**
-   * IMPORTANT:
-   * Keep "pet" to avoid breaking friend/pet ops (even if you later decide not to use it).
-   */
   export const RelationalContext = z.enum([
     "self",
     "child",
@@ -27,18 +23,16 @@
   ]);
   export type RelationalContext = z.infer<typeof RelationalContext>;
 
-  // --- KV memory manager types (new) ---
   export type MemoryTier = "core" | "normal" | "sensitive";
 
   export type MemoryItem = {
     key: string;
-    value: Record<string, any>;
+    value: Record<string, any> | string;
     tier: MemoryTier;
     user_trigger_only: boolean;
-    importance: number; // 1..10
-    confidence: number; // 0..1
-
-    // optional “kv memory manager” fields:
+    importance: number; 
+    confidence: number; 
+    scope?: "global" | "project" | "conversation";
     folder_slug?: string | null;
     pinned?: boolean;
     locked?: boolean;

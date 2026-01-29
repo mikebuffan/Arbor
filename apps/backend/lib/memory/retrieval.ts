@@ -44,32 +44,35 @@ export async function getMemoryContext(params: {
 
   if (useVectorSearch && latestUserText?.length > 10) {
     const embedding = await openAIEmbed(latestUserText);
-    const { data, error }: { data: any[] | null; error: any } = await safeQuery(async (c) => {
-    const { data, error } = await c.rpc("match_memories", {
-      query_embedding: embedding,
-      match_threshold: 0.75,
-      match_count: 30,
-      p_project_id: projectId,
-      p_user_id: authedUserId,
-    });
-    return { data, error };
-  }, "matchMemories");
+    const { data, error }: { data: any[] | null; error: any } = await safeQuery(
+    async (c) => {
+      const { data, error } = await c.rpc("match_memory_items", {
+        p_user_id: authedUserId,
+        p_query_embedding: embedding,
+        p_match_count: 30,
+        p_tiers: ["core", "normal", "sensitive"],
+        p_include_user_trigger_only: true,
+      });
+      return { data, error };
+    },
+    "match_memory_items"
+  );
+
 
     if (error) throw error;
     items = (data ?? []).filter((r: any) => r?.scope !== "anchor" && r?.kind !== "anchor" && r?.kind !== "correction");
   } else {
     const q = admin
       .from("memory_items")
-      .select(
-        "id, user_id, project_id, mem_key, mem_value, display_text, reveal_policy, strength, is_locked, pinned, discarded_at, confirmed_at, last_reinforced_at"
-      )
+      .select("id, user_id, project_id, conversation_id, key, value, tier, user_trigger_only, importance, confidence, locked, pinned, status, deleted_at, last_seen_at, last_reinforced_at")
       .eq("user_id", authedUserId)
-      .is("discarded_at", null)
+      .is("deleted_at", null)
+      .eq("status", "active")
       .neq("scope", "anchor")
       .neq("kind", "anchor")
       .neq("kind", "correction")
       .order("pinned", { ascending: false })
-      .order("strength", { ascending: false })
+      .order("importance", { ascending: false })
       .order("last_reinforced_at", { ascending: false })
       .limit(50);
 
@@ -79,19 +82,21 @@ export async function getMemoryContext(params: {
   }
 
   const parsed = items.map((r: any) => ({
-    key: r.mem_key,
-    value: parseMaybeJson(r.mem_value),
-    display_text: avoidingNull(r.display_text, r.mem_key, r.mem_value),
-    reveal_policy: r.reveal_policy,
-    pinned: r.pinned,
-    strength: Number(r.strength ?? 1),
-    locked: !!r.is_locked,
+    id: r.id,
+    key: r.key,
+    value: r.value, // jsonb already
+    tier: r.tier ?? (r.pinned ? "core" : "normal"),
+    user_trigger_only: !!r.user_trigger_only,
+    importance: Number(r.importance ?? 5),
+    confidence: Number(r.confidence ?? 0.75),
+    pinned: !!r.pinned,
+    locked: !!r.locked,
   }));
 
   const result = {
-    core: parsed.filter((i) => i.pinned),
-    normal: parsed.filter((i) => !i.pinned && i.reveal_policy === "normal"),
-    sensitive: parsed.filter((i) => i.reveal_policy === "user_trigger_only"),
+    core: parsed.filter((i) => i.tier === "core" || i.pinned),
+    normal: parsed.filter((i) => i.tier === "normal" && !i.user_trigger_only && !i.pinned),
+    sensitive: parsed.filter((i) => i.tier === "sensitive" || i.user_trigger_only),
     keysUsed: [],
   };
 

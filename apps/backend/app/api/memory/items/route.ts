@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseFromAuthHeader } from "@/lib/supabase/bearer";
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import { MemoryService } from "@/lib/memory/memoryService";
-import { toMemValue } from "@/lib/memory/value";
+import { upsertMemoryItems } from "@/lib/memory/store";
+import type { MemoryItem } from "@/lib/memory/types";
 
 export async function GET(req: NextRequest) {
   const supabase = supabaseFromAuthHeader(req);
@@ -14,15 +14,31 @@ export async function GET(req: NextRequest) {
   const includeDiscarded = url.searchParams.get("includeDiscarded") === "true";
 
   const admin = supabaseAdmin();
-  const svc = new MemoryService({
-    supabase,
-    admin,
-    userId: data.user.id,
-    projectId: projectId ?? null,
-  });
 
-  const items = await svc.listItems({ includeDiscarded });
-  return NextResponse.json({ items });
+  let q = admin
+    .from("memory_items")
+    .select(
+      "id, key, value, tier, scope, user_trigger_only, importance, confidence, locked, pinned, status, deleted_at, created_at, updated_at, last_seen_at, last_reinforced_at, mention_count, correction_count, project_id, conversation_id"
+    )
+    .eq("user_id", data.user.id);
+
+  if (projectId) q = q.eq("project_id", projectId);
+
+  if (!includeDiscarded) {
+    q = q.is("deleted_at", null).eq("status", "active");
+  }
+
+  q = q
+    .order("pinned", { ascending: false })
+    .order("importance", { ascending: false })
+    .order("last_reinforced_at", { ascending: false })
+    .order("mention_count", { ascending: false })
+    .limit(500);
+
+  const { data: items, error: qErr } = await q;
+  if (qErr) return NextResponse.json({ error: qErr.message }, { status: 500 });
+
+  return NextResponse.json({ items: items ?? [] });
 }
 
 export async function POST(req: NextRequest) {
@@ -30,27 +46,29 @@ export async function POST(req: NextRequest) {
   const { data, error } = await supabase.auth.getUser();
   if (error || !data?.user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
-  const body = await req.json();
+  const body = await req.json().catch(() => ({} as any));
 
-  const admin = supabaseAdmin();
-  const svc = new MemoryService({
-    supabase,
-    admin,
-    userId: data.user.id,
-    projectId: (body.projectId ?? null) as string | null,
-  });
+  const key = String(body.key ?? body.mem_key ?? "").trim();
+  const rawValue = body.value ?? body.mem_value ?? body.text ?? body.correctedValue ?? "";
+  const value = typeof rawValue === "string" ? { text: rawValue } : (rawValue ?? {});
 
-  const item = await svc.upsertItem({
-    mem_key: String(body.mem_key ?? body.key ?? "").trim(),
-    mem_value: toMemValue(body.mem_value ?? body.value ?? body.text ?? ""),
-    display_text: String(body.display_text ?? body.displayText ?? body.mem_key ?? body.key ?? "Memory"),
-    trigger_terms: body.trigger_terms ?? body.triggerTerms ?? [],
-    emotional_weight: body.emotional_weight ?? body.emotionalWeight ?? "neutral",
-    relational_context: body.relational_context ?? body.relationalContext ?? [],
-    reveal_policy: body.reveal_policy ?? body.revealPolicy ?? "normal",
+  if (!key) return NextResponse.json({ error: "missing key" }, { status: 400 });
+
+  const item: MemoryItem = {
+    key,
+    value,
+    tier: (body.tier ?? "normal") as any,
+    user_trigger_only: !!(body.user_trigger_only ?? body.userTriggerOnly ?? false),
+    importance: Number(body.importance ?? 5),
+    confidence: Number(body.confidence ?? 0.75),
+    scope: (body.scope ?? "conversation") as any,
     pinned: !!body.pinned,
-    is_locked: !!body.is_locked,
-  });
+    locked: !!body.locked,
+  };
 
-  return NextResponse.json({ item });
+  const projectId = (body.projectId ?? null) as string | null;
+
+  const res = await upsertMemoryItems(data.user.id, [item], projectId);
+
+  return NextResponse.json({ ok: true, result: res });
 }

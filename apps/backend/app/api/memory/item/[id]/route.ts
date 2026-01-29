@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseFromAuthHeader } from "@/lib/supabase/bearer";
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import { MemoryService } from "@/lib/memory/memoryService";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,29 +18,60 @@ export async function PATCH(
   }
 
   const body = await req.json().catch(() => ({} as any));
-  const url = new URL(req.url);
-  const projectId = url.searchParams.get("projectId") ?? body.projectId ?? null;
-
   const admin = supabaseAdmin();
-  const svc = new MemoryService({
-    supabase,
-    admin,
-    userId: data.user.id,
-    projectId,
-  });
+  const nowIso = new Date().toISOString();
+
+  const base = admin.from("memory_items");
 
   if (body.action === "pin") {
-    const item = await svc.pin(id, !!body.pinned);
+    const pinned = !!body.pinned;
+
+    const { data: item, error: uErr } = await admin
+      .from("memory_items")
+      .update({ pinned, updated_at: nowIso })
+      .eq("id", id)
+      .eq("user_id", data.user.id)
+      .select("id, key, pinned, tier, locked, status, deleted_at")
+      .maybeSingle();
+
+    if (uErr) return NextResponse.json({ error: uErr.message }, { status: 500 });
     return NextResponse.json({ item });
   }
 
   if (body.action === "discard") {
-    const item = await svc.discard(id);
+    const { data: item, error: uErr } = await base
+      .update({
+        deleted_at: nowIso,
+        status: "tombstoned",
+        updated_at: nowIso,
+      })
+      .eq("id", id)
+      .eq("user_id", data.user.id)
+      .select("id, key, pinned, tier, locked, status, deleted_at")
+      .maybeSingle();
+
+    if (uErr) return NextResponse.json({ error: uErr.message }, { status: 500 });
     return NextResponse.json({ item });
   }
 
   if (body.action === "confirmFact") {
-    const item = await svc.confirmFact(id);
+    const lock = body.lock === undefined ? true : !!body.lock;
+
+    const { data: item, error: uErr } = await base
+      .update({
+        confidence: 1.0,
+        tier: "core",
+        pinned: true,
+        locked: lock,
+        updated_at: nowIso,
+        last_reinforced_at: nowIso,
+      })
+      .eq("id", id)
+      .eq("user_id", data.user.id)
+      .select("id, key, pinned, tier, locked, status, deleted_at")
+      .maybeSingle();
+
+    if (uErr) return NextResponse.json({ error: uErr.message }, { status: 500 });
     return NextResponse.json({ item });
   }
 
