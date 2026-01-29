@@ -21,8 +21,8 @@ async function getExistingAnchorValue(params: {
   const { authedUserId, projectId, memKey } = params;
 
   const anchors = await getProjectAnchors({ authedUserId, projectId });
-  const found = (anchors ?? []).find(a => a.mem_key === memKey);
-  return found?.mem_value ?? null;
+  const found = (anchors ?? []).find((a: any) => a.key === memKey);
+  return found?.value ?? null;
 }
 
 export async function promoteIdentityAnchors(params: {
@@ -35,7 +35,6 @@ export async function promoteIdentityAnchors(params: {
     if (!projectId) return;
     let didWriteAnchor = false;
 
-    // ---------- 1) Regex-based (authoritative) ----------
     const callMeMatch =
         userText.match(/\b(?:please\s+)?(?:just\s+)?call\s+me\s+["“]?([A-Za-z0-9][A-Za-z0-9 _\-]{0,40})["”]?\b/i) ??
         userText.match(/\byou\s+can\s+call\s+me\s+["“]?([A-Za-z0-9][A-Za-z0-9 _\-]{0,40})["”]?\b/i);
@@ -85,7 +84,6 @@ export async function promoteIdentityAnchors(params: {
         didWriteAnchor = true;
     }
 
-    // If they gave a legal/given name, store it too (separately)
     if (legalOrGiven) {
         await setProjectAnchor({
             authedUserId,
@@ -148,9 +146,6 @@ export async function promoteIdentityAnchors(params: {
         didWriteAnchor = true;
     }
 
-
-
-    // ---------- 2) Extracted item scan (fallback) ----------
     const keyToAnchor: Record<string, string> = {
         "preferences.preferred_address": "user.preferred_address",
         "preferences.preferred_name": "user.preferred_address",
@@ -189,7 +184,7 @@ export async function promoteIdentityAnchors(params: {
             invalidatePromptCache({
             authedUserId,
             projectId,
-            conversationId: null, // nuke all threads for this project
+            conversationId: null,
             });
         } catch (err) {
             console.warn("[ANCHOR CACHE INVALIDATION FAILED]", {
@@ -197,7 +192,6 @@ export async function promoteIdentityAnchors(params: {
             projectId,
             error: err instanceof Error ? err.message : err,
             });
-            // Intentionally swallow — anchors are authoritative, cache is best-effort
         }
     }
 }

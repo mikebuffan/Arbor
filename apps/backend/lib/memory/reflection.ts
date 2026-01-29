@@ -1,9 +1,22 @@
-// lib/memory/reflection.ts
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { openAIChat, openAIEmbed } from "@/lib/providers/openai";
 import { logMemoryEvent } from "@/lib/memory/logger";
 
 const ITEMS_TABLE = "memory_items";
+
+function valueToText(v: any): string {
+  if (v == null) return "";
+  if (typeof v === "string") return v;
+  if (typeof v === "object") {
+    if (typeof v.text === "string") return v.text;
+    try {
+      return JSON.stringify(v);
+    } catch {
+      return String(v);
+    }
+  }
+  return String(v);
+}
 
 export async function reflectOnMemoryCluster(
   userId: string,
@@ -14,9 +27,11 @@ export async function reflectOnMemoryCluster(
 
   const { data: items, error } = await client
     .from(ITEMS_TABLE)
-    .select("mem_key, mem_value")
-    .in("mem_key", recentKeys)
+    .select("key, value")
+    .in("key", recentKeys)
     .eq("user_id", userId)
+    .is("deleted_at", null)
+    .eq("status", "active")
     .limit(20);
 
   if (error) throw error;
@@ -26,14 +41,14 @@ export async function reflectOnMemoryCluster(
 You are an AI reflection engine analyzing a user's persistent memory.
 Summarize key patterns, contradictions, and emerging intents across the following memories:
 
-${items.map(i => `- ${i.mem_key}: ${i.mem_value}`).join("\n")}
+${items.map((i: any) => `- ${i.key}: ${valueToText(i.value)}`).join("\n")}
 
 Output as structured JSON:
 {
   "themes": [string],
   "actions": [string],
   "contradictions": [string]
-}`;
+}`.trim();
 
   const reflectionResponse = await openAIChat({
     model: process.env.OPENAI_CHAT_MODEL ?? "gpt-4o-mini",
@@ -41,10 +56,9 @@ Output as structured JSON:
       { role: "system", content: "You are a cognitive reflection agent." },
       { role: "user", content: reflectionPrompt },
     ],
-    stream: false, // 👈 explicitly disables streaming
+    stream: false,
   });
 
-  // ✅ Proper narrowing — handle undefined safely
   const reflectionText =
     (reflectionResponse as any)?.choices?.[0]?.message?.content?.trim?.() ??
     "(no reflection output)";

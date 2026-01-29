@@ -7,7 +7,7 @@ import { getProjectAnchors, anchorsToPromptBlock } from "@/lib/memory/anchors";
 import type { SafetyAddendum } from "@/lib/governance/realWorldSafetyAddendum";
 
 const promptCache = new Map<string, string>();
-const PROMPT_CACHE_TTL = 1000 * 30; // 30 seconds
+const PROMPT_CACHE_TTL = 1000 * 30; 
 const cacheExpiry = new Map<string, number>();
 
 export function invalidatePromptCache(params: {
@@ -44,9 +44,12 @@ function isTruthyAnchor(v: unknown): boolean {
 }
 
 function getAnchorValue(anchors: any[], key: string): string | null {
-  const found = (anchors ?? []).find((a: any) => a.mem_key === key);
-  const val = found?.mem_value ?? null;
-  return val == null ? null : String(val);
+  const found = (anchors ?? []).find((a: any) => a.key === key);
+  const v = found?.value ?? null;
+  if (v == null) return null;
+  if (typeof v === "string") return v;
+  if (typeof v === "object" && typeof v.text === "string") return v.text;
+  return String(v);
 }
 
 function devLogNegativeAnchors(params: {
@@ -171,7 +174,7 @@ export async function buildPromptContext({
     projectId,
     userId: authedUserId,
     count: anchors?.length ?? 0,
-    keys: (anchors ?? []).map(a => a.mem_key),
+    keys: (anchors ?? []).map((a: any) => a.key),
   });  
 
   devLogNegativeAnchors({
@@ -183,7 +186,6 @@ export async function buildPromptContext({
 
   const negativePrefsFromAnchors = buildNegativePrefsGuardFromAnchors(anchors);
 
-  // Pull user memory context
   const memContext = await getMemoryContext({
     authedUserId,
     projectId,
@@ -192,7 +194,7 @@ export async function buildPromptContext({
   });
 
   const allItems = [...memContext.core, ...memContext.normal, ...memContext.sensitive];
-  const decayMs = 1000 * 60 * 60 * 24 * 30; // 30 days
+  const decayMs = 1000 * 60 * 60 * 24 * 30; 
 
   const { context, fallbackPrompt } = assembleMemoryBlock({
     allItems,

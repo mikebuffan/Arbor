@@ -4,16 +4,32 @@ export type AnchorRow = {
   id: string;
   user_id: string;
   project_id: string | null;
-  mem_key: string | null;
-  mem_value: string | null;
-  display_text: string | null;
+  key: string;
+  value: any; 
   scope: string | null;
   pinned: boolean | null;
   locked: boolean | null;
-  kind: string | null;
+  tier: string | null;
+  status: string | null;
   deleted_at: string | null;
   updated_at: string | null;
 };
+
+function valueToText(v: any): string {
+  if (v == null) return "";
+  if (typeof v === "string") return v;
+  if (typeof v === "object") {
+    if (typeof v.text === "string") return v.text;
+    if (typeof v.value === "string") return v.value;
+    if (typeof v.name === "string") return v.name;
+    try {
+      return JSON.stringify(v);
+    } catch {
+      return String(v);
+    }
+  }
+  return String(v);
+}
 
 export async function getProjectAnchors(params: {
   authedUserId: string;
@@ -27,12 +43,14 @@ export async function getProjectAnchors(params: {
   const { data, error } = await admin
     .from("memory_items")
     .select(
-      "id,user_id,project_id,mem_key,mem_value,display_text,scope,pinned,locked,kind,deleted_at,updated_at"
+      "id,user_id,project_id,key,value,scope,pinned,locked,tier,status,deleted_at,updated_at"
     )
     .eq("user_id", authedUserId)
     .eq("project_id", projectId)
-    .eq("kind", "anchor")
+    .eq("scope", "project")
+    .eq("tier", "core")
     .is("deleted_at", null)
+    .eq("status", "active")
     .order("pinned", { ascending: false })
     .order("updated_at", { ascending: false });
 
@@ -44,27 +62,24 @@ export function anchorsToPromptBlock(anchors: AnchorRow[]) {
   if (!anchors?.length) return "";
 
   const lines = anchors.map((a) => {
-    const text =
-      (a.display_text && a.display_text.trim()) ||
-      `${a.mem_key ?? "anchor"}: ${a.mem_value ?? ""}`.trim();
-
+    const text = `${a.key}: ${valueToText(a.value)}`.trim();
     return `- ${text}`;
   });
 
   return `
-  ANCHORS (AUTHORITATIVE PROJECT FACTS):
-  These are the most reliable facts for this project. If any other memory conflicts, prefer these.
-  Always address the user using "Preferred address" if present. Do not use older names if they conflict.
-  ${lines.join("\n")}
-  `.trim();
+ANCHORS (AUTHORITATIVE PROJECT FACTS):
+These are the most reliable facts for this project. If any other memory conflicts, prefer these.
+Always address the user using "Preferred address" if present. Do not use older names if they conflict.
+${lines.join("\n")}
+`.trim();
 }
 
 export async function setProjectAnchor(params: {
   authedUserId: string;
   projectId: string;
-  memKey: string;
-  memValue: string;
-  displayText?: string;
+  memKey: string;     
+  memValue: string;  
+  displayText?: string; 
   pinned?: boolean;
   locked?: boolean;
 }) {
@@ -73,29 +88,35 @@ export async function setProjectAnchor(params: {
     projectId,
     memKey,
     memValue,
-    displayText,
     pinned = true,
     locked = true,
   } = params;
 
   const admin = supabaseAdmin();
+  const nowIso = new Date().toISOString();
 
-  // 1) Update existing
+  const payload = {
+    user_id: authedUserId,
+    project_id: projectId,
+    key: memKey,
+    value: { text: memValue },
+    tier: "core",
+    scope: "project",
+    pinned,
+    locked,
+    status: "active",
+    deleted_at: null,
+    updated_at: nowIso,
+    last_seen_at: nowIso,
+    last_reinforced_at: nowIso,
+  };
+
   const { data: updated, error: updateError } = await admin
     .from("memory_items")
-    .update({
-      mem_value: memValue,
-      display_text: displayText ?? null,
-      pinned,
-      locked,
-      kind: "anchor",
-      scope: "project",
-      deleted_at: null,
-      updated_at: new Date().toISOString(),
-    })
+    .update(payload)
     .eq("user_id", authedUserId)
     .eq("project_id", projectId)
-    .eq("mem_key", memKey)
+    .eq("key", memKey)
     .is("deleted_at", null)
     .select("id");
 
@@ -105,24 +126,12 @@ export async function setProjectAnchor(params: {
     return { ok: true, mode: "updated" as const, id: updated[0].id };
   }
 
-  // 2) Insert new
   const { data: inserted, error: insertError } = await admin
     .from("memory_items")
-    .insert({
-      user_id: authedUserId,
-      project_id: projectId,
-      mem_key: memKey,
-      mem_value: memValue,
-      display_text: displayText ?? null,
-      pinned,
-      locked,
-      kind: "anchor",
-      scope: "project",
-    })
+    .insert(payload)
     .select("id")
     .single();
 
   if (insertError) throw insertError;
   return { ok: true, mode: "inserted" as const, id: inserted.id };
 }
-
