@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:frontend/pages/chat_test_page.dart';
+import 'pages/home_shell.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -27,7 +27,7 @@ class ArborApp extends StatelessWidget {
       title: 'Arbor',
       debugShowCheckedModeBanner: false,
       theme: ThemeData.dark(useMaterial3: true),
-      home: const ChatTestPage(),
+      home: const HomeShell(),
     );
   }
 }
