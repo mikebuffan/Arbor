@@ -94,88 +94,27 @@ class _AuthPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final authed = _isAuthed;
+    final label = isAuthed ? 'Signed in' : 'Not signed in';
+    final icon = isAuthed ? Icons.verified_rounded : Icons.lock_outline_rounded;
+    final iconColor = isAuthed ? Colors.greenAccent : Colors.orangeAccent;
 
-    return Scaffold(
-      backgroundColor: const Color(0xFF0E0316),
-      body: Stack(
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.04),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.white.withOpacity(0.10)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            decoration: const BoxDecoration(
-              gradient: RadialGradient(
-                center: Alignment(0, -0.25),
-                radius: 1.2,
-                colors: [
-                  Color(0xFF12081A),
-                  Color(0xFF0E0316),
-                  Color(0xFF06020A),
-                ],
-                stops: [0.0, 0.55, 1.0],
-              ),
-            ),
-          ),
-
-          const Positioned(left: -140, top: -140, child: _GlowOrb(size: 320)),
-          const Positioned(right: -140, top: -140, child: _GlowOrb(size: 320)),
-          const Positioned(left: -160, bottom: -160, child: _GlowOrb(size: 360)),
-          const Positioned(right: -160, bottom: -160, child: _GlowOrb(size: 360)),
-
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-              child: Column(
-                children: [
-                  _TopArborBar(
-                    isAuthed: authed,
-                    onNewThread: authed ? _newThread : null,
-                    onSignOut: authed ? _signOut : null,
-                    loading: _loading,
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  Expanded(
-                    child: ListView.separated(
-                      controller: _scrollCtrl,
-                      padding: const EdgeInsets.only(top: 8, bottom: 12),
-                      itemCount: _messages.length + (_isTyping ? 1 : 0),
-                      separatorBuilder: (_, __) => const SizedBox(height: 12),
-                      itemBuilder: (context, i) {
-                        final isTypingRow = _isTyping && i == _messages.length;
-                        final m = isTypingRow
-                            ? _ChatMessage(isUser: false, text: 'Arbor is thinking…')
-                            : _messages[i];
-
-                        return _ChatBubble(
-                          text: m.text,
-                          isUser: m.isUser,
-                          isTyping: isTypingRow,
-                        );
-                      },
-                    ),
-                  ),
-
-                  if (!authed) ...[
-                    _LoginPanel(
-                      loading: _loading,
-                      emailCtrl: _emailCtrl,
-                      passCtrl: _passCtrl,
-                      emailFocus: _emailFocus,
-                      passFocus: _passFocus,
-                      onSignIn: _signIn,
-                    ),
-                    const SizedBox(height: 12),
-                  ],
-
-                  _ChatInputBar(
-                    enabled: authed && !_loading,
-                    controller: _msgCtrl,
-                    focusNode: _msgFocus,
-                    onSend: (_loading || !authed || _msgCtrl.text.trim().isEmpty) ? null : _send,
-                  ),
-                ],
-              ),
-            ),
+          Icon(icon, size: 16, color: iconColor),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Colors.white70,
+                ),
           ),
         ],
       ),
