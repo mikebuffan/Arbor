@@ -1,129 +1,112 @@
-import 'dart:math' as math;
+import 'dart:math';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 
 class ArborBackground extends StatelessWidget {
   final Widget child;
   const ArborBackground({super.key, required this.child});
 
-  static const _bgA = Color(0xFF12081A);
-  static const _bgB = Color(0xFF0E0316);
-  static const _bgC = Color(0xFF06020A);
-
-  // Locked accent range you’ve been using
-  static const _fuchsiaHot = Color(0xFFF3387A);
-
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        // Deep charcoal / purple-black radial gradient
-        Container(
-          decoration: const BoxDecoration(
-            gradient: RadialGradient(
-              center: Alignment(0, -0.2),
-              radius: 1.25,
-              colors: [_bgA, _bgB, _bgC],
-              stops: [0.0, 0.55, 1.0],
-            ),
+    return CustomPaint(
+      painter: _MoonsPainter(),
+      child: Container(
+        decoration: const BoxDecoration(
+          gradient: RadialGradient(
+            center: Alignment(0, -0.6),
+            radius: 1.2,
+            colors: [
+              Color(0xFF1A0826),
+              Color(0xFF0E0316),
+              Color(0xFF06010B),
+            ],
           ),
         ),
-
-        // Corner “planet sunrise” outlines (mockup vibe)
-        const Positioned.fill(child: _CornerPlanetGlows()),
-
-        // Main content
-        Positioned.fill(child: child),
-      ],
-    );
-  }
-}
-
-/// 4 corner half-circle “planet outlines” with fuchsia glow.
-/// (Pulled from firefly_code_complete.txt and adapted to current theme/colors.):contentReference[oaicite:1]{index=1}
-class _CornerPlanetGlows extends StatelessWidget {
-  const _CornerPlanetGlows();
-
-  @override
-  Widget build(BuildContext context) {
-    // Tune these to match the mockup scale
-    const double size = 340;      // was 260 in the reference; mockup corners look larger
-    const double stroke = 3.0;
-    const double glowBlur = 42;   // stronger “sunrise” halo
-
-    Widget corner({
-      required Alignment align,
-      required double startAngle,
-    }) {
-      return Align(
-        alignment: align,
-        child: SizedBox(
-          width: size,
-          height: size,
-          child: CustomPaint(
-            painter: _PlanetOutlinePainter(
-              // line + glow intensities tuned toward the mockup
-              color: ArborBackground._fuchsiaHot.withOpacity(0.70),
-              strokeWidth: stroke,
-              glowColor: ArborBackground._fuchsiaHot.withOpacity(0.22),
-              glowBlur: glowBlur,
-              startAngle: startAngle,
-              sweepAngle: math.pi, // half circle
-            ),
-          ),
-        ),
-      );
-    }
-
-    return IgnorePointer(
-      child: Stack(
-        children: [
-          corner(align: Alignment.topLeft, startAngle: 0),
-          corner(align: Alignment.topRight, startAngle: math.pi / 2),
-          corner(align: Alignment.bottomLeft, startAngle: -math.pi / 2),
-          corner(align: Alignment.bottomRight, startAngle: math.pi),
-        ],
+        child: child,
       ),
     );
   }
 }
 
-class _PlanetOutlinePainter extends CustomPainter {
-  _PlanetOutlinePainter({
-    required this.color,
-    required this.strokeWidth,
-    required this.glowColor,
-    required this.glowBlur,
-    required this.startAngle,
-    required this.sweepAngle,
-  });
-
-  final Color color;
-  final double strokeWidth;
-  final Color glowColor;
-  final double glowBlur;
-  final double startAngle;
-  final double sweepAngle;
-
+class _MoonsPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final rect = Rect.fromLTWH(0, 0, size.width, size.height);
+    // Rim positions: top-left, top-right, bottom-left, bottom-right
+    _rim(canvas, size, const Offset(-0.18, 0.12), 0.56, flip: false);
+    _rim(canvas, size, const Offset(1.18, 0.12), 0.56, flip: true);
+    _rim(canvas, size, const Offset(-0.18, 0.92), 0.56, flip: false);
+    _rim(canvas, size, const Offset(1.18, 0.92), 0.56, flip: true);
 
-    // Glow pass (soft):contentReference[oaicite:2]{index=2}
-    final glowPaint = Paint()
+    // Center horizon glow (thin, hot core)
+    final cy = size.height * 0.47;
+    final rect = Rect.fromCenter(
+      center: Offset(size.width * 0.5, cy),
+      width: size.width * 0.42,
+      height: 10,
+    );
+    final glow = Paint()
+      ..shader = const LinearGradient(
+        colors: [
+          Colors.transparent,
+          Color(0xFFF3387A),
+          Colors.transparent,
+        ],
+      ).createShader(rect)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(rect, const Radius.circular(999)),
+      glow,
+    );
+
+    final core = Paint()
+      ..shader = const LinearGradient(
+        colors: [
+          Colors.transparent,
+          Color(0xFFFF4C8B),
+          Colors.transparent,
+        ],
+      ).createShader(rect);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(rect, const Radius.circular(999)),
+      core,
+    );
+  }
+
+  void _rim(Canvas canvas, Size size, Offset anchor, double radiusFactor,
+      {required bool flip}) {
+    final r = min(size.width, size.height) * radiusFactor;
+    final center = Offset(anchor.dx * size.width, anchor.dy * size.height);
+    final rect = Rect.fromCircle(center: center, radius: r);
+
+    // Bright rim stroke
+    final rim = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth
-      ..color = glowColor
-      ..maskFilter = MaskFilter.blur(BlurStyle.normal, glowBlur);
+      ..strokeWidth = 6
+      ..shader = SweepGradient(
+        startAngle: flip ? pi * 0.15 : pi * 1.15,
+        endAngle: flip ? pi * 1.15 : pi * 2.15,
+        colors: const [
+          Colors.transparent,
+          Color(0xFFF3387A),
+          Color(0xFFFF4C8B),
+          Colors.transparent,
+        ],
+        stops: const [0.0, 0.45, 0.62, 1.0],
+      ).createShader(rect)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
 
-    // Line pass (crisper)
-    final linePaint = Paint()
+    // Draw only the visible “crescent” portion
+    final start = flip ? -0.25 : pi - 0.25;
+    final sweep = 1.35;
+    canvas.drawArc(rect, start, sweep, false, rim);
+
+    // Soft outer bloom
+    final bloom = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth
-      ..color = color
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.0);
-
-    canvas.drawArc(rect, startAngle, sweepAngle, false, glowPaint);
-    canvas.drawArc(rect, startAngle, sweepAngle, false, linePaint);
+      ..strokeWidth = 14
+      ..color = const Color(0xFFF3387A).withOpacity(0.18)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 22);
+    canvas.drawArc(rect, start, sweep, false, bloom);
   }
 
   @override

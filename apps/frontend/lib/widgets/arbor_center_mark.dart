@@ -17,16 +17,17 @@ class ArborCenterMark extends StatelessWidget {
             fontWeight: FontWeight.w500,
           ),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 16),
+        // We keep the line here subtle; the "hot" part is in the background painter.
         Container(
           height: 2,
-          width: 220,
+          width: 240,
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(99),
+            borderRadius: BorderRadius.circular(999),
             gradient: LinearGradient(
               colors: [
                 Colors.transparent,
-                const Color(0xFFF3387A).withOpacity(0.85),
+                const Color(0xFFF3387A).withOpacity(0.55),
                 Colors.transparent,
               ],
             ),

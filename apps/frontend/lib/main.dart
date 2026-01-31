@@ -1,22 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:flutter/foundation.dart';
-import 'package:frontend/ui/phone_frame.dart';
+import 'theme/arbor_theme.dart';
+import 'ui/phone_frame.dart';
 import 'pages/home_shell.dart';
 
-Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  
-  final supabaseUrl = const String.fromEnvironment('SUPABASE_URL');
-  final supabaseAnonKey = const String.fromEnvironment('SUPABASE_ANON_KEY');
-  debugPrint('SUPABASE_URL=$supabaseUrl');
-  debugPrint('SUPABASE_ANON_KEY len=${supabaseAnonKey.length}');
-
-  await Supabase.initialize(
-    url: const String.fromEnvironment('SUPABASE_URL'),
-    anonKey: const String.fromEnvironment('SUPABASE_ANON_KEY'),
-  );
-
+void main() {
   runApp(const ArborApp());
 }
 
@@ -26,10 +13,13 @@ class ArborApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Arbor',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData.dark(useMaterial3: true),
-      home: kIsWeb ? const PhoneFrame(child: HomeShell()) : const HomeShell(),
+      theme: ArborTheme.theme(),
+      home: const Scaffold(
+        body: PhoneFrame(
+          child: HomeShell(),
+        ),
+      ),
     );
   }
 }

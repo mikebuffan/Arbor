@@ -7,31 +7,20 @@ class PhoneFrame extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // iPhone-ish size; tweak later if you want
-    const double w = 390;
-    const double h = 844;
-
-    return Scaffold(
-      backgroundColor: const Color(0xFF06020A),
-      body: Center(
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(18),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(26),
+          borderRadius: BorderRadius.circular(22),
           child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 0, sigmaY: 0),
+            filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
             child: Container(
-              width: w,
-              height: h,
+              width: double.infinity,
+              constraints: const BoxConstraints(maxWidth: 430, maxHeight: 740),
               decoration: BoxDecoration(
-                color: const Color(0xFF0E0316),
-                borderRadius: BorderRadius.circular(26),
-                border: Border.all(color: Colors.white.withOpacity(0.08)),
-                boxShadow: [
-                  BoxShadow(
-                    blurRadius: 40,
-                    spreadRadius: 6,
-                    color: Colors.black.withOpacity(0.65),
-                  ),
-                ],
+                color: Colors.white.withOpacity(0.03),
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(color: Colors.white.withOpacity(0.06)),
               ),
               child: child,
             ),

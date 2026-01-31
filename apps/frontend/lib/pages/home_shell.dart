@@ -1,156 +1,94 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
-
-import 'package:frontend/widgets/arbor_background.dart';
-import 'chat_test_page.dart';
-import 'memory_screen.dart';
-
-import '../widgets/glass_pill_button.dart';
+import '../widgets/arbor_background.dart';
 import '../widgets/arbor_center_mark.dart';
+import '../widgets/glass_pill_button.dart';
 
 class HomeShell extends StatelessWidget {
   const HomeShell({super.key});
 
   void _toast(BuildContext context, String msg) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), duration: const Duration(milliseconds: 900)),
+      SnackBar(content: Text(msg), duration: const Duration(milliseconds: 650)),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: ArborBackground(
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(18),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(18),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-                child: Container(
-                  width: double.infinity,
-                  constraints: const BoxConstraints(
-                    maxWidth: 430,
-                    maxHeight: 740,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.04),
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: Colors.white.withOpacity(0.06)),
-                  ),
-                  child: LayoutBuilder(
-                    builder: (context, box) {
-                      // ✅ Locked-ish composition knobs (tune tomorrow if needed)
-                      const sideInset = 18.0;
-                      const gap = 12.0;
+    // Grid tuning to match mock
+    const double colGap = 18;
+    const double rowGap = 14;
+    const double sideInset = 26;
+    const double topClear = 210; // leaves room for center mark
+    const double buttonW = 162;
 
-                      // If your GlassPillButton has its own fixed height, this just helps center the stack.
-                      const buttonApproxHeight = 46.0;
-                      const rows = 5;
-                      final totalH = (buttonApproxHeight * rows) + (gap * (rows - 1));
-                      final topOffset =
-                          ((box.maxHeight - totalH) / 2).clamp(120.0, 250.0);
-
-                      return Stack(
-                        children: [
-                          // ✅ Use shared center mark widget (no private _ArborCenterMark)
-                          const Center(child: ArborCenterMark()),
-
-                          // Left buttons (modes)
-                          Positioned(
-                            left: sideInset,
-                            top: topOffset,
-                            child: Column(
-                              children: [
-                                GlassPillButton(
-                                  label: "Bored",
-                                  onTap: () => _toast(context, "Bored (placeholder)"),
-                                ),
-                                const SizedBox(height: gap),
-                                GlassPillButton(
-                                  label: "Focus",
-                                  onTap: () => _toast(context, "Focus (placeholder)"),
-                                ),
-                                const SizedBox(height: gap),
-                                GlassPillButton(
-                                  label: "Reset",
-                                  onTap: () => _toast(context, "Reset (placeholder)"),
-                                ),
-                                const SizedBox(height: gap),
-                                GlassPillButton(
-                                  label: "Challenge",
-                                  onTap: () => _toast(context, "Challenge (placeholder)"),
-                                ),
-                                const SizedBox(height: gap),
-                                GlassPillButton(
-                                  label: "Criminology",
-                                  onTap: () => _toast(context, "Criminology (placeholder)"),
-                                ),
-                              ],
-                            ),
-                          ),
-
-                          // Right buttons (utility)
-                          Positioned(
-                            right: sideInset,
-                            top: topOffset,
-                            child: Column(
-                              children: [
-                                GlassPillButton(
-                                  label: "Help",
-                                  onTap: () => _toast(context, "Help (placeholder)"),
-                                ),
-                                const SizedBox(height: gap),
-                                GlassPillButton(
-                                  label: "Notes",
-                                  onTap: () => _toast(context, "Notes (placeholder)"),
-                                ),
-                                const SizedBox(height: gap),
-                                GlassPillButton(
-                                  label: "Memory",
-                                  onTap: () {
-                                    Navigator.of(context).push(
-                                      MaterialPageRoute(builder: (_) => const MemoryScreen()),
-                                    );
-                                  },
-                                ),
-                                const SizedBox(height: gap),
-                                GlassPillButton(
-                                  label: "Reports",
-                                  onTap: () => _toast(context, "Reports (placeholder)"),
-                                ),
-                                const SizedBox(height: gap),
-                                GlassPillButton(
-                                  label: "Settings",
-                                  onTap: () => _toast(context, "Settings (placeholder)"),
-                                ),
-                              ],
-                            ),
-                          ),
-
-                          // Temporary dev shortcut (you already called this out as placeholder)
-                          Positioned(
-                            right: 18,
-                            bottom: 18,
-                            child: GlassPillButton(
-                              label: "Chat (test)",
-                              onTap: () {
-                                Navigator.of(context).push(
-                                  MaterialPageRoute(builder: (_) => const ChatTestPage()),
-                                );
-                              },
-                            ),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                ),
-              ),
+    return ArborBackground(
+      child: Stack(
+        children: [
+          // Tap-to-open-chat area (we’ll hook this later)
+          Positioned.fill(
+            child: GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onTap: () {
+                // Placeholder only; no chat button on home.
+                _toast(context, "Tap-to-chat will be wired next.");
+              },
+              child: const SizedBox(),
             ),
           ),
-        ),
+
+          // Center ARBOR mark
+          const Positioned(
+            left: 0,
+            right: 0,
+            top: 118,
+            child: Center(child: ArborCenterMark()),
+          ),
+
+          // Button grid
+          Positioned(
+            left: sideInset,
+            right: sideInset,
+            top: topClear,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                SizedBox(
+                  width: buttonW,
+                  child: Column(
+                    children: [
+                      GlassPillButton(label: "Bored", onTap: () => _toast(context, "Bored")),
+                      const SizedBox(height: rowGap),
+                      GlassPillButton(label: "Focus", onTap: () => _toast(context, "Focus")),
+                      const SizedBox(height: rowGap),
+                      GlassPillButton(label: "Reset", onTap: () => _toast(context, "Reset")),
+                      const SizedBox(height: rowGap),
+                      GlassPillButton(label: "Challenge", onTap: () => _toast(context, "Challenge")),
+                      const SizedBox(height: rowGap),
+                      GlassPillButton(label: "Criminology", onTap: () => _toast(context, "Criminology")),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: colGap),
+                SizedBox(
+                  width: buttonW,
+                  child: Column(
+                    children: [
+                      GlassPillButton(label: "Help", onTap: () => _toast(context, "Help")),
+                      const SizedBox(height: rowGap),
+                      GlassPillButton(label: "Notes", onTap: () => _toast(context, "Notes")),
+                      const SizedBox(height: rowGap),
+                      GlassPillButton(label: "Memory", onTap: () => _toast(context, "Memory")),
+                      const SizedBox(height: rowGap),
+                      GlassPillButton(label: "Reports", onTap: () => _toast(context, "Reports")),
+                      const SizedBox(height: rowGap),
+                      GlassPillButton(label: "Settings", onTap: () => _toast(context, "Settings")),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

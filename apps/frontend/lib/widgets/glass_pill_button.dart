@@ -13,30 +13,27 @@ class GlassPillButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(14),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-        child: Material(
-          color: Colors.white.withOpacity(0.06),
-          child: InkWell(
-            onTap: onTap,
-            child: Container(
-              height: 46,
-              width: 160, 
-              padding: const EdgeInsets.symmetric(horizontal: 18),
-              alignment: Alignment.centerLeft,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: Colors.white.withOpacity(0.08)),
-              ),
-              child: Text(
-                label,
-                style: TextStyle(
-                  color: Colors.white.withOpacity(0.70),
-                  fontSize: 15,
-                  letterSpacing: 0.2,
-                ),
+    return GestureDetector(
+      onTap: onTap,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(18),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Container(
+            height: 48,
+            alignment: Alignment.centerLeft,
+            padding: const EdgeInsets.symmetric(horizontal: 18),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.06),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: Colors.white.withOpacity(0.08)),
+            ),
+            child: Text(
+              label,
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.80),
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
               ),
             ),
           ),
