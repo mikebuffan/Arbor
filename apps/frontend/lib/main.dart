@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter/foundation.dart';
+import 'package:frontend/ui/phone_frame.dart';
 import 'pages/home_shell.dart';
 
 Future<void> main() async {
@@ -27,7 +29,7 @@ class ArborApp extends StatelessWidget {
       title: 'Arbor',
       debugShowCheckedModeBanner: false,
       theme: ThemeData.dark(useMaterial3: true),
-      home: const HomeShell(),
+      home: kIsWeb ? const PhoneFrame(child: HomeShell()) : const HomeShell(),
     );
   }
 }
