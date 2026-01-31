@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../ui/phone_frame.dart';
 import '../widgets/arbor_background.dart';
 import '../widgets/arbor_center_mark.dart';
 import '../widgets/glass_pill_button.dart';
@@ -6,90 +7,76 @@ import '../widgets/glass_pill_button.dart';
 class HomeShell extends StatelessWidget {
   const HomeShell({super.key});
 
-  void _toast(BuildContext context, String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), duration: const Duration(milliseconds: 650)),
-    );
-  }
+  void _noop() {}
 
   @override
   Widget build(BuildContext context) {
-    // Grid tuning to match mock
-    const double colGap = 18;
-    const double rowGap = 14;
-    const double sideInset = 26;
-    const double topClear = 210; // leaves room for center mark
-    const double buttonW = 162;
-
-    return ArborBackground(
+    return PhoneFrame(
       child: Stack(
         children: [
-          // Tap-to-open-chat area (we’ll hook this later)
-          Positioned.fill(
-            child: GestureDetector(
-              behavior: HitTestBehavior.translucent,
-              onTap: () {
-                // Placeholder only; no chat button on home.
-                _toast(context, "Tap-to-chat will be wired next.");
-              },
-              child: const SizedBox(),
-            ),
-          ),
+          // Background lives INSIDE the phone, like the mock
+          const Positioned.fill(child: ArborBackground()),
 
-          // Center ARBOR mark
-          const Positioned(
-            left: 0,
-            right: 0,
-            top: 118,
-            child: Center(child: ArborCenterMark()),
-          ),
-
-          // Button grid
+          // Left rail
           Positioned(
-            left: sideInset,
-            right: sideInset,
-            top: topClear,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                SizedBox(
-                  width: buttonW,
-                  child: Column(
-                    children: [
-                      GlassPillButton(label: "Bored", onTap: () => _toast(context, "Bored")),
-                      const SizedBox(height: rowGap),
-                      GlassPillButton(label: "Focus", onTap: () => _toast(context, "Focus")),
-                      const SizedBox(height: rowGap),
-                      GlassPillButton(label: "Reset", onTap: () => _toast(context, "Reset")),
-                      const SizedBox(height: rowGap),
-                      GlassPillButton(label: "Challenge", onTap: () => _toast(context, "Challenge")),
-                      const SizedBox(height: rowGap),
-                      GlassPillButton(label: "Criminology", onTap: () => _toast(context, "Criminology")),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: colGap),
-                SizedBox(
-                  width: buttonW,
-                  child: Column(
-                    children: [
-                      GlassPillButton(label: "Help", onTap: () => _toast(context, "Help")),
-                      const SizedBox(height: rowGap),
-                      GlassPillButton(label: "Notes", onTap: () => _toast(context, "Notes")),
-                      const SizedBox(height: rowGap),
-                      GlassPillButton(label: "Memory", onTap: () => _toast(context, "Memory")),
-                      const SizedBox(height: rowGap),
-                      GlassPillButton(label: "Reports", onTap: () => _toast(context, "Reports")),
-                      const SizedBox(height: rowGap),
-                      GlassPillButton(label: "Settings", onTap: () => _toast(context, "Settings")),
-                    ],
-                  ),
-                ),
+            left: 18,
+            top: 250,
+            child: Column(
+              children: const [
+                _RailButton(label: "Bored"),
+                SizedBox(height: 10),
+                _RailButton(label: "Focus"),
+                SizedBox(height: 10),
+                _RailButton(label: "Reset"),
+                SizedBox(height: 10),
+                _RailButton(label: "Challenge"),
+                SizedBox(height: 10),
+                _RailButton(label: "Criminology"),
               ],
             ),
           ),
+
+          // Right rail
+          Positioned(
+            right: 18,
+            top: 250,
+            child: Column(
+              children: const [
+                _RailButton(label: "Help"),
+                SizedBox(height: 10),
+                _RailButton(label: "Notes"),
+                SizedBox(height: 10),
+                _RailButton(label: "History"),
+                SizedBox(height: 10),
+                _RailButton(label: "Reports"),
+                SizedBox(height: 10),
+                _RailButton(label: "Settings"),
+              ],
+            ),
+          ),
+
+          // ARBOR centered BETWEEN rails (vertically aligned with the horizon glow)
+          const Positioned(
+            left: 0,
+            right: 0,
+            top: 318,
+            child: Center(child: ArborCenterMark()),
+          ),
+
+          // NOTE: No chat button. Tap-to-chat overlay comes later as the transition sheet.
+          // We intentionally do nothing here for now to keep UX clean.
         ],
       ),
     );
+  }
+}
+
+class _RailButton extends StatelessWidget {
+  final String label;
+  const _RailButton({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassPillButton(label: label, onTap: () {});
   }
 }

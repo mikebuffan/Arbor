@@ -1,112 +1,118 @@
-import 'dart:math';
-import 'dart:ui';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 class ArborBackground extends StatelessWidget {
-  final Widget child;
-  const ArborBackground({super.key, required this.child});
+  const ArborBackground({super.key});
 
   @override
   Widget build(BuildContext context) {
     return CustomPaint(
-      painter: _MoonsPainter(),
-      child: Container(
-        decoration: const BoxDecoration(
-          gradient: RadialGradient(
-            center: Alignment(0, -0.6),
-            radius: 1.2,
-            colors: [
-              Color(0xFF1A0826),
-              Color(0xFF0E0316),
-              Color(0xFF06010B),
-            ],
-          ),
-        ),
-        child: child,
-      ),
+      painter: _ArborHomePainter(),
+      child: const SizedBox.expand(),
     );
   }
 }
 
-class _MoonsPainter extends CustomPainter {
+class _ArborHomePainter extends CustomPainter {
+  static const bgA = Color(0xFF1A0826);
+  static const bgB = Color(0xFF0E0316);
+  static const bgC = Color(0xFF05010A);
+
+  static const hot = Color(0xFFF3387A);
+  static const hotCore = Color(0xFFFF4C8B);
+
   @override
   void paint(Canvas canvas, Size size) {
-    // Rim positions: top-left, top-right, bottom-left, bottom-right
-    _rim(canvas, size, const Offset(-0.18, 0.12), 0.56, flip: false);
-    _rim(canvas, size, const Offset(1.18, 0.12), 0.56, flip: true);
-    _rim(canvas, size, const Offset(-0.18, 0.92), 0.56, flip: false);
-    _rim(canvas, size, const Offset(1.18, 0.92), 0.56, flip: true);
+    // Background gradient
+    final rect = Offset.zero & size;
+    final bgPaint = Paint()
+      ..shader = const RadialGradient(
+        center: Alignment(0, -0.65),
+        radius: 1.25,
+        colors: [bgA, bgB, bgC],
+        stops: [0.0, 0.55, 1.0],
+      ).createShader(rect);
+    canvas.drawRect(rect, bgPaint);
 
-    // Center horizon glow (thin, hot core)
-    final cy = size.height * 0.47;
-    final rect = Rect.fromCenter(
-      center: Offset(size.width * 0.5, cy),
-      width: size.width * 0.42,
+    // Planet limbs: big + edge-hugging like the mock
+    _planetLimb(canvas, size, const Alignment(-1.25, -0.75), flip: false);
+    _planetLimb(canvas, size, const Alignment( 1.25, -0.75), flip: true);
+    _planetLimb(canvas, size, const Alignment(-1.25,  1.05), flip: false);
+    _planetLimb(canvas, size, const Alignment( 1.25,  1.05), flip: true);
+
+    // Horizon glow line (hot core + bloom), centered under ARBOR
+    final y = size.height * 0.50;
+    final lineRect = Rect.fromCenter(
+      center: Offset(size.width * 0.5, y),
+      width: size.width * 0.55,
       height: 10,
     );
-    final glow = Paint()
+
+    final bloom = Paint()
       ..shader = const LinearGradient(
-        colors: [
-          Colors.transparent,
-          Color(0xFFF3387A),
-          Colors.transparent,
-        ],
-      ).createShader(rect)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10);
+        colors: [Colors.transparent, hot, Colors.transparent],
+      ).createShader(lineRect)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 14);
     canvas.drawRRect(
-      RRect.fromRectAndRadius(rect, const Radius.circular(999)),
-      glow,
+      RRect.fromRectAndRadius(lineRect, const Radius.circular(999)),
+      bloom,
     );
 
+    final coreRect = Rect.fromCenter(
+      center: Offset(size.width * 0.5, y),
+      width: size.width * 0.22,
+      height: 4,
+    );
     final core = Paint()
       ..shader = const LinearGradient(
-        colors: [
-          Colors.transparent,
-          Color(0xFFFF4C8B),
-          Colors.transparent,
-        ],
-      ).createShader(rect);
+        colors: [Colors.transparent, hotCore, Colors.transparent],
+      ).createShader(coreRect);
     canvas.drawRRect(
-      RRect.fromRectAndRadius(rect, const Radius.circular(999)),
+      RRect.fromRectAndRadius(coreRect, const Radius.circular(999)),
       core,
     );
   }
 
-  void _rim(Canvas canvas, Size size, Offset anchor, double radiusFactor,
-      {required bool flip}) {
-    final r = min(size.width, size.height) * radiusFactor;
-    final center = Offset(anchor.dx * size.width, anchor.dy * size.height);
-    final rect = Rect.fromCircle(center: center, radius: r);
+  void _planetLimb(Canvas canvas, Size size, Alignment a, {required bool flip}) {
+    final w = size.width;
+    final h = size.height;
 
-    // Bright rim stroke
+    // Big radius so only the rim shows
+    final r = math.min(w, h) * 0.62;
+    final cx = (a.x + 1) * 0.5 * w;
+    final cy = (a.y + 1) * 0.5 * h;
+    final rect = Rect.fromCircle(center: Offset(cx, cy), radius: r);
+
+    // Bloom halo
+    final halo = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 22
+      ..color = hot.withOpacity(0.16)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 34);
+
+    // Hot rim
     final rim = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 6
       ..shader = SweepGradient(
-        startAngle: flip ? pi * 0.15 : pi * 1.15,
-        endAngle: flip ? pi * 1.15 : pi * 2.15,
-        colors: const [
+        startAngle: flip ? math.pi * 0.15 : math.pi * 1.15,
+        endAngle:   flip ? math.pi * 1.10 : math.pi * 2.10,
+        colors: [
           Colors.transparent,
-          Color(0xFFF3387A),
-          Color(0xFFFF4C8B),
+          hot.withOpacity(0.85),
+          hotCore.withOpacity(0.95),
           Colors.transparent,
         ],
-        stops: const [0.0, 0.45, 0.62, 1.0],
+        stops: const [0.0, 0.45, 0.60, 1.0],
       ).createShader(rect)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
 
-    // Draw only the visible “crescent” portion
-    final start = flip ? -0.25 : pi - 0.25;
-    final sweep = 1.35;
-    canvas.drawArc(rect, start, sweep, false, rim);
+    // Sweep arc that shows just the limb
+    final start = flip ? -0.35 : math.pi - 0.35;
+    const sweep = 1.55;
 
-    // Soft outer bloom
-    final bloom = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 14
-      ..color = const Color(0xFFF3387A).withOpacity(0.18)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 22);
-    canvas.drawArc(rect, start, sweep, false, bloom);
+    canvas.drawArc(rect, start, sweep, false, halo);
+    canvas.drawArc(rect, start, sweep, false, rim);
   }
 
   @override
