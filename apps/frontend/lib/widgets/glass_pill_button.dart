@@ -23,7 +23,7 @@ class GlassPillButton extends StatelessWidget {
             onTap: onTap,
             child: Container(
               height: 46,
-              width: 160, // ✅ key: keep buttons from swallowing the center
+              width: 160, 
               padding: const EdgeInsets.symmetric(horizontal: 18),
               alignment: Alignment.centerLeft,
               decoration: BoxDecoration(
