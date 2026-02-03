@@ -3,6 +3,7 @@ import '../ui/phone_frame.dart';
 import '../widgets/arbor_background.dart';
 import '../widgets/arbor_center_mark.dart';
 import '../widgets/glass_pill_button.dart';
+import 'chat_test_page.dart';
 
 class HomeShell extends StatelessWidget {
   const HomeShell({super.key});
@@ -19,8 +20,8 @@ class HomeShell extends StatelessWidget {
 
           // Left rail
           Positioned(
-            left: 18,
-            top: 250,
+            left: 34,
+            top: 292,
             child: Column(
               children: const [
                 _RailButton(label: "Bored"),
@@ -38,8 +39,8 @@ class HomeShell extends StatelessWidget {
 
           // Right rail
           Positioned(
-            right: 18,
-            top: 250,
+            right: 34,
+            top: 292,
             child: Column(
               children: const [
                 _RailButton(label: "Help"),
@@ -59,12 +60,18 @@ class HomeShell extends StatelessWidget {
           const Positioned(
             left: 0,
             right: 0,
-            top: 318,
+            top: 284,
             child: Center(child: ArborCenterMark()),
           ),
 
           // NOTE: No chat button. Tap-to-chat overlay comes later as the transition sheet.
           // We intentionally do nothing here for now to keep UX clean.
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const ChatTestPage()),
+            ),
+            child: const Text("Chat (test)"),
+          )
         ],
       ),
     );

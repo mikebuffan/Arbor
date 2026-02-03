@@ -13,6 +13,9 @@ import { realWorldSafetyAddendum } from "@/lib/governance/realWorldSafetyAddendu
 import { logDecisionOutcome } from "@/lib/safety/decisionOutcome";
 import { promoteIdentityAnchors } from "@/lib/memory/promoteIdentityAnchors";
 
+import { buildProofSnapshot } from "@/lib/arbor/ProofSnapshot";
+import { buildTelemetry } from "@/lib/arbor/telemetry/buildTelemetry";
+import { getOrCreateOpenEpisode } from "@/lib/arbor/episodes/getOrCreateOpenEpisode";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -34,12 +37,9 @@ function getCorsHeaders(req: Request) {
   const origin = req.headers.get("origin") ?? "*";
 
   return {
-    // If you want to lock later: set to your real origins and keep Vary: Origin
     "access-control-allow-origin": origin,
     "vary": "origin",
-
     "access-control-allow-methods": "POST, OPTIONS",
-    // IMPORTANT: allow common extra headers browsers/libraries often send
     "access-control-allow-headers": "content-type, authorization, apikey, x-client-info",
     "access-control-max-age": "86400",
   };
@@ -82,13 +82,6 @@ async function getOrCreateConversation(params: {
   conversationId?: string;
 }) {
   const { supabase, userId, projectId, conversationId } = params;
-
-  console.log("[CHAT IN]", {
-    projectId,
-    conversationId,
-    userId: userId,
-    hasAuth: Boolean(userId),
-  });
 
   if (conversationId) {
     const { data, error } = await supabase
@@ -147,38 +140,42 @@ async function cleanupExpiredMessagesBestEffort(supabase: any, userId: string) {
 }
 
 export async function POST(req: Request) {
+  const t0 = performance.now(); // ⏱️ 3.10 timing start
+
   try {
     const { supabase, userId } = await requireUser(req);
     const parsed = Body.safeParse(await req.json().catch(() => ({})));
     if (!parsed.success) {
-      return NextResponse.json({ ok: false, error: parsed.error.flatten() }, { status: 400, headers: getCorsHeaders(req), });
+      return NextResponse.json(
+        { ok: false, error: parsed.error.flatten() },
+        { status: 400, headers: getCorsHeaders(req) }
+      );
     }
 
     const { projectId: maybeProjectId, conversationId, userText } = parsed.data;
 
     await cleanupExpiredMessagesBestEffort(supabase, userId);
 
-    // 1) Resolve project (persona/framework lives here)
     const projectId = maybeProjectId ?? (await getOrCreateDefaultProjectId(supabase, userId));
 
-    // 2) Ensure project exists/owned
-    const { data: project, error: pErr } = await supabase
-      .from("projects")
-      .select("id, persona_id, framework_version")
-      .eq("id", projectId)
-      .eq("user_id", userId)
-      .single();
-    if (pErr) {
-      return NextResponse.json({ ok: false, error: "Project not found" }, { status: 404, headers: getCorsHeaders(req), });
-    }
+    const convoId = await getOrCreateConversation({
+      supabase,
+      userId,
+      projectId,
+      conversationId,
+    });
 
-    // 3) Resolve conversation
-    const convoId = await getOrCreateConversation({ supabase, userId, projectId, conversationId });
+    const episodeId = await getOrCreateOpenEpisode({
+      supabase,
+      userId,
+      projectId,
+      threadId: convoId,
+    });
 
-    // 4) Persist user message
     await supabase.from("messages").insert({
       project_id: projectId,
       conversation_id: convoId,
+      episode_id: episodeId,
       user_id: userId,
       role: "user",
       content: userText,
@@ -187,13 +184,6 @@ export async function POST(req: Request) {
     const decisionContext = evaluateDecisionContext({ userText });
     const safety = realWorldSafetyAddendum(decisionContext);
 
-    console.log("[DECISION CONTEXT]", {
-      projectId,
-      conversationId: convoId,
-      decisionContext,
-    });
-
-    // 5) Build system prompt using new contextual builder
     const systemPrompt = await buildPromptContext({
       authedUserId: userId,
       projectId,
@@ -205,56 +195,66 @@ export async function POST(req: Request) {
     const history = await loadRecentMessages(supabase, userId, convoId, 30);
     const messagesForModel: Msg[] = [{ role: "system", content: systemPrompt }, ...history];
 
-    // 6) Generate assistant reply
     const aiResponse = await openAIChat({
       model: process.env.OPENAI_CHAT_MODEL ?? "gpt-5",
       messages: messagesForModel,
     });
-    let assistantText = (aiResponse as any)?.choices?.[0]?.message?.content ?? "";
-    const guarded = guardAssistantText(assistantText);
-      assistantText = guarded.text;
-      if (safety?.assistantPreface) {
-        assistantText = `${safety.assistantPreface}\n\n${assistantText}`;
-      }
 
-    // 7) Safety & postcheck
+    let assistantText = (aiResponse as any)?.choices?.[0]?.message?.content ?? "";
+    assistantText = guardAssistantText(assistantText).text;
+
+    if (safety?.assistantPreface) {
+      assistantText = `${safety.assistantPreface}\n\n${assistantText}`;
+    }
+
     const postcheck = await postcheckResponse({
       authedUserId: userId,
       projectId,
       assistantText,
     });
 
-    // A) log outcome for replaced response
     if (!postcheck.approved) {
-      await logDecisionOutcome({
-        userId,
-        projectId,
-        conversationId: convoId,
-        severityScore: decisionContext?.severityScore ?? 0,
-        riskBand: decisionContext?.riskBand ?? null,
-        emotionalIntensity: decisionContext?.emotionalIntensity ?? null,
-        flags: decisionContext?.flags ?? {},
-        actionTaken: "postcheck_replaced",
-        model: process.env.OPENAI_CHAT_MODEL ?? null,
-        postcheckApproved: false,
-      });
-
       return NextResponse.json(
         { ok: true, assistantText: postcheck.replacement, flagged: true },
         { status: 200, headers: getCorsHeaders(req) }
       );
     }
 
-    // 8) Persist assistant message
     await supabase.from("messages").insert({
       project_id: projectId,
       conversation_id: convoId,
+      episode_id: episodeId,
       user_id: userId,
       role: "assistant",
       content: assistantText,
     });
 
-    // 9) Memory extraction & reinforcement
+    const traceId = crypto.randomUUID();
+
+    const proofSnapshot = buildProofSnapshot({
+      anchors: [],
+      memoryItems: [],
+      //safetyTier: safety?.tier,
+      //logicGatesHit: safety?.gatesHit,
+    });
+
+    const retrievalLatencyMs = Math.round(performance.now() - t0);
+
+    await buildTelemetry(
+      supabase,
+      {
+        traceId,
+        userId,
+        projectId,
+        threadId: convoId,
+        episodeId,
+        //safetyTier: safety?.tier,
+        retrievalLatencyMs,
+        logicGatesHit: [],
+      },
+      proofSnapshot
+    );
+
     const extracted = await extractMemoryFromText({ userText, assistantText });
     await promoteIdentityAnchors({
       authedUserId: userId,
@@ -266,17 +266,14 @@ export async function POST(req: Request) {
     await reinforceMemoryUse(userId, [], projectId);
     await updateMemoryStrength(convoId, 0.2);
 
-    // 10) Update conversation timestamp
     await supabase
       .from("conversations")
       .update({ updated_at: new Date().toISOString() })
       .eq("id", convoId)
       .eq("user_id", userId);
 
-    // 11) Log event
     await logMemoryEvent("chat_completed", { userId, projectId });
 
-    // 12) Decisions (approved path only)
     await logDecisionOutcome({
       userId,
       projectId,
@@ -290,18 +287,35 @@ export async function POST(req: Request) {
       postcheckApproved: true,
     });
 
-    return NextResponse.json(
-      {
-        ok: true,
-        projectId,
-        conversationId: convoId,
-        assistantText,
-      },
-      { status: 200, headers: getCorsHeaders(req), }
-    );
+    /* =====================================================
+       3.10.5 DEV-ONLY — REMOVE BEFORE SHIPPING
+       ===================================================== */
+    const response: any = {
+      ok: true,
+      projectId,
+      conversationId: convoId,
+      assistantText,
+    };
+
+    if (process.env.NODE_ENV === "development") {
+      response._telemetry = {
+        traceId,
+        injectedAnchorIds: proofSnapshot.injected_anchor_ids,
+        injectedMemoryItemIds: proofSnapshot.injected_memory_item_ids,
+        safetyTier: proofSnapshot.safety_tier,
+      };
+    }
+
+    return NextResponse.json(response, {
+      status: 200,
+      headers: getCorsHeaders(req),
+    });
 
   } catch (err: any) {
-    console.error("chat route error:", err, err?.code, err?.message, err?.details);
-    return NextResponse.json({ ok: false, error: err?.message ?? "server_error" }, { status: 500, headers: getCorsHeaders(req), });
+    console.error("chat route error:", err);
+    return NextResponse.json(
+      { ok: false, error: err?.message ?? "server_error" },
+      { status: 500, headers: getCorsHeaders(req) }
+    );
   }
 }
