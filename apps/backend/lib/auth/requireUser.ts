@@ -1,5 +1,3 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
-import { supabaseFromAuthHeader } from "@/lib/supabaseFromAuthHeader";
 import { createClient } from "@supabase/supabase-js";
 
 const claimCache = new Map<string, { userId: string; exp: number }>();
