@@ -22,6 +22,10 @@ function requireAdmin(req: Request) {
   if (!expected) {
     throw new Error("ARBOR_ADMIN_TOKEN missing");
   }
+  console.log("[ADMIN] token len:", token.length);
+  console.log("[ADMIN] expected len:", expected.length);
+  console.log("[ADMIN] token head/tail:", token.slice(0, 6), token.slice(-6));
+  console.log("[ADMIN] expected head/tail:", expected.slice(0, 6), expected.slice(-6));
   if (!token || token !== expected) {
     const err: any = new Error("sum admin_unauthorized");
         console.log("=== ADMIN DEBUG START ===");
