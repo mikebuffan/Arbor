@@ -1,0 +1,5 @@
+{
+  "ARBOR_API_BASE_URL": "https://firefly-coral.vercel.app",
+  "SUPABASE_URL": "https://ncpdlyakrzfvobmwzbon.supabase.co",
+  "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5jcGRseWFrcnpmdm9ibXd6Ym9uIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYyMjk5MDYsImV4cCI6MjA4MTgwNTkwNn0.F1rUaleAnKNLJVUDuH2JyZ7s2X66Vq00sxG1MsjUgpM"
+}
