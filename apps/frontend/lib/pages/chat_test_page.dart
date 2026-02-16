@@ -18,7 +18,7 @@ class ArborHeader extends StatelessWidget {
     this.userId,
     this.projectId,
     this.conversationId,
-    this.onNewThread,   
+    this.onNewThread,
   });
 
   @override
@@ -43,14 +43,11 @@ class ArborHeader extends StatelessWidget {
             letterSpacing: 0.3,
           ),
         ),
-
         const SizedBox(height: 14),
-
         Row(
           children: [
             _AuthPill(isAuthed: isAuthed),
             const SizedBox(width: 12),
-
             if (onNewThread != null) ...[
               const Spacer(),
               TextButton(
@@ -69,16 +66,13 @@ class ArborHeader extends StatelessWidget {
             ],
           ],
         ),
-        
         if (isAuthed && (userId?.isNotEmpty ?? false)) ...[
           const SizedBox(height: 8),
           Text(
-            'userId: $userId, projectId: $projectId, conversationId: $conversationId', 
+            'userId: $userId, projectId: $projectId, conversationId: $conversationId',
             style: t.bodySmall?.copyWith(color: Colors.white54),
           ),
         ],
-        
-
         const SizedBox(height: 18),
         Divider(color: Colors.white.withOpacity(0.08), height: 1),
         const SizedBox(height: 18),
@@ -139,7 +133,7 @@ class _ChatMessage {
 class _ChatTestPageState extends State<ChatTestPage> {
   final List<_ChatMessage> _messages = [];
   final _emailCtrl = TextEditingController();
-  final _passCtrl = TextEditingController();    
+  final _passCtrl = TextEditingController();
   final _msgCtrl = TextEditingController(text: '');
   final _msgFocus = FocusNode();
   final _emailFocus = FocusNode();
@@ -217,6 +211,8 @@ class _ChatTestPageState extends State<ChatTestPage> {
       setState(() {
         _projectId = null;
         _conversationId = null;
+        _messages.clear();
+        _isTyping = false;
       });
       _setOut('Signed out.');
     } catch (e) {
@@ -231,6 +227,38 @@ class _ChatTestPageState extends State<ChatTestPage> {
       _conversationId = null;
       _messages.clear();
     });
+  }
+
+  bool _resuming = false;
+
+  Future<void> _resumeLastConversation() async {
+    if (_resuming) return;
+    _resuming = true;
+
+    try {
+      final projectId = _projectId;
+      if (projectId == null) return;
+
+      final lastId = await ArborApi.getLastConversationId(projectId: projectId);
+      if (!mounted) return;
+
+      setState(() {
+        _conversationId = lastId ?? _conversationId;
+      });
+    } finally {
+      _resuming = false;
+    }
+  }
+
+  Future<void> _maybeResumeAfterProjectArrives({String? previousProjectId}) async {
+    // If projectId just got set (first response) and we have no conversation yet,
+    // attempt to resume. If the backend endpoint returns null, we’ll fall back to
+    // whatever the chat response gives us.
+    if (_projectId != null && (previousProjectId == null || previousProjectId != _projectId)) {
+      if (_conversationId == null) {
+        await _resumeLastConversation();
+      }
+    }
   }
 
   Future<void> _send() async {
@@ -256,15 +284,23 @@ class _ChatTestPageState extends State<ChatTestPage> {
       _msgFocus.requestFocus();
       _scrollToBottom();
 
-      final res = await chatApi.sendMessage(
+      final prevProjectId = _projectId;
+
+      final res = await ArborApi.sendMessage(
         projectId: _projectId,
         conversationId: _conversationId,
         userText: text,
       );
 
+      // Project can be assigned on first response; try to resume if needed.
       setState(() {
         _projectId = res.projectId;
-        _conversationId = res.conversationId;
+      });
+      await _maybeResumeAfterProjectArrives(previousProjectId: prevProjectId);
+
+      setState(() {
+        // IMPORTANT: don’t overwrite a resumed conversationId.
+        _conversationId = _conversationId ?? res.conversationId;
         _isTyping = false;
         _messages.add(_ChatMessage(isUser: false, text: res.assistantText));
       });
@@ -291,7 +327,7 @@ class _ChatTestPageState extends State<ChatTestPage> {
       if (!mounted) return;
       if (!_isAuthed) _emailFocus.requestFocus();
     });
-    
+
     _authSub = _supabase.auth.onAuthStateChange.listen((data) {
       final session = data.session;
       if (!mounted) return;
@@ -304,6 +340,11 @@ class _ChatTestPageState extends State<ChatTestPage> {
           _isTyping = false;
         });
       } else {
+        // Session exists (startup/refresh/sign-in). If we already have a projectId
+        // and no active conversation, attempt to resume.
+        if (_projectId != null && _conversationId == null) {
+          _resumeLastConversation();
+        }
         setState(() {});
       }
     });
@@ -349,7 +390,7 @@ class _ChatTestPageState extends State<ChatTestPage> {
               child: Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.04), 
+                  color: Colors.white.withOpacity(0.04),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(color: Colors.white.withOpacity(0.08)),
                 ),
@@ -402,7 +443,7 @@ class _ChatTestPageState extends State<ChatTestPage> {
                               },
                               decoration: InputDecoration(
                                 labelText: 'Password',
-                                border: const OutlineInputBorder(), 
+                                border: const OutlineInputBorder(),
                                 filled: true,
                                 fillColor: Colors.white.withOpacity(0.03),
                               ),
@@ -416,6 +457,13 @@ class _ChatTestPageState extends State<ChatTestPage> {
                                 ),
                               ],
                             ),
+                            if (_output.isNotEmpty) ...[
+                              const SizedBox(height: 10),
+                              Text(
+                                _output,
+                                style: const TextStyle(color: Colors.white70, fontSize: 12),
+                              ),
+                            ],
                           ],
                         ),
                       ),
@@ -423,10 +471,10 @@ class _ChatTestPageState extends State<ChatTestPage> {
                     ] else ...[
                       Row(
                         children: [
-                          Expanded(
+                          const Expanded(
                             child: Text(
                               'Ready.',
-                              style: const TextStyle(fontSize: 12, color: Colors.white70),
+                              style: TextStyle(fontSize: 12, color: Colors.white70),
                             ),
                           ),
                           TextButton(
@@ -474,7 +522,7 @@ class _ChatTestPageState extends State<ChatTestPage> {
                         child: Focus(
                           autofocus: authed,
                           child: TextField(
-                            autofocus: true,
+                            autofocus: false, // avoid double-autofocus when authed
                             focusNode: _msgFocus,
                             controller: _msgCtrl,
                             minLines: 2,
@@ -486,6 +534,7 @@ class _ChatTestPageState extends State<ChatTestPage> {
                               filled: true,
                               fillColor: Colors.white.withOpacity(0.03),
                             ),
+                            style: const TextStyle(color: Colors.white70),
                           ),
                         ),
                       ),
@@ -563,6 +612,9 @@ class _SendIntent extends Intent {
 class _NewlineIntent extends Intent {
   const _NewlineIntent();
 }
+
+// The rest of these widgets are currently unused in ChatTestPage,
+// but leaving them here is harmless for compilation.
 
 class _GlowOrb extends StatelessWidget {
   final double size;
