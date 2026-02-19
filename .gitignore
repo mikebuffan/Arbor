@@ -44,3 +44,4 @@ apps/frontend/android/app/build.gradle.kts
 apps/frontend/android/settings.gradle.kts
 apps/frontend/android/gradle/wrapper/gradle-wrapper.properties
 apps/frontend/.metadata
+flutter__BROKEN
