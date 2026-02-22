@@ -16,6 +16,7 @@ import { promoteIdentityAnchors } from "@/lib/memory/promoteIdentityAnchors";
 import { buildProofSnapshot } from "@/lib/arbor/ProofSnapshot";
 import { buildTelemetry } from "@/lib/arbor/telemetry/buildTelemetry";
 import { getOrCreateOpenEpisode } from "@/lib/arbor/episodes/getOrCreateOpenEpisode";
+import { embedText } from "@/lib/memory/embeddings";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -139,8 +140,89 @@ async function cleanupExpiredMessagesBestEffort(supabase: any, userId: string) {
     .not("expires_at", "is", null);
 }
 
+function buildMemoryInjectionBlock(rows: Array<{
+  id: string;
+  content_text?: string;
+  key?: string;
+  value?: any;
+  pinned?: boolean;
+  locked?: boolean;
+  importance?: number;
+  confidence?: number;
+  last_seen_at?: string | null;
+  similarity?: number;
+}>) {
+  if (!rows.length) return "";
+
+  const pinned = rows.filter(r => r.pinned);
+  const related = rows.filter(r => !r.pinned);
+
+  const fmt = (r: any) => {
+    const text =
+      (typeof r.content_text === "string" && r.content_text.trim())
+        ? r.content_text.trim()
+        : `${r.key ?? "memory"}: ${JSON.stringify(r.value ?? {})}`;
+    return `- ${text}`;
+  };
+
+  const lines: string[] = [];
+  lines.push("MEMORY CONTEXT (retrieved from long-term memory):");
+  lines.push("Use this only if relevant. Prefer pinned items. Do not invent details.");
+
+  if (pinned.length) {
+    lines.push("");
+    lines.push("PINNED:");
+    pinned.slice(0, 8).forEach(r => lines.push(fmt(r)));
+  }
+
+  if (related.length) {
+    lines.push("");
+    lines.push("RELATED:");
+    related.slice(0, 10).forEach(r => lines.push(fmt(r)));
+  }
+
+  return lines.join("\n");
+}
+
 export async function POST(req: Request) {
-  const t0 = performance.now(); // ⏱️ 3.10 timing start
+  const t0 = performance.now(); 
+
+  function hoursSince(d?: string | Date | null) {
+    if (!d) return Infinity;
+    const t = typeof d === "string" ? Date.parse(d) : d.getTime();
+    if (!Number.isFinite(t)) return Infinity;
+    return (Date.now() - t) / 36e5;
+  }
+
+  function clamp01(x: number) {
+    return Math.max(0, Math.min(1, x));
+  }
+
+  // Core: similarity + importance + pin/lock boosts + recency decay
+  function stabilityScore(row: any) {
+    const sim = typeof row.similarity === "number" ? row.similarity : 0;
+    const imp = typeof row.importance === "number" ? row.importance : 5;
+
+    // normalize importance roughly 1..10 => 0..1
+    const impN = clamp01((imp - 1) / 9);
+
+    const pinnedBoost = row.pinned ? 0.20 : 0;
+    const lockedBoost = row.locked ? 0.10 : 0;
+
+    // recency: 0h => 1.0, 72h => ~0.5, 2w => low
+    const hrs = Math.min(hoursSince(row.last_seen_at ?? row.created_at), 24 * 14);
+    const recency = Math.exp(-hrs / 72); // tweakable
+
+    // weights (easy to tune)
+    const score =
+      (0.60 * sim) +
+      (0.20 * impN) +
+      (0.15 * recency) +
+      pinnedBoost +
+      lockedBoost;
+
+    return score;
+  }
 
   try {
     const { supabase, userId } = await requireUser(req);
@@ -153,9 +235,7 @@ export async function POST(req: Request) {
     }
 
     const { projectId: maybeProjectId, conversationId, userText } = parsed.data;
-
     await cleanupExpiredMessagesBestEffort(supabase, userId);
-
     const projectId = maybeProjectId ?? (await getOrCreateDefaultProjectId(supabase, userId));
 
     const convoId = await getOrCreateConversation({
@@ -192,8 +272,64 @@ export async function POST(req: Request) {
       safety,
     });
 
-    const history = await loadRecentMessages(supabase, userId, convoId, 30);
-    const messagesForModel: Msg[] = [{ role: "system", content: systemPrompt }, ...history];
+    const history: Msg[] = await loadRecentMessages(supabase, userId, convoId, 30);
+
+    let injectedMemoryItemIds: string[] = [];
+    let memoryBlock = "";
+    let memoryDebugTop: any[] = []; //for proof snapshot (dev)
+
+    try {
+      const retrievalQuery = [
+        ...history.slice(-6).map(m => `${m.role}: ${m.content}`),
+        `user: ${userText}`,
+      ].join("\n");
+
+      const queryEmbedding = await embedText(retrievalQuery);
+
+      const { data: memRows, error: memErr } = await supabase.rpc("match_memories_v3", {
+        p_user_id: userId,
+        p_project_id: projectId,
+        p_query_embedding: queryEmbedding,
+        p_match_count: 24,
+      });
+
+      if (memErr) throw memErr;
+
+      const rows = (memRows ?? []) as any[];
+
+      const ranked = rows
+        .map(r => ({ ...r, _stability: stabilityScore(r) }))
+        .sort((a, b) => (b._stability ?? 0) - (a._stability ?? 0));
+
+      const pinned = ranked.filter(r => r.pinned).slice(0, 8);
+      const nonPinned = ranked.filter(r => !r.pinned).slice(0, 16);
+
+      const selected = [...pinned, ...nonPinned];
+
+      memoryBlock = buildMemoryInjectionBlock(selected);
+
+      injectedMemoryItemIds = selected
+        .map(r => String(r.id))
+        .filter(Boolean);
+
+      memoryDebugTop = selected.slice(0, 12).map(r => ({
+        id: String(r.id),
+        key: r.key,
+        pinned: !!r.pinned,
+        locked: !!r.locked,
+        importance: r.importance ?? null,
+        similarity: r.similarity ?? null,
+        stability: r._stability ?? null,
+      }));
+    } catch (e) {
+      console.warn("[memory] retrieval/injection skipped:", e);
+    }
+
+    const messagesForModel: Msg[] = [
+      { role: "system", content: systemPrompt },
+      ...(memoryBlock ? ([{ role: "system", content: memoryBlock }] as Msg[]) : []),
+      ...history,
+    ];
 
     const aiResponse = await openAIChat({
       model: process.env.OPENAI_CHAT_MODEL ?? "gpt-5",
@@ -229,14 +365,27 @@ export async function POST(req: Request) {
       content: assistantText,
     });
 
+    if (injectedMemoryItemIds.length) {
+      try {
+        await supabase.rpc("touch_memories", { p_ids: injectedMemoryItemIds });
+      } catch (e) {
+        console.warn("[memory] touch_memories failed:", e);
+      }
+    }
+
     const traceId = crypto.randomUUID();
 
     const proofSnapshot = buildProofSnapshot({
       anchors: [],
-      memoryItems: [],
-      //safetyTier: safety?.tier,
-      //logicGatesHit: safety?.gatesHit,
+      memoryItems: injectedMemoryItemIds.map(id => ({ id })),
     });
+
+    if (process.env.NODE_ENV === "development") {
+      (proofSnapshot as any).memory_debug = {
+        selected_ids: injectedMemoryItemIds,
+        top: memoryDebugTop,
+      };
+    }
 
     const retrievalLatencyMs = Math.round(performance.now() - t0);
 
@@ -248,7 +397,6 @@ export async function POST(req: Request) {
         projectId,
         threadId: convoId,
         episodeId,
-        //safetyTier: safety?.tier,
         retrievalLatencyMs,
         logicGatesHit: [],
       },
@@ -263,7 +411,7 @@ export async function POST(req: Request) {
       extracted,
     });
     await upsertMemoryItems(userId, extracted, projectId);
-    await reinforceMemoryUse(userId, [], projectId);
+    await reinforceMemoryUse(userId, injectedMemoryItemIds, projectId);
     await updateMemoryStrength(convoId, 0.2);
 
     await supabase

@@ -1,33 +1,21 @@
 import OpenAI from "openai";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 
-/**
- * Unified OpenAI client with responses + chat + embedding support
- * Fully compatible with OpenAI SDK v4+
- */
-
 export type ModelMessage = {
   role: "system" | "developer" | "user" | "assistant";
   content: string;
 };
 
-// Singleton client
 export const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!,
 });
 
-/**
- * Ensures client exists and key is valid
- */
 function getClient() {
   const key = process.env.OPENAI_API_KEY;
   if (!key) throw new Error("OPENAI_API_KEY is required");
   return new OpenAI({ apiKey: key });
 }
 
-/**
- * Legacy-compatible call using Responses API
- */
 export async function generateWithOpenAI(messages: ModelMessage[]) {
   const model = process.env.OPENAI_MODEL ?? "gpt-5";
   const client = getClient();
@@ -55,11 +43,8 @@ export async function generateWithOpenAI(messages: ModelMessage[]) {
   throw new Error("OpenAI: exhausted retries");
 }
 
-/**
- * Modern chat endpoint (chat.completions)
- */
 export async function openAIChat({
-  model = process.env.OPENAI_MODEL || "gpt-4-turbo-preview",
+  model = process.env.OPENAI_MODEL || "gpt-5",
   messages,
   stream = false,
   maxRetries = 3,
@@ -69,7 +54,6 @@ export async function openAIChat({
   stream?: boolean;
   maxRetries?: number;
 }) {
-  // Map to correct OpenAI SDK type
   const formatted: ChatCompletionMessageParam[] = messages.map(m => ({
     role: m.role as "system" | "user" | "assistant",
     content: m.content,
@@ -94,9 +78,6 @@ export async function openAIChat({
   }
 }
 
-/**
- * Embeddings (for memory vectorization)
- */
 export async function openAIEmbed(text: string) {
   const res = await openai.embeddings.create({
     model: "text-embedding-3-small",
@@ -105,9 +86,6 @@ export async function openAIEmbed(text: string) {
   return res.data[0].embedding;
 }
 
-/**
- * Optional: simple telemetry logger
- */
 export function logOpenAIEvent(event: string, meta?: any) {
   if (process.env.NODE_ENV === "development") {
     console.debug(`[OpenAI] ${event}`, meta || "");
