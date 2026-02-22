@@ -198,22 +198,18 @@ export async function POST(req: Request) {
     return Math.max(0, Math.min(1, x));
   }
 
-  // Core: similarity + importance + pin/lock boosts + recency decay
   function stabilityScore(row: any) {
     const sim = typeof row.similarity === "number" ? row.similarity : 0;
     const imp = typeof row.importance === "number" ? row.importance : 5;
 
-    // normalize importance roughly 1..10 => 0..1
     const impN = clamp01((imp - 1) / 9);
 
     const pinnedBoost = row.pinned ? 0.20 : 0;
     const lockedBoost = row.locked ? 0.10 : 0;
 
-    // recency: 0h => 1.0, 72h => ~0.5, 2w => low
     const hrs = Math.min(hoursSince(row.last_seen_at ?? row.created_at), 24 * 14);
-    const recency = Math.exp(-hrs / 72); // tweakable
+    const recency = Math.exp(-hrs / 72); 
 
-    // weights (easy to tune)
     const score =
       (0.60 * sim) +
       (0.20 * impN) +
