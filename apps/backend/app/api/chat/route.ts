@@ -46,6 +46,10 @@ function getCorsHeaders(req: Request) {
   };
 }
 
+function runBg(label: string, fn: () => Promise<any>) {
+  void fn().catch((e) => console.warn(`[bg:${label}]`, e));
+}
+
 export async function OPTIONS(req: Request) {
   return new Response(null, { status: 204, headers: getCorsHeaders(req) });
 }
@@ -115,7 +119,7 @@ async function loadRecentMessages(
   supabase: any,
   userId: string,
   conversationId: string,
-  limit = 30
+  limit = 20
 ): Promise<Msg[]> {
   const { data, error } = await supabase
     .from("messages")
@@ -260,15 +264,15 @@ export async function POST(req: Request) {
     const decisionContext = evaluateDecisionContext({ userText });
     const safety = realWorldSafetyAddendum(decisionContext);
 
-    const systemPrompt = await buildPromptContext({
+    const historyPromise = loadRecentMessages(supabase, userId, convoId, 20);
+    const systemPromptPromise = buildPromptContext({
       authedUserId: userId,
       projectId,
       conversationId: convoId,
       latestUserText: userText,
       safety,
     });
-
-    const history: Msg[] = await loadRecentMessages(supabase, userId, convoId, 30);
+    const [history, systemPrompt] = await Promise.all([historyPromise, systemPromptPromise]);
 
     let injectedMemoryItemIds: string[] = [];
     let memoryBlock = "";
@@ -282,11 +286,11 @@ export async function POST(req: Request) {
 
       const queryEmbedding = await embedText(retrievalQuery);
 
-      const { data: memRows, error: memErr } = await supabase.rpc("match_memories_v3", {
+      const { data: memRows, error: memErr } = await supabase.rpc("match_memories", {
         p_user_id: userId,
         p_project_id: projectId,
         p_query_embedding: queryEmbedding,
-        p_match_count: 24,
+        p_match_count: 16,
       });
 
       if (memErr) throw memErr;
@@ -352,88 +356,82 @@ export async function POST(req: Request) {
       );
     }
 
-    await supabase.from("messages").insert({
-      project_id: projectId,
-      conversation_id: convoId,
-      episode_id: episodeId,
-      user_id: userId,
-      role: "assistant",
-      content: assistantText,
-    });
-
     if (injectedMemoryItemIds.length) {
-      try {
+      runBg("touch_memories", async () => {
         await supabase.rpc("touch_memories", { p_ids: injectedMemoryItemIds });
-      } catch (e) {
-        console.warn("[memory] touch_memories failed:", e);
-      }
+      });
     }
 
     const traceId = crypto.randomUUID();
 
     const proofSnapshot = buildProofSnapshot({
       anchors: [],
-      memoryItems: injectedMemoryItemIds.map(id => ({ id })),
+      memoryItems: injectedMemoryItemIds.map((id) => ({ id })),
     });
 
-    if (process.env.NODE_ENV === "development") {
-      (proofSnapshot as any).memory_debug = {
-        selected_ids: injectedMemoryItemIds,
-        top: memoryDebugTop,
-      };
-    }
+    (proofSnapshot as any).memory_debug = memoryDebugTop;
 
     const retrievalLatencyMs = Math.round(performance.now() - t0);
 
-    await buildTelemetry(
-      supabase,
-      {
-        traceId,
+    runBg("telemetry", async () => {
+      await buildTelemetry(
+        supabase,
+        {
+          traceId,
+          userId,
+          projectId,
+          threadId: convoId,
+          episodeId,
+          retrievalLatencyMs,
+          logicGatesHit: [],
+        },
+        proofSnapshot
+      );
+    });
+
+    runBg("memory_pipeline", async () => {
+      const extracted = await extractMemoryFromText({ userText, assistantText });
+
+      await promoteIdentityAnchors({
+        authedUserId: userId,
+        projectId,
+        userText,
+        extracted,
+      });
+
+      await upsertMemoryItems(userId, extracted, projectId);
+      await reinforceMemoryUse(userId, injectedMemoryItemIds, projectId);
+      await updateMemoryStrength(convoId, 0.2);
+
+      await logMemoryEvent("chat_completed", { userId, projectId });
+    });
+
+    runBg("conversation_update", async () => {
+      await supabase
+        .from("conversations")
+        .update({ updated_at: new Date().toISOString() })
+        .eq("id", convoId)
+        .eq("user_id", userId);
+    });
+
+    runBg("decision_outcome", async () => {
+      await logDecisionOutcome({
         userId,
         projectId,
-        threadId: convoId,
-        episodeId,
-        retrievalLatencyMs,
-        logicGatesHit: [],
-      },
-      proofSnapshot
-    );
-
-    const extracted = await extractMemoryFromText({ userText, assistantText });
-    await promoteIdentityAnchors({
-      authedUserId: userId,
-      projectId,
-      userText,
-      extracted,
-    });
-    await upsertMemoryItems(userId, extracted, projectId);
-    await reinforceMemoryUse(userId, injectedMemoryItemIds, projectId);
-    await updateMemoryStrength(convoId, 0.2);
-
-    await supabase
-      .from("conversations")
-      .update({ updated_at: new Date().toISOString() })
-      .eq("id", convoId)
-      .eq("user_id", userId);
-
-    await logMemoryEvent("chat_completed", { userId, projectId });
-
-    await logDecisionOutcome({
-      userId,
-      projectId,
-      conversationId: convoId,
-      severityScore: decisionContext?.severityScore ?? 0,
-      riskBand: decisionContext?.riskBand ?? null,
-      emotionalIntensity: decisionContext?.emotionalIntensity ?? null,
-      flags: decisionContext?.flags ?? {},
-      actionTaken: safety?.assistantPreface ? "safety_preface" : "none",
-      model: process.env.OPENAI_CHAT_MODEL ?? null,
-      postcheckApproved: true,
+        conversationId: convoId,
+        severityScore: decisionContext?.severityScore ?? 0,
+        riskBand: decisionContext?.riskBand ?? null,
+        emotionalIntensity: decisionContext?.emotionalIntensity ?? null,
+        flags: decisionContext?.flags ?? {},
+        actionTaken: safety?.assistantPreface ? "safety_preface" : "none",
+        model: process.env.OPENAI_CHAT_MODEL ?? null,
+        postcheckApproved: true,
+      });
     });
 
     /* =====================================================
-       3.10.5 DEV-ONLY — REMOVE BEFORE SHIPPING
-       ===================================================== */
+      3.10.5 DEV-ONLY — REMOVE BEFORE SHIPPING
+      ===================================================== */
     const response: any = {
       ok: true,
       projectId,
@@ -447,6 +445,7 @@ export async function POST(req: Request) {
         injectedAnchorIds: proofSnapshot.injected_anchor_ids,
         injectedMemoryItemIds: proofSnapshot.injected_memory_item_ids,
         safetyTier: proofSnapshot.safety_tier,
+        memoryDebugTop, 
       };
     }
 
