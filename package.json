@@ -1,7 +1,7 @@
 {
   "name": "arbor-monorepo",
   "private": true,
-  "packageManager": "pnpm@9.15.4",
+  "packageManager": "pnpm@10.30.3",
   "scripts": {
     "dev:backend": "pnpm --filter firefly-backend dev",
     "build:backend": "pnpm --filter firefly-backend build",
