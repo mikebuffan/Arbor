@@ -2,12 +2,7 @@ import path from "node:path";
 import { globSync } from "glob";
 import { createClient } from "@supabase/supabase-js";
 
-import {
-  streamConversationsFile,
-  parseConversationObject,
-  NormalizedTurn,
-} from "./parseChatGPT";
-
+import { streamConversationsFile, parseConversationObject, NormalizedTurn } from "./parseChatGPT";
 import { extractMemoryFromText } from "@/lib/memory/extractor";
 import { upsertMemoryItems } from "@/lib/memory/store";
 
@@ -31,12 +26,9 @@ function chunkTurns(turns: NormalizedTurn[], maxChars = 9000) {
   let a = "";
 
   for (const t of turns) {
-    if (t.role === "tool") continue;
-
     const line = `${t.role}: ${t.content}\n`;
     if (t.role === "user") u += line;
     else if (t.role === "assistant") a += line;
-    else continue; 
 
     if (u.length + a.length >= maxChars) {
       chunks.push({ userText: u.trim(), assistantText: a.trim() });
@@ -61,7 +53,6 @@ export async function runImport(params: {
   });
 
   const files = globSync(path.join(rootDir, "conversations-*.json"));
-
   if (!files.length) throw new Error(`No conversations-*.json found in ${rootDir}`);
 
   let convoCount = 0;
@@ -97,11 +88,13 @@ export async function runImport(params: {
         }));
 
         await upsertMemoryItems(userId, stamped as any, projectId ?? undefined);
+
+        if (convoCount % 25 === 0) {
+          console.log(`[import] progress convos=${convoCount} chunks=${chunkCount} extracted_items=${extractedCount}`);
+        }
       }
     });
   }
 
-  console.log(
-    `[import] done. convos=${convoCount} chunks=${chunkCount} extracted_items=${extractedCount}`
-  );
+  console.log(`[import] done. convos=${convoCount} chunks=${chunkCount} extracted_items=${extractedCount}`);
 }
