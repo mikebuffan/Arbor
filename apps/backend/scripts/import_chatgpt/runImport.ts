@@ -52,7 +52,12 @@ export async function runImport(params: {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
-  const files = globSync(path.join(rootDir, "conversations-*.json"));
+  const files = globSync("conversations-*.json", {
+    cwd: rootDir,
+    absolute: true,
+    nodir: true,
+    windowsPathsNoEscape: true,
+  });
   if (!files.length) throw new Error(`No conversations-*.json found in ${rootDir}`);
 
   let convoCount = 0;
