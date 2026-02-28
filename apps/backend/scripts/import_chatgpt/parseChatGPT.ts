@@ -11,53 +11,49 @@ export type NormalizedTurn = {
   createdAt: string | null;
 };
 
-function firstNonWsCharIndex(s: string) {
-  for (let i = 0; i < s.length; i++) {
-    const c = s[i];
-    if (c !== " " && c !== "\n" && c !== "\r" && c !== "\t") return i;
-  }
-  return -1;
-}
-
-function sniffJsonMode(buf: string): "unknown" | "array" | "object" {
-  const idx = firstNonWsCharIndex(buf);
-  if (idx < 0) return "unknown";
-  const c = buf[idx];
-  if (c === "[") return "array";
-  if (c === "{") return "object";
-  throw new Error(`Unexpected JSON start char "${c}"`);
-}
-
 export async function streamConversationsFile(
   filePath: string,
   onConversation: (convoObj: AnyObj) => Promise<void> | void
 ) {
   const debug = process.env.IMPORT_DEBUG === "1";
-
   const stream = fs.createReadStream(filePath, { encoding: "utf8" });
 
   let buf = "";
-  let mode: "unknown" | "array" | "object" = "unknown";
 
   let inString = false;
   let escape = false;
 
-  let arrayDepth = 0;
-  let braceDepth = 0;
+  let inTopArray = false;
 
   let capturing = false;
+  let braceDepth = 0;
   let objStart = -1;
-
-  let wrapperArrayStarted = false;
 
   let emitted = 0;
   let parseErrors = 0;
 
+  function firstNonWsCharIndex(s: string) {
+    for (let i = 0; i < s.length; i++) {
+      const c = s[i];
+      if (c === "\ufeff") continue;
+      if (c !== " " && c !== "\n" && c !== "\r" && c !== "\t") return i;
+    }
+    return -1;
+  }
+
   for await (const chunk of stream) {
     buf += chunk;
 
-    if (mode === "unknown") {
-      mode = sniffJsonMode(buf);
+    if (!inTopArray) {
+      const idx = firstNonWsCharIndex(buf);
+      if (idx >= 0) {
+        const start = buf[idx];
+        if (start !== "[") {
+          throw new Error(
+            `Expected conversations export to start with "[" but found "${start}" in ${filePath}`
+          );
+        }
+      }
     }
 
     for (let i = 0; i < buf.length; i++) {
@@ -81,53 +77,60 @@ export async function streamConversationsFile(
         }
       }
 
-      if (ch === "[") {
-        arrayDepth += 1;
-        if (mode === "array" && arrayDepth === 1) {
-          wrapperArrayStarted = true;
-        } else if (mode === "object" && !wrapperArrayStarted) {
-          wrapperArrayStarted = true;
+      if (!inTopArray) {
+        if (ch === "[") {
+          inTopArray = true;
         }
-      } else if (ch === "]") {
-        if (arrayDepth > 0) arrayDepth -= 1;
-
-        if (mode === "array" && arrayDepth === 0) {
-          return;
-        }
+        continue;
       }
 
-      if (!wrapperArrayStarted || arrayDepth <= 0) continue;
-
-      if (ch === "{") {
-        braceDepth += 1;
-        if (!capturing && braceDepth === 1) {
-          capturing = true;
-          objStart = i;
+      if (!capturing && ch === "]") {
+        if (debug) {
+          console.log(
+            `[import:stream] finished file=${filePath} emitted=${emitted} parseErrors=${parseErrors}`
+          );
         }
-      } else if (ch === "}") {
-        if (braceDepth > 0) braceDepth -= 1;
+        return;
+      }
 
-        if (capturing && braceDepth === 0 && objStart >= 0) {
-          const objText = buf.slice(objStart, i + 1);
+      if (!capturing && ch === "{") {
+        capturing = true;
+        braceDepth = 1;
+        objStart = i;
+        continue;
+      }
 
-          try {
-            const parsed = JSON.parse(objText) as AnyObj;
-            emitted += 1;
-            await onConversation(parsed);
+      if (capturing) {
+        if (ch === "{") {
+          braceDepth += 1;
+        } else if (ch === "}") {
+          braceDepth -= 1;
 
-            if (debug && emitted % 100 === 0) {
-              console.log(
-                `[import:stream] emitted=${emitted} parseErrors=${parseErrors} file=${filePath}`
-              );
+          if (braceDepth === 0 && objStart >= 0) {
+            const objText = buf.slice(objStart, i + 1);
+
+            try {
+              const parsed = JSON.parse(objText) as AnyObj;
+              emitted += 1;
+
+              await onConversation(parsed);
+
+              if (debug && emitted % 100 === 0) {
+                console.log(
+                  `[import:stream] emitted=${emitted} parseErrors=${parseErrors} file=${filePath}`
+                );
+              }
+            } catch {
+              parseErrors += 1;
             }
-          } catch {
-            parseErrors += 1;
-          }
 
-          buf = buf.slice(i + 1);
-          i = -1;
-          capturing = false;
-          objStart = -1;
+            buf = buf.slice(i + 1);
+            i = -1;
+
+            capturing = false;
+            objStart = -1;
+            braceDepth = 0;
+          }
         }
       }
     }
@@ -139,7 +142,7 @@ export async function streamConversationsFile(
 
   if (debug) {
     console.log(
-      `[import:stream] finished file=${filePath} emitted=${emitted} parseErrors=${parseErrors}`
+      `[import:stream] finished (EOF) file=${filePath} emitted=${emitted} parseErrors=${parseErrors}`
     );
   }
 }
