@@ -1,7 +1,7 @@
 import { supabaseAdmin, safeQuery } from "@/lib/supabase/admin";
 import { LOCK_ON_CORRECTION_COUNT } from "@/lib/memory/rules";
 import type { MemoryItem, MemoryUpsertResult } from "@/lib/memory/types";
-import { embedText, memoryToEmbedString } from "@/lib/memory/embeddings";
+import { embedText, embedTexts, memoryToEmbedString } from "@/lib/memory/embeddings";
 import { logMemoryEvent } from "@/lib/memory/logger";
 import { getServerSupabase } from "@/lib/supabase/server";
 
@@ -71,12 +71,28 @@ export async function upsertMemoryItems(
       const admin = supabaseAdmin();
       const res: MemoryUpsertResult = { created: [], updated: [], locked: [], ignored: [] };
 
-      for (const item of items) {
-        const key = item.key?.trim();
-        if (!key) continue;
+      const prepared = items
+        .map((item) => {
+          const key = item.key?.trim();
+          if (!key) return null;
+          return { item, key, embedStr: memoryToEmbedString(key, item.value) };
+        })
+        .filter(Boolean) as Array<{ item: MemoryItem; key: string; embedStr: string }>;
+
+      if (!prepared.length) return res;
+
+      let batched: number[][] | null = null;
+      try {
+        batched = await embedTexts(prepared.map((p) => p.embedStr));
+      } catch (e) {
+        console.warn("[upsertMemoryItems] batch embedding failed; falling back to per-item", e);
+        batched = null;
+      }
+
+      for (let i = 0; i < prepared.length; i++) {
+        const { item, key } = prepared[i];
 
         const nowIso = new Date().toISOString();
-
         const value = toJsonValue(item.value);
         const tier = item.tier ?? "normal";
         const user_trigger_only = !!item.user_trigger_only;
@@ -84,7 +100,8 @@ export async function upsertMemoryItems(
         const confidence = Number(item.confidence ?? 0.75);
         const pinned = tier === "core";
 
-        const rawEmbedding = await embedText(memoryToEmbedString(key, item.value));
+        const rawEmbedding =
+          batched?.[i] ?? (await embedText(memoryToEmbedString(key, item.value)));
         const embedding = normalizeEmbedding(rawEmbedding);
 
         const existing = await findExisting({ authedUserId, key });
@@ -111,7 +128,6 @@ export async function upsertMemoryItems(
             updated_at: nowIso,
             embedding,
           });
-
           if (error) throw error;
 
           await logEvent({
@@ -136,7 +152,6 @@ export async function upsertMemoryItems(
               updated_at: nowIso,
             })
             .eq("id", existing.id);
-
           if (error) throw error;
 
           await logEvent({

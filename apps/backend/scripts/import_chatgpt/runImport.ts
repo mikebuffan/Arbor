@@ -20,37 +20,85 @@ function ensureObjectValue(v: any): Record<string, any> {
   return { value: v };
 }
 
-function chunkTurns(turns: NormalizedTurn[], maxChars = 9000) {
-  const chunks: Array<{ userText: string; assistantText: string }> = [];
-  let u = "";
-  let a = "";
+function chunkTurnsByCount(turns: NormalizedTurn[], turnsPerChunk = 10) {
+  const chunks: Array<{ transcript: string; turns: NormalizedTurn[] }> = [];
+  let buf: NormalizedTurn[] = [];
 
   for (const t of turns) {
-    const line = `${t.role}: ${t.content}\n`;
-    if (t.role === "user") u += line;
-    else if (t.role === "assistant") a += line;
-
-    if (u.length + a.length >= maxChars) {
-      chunks.push({ userText: u.trim(), assistantText: a.trim() });
-      u = "";
-      a = "";
+    buf.push(t);
+    if (buf.length >= turnsPerChunk) {
+      chunks.push({ transcript: formatTranscript(buf), turns: buf });
+      buf = [];
     }
   }
 
-  if (u.trim() || a.trim()) chunks.push({ userText: u.trim(), assistantText: a.trim() });
+  if (buf.length) chunks.push({ transcript: formatTranscript(buf), turns: buf });
   return chunks;
+}
+
+function formatTranscript(turns: NormalizedTurn[]) {
+  return turns
+    .map((t) => {
+      const header = `${t.role.toUpperCase()}${t.createdAt ? ` @ ${t.createdAt}` : ""}:`;
+      return `${header}\n${t.content}`.trim();
+    })
+    .join("\n\n---\n\n");
+}
+
+/**
+ * NOTE:
+ * In this repo, Supabase generated types sometimes do not include "projects",
+ * causing `.from("projects")` to type to `never` and explode in TS.
+ *
+ * This helper intentionally loosens typing for the bootstrap "projects" row creation.
+ * Runtime behavior is unchanged.
+ */
+async function ensureProjectRow(supabase: any, projectId: string) {
+  const { data, error } = await supabase
+    .from("projects")
+    .select("id")
+    .eq("id", projectId)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (data?.id) return;
+
+  const { error: insErr } = await supabase.from("projects").insert({
+    id: projectId,
+    name: "Imported Project",
+    created_at: new Date().toISOString(),
+  });
+
+  if (insErr) throw insErr;
+  console.log(`[import] created missing project row: ${projectId}`);
 }
 
 export async function runImport(params: {
   rootDir: string;
   userId: string;
   projectId?: string | null;
+  turnsPerChunk?: number;
+  dryRun?: boolean;
+  globalUserId?: string | null;
 }) {
-  const { rootDir, userId, projectId } = params;
+  const {
+    rootDir,
+    userId,
+    projectId,
+    turnsPerChunk = 10,
+    dryRun = false,
+    globalUserId = process.env.ARBOR_GLOBAL_USER_ID ?? null,
+  } = params;
 
-  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+  // Cast to `any` to avoid type mismatches between generated Database typings
+  // and the CLI script. This is safe for runtime and keeps the script usable.
+  const supabase: any = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
+
+  if (projectId) {
+    await ensureProjectRow(supabase, projectId);
+  }
 
   const files = globSync("conversations-*.json", {
     cwd: rootDir,
@@ -73,17 +121,13 @@ export async function runImport(params: {
       const turns = parseConversationObject(convoObj);
       if (!turns.length) return;
 
-      const chunks = chunkTurns(turns);
+      const chunks = chunkTurnsByCount(turns, turnsPerChunk);
+
       for (const ch of chunks) {
         chunkCount++;
 
-        const items = await extractMemoryFromText({
-          userText: ch.userText,
-          assistantText: ch.assistantText,
-        });
-
+        const items = await extractMemoryFromText({ transcript: ch.transcript });
         if (!items.length) continue;
-        extractedCount += items.length;
 
         const stamped = items.map((it) => ({
           ...it,
@@ -92,14 +136,35 @@ export async function runImport(params: {
           source_conversation_id: String(convoObj?.conversation_id ?? convoObj?.id ?? ""),
         }));
 
-        await upsertMemoryItems(userId, stamped as any, projectId ?? undefined);
+        extractedCount += stamped.length;
+
+        if (dryRun) continue;
+
+        // Scope routing:
+        // - "global" items can go to a special global user id (persona layer)
+        // - all other items stay on the importing user
+        const globals = stamped.filter((x) => x.scope === "global");
+        const locals = stamped.filter((x) => x.scope !== "global");
+
+        if (globals.length) {
+          const targetUser = globalUserId ?? userId;
+          await upsertMemoryItems(targetUser, globals as any, projectId ?? undefined);
+        }
+
+        if (locals.length) {
+          await upsertMemoryItems(userId, locals as any, projectId ?? undefined);
+        }
 
         if (convoCount % 25 === 0) {
-          console.log(`[import] progress convos=${convoCount} chunks=${chunkCount} extracted_items=${extractedCount}`);
+          console.log(
+            `[import] progress convos=${convoCount} chunks=${chunkCount} extracted_items=${extractedCount} dryRun=${dryRun}`
+          );
         }
       }
     });
   }
 
-  console.log(`[import] done. convos=${convoCount} chunks=${chunkCount} extracted_items=${extractedCount}`);
+  console.log(
+    `[import] done. convos=${convoCount} chunks=${chunkCount} extracted_items=${extractedCount} dryRun=${dryRun}`
+  );
 }

@@ -86,6 +86,33 @@ export async function openAIEmbed(text: string) {
   return res.data[0].embedding;
 }
 
+export async function openAIEmbedMany(inputs: string[]) {
+  const cleaned = inputs.map(x => String(x ?? ""));
+  const maxRetries = 3;
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const res = await openai.embeddings.create({
+        model: "text-embedding-3-small",
+        input: cleaned,
+      });
+
+      return res.data.map((d: any) => d.embedding as number[]);
+    } catch (err: any) {
+      if (attempt === maxRetries - 1) throw err;
+      if (err?.status === 429 || err?.status >= 500) {
+        const delay = 250 * (attempt + 1);
+        console.warn(`Embeddings rate-limited. Retrying in ${delay}ms`);
+        await new Promise(r => setTimeout(r, delay));
+        continue;
+      }
+      throw err;
+    }
+  }
+
+  throw new Error("openAIEmbedMany: exhausted retries");
+}
+
 export function logOpenAIEvent(event: string, meta?: any) {
   if (process.env.NODE_ENV === "development") {
     console.debug(`[OpenAI] ${event}`, meta || "");

@@ -1,4 +1,4 @@
-import { getServerSupabase } from "@/lib/supabase/server";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 
 type LogLevel = "info" | "warn" | "error";
 const buffer: any[] = [];
@@ -10,6 +10,8 @@ export async function logMemoryEvent(
   level: LogLevel = "info",
   meta?: { start?: number; context?: string }
 ) {
+  if (process.env.MEMORY_LOGGER_DISABLE === "1") return;
+
   const duration = meta?.start ? `${Date.now() - meta.start}ms` : null;
   buffer.push({
     event,
@@ -25,11 +27,12 @@ export async function logMemoryEvent(
 
 async function flushLogs() {
   if (buffer.length === 0) return;
-  const supabase = await getServerSupabase();
+
+  const admin = supabaseAdmin();
   const logs = buffer.splice(0, buffer.length);
 
   try {
-    await supabase.from("memory_pending").insert(
+    await admin.from("memory_pending").insert(
       logs.map((l) => ({
         event: l.event,
         payload: l.payload,

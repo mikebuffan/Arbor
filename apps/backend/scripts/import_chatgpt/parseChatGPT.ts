@@ -16,26 +16,26 @@ export async function streamConversationsFile(
   onConversation: (convoObj: AnyObj) => Promise<void> | void
 ) {
   const debug = process.env.IMPORT_DEBUG === "1";
+  if (debug) console.log(`[import:stream] parseChatGPT.ts LOADED (stream-v5)`);
+
   const stream = fs.createReadStream(filePath, { encoding: "utf8" });
 
   let buf = "";
-
   let inString = false;
   let escape = false;
-
-  let inTopArray = false;
-
+  let depth = 0;
+  let mode: "unknown" | "array" | "object" = "unknown";
   let capturing = false;
-  let braceDepth = 0;
   let objStart = -1;
-
   let emitted = 0;
   let parseErrors = 0;
+  let chars = 0;
+  let sawTopArray = false;
+  let sawFirstObjectStart = false;
 
   function firstNonWsCharIndex(s: string) {
     for (let i = 0; i < s.length; i++) {
       const c = s[i];
-      if (c === "\ufeff") continue;
       if (c !== " " && c !== "\n" && c !== "\r" && c !== "\t") return i;
     }
     return -1;
@@ -43,15 +43,20 @@ export async function streamConversationsFile(
 
   for await (const chunk of stream) {
     buf += chunk;
+    chars += chunk.length;
 
-    if (!inTopArray) {
+    if (mode === "unknown") {
       const idx = firstNonWsCharIndex(buf);
       if (idx >= 0) {
-        const start = buf[idx];
-        if (start !== "[") {
-          throw new Error(
-            `Expected conversations export to start with "[" but found "${start}" in ${filePath}`
-          );
+        const c = buf[idx];
+        if (c === "[") {
+          mode = "array";
+          if (debug) console.log(`[import:stream] saw '[' (top array start)`);
+          sawTopArray = true;
+        } else if (c === "{") {
+          mode = "object";
+        } else {
+          throw new Error(`Unexpected JSON start char "${c}" in ${filePath}`);
         }
       }
     }
@@ -77,59 +82,41 @@ export async function streamConversationsFile(
         }
       }
 
-      if (!inTopArray) {
-        if (ch === "[") {
-          inTopArray = true;
+      if (ch === "{") {
+        depth += 1;
+        if (depth === 1) {
+          capturing = true;
+          objStart = i;
+          if (debug && !sawFirstObjectStart) {
+            console.log(`[import:stream] saw '{' (first object start)`);
+            sawFirstObjectStart = true;
+          }
         }
-        continue;
-      }
+      } else if (ch === "}") {
+        if (depth > 0) depth -= 1;
 
-      if (!capturing && ch === "]") {
-        if (debug) {
-          console.log(
-            `[import:stream] finished file=${filePath} emitted=${emitted} parseErrors=${parseErrors}`
-          );
-        }
-        return;
-      }
+        if (capturing && depth === 0 && objStart >= 0) {
+          const objText = buf.slice(objStart, i + 1);
 
-      if (!capturing && ch === "{") {
-        capturing = true;
-        braceDepth = 1;
-        objStart = i;
-        continue;
-      }
+          let parsed: AnyObj | null = null;
+          try {
+            parsed = JSON.parse(objText);
+          } catch {
+            parsed = null;
+            parseErrors++;
+          }
 
-      if (capturing) {
-        if (ch === "{") {
-          braceDepth += 1;
-        } else if (ch === "}") {
-          braceDepth -= 1;
-
-          if (braceDepth === 0 && objStart >= 0) {
-            const objText = buf.slice(objStart, i + 1);
-
-            try {
-              const parsed = JSON.parse(objText) as AnyObj;
-              emitted += 1;
-
-              await onConversation(parsed);
-
-              if (debug && emitted % 100 === 0) {
-                console.log(
-                  `[import:stream] emitted=${emitted} parseErrors=${parseErrors} file=${filePath}`
-                );
-              }
-            } catch {
-              parseErrors += 1;
-            }
+          if (parsed) {
+            emitted++;
+            await onConversation(parsed);
 
             buf = buf.slice(i + 1);
             i = -1;
 
             capturing = false;
             objStart = -1;
-            braceDepth = 0;
+
+            if (mode === "object") return;
           }
         }
       }
@@ -144,6 +131,11 @@ export async function streamConversationsFile(
     console.log(
       `[import:stream] finished (EOF) file=${filePath} emitted=${emitted} parseErrors=${parseErrors}`
     );
+    console.log(
+      `[import:stream] EOF stats: chars=${chars} sawTopArray=${sawTopArray} sawFirstObjectStart=${sawFirstObjectStart} capturing=${capturing} braceDepth=${depth}`
+    );
+  } else {
+    console.log(`[import:stream] finished file=${filePath} emitted=${emitted} parseErrors=${parseErrors}`);
   }
 }
 
@@ -160,9 +152,7 @@ function getPartsText(msg: AnyObj): string {
   return "";
 }
 
-function roleFromAuthor(
-  msg: AnyObj
-): "user" | "assistant" | "system" | "tool" | "unknown" {
+function roleFromAuthor(msg: AnyObj): "user" | "assistant" | "system" | "tool" | "unknown" {
   const r = msg?.author?.role;
   if (r === "user" || r === "assistant" || r === "system" || r === "tool") return r;
   return "unknown";
@@ -183,7 +173,6 @@ export function turnsFromMapping(convoObj: AnyObj): NormalizedTurn[] {
 
   const chainIds: string[] = [];
   const seen = new Set<string>();
-
   let cursor: string | null = current;
 
   while (cursor && !seen.has(cursor)) {
@@ -206,7 +195,7 @@ export function turnsFromMapping(convoObj: AnyObj): NormalizedTurn[] {
     const text = getPartsText(msg);
     if (!text) continue;
 
-    if (role === "tool" || role === "unknown") continue;
+    if (role === "tool" || role === "system" || role === "unknown") continue;
 
     turns.push({
       source: "chatgpt",
