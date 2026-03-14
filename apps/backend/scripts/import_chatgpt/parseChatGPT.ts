@@ -16,55 +16,69 @@ export async function streamConversationsFile(
   onConversation: (convoObj: AnyObj) => Promise<void> | void
 ) {
   const debug = process.env.IMPORT_DEBUG === "1";
-  if (debug) console.log(`[import:stream] parseChatGPT.ts LOADED (stream-v5)`);
+  if (debug) console.log(`[import:stream] parseChatGPT.ts LOADED (stream-v6)`);
 
   const stream = fs.createReadStream(filePath, { encoding: "utf8" });
 
-  let buf = "";
   let inString = false;
   let escape = false;
-  let depth = 0;
+
+  let sawStart = false;
   let mode: "unknown" | "array" | "object" = "unknown";
+
+  let inTopLevelArray = false;
   let capturing = false;
-  let objStart = -1;
+  let braceDepth = 0;
+  let objBuf = "";
+
   let emitted = 0;
   let parseErrors = 0;
   let chars = 0;
   let sawTopArray = false;
   let sawFirstObjectStart = false;
 
-  function firstNonWsCharIndex(s: string) {
-    for (let i = 0; i < s.length; i++) {
-      const c = s[i];
-      if (c !== " " && c !== "\n" && c !== "\r" && c !== "\t") return i;
-    }
-    return -1;
+  function isWhitespace(ch: string) {
+    return ch === " " || ch === "\n" || ch === "\r" || ch === "\t";
   }
 
   for await (const chunk of stream) {
-    buf += chunk;
     chars += chunk.length;
 
-    if (mode === "unknown") {
-      const idx = firstNonWsCharIndex(buf);
-      if (idx >= 0) {
-        const c = buf[idx];
-        if (c === "[") {
-          mode = "array";
-          if (debug) console.log(`[import:stream] saw '[' (top array start)`);
-          sawTopArray = true;
-        } else if (c === "{") {
-          mode = "object";
-        } else {
-          throw new Error(`Unexpected JSON start char "${c}" in ${filePath}`);
-        }
-      }
-    }
+    for (let i = 0; i < chunk.length; i++) {
+      const ch = chunk[i];
 
-    for (let i = 0; i < buf.length; i++) {
-      const ch = buf[i];
+      if (!sawStart && ch === "\ufeff") continue;
+
+      if (!sawStart) {
+        if (isWhitespace(ch)) continue;
+        sawStart = true;
+
+        if (ch === "[") {
+          mode = "array";
+          inTopLevelArray = true;
+          sawTopArray = true;
+          if (debug) console.log(`[import:stream] saw '[' (top array start)`);
+          continue;
+        }
+
+        if (ch === "{") {
+          mode = "object";
+          capturing = true;
+          braceDepth = 1;
+          objBuf = "{";
+          if (debug && !sawFirstObjectStart) {
+            console.log(`[import:stream] saw '{' (first object start)`);
+            sawFirstObjectStart = true;
+          }
+          continue;
+        }
+
+        throw new Error(`Unexpected JSON start char "${ch}" in ${filePath}`);
+      }
 
       if (inString) {
+        if (capturing) objBuf += ch;
+
         if (escape) {
           escape = false;
           continue;
@@ -73,57 +87,141 @@ export async function streamConversationsFile(
           escape = true;
           continue;
         }
-        if (ch === '"') inString = false;
-        continue;
-      } else {
         if (ch === '"') {
-          inString = true;
-          continue;
+          inString = false;
         }
+        continue;
+      } else if (ch === '"') {
+        inString = true;
+        if (capturing) objBuf += ch;
+        continue;
       }
 
-      if (ch === "{") {
-        depth += 1;
-        if (depth === 1) {
-          capturing = true;
-          objStart = i;
-          if (debug && !sawFirstObjectStart) {
-            console.log(`[import:stream] saw '{' (first object start)`);
-            sawFirstObjectStart = true;
+      if (mode === "array") {
+        if (!capturing) {
+          if (isWhitespace(ch) || ch === ",") continue;
+
+          if (ch === "{") {
+            capturing = true;
+            braceDepth = 1;
+            objBuf = "{";
+
+            if (debug && !sawFirstObjectStart) {
+              console.log(`[import:stream] saw '{' (first object start)`);
+              sawFirstObjectStart = true;
+            }
+            continue;
           }
+
+          if (ch === "]") {
+            inTopLevelArray = false;
+            if (debug) {
+              console.log(
+                `[import:stream] finished file=${filePath} emitted=${emitted} parseErrors=${parseErrors}`
+              );
+            }
+            return;
+          }
+
+          continue;
         }
-      } else if (ch === "}") {
-        if (depth > 0) depth -= 1;
 
-        if (capturing && depth === 0 && objStart >= 0) {
-          const objText = buf.slice(objStart, i + 1);
+        objBuf += ch;
 
-          let parsed: AnyObj | null = null;
-          try {
-            parsed = JSON.parse(objText);
-          } catch {
-            parsed = null;
-            parseErrors++;
+        if (ch === "{") {
+          braceDepth += 1;
+          continue;
+        }
+
+        if (ch === "}") {
+          braceDepth -= 1;
+
+          if (braceDepth === 0) {
+            let parsed: AnyObj | null = null;
+
+            try {
+              parsed = JSON.parse(objBuf) as AnyObj;
+            } catch (err) {
+              parseErrors++;
+
+              if (debug && parseErrors <= 3) {
+                console.log("[import:stream] parse error preview len=", objBuf.length);
+                console.log("[import:stream] parse error head:");
+                console.log(objBuf.slice(0, 300));
+                console.log("[import:stream] parse error tail:");
+                console.log(objBuf.slice(-300));
+              }
+
+              capturing = false;
+              objBuf = "";
+              continue;
+            }
+
+            emitted++;
+            capturing = false;
+            objBuf = "";
+
+            await onConversation(parsed);
           }
+          continue;
+        }
 
-          if (parsed) {
+        continue;
+      }
+
+      if (mode === "object") {
+        if (!capturing) {
+          if (ch === "{") {
+            capturing = true;
+            braceDepth = 1;
+            objBuf = "{";
+          }
+          continue;
+        }
+
+        objBuf += ch;
+
+        if (ch === "{") {
+          braceDepth += 1;
+        } else if (ch === "}") {
+          braceDepth -= 1;
+
+          if (braceDepth === 0) {
+            let parsed: AnyObj | null = null;
+
+            try {
+              parsed = JSON.parse(objBuf) as AnyObj;
+            } catch (err) {
+              parseErrors++;
+
+              if (debug && parseErrors <= 3) {
+                console.log("[import:stream] parse error preview len=", objBuf.length);
+                console.log("[import:stream] parse error head:");
+                console.log(objBuf.slice(0, 300));
+                console.log("[import:stream] parse error tail:");
+                console.log(objBuf.slice(-300));
+              }
+
+              if (debug) {
+                console.log(
+                  `[import:stream] finished file=${filePath} emitted=${emitted} parseErrors=${parseErrors}`
+                );
+              }
+              return;
+            }
+
             emitted++;
             await onConversation(parsed);
 
-            buf = buf.slice(i + 1);
-            i = -1;
-
-            capturing = false;
-            objStart = -1;
-
-            if (mode === "object") return;
+            if (debug) {
+              console.log(
+                `[import:stream] finished file=${filePath} emitted=${emitted} parseErrors=${parseErrors}`
+              );
+            }
+            return;
           }
         }
       }
-    }
-
-    if (!capturing && buf.length > 1024 * 1024) {
-      buf = buf.slice(-1024 * 128);
     }
   }
 
@@ -132,10 +230,12 @@ export async function streamConversationsFile(
       `[import:stream] finished (EOF) file=${filePath} emitted=${emitted} parseErrors=${parseErrors}`
     );
     console.log(
-      `[import:stream] EOF stats: chars=${chars} sawTopArray=${sawTopArray} sawFirstObjectStart=${sawFirstObjectStart} capturing=${capturing} braceDepth=${depth}`
+      `[import:stream] EOF stats: chars=${chars} sawTopArray=${sawTopArray} sawFirstObjectStart=${sawFirstObjectStart} capturing=${capturing} braceDepth=${braceDepth} inTopLevelArray=${inTopLevelArray}`
     );
   } else {
-    console.log(`[import:stream] finished file=${filePath} emitted=${emitted} parseErrors=${parseErrors}`);
+    console.log(
+      `[import:stream] finished file=${filePath} emitted=${emitted} parseErrors=${parseErrors}`
+    );
   }
 }
 
