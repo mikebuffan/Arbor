@@ -1,8 +1,3 @@
-// 🔧 Purpose: Retrieves memory context with semantic or normal recall, caching results.
-// 🧠 Notes:
-// - Keeps your 3-minute cache and full record parsing.
-// - Adds retry protection via safeQuery for vector RPC calls.
-
 import { supabaseAdmin, safeQuery } from "@/lib/supabase/admin";
 import { openAIEmbed } from "@/lib/providers/openai";
 
@@ -15,7 +10,11 @@ function parseMaybeJson(s: any) {
   const t = s.trim();
   if (!t) return s;
   if ((t.startsWith("{") && t.endsWith("}")) || (t.startsWith("[") && t.endsWith("]"))) {
-    try { return JSON.parse(t); } catch { return s; }
+    try {
+      return JSON.parse(t);
+    } catch {
+      return s;
+    }
   }
   return s;
 }
@@ -31,10 +30,17 @@ export async function getMemoryContext(params: {
   useVectorSearch?: boolean;
   useCache?: boolean;
 }) {
-  const { authedUserId, projectId, latestUserText, useVectorSearch = false, useCache = true } = params;
+  const {
+    authedUserId,
+    projectId,
+    latestUserText,
+    useVectorSearch = false,
+    useCache = true,
+  } = params;
 
   const cacheKey = `${authedUserId}:${projectId || "none"}`;
   const now = Date.now();
+
   if (useCache && memoryCache.has(cacheKey) && (cacheExpiry.get(cacheKey) || 0) > now) {
     return memoryCache.get(cacheKey);
   }
@@ -44,33 +50,39 @@ export async function getMemoryContext(params: {
 
   if (useVectorSearch && latestUserText?.length > 10) {
     const embedding = await openAIEmbed(latestUserText);
-    const { data, error }: { data: any[] | null; error: any } = await safeQuery(
-    async (c) => {
-      const { data, error } = await c.rpc("match_memory_items", {
-        p_user_id: authedUserId,
-        p_query_embedding: embedding,
-        p_match_count: 30,
-        p_tiers: ["core", "normal", "sensitive"],
-        p_include_user_trigger_only: true,
-      });
-      return { data, error };
-    },
-    "match_memory_items"
-  );
 
+    const { data, error }: { data: any[] | null; error: any } = await safeQuery(
+      async (c) => {
+        const { data, error } = await c.rpc("match_memory_items", {
+          p_user_id: authedUserId,
+          p_query_embedding: embedding,
+          p_match_count: 30,
+          p_tiers: ["core", "normal", "sensitive"],
+          p_include_user_trigger_only: true,
+        });
+        return { data, error };
+      },
+      "match_memory_items"
+    );
 
     if (error) throw error;
-    items = (data ?? []).filter((r: any) => r?.scope !== "anchor" && r?.kind !== "anchor" && r?.kind !== "correction");
+
+    items = (data ?? []).filter(
+      (r: any) =>
+        r?.scope !== "anchor" &&
+        r?.kind !== "anchor" &&
+        r?.kind !== "correction"
+    );
   } else {
     const q = admin
       .from("memory_items")
-      .select("id, user_id, project_id, conversation_id, key, value, tier, user_trigger_only, importance, confidence, locked, pinned, status, deleted_at, last_seen_at, last_reinforced_at")
+      .select(
+        "id, user_id, project_id, conversation_id, key, value, tier, scope, user_trigger_only, importance, confidence, locked, pinned, status, deleted_at, last_seen_at, last_reinforced_at"
+      )
       .eq("user_id", authedUserId)
       .is("deleted_at", null)
       .eq("status", "active")
       .neq("scope", "anchor")
-      .neq("kind", "anchor")
-      .neq("kind", "correction")
       .order("pinned", { ascending: false })
       .order("importance", { ascending: false })
       .order("last_reinforced_at", { ascending: false })
@@ -78,20 +90,33 @@ export async function getMemoryContext(params: {
 
     const { data, error } = projectId ? await q.eq("project_id", projectId) : await q;
     if (error) throw error;
+
     items = (data ?? []).filter((r: any) => r?.scope !== "anchor");
   }
 
-  const parsed = items.map((r: any) => ({
-    id: r.id,
-    key: r.key,
-    value: r.value, // jsonb already
-    tier: r.tier ?? (r.pinned ? "core" : "normal"),
-    user_trigger_only: !!r.user_trigger_only,
-    importance: Number(r.importance ?? 5),
-    confidence: Number(r.confidence ?? 0.75),
-    pinned: !!r.pinned,
-    locked: !!r.locked,
-  }));
+  const parsed = items.map((r: any) => {
+    const rawValue = parseMaybeJson(r.value);
+    const valueForDisplay =
+      rawValue && typeof rawValue === "object" && "value" in rawValue
+        ? String((rawValue as any).value)
+        : typeof rawValue === "string"
+        ? rawValue
+        : JSON.stringify(rawValue);
+
+    return {
+      id: r.id,
+      key: r.key,
+      value: rawValue,
+      display: avoidingNull(r.display, r.key, valueForDisplay),
+      tier: r.tier ?? (r.pinned ? "core" : "normal"),
+      user_trigger_only: !!r.user_trigger_only,
+      importance: Number(r.importance ?? 5),
+      confidence: Number(r.confidence ?? 0.75),
+      pinned: !!r.pinned,
+      locked: !!r.locked,
+      scope: r.scope ?? "conversation",
+    };
+  });
 
   const result = {
     core: parsed.filter((i) => i.tier === "core" || i.pinned),
@@ -107,4 +132,3 @@ export async function getMemoryContext(params: {
 
   return result;
 }
-
