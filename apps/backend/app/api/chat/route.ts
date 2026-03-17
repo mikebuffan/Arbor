@@ -103,12 +103,145 @@ function queryMatchScore(item: RetrievedMemoryItem, userText: string) {
   return score;
 }
 
+function inferMemoryType(item: RetrievedMemoryItem): "identity" | "preferences" | "project" | "people" | "location" | "other" {
+  const key = (item.key || "").toLowerCase();
+
+  if (
+    key.startsWith("user.") ||
+    key.startsWith("identity.") ||
+    key.includes("name") ||
+    key.includes("legal_name") ||
+    key.includes("display_name")
+  ) {
+    return "identity";
+  }
+
+  if (
+    key.startsWith("preferences.") ||
+    key.includes("favorite") ||
+    key.includes("tone") ||
+    key.includes("style") ||
+    key.includes("color") ||
+    key.includes("avoid")
+  ) {
+    return "preferences";
+  }
+
+  if (
+    key.startsWith("projects.") ||
+    key.includes("ongoing") ||
+    key.includes("current_focus") ||
+    key.includes("pipeline") ||
+    key.includes("review")
+  ) {
+    return "project";
+  }
+
+  if (
+    key.startsWith("people.") ||
+    key.includes("daughter") ||
+    key.includes("child") ||
+    key.includes("family")
+  ) {
+    return "people";
+  }
+
+  if (
+    key.startsWith("location.") ||
+    key.includes("city") ||
+    key.includes("country")
+  ) {
+    return "location";
+  }
+
+  return "other";
+}
+
+function inferQuestionIntent(userText: string): "identity" | "preferences" | "project" | "people" | "location" | "general" {
+  const u = normText(userText);
+
+  if (
+    u.includes("favorite") ||
+    u.includes("prefer") ||
+    u.includes("like") ||
+    u.includes("dislike") ||
+    u.includes("tone") ||
+    u.includes("style")
+  ) {
+    return "preferences";
+  }
+
+  if (
+    u.includes("who am i") ||
+    u.includes("my name") ||
+    u.includes("call me") ||
+    u.includes("what is my name")
+  ) {
+    return "identity";
+  }
+
+  if (
+    u.includes("project") ||
+    u.includes("app") ||
+    u.includes("working on") ||
+    u.includes("current focus") ||
+    u.includes("review")
+  ) {
+    return "project";
+  }
+
+  if (
+    u.includes("daughter") ||
+    u.includes("son") ||
+    u.includes("child") ||
+    u.includes("family") ||
+    u.includes("friend") ||
+    u.includes("people in my life")
+  ) {
+    return "people";
+  }
+
+  if (
+    u.includes("where am i") ||
+    u.includes("where do i live") ||
+    u.includes("city") ||
+    u.includes("state") ||
+    u.includes("location") ||
+    u.includes("district") ||
+    u.includes("country")
+  ) {
+    return "location";
+  }
+
+  return "general";
+}
+
+function memoryTypeWeight(item: RetrievedMemoryItem, userText: string) {
+  const memoryType = inferMemoryType(item);
+  const intent = inferQuestionIntent(userText);
+
+  if (intent === "general") return 0;
+
+  if (intent === memoryType) return 40;
+
+  if (intent === "identity" && memoryType === "preferences") return 5;
+  if (intent === "preferences" && memoryType === "identity") return 5;
+  if (intent === "project" && memoryType === "people") return 5;
+
+  return 0;
+}
+
 function rankRetrievedMemories(items: RetrievedMemoryItem[], userText: string) {
   return [...items].sort((a, b) => {
     const aMatch = queryMatchScore(a, userText);
     const bMatch = queryMatchScore(b, userText);
     const matchDelta = bMatch - aMatch;
     if (matchDelta !== 0) return matchDelta;
+
+    const aTypeWeight = memoryTypeWeight(a, userText);
+    const bTypeWeight = memoryTypeWeight(b, userText);
+    const typeDelta = bTypeWeight - aTypeWeight;
+    if (typeDelta !== 0) return typeDelta;
 
     const pinnedDelta = Number(b.pinned) - Number(a.pinned);
     if (pinnedDelta !== 0) return pinnedDelta;
@@ -125,6 +258,60 @@ function rankRetrievedMemories(items: RetrievedMemoryItem[], userText: string) {
     return (b.similarity ?? 0) - (a.similarity ?? 0);
   });
 }
+
+function uniqueById(items: RetrievedMemoryItem[]) {
+  const seen = new Set<string>();
+  const out: RetrievedMemoryItem[] = [];
+
+  for (const item of items) {
+    if (!item?.id) continue;
+    if (seen.has(item.id)) continue;
+    seen.add(item.id);
+    out.push(item);
+  }
+
+  return out;
+}
+
+function selectMemoriesForInjection(args: {
+  memoryContext: {
+    core: RetrievedMemoryItem[];
+    normal: RetrievedMemoryItem[];
+    sensitive: RetrievedMemoryItem[];
+  };
+  userText: string;
+  limit?: number;
+}) {
+  const { memoryContext, userText, limit = 12 } = args;
+
+  const all = uniqueById([
+    ...memoryContext.core,
+    ...memoryContext.normal,
+    ...memoryContext.sensitive,
+  ]);
+
+  const guaranteedCore = uniqueById(
+    all.filter((item) => item.pinned || item.locked || item.tier === "core")
+  ).slice(0, 4);
+
+  const queryMatched = uniqueById(
+    rankRetrievedMemories(all, userText).filter((item) => queryMatchScore(item, userText) > 0)
+  ).slice(0, 4);
+
+  const alreadyIncluded = new Set(
+    [...guaranteedCore, ...queryMatched].map((item) => item.id)
+  );
+
+  const fillers = rankRetrievedMemories(all, userText).filter(
+    (item) => !alreadyIncluded.has(item.id)
+  );
+
+  return uniqueById([
+    ...guaranteedCore,
+    ...queryMatched,
+    ...fillers,
+  ]).slice(0, limit);
+} 
 
 export async function OPTIONS(req: Request) {
   return new Response(null, { status: 204, headers: getCorsHeaders(req) });
@@ -324,14 +511,11 @@ export async function POST(req: Request) {
       keysUsed: memoryContext.keysUsed,
     });
 
-    const selectedMemoryItems = rankRetrievedMemories(
-      [
-        ...memoryContext.core,
-        ...memoryContext.normal,
-        ...memoryContext.sensitive,
-      ],
-      userText
-    ).slice(0, 12);
+    const selectedMemoryItems = selectMemoriesForInjection({
+      memoryContext,
+      userText,
+      limit: 12,
+    });
 
     const injectedMemoryItemIds = selectedMemoryItems.map((item) => item.id);
     const injectedMemoryKeys = selectedMemoryItems
