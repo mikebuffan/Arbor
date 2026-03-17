@@ -50,8 +50,49 @@ function runBg(label: string, fn: () => Promise<any>) {
   void fn().catch((e) => console.warn(`[bg:${label}]`, e));
 }
 
-function rankRetrievedMemories(items: RetrievedMemoryItem[]) {
+function normText(s: string) {
+  return (s || "").toLowerCase().replace(/[^\w\s.]/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function queryMatchScore(item: RetrievedMemoryItem, userText: string) {
+  const u = normText(userText);
+  const key = normText(item.key || "").replace(/[._]/g, " ");
+  const content = normText(item.content_text || "");
+
+  let score = 0;
+
+  if (u.includes("favorite color")) {
+    if (key.includes("favorite") && key.includes("color")) score += 100;
+    if (content.includes("favorite") && content.includes("color")) score += 80;
+  }
+
+  if (u.includes("color")) {
+    if (key.includes("color")) score += 40;
+    if (content.includes("color")) score += 25;
+  }
+
+  if (u.includes("favorite")) {
+    if (key.includes("favorite")) score += 25;
+    if (content.includes("favorite")) score += 15;
+  }
+
+  const tokens = Array.from(new Set(u.split(" ").filter(Boolean)));
+  for (const t of tokens) {
+    if (t.length < 3) continue;
+    if (key.includes(t)) score += 8;
+    if (content.includes(t)) score += 4;
+  }
+
+  return score;
+}
+
+function rankRetrievedMemories(items: RetrievedMemoryItem[], userText: string) {
   return [...items].sort((a, b) => {
+    const aMatch = queryMatchScore(a, userText);
+    const bMatch = queryMatchScore(b, userText);
+    const matchDelta = bMatch - aMatch;
+    if (matchDelta !== 0) return matchDelta;
+
     const pinnedDelta = Number(b.pinned) - Number(a.pinned);
     if (pinnedDelta !== 0) return pinnedDelta;
 
@@ -66,7 +107,7 @@ function rankRetrievedMemories(items: RetrievedMemoryItem[]) {
 
     return (b.similarity ?? 0) - (a.similarity ?? 0);
   });
-} 
+}
 
 export async function OPTIONS(req: Request) {
   return new Response(null, { status: 204, headers: getCorsHeaders(req) });
@@ -266,11 +307,14 @@ export async function POST(req: Request) {
       keysUsed: memoryContext.keysUsed,
     });
 
-    const selectedMemoryItems = rankRetrievedMemories([
-      ...memoryContext.core,
-      ...memoryContext.normal,
-      ...memoryContext.sensitive,
-    ]).slice(0, 12);
+    const selectedMemoryItems = rankRetrievedMemories(
+      [
+        ...memoryContext.core,
+        ...memoryContext.normal,
+        ...memoryContext.sensitive,
+      ],
+      userText
+    ).slice(0, 12);
 
     console.log("[chat route] selectedMemoryItems", selectedMemoryItems.map((i) => ({
       id: i.id,
