@@ -4,7 +4,7 @@ import { requireUser } from "@/lib/auth/requireUser";
 import { openAIChat } from "@/lib/providers/openai";
 import { buildPromptContext } from "@/lib/prompt/buildPromptContext";
 import { extractMemoryFromText } from "@/lib/memory/extractor";
-import { upsertMemoryItems, reinforceMemoryUse, updateMemoryStrength } from "@/lib/memory/store";
+import { upsertMemoryItems, reinforceMemoryUse } from "@/lib/memory/store";
 import { postcheckResponse } from "@/lib/safety/postcheck";
 import { logMemoryEvent } from "@/lib/memory/logger";
 import { guardAssistantText } from "@/lib/guards/responseLanguageGuard";
@@ -12,11 +12,11 @@ import { evaluateDecisionContext } from "@/lib/governance/evaluateDecisionContex
 import { realWorldSafetyAddendum } from "@/lib/governance/realWorldSafetyAddendum";
 import { logDecisionOutcome } from "@/lib/safety/decisionOutcome";
 import { promoteIdentityAnchors } from "@/lib/memory/promoteIdentityAnchors";
+import { getMemoryContext, type RetrievedMemoryItem } from "@/lib/memory/retrieval";
 
 import { buildProofSnapshot } from "@/lib/arbor/ProofSnapshot";
 import { buildTelemetry } from "@/lib/arbor/telemetry/buildTelemetry";
 import { getOrCreateOpenEpisode } from "@/lib/arbor/episodes/getOrCreateOpenEpisode";
-import { embedText } from "@/lib/memory/embeddings";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -49,6 +49,24 @@ function getCorsHeaders(req: Request) {
 function runBg(label: string, fn: () => Promise<any>) {
   void fn().catch((e) => console.warn(`[bg:${label}]`, e));
 }
+
+function rankRetrievedMemories(items: RetrievedMemoryItem[]) {
+  return [...items].sort((a, b) => {
+    const pinnedDelta = Number(b.pinned) - Number(a.pinned);
+    if (pinnedDelta !== 0) return pinnedDelta;
+
+    const lockedDelta = Number(b.locked) - Number(a.locked);
+    if (lockedDelta !== 0) return lockedDelta;
+
+    const importanceDelta = (b.importance ?? 0) - (a.importance ?? 0);
+    if (importanceDelta !== 0) return importanceDelta;
+
+    const confidenceDelta = (b.confidence ?? 0) - (a.confidence ?? 0);
+    if (confidenceDelta !== 0) return confidenceDelta;
+
+    return (b.similarity ?? 0) - (a.similarity ?? 0);
+  });
+} 
 
 export async function OPTIONS(req: Request) {
   return new Response(null, { status: 204, headers: getCorsHeaders(req) });
@@ -144,50 +162,6 @@ async function cleanupExpiredMessagesBestEffort(supabase: any, userId: string) {
     .not("expires_at", "is", null);
 }
 
-function buildMemoryInjectionBlock(rows: Array<{
-  id: string;
-  content_text?: string;
-  key?: string;
-  value?: any;
-  pinned?: boolean;
-  locked?: boolean;
-  importance?: number;
-  confidence?: number;
-  last_seen_at?: string | null;
-  similarity?: number;
-}>) {
-  if (!rows.length) return "";
-
-  const pinned = rows.filter(r => r.pinned);
-  const related = rows.filter(r => !r.pinned);
-
-  const fmt = (r: any) => {
-    const text =
-      (typeof r.content_text === "string" && r.content_text.trim())
-        ? r.content_text.trim()
-        : `${r.key ?? "memory"}: ${JSON.stringify(r.value ?? {})}`;
-    return `- ${text}`;
-  };
-
-  const lines: string[] = [];
-  lines.push("MEMORY CONTEXT (retrieved from long-term memory):");
-  lines.push("Use this only if relevant. Prefer pinned items. Do not invent details.");
-
-  if (pinned.length) {
-    lines.push("");
-    lines.push("PINNED:");
-    pinned.slice(0, 8).forEach(r => lines.push(fmt(r)));
-  }
-
-  if (related.length) {
-    lines.push("");
-    lines.push("RELATED:");
-    related.slice(0, 10).forEach(r => lines.push(fmt(r)));
-  }
-
-  return lines.join("\n");
-}
-
 export async function POST(req: Request) {
   const t0 = performance.now(); 
 
@@ -272,62 +246,44 @@ export async function POST(req: Request) {
       latestUserText: userText,
       safety,
     });
-    const [history, systemPrompt] = await Promise.all([historyPromise, systemPromptPromise]);
+    const memoryContextPromise = getMemoryContext({
+      authedUserId: userId,
+      projectId,
+      latestUserText: userText,
+      useVectorSearch: true,
+    });
 
-    let injectedMemoryItemIds: string[] = [];
-    let memoryBlock = "";
-    let memoryDebugTop: any[] = []; //for proof snapshot (dev)
+    const [history, systemPrompt, memoryContext] = await Promise.all([
+      historyPromise,
+      systemPromptPromise,
+      memoryContextPromise,
+    ]);
 
-    try {
-      const retrievalQuery = [
-        ...history.slice(-6).map(m => `${m.role}: ${m.content}`),
-        `user: ${userText}`,
-      ].join("\n");
+    const selectedMemoryItems = rankRetrievedMemories([
+      ...memoryContext.core,
+      ...memoryContext.normal,
+      ...memoryContext.sensitive,
+    ]).slice(0, 12);
 
-      const queryEmbedding = await embedText(retrievalQuery);
+    const injectedMemoryItemIds = selectedMemoryItems.map((item) => item.id);
+    const injectedMemoryKeys = selectedMemoryItems
+      .map((item) => item.key)
+      .filter(Boolean);
 
-      const { data: memRows, error: memErr } = await supabase.rpc("match_memories", {
-        p_user_id: userId,
-        p_project_id: projectId,
-        p_query_embedding: queryEmbedding,
-        p_match_count: 16,
-      });
-
-      if (memErr) throw memErr;
-
-      const rows = (memRows ?? []) as any[];
-
-      const ranked = rows
-        .map(r => ({ ...r, _stability: stabilityScore(r) }))
-        .sort((a, b) => (b._stability ?? 0) - (a._stability ?? 0));
-
-      const pinned = ranked.filter(r => r.pinned).slice(0, 8);
-      const nonPinned = ranked.filter(r => !r.pinned).slice(0, 16);
-
-      const selected = [...pinned, ...nonPinned];
-
-      memoryBlock = buildMemoryInjectionBlock(selected);
-
-      injectedMemoryItemIds = selected
-        .map(r => String(r.id))
-        .filter(Boolean);
-
-      memoryDebugTop = selected.slice(0, 12).map(r => ({
-        id: String(r.id),
-        key: r.key,
-        pinned: !!r.pinned,
-        locked: !!r.locked,
-        importance: r.importance ?? null,
-        similarity: r.similarity ?? null,
-        stability: r._stability ?? null,
-      }));
-    } catch (e) {
-      console.warn("[memory] retrieval/injection skipped:", e);
-    }
+    const memoryDebugTop = selectedMemoryItems.map((item) => ({
+      id: item.id,
+      key: item.key,
+      pinned: item.pinned,
+      locked: item.locked,
+      importance: item.importance,
+      confidence: item.confidence,
+      similarity: item.similarity ?? null,
+      tier: item.tier,
+      scope: item.scope,
+    }));
 
     const messagesForModel: Msg[] = [
       { role: "system", content: systemPrompt },
-      ...(memoryBlock ? ([{ role: "system", content: memoryBlock }] as Msg[]) : []),
       ...history,
     ];
 
@@ -356,17 +312,11 @@ export async function POST(req: Request) {
       );
     }
 
-    if (injectedMemoryItemIds.length) {
-      runBg("touch_memories", async () => {
-        await supabase.rpc("touch_memories", { p_ids: injectedMemoryItemIds });
-      });
-    }
-
     const traceId = crypto.randomUUID();
 
     const proofSnapshot = buildProofSnapshot({
       anchors: [],
-      memoryItems: injectedMemoryItemIds.map((id) => ({ id })),
+      memoryItems: selectedMemoryItems.map((item) => ({ id: item.id })),
     });
 
     (proofSnapshot as any).memory_debug = memoryDebugTop;
@@ -400,10 +350,13 @@ export async function POST(req: Request) {
       });
 
       await upsertMemoryItems(userId, extracted, projectId);
-      await reinforceMemoryUse(userId, injectedMemoryItemIds, projectId);
-      await updateMemoryStrength(convoId, 0.2);
+      await reinforceMemoryUse(userId, injectedMemoryKeys, projectId);
 
-      await logMemoryEvent("chat_completed", { userId, projectId });
+      await logMemoryEvent("chat_completed", {
+        userId,
+        projectId,
+        conversationId: convoId,
+      });
     });
 
     runBg("conversation_update", async () => {

@@ -1,15 +1,12 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { supabaseFromAuthHeader } from "@/lib/supabase/bearer";
-import { supabaseAdmin } from "@/lib/supabase/admin";
-import { MemoryService } from "@/lib/memory/memoryService";
-import { toMemValue } from "@/lib/memory/value";
+import { correctMemoryItem } from "@/lib/memory/store";
 
 const Body = z.object({
-  correctionKey: z.string().min(3),
+  correctionKey: z.string().min(1),
   correctedValue: z.any(),
   projectId: z.string().uuid().nullable().optional(),
-  // accepted for backward compat
   scope: z.any().optional(),
   conversationId: z.any().optional(),
 });
@@ -26,31 +23,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const userId = data.user.id;
-  const projectId = parsed.data.projectId ?? null;
-
-  const memKey = parsed.data.correctionKey.trim();
-  const memValue = toMemValue(parsed.data.correctedValue);
-
-  const op = {
-    op: "CORRECT" as const,
-    mem_key: memKey,
-    mem_value: memValue,
-    display_text: memKey,
-    trigger_terms: [],
-    emotional_weight: "neutral" as const,
-    relational_context: [],
-    reveal_policy: "normal" as const,
-    confidence: 1,
-  };
-
-  const admin = supabaseAdmin();
-  const svc = new MemoryService({
-    supabase,
-    admin,
-    userId,
-    projectId,
+  const result = await correctMemoryItem({
+    authedUserId: data.user.id,
+    key: parsed.data.correctionKey.trim(),
+    newValue: parsed.data.correctedValue,
+    projectId: parsed.data.projectId ?? null,
   });
 
-  return NextResponse.json({ ok: true, svc });
+  return NextResponse.json({ ok: true, ...result });
 }

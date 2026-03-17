@@ -1,297 +1,238 @@
-# Arbor — Working Checklist (Phases 2–3)
+# Arbor — Working Checklist (Repo-Audited, March 16 2026)
 
-> **Source of truth:** Firefly / Arbor Roadmap + Canon Decisions (locked Feb 2026)
-> Phase 2 goal: Make memory visible, editable, and self-aware.
-> Phase 3 goal: Make memory, safety, and continuity correct, conservative, and provable.
-
----
-
-## Phase 2 — Memory Transparency & Reflection
-
-### 2.1 UI — Memory Viewer (User-facing)
-
-* [ ] Create UI route/page: `/app/memories/page.tsx` (or mobile equivalent) that:
-
-  * [ ] Fetches memories via `/api/memory/list`
-  * [ ] Groups/filters: core / normal / locked / ignored
-  * [ ] “Edit” action → calls `/api/memory/correct`
-  * [ ] “Delete/Forget” action → calls `/api/memory/delete` (soft delete)
-  * [ ] Shows busy/loading + error states
+> Canon policy for this checklist:
+> - ZIP repo is implementation truth
+> - `Arbor_SQL_schema.txt` is DB truth for the target model
+> - `RAW_CODE_complete.txt` is reference material only, not canon
+> - Prefer the newer `memory_items` schema (`key` + `value jsonb` + `tier/scope/status/deleted_at`)
+> - Do not delete old files or paths without explicit approval
 
 ---
 
-### 2.2 API — Memory List
+## Phase 0 — Canon Freeze / Drift Control
 
-* [ ] Add API route: `/api/memory/list` (GET)
+### 0.1 Canonical Memory Model
+- [x] Canonical `memory_items` target chosen: newer v2 JSON model
+- [ ] Remove active runtime dependence on legacy fields in code (`mem_key`, `mem_value`, `display_text`, `trigger_terms`, `reveal_policy`, `strength`, `discarded_at`, `confirmed_at`, `is_locked`)
+- [ ] Verify all reads/writes/query filters use only v2 columns unless reading `memory_items_legacy` intentionally
+- [ ] Add explicit migration/compat plan before deleting or renaming any legacy code paths
 
-  * [ ] Requires auth (`requireUser`)
-  * [ ] Reads from `memory_items` filtered by `user_id`
-  * [ ] Ordered by most important / most recent
-  * [ ] Returns `{ ok: true, items: [...] }`
-
----
-
-### 2.3 API — Memory Correct
-
-* [ ] Add API route: `/api/memory/correct` (POST)
-
-  * [ ] Accepts `{ key, newValue }` (+ project scope if used)
-  * [ ] Calls memory correction pipeline (store layer)
-  * [ ] Returns success + locked status if applicable
+### 0.2 Canonical Retrieval Path
+- [ ] Choose one retrieval contract and make all code use it
+  - Preferred: `memory_items` + `match_memory_items` RPC
+- [ ] Remove parallel retrieval logic from `/api/chat` that bypasses `buildPromptContext`
+- [ ] Ensure anchors and memory injection are not duplicated across two separate retrieval systems
 
 ---
 
-### 2.4 API — Memory Delete (Soft delete)
+## Phase 1 — Repo Audit Snapshot
 
-* [ ] Add API route: `/api/memory/delete` (POST)
+### 1.1 Present in repo (verified)
+- [x] `apps/backend/app/api/chat/route.ts`
+- [x] `apps/backend/app/api/memory/items/route.ts`
+- [x] `apps/backend/app/api/memory/correct/route.ts`
+- [x] `apps/backend/app/api/memory/item/[id]/route.ts`
+- [x] `apps/backend/lib/auth/requireUser.ts`
+- [x] `apps/backend/lib/memory/store.ts`
+- [x] `apps/backend/lib/memory/retrieval.ts`
+- [x] `apps/backend/lib/prompt/buildPromptContext.ts`
+- [x] `apps/backend/lib/memory/anchors.ts`
+- [x] `apps/backend/lib/memory/extractor.ts`
+- [x] `apps/backend/lib/memory/consolidate.ts`
+- [x] Episode helpers exist:
+  - [x] `lib/arbor/episodes/getOrCreateOpenEpisode.ts`
+  - [x] `lib/arbor/episodes/summarizeEpisode.ts`
+  - [x] `lib/arbor/episodes/consolidateEpisodeCandidates.ts`
+- [x] Telemetry/proof files exist:
+  - [x] `lib/arbor/ProofSnapshot.ts`
+  - [x] `lib/arbor/telemetry/buildTelemetry.ts`
+  - [x] `lib/arbor/telemetry/types.ts`
 
-  * [ ] Soft delete flag in DB (do NOT hard delete by default)
-  * [ ] Requires auth (`requireUser`)
-  * [ ] Returns `{ ok: true }`
+### 1.2 Missing or not implemented
+- [ ] `/api/memory/delete` soft-delete route
+- [ ] User-facing memory viewer UI (frontend/mobile)
+- [ ] `lib/arbor/syncRules.ts` (checklist mentioned, repo does not have it)
+- [ ] `lib/arbor/stateMachine.ts`
+- [ ] `lib/arbor/summarizeEpisode.ts` at top-level path from old checklist (repo uses `lib/arbor/episodes/...` instead)
+- [ ] `lib/arbor/consolidateSession.ts` at top-level path from old checklist (repo uses `lib/arbor/episodes/...` instead)
+- [ ] `thread_state` table implementation/wiring
+- [ ] rhythm injection block implementation
 
----
-
-### 2.5 Reflection Agent (Backend)
-
-* [ ] Verify existing `lib/memory/reflection.ts` is wired to:
-
-  * [ ] Pull recent chat content
-  * [ ] Propose memory updates safely
-  * [ ] Write updates to `memory_items` via store layer
-* [ ] Verify reflection is callable via a job/cron or an internal admin trigger
-
----
-
-## Repo Audit Notes (Phase 2 readiness)
-
-### Backend: what appears present
-
-* [ ] Memory core modules exist (store / retrieval / reflection / anchors) — verify end-to-end
-* [ ] Auth helper exists: `apps/backend/lib/auth/requireUser.ts`
-
-### Backend: what’s missing or miswired
-
-* [ ] Memory List route exists but is not a proper Next API route
-* [ ] No `/api/memory/correct` route implemented
-* [ ] No `/api/memory/delete` route implemented
-
-### Frontend/mobile: what’s missing
-
-* [ ] Memory Viewer UI not yet implemented
-
----
-
-## Definition of Done (Phase 2)
-
-* [ ] Signed-in user can view memory items
-* [ ] User can correct a memory item
-* [ ] User can soft-delete a memory item
-* [ ] Reflection can be triggered and safely writes memories
+### 1.3 Present but miswired / legacy-drifted
+- [ ] `lib/memory/memoryService.ts` still uses legacy columns and should not be on the active path
+- [ ] `lib/memory/assembleMemoryBlock.ts` expects legacy `MemoryItemRow` shape
+- [ ] `lib/memory/selectForPrompt.ts` expects legacy reveal-policy fields
+- [ ] `lib/tasks/decay.ts` reads/writes legacy `strength`
+- [ ] `lib/tasks/reflection.ts` reads legacy `mem_key`
+- [ ] `lib/system/loop.ts` queries `users` table directly and assumes outdated task wiring
+- [ ] `app/api/memory/correction/route.ts` returns a service object instead of applying a correction
 
 ---
 
-## Phase 3 — Canonical Memory, Safety & Continuity
+## Phase 2 — Memory Loop (Critical Path)
 
-### 3.1 Architectural Locks (Non‑negotiable)
+## 2.1 Extract
+- [x] `extractMemoryFromText()` exists
+- [ ] Tighten prompt/schema so extracted items map cleanly to v2 `memory_items`
+- [ ] Verify extractor never emits fields that downstream store ignores or misinterprets
+- [ ] Add tests for correction-language / contradiction-language extraction
 
-* [ ] Authoritative injection sources: `anchors` + `memory_items`
-* [ ] All other systems are instrumentation only
-* [ ] One canonical `anchors` table (no `user_anchors`)
-* [ ] UUIDs everywhere (user, project, thread, message, memory, anchor)
-* [ ] One safety pipeline: heuristic (input only) → `detectRiskSignals()` → `planSafetyResponse()`
-* [ ] Clarify‑first rule (exactly one clarification question)
-* [ ] Phrase‑count tables deferred (not v1)
-* [ ] Prompt injection order locked:
+## 2.2 Consolidate
+- [x] `consolidateMemoryItems()` exists
+- [ ] Verify consolidation preserves `scope`, `tier`, `confidence`, `importance`, and evidence correctly
+- [ ] Verify import pipeline uses consolidation before writes everywhere intended
 
-  1. System rules / identity lock
-  2. Anchors
-  3. Rhythm block
-  4. Memory items
-  5. Safety plan (if triggered)
+## 2.3 Store
+- [x] `upsertMemoryItems()` exists and writes v2 columns
+- [x] `correctMemoryItem()` exists and writes v2 columns
+- [ ] Fix uniqueness behavior in store layer so upserts are keyed by scope-safe identity
+  - candidate: `(user_id, project_id, conversation_id, key)` or explicit canonical rule
+- [ ] Stop `findExisting()` from matching only `(user_id, key)` if scope/project separation matters
+- [ ] Fix `reinforceMemoryUse()` input mismatch in chat route (currently IDs are passed, function expects keys)
+- [ ] Fix `updateMemoryStrength(convoId, 0.2)` misuse in chat route (conversation ID is not memory ID)
 
----
+## 2.4 Retrieve
+- [x] `buildPromptContext()` calls `getMemoryContext()`
+- [ ] Standardize on one RPC name
+  - current mismatch: `match_memory_items` in retrieval vs `match_memories` in chat route
+- [ ] Standardize one touch/reinforcement strategy
+  - current extra path: `/api/chat` calls `touch_memories` RPC directly
+- [ ] Ensure retrieval respects user scope + optional project scope consistently
+- [ ] Gate sensitive memory injection intentionally instead of relying on legacy reveal-policy logic
 
-### 3.2 Database & Migrations (P0)
+## 2.5 Inject
+- [x] Prompt builder exists
+- [ ] Remove legacy `assembleMemoryBlock()` / `selectForPrompt()` dependency or rewrite them for v2 rows
+- [ ] Decide canonical injection order and enforce it in one place only
+  1. identity/system lock
+  2. anchors
+  3. rhythm block (when implemented)
+  4. retrieved memory items
+  5. safety addendum
+- [ ] Ensure `/api/chat` does not double-inject long-term memory outside `buildPromptContext`
 
-#### 3.2.1 Memory Reinforcement Loop
-
-* [ ] Create UUID‑based tables:
-
-  * [ ] `ar_topic_segments`
-  * [ ] `ar_memory_candidates`
-  * [ ] `ar_memory_reinforcement`
-  * [ ] `ar_event_log`
-* [ ] Do NOT create phrase‑count tables yet
-* [ ] Add minimal indexes on `(user_id, thread_id, created_at)`
-* [ ] Enable RLS and user‑scoped access
-
----
-
-#### 3.2.2 Episodes + Topic Stats + Safety State + Trace Logs (47/N)
-- [ ] Create enums (idempotent, `DO $$ ... duplicate_object` style):
-  - [ ] `episode_status` (`open | closed | summarized | archived`)
-  - [ ] `safety_risk_tier` (`none | low | medium | high | critical`)
-- [ ] Create tables (UUID-based):
-  - [ ] `system_rules` (DB-driven extraction/classification rules)
-  - [ ] `episodes` (session/thread consolidation)
-  - [ ] `topic_stats` (frequency + recency + time spent)
-  - [ ] `safety_state` (persisted escalation tracking)
-  - [ ] `trace_logs` (proof snapshot + observability)
-- [ ] Add optional FK: `messages.episode_id → episodes.id` (ON DELETE SET NULL)
-- [ ] Add indexes:
-  - [ ] `system_rules(enabled)` + GIN(`rule_json`)
-  - [ ] `episodes(user_id, closed_at desc)`
-  - [ ] `topic_stats(user_id, weight desc)` and `topic_stats(last_seen_at desc)`
-  - [ ] `trace_logs(created_at desc)`, `trace_logs(retrieval_latency_ms)`, GIN(`proof_snapshot`)
-- [ ] Create `view_system_health` view (hourly bucket aggregation)
+## 2.6 Respond + Post-write
+- [x] Chat route persists user + assistant messages
+- [x] Background extraction/upsert hook exists after assistant response
+- [ ] Fix post-response reinforcement/write calls to use correct identifiers
+- [ ] Ensure anchor promotion and memory writes are idempotent enough under retries
 
 ---
 
-### 3.3 RPC Functions (P0)
+## Phase 3 — Schema / RPC Alignment
 
-* [ ] Implement Supabase RPCs:
+### 3.1 Database truth already present in `Arbor_SQL_schema.txt`
+- [x] `memory_items` v2 table exists in schema
+- [x] `memory_items_legacy` table exists in schema for compatibility/reference
+- [x] `episodes` table exists in schema
+- [x] `trace_logs` table exists in schema
+- [x] `system_rules` table exists in schema
+- [x] `topic_stats` table exists in schema
+- [x] `safety_state` table exists in schema
+- [x] `user_profile` table exists in schema
 
-  * [ ] `ar_add_topic_segment(...)`
-  * [ ] `ar_reinforce_candidate(...)`
-* [ ] Ensure UUID parameters
-* [ ] Ensure callable via service role
+### 3.2 Still needs repo↔schema verification
+- [ ] Verify `match_memory_items` SQL function exists in the live DB and returns columns the repo expects
+- [ ] Verify whether `match_memories` exists at all; remove or replace if obsolete
+- [ ] Verify `touch_memories` exists; if not, replace with store-layer reinforcement logic
+- [ ] Verify `memory_reflections` table exists in live DB before using reflection insert path
+- [ ] Verify `job_queue` and `system_locks` exist in live DB before using queue/heartbeat paths
 
----
-
-### 3.4 Anchor System (P0)
-
-#### 3.4.1 Canonical Anchors Table
-
-* [ ] Confirm single `anchors` table
-* [ ] Add / verify columns:
-
-  * [ ] `source`
-  * [ ] `mention_count`
-  * [ ] `first_seen_at`
-  * [ ] `last_seen_at`
-  * [ ] `confidence`
-  * [ ] `salience_score`
-  * [ ] `human_time_index`
-  * [ ] `reinforcement_count`
-
-#### 3.4.2 Promotion Rules
-
-* [ ] Promote only when repeated, persistent, and safe or affirmed
-* [ ] Never auto‑promote emotionally charged memories
-* [ ] Log promotion decisions only
+### 3.3 Migration tasks to prepare (not apply blindly)
+- [ ] Draft migration to add any missing v2 indexes/constraints for `memory_items`
+- [ ] Draft migration to support canonical retrieval RPC output shape
+- [ ] Draft migration to retire legacy runtime dependencies safely
 
 ---
 
-### 3.5 Memory Items (P0)
+## Phase 4 — API Surface
 
-* [ ] Enforce tiers: core / normal / sensitive
-* [ ] Ensure fields: mention_count, confidence, importance, last_used_at
-* [ ] Gate sensitive memory injection
+### 4.1 Memory APIs
+- [x] `/api/memory/items` GET/POST exists
+- [x] `/api/memory/correct` POST exists
+- [x] `/api/memory/item/[id]` route exists
+- [ ] Add `/api/memory/delete` POST soft-delete route
+- [ ] Decide whether `/api/memory/items` remains canonical list/create endpoint or whether a `/api/memory/list` alias is needed for client compatibility
+- [ ] Remove or fix `/api/memory/correction` duplicate route
 
----
-
-### 3.6 Safety Preflight (P0)
-
-* [ ] Implement `detectRiskSignals(text, context)`
-* [ ] Implement `planSafetyResponse(signals)`
-* [ ] Run safety before LLM call
-* [ ] Enforce clarify‑first rule
-* [ ] Log safety decisions only
-
----
-
-### 3.7 Rhythm / Thread State (P0)
-
-* [ ] `user_profile` table (timezone, prefs)
-* [ ] `thread_state` table (mode, intensity, tone, last message time)
-* [ ] Build and inject `[RHYTHM]` block after anchors
+### 4.2 Episode/Admin APIs
+- [x] `/api/admin/summarize-episode` exists
+- [x] `/api/admin/consolidate-episode` exists
+- [x] `/api/admin/memory/decay` exists
+- [ ] Verify admin routes match current auth/admin policy
+- [ ] Verify episode summarization/consolidation output is persisted to schema fields actually present
 
 ---
 
-### 3.8 Prompt Construction (P0)
+## Phase 5 — Reflection / Decay / Jobs
 
-* [ ] Enforce canonical injection order
-* [ ] Anchors always injected
-* [ ] Memory items injected contextually
-* [ ] Safety plan injected only when active
-* [ ] Token caps enforced
-* [ ] Dev‑only proof snapshot available
+### 5.1 Reflection
+- [x] Reflection module exists
+- [ ] Rewire reflection job to use v2 columns (`key`) not legacy `mem_key`
+- [ ] Verify reflection output table exists and is intended canon
+- [ ] Decide whether reflection writes summaries only or can propose/promote new memories
 
----
+### 5.2 Decay
+- [ ] Rewrite decay to operate on v2 fields (likely confidence/importance/mention_count recency), not `strength`
+- [ ] Define tombstone vs exclude vs soft-delete policy for decayed memories
 
-### 3.9 Chat API Wiring (P0)
-
-* [ ] `/api/chat` flow:
-
-  1. Auth + IDs
-  2. Safety preflight
-  3. Load anchors + memory
-  4. Build prompt
-  5. Call LLM
-  6. Persist assistant message
-  7. Non‑blocking reinforcement writes
+### 5.3 Queue / heartbeat
+- [x] Queue helper exists
+- [ ] Verify queue table/schema alignment
+- [ ] Verify worker status enum alignment (`queued/running/completed/failed` vs DB truth)
+- [ ] Rewrite heartbeat loop away from non-canonical assumptions (`users` table scan, legacy tasks)
 
 ---
 
-### 3.10 Observability + Telemetry (47/N, P0)
-- [X] Add `lib/arbor/telemetry/types.ts` with optional `_telemetry` in `ChatResponse`
-- [X] Add `lib/arbor/telemetry/buildTelemetry.ts`:
-  - [X] Inserts into `trace_logs`
-  - [X] Strict try/catch: telemetry failures never break chat
-- [X] Wire telemetry into `/api/chat` as strictly additive
-- [X] Add `lib/arbor/syncRules.ts` (system_rules cache w/ TTL)
-- [X] Add `lib/arbor/ProofSnapshot.ts` and populate `trace_logs.proof_snapshot`
+## Phase 6 — Anchors / Identity
+
+- [x] Anchor retrieval and set helpers exist in `lib/memory/anchors.ts`
+- [x] Prompt invalidation hook exists
+- [x] `promoteIdentityAnchors()` exists
+- [ ] Confirm canonical anchor storage approach: still `memory_items` scoped as project/core, not a separate `anchors` table
+- [ ] Add tests for negative preference anchors (some already exist; extend coverage)
+- [ ] Ensure promoted anchor-like memories do not also keep injecting as ordinary memory duplicates
 
 ---
 
-### 3.11 Episodes + Consolidation (47/N, P0)
-- [ ] Add `lib/arbor/stateMachine.ts` for episode lifecycle
-- [ ] Add `lib/arbor/summarizeEpisode.ts` (JSON summary prompt)
-- [ ] Add `lib/arbor/consolidateSession.ts`:
-  - [ ] Only runs for `episodes.status = closed`
-  - [ ] Idempotency guard (do not re-summarize)
-  - [ ] Writes `episodes.summary_json` + marks `summarized`
-- [ ] Decide trigger mechanism:
-  - [ ] Cron/job
-  - [ ] Admin endpoint
-  - [ ] Background worker
+## Phase 7 — Frontend / Client
+
+- [ ] Build memory viewer/editor on frontend/mobile
+- [ ] Hook to actual repo endpoints (`/api/memory/items`, `/api/memory/correct`, `/api/memory/delete` once added)
+- [ ] Add optimistic/busy/error states
+- [ ] Verify client sends `projectId` / `conversationId` correctly into chat
+- [ ] Add dev-only proof snapshot surface for beta testing memory correctness
 
 ---
 
-### 3.12 Client Integration (Minimal, P0)
+## Phase 8 — Acceptance / Proof
 
-* [ ] Client sends thread_id (UUID)
-* [ ] Client sends timezone + local time
-* [ ] Temporary Chat (test) button retained
+### 8.1 End-to-end proof tests
+- [ ] Extract → store writes new v2 memory row
+- [ ] Correction increments `correction_count` and locks after threshold
+- [ ] Retrieval returns only current user’s memory rows
+- [ ] Project-scoped memory does not leak across projects
+- [ ] Sensitive memory remains gated
+- [ ] Anchors inject before general memory
+- [ ] Chat route does not crash when retrieval RPC is unavailable
+- [ ] Import pipeline consolidates duplicates before write
 
----
-
-### 3.13 Acceptance Tests (P0)
-
-* [ ] Anchors always injected
-* [ ] Memory items injected when relevant
-* [ ] Sensitive memories never leak
-* [ ] Clarify‑first triggers exactly once
-* [ ] Risk escalations occur pre‑LLM
-* [ ] Rhythm state persists
-* [ ] Reinforcement events logged correctly
-
----
-
-### 3.14 Cleanup & Hardening (P1)
-
-* [ ] Remove duplicate safety logic
-* [ ] Confirm single anchor store
-* [ ] Verify RLS + service role boundaries
-* [ ] Performance check on hot queries
+### 8.2 Cleanup candidates (do not delete without approval)
+- [ ] `lib/memory/memoryService.ts`
+- [ ] `lib/memory/assembleMemoryBlock.ts`
+- [ ] `lib/memory/selectForPrompt.ts`
+- [ ] `app/api/memory/correction/route.ts`
+- [ ] legacy task logic in `lib/tasks/decay.ts`, `lib/tasks/reflection.ts`, `lib/system/loop.ts`
 
 ---
 
-## Definition of Done (Phase 3)
+## Immediate Working Order (Recommended)
 
-* [ ] Memory loop works end‑to‑end (extract → store → retrieve → inject)
-* [ ] Anchors are conservative and stable
-* [ ] Safety behavior is predictable and explainable
-* [ ] Rhythm continuity persists across sessions
-* [ ] Reinforcement loop operates without prompt bloat
-* [ ] Proof snapshots demonstrate correctness
+1. [ ] Fix `/api/chat` identifier/retrieval mismatches
+2. [ ] Rewrite retrieval/injection path so it is fully v2-compatible
+3. [ ] Rewrite legacy task files (`decay`, `reflection`, `loop`) against v2 schema
+4. [ ] Add `/api/memory/delete`
+5. [ ] Build client memory viewer/editor
+6. [ ] Add acceptance tests for end-to-end memory loop
+7. [ ] Only then revisit import-pipeline refinement / dry-run proofing
+
