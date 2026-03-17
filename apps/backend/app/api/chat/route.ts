@@ -46,6 +46,23 @@ function getCorsHeaders(req: Request) {
   };
 }
 
+function buildSelectedMemoryBlock(items: RetrievedMemoryItem[]) {
+  if (!items.length) return "";
+
+  const lines = items.map((item) => {
+    const text = (item.content_text || "").trim();
+    return text ? `- ${item.key}: ${text}` : `- ${item.key}`;
+  });
+
+  return [
+    "[MEMORY CONTEXT]",
+    "Use the following remembered user facts when relevant.",
+    "If one of these memories directly answers the user's question, answer with it plainly and naturally.",
+    "Do not claim uncertainty if the answer is clearly present below.",
+    ...lines,
+  ].join("\n");
+}
+
 function runBg(label: string, fn: () => Promise<any>) {
   void fn().catch((e) => console.warn(`[bg:${label}]`, e));
 }
@@ -316,6 +333,13 @@ export async function POST(req: Request) {
       userText
     ).slice(0, 12);
 
+    const injectedMemoryItemIds = selectedMemoryItems.map((item) => item.id);
+    const injectedMemoryKeys = selectedMemoryItems
+      .map((item) => item.key)
+      .filter(Boolean);
+
+    const memoryBlock = buildSelectedMemoryBlock(selectedMemoryItems);
+
     console.log("[chat route] selectedMemoryItems", selectedMemoryItems.map((i) => ({
       id: i.id,
       key: i.key,
@@ -324,11 +348,6 @@ export async function POST(req: Request) {
       pinned: i.pinned,
       locked: i.locked,
     })));
-
-    const injectedMemoryItemIds = selectedMemoryItems.map((item) => item.id);
-    const injectedMemoryKeys = selectedMemoryItems
-      .map((item) => item.key)
-      .filter(Boolean);
 
     const memoryDebugTop = selectedMemoryItems.map((item) => ({
       id: item.id,
@@ -344,6 +363,7 @@ export async function POST(req: Request) {
 
     const messagesForModel: Msg[] = [
       { role: "system", content: systemPrompt },
+      ...(memoryBlock ? ([{ role: "system", content: memoryBlock }] as Msg[]) : []),
       ...history,
     ];
 
