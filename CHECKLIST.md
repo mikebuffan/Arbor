@@ -236,3 +236,222 @@
 6. [ ] Add acceptance tests for end-to-end memory loop
 7. [ ] Only then revisit import-pipeline refinement / dry-run proofing
 
+## Phase 9 — Prompt / Framework Enhancements
+
+### 9.1 Master Prompt Grounding
+- [ ] Explicitly require all backend/query suggestions to use `Arbor_SQL_schema.txt` as the absolute DB source of truth
+- [ ] Explicitly forbid invented tables, columns, RPCs, or joins in engineering guidance
+- [ ] Add reminder that any repo/code suggestion that conflicts with schema truth must be called out before implementation
+
+### 9.2 Memory Pruning / Token Management
+- [ ] Add explicit pruning/consolidation policy for User Long-Term Memory to prevent context bloat
+- [ ] Define when to compress stale facts into summaries versus keep them as first-class memory rows
+- [ ] Add acceptance checks for token-budget discipline in prompt construction
+
+### 9.3 Time-Decay Distress Assessment
+- [ ] Add time-decay check to distress/safety/session-state logic so prior crisis state is re-verified after time has passed
+- [ ] Define transition rules from prior Level 3/acute distress into next-day check-in mode
+- [ ] Ensure time-aware phrasing can reference recency naturally (`yesterday`, `last night`, `it’s been X days`) without falsely assuming ongoing crisis
+
+### 9.4 Migration Path Discipline
+- [ ] Require every schema-affecting code suggestion to include migration SQL
+- [ ] Require backward-compatibility explanation for each proposed schema change
+- [ ] Require rollback strategy for each proposed schema change
+
+## Phase 10 — Product / Architecture Enhancements
+
+### 10.1 Memory Visualization (UX/UI)
+- [ ] Design and implement Memory Vault / Identity Map UI so users can see what Arbor knows
+- [ ] Group displayed memory by identity / preferences / ongoing / sensitive / timeline where appropriate
+- [ ] Add edit/correct/delete affordances tied to canonical memory APIs
+- [ ] Add explicit trust/privacy copy explaining user-scoped memory isolation
+
+### 10.2 Memory Candidate Confirmation
+- [ ] Verify `ar_memory_candidates` schema/path exists or identify the canonical candidate table if named differently
+- [ ] Add candidate-confirmation flow so Arbor can occasionally verify important uncertain memories with the user
+- [ ] Define promotion rules from candidate → confirmed memory to reduce memory pollution
+- [ ] Add UI/API support for confirm / deny / snooze on candidate memories
+
+### 10.3 Telemetry-Driven Personalization
+- [ ] Audit `buildTelemetry()` outputs and identify what therapeutic/posture signals are already captured
+- [ ] Add measurable “reframing success” signals for different guidance styles (e.g. validating / challenge / CBT / ACT / IFS)
+- [ ] Define safe adaptation rules so Arbor can shift style based on response patterns without violating posture guardrails
+- [ ] Add reporting/debug surface for posture adaptation decisions
+
+### 10.4 Zero-Latency Safety Overrides
+- [ ] Add frontend hard-coded Level 3 imminent-risk safety override UI
+- [ ] Ensure crisis resources can render immediately without waiting for model output
+- [ ] Define backend/frontend contract for safety level signals used by the override
+- [ ] Add tests for model-failure/refusal cases so emergency UI still appears
+
+## Phase 11 — Strategic Product Features
+
+### 11.1 Proactive Continuity
+- [ ] Use episode summaries + inactivity window to generate proactive check-in prompts after 24–48h inactivity
+- [ ] Define opt-in/opt-out controls for proactive continuity notifications
+- [ ] Add guardrails so notifications are supportive and not intrusive during recent distress states
+- [ ] Connect notification text generation to canonical episode/memory summaries rather than raw logs
+
+### 11.2 Privacy-First Memory Isolation
+- [ ] Create explicit technical documentation linking Supabase Auth user isolation to memory retrieval/injection boundaries
+- [ ] Add acceptance tests proving no cross-user memory leakage in retrieval, prompt injection, and admin tooling
+- [ ] Surface privacy/isolation guarantees in product copy and onboarding where appropriate
+- [ ] Ensure any future analytics/telemetry path is clearly separated from user memory content used for personalization
+
+
+
+---
+
+## Phase 9 — New RAW / `arbor_code_new` Intake (March 17 2026)
+
+> Status policy for this section:
+> - These are **candidate additions from `arbor_code_new.txt` / newest RAW reference**, not yet canon until implemented and verified.
+> - Prefer integration into the existing Next.js + Supabase Arbor app instead of copying standalone Python scaffolds directly.
+> - Reject or reshape any proposal that conflicts with the current repo, schema, or consent model.
+
+### 9.1 Firefly Prompt Journey / Reflection Framework
+- [ ] Evaluate adopting `FireflyPhase` progression (`DARKNESS` → `NATURE_VS_NURTURE` → `LAYERS` → `CONSEQUENCE_OVER_CHAOS` → `FIREFLY_SHIFT` → `DAILY_PRACTICE`) as an optional guided journaling/reflection mode
+- [ ] Decide canonical home for Firefly prompt framework in repo (`lib/firefly/` or `lib/arbor/firefly/`)
+- [ ] Add typed models for guided prompts, reflection entries, and per-user phase state
+- [ ] Decide storage model for completed prompt IDs + per-phase reflection counts
+- [ ] Add repo-safe implementation for:
+  - [ ] `getNextPrompt()`
+  - [ ] `getNextPhase()`
+  - [ ] `recordReflection()`
+  - [ ] `calculateFireflyScore()`
+- [ ] Decide whether “Firefly score / stage label” is user-visible, dev-only, or deferred
+- [ ] Ensure no gamification pressure if phase/stage labels are exposed
+
+### 9.2 Compassion / Insight Layer
+- [ ] Add structured compassion message library keyed by emotional state + optional phase
+- [ ] Add `InsightNudge` / Firefly-card helper layer for short reflection summaries
+- [ ] Ensure compassion/insight snippets are modular prompt inputs, not hardcoded into chat route
+- [ ] Add guardrails so insight summaries do not invent meaning beyond user text
+
+### 9.3 Adaptive Persona Controls
+- [ ] Design persona config model for user-adjustable sliders:
+  - [ ] directness
+  - [ ] warmth
+  - [ ] humor
+  - [ ] challenge
+  - [ ] structure
+- [ ] Add user rules support:
+  - [ ] `avoidTopics`
+  - [ ] `neverSay`
+  - [ ] `alwaysRemember`
+  - [ ] `preferredAddress`
+- [ ] Add optional `HumorConfig` (`none`, `light`, `self_deprecating`, `dark_gentle`, `shrek_onion`)
+- [ ] Add optional `DepthConfig` (`surface`, `moderate`, `deep`)
+- [ ] Implement `buildPersonaInstruction()` / persona prompt module in a canonical place
+- [ ] Decide where persona preferences live in DB (`user_profile`, `user_style`, or dedicated table)
+- [ ] Add UI/settings surface for persona tuning
+- [ ] Enforce safety override: user-selected tone never overrides crisis/safety constraints
+
+### 9.4 Brain / Intent Router
+- [ ] Evaluate adding a lightweight Arbor “brain” layer for turn classification before prompt generation
+- [ ] Candidate modules from intake:
+  - [ ] `lib/arbor/brain/types.ts`
+  - [ ] `lib/arbor/brain/constitution.ts`
+  - [ ] `lib/arbor/brain/detect.ts`
+  - [ ] `lib/arbor/brain/plan.ts`
+  - [ ] `lib/arbor/brain/prompt.ts`
+  - [ ] `lib/arbor/brain/orchestrator.ts`
+- [ ] Map suggested intent taxonomy into repo-compatible categories:
+  - [ ] `VENTING`
+  - [ ] `MEANING_MAKING`
+  - [ ] `SELF_JUDGMENT`
+  - [ ] `GUILT_COMPULSION`
+  - [ ] `BOUNDARY_DECISION`
+  - [ ] `FAMILY_TRAUMA_PROCESSING`
+  - [ ] `REQUEST_CODE`
+- [ ] Map suggested risk taxonomy into existing safety stack without duplicating crisis logic
+- [ ] Decide whether this becomes:
+  - [ ] a pre-prompt planning layer
+  - [ ] telemetry/debug only
+  - [ ] or a replacement for parts of existing orchestration
+- [ ] Add tests to ensure “brain” routing never bypasses system safety or memory injection order
+
+### 9.5 Language / Style Adaptation
+- [ ] Add canonical language detection helper (`en` / `es`) with server-side enforcement
+- [ ] Add Spanish tone module that preserves Arbor voice without “como IA” meta language
+- [ ] Add subtle style mirroring rules for English and Spanish
+- [ ] Add `downshift` mode trigger for high-distress Spanish/English turns
+- [ ] Add optional `patternMode` that is opt-in only
+- [ ] Decide whether user style preferences should be stored in a dedicated `user_style` table
+- [ ] If `user_style` table is adopted, prepare migration + RLS policy before implementation
+- [ ] Add tone tests for English/Spanish mirroring and distress handling
+
+### 9.6 Consent / Legal / Privacy Controls
+- [ ] Add explicit first-run consent screen before chat if not already implemented
+- [ ] Add acceptance tracking for legal documents / disclaimer versions
+- [ ] Add “consent required before memory write” enforcement where intended
+- [ ] Add “Export my data” + “Delete all my data” settings flow
+- [ ] Verify privacy-first memory policy:
+  - [ ] store minimal stable preferences by default
+  - [ ] avoid raw emotional dumps as long-term memory
+  - [ ] avoid addresses, IDs, medical records unless explicitly requested
+- [ ] Add user feedback nudge for tone calibration (“too gentle / too blunt / etc.”)
+
+### 9.7 Real-World Orientation / Dependency Prevention
+- [ ] Add explicit “real-world orientation” prompt module
+- [ ] Add dependency-safe replacement language layer
+- [ ] Ensure Arbor encourages offline action and human support where appropriate
+- [ ] Audit copy to avoid exclusivity / emotional dependence phrasing
+- [ ] Ensure encouragement remains evidence-based and rare enough to matter
+
+### 9.8 Boredom / Playspace / Regulation Modes
+- [ ] Add boredom / playspace module as a distinct safe mode
+- [ ] Candidate components:
+  - [ ] quick quiz / weird fact / mini challenge prompts
+  - [ ] dad jokes / light humor bank
+  - [ ] short activity suggestions
+  - [ ] bored-mode guardrails and easy exit path
+- [ ] Add grounding interruption logic:
+  - [ ] detect overload / dissociation / spiraling from recent turns
+  - [ ] offer grounding only when appropriate
+  - [ ] allow skip / opt-out
+- [ ] Add “suggest rest” logic carefully so it feels supportive, not nagging
+
+### 9.9 Challenge Mode / Advanced Reflective Modes
+- [ ] Add Challenge Mode design review before implementation
+- [ ] Requirements from intake to preserve if adopted:
+  - [ ] explicit opt-in
+  - [ ] user-controlled exit
+  - [ ] one question at a time
+  - [ ] de-escalation if distress rises
+  - [ ] no shame / accusation / authority posture
+- [ ] Decide unlock model, if any, and ensure it does **not** feel coercive or gamified
+- [ ] Separate normal challenge/reflection mode from any later premium/specialized modes
+- [ ] Defer criminology / report-style modules unless product/legal review approves them
+
+### 9.10 Memory Policy Enhancements from Intake
+- [ ] Add formal memory policy layer for importance gating before persistence
+- [ ] Preserve time-aware scoring:
+  - [ ] `hours_since(...)`
+  - [ ] decay-based recency weighting
+  - [ ] reranking with similarity + importance + decay
+- [ ] Decide where recency/last-accessed logic belongs in current TS repo
+- [ ] Add “should store memory” gate before upsert for long-term memory candidates
+- [ ] Add thread summarization / compaction threshold policy
+- [ ] Ensure new memory-policy layer aligns with current v2 `memory_items` schema, not standalone `arbor_memories` Python table drafts
+- [ ] Reconcile any standalone Python memory-manager ideas into TypeScript/Next implementation plan instead of porting blindly
+
+### 9.11 UI / Product Tasks from Intake
+- [ ] Add optional guided journaling mode
+- [ ] Add “ask me one grounding question” quick action
+- [ ] Add clear separation in UI between:
+  - [ ] user input
+  - [ ] Arbor reflections
+  - [ ] direct questions
+- [ ] Add optional vibe selection with limited choices (`gentle`, `reflective`, `direct`, `practical`, `light`)
+- [ ] Decide whether vibe is per-session, persistent preference, or both
+- [ ] Add naming flow on first interaction if still desired
+
+### 9.12 Implementation Review / Cleanup
+- [ ] De-duplicate repeated persona/framework fragments from RAW references before coding
+- [ ] Reject non-canonical standalone examples that do not fit current stack:
+  - [ ] Python console chat demos
+  - [ ] duplicate `PersonaConfig` type declarations
+  - [ ] alternate standalone Postgres schemas that conflict with `Arbor_SQL_schema.txt`
+- [ ] Convert accepted concepts into repo-specific file plan before implementation
+- [ ] Update checklist status after each accepted intake item is either implemented, deferred, or rejected
