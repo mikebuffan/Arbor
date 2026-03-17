@@ -250,7 +250,7 @@ export async function POST(req: Request) {
       authedUserId: userId,
       projectId,
       latestUserText: userText,
-      useVectorSearch: true,
+      useVectorSearch: false,
     });
 
     const [history, systemPrompt, memoryContext] = await Promise.all([
