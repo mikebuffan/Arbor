@@ -108,6 +108,14 @@ export async function getMemoryContext(params: {
     useCache = true,
   } = params;
 
+  console.log("[getMemoryContext] called", {
+    authedUserId,
+    projectId,
+    latestUserText,
+    useVectorSearch,
+    useCache,
+  });
+
   const cacheKey = stableCacheKey({
     authedUserId,
     projectId,
@@ -173,10 +181,22 @@ export async function getMemoryContext(params: {
     keysUsed: items.map((i) => i.key).filter(Boolean),
   };
 
+  if (useCache && memoryCache.has(cacheKey) && (cacheExpiry.get(cacheKey) || 0) > now) {
+    console.log("[getMemoryContext] cache hit", { cacheKey });
+    return memoryCache.get(cacheKey)!;
+  }
+
   if (useCache) {
     memoryCache.set(cacheKey, result);
     cacheExpiry.set(cacheKey, now + CACHE_TTL);
   }
+
+  console.log("[getMemoryContext] result", {
+    core: result.core.map((i) => ({ id: i.id, key: i.key, tier: i.tier })),
+    normal: result.normal.map((i) => ({ id: i.id, key: i.key, tier: i.tier })),
+    sensitive: result.sensitive.map((i) => ({ id: i.id, key: i.key, tier: i.tier })),
+    keysUsed: result.keysUsed,
+  });
 
   return result;
 }

@@ -259,11 +259,27 @@ export async function POST(req: Request) {
       memoryContextPromise,
     ]);
 
+    console.log("[chat route] memoryContext received", {
+      core: memoryContext.core.map((i) => i.key),
+      normal: memoryContext.normal.map((i) => i.key),
+      sensitive: memoryContext.sensitive.map((i) => i.key),
+      keysUsed: memoryContext.keysUsed,
+    });
+
     const selectedMemoryItems = rankRetrievedMemories([
       ...memoryContext.core,
       ...memoryContext.normal,
       ...memoryContext.sensitive,
     ]).slice(0, 12);
+
+    console.log("[chat route] selectedMemoryItems", selectedMemoryItems.map((i) => ({
+      id: i.id,
+      key: i.key,
+      tier: i.tier,
+      similarity: i.similarity ?? null,
+      pinned: i.pinned,
+      locked: i.locked,
+    })));
 
     const injectedMemoryItemIds = selectedMemoryItems.map((item) => item.id);
     const injectedMemoryKeys = selectedMemoryItems
