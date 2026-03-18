@@ -77,15 +77,24 @@ class _HomeLayer extends StatelessWidget {
         children: [
           const _CornerGlows(),
 
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: const [
-              _ArborTitle(),
-              SizedBox(height: 12),
-              _CenterFlare(),
-            ],
+          Positioned.fill(
+            child: IgnorePointer(
+              child: Center(
+                child: Transform.translate(
+                  offset: const Offset(0, -40),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: const [
+                      _ArborTitle(),
+                      SizedBox(height: 18),
+                      _CenterFlare(),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           ),
-
+          
           const Positioned(
             left: 24,
             top: 0,
@@ -120,19 +129,19 @@ class _ChatLayer extends StatelessWidget {
   }
 }
 
-class _CornerGlows extends StatelessWidget {
-  const _CornerGlows();
+  class _CornerGlows extends StatelessWidget {
+    const _CornerGlows();
 
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        _glow(-120, -120),
-        _glow(null, -120, right: -120),
-        _glow(-120, null, bottom: -120),
-        _glow(null, null, right: -120, bottom: -120),
-      ],
-    );
+    @override
+    Widget build(BuildContext context) {
+      return Stack(
+        children: [
+          _glow(-120, -120),
+          _glow(null, -120, right: -120),
+          _glow(-120, null, bottom: -120),
+          _glow(null, null, right: -120, bottom: -120),
+        ],
+      );
   }
 
   Widget _glow(double? left, double? top,
