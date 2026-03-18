@@ -11,7 +11,7 @@ class _ArborShellPageState extends State<ArborShellPage>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
 
-  // 0 = home, 1 = chat
+  // 1 = home, 0= chat
   double _position = 0.0;
 
   @override
@@ -55,11 +55,11 @@ class _ArborShellPageState extends State<ArborShellPage>
         onVerticalDragEnd: _onDragEnd,
         child: Stack(
           children: [
-            _HomeLayer(),
+            _ChatLayer(),
 
             Transform.translate(
               offset: Offset(0, (1 - _position) * height),
-              child: _ChatLayer(),
+              child: _HomeLayer(),
             ),
           ],
         ),
