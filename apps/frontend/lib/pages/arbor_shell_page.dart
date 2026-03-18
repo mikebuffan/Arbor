@@ -58,7 +58,7 @@ class _ArborShellPageState extends State<ArborShellPage>
             _ChatLayer(),
 
             Transform.translate(
-              offset: Offset(0, (1 - _position) * height),
+              offset: Offset(0, (0 - _position) * height),
               child: _HomeLayer(),
             ),
           ],
