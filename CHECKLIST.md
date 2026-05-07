@@ -1,11 +1,38 @@
-# Arbor — Working Checklist (Repo-Audited, March 16 2026)
+# Arbor — Working Checklist (Repo-Audited / Working Copy, May 7 2026)
 
 > Canon policy for this checklist:
-> - ZIP repo is implementation truth
-> - `Arbor_SQL_schema.txt` is DB truth for the target model
-> - `RAW_CODE_complete.txt` is reference material only, not canon
-> - Prefer the newer `memory_items` schema (`key` + `value jsonb` + `tier/scope/status/deleted_at`)
-> - Do not delete old files or paths without explicit approval
+> - **Backend canon:** the current backend repo is implementation truth. Patch existing backend files instead of pasting duplicate standalone code.
+> - **Database canon:** `Arbor_SQL_schema.txt` is DB truth for the target model. Do not invent backend columns/tables/RPCs without migration + compatibility notes.
+> - **Memory canon:** prefer the newer `memory_items` schema (`key` + `value jsonb` + `tier/scope/status/deleted_at`) and adapt new memory features onto that shape.
+> - **Frontend canon:** newest provided frontend code is higher priority than current frontend code. Frontend files may be modified, replaced, deleted, or reorganized as needed after noting the path/change.
+> - **Reference policy:** raw/thread/code-intake files are reference material unless explicitly promoted into this checklist.
+> - **Deletion policy:** do not delete backend files or paths without explicit approval. Frontend cleanup/deletion is allowed when replacing stale scaffolding or obsolete UI code, but record it in this checklist.
+> - **Secret policy:** do not commit `.env*`; exposed keys must be rotated before deployment.
+
+
+---
+
+## Current Setup Baseline — May 7 2026
+
+- [x] VS Code setup started on new Windows machine
+- [x] Flutter SDK found and PATH fixed
+- [x] Flutter commands now run from frontend
+- [x] Stale default `test/widget_test.dart` deleted after package/root-widget mismatch
+- [x] Backend PowerShell execution-policy issue resolved
+- [x] Backend `.env.local` copied into `apps/backend/.env.local` so Next can read it
+- [x] Backend build switched to `next build --webpack` to avoid Turbopack symlink privilege issue on Windows
+- [x] Backend `.next` cache clear fixed build-worker crash
+- [ ] Capture final backend `pnpm build` pass output in checklist notes
+- [ ] Capture current frontend `flutter analyze` summary after deleting stale widget test
+- [ ] Keep backend lint debt separate from build blockers (`no-explicit-any`, unused vars, deprecated warnings are cleanup unless build fails)
+
+## Current Source-of-Truth Override — May 7 2026
+
+- [x] Backend source of truth: existing backend repo files and schema alignment
+- [x] Frontend source of truth: newest frontend code package/reference, even when it conflicts with current frontend implementation
+- [ ] Before changing backend, inspect current repo file and patch minimal working path
+- [ ] Before changing frontend, compare new code to current UI and prefer new code where conflicts exist
+- [ ] Maintain this checklist as the working implementation map before starting each phase
 
 ---
 
@@ -195,8 +222,25 @@
 
 ---
 
-## Phase 7 — Frontend / Client
+## Phase 7 — Frontend / Client — New Code Priority
 
+> Frontend rule: use the newest frontend code as higher priority than the current frontend. Modify/delete/update existing frontend files as needed, but keep backend API contracts grounded in the backend source of truth.
+
+### 7.1 Frontend baseline
+- [x] Flutter SDK installed and commands working
+- [x] Stale default `test/widget_test.dart` deleted
+- [ ] Run `flutter pub get` after any frontend file replacement
+- [ ] Run `flutter analyze` and separate true errors from deprecation/style warnings
+- [ ] Move Flutter SDK out of app repo later if still located under `apps/frontend/flutter`
+
+### 7.2 Frontend replacement/integration policy
+- [ ] Compare new frontend code against current `apps/frontend` structure
+- [ ] Prefer new frontend code when UI/layout/state-management conflicts with current frontend
+- [ ] Delete obsolete frontend files only after identifying their replacement or confirming they are stale scaffolding
+- [ ] Preserve assets/config needed by the new frontend code (`pubspec.yaml`, image assets, fonts if licensed, env/config files)
+- [ ] Update imports/package names after any app rename
+
+### 7.3 Memory UI / proof surfaces
 - [ ] Build memory viewer/editor on frontend/mobile
 - [ ] Hook to actual repo endpoints (`/api/memory/items`, `/api/memory/correct`, `/api/memory/delete` once added)
 - [ ] Add optimistic/busy/error states
@@ -226,15 +270,21 @@
 
 ---
 
-## Immediate Working Order (Recommended)
+## Immediate Working Order (Recommended, Updated May 7 2026)
 
-1. [ ] Fix `/api/chat` identifier/retrieval mismatches
-2. [ ] Rewrite retrieval/injection path so it is fully v2-compatible
-3. [ ] Rewrite legacy task files (`decay`, `reflection`, `loop`) against v2 schema
-4. [ ] Add `/api/memory/delete`
-5. [ ] Build client memory viewer/editor
-6. [ ] Add acceptance tests for end-to-end memory loop
-7. [ ] Only then revisit import-pipeline refinement / dry-run proofing
+1. [ ] Confirm backend build still passes after `.next` clear and `next build --webpack`
+2. [ ] Confirm frontend analyze status after deleting stale widget test
+3. [ ] Freeze backend canon: inspect current backend files before any patch; do not paste standalone memory-loop files over existing repo architecture
+4. [ ] Freeze frontend canon: unpack/compare newest frontend code and treat it as higher priority than current frontend implementation
+5. [ ] Fix `/api/chat` identifier/retrieval mismatches
+6. [ ] Rewrite retrieval/injection path so it is fully v2-compatible
+7. [ ] Add memory event ledger/correction-truth fields to existing `memory_items` only via migration
+8. [ ] Patch backend memory store/retrieval/prompt path for correction history, test-data gating, and first-person/Detective/Humor prompt rules
+9. [ ] Add `/api/memory/delete` soft-delete route
+10. [ ] Replace/update frontend files according to new frontend source priority
+11. [ ] Build client memory viewer/editor against canonical backend endpoints
+12. [ ] Add acceptance tests for end-to-end memory loop
+13. [ ] Only then revisit import-pipeline refinement / dry-run proofing
 
 ## Phase 9 — Prompt / Framework Enhancements
 
@@ -302,7 +352,7 @@
 
 ---
 
-## Phase 9 — New RAW / `arbor_code_new` Intake (March 17 2026)
+## Phase 12 — New RAW / `arbor_code_new` Intake (March 17 2026)
 
 > Status policy for this section:
 > - These are **candidate additions from `arbor_code_new.txt` / newest RAW reference**, not yet canon until implemented and verified.
@@ -455,3 +505,27 @@
   - [ ] alternate standalone Postgres schemas that conflict with `Arbor_SQL_schema.txt`
 - [ ] Convert accepted concepts into repo-specific file plan before implementation
 - [ ] Update checklist status after each accepted intake item is either implemented, deferred, or rejected
+
+---
+
+## Phase 13 — Current Implementation Session Log
+
+### 12.1 Machine/setup fixes completed
+- [x] Flutter PATH fixed
+- [x] PowerShell script execution issue bypassed/fixed so `pnpm` can run
+- [x] Backend `package.json` build script changed to `next build --webpack` for Windows reliability
+- [x] Backend `.env.local` placed under `apps/backend`
+- [x] `.next` cache clear fixed backend worker crash
+- [x] Default Flutter widget test deleted after stale import/root widget mismatch
+
+### 12.2 Known non-blocking cleanup
+- [ ] Backend lint has many `@typescript-eslint/no-explicit-any` errors; do not treat as immediate build blocker unless CI requires lint pass
+- [ ] Frontend has many `withOpacity` deprecation warnings; defer unless they become build blockers
+- [ ] Next warning: `middleware` convention deprecated in favor of `proxy`; defer until memory/frontend work is stable
+
+### 12.3 Next required inputs before coding
+- [ ] Latest backend build output showing pass/fail
+- [ ] Latest frontend `flutter analyze` summary after widget test deletion
+- [ ] Directory listing for frontend new-code bundle or file list before replacing current frontend
+- [ ] Confirmation that current `.env*` files are ignored and not committed
+

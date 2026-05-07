@@ -1,275 +1,141 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 
-class ArborShellPage extends StatefulWidget {
-  const ArborShellPage({super.key});
+class ArborHomeScreen extends StatelessWidget {
+  const ArborHomeScreen({super.key});
 
-  @override
-  State<ArborShellPage> createState() => _ArborShellPageState();
-}
+  static const Color bgTop = Color(0xFF07030D);
+  static const Color bgBottom = Color(0xFF120015);
 
-class _ArborShellPageState extends State<ArborShellPage>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-
-  // 1 = home, 0= chat
-  double _position = 0.0;
-
-  @override
-  void initState() {
-    super.initState();
-
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 300),
-      value: 0.0,
-    );
-
-    _controller.addListener(() {
-      setState(() {
-        _position = _controller.value;
-      });
-    });
-  }
-
-  void _onDragUpdate(DragUpdateDetails details, double height) {
-    final delta = details.primaryDelta! / height;
-    _controller.value -= delta;
-  }
-
-  void _onDragEnd(DragEndDetails details) {
-    if (_controller.value > 0.5) {
-      _controller.forward();
-    } else {
-      _controller.reverse();
-    }
-  }
+  static const Color hotPink = Color(0xFFF3387A);
+  static const Color midPink = Color(0xFFCF2769);
+  static const Color softPurple = Color(0xFF4B114D);
+  static const Color buttonBorder = Color(0x33CFA7D8);
+  static const Color buttonFill = Color(0x12000000);
+  static const Color textGray = Color(0xFFB9AFBF);
 
   @override
   Widget build(BuildContext context) {
-    final height = MediaQuery.of(context).size.height;
-
     return Scaffold(
-      backgroundColor: Colors.black,
-      body: GestureDetector(
-        onVerticalDragUpdate: (d) => _onDragUpdate(d, height),
-        onVerticalDragEnd: _onDragEnd,
-        child: Stack(
-          children: [
-            _ChatLayer(),
+      backgroundColor: bgTop,
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final size = Size(constraints.maxWidth, constraints.maxHeight);
 
-            Transform.translate(
-              offset: Offset(0, (0 - _position) * height),
-              child: _HomeLayer(),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _HomeLayer extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: const Color(0xFF0E0316),
-      child: Stack(
-        children: [
-          const _CornerGlows(),
-
-          Positioned.fill(
-            child: IgnorePointer(
-              child: Center(
-                child: Transform.translate(
-                  offset: const Offset(0, -40),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: const [
-                      _ArborTitle(),
-                      SizedBox(height: 18),
-                      _CenterFlare(),
-                    ],
-                  ),
+          return Stack(
+            children: [
+              // 1) Base background
+              Positioned.fill(
+                child: Image.asset(
+                  'assets/images/arbor_bg.png',
+                  fit: BoxFit.cover,
                 ),
               ),
-            ),
-          ),
-          
-          const Positioned(
-            left: 24,
-            top: 0,
-            bottom: 0,
-            child: _LeftMenu(),
-          ),
 
-          const Positioned(
-            right: 24,
-            top: 0,
-            bottom: 0,
-            child: _RightMenu(),
-          ),
-        ],
-      ),
-    );
-  }
-}
+              // 2) Left buttons
+              Positioned(
+                left: 5,
+                top: size.height * 0.4,
+                child: _MenuColumn(
+                  labels: const [
+                    'Bored',
+                    'Focus',
+                    'Reset',
+                    'Challenge',
+                    'Criminology',
+                  ],
+                  alignment: CrossAxisAlignment.start,
+                ),
+              ),
 
-class _ChatLayer extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: const Color(0xFF12051B),
-      child: const Center(
-        child: Text(
-          "CHAT",
-          style: TextStyle(color: Colors.white, fontSize: 24),
-        ),
-      ),
-    );
-  }
-}
-
-  class _CornerGlows extends StatelessWidget {
-    const _CornerGlows();
-
-    @override
-    Widget build(BuildContext context) {
-      return Stack(
-        children: [
-          _glow(-120, -120),
-          _glow(null, -120, right: -120),
-          _glow(-120, null, bottom: -120),
-          _glow(null, null, right: -120, bottom: -120),
-        ],
-      );
-  }
-
-  Widget _glow(double? left, double? top,
-      {double? right, double? bottom}) {
-    return Positioned(
-      left: left,
-      top: top,
-      right: right,
-      bottom: bottom,
-      child: Container(
-        width: 300,
-        height: 300,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: RadialGradient(
-            colors: [
-              const Color(0xFFF3387A).withOpacity(0.6),
-              const Color(0xFFF3387A).withOpacity(0.1),
-              Colors.transparent,
+              // 3) Right buttons
+              Positioned(
+                right: 5,
+                top: size.height * 0.4,
+                child: _MenuColumn(
+                  labels: const [
+                    'Help',
+                    'Notes',
+                    'History',
+                    'Reports',
+                    'Settings',
+                  ],
+                  alignment: CrossAxisAlignment.end,
+                ),
+              ),
             ],
-            stops: const [0.2, 0.6, 1.0],
-          ),
-        ),
+          );
+        },
       ),
     );
   }
 }
 
-class _ArborTitle extends StatelessWidget {
-  const _ArborTitle();
+class _MenuColumn extends StatelessWidget {
+  final List<String> labels;
+  final CrossAxisAlignment alignment;
+
+  const _MenuColumn({
+    required this.labels,
+    required this.alignment,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      "ARBOR",
-      style: TextStyle(
-        color: const Color(0xFFE9E9EE),
-        fontSize: 32,
-        letterSpacing: 6,
-        fontWeight: FontWeight.w300,
-      ),
+    return Column(
+      crossAxisAlignment: alignment,
+      children: labels
+          .map(
+            (label) => Padding(
+              padding: const EdgeInsets.symmetric(vertical: 5),
+              child: _MenuButton(label: label),
+            ),
+          )
+          .toList(),
     );
   }
 }
 
-class _CenterFlare extends StatelessWidget {
-  const _CenterFlare();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 2,
-      width: 160,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Colors.transparent,
-            const Color(0xFFF3387A),
-            Colors.transparent,
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _GlassButton extends StatelessWidget {
+class _MenuButton extends StatelessWidget {
   final String label;
 
-  const _GlassButton(this.label);
+  const _MenuButton({required this.label});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.04),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.12),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 1.5, sigmaY: 1.5),
+        child: Container(
+          width: 94,
+          height: 28,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: ArborHomeScreen.buttonFill,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: ArborHomeScreen.buttonBorder,
+              width: 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.18),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: ArborHomeScreen.textGray.withValues(alpha: 0.92),
+              fontSize: 13,
+              fontWeight: FontWeight.w400,
+            ),
+          ),
         ),
       ),
-      child: Text(
-        label,
-        style: const TextStyle(
-          color: Colors.white70,
-          fontSize: 14,
-        ),
-      ),
-    );
-  }
-} 
-
-class _LeftMenu extends StatelessWidget {
-  const _LeftMenu();
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: const [
-        _GlassButton("Bored"),
-        _GlassButton("Focus"),
-        _GlassButton("Reset"),
-        _GlassButton("Challenge"),
-        _GlassButton("Criminology"),
-      ],
-    );
-  }
-}
-
-class _RightMenu extends StatelessWidget {
-  const _RightMenu();
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: const [
-        _GlassButton("Help"),
-        _GlassButton("Notes"),
-        _GlassButton("History"),
-        _GlassButton("Reports"),
-        _GlassButton("Settings"),
-      ],
     );
   }
 }
