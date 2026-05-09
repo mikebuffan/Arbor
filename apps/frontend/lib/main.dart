@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 //import 'theme/arbor_theme.dart';
-//import 'pages/arbor_shell_page.dart';
-import 'pages/arbor_old_UX.dart';
+import 'pages/arbor_shell_page.dart';
+// import 'pages/arbor_old_UX.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();

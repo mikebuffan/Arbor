@@ -1,3 +1,3 @@
 // lib/memory/service.ts
-export { MemoryService } from "./memoryService";
-export type { /* types if you export them */ } from "./memoryService";
+export { MemoryService, memoryRowToMarkdown } from "./memoryService";
+export type { MemoryDeps, MemoryItemRow, MemoryScope, MemoryStatus, MemoryTier } from "./memoryService";
