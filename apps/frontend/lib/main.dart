@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-//import 'theme/arbor_theme.dart';
 import 'pages/arbor_shell_page.dart';
-// import 'pages/arbor_old_UX.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -32,8 +30,17 @@ class ArborApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      title: 'Arbor',
       debugShowCheckedModeBanner: false,
-      //home: const ArborHomeScreen(),
+      theme: ThemeData(
+        useMaterial3: true,
+        brightness: Brightness.dark,
+        scaffoldBackgroundColor: Colors.black,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFFF3387A),
+          brightness: Brightness.dark,
+        ),
+      ),
       home: const ArborShellPage(),
     );
   }
