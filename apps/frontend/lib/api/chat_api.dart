@@ -5,6 +5,16 @@ class ChatApi {
 
   final ArborApiClient _client;
 
+  Future<String?> getLastConversationId({required String projectId}) async {
+    final json = await _client.get(
+      '/api/conversations/last',
+      queryParameters: {'projectId': projectId},
+    );
+
+    final id = json['conversationId'];
+    return id is String && id.isNotEmpty ? id : null;
+  }
+
   Future<ChatResponse> sendMessage({
     String? projectId,
     String? conversationId,
@@ -35,14 +45,30 @@ class ChatResponse {
   final String assistantText;
 
   factory ChatResponse.fromJson(Map<String, dynamic> json) {
-    if (json['ok'] != true) {
+    if (json['ok'] == false) {
       throw Exception(json['error'] ?? 'Chat failed');
     }
 
+    final projectId = json['projectId'];
+    final conversationId = json['conversationId'];
+    final assistantText = json['assistantText'];
+
+    if (projectId is! String || projectId.isEmpty) {
+      throw Exception('Invalid projectId in chat response');
+    }
+
+    if (conversationId is! String || conversationId.isEmpty) {
+      throw Exception('Invalid conversationId in chat response');
+    }
+
+    if (assistantText is! String) {
+      throw Exception('Invalid assistantText in chat response');
+    }
+
     return ChatResponse(
-      projectId: json['projectId'],
-      conversationId: json['conversationId'],
-      assistantText: json['assistantText'],
+      projectId: projectId,
+      conversationId: conversationId,
+      assistantText: assistantText,
     );
   }
 }

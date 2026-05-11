@@ -488,6 +488,22 @@ export class MemoryService {
   }
 }
 
+function renderMemoryValue(value: unknown): string {
+  if (value === null || value === undefined) {
+    return "null";
+  }
+
+  if (typeof value === "string") {
+    return value;
+  }
+
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
+  }
+}
+
 export function memoryRowToMarkdown(row: MemoryItemRow): string {
   const flags: string[] = [
     row.tier,
@@ -497,5 +513,21 @@ export function memoryRowToMarkdown(row: MemoryItemRow): string {
     ...(row.locked ? ["locked"] : []),
   ].filter(Boolean);
 
-  return `- (${flags}) ${row.key}: ${valueText(row.value)}`;
+  const flagText = flags.join("/");
+  const value = renderMemoryValue(row.value);
+
+  return [
+    `### ${row.key}`,
+    "",
+    `- id: ${row.id}`,
+    `- scope: ${row.scope}`,
+    `- tier/status: ${flagText}`,
+    `- importance/confidence: ${row.importance}/${row.confidence}`,
+    `- mentions/corrections: ${row.mention_count}/${row.correction_count}`,
+    `- last seen: ${row.last_seen_at ?? "never"}`,
+    "",
+    "```json",
+    value,
+    "```",
+  ].join("\n");
 }

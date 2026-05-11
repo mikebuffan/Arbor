@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/services.dart';
-import 'package:frontend/api/arbor_api.dart';
+import 'package:frontend/api/arbor_api_client.dart';
+import 'package:frontend/api/chat_api.dart';
+import 'package:frontend/config/arbor_config.dart';
 import 'dart:async';
 import 'dart:ui';
 
@@ -151,6 +153,9 @@ class _ChatTestPageState extends State<ChatTestPage> {
   String? _conversationId;
 
   SupabaseClient get _supabase => Supabase.instance.client;
+  ChatApi get _chatApi => ChatApi(
+        ArborApiClient(baseUrl: ArborConfig.apiBaseUrl),
+      );
 
   bool get _isAuthed => _supabase.auth.currentSession?.accessToken != null;
   String? get _userId => _supabase.auth.currentUser?.id;
@@ -239,7 +244,7 @@ class _ChatTestPageState extends State<ChatTestPage> {
       final projectId = _projectId;
       if (projectId == null) return;
 
-      final lastId = await ArborApi.getLastConversationId(projectId: projectId);
+      final lastId = await _chatApi.getLastConversationId(projectId: projectId);
       if (!mounted) return;
 
       setState(() {
@@ -286,7 +291,7 @@ class _ChatTestPageState extends State<ChatTestPage> {
 
       final prevProjectId = _projectId;
 
-      final res = await ArborApi.sendMessage(
+      final res = await _chatApi.sendMessage(
         projectId: _projectId,
         conversationId: _conversationId,
         userText: text,

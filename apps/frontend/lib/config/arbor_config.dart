@@ -1,4 +1,6 @@
 class ArborConfig {
-  static const apiBaseUrl =
-      String.fromEnvironment('ARBOR_API_BASE_URL');
+  static const apiBaseUrl = String.fromEnvironment(
+    'ARBOR_API_BASE_URL',
+    defaultValue: 'http://localhost:3000',
+  );
 }
