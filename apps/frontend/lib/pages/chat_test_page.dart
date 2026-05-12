@@ -55,13 +55,12 @@ class ArborHeader extends StatelessWidget {
                 onPressed: isAuthed ? onNewThread : null,
                 style: TextButton.styleFrom(
                   foregroundColor: Colors.white70,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
                     side: BorderSide(color: Colors.white.withOpacity(0.10)),
                   ),
-                  backgroundColor: Colors.white.withValues(),
+                  backgroundColor: Colors.white.withOpacity(0.04),
                 ),
                 child: const Text('New thread'),
               ),
@@ -132,6 +131,39 @@ class _ChatMessage {
   _ChatMessage({required this.isUser, required this.text});
 }
 
+enum _PendingAttachmentKind {
+  image,
+  file,
+}
+
+class _PendingAttachment {
+  final _PendingAttachmentKind kind;
+  final String label;
+
+  const _PendingAttachment({
+    required this.kind,
+    required this.label,
+  });
+
+  IconData get icon {
+    switch (kind) {
+      case _PendingAttachmentKind.image:
+        return Icons.image_outlined;
+      case _PendingAttachmentKind.file:
+        return Icons.attach_file;
+    }
+  }
+
+  String get kindLabel {
+    switch (kind) {
+      case _PendingAttachmentKind.image:
+        return 'Image';
+      case _PendingAttachmentKind.file:
+        return 'File';
+    }
+  }
+}
+
 class _ChatTestPageState extends State<ChatTestPage> {
   final List<_ChatMessage> _messages = [];
   final _emailCtrl = TextEditingController();
@@ -146,6 +178,7 @@ class _ChatTestPageState extends State<ChatTestPage> {
 
   bool _loading = false;
   String _output = '';
+  _PendingAttachment? _pendingAttachment;
 
   StreamSubscription<AuthState>? _authSub;
 
@@ -181,8 +214,7 @@ class _ChatTestPageState extends State<ChatTestPage> {
         password: pass,
       );
 
-      if (res.user == null)
-        throw Exception('Sign-in failed (no user returned)');
+      if (res.user == null) throw Exception('Sign-in failed (no user returned)');
 
       setState(() {});
       _setOut('Signed in as ${res.user!.email}\nuserId: ${res.user!.id}');
@@ -218,6 +250,7 @@ class _ChatTestPageState extends State<ChatTestPage> {
         _projectId = null;
         _conversationId = null;
         _messages.clear();
+        _pendingAttachment = null;
         _isTyping = false;
       });
       _setOut('Signed out.');
@@ -232,6 +265,7 @@ class _ChatTestPageState extends State<ChatTestPage> {
     setState(() {
       _conversationId = null;
       _messages.clear();
+      _pendingAttachment = null;
     });
   }
 
@@ -256,17 +290,112 @@ class _ChatTestPageState extends State<ChatTestPage> {
     }
   }
 
-  Future<void> _maybeResumeAfterProjectArrives(
-      {String? previousProjectId}) async {
+  Future<void> _maybeResumeAfterProjectArrives({String? previousProjectId}) async {
     // If projectId just got set (first response) and we have no conversation yet,
     // attempt to resume. If the backend endpoint returns null, we’ll fall back to
     // whatever the chat response gives us.
-    if (_projectId != null &&
-        (previousProjectId == null || previousProjectId != _projectId)) {
+    if (_projectId != null && (previousProjectId == null || previousProjectId != _projectId)) {
       if (_conversationId == null) {
         await _resumeLastConversation();
       }
     }
+  }
+
+  Future<void> _showAttachmentPicker() async {
+    if (_loading || !_isAuthed) return;
+
+    final selected = await showModalBottomSheet<_PendingAttachment>(
+      context: context,
+      backgroundColor: const Color(0xFF180720),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(18, 12, 18, 18),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Align(
+                  alignment: Alignment.center,
+                  child: Container(
+                    width: 42,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.22),
+                      borderRadius: BorderRadius.circular(99),
+                    ),
+                  ),
+                ),
+                const Text(
+                  'Attach to chat',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                const Text(
+                  'Upload wiring comes next. For now this safely creates the chat UI state.',
+                  style: TextStyle(color: Colors.white60, fontSize: 12),
+                ),
+                const SizedBox(height: 14),
+                ListTile(
+                  leading: const Icon(Icons.image_outlined, color: Color(0xFFF3387A)),
+                  title: const Text('Image', style: TextStyle(color: Colors.white)),
+                  subtitle: const Text(
+                    'Prepare an image attachment',
+                    style: TextStyle(color: Colors.white54),
+                  ),
+                  onTap: () {
+                    Navigator.of(context).pop(
+                      const _PendingAttachment(
+                        kind: _PendingAttachmentKind.image,
+                        label: 'Image selected',
+                      ),
+                    );
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.attach_file, color: Color(0xFFF3387A)),
+                  title: const Text('File', style: TextStyle(color: Colors.white)),
+                  subtitle: const Text(
+                    'Prepare a file attachment',
+                    style: TextStyle(color: Colors.white54),
+                  ),
+                  onTap: () {
+                    Navigator.of(context).pop(
+                      const _PendingAttachment(
+                        kind: _PendingAttachmentKind.file,
+                        label: 'File selected',
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (selected == null || !mounted) return;
+
+    setState(() {
+      _pendingAttachment = selected;
+    });
+
+    _msgFocus.requestFocus();
+  }
+
+  void _clearPendingAttachment() {
+    setState(() {
+      _pendingAttachment = null;
+    });
   }
 
   Future<void> _send() async {
@@ -281,10 +410,21 @@ class _ChatTestPageState extends State<ChatTestPage> {
       if (!_isAuthed) throw Exception('Not logged in');
 
       final text = _msgCtrl.text.trim();
-      if (text.isEmpty) throw Exception('Message is empty');
+      final pendingAttachment = _pendingAttachment;
+
+      if (text.isEmpty && pendingAttachment == null) {
+        throw Exception('Message is empty');
+      }
+
+      final userVisibleText = [
+        if (pendingAttachment != null)
+          '[${pendingAttachment.kindLabel} attached: ${pendingAttachment.label}]',
+        if (text.isNotEmpty) text,
+      ].join('\n');
 
       setState(() {
-        _messages.add(_ChatMessage(isUser: true, text: text));
+        _messages.add(_ChatMessage(isUser: true, text: userVisibleText));
+        _pendingAttachment = null;
         _isTyping = true;
       });
 
@@ -297,7 +437,9 @@ class _ChatTestPageState extends State<ChatTestPage> {
       final res = await _chatApi.sendMessage(
         projectId: _projectId,
         conversationId: _conversationId,
-        userText: text,
+        userText: text.isNotEmpty
+            ? text
+            : '[Attachment selected; upload support is not wired yet]',
       );
 
       // Project can be assigned on first response; try to resume if needed.
@@ -345,6 +487,7 @@ class _ChatTestPageState extends State<ChatTestPage> {
           _projectId = null;
           _conversationId = null;
           _messages.clear();
+          _pendingAttachment = null;
           _isTyping = false;
         });
       } else {
@@ -411,14 +554,14 @@ class _ChatTestPageState extends State<ChatTestPage> {
                       conversationId: _conversationId,
                       onNewThread: authed ? _newThread : null,
                     ),
+
                     if (!authed) ...[
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
                           color: Colors.white.withOpacity(0.03),
                           borderRadius: BorderRadius.circular(16),
-                          border:
-                              Border.all(color: Colors.white.withOpacity(0.08)),
+                          border: Border.all(color: Colors.white.withOpacity(0.08)),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -461,8 +604,7 @@ class _ChatTestPageState extends State<ChatTestPage> {
                               children: [
                                 ElevatedButton(
                                   onPressed: _loading ? null : _signIn,
-                                  child: Text(
-                                      _loading ? 'Signing in…' : 'Sign in'),
+                                  child: Text(_loading ? 'Signing in…' : 'Sign in'),
                                 ),
                               ],
                             ),
@@ -470,8 +612,7 @@ class _ChatTestPageState extends State<ChatTestPage> {
                               const SizedBox(height: 10),
                               Text(
                                 _output,
-                                style: const TextStyle(
-                                    color: Colors.white70, fontSize: 12),
+                                style: const TextStyle(color: Colors.white70, fontSize: 12),
                               ),
                             ],
                           ],
@@ -484,8 +625,7 @@ class _ChatTestPageState extends State<ChatTestPage> {
                           const Expanded(
                             child: Text(
                               'Ready.',
-                              style: TextStyle(
-                                  fontSize: 12, color: Colors.white70),
+                              style: TextStyle(fontSize: 12, color: Colors.white70),
                             ),
                           ),
                           TextButton(
@@ -496,21 +636,19 @@ class _ChatTestPageState extends State<ChatTestPage> {
                       ),
                       const SizedBox(height: 16),
                     ],
+
                     Shortcuts(
                       shortcuts: <ShortcutActivator, Intent>{
-                        const SingleActivator(LogicalKeyboardKey.enter):
-                            const _SendIntent(),
-                        const SingleActivator(LogicalKeyboardKey.enter,
-                            shift: true): const _NewlineIntent(),
-                        const SingleActivator(LogicalKeyboardKey.enter,
-                            control: true): const _SendIntent(),
+                        const SingleActivator(LogicalKeyboardKey.enter): const _SendIntent(),
+                        const SingleActivator(LogicalKeyboardKey.enter, shift: true): const _NewlineIntent(),
+                        const SingleActivator(LogicalKeyboardKey.enter, control: true): const _SendIntent(),
                       },
                       child: Actions(
                         actions: <Type, Action<Intent>>{
                           _SendIntent: CallbackAction<_SendIntent>(
                             onInvoke: (intent) {
                               if (_loading || !_isAuthed) return null;
-                              if (_msgCtrl.text.trim().isEmpty) return null;
+                              if (_msgCtrl.text.trim().isEmpty && _pendingAttachment == null) return null;
                               _send();
                               return null;
                             },
@@ -520,15 +658,13 @@ class _ChatTestPageState extends State<ChatTestPage> {
                               final t = _msgCtrl.text;
                               final sel = _msgCtrl.selection;
 
-                              final start =
-                                  sel.start >= 0 ? sel.start : t.length;
+                              final start = sel.start >= 0 ? sel.start : t.length;
                               final end = sel.end >= 0 ? sel.end : t.length;
 
                               final newText = t.replaceRange(start, end, "\n");
                               _msgCtrl.value = TextEditingValue(
                                 text: newText,
-                                selection:
-                                    TextSelection.collapsed(offset: start + 1),
+                                selection: TextSelection.collapsed(offset: start + 1),
                               );
                               return null;
                             },
@@ -536,43 +672,97 @@ class _ChatTestPageState extends State<ChatTestPage> {
                         },
                         child: Focus(
                           autofocus: authed,
-                          child: TextField(
-                            autofocus:
-                                false, // avoid double-autofocus when authed
-                            focusNode: _msgFocus,
-                            controller: _msgCtrl,
-                            minLines: 2,
-                            maxLines: 6,
-                            textInputAction: TextInputAction.newline,
-                            decoration: InputDecoration(
-                              labelText: 'What’s on your mind?',
-                              border: const OutlineInputBorder(),
-                              filled: true,
-                              fillColor: Colors.white.withOpacity(0.03),
-                            ),
-                            style: const TextStyle(color: Colors.white70),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              if (_pendingAttachment != null) ...[
+                                Container(
+                                  margin: const EdgeInsets.only(bottom: 8),
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF3387A).withOpacity(0.10),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: const Color(0xFFF3387A).withOpacity(0.28),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        _pendingAttachment!.icon,
+                                        color: const Color(0xFFFF5A8F),
+                                        size: 18,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          _pendingAttachment!.label,
+                                          style: const TextStyle(color: Colors.white70, fontSize: 12),
+                                        ),
+                                      ),
+                                      IconButton(
+                                        visualDensity: VisualDensity.compact,
+                                        tooltip: 'Remove attachment',
+                                        onPressed: _clearPendingAttachment,
+                                        icon: const Icon(Icons.close, color: Colors.white60, size: 18),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  IconButton(
+                                    tooltip: authed ? 'Attach image or file' : 'Sign in to attach',
+                                    onPressed: (_loading || !authed) ? null : _showAttachmentPicker,
+                                    icon: const Icon(Icons.add_circle_outline),
+                                    color: const Color(0xFFFF5A8F),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: TextField(
+                                      autofocus: false, // avoid double-autofocus when authed
+                                      focusNode: _msgFocus,
+                                      controller: _msgCtrl,
+                                      minLines: 2,
+                                      maxLines: 6,
+                                      textInputAction: TextInputAction.newline,
+                                      decoration: InputDecoration(
+                                        labelText: 'What’s on your mind?',
+                                        border: const OutlineInputBorder(),
+                                        filled: true,
+                                        fillColor: Colors.white.withOpacity(0.03),
+                                      ),
+                                      style: const TextStyle(color: Colors.white70),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
                         ),
                       ),
                     ),
+
                     const SizedBox(height: 12),
+
                     Row(
                       children: [
                         ElevatedButton(
-                          onPressed: (_loading ||
-                                  !authed ||
-                                  _msgCtrl.text.trim().isEmpty)
+                          onPressed: (_loading || !authed || (_msgCtrl.text.trim().isEmpty && _pendingAttachment == null))
                               ? null
                               : _send,
                           child: Text(_loading ? 'Arbor is thinking…' : 'Send'),
                         ),
                         const SizedBox(width: 12),
                         if (!authed)
-                          const Text('Sign in to send',
-                              style: TextStyle(color: Colors.white70)),
+                          const Text('Sign in to send', style: TextStyle(color: Colors.white70)),
                       ],
                     ),
+
                     const SizedBox(height: 16),
+
                     Expanded(
                       child: ListView.separated(
                         controller: _scrollCtrl,
@@ -580,38 +770,30 @@ class _ChatTestPageState extends State<ChatTestPage> {
                         itemCount: _messages.length + (_isTyping ? 1 : 0),
                         separatorBuilder: (_, __) => const SizedBox(height: 10),
                         itemBuilder: (context, i) {
-                          final isTypingRow =
-                              _isTyping && i == _messages.length;
+                          final isTypingRow = _isTyping && i == _messages.length;
 
                           final m = isTypingRow
-                              ? _ChatMessage(
-                                  isUser: false, text: 'Arbor is thinking…')
+                              ? _ChatMessage(isUser: false, text: 'Arbor is thinking…')
                               : _messages[i];
 
                           return Align(
-                            alignment: m.isUser
-                                ? Alignment.centerRight
-                                : Alignment.centerLeft,
+                            alignment: m.isUser ? Alignment.centerRight : Alignment.centerLeft,
                             child: Container(
                               constraints: const BoxConstraints(maxWidth: 560),
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 14, vertical: 12),
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                               decoration: BoxDecoration(
                                 color: m.isUser
                                     ? const Color(0xFFF3387A).withOpacity(0.18)
                                     : Colors.white.withOpacity(0.05),
                                 borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                    color: Colors.white.withOpacity(0.08)),
+                                border: Border.all(color: Colors.white.withOpacity(0.08)),
                               ),
                               child: Text(
                                 m.text,
                                 style: TextStyle(
                                   color: Colors.white70,
                                   height: 1.4,
-                                  fontStyle: isTypingRow
-                                      ? FontStyle.italic
-                                      : FontStyle.normal,
+                                  fontStyle: isTypingRow ? FontStyle.italic : FontStyle.normal,
                                 ),
                               ),
                             ),
