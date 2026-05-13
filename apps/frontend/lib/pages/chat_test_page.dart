@@ -55,12 +55,14 @@ class ArborHeader extends StatelessWidget {
                 onPressed: isAuthed ? onNewThread : null,
                 style: TextButton.styleFrom(
                   foregroundColor: Colors.white70,
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
-                    side: BorderSide(color: Colors.white.withOpacity(0.10)),
+                    side:
+                        BorderSide(color: Colors.white.withValues(alpha: 0.10)),
                   ),
-                  backgroundColor: Colors.white.withOpacity(0.04),
+                  backgroundColor: Colors.white.withValues(alpha: 0.04),
                 ),
                 child: const Text('New thread'),
               ),
@@ -75,7 +77,7 @@ class ArborHeader extends StatelessWidget {
           ),
         ],
         const SizedBox(height: 18),
-        Divider(color: Colors.white.withOpacity(0.08), height: 1),
+        Divider(color: Colors.white.withValues(alpha: 0.08), height: 1),
         const SizedBox(height: 18),
       ],
     );
@@ -96,9 +98,9 @@ class _AuthPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.04),
+        color: Colors.white.withValues(alpha: 0.04),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withOpacity(0.10)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -214,7 +216,8 @@ class _ChatTestPageState extends State<ChatTestPage> {
         password: pass,
       );
 
-      if (res.user == null) throw Exception('Sign-in failed (no user returned)');
+      if (res.user == null)
+        throw Exception('Sign-in failed (no user returned)');
 
       setState(() {});
       _setOut('Signed in as ${res.user!.email}\nuserId: ${res.user!.id}');
@@ -290,11 +293,13 @@ class _ChatTestPageState extends State<ChatTestPage> {
     }
   }
 
-  Future<void> _maybeResumeAfterProjectArrives({String? previousProjectId}) async {
+  Future<void> _maybeResumeAfterProjectArrives(
+      {String? previousProjectId}) async {
     // If projectId just got set (first response) and we have no conversation yet,
     // attempt to resume. If the backend endpoint returns null, we’ll fall back to
     // whatever the chat response gives us.
-    if (_projectId != null && (previousProjectId == null || previousProjectId != _projectId)) {
+    if (_projectId != null &&
+        (previousProjectId == null || previousProjectId != _projectId)) {
       if (_conversationId == null) {
         await _resumeLastConversation();
       }
@@ -325,7 +330,7 @@ class _ChatTestPageState extends State<ChatTestPage> {
                     height: 4,
                     margin: const EdgeInsets.only(bottom: 16),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.22),
+                      color: Colors.white.withValues(alpha: 0.22),
                       borderRadius: BorderRadius.circular(99),
                     ),
                   ),
@@ -345,8 +350,10 @@ class _ChatTestPageState extends State<ChatTestPage> {
                 ),
                 const SizedBox(height: 14),
                 ListTile(
-                  leading: const Icon(Icons.image_outlined, color: Color(0xFFF3387A)),
-                  title: const Text('Image', style: TextStyle(color: Colors.white)),
+                  leading: const Icon(Icons.image_outlined,
+                      color: Color(0xFFF3387A)),
+                  title: const Text('Image',
+                      style: TextStyle(color: Colors.white)),
                   subtitle: const Text(
                     'Prepare an image attachment',
                     style: TextStyle(color: Colors.white54),
@@ -361,8 +368,10 @@ class _ChatTestPageState extends State<ChatTestPage> {
                   },
                 ),
                 ListTile(
-                  leading: const Icon(Icons.attach_file, color: Color(0xFFF3387A)),
-                  title: const Text('File', style: TextStyle(color: Colors.white)),
+                  leading:
+                      const Icon(Icons.attach_file, color: Color(0xFFF3387A)),
+                  title:
+                      const Text('File', style: TextStyle(color: Colors.white)),
                   subtitle: const Text(
                     'Prepare a file attachment',
                     style: TextStyle(color: Colors.white54),
@@ -541,9 +550,10 @@ class _ChatTestPageState extends State<ChatTestPage> {
               child: Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.04),
+                  color: Colors.white.withValues(alpha: 0.04),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.white.withOpacity(0.08)),
+                  border:
+                      Border.all(color: Colors.white.withValues(alpha: 0.08)),
                 ),
                 child: Column(
                   children: [
@@ -554,14 +564,14 @@ class _ChatTestPageState extends State<ChatTestPage> {
                       conversationId: _conversationId,
                       onNewThread: authed ? _newThread : null,
                     ),
-
                     if (!authed) ...[
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.03),
+                          color: Colors.white.withValues(alpha: 0.03),
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: Colors.white.withOpacity(0.08)),
+                          border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.08)),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -579,7 +589,7 @@ class _ChatTestPageState extends State<ChatTestPage> {
                                 labelText: 'Email',
                                 border: const OutlineInputBorder(),
                                 filled: true,
-                                fillColor: Colors.white.withOpacity(0.03),
+                                fillColor: Colors.white.withValues(alpha: 0.03),
                               ),
                             ),
                             const SizedBox(height: 10),
@@ -596,7 +606,7 @@ class _ChatTestPageState extends State<ChatTestPage> {
                                 labelText: 'Password',
                                 border: const OutlineInputBorder(),
                                 filled: true,
-                                fillColor: Colors.white.withOpacity(0.03),
+                                fillColor: Colors.white.withValues(alpha: 0.03),
                               ),
                             ),
                             const SizedBox(height: 10),
@@ -604,7 +614,8 @@ class _ChatTestPageState extends State<ChatTestPage> {
                               children: [
                                 ElevatedButton(
                                   onPressed: _loading ? null : _signIn,
-                                  child: Text(_loading ? 'Signing in…' : 'Sign in'),
+                                  child: Text(
+                                      _loading ? 'Signing in…' : 'Sign in'),
                                 ),
                               ],
                             ),
@@ -612,7 +623,8 @@ class _ChatTestPageState extends State<ChatTestPage> {
                               const SizedBox(height: 10),
                               Text(
                                 _output,
-                                style: const TextStyle(color: Colors.white70, fontSize: 12),
+                                style: const TextStyle(
+                                    color: Colors.white70, fontSize: 12),
                               ),
                             ],
                           ],
@@ -625,7 +637,8 @@ class _ChatTestPageState extends State<ChatTestPage> {
                           const Expanded(
                             child: Text(
                               'Ready.',
-                              style: TextStyle(fontSize: 12, color: Colors.white70),
+                              style: TextStyle(
+                                  fontSize: 12, color: Colors.white70),
                             ),
                           ),
                           TextButton(
@@ -636,19 +649,22 @@ class _ChatTestPageState extends State<ChatTestPage> {
                       ),
                       const SizedBox(height: 16),
                     ],
-
                     Shortcuts(
                       shortcuts: <ShortcutActivator, Intent>{
-                        const SingleActivator(LogicalKeyboardKey.enter): const _SendIntent(),
-                        const SingleActivator(LogicalKeyboardKey.enter, shift: true): const _NewlineIntent(),
-                        const SingleActivator(LogicalKeyboardKey.enter, control: true): const _SendIntent(),
+                        const SingleActivator(LogicalKeyboardKey.enter):
+                            const _SendIntent(),
+                        const SingleActivator(LogicalKeyboardKey.enter,
+                            shift: true): const _NewlineIntent(),
+                        const SingleActivator(LogicalKeyboardKey.enter,
+                            control: true): const _SendIntent(),
                       },
                       child: Actions(
                         actions: <Type, Action<Intent>>{
                           _SendIntent: CallbackAction<_SendIntent>(
                             onInvoke: (intent) {
                               if (_loading || !_isAuthed) return null;
-                              if (_msgCtrl.text.trim().isEmpty && _pendingAttachment == null) return null;
+                              if (_msgCtrl.text.trim().isEmpty &&
+                                  _pendingAttachment == null) return null;
                               _send();
                               return null;
                             },
@@ -658,13 +674,15 @@ class _ChatTestPageState extends State<ChatTestPage> {
                               final t = _msgCtrl.text;
                               final sel = _msgCtrl.selection;
 
-                              final start = sel.start >= 0 ? sel.start : t.length;
+                              final start =
+                                  sel.start >= 0 ? sel.start : t.length;
                               final end = sel.end >= 0 ? sel.end : t.length;
 
                               final newText = t.replaceRange(start, end, "\n");
                               _msgCtrl.value = TextEditingValue(
                                 text: newText,
-                                selection: TextSelection.collapsed(offset: start + 1),
+                                selection:
+                                    TextSelection.collapsed(offset: start + 1),
                               );
                               return null;
                             },
@@ -678,12 +696,15 @@ class _ChatTestPageState extends State<ChatTestPage> {
                               if (_pendingAttachment != null) ...[
                                 Container(
                                   margin: const EdgeInsets.only(bottom: 8),
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 8),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFFF3387A).withOpacity(0.10),
+                                    color: const Color(0xFFF3387A)
+                                        .withValues(alpha: 0.10),
                                     borderRadius: BorderRadius.circular(12),
                                     border: Border.all(
-                                      color: const Color(0xFFF3387A).withOpacity(0.28),
+                                      color: const Color(0xFFF3387A)
+                                          .withValues(alpha: 0.28),
                                     ),
                                   ),
                                   child: Row(
@@ -697,14 +718,17 @@ class _ChatTestPageState extends State<ChatTestPage> {
                                       Expanded(
                                         child: Text(
                                           _pendingAttachment!.label,
-                                          style: const TextStyle(color: Colors.white70, fontSize: 12),
+                                          style: const TextStyle(
+                                              color: Colors.white70,
+                                              fontSize: 12),
                                         ),
                                       ),
                                       IconButton(
                                         visualDensity: VisualDensity.compact,
                                         tooltip: 'Remove attachment',
                                         onPressed: _clearPendingAttachment,
-                                        icon: const Icon(Icons.close, color: Colors.white60, size: 18),
+                                        icon: const Icon(Icons.close,
+                                            color: Colors.white60, size: 18),
                                       ),
                                     ],
                                   ),
@@ -714,15 +738,20 @@ class _ChatTestPageState extends State<ChatTestPage> {
                                 crossAxisAlignment: CrossAxisAlignment.end,
                                 children: [
                                   IconButton(
-                                    tooltip: authed ? 'Attach image or file' : 'Sign in to attach',
-                                    onPressed: (_loading || !authed) ? null : _showAttachmentPicker,
+                                    tooltip: authed
+                                        ? 'Attach image or file'
+                                        : 'Sign in to attach',
+                                    onPressed: (_loading || !authed)
+                                        ? null
+                                        : _showAttachmentPicker,
                                     icon: const Icon(Icons.add_circle_outline),
                                     color: const Color(0xFFFF5A8F),
                                   ),
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: TextField(
-                                      autofocus: false, // avoid double-autofocus when authed
+                                      autofocus:
+                                          false, // avoid double-autofocus when authed
                                       focusNode: _msgFocus,
                                       controller: _msgCtrl,
                                       minLines: 2,
@@ -732,9 +761,11 @@ class _ChatTestPageState extends State<ChatTestPage> {
                                         labelText: 'What’s on your mind?',
                                         border: const OutlineInputBorder(),
                                         filled: true,
-                                        fillColor: Colors.white.withOpacity(0.03),
+                                        fillColor: Colors.white
+                                            .withValues(alpha: 0.03),
                                       ),
-                                      style: const TextStyle(color: Colors.white70),
+                                      style: const TextStyle(
+                                          color: Colors.white70),
                                     ),
                                   ),
                                 ],
@@ -744,25 +775,25 @@ class _ChatTestPageState extends State<ChatTestPage> {
                         ),
                       ),
                     ),
-
                     const SizedBox(height: 12),
-
                     Row(
                       children: [
                         ElevatedButton(
-                          onPressed: (_loading || !authed || (_msgCtrl.text.trim().isEmpty && _pendingAttachment == null))
+                          onPressed: (_loading ||
+                                  !authed ||
+                                  (_msgCtrl.text.trim().isEmpty &&
+                                      _pendingAttachment == null))
                               ? null
                               : _send,
                           child: Text(_loading ? 'Arbor is thinking…' : 'Send'),
                         ),
                         const SizedBox(width: 12),
                         if (!authed)
-                          const Text('Sign in to send', style: TextStyle(color: Colors.white70)),
+                          const Text('Sign in to send',
+                              style: TextStyle(color: Colors.white70)),
                       ],
                     ),
-
                     const SizedBox(height: 16),
-
                     Expanded(
                       child: ListView.separated(
                         controller: _scrollCtrl,
@@ -770,30 +801,40 @@ class _ChatTestPageState extends State<ChatTestPage> {
                         itemCount: _messages.length + (_isTyping ? 1 : 0),
                         separatorBuilder: (_, __) => const SizedBox(height: 10),
                         itemBuilder: (context, i) {
-                          final isTypingRow = _isTyping && i == _messages.length;
+                          final isTypingRow =
+                              _isTyping && i == _messages.length;
 
                           final m = isTypingRow
-                              ? _ChatMessage(isUser: false, text: 'Arbor is thinking…')
+                              ? _ChatMessage(
+                                  isUser: false, text: 'Arbor is thinking…')
                               : _messages[i];
 
                           return Align(
-                            alignment: m.isUser ? Alignment.centerRight : Alignment.centerLeft,
+                            alignment: m.isUser
+                                ? Alignment.centerRight
+                                : Alignment.centerLeft,
                             child: Container(
                               constraints: const BoxConstraints(maxWidth: 560),
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 12),
                               decoration: BoxDecoration(
                                 color: m.isUser
-                                    ? const Color(0xFFF3387A).withOpacity(0.18)
-                                    : Colors.white.withOpacity(0.05),
+                                    ? const Color(0xFFF3387A)
+                                        .withValues(alpha: 0.18)
+                                    : Colors.white.withValues(alpha: 0.05),
                                 borderRadius: BorderRadius.circular(16),
-                                border: Border.all(color: Colors.white.withOpacity(0.08)),
+                                border: Border.all(
+                                    color:
+                                        Colors.white.withValues(alpha: 0.08)),
                               ),
                               child: Text(
                                 m.text,
                                 style: TextStyle(
                                   color: Colors.white70,
                                   height: 1.4,
-                                  fontStyle: isTypingRow ? FontStyle.italic : FontStyle.normal,
+                                  fontStyle: isTypingRow
+                                      ? FontStyle.italic
+                                      : FontStyle.normal,
                                 ),
                               ),
                             ),

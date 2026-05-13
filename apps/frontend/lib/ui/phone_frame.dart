@@ -16,7 +16,7 @@ class PhoneFrame extends StatelessWidget {
             constraints: const BoxConstraints(maxWidth: 430, maxHeight: 740),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(22),
-              border: Border.all(color: Colors.white.withOpacity(0.07)),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
             ),
             child: Stack(
               children: [
@@ -28,8 +28,9 @@ class PhoneFrame extends StatelessWidget {
                   child: IgnorePointer(
                     child: Container(
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.03),
-                        border: Border.all(color: Colors.white.withOpacity(0.04)),
+                        color: Colors.white.withValues(alpha: 0.03),
+                        border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.04)),
                       ),
                     ),
                   ),

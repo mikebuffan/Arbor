@@ -50,7 +50,8 @@ class _ArborHomePainter extends CustomPainter {
     final h = size.height;
     final r = math.min(w, h) * 0.78;
 
-    final cx = -0.18 * w;            // inside enough to be visible, outside enough to look like a limb
+    final cx = -0.18 *
+        w; // inside enough to be visible, outside enough to look like a limb
     final cy = top ? 0.18 * h : 1.02 * h;
 
     final rect = Rect.fromCircle(center: Offset(cx, cy), radius: r);
@@ -63,8 +64,8 @@ class _ArborHomePainter extends CustomPainter {
         center: const Alignment(-1, 0),
         radius: 1.0,
         colors: [
-          hot.withOpacity(0.22),
-          hot.withOpacity(0.06),
+          hot.withValues(alpha: 0.22),
+          hot.withValues(alpha: 0.06),
           Colors.transparent,
         ],
         stops: const [0.0, 0.55, 1.0],
@@ -79,8 +80,8 @@ class _ArborHomePainter extends CustomPainter {
         center: const Alignment(-1, 0),
         radius: 0.95,
         colors: [
-          hotCore.withOpacity(0.95),
-          hot.withOpacity(0.85),
+          hotCore.withValues(alpha: 0.95),
+          hot.withValues(alpha: 0.85),
           Colors.transparent,
         ],
         stops: const [0.0, 0.16, 1.0],
@@ -109,8 +110,8 @@ class _ArborHomePainter extends CustomPainter {
         center: const Alignment(1, 0),
         radius: 1.0,
         colors: [
-          hot.withOpacity(0.22),
-          hot.withOpacity(0.06),
+          hot.withValues(alpha: 0.22),
+          hot.withValues(alpha: 0.06),
           Colors.transparent,
         ],
         stops: const [0.0, 0.55, 1.0],
@@ -124,8 +125,8 @@ class _ArborHomePainter extends CustomPainter {
         center: const Alignment(1, 0),
         radius: 0.95,
         colors: [
-          hotCore.withOpacity(0.95),
-          hot.withOpacity(0.85),
+          hotCore.withValues(alpha: 0.95),
+          hot.withValues(alpha: 0.85),
           Colors.transparent,
         ],
         stops: const [0.0, 0.16, 1.0],
@@ -168,7 +169,7 @@ class _ArborHomePainter extends CustomPainter {
       ..shader = LinearGradient(
         colors: [
           Colors.transparent,
-          hot.withOpacity(0.95),
+          hot.withValues(alpha: 0.95),
           Colors.transparent,
         ],
       ).createShader(midRect)
@@ -196,7 +197,7 @@ class _ArborHomePainter extends CustomPainter {
 
     // A tiny bright dot (gives the “light source” feel)
     final dot = Paint()
-      ..color = hotCore.withOpacity(0.95)
+      ..color = hotCore.withValues(alpha: 0.95)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
     canvas.drawCircle(Offset(w * 0.5, y), 2.0, dot);
   }

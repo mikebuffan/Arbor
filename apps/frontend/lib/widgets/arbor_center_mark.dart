@@ -8,7 +8,7 @@ class ArborCenterMark extends StatelessWidget {
     return Text(
       "ARBOR",
       style: TextStyle(
-        color: const Color(0xFF7A7F88).withOpacity(0.92),
+        color: const Color(0xFF7A7F88).withValues(alpha: 0.92),
         fontSize: 40,
         letterSpacing: 8,
         fontWeight: FontWeight.w500,
