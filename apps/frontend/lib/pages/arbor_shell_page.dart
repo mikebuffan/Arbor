@@ -481,12 +481,13 @@ class _ArborTitle extends StatelessWidget {
 
 class _GlassButton extends StatelessWidget {
   final String label;
+  final VoidCallback? onTap;
 
-  const _GlassButton(this.label);
+  const _GlassButton(this.label, {this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
+    final button = ClipRRect(
       borderRadius: BorderRadius.circular(10),
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 2.0, sigmaY: 2.0),
@@ -516,6 +517,17 @@ class _GlassButton extends StatelessWidget {
         ),
       ),
     );
+
+    if (onTap == null) return button;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: onTap,
+        child: button,
+      ),
+    );
   }
 }
 
@@ -543,20 +555,177 @@ class _LeftMenu extends StatelessWidget {
 class _RightMenu extends StatelessWidget {
   const _RightMenu();
 
+  void _openSettings(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: const Color(0xFF12051B),
+      barrierColor: Colors.black.withValues(alpha: 0.72),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (context) {
+        return const _SettingsSheet();
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
-      children: const [
-        _GlassButton("Help"),
-        SizedBox(height: 7),
-        _GlassButton("Notes"),
-        SizedBox(height: 7),
-        _GlassButton("History"),
-        SizedBox(height: 7),
-        _GlassButton("Reports"),
-        SizedBox(height: 7),
-        _GlassButton("Settings"),
+      children: [
+        const _GlassButton("Help"),
+        const SizedBox(height: 7),
+        const _GlassButton("Notes"),
+        const SizedBox(height: 7),
+        const _GlassButton("History"),
+        const SizedBox(height: 7),
+        const _GlassButton("Reports"),
+        const SizedBox(height: 7),
+        _GlassButton("Settings", onTap: () => _openSettings(context)),
       ],
+    );
+  }
+}
+
+class _SettingsSheet extends StatelessWidget {
+  const _SettingsSheet();
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(22, 14, 22, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child: Container(
+                width: 44,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 18),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.22),
+                  borderRadius: BorderRadius.circular(99),
+                ),
+              ),
+            ),
+            Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    "Settings",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  tooltip: "Close",
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: const Icon(Icons.close, color: Colors.white70),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              "Beta controls live here. These are local placeholders until persistent settings are wired.",
+              style: TextStyle(color: Colors.white60, fontSize: 13, height: 1.35),
+            ),
+            const SizedBox(height: 18),
+            const _SettingsTile(
+              icon: Icons.palette_outlined,
+              title: "Appearance",
+              subtitle: "Theme and color scheme controls planned.",
+            ),
+            const _SettingsTile(
+              icon: Icons.memory_outlined,
+              title: "Memory & proof",
+              subtitle: "Memory viewer, corrections, and debug proof surfaces planned.",
+            ),
+            const _SettingsTile(
+              icon: Icons.attach_file,
+              title: "Attachments",
+              subtitle: "Image and file upload wiring planned after backend review.",
+            ),
+            const _SettingsTile(
+              icon: Icons.privacy_tip_outlined,
+              title: "Privacy",
+              subtitle: "User memory should remain scoped, editable, and never committed as secrets.",
+            ),
+            const SizedBox(height: 12),
+            Text(
+              "Arbor beta • build placeholder",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: const Color(0xFFFF88D1).withValues(alpha: 0.72),
+                fontSize: 12,
+                letterSpacing: 0.4,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SettingsTile extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+
+  const _SettingsTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.035),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.10),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: const Color(0xFFFF88D1), size: 22),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    color: Colors.white60,
+                    fontSize: 12.2,
+                    height: 1.25,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
