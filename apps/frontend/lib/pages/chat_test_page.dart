@@ -216,9 +216,9 @@ class _ChatTestPageState extends State<ChatTestPage> {
         password: pass,
       );
 
-      if (res.user == null)
+      if (res.user == null) {
         throw Exception('Sign-in failed (no user returned)');
-
+      }
       setState(() {});
       _setOut('Signed in as ${res.user!.email}\nuserId: ${res.user!.id}');
     } on AuthException catch (e) {
@@ -662,9 +662,13 @@ class _ChatTestPageState extends State<ChatTestPage> {
                         actions: <Type, Action<Intent>>{
                           _SendIntent: CallbackAction<_SendIntent>(
                             onInvoke: (intent) {
-                              if (_loading || !_isAuthed) return null;
+                              if (_loading || !_isAuthed) {
+                                return null;
+                              }
                               if (_msgCtrl.text.trim().isEmpty &&
-                                  _pendingAttachment == null) return null;
+                                  _pendingAttachment == null) {
+                                return null;
+                              }
                               _send();
                               return null;
                             },
