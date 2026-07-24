@@ -16,7 +16,7 @@ export async function postcheckResponse({
   const risk = await classifyRisk(assistantText);
 
   if (risk === "high") {
-    await logMemoryEvent("safety_alert", { authedUserId, projectId, text: assistantText });
+    await logMemoryEvent("safety_alert", { authedUserId, projectId, risk });
     return {
       approved: false,
       risk,
@@ -26,7 +26,7 @@ export async function postcheckResponse({
   }
 
   if (risk === "medium") {
-    await logMemoryEvent("safety_warning", { authedUserId, projectId, text: assistantText });
+    await logMemoryEvent("safety_warning", { authedUserId, projectId, risk });
   }
 
   return { approved: true, risk };

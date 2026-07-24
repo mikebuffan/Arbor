@@ -1,33 +1,25 @@
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import { getMemoryContext } from "@/lib/memory/retrieval";
+import {
+  getMemoryContext,
+  type RetrievedMemoryItem,
+} from "@/lib/memory/retrieval";
 import { assembleMemoryBlock } from "@/lib/memory/assembleMemoryBlock";
 import { logMemoryEvent } from "@/lib/memory/logger";
-import type { MemoryItem } from "@/lib/memory/types";
-import { getProjectAnchors, anchorsToPromptBlock } from "@/lib/memory/anchors"; 
+import {
+  getProjectAnchors,
+  anchorsToPromptBlock,
+  type AnchorRow,
+} from "@/lib/memory/anchors";
 import type { SafetyAddendum } from "@/lib/governance/realWorldSafetyAddendum";
-
-const promptCache = new Map<string, string>();
-const PROMPT_CACHE_TTL = 1000 * 30; 
-const cacheExpiry = new Map<string, number>();
 
 export function invalidatePromptCache(params: {
   authedUserId: string;
   projectId?: string | null;
   conversationId?: string | null;
 }) {
-  const { authedUserId, projectId = null, conversationId = null } = params;
-
-  const exactKey = `${authedUserId}:${projectId}:${conversationId}`;
-  promptCache.delete(exactKey);
-  cacheExpiry.delete(exactKey);
-
-  const prefix = `${authedUserId}:${projectId}:`;
-  for (const k of Array.from(promptCache.keys())) {
-    if (k.startsWith(prefix)) {
-      promptCache.delete(k);
-      cacheExpiry.delete(k);
-    }
-  }
+  // Compatibility hook for existing callers. Prompt caching is disabled so
+  // current-turn text and safety context are always assembled fresh.
+  void params;
 }
 
 type BuildPromptParams = {
@@ -38,13 +30,18 @@ type BuildPromptParams = {
   safety?: SafetyAddendum | null;
 };
 
+export type BuiltPromptContext = {
+  systemPrompt: string;
+  injectedMemoryItems: RetrievedMemoryItem[];
+};
+
 function isTruthyAnchor(v: unknown): boolean {
   const s = String(v ?? "").trim().toLowerCase();
   return s === "true" || s === "1" || s === "yes";
 }
 
-function getAnchorValue(anchors: any[], key: string): string | null {
-  const found = (anchors ?? []).find((a: any) => a.key === key);
+function getAnchorValue(anchors: AnchorRow[], key: string): string | null {
+  const found = anchors.find((anchor) => anchor.key === key);
   const v = found?.value ?? null;
   if (v == null) return null;
   if (typeof v === "string") return v;
@@ -56,7 +53,7 @@ function devLogNegativeAnchors(params: {
   authedUserId: string;
   projectId: string | null | undefined;
   conversationId: string | null | undefined;
-  anchors: any[];
+  anchors: AnchorRow[];
 }) {
   if (process.env.NODE_ENV === "production") return;
 
@@ -84,7 +81,7 @@ function devLogNegativeAnchors(params: {
   });
 }
 
-function buildNegativePrefsGuardFromAnchors(anchors: any[]): string {
+function buildNegativePrefsGuardFromAnchors(anchors: AnchorRow[]): string {
   const doNotUseName = isTruthyAnchor(getAnchorValue(anchors, "user.do_not_use_name"));
   const doNotUseRealName = isTruthyAnchor(getAnchorValue(anchors, "user.do_not_use_real_name"));
   const doNotCallRaw = getAnchorValue(anchors, "user.do_not_call");
@@ -120,13 +117,7 @@ export async function buildPromptContext({
   conversationId = null,
   latestUserText,
   safety = null,
-}: BuildPromptParams): Promise<string> {
-  const cacheKey = `${authedUserId}:${projectId}:${conversationId}`;
-  const now = Date.now();
-  if (promptCache.has(cacheKey) && (cacheExpiry.get(cacheKey) ?? 0) > now) {
-    return promptCache.get(cacheKey)!;
-  }
-
+}: BuildPromptParams): Promise<BuiltPromptContext> {
   const admin = supabaseAdmin();
   const { data: project, error: projectError } = await admin
     .from("projects")
@@ -149,7 +140,6 @@ export async function buildPromptContext({
     If an anchor says "Do not call user" or "Do not use user's name", obey it strictly.
     Never use forbidden names/titles even if older messages contain them.
     `.trim();
-  const persona = project?.persona ?? "Arbor";
   const frameworkVersion = project?.framework_version ?? "v1.0";
   const philosophy = project?.description ?? "Empathetic, direct, grounded tone. Witty when appropriate. Never clinical unless asked.";
   const META_GUARDS = `
@@ -170,13 +160,6 @@ export async function buildPromptContext({
     : [];
   const anchorBlock = anchorsToPromptBlock(anchors);
     
-  console.log("[ANCHORS FETCHED]", {
-    projectId,
-    userId: authedUserId,
-    count: anchors?.length ?? 0,
-    keys: (anchors ?? []).map((a: any) => a.key),
-  });  
-
   devLogNegativeAnchors({
     authedUserId,
     projectId: projectId ?? null,
@@ -196,7 +179,7 @@ export async function buildPromptContext({
   const allItems = [...memContext.core, ...memContext.normal, ...memContext.sensitive];
   const decayMs = 1000 * 60 * 60 * 24 * 30; 
 
-  const { context, fallbackPrompt } = assembleMemoryBlock({
+  const { context, selectedItems, fallbackPrompt } = assembleMemoryBlock({
     allItems,
     userText: latestUserText,
     decayMs,
@@ -237,11 +220,10 @@ export async function buildPromptContext({
     ${fallbackPrompt ? "\n\n" + fallbackPrompt : ""}
     `.trim();
 
-  promptCache.set(cacheKey, systemPrompt);
-  cacheExpiry.set(cacheKey, now + PROMPT_CACHE_TTL);
-
   await logMemoryEvent("prompt_built", { authedUserId, projectId, tokenLength: systemPrompt.length });
-  console.log("[ANCHOR BLOCK]", anchorsToPromptBlock(anchors ?? []));
-  return systemPrompt;
+  return {
+    systemPrompt,
+    injectedMemoryItems: selectedItems,
+  };
 }
 

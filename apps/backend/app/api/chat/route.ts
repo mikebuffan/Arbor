@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireUser } from "@/lib/auth/requireUser";
+import {
+  RouteAccessError,
+  routeErrorResponse,
+} from "@/lib/auth/routeAuthorization";
 import { openAIChat } from "@/lib/providers/openai";
 import { buildPromptContext } from "@/lib/prompt/buildPromptContext";
 import { extractMemoryFromText } from "@/lib/memory/extractor";
@@ -12,7 +17,6 @@ import { evaluateDecisionContext } from "@/lib/governance/evaluateDecisionContex
 import { realWorldSafetyAddendum } from "@/lib/governance/realWorldSafetyAddendum";
 import { logDecisionOutcome } from "@/lib/safety/decisionOutcome";
 import { promoteIdentityAnchors } from "@/lib/memory/promoteIdentityAnchors";
-import { getMemoryContext, type RetrievedMemoryItem } from "@/lib/memory/retrieval";
 
 import { buildProofSnapshot } from "@/lib/arbor/ProofSnapshot";
 import { buildTelemetry } from "@/lib/arbor/telemetry/buildTelemetry";
@@ -34,6 +38,21 @@ const Body = z.object({
   userText: z.string().min(1),
 });
 
+export function buildChatSuccessResponse(params: {
+  projectId: string;
+  conversationId: string;
+  assistantText: string;
+  flagged?: boolean;
+}) {
+  return {
+    ok: true as const,
+    projectId: params.projectId,
+    conversationId: params.conversationId,
+    assistantText: params.assistantText,
+    ...(params.flagged ? { flagged: true as const } : {}),
+  };
+}
+
 function getCorsHeaders(req: Request) {
   const origin = req.headers.get("origin") ?? "*";
 
@@ -46,278 +65,29 @@ function getCorsHeaders(req: Request) {
   };
 }
 
-function buildSelectedMemoryBlock(items: RetrievedMemoryItem[]) {
-  if (!items.length) return "";
-
-  const lines = items.map((item) => {
-    const text = (item.content_text || "").trim();
-    return text ? `- ${item.key}: ${text}` : `- ${item.key}`;
-  });
-
-  return [
-    "[MEMORY CONTEXT]",
-    "Use the following remembered user facts when relevant.",
-    "If one of these memories directly answers the user's question, answer with it plainly and naturally.",
-    "Do not claim uncertainty if the answer is clearly present below.",
-    ...lines,
-  ].join("\n");
+function runBg(label: string, fn: () => Promise<unknown>) {
+  void fn().catch(() => console.warn(`[bg:${label}] failed`));
 }
 
-function runBg(label: string, fn: () => Promise<any>) {
-  void fn().catch((e) => console.warn(`[bg:${label}]`, e));
+function assistantTextFromResponse(response: unknown): string {
+  if (!response || typeof response !== "object" || !("choices" in response)) {
+    return "";
+  }
+
+  const choices = (response as {
+    choices?: Array<{ message?: { content?: string | null } }>;
+  }).choices;
+  return choices?.[0]?.message?.content ?? "";
 }
-
-function normText(s: string) {
-  return (s || "").toLowerCase().replace(/[^\w\s.]/g, " ").replace(/\s+/g, " ").trim();
-}
-
-function queryMatchScore(item: RetrievedMemoryItem, userText: string) {
-  const u = normText(userText);
-  const key = normText(item.key || "").replace(/[._]/g, " ");
-  const content = normText(item.content_text || "");
-
-  let score = 0;
-
-  if (u.includes("favorite color")) {
-    if (key.includes("favorite") && key.includes("color")) score += 100;
-    if (content.includes("favorite") && content.includes("color")) score += 80;
-  }
-
-  if (u.includes("color")) {
-    if (key.includes("color")) score += 40;
-    if (content.includes("color")) score += 25;
-  }
-
-  if (u.includes("favorite")) {
-    if (key.includes("favorite")) score += 25;
-    if (content.includes("favorite")) score += 15;
-  }
-
-  const tokens = Array.from(new Set(u.split(" ").filter(Boolean)));
-  for (const t of tokens) {
-    if (t.length < 3) continue;
-    if (key.includes(t)) score += 8;
-    if (content.includes(t)) score += 4;
-  }
-
-  return score;
-}
-
-function inferMemoryType(item: RetrievedMemoryItem): "identity" | "preferences" | "project" | "people" | "location" | "other" {
-  const key = (item.key || "").toLowerCase();
-
-  if (
-    key.startsWith("user.") ||
-    key.startsWith("identity.") ||
-    key.includes("name") ||
-    key.includes("legal_name") ||
-    key.includes("display_name")
-  ) {
-    return "identity";
-  }
-
-  if (
-    key.startsWith("preferences.") ||
-    key.includes("favorite") ||
-    key.includes("tone") ||
-    key.includes("style") ||
-    key.includes("color") ||
-    key.includes("avoid")
-  ) {
-    return "preferences";
-  }
-
-  if (
-    key.startsWith("projects.") ||
-    key.includes("ongoing") ||
-    key.includes("current_focus") ||
-    key.includes("pipeline") ||
-    key.includes("review")
-  ) {
-    return "project";
-  }
-
-  if (
-    key.startsWith("people.") ||
-    key.includes("daughter") ||
-    key.includes("child") ||
-    key.includes("family")
-  ) {
-    return "people";
-  }
-
-  if (
-    key.startsWith("location.") ||
-    key.includes("city") ||
-    key.includes("country")
-  ) {
-    return "location";
-  }
-
-  return "other";
-}
-
-function inferQuestionIntent(userText: string): "identity" | "preferences" | "project" | "people" | "location" | "general" {
-  const u = normText(userText);
-
-  if (
-    u.includes("favorite") ||
-    u.includes("prefer") ||
-    u.includes("like") ||
-    u.includes("dislike") ||
-    u.includes("tone") ||
-    u.includes("style")
-  ) {
-    return "preferences";
-  }
-
-  if (
-    u.includes("who am i") ||
-    u.includes("my name") ||
-    u.includes("call me") ||
-    u.includes("what is my name")
-  ) {
-    return "identity";
-  }
-
-  if (
-    u.includes("project") ||
-    u.includes("app") ||
-    u.includes("working on") ||
-    u.includes("current focus") ||
-    u.includes("review")
-  ) {
-    return "project";
-  }
-
-  if (
-    u.includes("daughter") ||
-    u.includes("son") ||
-    u.includes("child") ||
-    u.includes("family") ||
-    u.includes("friend") ||
-    u.includes("people in my life")
-  ) {
-    return "people";
-  }
-
-  if (
-    u.includes("where am i") ||
-    u.includes("where do i live") ||
-    u.includes("city") ||
-    u.includes("state") ||
-    u.includes("location") ||
-    u.includes("district") ||
-    u.includes("country")
-  ) {
-    return "location";
-  }
-
-  return "general";
-}
-
-function memoryTypeWeight(item: RetrievedMemoryItem, userText: string) {
-  const memoryType = inferMemoryType(item);
-  const intent = inferQuestionIntent(userText);
-
-  if (intent === "general") return 0;
-
-  if (intent === memoryType) return 40;
-
-  if (intent === "identity" && memoryType === "preferences") return 5;
-  if (intent === "preferences" && memoryType === "identity") return 5;
-  if (intent === "project" && memoryType === "people") return 5;
-
-  return 0;
-}
-
-function rankRetrievedMemories(items: RetrievedMemoryItem[], userText: string) {
-  return [...items].sort((a, b) => {
-    const aMatch = queryMatchScore(a, userText);
-    const bMatch = queryMatchScore(b, userText);
-    const matchDelta = bMatch - aMatch;
-    if (matchDelta !== 0) return matchDelta;
-
-    const aTypeWeight = memoryTypeWeight(a, userText);
-    const bTypeWeight = memoryTypeWeight(b, userText);
-    const typeDelta = bTypeWeight - aTypeWeight;
-    if (typeDelta !== 0) return typeDelta;
-
-    const pinnedDelta = Number(b.pinned) - Number(a.pinned);
-    if (pinnedDelta !== 0) return pinnedDelta;
-
-    const lockedDelta = Number(b.locked) - Number(a.locked);
-    if (lockedDelta !== 0) return lockedDelta;
-
-    const importanceDelta = (b.importance ?? 0) - (a.importance ?? 0);
-    if (importanceDelta !== 0) return importanceDelta;
-
-    const confidenceDelta = (b.confidence ?? 0) - (a.confidence ?? 0);
-    if (confidenceDelta !== 0) return confidenceDelta;
-
-    return (b.similarity ?? 0) - (a.similarity ?? 0);
-  });
-}
-
-function uniqueById(items: RetrievedMemoryItem[]) {
-  const seen = new Set<string>();
-  const out: RetrievedMemoryItem[] = [];
-
-  for (const item of items) {
-    if (!item?.id) continue;
-    if (seen.has(item.id)) continue;
-    seen.add(item.id);
-    out.push(item);
-  }
-
-  return out;
-}
-
-function selectMemoriesForInjection(args: {
-  memoryContext: {
-    core: RetrievedMemoryItem[];
-    normal: RetrievedMemoryItem[];
-    sensitive: RetrievedMemoryItem[];
-  };
-  userText: string;
-  limit?: number;
-}) {
-  const { memoryContext, userText, limit = 12 } = args;
-
-  const all = uniqueById([
-    ...memoryContext.core,
-    ...memoryContext.normal,
-    ...memoryContext.sensitive,
-  ]);
-
-  const guaranteedCore = uniqueById(
-    all.filter((item) => item.pinned || item.locked || item.tier === "core")
-  ).slice(0, 4);
-
-  const queryMatched = uniqueById(
-    rankRetrievedMemories(all, userText).filter((item) => queryMatchScore(item, userText) > 0)
-  ).slice(0, 4);
-
-  const alreadyIncluded = new Set(
-    [...guaranteedCore, ...queryMatched].map((item) => item.id)
-  );
-
-  const fillers = rankRetrievedMemories(all, userText).filter(
-    (item) => !alreadyIncluded.has(item.id)
-  );
-
-  return uniqueById([
-    ...guaranteedCore,
-    ...queryMatched,
-    ...fillers,
-  ]).slice(0, limit);
-} 
 
 export async function OPTIONS(req: Request) {
   return new Response(null, { status: 204, headers: getCorsHeaders(req) });
 }
 
-async function getOrCreateDefaultProjectId(supabase: any, userId: string): Promise<string> {
+async function getOrCreateDefaultProjectId(
+  supabase: SupabaseClient,
+  userId: string,
+): Promise<string> {
   const { data: existing, error: e1 } = await supabase
     .from("projects")
     .select("id")
@@ -343,8 +113,26 @@ async function getOrCreateDefaultProjectId(supabase: any, userId: string): Promi
   return created.id as string;
 }
 
+export async function assertProjectOwnedByUser(
+  supabase: SupabaseClient,
+  userId: string,
+  projectId: string,
+): Promise<void> {
+  const { data, error } = await supabase
+    .from("projects")
+    .select("id")
+    .eq("id", projectId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data) {
+    throw new RouteAccessError(404, "project_not_found");
+  }
+}
+
 async function getOrCreateConversation(params: {
-  supabase: any;
+  supabase: SupabaseClient;
   userId: string;
   projectId: string;
   conversationId?: string;
@@ -358,9 +146,12 @@ async function getOrCreateConversation(params: {
       .eq("id", conversationId)
       .eq("user_id", userId)
       .eq("project_id", projectId)
-      .single();
+      .maybeSingle();
 
     if (error) throw error;
+    if (!data) {
+      throw new RouteAccessError(404, "conversation_not_found");
+    }
     return data.id as string;
   }
 
@@ -379,7 +170,7 @@ async function getOrCreateConversation(params: {
 }
 
 async function loadRecentMessages(
-  supabase: any,
+  supabase: SupabaseClient,
   userId: string,
   conversationId: string,
   limit = 20
@@ -395,10 +186,20 @@ async function loadRecentMessages(
     .limit(limit);
 
   if (error) throw error;
-  return (data ?? []).map((m: any) => ({ role: m.role, content: m.content }));
+  const messages = (data ?? []) as Array<{
+    role: Msg["role"];
+    content: string;
+  }>;
+  return messages.map((message) => ({
+    role: message.role,
+    content: message.content,
+  }));
 }
 
-async function cleanupExpiredMessagesBestEffort(supabase: any, userId: string) {
+async function cleanupExpiredMessagesBestEffort(
+  supabase: SupabaseClient,
+  userId: string,
+) {
   await supabase
     .from("messages")
     .delete()
@@ -409,39 +210,6 @@ async function cleanupExpiredMessagesBestEffort(supabase: any, userId: string) {
 
 export async function POST(req: Request) {
   const t0 = performance.now(); 
-
-  function hoursSince(d?: string | Date | null) {
-    if (!d) return Infinity;
-    const t = typeof d === "string" ? Date.parse(d) : d.getTime();
-    if (!Number.isFinite(t)) return Infinity;
-    return (Date.now() - t) / 36e5;
-  }
-
-  function clamp01(x: number) {
-    return Math.max(0, Math.min(1, x));
-  }
-
-  function stabilityScore(row: any) {
-    const sim = typeof row.similarity === "number" ? row.similarity : 0;
-    const imp = typeof row.importance === "number" ? row.importance : 5;
-
-    const impN = clamp01((imp - 1) / 9);
-
-    const pinnedBoost = row.pinned ? 0.20 : 0;
-    const lockedBoost = row.locked ? 0.10 : 0;
-
-    const hrs = Math.min(hoursSince(row.last_seen_at ?? row.created_at), 24 * 14);
-    const recency = Math.exp(-hrs / 72); 
-
-    const score =
-      (0.60 * sim) +
-      (0.20 * impN) +
-      (0.15 * recency) +
-      pinnedBoost +
-      lockedBoost;
-
-    return score;
-  }
 
   try {
     const { supabase, userId } = await requireUser(req);
@@ -455,6 +223,9 @@ export async function POST(req: Request) {
 
     const { projectId: maybeProjectId, conversationId, userText } = parsed.data;
     await cleanupExpiredMessagesBestEffort(supabase, userId);
+    if (maybeProjectId) {
+      await assertProjectOwnedByUser(supabase, userId, maybeProjectId);
+    }
     const projectId = maybeProjectId ?? (await getOrCreateDefaultProjectId(supabase, userId));
 
     const convoId = await getOrCreateConversation({
@@ -484,54 +255,21 @@ export async function POST(req: Request) {
     const safety = realWorldSafetyAddendum(decisionContext);
 
     const historyPromise = loadRecentMessages(supabase, userId, convoId, 20);
-    const systemPromptPromise = buildPromptContext({
+    const promptContextPromise = buildPromptContext({
       authedUserId: userId,
       projectId,
       conversationId: convoId,
       latestUserText: userText,
       safety,
     });
-    const memoryContextPromise = getMemoryContext({
-      authedUserId: userId,
-      projectId,
-      latestUserText: userText,
-      useVectorSearch: false,
-    });
-
-    const [history, systemPrompt, memoryContext] = await Promise.all([
+    const [history, promptContext] = await Promise.all([
       historyPromise,
-      systemPromptPromise,
-      memoryContextPromise,
+      promptContextPromise,
     ]);
-
-    console.log("[chat route] memoryContext received", {
-      core: memoryContext.core.map((i) => i.key),
-      normal: memoryContext.normal.map((i) => i.key),
-      sensitive: memoryContext.sensitive.map((i) => i.key),
-      keysUsed: memoryContext.keysUsed,
-    });
-
-    const selectedMemoryItems = selectMemoriesForInjection({
-      memoryContext,
-      userText,
-      limit: 12,
-    });
-
-    const injectedMemoryItemIds = selectedMemoryItems.map((item) => item.id);
+    const { systemPrompt, injectedMemoryItems: selectedMemoryItems } = promptContext;
     const injectedMemoryKeys = selectedMemoryItems
       .map((item) => item.key)
       .filter(Boolean);
-
-    const memoryBlock = buildSelectedMemoryBlock(selectedMemoryItems);
-
-    console.log("[chat route] selectedMemoryItems", selectedMemoryItems.map((i) => ({
-      id: i.id,
-      key: i.key,
-      tier: i.tier,
-      similarity: i.similarity ?? null,
-      pinned: i.pinned,
-      locked: i.locked,
-    })));
 
     const memoryDebugTop = selectedMemoryItems.map((item) => ({
       id: item.id,
@@ -547,7 +285,6 @@ export async function POST(req: Request) {
 
     const messagesForModel: Msg[] = [
       { role: "system", content: systemPrompt },
-      ...(memoryBlock ? ([{ role: "system", content: memoryBlock }] as Msg[]) : []),
       ...history,
     ];
 
@@ -556,7 +293,7 @@ export async function POST(req: Request) {
       messages: messagesForModel,
     });
 
-    let assistantText = (aiResponse as any)?.choices?.[0]?.message?.content ?? "";
+    let assistantText = assistantTextFromResponse(aiResponse);
     assistantText = guardAssistantText(assistantText).text;
 
     if (safety?.assistantPreface) {
@@ -571,19 +308,25 @@ export async function POST(req: Request) {
 
     if (!postcheck.approved) {
       return NextResponse.json(
-        { ok: true, assistantText: postcheck.replacement, flagged: true },
+        buildChatSuccessResponse({
+          projectId,
+          conversationId: convoId,
+          assistantText: postcheck.replacement ?? assistantText,
+          flagged: true,
+        }),
         { status: 200, headers: getCorsHeaders(req) }
       );
     }
 
     const traceId = crypto.randomUUID();
 
-    const proofSnapshot = buildProofSnapshot({
-      anchors: [],
-      memoryItems: selectedMemoryItems.map((item) => ({ id: item.id })),
-    });
-
-    (proofSnapshot as any).memory_debug = memoryDebugTop;
+    const proofSnapshot = {
+      ...buildProofSnapshot({
+        anchors: [],
+        memoryItems: selectedMemoryItems.map((item) => ({ id: item.id })),
+      }),
+      memory_debug: memoryDebugTop,
+    };
 
     const retrievalLatencyMs = Math.round(performance.now() - t0);
 
@@ -649,12 +392,13 @@ export async function POST(req: Request) {
     /* =====================================================
       3.10.5 DEV-ONLY — REMOVE BEFORE SHIPPING
       ===================================================== */
-    const response: any = {
-      ok: true,
+    const response: ReturnType<typeof buildChatSuccessResponse> & {
+      _telemetry?: Record<string, unknown>;
+    } = buildChatSuccessResponse({
       projectId,
       conversationId: convoId,
       assistantText,
-    };
+    });
 
     if (process.env.NODE_ENV === "development") {
       response._telemetry = {
@@ -671,11 +415,11 @@ export async function POST(req: Request) {
       headers: getCorsHeaders(req),
     });
 
-  } catch (err: any) {
-    console.error("chat route error:", err);
-    return NextResponse.json(
-      { ok: false, error: err?.message ?? "server_error" },
-      { status: 500, headers: getCorsHeaders(req) }
-    );
+  } catch (error: unknown) {
+    const response = routeErrorResponse(error);
+    for (const [name, value] of Object.entries(getCorsHeaders(req))) {
+      response.headers.set(name, value);
+    }
+    return response;
   }
 }

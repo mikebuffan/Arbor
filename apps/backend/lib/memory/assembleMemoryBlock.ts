@@ -71,6 +71,7 @@ export function assembleMemoryBlock(args: {
 
   return {
     context,
+    selectedItems: allowed,
     fallbackPrompt: lowSignal
       ? "I’m tracking the conversation, but I do not have a strong memory signal to lean on yet. Stay grounded in the user’s latest message."
       : null,
