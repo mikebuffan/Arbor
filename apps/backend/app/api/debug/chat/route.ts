@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { z } from "zod";
+import { requireUser } from "@/lib/auth/requireUser";
+import {
+  requireAdminAuthorization,
+  routeErrorResponse,
+} from "@/lib/auth/routeAuthorization";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,6 +18,17 @@ const Body = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  if (process.env.NODE_ENV === "production") {
+    return NextResponse.json({ ok: false, error: "not_found" }, { status: 404 });
+  }
+
+  try {
+    await requireUser(req);
+    requireAdminAuthorization(req);
+  } catch (error: unknown) {
+    return routeErrorResponse(error);
+  }
+
   const parsed = Body.safeParse(await req.json().catch(() => ({})));
   if (!parsed.success) {
     return NextResponse.json({ ok: false, error: parsed.error.flatten() }, { status: 400 });
@@ -49,17 +65,10 @@ export async function POST(req: NextRequest) {
       usage: resp.usage ?? null,
       raw_id: resp.id,
     });
-  } catch (e: any) {
+  } catch {
     return NextResponse.json(
-      {
-        ok: false,
-        error: e?.message ?? "OpenAI error",
-        // helpful for debugging:
-        status: e?.status ?? null,
-        code: e?.code ?? null,
-        type: e?.type ?? null,
-      },
-      { status: 500 }
+      { ok: false, error: "openai_error" },
+      { status: 502 },
     );
   }
 }

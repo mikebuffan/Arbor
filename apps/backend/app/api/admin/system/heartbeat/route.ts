@@ -1,17 +1,23 @@
 import { NextResponse } from "next/server";
 import { fireflyHeartbeat } from "@/lib/system/loop";
+import {
+  requireMachineAuthorization,
+  routeErrorResponse,
+} from "@/lib/auth/routeAuthorization";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function POST() {
-  console.log("[heartbeat] 🔔 received POST request");
+async function handleHeartbeat(req: Request) {
   try {
+    requireMachineAuthorization(req);
     await fireflyHeartbeat();
-    console.log("[heartbeat] ✅ heartbeat completed successfully");
+    console.info("[heartbeat] completed");
     return NextResponse.json({ ok: true });
-  } catch (err: any) {
-    console.error("[heartbeat] ❌ error:", err);
-    return NextResponse.json({ ok: false, error: err.message }, { status: 500 });
+  } catch (error: unknown) {
+    return routeErrorResponse(error);
   }
 }
+
+export const GET = handleHeartbeat;
+export const POST = handleHeartbeat;
