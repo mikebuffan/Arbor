@@ -17,7 +17,7 @@ const Body = z.object({
 });
 
 export async function POST(req: Request) {
-  const { userId: authedUserId } = await requireUser(req);
+  const { supabase, userId: authedUserId } = await requireUser(req);
 
   const body = await req.json();
   const parsed = Body.safeParse(body);
