@@ -12,8 +12,13 @@ const files = [
   "app/api/debug/openai/route.ts",
   "lib/auth/requireUser.ts",
   "lib/auth/routeAuthorization.ts",
+  "lib/memory/logger.ts",
   "lib/prompt/buildPromptContext.ts",
   "lib/safety/postcheck.ts",
+  "lib/system/loop.ts",
+  "lib/tasks/decay.ts",
+  "lib/tasks/reflection.ts",
+  "lib/tasks/sync.ts",
 ];
 
 describe("Milestone 1A sensitive logging", () => {
@@ -27,5 +32,8 @@ describe("Milestone 1A sensitive logging", () => {
     expect(source).not.toContain("BAD UUID VALUE DETECTED");
     expect(source).not.toContain("[ANCHOR BLOCK]");
     expect(source).not.toMatch(/safety_(?:alert|warning)"[^\n]*assistantText/);
+    expect(source).not.toMatch(
+      /console\.(?:log|error|warn)[^\n]*,\s*(?:releaseError|error|err|e)\b/i,
+    );
   });
 });
