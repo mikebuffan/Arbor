@@ -1,4 +1,4 @@
-import { supabaseAdmin } from "@/lib/supabase/admin";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type AnchorRow = {
   id: string;
@@ -32,15 +32,15 @@ function valueToText(v: any): string {
 }
 
 export async function getProjectAnchors(params: {
+  supabase: SupabaseClient;
   authedUserId: string;
   projectId: string | null;
 }) {
-  const { authedUserId, projectId } = params;
-  const admin = supabaseAdmin();
+  const { supabase, authedUserId, projectId } = params;
 
   if (!projectId) return [] as AnchorRow[];
 
-  const { data, error } = await admin
+  const { data, error } = await supabase
     .from("memory_items")
     .select(
       "id,user_id,project_id,key,value,scope,pinned,locked,tier,status,deleted_at,updated_at"
@@ -75,6 +75,7 @@ ${lines.join("\n")}
 }
 
 export async function setProjectAnchor(params: {
+  supabase: SupabaseClient;
   authedUserId: string;
   projectId: string;
   memKey: string;     
@@ -84,6 +85,7 @@ export async function setProjectAnchor(params: {
   locked?: boolean;
 }) {
   const {
+    supabase,
     authedUserId,
     projectId,
     memKey,
@@ -92,7 +94,6 @@ export async function setProjectAnchor(params: {
     locked = true,
   } = params;
 
-  const admin = supabaseAdmin();
   const nowIso = new Date().toISOString();
 
   const payload = {
@@ -111,7 +112,7 @@ export async function setProjectAnchor(params: {
     last_reinforced_at: nowIso,
   };
 
-  const { data: updated, error: updateError } = await admin
+  const { data: updated, error: updateError } = await supabase
     .from("memory_items")
     .update(payload)
     .eq("user_id", authedUserId)
@@ -126,7 +127,7 @@ export async function setProjectAnchor(params: {
     return { ok: true, mode: "updated" as const, id: updated[0].id };
   }
 
-  const { data: inserted, error: insertError } = await admin
+  const { data: inserted, error: insertError } = await supabase
     .from("memory_items")
     .insert(payload)
     .select("id")

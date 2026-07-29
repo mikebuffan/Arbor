@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 const mocks = vi.hoisted(() => ({
   getMemoryContext: vi.fn(),
@@ -22,19 +23,6 @@ vi.mock("@/lib/memory/logger", () => ({
   logMemoryEvent: mocks.logMemoryEvent,
 }));
 
-vi.mock("@/lib/supabase/admin", () => ({
-  supabaseAdmin: vi.fn(() => {
-    const query = {
-      select: vi.fn(),
-      eq: vi.fn(),
-      maybeSingle: mocks.maybeSingle,
-    };
-    query.select.mockReturnValue(query);
-    query.eq.mockReturnValue(query);
-    return { from: vi.fn(() => query) };
-  }),
-}));
-
 import { buildPromptContext } from "@/lib/prompt/buildPromptContext";
 
 const emptyMemory = {
@@ -43,6 +31,19 @@ const emptyMemory = {
   sensitive: [],
   keysUsed: [],
 };
+
+function promptClient() {
+  const query = {
+    select: vi.fn(),
+    eq: vi.fn(),
+    maybeSingle: mocks.maybeSingle,
+  };
+  query.select.mockReturnValue(query);
+  query.eq.mockReturnValue(query);
+  return {
+    from: vi.fn(() => query),
+  } as unknown as SupabaseClient;
+}
 
 describe("buildPromptContext freshness", () => {
   beforeEach(() => {
@@ -58,12 +59,14 @@ describe("buildPromptContext freshness", () => {
 
   it("uses the current message on every prompt build", async () => {
     await buildPromptContext({
+      supabase: promptClient(),
       authedUserId: "user-1",
       projectId: "project-1",
       conversationId: "conversation-1",
       latestUserText: "first current message",
     });
     await buildPromptContext({
+      supabase: promptClient(),
       authedUserId: "user-1",
       projectId: "project-1",
       conversationId: "conversation-1",
@@ -83,6 +86,7 @@ describe("buildPromptContext freshness", () => {
 
   it("never reuses a prior turn's safety addendum", async () => {
     const first = await buildPromptContext({
+      supabase: promptClient(),
       authedUserId: "user-1",
       projectId: "project-1",
       conversationId: "conversation-1",
@@ -90,6 +94,7 @@ describe("buildPromptContext freshness", () => {
       safety: { systemAddendum: "SAFETY-FIRST-TURN" },
     });
     const second = await buildPromptContext({
+      supabase: promptClient(),
       authedUserId: "user-1",
       projectId: "project-1",
       conversationId: "conversation-1",

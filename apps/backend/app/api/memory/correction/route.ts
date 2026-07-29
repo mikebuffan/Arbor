@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { supabaseFromAuthHeader } from "@/lib/supabase/bearer";
-import { correctMemoryItem } from "@/lib/memory/store";
+import { applyMemoryCorrection } from "@/lib/memory/applyCorrection";
+import { routeErrorResponse } from "@/lib/auth/routeAuthorization";
 
 const Body = z.object({
   correctionKey: z.string().min(1),
@@ -12,23 +13,30 @@ const Body = z.object({
 });
 
 export async function POST(req: Request) {
-  const supabase = supabaseFromAuthHeader(req);
-  const { data, error } = await supabase.auth.getUser();
-  if (error || !data?.user) {
-    return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
+  try {
+    const supabase = supabaseFromAuthHeader(req);
+    const { data, error } = await supabase.auth.getUser();
+    if (error || !data?.user) {
+      return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
+    }
+
+    const parsed = Body.safeParse(await req.json().catch(() => ({})));
+    if (!parsed.success) {
+      return NextResponse.json({ ok: false, error: parsed.error.flatten() }, { status: 400 });
+    }
+
+    const projectId = parsed.data.projectId ?? null;
+
+    const result = await applyMemoryCorrection({
+      supabase,
+      userId: data.user.id,
+      projectId,
+      key: parsed.data.correctionKey,
+      correctedValue: parsed.data.correctedValue,
+    });
+
+    return NextResponse.json({ ok: true, locked: result.locked });
+  } catch (error: unknown) {
+    return routeErrorResponse(error);
   }
-
-  const parsed = Body.safeParse(await req.json().catch(() => ({})));
-  if (!parsed.success) {
-    return NextResponse.json({ ok: false, error: parsed.error.flatten() }, { status: 400 });
-  }
-
-  const result = await correctMemoryItem({
-    authedUserId: data.user.id,
-    key: parsed.data.correctionKey.trim(),
-    newValue: parsed.data.correctedValue,
-    projectId: parsed.data.projectId ?? null,
-  });
-
-  return NextResponse.json({ ok: true, ...result });
 }

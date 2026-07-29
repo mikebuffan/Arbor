@@ -24,6 +24,6 @@ export async function POST(req: Request) {
   if (!parsed.success) return NextResponse.json({ ok: false, error: "Bad request" }, { status: 400 });
 
   const { items } = parsed.data;
-  const res = await upsertMemoryItems(authedUserId, items);
+  const res = await upsertMemoryItems(authedUserId, items, null, supabase);
   return NextResponse.json({ ok: true, res });
 }

@@ -1,25 +1,9 @@
-import { cookies } from "next/headers";
-import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import "server-only";
 
-let client: SupabaseClient | null = null;
+import { supabaseAdmin } from "@/lib/supabase/admin";
 
-export async function getServerSupabase(): Promise<SupabaseClient> {
-  if (client) return client;
-
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-
-  const store = await cookies();
-  const token = store.get("sb-access-token")?.value;
-
-  client = createClient(url, key, {
-    auth: { persistSession: false },
-    global: {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    },
-  });
-
-  return client;
+export async function getServerSupabase() {
+  return supabaseAdmin();
 }
 
 // Reliable retry wrapper

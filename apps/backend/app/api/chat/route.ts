@@ -3,9 +3,10 @@ import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireUser } from "@/lib/auth/requireUser";
 import {
-  RouteAccessError,
-  routeErrorResponse,
-} from "@/lib/auth/routeAuthorization";
+  assertConversationOwnedByUser,
+  assertProjectOwnedByUser,
+} from "@/lib/auth/ownership";
+import { routeErrorResponse } from "@/lib/auth/routeAuthorization";
 import { openAIChat } from "@/lib/providers/openai";
 import { buildPromptContext } from "@/lib/prompt/buildPromptContext";
 import { extractMemoryFromText } from "@/lib/memory/extractor";
@@ -24,6 +25,8 @@ import { getOrCreateOpenEpisode } from "@/lib/arbor/episodes/getOrCreateOpenEpis
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+export { assertProjectOwnedByUser };
 
 type Msg = { role: "user" | "assistant" | "system"; content: string };
 
@@ -113,24 +116,6 @@ async function getOrCreateDefaultProjectId(
   return created.id as string;
 }
 
-export async function assertProjectOwnedByUser(
-  supabase: SupabaseClient,
-  userId: string,
-  projectId: string,
-): Promise<void> {
-  const { data, error } = await supabase
-    .from("projects")
-    .select("id")
-    .eq("id", projectId)
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  if (error) throw error;
-  if (!data) {
-    throw new RouteAccessError(404, "project_not_found");
-  }
-}
-
 async function getOrCreateConversation(params: {
   supabase: SupabaseClient;
   userId: string;
@@ -140,19 +125,13 @@ async function getOrCreateConversation(params: {
   const { supabase, userId, projectId, conversationId } = params;
 
   if (conversationId) {
-    const { data, error } = await supabase
-      .from("conversations")
-      .select("id")
-      .eq("id", conversationId)
-      .eq("user_id", userId)
-      .eq("project_id", projectId)
-      .maybeSingle();
-
-    if (error) throw error;
-    if (!data) {
-      throw new RouteAccessError(404, "conversation_not_found");
-    }
-    return data.id as string;
+    await assertConversationOwnedByUser({
+      supabase,
+      userId,
+      conversationId,
+      projectId,
+    });
+    return conversationId;
   }
 
   const { data, error } = await supabase
@@ -256,6 +235,7 @@ export async function POST(req: Request) {
 
     const historyPromise = loadRecentMessages(supabase, userId, convoId, 20);
     const promptContextPromise = buildPromptContext({
+      supabase,
       authedUserId: userId,
       projectId,
       conversationId: convoId,
@@ -350,14 +330,20 @@ export async function POST(req: Request) {
       const extracted = await extractMemoryFromText({ userText, assistantText });
 
       await promoteIdentityAnchors({
+        supabase,
         authedUserId: userId,
         projectId,
         userText,
         extracted,
       });
 
-      await upsertMemoryItems(userId, extracted, projectId);
-      await reinforceMemoryUse(userId, injectedMemoryKeys, projectId);
+      await upsertMemoryItems(userId, extracted, projectId, supabase);
+      await reinforceMemoryUse(
+        userId,
+        injectedMemoryKeys,
+        projectId,
+        supabase,
+      );
 
       await logMemoryEvent("chat_completed", {
         userId,
