@@ -1,7 +1,7 @@
 import path from "node:path";
 import fs from "node:fs";
 import { globSync } from "glob";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { consolidateMemoryItems } from "@/lib/memory/consolidate";
 import { streamConversationsFile, parseConversationObject, NormalizedTurn } from "./parseChatGPT";
 import { extractMemoryFromText } from "@/lib/memory/extractor";
@@ -102,7 +102,7 @@ function formatTranscript(turns: NormalizedTurn[]) {
 }
 
 async function ensureProjectRow(
-  supabase: any,
+  supabase: SupabaseClient,
   projectId: string,
   userId: string,
 ) {
@@ -252,7 +252,7 @@ export async function runImport(params: {
           await withTimeout(
             upsertMemoryItems(
               targetUser,
-              globals as any,
+              globals,
               projectId ?? null,
               supabase,
             ),
@@ -265,7 +265,7 @@ export async function runImport(params: {
           await withTimeout(
             upsertMemoryItems(
               userId,
-              locals as any,
+              locals,
               projectId ?? null,
               supabase,
             ),

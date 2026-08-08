@@ -13,11 +13,17 @@ import { extractMemoryFromText } from "@/lib/memory/extractor";
 import { upsertMemoryItems, reinforceMemoryUse } from "@/lib/memory/store";
 import { postcheckResponse } from "@/lib/safety/postcheck";
 import { logMemoryEvent } from "@/lib/memory/logger";
-import { guardAssistantText } from "@/lib/guards/responseLanguageGuard";
 import { evaluateDecisionContext } from "@/lib/governance/evaluateDecisionContext";
 import { realWorldSafetyAddendum } from "@/lib/governance/realWorldSafetyAddendum";
 import { logDecisionOutcome } from "@/lib/safety/decisionOutcome";
 import { promoteIdentityAnchors } from "@/lib/memory/promoteIdentityAnchors";
+import {
+  claimUserTurn,
+  createSupabaseChatTurnStore,
+  finalizeAndPersistAssistantTurn,
+  getCompletedAssistantTurn,
+  resolveConversationForTurn,
+} from "@/lib/chat/turnPersistence";
 
 import { buildProofSnapshot } from "@/lib/arbor/ProofSnapshot";
 import { buildTelemetry } from "@/lib/arbor/telemetry/buildTelemetry";
@@ -38,6 +44,7 @@ const NullableUuid = z.preprocess(
 const Body = z.object({
   projectId: NullableUuid,
   conversationId: NullableUuid,
+  turnId: z.string().uuid(),
   userText: z.string().min(1),
 });
 
@@ -116,39 +123,7 @@ async function getOrCreateDefaultProjectId(
   return created.id as string;
 }
 
-async function getOrCreateConversation(params: {
-  supabase: SupabaseClient;
-  userId: string;
-  projectId: string;
-  conversationId?: string;
-}) {
-  const { supabase, userId, projectId, conversationId } = params;
-
-  if (conversationId) {
-    await assertConversationOwnedByUser({
-      supabase,
-      userId,
-      conversationId,
-      projectId,
-    });
-    return conversationId;
-  }
-
-  const { data, error } = await supabase
-    .from("conversations")
-    .insert({
-      user_id: userId,
-      project_id: projectId,
-      title: null,
-    })
-    .select("id")
-    .single();
-
-  if (error) throw error;
-  return data.id as string;
-}
-
-async function loadRecentMessages(
+export async function loadRecentMessages(
   supabase: SupabaseClient,
   userId: string,
   conversationId: string,
@@ -200,19 +175,36 @@ export async function POST(req: Request) {
       );
     }
 
-    const { projectId: maybeProjectId, conversationId, userText } = parsed.data;
+    const {
+      projectId: maybeProjectId,
+      conversationId,
+      turnId,
+      userText,
+    } = parsed.data;
     await cleanupExpiredMessagesBestEffort(supabase, userId);
     if (maybeProjectId) {
       await assertProjectOwnedByUser(supabase, userId, maybeProjectId);
     }
     const projectId = maybeProjectId ?? (await getOrCreateDefaultProjectId(supabase, userId));
 
-    const convoId = await getOrCreateConversation({
-      supabase,
+    const turnStore = createSupabaseChatTurnStore(supabase);
+    const resolvedTurn = await resolveConversationForTurn({
+      store: turnStore,
       userId,
       projectId,
-      conversationId,
+      turnId,
+      userText,
+      requestedConversationId: conversationId,
+      assertRequestedConversationOwned: async (requestedConversationId) => {
+        await assertConversationOwnedByUser({
+          supabase,
+          userId,
+          conversationId: requestedConversationId,
+          projectId,
+        });
+      },
     });
+    const convoId = resolvedTurn.conversationId;
 
     const episodeId = await getOrCreateOpenEpisode({
       supabase,
@@ -221,14 +213,33 @@ export async function POST(req: Request) {
       threadId: convoId,
     });
 
-    await supabase.from("messages").insert({
-      project_id: projectId,
-      conversation_id: convoId,
-      episode_id: episodeId,
-      user_id: userId,
-      role: "user",
-      content: userText,
+    await claimUserTurn({
+      store: turnStore,
+      messageId: resolvedTurn.ids.userMessageId,
+      userId,
+      projectId,
+      conversationId: convoId,
+      episodeId,
+      userText,
     });
+
+    const completedTurn = await getCompletedAssistantTurn({
+      store: turnStore,
+      messageId: resolvedTurn.ids.assistantMessageId,
+      userId,
+      projectId,
+      conversationId: convoId,
+    });
+    if (completedTurn) {
+      return NextResponse.json(
+        buildChatSuccessResponse({
+          projectId,
+          conversationId: convoId,
+          assistantText: completedTurn.content,
+        }),
+        { status: 200, headers: getCorsHeaders(req) },
+      );
+    }
 
     const decisionContext = evaluateDecisionContext({ userText });
     const safety = realWorldSafetyAddendum(decisionContext);
@@ -273,30 +284,23 @@ export async function POST(req: Request) {
       messages: messagesForModel,
     });
 
-    let assistantText = assistantTextFromResponse(aiResponse);
-    assistantText = guardAssistantText(assistantText).text;
-
-    if (safety?.assistantPreface) {
-      assistantText = `${safety.assistantPreface}\n\n${assistantText}`;
-    }
-
-    const postcheck = await postcheckResponse({
-      authedUserId: userId,
+    const finalAssistant = await finalizeAndPersistAssistantTurn({
+      store: turnStore,
+      messageId: resolvedTurn.ids.assistantMessageId,
+      userId,
       projectId,
-      assistantText,
-    });
-
-    if (!postcheck.approved) {
-      return NextResponse.json(
-        buildChatSuccessResponse({
+      conversationId: convoId,
+      episodeId,
+      rawAssistantText: assistantTextFromResponse(aiResponse),
+      assistantPreface: safety?.assistantPreface ?? undefined,
+      postcheck: (assistantText) =>
+        postcheckResponse({
+          authedUserId: userId,
           projectId,
-          conversationId: convoId,
-          assistantText: postcheck.replacement ?? assistantText,
-          flagged: true,
+          assistantText,
         }),
-        { status: 200, headers: getCorsHeaders(req) }
-      );
-    }
+    });
+    const assistantText = finalAssistant.assistantText;
 
     const traceId = crypto.randomUUID();
 
@@ -310,70 +314,71 @@ export async function POST(req: Request) {
 
     const retrievalLatencyMs = Math.round(performance.now() - t0);
 
-    runBg("telemetry", async () => {
-      await buildTelemetry(
-        supabase,
-        {
-          traceId,
+    if (finalAssistant.created) {
+      runBg("telemetry", async () => {
+        await buildTelemetry(
+          {
+            traceId,
+            userId,
+            projectId,
+            threadId: convoId,
+            episodeId,
+            retrievalLatencyMs,
+            logicGatesHit: [],
+          },
+          proofSnapshot
+        );
+      });
+
+      runBg("memory_pipeline", async () => {
+        const extracted = await extractMemoryFromText({ userText, assistantText });
+
+        await promoteIdentityAnchors({
+          supabase,
+          authedUserId: userId,
+          projectId,
+          userText,
+          extracted,
+        });
+
+        await upsertMemoryItems(userId, extracted, projectId, supabase);
+        await reinforceMemoryUse(
+          userId,
+          injectedMemoryKeys,
+          projectId,
+          supabase,
+        );
+
+        await logMemoryEvent("chat_completed", {
           userId,
           projectId,
-          threadId: convoId,
-          episodeId,
-          retrievalLatencyMs,
-          logicGatesHit: [],
-        },
-        proofSnapshot
-      );
-    });
-
-    runBg("memory_pipeline", async () => {
-      const extracted = await extractMemoryFromText({ userText, assistantText });
-
-      await promoteIdentityAnchors({
-        supabase,
-        authedUserId: userId,
-        projectId,
-        userText,
-        extracted,
+          conversationId: convoId,
+        });
       });
 
-      await upsertMemoryItems(userId, extracted, projectId, supabase);
-      await reinforceMemoryUse(
-        userId,
-        injectedMemoryKeys,
-        projectId,
-        supabase,
-      );
-
-      await logMemoryEvent("chat_completed", {
-        userId,
-        projectId,
-        conversationId: convoId,
+      runBg("conversation_update", async () => {
+        await supabase
+          .from("conversations")
+          .update({ updated_at: new Date().toISOString() })
+          .eq("id", convoId)
+          .eq("user_id", userId);
       });
-    });
 
-    runBg("conversation_update", async () => {
-      await supabase
-        .from("conversations")
-        .update({ updated_at: new Date().toISOString() })
-        .eq("id", convoId)
-        .eq("user_id", userId);
-    });
-
-    runBg("decision_outcome", async () => {
-      await logDecisionOutcome({
-        userId,
-        projectId,
-        conversationId: convoId,
-        severityScore: decisionContext?.severityScore ?? 0,
-        riskBand: decisionContext?.riskBand ?? null,
-        emotionalIntensity: decisionContext?.emotionalIntensity ?? null,
-        flags: decisionContext?.flags ?? {},
-        actionTaken: safety?.assistantPreface ? "safety_preface" : "none",
-        model: process.env.OPENAI_CHAT_MODEL ?? null,
-        postcheckApproved: true,
+      runBg("decision_outcome", async () => {
+        await logDecisionOutcome({
+          userId,
+          projectId,
+          conversationId: convoId,
+          severityScore: decisionContext?.severityScore ?? 0,
+          riskBand: decisionContext?.riskBand ?? null,
+          emotionalIntensity: decisionContext?.emotionalIntensity ?? null,
+          flags: decisionContext?.flags ?? {},
+          actionTaken: safety?.assistantPreface ? "safety_preface" : "none",
+          model: process.env.OPENAI_CHAT_MODEL ?? null,
+          postcheckApproved: !finalAssistant.flagged,
+        });
       });
-    });
+    }
 
     /* =====================================================
       3.10.5 DEV-ONLY — REMOVE BEFORE SHIPPING
@@ -384,6 +389,7 @@ export async function POST(req: Request) {
       projectId,
       conversationId: convoId,
       assistantText,
+      flagged: finalAssistant.flagged,
     });
 
     if (process.env.NODE_ENV === "development") {

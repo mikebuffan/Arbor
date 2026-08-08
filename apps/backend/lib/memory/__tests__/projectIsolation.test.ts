@@ -191,7 +191,9 @@ describe("memory project isolation", () => {
     );
 
     expect(source).not.toContain("const memoryCache");
-    expect(source).not.toMatch(/console\.(log|debug)\([^)]*latestUserText/s);
+    expect(source).not.toMatch(
+      /console\.(log|debug)\([^)]*latestUserText[\s\S]*?\)/,
+    );
     expect(source).toContain("void params.useCache");
   });
 });

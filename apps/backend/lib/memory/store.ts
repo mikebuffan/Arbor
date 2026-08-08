@@ -72,7 +72,19 @@ async function logEvent(params: {
     payload,
   });
 
-  if (error) console.warn("memory_pending insert failed:", error);
+  if (error) {
+    const candidateCode =
+      typeof error.code === "string" ? error.code.slice(0, 32) : "unknown";
+    const code = /^[a-z0-9_]+$/i.test(candidateCode)
+      ? candidateCode
+      : "unknown";
+    console.warn("[memory] write failed", {
+      subsystem: "memory",
+      operation: "pending_event_insert",
+      code,
+      resourceType: EVENTS_TABLE,
+    });
+  }
 }
 
 export async function upsertMemoryItems(

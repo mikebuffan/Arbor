@@ -5,6 +5,16 @@ import type { MemoryItem } from "@/lib/memory/types";
 import { assertProjectOwnedByUser } from "@/lib/auth/ownership";
 import { routeErrorResponse } from "@/lib/auth/routeAuthorization";
 
+function memoryTier(value: unknown): MemoryItem["tier"] {
+  return value === "core" || value === "sensitive" ? value : "normal";
+}
+
+function memoryScope(value: unknown): MemoryItem["scope"] {
+  return value === "global" || value === "project"
+    ? value
+    : "conversation";
+}
+
 export async function GET(req: NextRequest) {
   try {
     const supabase = supabaseFromAuthHeader(req);
@@ -53,27 +63,37 @@ export async function POST(req: NextRequest) {
     const { data, error } = await supabase.auth.getUser();
     if (error || !data?.user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
-    const body = await req.json().catch(() => ({} as any));
+    const rawBody: unknown = await req.json().catch(() => ({}));
+    const body =
+      rawBody && typeof rawBody === "object"
+        ? (rawBody as Record<string, unknown>)
+        : {};
 
     const key = String(body.key ?? body.mem_key ?? "").trim();
     const rawValue = body.value ?? body.mem_value ?? body.text ?? body.correctedValue ?? "";
-    const value = typeof rawValue === "string" ? { text: rawValue } : (rawValue ?? {});
+    const value: MemoryItem["value"] =
+      typeof rawValue === "string"
+        ? { text: rawValue }
+        : rawValue && typeof rawValue === "object" && !Array.isArray(rawValue)
+          ? (rawValue as Record<string, unknown>)
+          : {};
 
     if (!key) return NextResponse.json({ error: "missing key" }, { status: 400 });
 
     const item: MemoryItem = {
       key,
       value,
-      tier: (body.tier ?? "normal") as any,
+      tier: memoryTier(body.tier),
       user_trigger_only: !!(body.user_trigger_only ?? body.userTriggerOnly ?? false),
       importance: Number(body.importance ?? 5),
       confidence: Number(body.confidence ?? 0.75),
-      scope: (body.scope ?? "conversation") as any,
+      scope: memoryScope(body.scope),
       pinned: !!body.pinned,
       locked: !!body.locked,
     };
 
-    const projectId = (body.projectId ?? null) as string | null;
+    const projectId =
+      typeof body.projectId === "string" ? body.projectId : null;
     if (projectId) {
       await assertProjectOwnedByUser(supabase, data.user.id, projectId);
     }

@@ -12,6 +12,7 @@ const files = [
   "app/api/debug/openai/route.ts",
   "lib/auth/requireUser.ts",
   "lib/auth/routeAuthorization.ts",
+  "lib/arbor/telemetry/buildTelemetry.ts",
   "lib/memory/extractor.ts",
   "lib/memory/retrieval.ts",
   "lib/memory/store.ts",
@@ -33,5 +34,8 @@ describe("Milestone 1A sensitive logging", () => {
     expect(source).not.toMatch(/logMemoryEvent\([^)]*transcript/i);
     expect(source).not.toMatch(/parse failed[^\n]*raw/i);
     expect(source).not.toMatch(/safety_(?:alert|warning)"[^\n]*assistantText/);
+    expect(source).not.toMatch(
+      /console\.(?:log|error|warn)[^\n]*,\s*(?:releaseError|error|err|e)\b/i,
+    );
   });
 });

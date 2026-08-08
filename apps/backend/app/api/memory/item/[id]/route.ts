@@ -18,7 +18,11 @@ export async function PATCH(
       return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     }
 
-    const body = await req.json().catch(() => ({} as any));
+    const rawBody: unknown = await req.json().catch(() => ({}));
+    const body =
+      rawBody && typeof rawBody === "object"
+        ? (rawBody as Record<string, unknown>)
+        : {};
     const nowIso = new Date().toISOString();
 
     const base = supabase.from("memory_items");

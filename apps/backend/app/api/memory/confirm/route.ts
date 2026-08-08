@@ -4,6 +4,10 @@ import { supabaseFromAuthHeader } from "@/lib/supabase/bearer";
 import { correctMemoryItem } from "@/lib/memory/store";
 import { assertProjectOwnedByUser } from "@/lib/auth/ownership";
 import { routeErrorResponse } from "@/lib/auth/routeAuthorization";
+import {
+  selectEligibleConfirmationCandidate,
+  type PendingConfirmationRow,
+} from "@/lib/memory/confirmationEligibility";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -38,29 +42,35 @@ export async function POST(req: NextRequest) {
       await assertProjectOwnedByUser(supabase, userId, projectId);
     }
 
-    // 3) Load latest pending row for this user/project
+    // 3) Load only rows whose persisted shape can represent confirmation.
     let pendingQuery = supabase
       .from("memory_pending")
-      .select("*")
+      .select("id,user_id,project_id,question,ops,event_type,created_at")
       .eq("user_id", userId)
+      .is("event_type", null)
+      .neq("question", "memory_event")
       .order("created_at", { ascending: false })
-      .limit(1);
+      .limit(25);
 
     pendingQuery = projectId
       ? pendingQuery.eq("project_id", projectId)
       : pendingQuery.is("project_id", null);
 
-    const { data: pending, error: pErr } = await pendingQuery.maybeSingle();
+    const { data: pendingRows, error: pErr } = await pendingQuery;
     if (pErr) {
       return NextResponse.json({ error: pErr.message }, { status: 500 });
     }
+
+    const pending = selectEligibleConfirmationCandidate(
+      (pendingRows ?? []) as PendingConfirmationRow[],
+    );
 
     if (!pending) {
       return NextResponse.json({ ok: true, applied: false, appliedIds: [] });
     }
 
     // 4) Apply or discard
-    let appliedIds: string[] = [];
+    const appliedIds: string[] = [];
 
     if (decision === "yes") {
       const ops = Array.isArray(pending.ops) ? pending.ops : [];
@@ -82,10 +92,15 @@ export async function POST(req: NextRequest) {
     }
 
     // 5) Delete pending row
-    const { error: dErr } = await supabase
+    let deleteQuery = supabase
       .from("memory_pending")
       .delete()
-      .eq("id", pending.id);
+      .eq("id", pending.id)
+      .eq("user_id", userId);
+    deleteQuery = projectId
+      ? deleteQuery.eq("project_id", projectId)
+      : deleteQuery.is("project_id", null);
+    const { error: dErr } = await deleteQuery;
     if (dErr) {
       return NextResponse.json({ error: dErr.message }, { status: 500 });
     }
