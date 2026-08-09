@@ -118,11 +118,14 @@ export async function upsertMemoryItems(
   let batched: number[][] | null = null;
   try {
     batched = await embedTexts(prepared.map((p) => p.embedStr));
-  } catch (e) {
-    console.warn(
-      "[upsertMemoryItems] batch embedding failed; falling back to per-item",
-      e,
-    );
+  } catch {
+    console.warn("[memory] embedding failed", {
+      subsystem: "memory",
+      operation: "batch_embedding",
+      code: "provider_error",
+      resourceType: "embedding_batch",
+      fallback: "per_item",
+    });
     batched = null;
   }
 
