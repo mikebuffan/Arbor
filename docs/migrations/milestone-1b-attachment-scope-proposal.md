@@ -1,7 +1,7 @@
 # Milestone 1B attachment-scope proposal
 
-Status: **proposal only; not applied**. Applying either SQL file is a separate
-human approval gate.
+Status: **application broker implemented locally; policy proposal not applied**.
+Applying either SQL file is a separate human approval gate.
 
 ## Catalog finding
 
@@ -45,17 +45,46 @@ the user but contains no "current project" context. RLS alone cannot distinguish
 "same user, correct project" from "same user, wrong current project" without a
 trusted project claim or a server validation boundary.
 
+## Broker contract and consistency model
+
+The application boundary now uses these explicit authenticated contracts:
+
+- `POST /api/chat/attachments/access` with required UUID `attachmentId`,
+  `projectId`, and `conversationId`. It returns a private signed URL valid for
+  60 seconds plus its expiry time, with `Cache-Control: no-store`.
+- `POST /api/chat/attachments/delete` with the same required scope and an
+  optional reason of at most 240 characters.
+
+Both routes derive the user from `auth.getUser()`, validate project ownership,
+conversation ownership and membership, metadata scope, the fixed bucket, and
+the exact canonical path before constructing the privileged Storage client.
+All scope failures are returned as non-enumerating `attachment_not_found`
+responses. The signed URL is returned only from a successful access request;
+it is not persisted, logged, placed in telemetry, or accompanied by the bucket
+or canonical path.
+
+Delete is a bounded two-system operation. The broker checks whether the object
+exists, removes it when present, verifies that it is absent, and only then uses
+the request-scoped client to soft-delete exactly one metadata row. A Storage
+failure leaves metadata active. A metadata failure after verified Storage
+removal returns `server_error`; a retry observes the absent object and retries
+the soft-delete. An already absent object is treated as a recoverable partial
+state. Once metadata is durably soft-deleted, repeated calls return the same
+non-enumerating 404 used for other inaccessible resources because the scoped
+SELECT policy deliberately hides deleted rows. Partial-failure logs contain
+only allowlisted operation and stage labels.
+
 ## Security and Companion Impact
 
 Security impact: closes permissive-policy bypass, foreign metadata spoofing,
 cross-conversation binding, and direct same-user cross-project object reads.
 The service-role key remains server-only.
 
-Companion Impact: downloads and deletes must move through a scoped server
-broker before this proposal can be applied. Until that bounded route and its
-client call are approved and implemented, applying the proposal would deny all
-ordinary direct downloads. Upload remains possible only after valid metadata
-intent creation. No persona, behavioral, or memory semantics change.
+Companion Impact: downloads and deletes must use the scoped server broker before
+this proposal can be applied. Callers must supply the attachment, project, and
+conversation UUIDs. No Flutter caller was changed in this correction. Upload
+remains possible only after valid `uploading` metadata intent creation. No
+persona, behavioral, or memory semantics change.
 
 ## Verification plan
 
@@ -70,9 +99,11 @@ On a Supabase development branch or after separate production approval:
 5. Prove noncanonical paths and expired upload intents fail.
 6. Prove direct authenticated reads, updates, and deletes fail, including
    same-user/cross-project reads.
-7. Prove the future server broker returns an object only after full
-   user/project/conversation/attachment validation.
-8. Prove User B cannot read User A metadata or objects.
-9. Check Supabase security/performance advisors and Storage logs.
-10. Roll back only from the captured catalog snapshot if any assertion fails,
+7. Prove the server broker returns a signed URL or completes deletion only
+   after full user/project/conversation/attachment/path validation.
+8. Prove Storage-remove and metadata-soft-delete partial failures converge on
+   retry without false success or raw sensitive diagnostics.
+9. Prove User B cannot read User A metadata or objects.
+10. Check Supabase security/performance advisors and Storage logs.
+11. Roll back only from the captured catalog snapshot if any assertion fails,
     then verify the restored policy definitions exactly.

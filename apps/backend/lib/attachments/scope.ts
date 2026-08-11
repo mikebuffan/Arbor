@@ -5,7 +5,17 @@ import {
 } from "@/lib/auth/ownership";
 import { RouteAccessError } from "@/lib/auth/routeAuthorization";
 
-const ATTACHMENT_BUCKET = "chat-attachments";
+export const ATTACHMENT_BUCKET = "chat-attachments";
+
+export type ScopedAttachmentMetadata = {
+  id: string;
+  user_id: string;
+  project_id: string;
+  conversation_id: string;
+  storage_bucket: string;
+  storage_path: string;
+  status: string;
+};
 
 export async function assertAttachmentWriteScope(params: {
   supabase: SupabaseClient;
@@ -40,12 +50,18 @@ export function assertProjectAttachmentPath(params: {
     attachmentId,
   } = params;
   const prefix = `${userId}/${projectId}/${conversationId}/${attachmentId}/`;
+  const filename =
+    typeof storagePath === "string" && storagePath.startsWith(prefix)
+      ? storagePath.slice(prefix.length)
+      : "";
   if (
+    typeof storageBucket !== "string" ||
     storageBucket !== ATTACHMENT_BUCKET ||
-    !storagePath.startsWith(prefix) ||
-    storagePath.length === prefix.length ||
-    storagePath.includes("..") ||
-    storagePath.includes("\\")
+    !filename ||
+    filename === "." ||
+    filename === ".." ||
+    filename.includes("/") ||
+    filename.includes("\\")
   ) {
     throw new RouteAccessError(404, "attachment_not_found");
   }
@@ -59,17 +75,24 @@ export async function assertAttachmentOwnedByScope(params: {
   attachmentId: string;
 }) {
   const { supabase, userId, projectId, conversationId, attachmentId } = params;
-  await assertAttachmentWriteScope({
-    supabase,
-    userId,
-    projectId,
-    conversationId,
-  });
+  try {
+    await assertAttachmentWriteScope({
+      supabase,
+      userId,
+      projectId,
+      conversationId,
+    });
+  } catch (error: unknown) {
+    if (error instanceof RouteAccessError && error.status === 404) {
+      throw new RouteAccessError(404, "attachment_not_found");
+    }
+    throw error;
+  }
 
   const { data, error } = await supabase
     .from("chat_attachments")
     .select(
-      "id,user_id,project_id,conversation_id,storage_bucket,storage_path",
+      "id,user_id,project_id,conversation_id,storage_bucket,storage_path,status",
     )
     .eq("id", attachmentId)
     .eq("user_id", userId)
@@ -89,5 +112,5 @@ export async function assertAttachmentOwnedByScope(params: {
     conversationId,
     attachmentId,
   });
-  return data;
+  return data as ScopedAttachmentMetadata;
 }

@@ -7,11 +7,15 @@ const files = [
   "app/api/admin/memory/decay/route.ts",
   "app/api/admin/summarize-episode/route.ts",
   "app/api/admin/system/heartbeat/route.ts",
+  "app/api/chat/attachments/access/route.ts",
+  "app/api/chat/attachments/delete/route.ts",
   "app/api/chat/route.ts",
   "app/api/debug/chat/route.ts",
   "app/api/debug/openai/route.ts",
   "lib/auth/requireUser.ts",
   "lib/auth/routeAuthorization.ts",
+  "lib/attachments/broker.ts",
+  "lib/attachments/http.ts",
   "lib/arbor/telemetry/buildTelemetry.ts",
   "lib/memory/extractor.ts",
   "lib/memory/retrieval.ts",
@@ -38,6 +42,12 @@ describe("Milestone 1A sensitive logging", () => {
     expect(source).not.toMatch(/logMemoryEvent\([^)]*transcript/i);
     expect(source).not.toMatch(/parse failed[^\n]*raw/i);
     expect(source).not.toMatch(/safety_(?:alert|warning)"[^\n]*assistantText/);
+    expect(source).not.toMatch(
+      /console\.(?:log|debug|error|warn)[^\n]*(?:signedUrl|storagePath|storage_path|delete_reason|reason)/i,
+    );
+    expect(source).not.toMatch(
+      /(?:captureException|setAttribute|setContext|setExtra)[^\n]*(?:signedUrl|storagePath|storage_path)/i,
+    );
     expect(source).not.toMatch(
       /console\.(?:log|error|warn)[^\n]*,\s*(?:releaseError|error|err|e)\b/i,
     );

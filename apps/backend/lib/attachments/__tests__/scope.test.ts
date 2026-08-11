@@ -10,6 +10,7 @@ function scopedClient(params: {
   projectOwned: boolean;
   conversationOwned: boolean;
   attachmentOwned?: boolean;
+  storagePath?: string;
 }) {
   const projectQuery = {
     select: vi.fn(),
@@ -41,9 +42,14 @@ function scopedClient(params: {
       data: params.attachmentOwned
         ? {
             id: "attachment-a",
+            user_id: "user-a",
+            project_id: "project-a",
+            conversation_id: "conversation-a",
             storage_bucket: "chat-attachments",
             storage_path:
+              params.storagePath ??
               "user-a/project-a/conversation-a/attachment-a/file.txt",
+            status: "uploaded",
           }
         : null,
       error: null,
@@ -113,6 +119,96 @@ describe("attachment application scope", () => {
     ).rejects.toMatchObject({ status: 404, code: "attachment_not_found" });
   });
 
+  it("allows an attachment in the authenticated user and supplied project scope", async () => {
+    const supabase = scopedClient({
+      projectOwned: true,
+      conversationOwned: true,
+      attachmentOwned: true,
+    });
+
+    await expect(
+      assertAttachmentOwnedByScope({
+        supabase,
+        userId: "user-a",
+        projectId: "project-a",
+        conversationId: "conversation-a",
+        attachmentId: "attachment-a",
+      }),
+    ).resolves.toMatchObject({ id: "attachment-a", status: "uploaded" });
+  });
+
+  it("normalizes same-user wrong-project access to attachment_not_found", async () => {
+    const supabase = scopedClient({
+      projectOwned: true,
+      conversationOwned: false,
+      attachmentOwned: true,
+    });
+
+    await expect(
+      assertAttachmentOwnedByScope({
+        supabase,
+        userId: "user-a",
+        projectId: "project-b",
+        conversationId: "conversation-a",
+        attachmentId: "attachment-a",
+      }),
+    ).rejects.toMatchObject({ status: 404, code: "attachment_not_found" });
+  });
+
+  it("normalizes foreign-user access to attachment_not_found", async () => {
+    const supabase = scopedClient({
+      projectOwned: false,
+      conversationOwned: false,
+      attachmentOwned: false,
+    });
+
+    await expect(
+      assertAttachmentOwnedByScope({
+        supabase,
+        userId: "user-b",
+        projectId: "project-a",
+        conversationId: "conversation-a",
+        attachmentId: "attachment-a",
+      }),
+    ).rejects.toMatchObject({ status: 404, code: "attachment_not_found" });
+  });
+
+  it("rejects a conversation owned by the user but outside the supplied project", async () => {
+    const supabase = scopedClient({
+      projectOwned: true,
+      conversationOwned: false,
+    });
+
+    await expect(
+      assertAttachmentWriteScope({
+        supabase,
+        userId: "user-a",
+        projectId: "project-b",
+        conversationId: "conversation-a",
+      }),
+    ).rejects.toMatchObject({ status: 404, code: "conversation_not_found" });
+  });
+
+  it("rejects metadata whose Storage scope disagrees with its row scope", async () => {
+    const supabase = scopedClient({
+      projectOwned: true,
+      conversationOwned: true,
+      attachmentOwned: true,
+      storagePath:
+        "user-a/project-b/conversation-a/attachment-a/private.txt",
+    });
+
+    await expect(
+      assertAttachmentOwnedByScope({
+        supabase,
+        userId: "user-a",
+        projectId: "project-a",
+        conversationId: "conversation-a",
+        attachmentId: "attachment-a",
+      }),
+    ).rejects.toMatchObject({ status: 404, code: "attachment_not_found" });
+  });
+
   it("rejects a storage path outside the project and conversation scope", () => {
     expect(() =>
       assertProjectAttachmentPath({
@@ -125,5 +221,24 @@ describe("attachment application scope", () => {
         attachmentId: "attachment-a",
       }),
     ).toThrowError(expect.objectContaining({ code: "attachment_not_found" }));
+  });
+
+  it("rejects nested or traversal-like attachment filename suffixes", () => {
+    for (const storagePath of [
+      "user-a/project-a/conversation-a/attachment-a/nested/file.txt",
+      "user-a/project-a/conversation-a/attachment-a/..",
+      "user-a/project-a/conversation-a/attachment-a/nested\\file.txt",
+    ]) {
+      expect(() =>
+        assertProjectAttachmentPath({
+          storageBucket: "chat-attachments",
+          storagePath,
+          userId: "user-a",
+          projectId: "project-a",
+          conversationId: "conversation-a",
+          attachmentId: "attachment-a",
+        }),
+      ).toThrowError(expect.objectContaining({ code: "attachment_not_found" }));
+    }
   });
 });

@@ -158,6 +158,28 @@ describe("Supabase client boundaries", () => {
     expect(source).toContain("@/lib/supabase/admin");
   });
 
+  it("keeps privileged attachment Storage operations behind full scoped validation", () => {
+    const broker = fs.readFileSync(
+      path.resolve(process.cwd(), "lib/attachments/broker.ts"),
+      "utf8",
+    );
+    const routes = [
+      "app/api/chat/attachments/access/route.ts",
+      "app/api/chat/attachments/delete/route.ts",
+    ].map((file) =>
+      fs.readFileSync(path.resolve(process.cwd(), file), "utf8"),
+    );
+
+    expect(broker).toContain("assertAttachmentOwnedByScope");
+    expect(broker).toContain("supabaseAdmin().storage");
+    expect(broker.indexOf("await assertAttachmentOwnedByScope")).toBeLessThan(
+      broker.indexOf("supabaseAdmin().storage"),
+    );
+    expect(broker).not.toMatch(/SUPABASE_SERVICE_ROLE/);
+    expect(routes.join("\n")).not.toContain("@/lib/supabase/admin");
+    expect(routes.join("\n")).not.toMatch(/SUPABASE_SERVICE_ROLE/);
+  });
+
   it("keeps the legacy correction route as a canonical-handler adapter", () => {
     const canonical = fs.readFileSync(
       path.resolve(process.cwd(), "app/api/memory/correct/route.ts"),

@@ -155,8 +155,10 @@ drop policy if exists "chat attachments update approved own objects" on storage.
 drop policy if exists "chat attachments update own files" on storage.objects;
 
 -- Direct authenticated reads, updates, and deletes are deliberately absent.
--- A server route must validate explicit project/conversation context with
--- lib/attachments/scope.ts before minting a signed read URL or deleting.
+-- The application broker validates explicit user/project/conversation,
+-- metadata, bucket, and canonical-path scope before using privileged Storage.
+-- Metadata soft-delete remains request-scoped and occurs only after the broker
+-- verifies that the Storage object is absent.
 create policy "chat attachments insert scoped upload objects"
 on storage.objects
 for insert
