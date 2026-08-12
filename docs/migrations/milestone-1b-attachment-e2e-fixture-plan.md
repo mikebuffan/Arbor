@@ -1,128 +1,296 @@
-# Milestone 1B attachment post-migration E2E fixture plan
+# Milestone 1B attachment migration E2E procedure
 
-Status: **prepared, not executed**. Migration execution, fixture creation, and
-real Firefly E2E remain separate approval gates.
+Status: **prepared, not executed**. Migration execution, fixture creation,
+administrative cleanup, and real Firefly E2E remain separately gated.
 
-## Fixture boundary
+## Migration-history stop gate
 
-Fixtures may be created only by a one-shot server/admin test runner under
-`apps/backend/scripts/e2e`; never by an application route, Flutter, browser
-code, or a reusable production writer. The runner must not be imported by the
-Next.js application and must refuse to run unless all of these checks pass:
+The current branch and `origin/main` have no active canonical Supabase
+migration-history mechanism: there is no tracked `supabase/config.toml`, no
+`supabase/migrations/` directory, no migration command/script, and no documented
+applied-history workflow. A historical file exists only on the unmerged
+`origin/arbor-memory-ledger-upgrades` branch at
+`supabase/migrations/20260514_chat_attachments.sql`; it is not part of main and
+contains the superseded direct-upload design. It is evidence of a prior
+convention, not an active canonical mechanism, and must not be revived.
+
+Therefore migration execution is blocked until Mike/Nox explicitly establish
+or identify the canonical durable migration-recording mechanism and approve the
+exact forward SQL as an artifact in that mechanism. This runbook does not
+invent a directory, filename, or migration-history entry.
+
+## Fixture authority boundary
+
+Pre-seeding may use a one-shot server/admin test runner only while the captured
+pre-migration grants remain in force. It may never be exposed as an application
+route, Flutter/browser API, reusable production writer, RPC, or database
+function. It must refuse to run unless:
 
 - an explicit fixture-mode flag is set;
-- the target project reference is the allowlisted Firefly reference;
+- the target is the allowlisted Firefly project;
 - every user, project, and conversation belongs to the dedicated E2E set;
-- the run ID matches `^ARBOR_E2E_[A-Z0-9_]+$` and has not been used before;
+- the unique run ID matches `^ARBOR_E2E_[A-Z0-9_]+$`;
+- the pre-run attachment metadata and bucket baselines are both zero;
 - every bucket is exactly `chat-attachments`; and
-- every path is canonical:
+- every path is exactly canonical:
   `<userId>/<projectId>/<conversationId>/<attachmentId>/<filename>`.
 
-The service-role credential stays in the runner's server environment. It must
-never be printed, returned, written to the manifest, or introduced into
-application code. The runner exposes only fixed create, audit, and cleanup
-operations for manifest-listed fixture IDs and paths.
+The pre-seed runner's server credential must never be printed, returned,
+written to the manifest, or added to application code. Its create capability
+ends before the forward transaction begins. After migration, `service_role`
+has only `SELECT, UPDATE` on `public.chat_attachments`; neither fixture creation
+nor final metadata hard deletion may rely on it.
 
 ## Run identity and manifest
 
-Generate a unique ID such as
-`ARBOR_E2E_20260812T120000Z_7F3A9C2D`. Use it in every synthetic filename and
-human-readable fixture label. Create the manifest before the first mutation
-and durably update it after every step.
+Generate a unique identifier such as
+`ARBOR_E2E_20260812T120000Z_7F3A9C2D`. Include it in every synthetic filename
+and fixture label. Create the manifest before the first mutation and durably
+update it after every phase.
 
 The manifest records:
 
-- schema version, run ID, target project reference, start/end timestamps, and
-  current phase;
+- schema version, run ID, Firefly project reference, timestamps, and phase;
 - dedicated E2E user, project, and conversation IDs;
-- each attachment ID, purpose, bucket, exact canonical path, expected status,
-  and harmless-content SHA-256;
-- whether each metadata row and Storage object was created, observed, broker
-  deleted, and cleanup deleted;
-- whether any parent resource was created by this run; and
+- each attachment ID, purpose, bucket, exact path, status, and harmless-content
+  SHA-256;
+- whether each metadata row and object was created, preflight-verified, broker
+  deleted, Storage-cleaned, and database-cleaned;
+- the exact expected metadata and Storage counts; and
 - redacted failure stages and retry counts.
 
-The manifest must never contain access tokens, service credentials, signed
-URLs, private content, raw provider/Supabase errors, or unrelated identifiers.
+It must never contain access tokens, service credentials, signed URLs, private
+content, raw provider/Supabase errors, or unrelated identifiers.
 
-## Synthetic fixture set
+## Pre-seeded fixture set
 
 Use harmless UTF-8 text containing only `ARBOR E2E synthetic attachment` plus
-the run ID. Use UUIDs for attachment IDs, `message_id = null`, bucket
-`chat-attachments`, `deleted_at = null`, and `status = 'uploaded'` wherever a
-broker read is expected.
+the run ID. Use UUID attachment IDs, `message_id = null`, bucket
+`chat-attachments`, canonical paths, `deleted_at = null`, and status `uploaded`.
 
-Create only these manifest-tracked fixtures:
+Create exactly five manifest-tracked metadata rows before migration:
 
-1. User A / Project A1 / Conversation A1 read fixture, with metadata and object.
-2. User A / Project A1 / Conversation A1 delete fixture, with metadata and object.
-3. User A / Project A2 / Conversation A2 cross-project fixture, with metadata
-   and object.
-4. User B / Project B1 / Conversation B1 foreign-user fixture, with metadata
-   and object.
-5. User A / Project A1 / Conversation A1 recovery fixture, with uploaded
-   metadata but an intentionally absent object, representing a recoverable
-   partial deletion.
+1. User A / Project A1 / Conversation A1 valid-read fixture, with object.
+2. User A / Project A1 / Conversation A1 valid-delete fixture, with object.
+3. User A / Project A2 / Conversation A2 same-user/cross-project fixture, with
+   object.
+4. User B / Project B1 / Conversation B1 foreign-user fixture, with object.
+5. User A / Project A1 / Conversation A1 partial-delete recovery fixture, with
+   intentionally absent object.
 
-The fixture runner first verifies ownership of every dedicated parent, then
-uploads each required object and inserts only the matching metadata row. It
-must fail before mutation if any user/project/conversation/path component
-disagrees. It must not create deliberately spoofed metadata; spoofing is tested
-through denied authenticated requests.
+Expected pre-migration seeded state is exactly five metadata rows and four
+objects. Deliberately spoofed metadata is not seeded; spoofing is tested through
+denied authenticated requests after migration.
 
-## Immediate post-migration verification
+## Pre-seed → migrate → verify
 
-Run in this order and record each result in the manifest/evidence report:
+Run in this strict order:
 
-1. Re-capture grants, policies, RLS/FORCE RLS, owner, column ACLs, and bucket
-   configuration. Confirm the approved after-state before creating fixtures.
-2. As `anon`, prove metadata SELECT and all metadata writes fail.
-3. As User A, prove scoped metadata SELECT returns only the A1 row; wrong
-   project, wrong conversation, Project A2 substitution, and User B resources
-   return no row.
-4. As User A, prove metadata INSERT, UPDATE, and DELETE fail, including attempts
-   to name Project A2 and User B's project/conversation.
-5. Through the authenticated Storage client, prove INSERT, SELECT/download,
-   UPDATE/upsert, and DELETE fail. Repeat read/delete against the A2 object as
-   User A scoped to A1 and against the User B object.
-6. Call the approved access broker for the A1 read fixture. Confirm success,
-   short expiry, exact harmless content, `Cache-Control: no-store`, and absence
-   of bucket/path information from the response. Never persist the signed URL.
-7. Call the delete broker for the A1 delete fixture. Confirm verified object
-   absence and the exact bounded metadata soft-delete.
-8. Call delete for the recovery fixture whose object is already absent. Confirm
-   it reaches the durable soft-deleted state. Repeat the request and confirm the
-   approved non-enumerating terminal response.
-9. Re-run the permanent mocked partial-failure regressions for Storage failure,
-   Storage-success/metadata-failure, retry convergence, and repeated delete.
-10. Run the service-role boundary and sensitive-logging scans. Inspect the E2E
-    runtime logs for credentials, tokens, signed URLs, paths, content, and raw
-    errors; all must be absent.
+1. Perform the final exact live catalog capture. Confirm it matches the accepted
+   owner, RLS/FORCE RLS, grants including MAINTAIN, policies, column ACLs, bucket
+   configuration, and zero-row/zero-object baseline.
+2. Create the manifest and validate all dedicated parent ownership and project/
+   conversation relationships before mutation.
+3. Upload the four harmless objects through the bounded pre-seed runner, then
+   insert the five exact matching metadata rows under the still-current
+   pre-migration authority.
+4. Re-read every metadata row by its exact attachment/user/project/conversation/
+   bucket/path tuple. Verify every object by its exact manifest path and content
+   hash; verify the recovery object's exact path is absent. Confirm the entire
+   table/bucket state is exactly five rows/four objects and contains nothing
+   outside the manifest.
+5. Freeze the manifest. Disable/terminate its create phase. Any mismatch stops
+   before migration and triggers manifest-bound cleanup under the old state.
+6. After the separate execution and migration-history gates are approved, apply
+   the byte-approved forward SQL as one transaction.
+7. Before behavioral tests, re-capture the database boundary and prove: owner
+   `postgres`; RLS enabled; FORCE RLS false; no PUBLIC/column ACL; only the
+   scoped authenticated metadata SELECT policy; no attachment Storage policy;
+   `anon` none; `authenticated` SELECT; `service_role` SELECT and UPDATE; bucket
+   unchanged; and the exact five-row/four-object fixture state preserved.
+8. As `anon`, prove metadata SELECT and all metadata writes fail.
+9. As User A, prove scoped metadata SELECT returns only the correct A1 fixtures;
+   wrong project, wrong conversation, A2 substitution, and User B resources are
+   denied.
+10. As User A, prove metadata INSERT, UPDATE, and DELETE fail, including foreign
+    project/conversation spoofing attempts.
+11. Through the authenticated Storage client, prove INSERT, SELECT/download,
+    UPDATE/upsert, and DELETE all fail. Repeat read/delete attempts against the
+    A2 and User B objects.
+12. Call the signed-read broker for the valid-read fixture. Confirm the exact
+    harmless content, short expiry, `Cache-Control: no-store`, and no bucket/path
+    disclosure. Never log or persist the signed URL.
+13. Call the delete broker for the valid-delete fixture. Confirm verified object
+    absence and the exact bounded metadata soft-delete.
+14. Call delete for the recovery fixture whose object was pre-seeded absent.
+    Confirm convergence to a durable soft-delete; retry and confirm the approved
+    non-enumerating terminal response.
+15. Re-run permanent partial-failure tests for Storage failure, Storage-success/
+    metadata-failure, retry convergence, and repeated delete.
+16. Run the service-role boundary and sensitive-logging scans and inspect E2E
+    logs. Credentials, tokens, signed URLs, paths, content, and raw errors must
+    be absent.
 
-Any unexpected allow, false success, manifest mismatch, or cleanup failure is
-a failed migration verification. Stop rather than modifying policy or runtime
-code in place.
+Any unexpected allow, false success, boundary drift, or manifest mismatch fails
+verification. Do not change grants or runtime code in place.
 
-## Cleanup and recovery
+## Post-test Storage cleanup
 
-Cleanup runs from a `finally` path and operates only from the manifest:
+From a `finally` path, validate the manifest and Firefly target again. Use the
+server-only Storage API to remove only still-present objects at their exact four
+manifest paths, then verify all five manifest paths (including the intentionally
+absent one) are absent. Never delete by bucket prefix.
 
-1. Validate the run-ID format, Firefly project reference, dedicated E2E parent
-   IDs, bucket, and every canonical path again.
-2. Remove each still-present object by its exact manifest path using the
-   one-shot admin runner; verify each object is absent.
-3. Hard-delete each synthetic metadata row using the conjunction of attachment,
-   user, project, conversation, bucket, and path from the manifest; this also
-   removes rows previously soft-deleted by the broker.
-4. Remove only parent resources explicitly marked `createdByRun`, in child-first
-   order. Never delete persistent dedicated E2E users/projects.
-5. Prove no manifest attachment ID remains in `public.chat_attachments`, no
-   manifest object remains in Storage, and the live baseline returns to zero
-   attachment rows and zero bucket objects.
-6. Mark the manifest cleaned only after all absence checks pass. Retain the
-   redacted manifest and verification report as evidence.
+## Exact administrative metadata cleanup
 
-If cleanup does not converge, do not broaden the runner or delete by prefix.
-Quarantine the exact manifest, report the bounded residue, and stop for human
-recovery. If migration verification fails after cleanup, allow any 60-second
-signed URL to expire and use the separately approved exact rollback package.
+Because the hardened `service_role` lacks DELETE, metadata cleanup is a
+separate, explicitly approved database-owner operation executed through the SQL
+Editor or an equivalently bounded owner connection. It is not application code,
+a service-role request, a permanent function/RPC, a temporary grant, or an API.
+
+Generate the five `VALUES` rows below directly from the frozen manifest. Review
+the rendered SQL against that manifest before execution. The anonymous `DO`
+block is transaction-local and creates no database function. All tuple fields
+must match; a count mismatch raises and rolls the transaction back.
+
+```sql
+begin;
+
+create temporary table arbor_e2e_attachment_cleanup_targets (
+  run_id text not null check (run_id ~ '^ARBOR_E2E_[A-Z0-9_]+$'),
+  attachment_id uuid primary key,
+  user_id uuid not null,
+  project_id uuid not null,
+  conversation_id uuid not null,
+  storage_bucket text not null check (storage_bucket = 'chat-attachments'),
+  storage_path text not null unique
+) on commit drop;
+
+insert into arbor_e2e_attachment_cleanup_targets (
+  run_id, attachment_id, user_id, project_id, conversation_id,
+  storage_bucket, storage_path
+)
+values
+  ('<ARBOR_E2E_RUN_ID>', '<READ_ATTACHMENT_UUID>', '<USER_A_UUID>',
+   '<PROJECT_A1_UUID>', '<CONVERSATION_A1_UUID>', 'chat-attachments',
+   '<EXACT_READ_CANONICAL_PATH>'),
+  ('<ARBOR_E2E_RUN_ID>', '<DELETE_ATTACHMENT_UUID>', '<USER_A_UUID>',
+   '<PROJECT_A1_UUID>', '<CONVERSATION_A1_UUID>', 'chat-attachments',
+   '<EXACT_DELETE_CANONICAL_PATH>'),
+  ('<ARBOR_E2E_RUN_ID>', '<CROSS_PROJECT_ATTACHMENT_UUID>', '<USER_A_UUID>',
+   '<PROJECT_A2_UUID>', '<CONVERSATION_A2_UUID>', 'chat-attachments',
+   '<EXACT_CROSS_PROJECT_CANONICAL_PATH>'),
+  ('<ARBOR_E2E_RUN_ID>', '<FOREIGN_ATTACHMENT_UUID>', '<USER_B_UUID>',
+   '<PROJECT_B1_UUID>', '<CONVERSATION_B1_UUID>', 'chat-attachments',
+   '<EXACT_FOREIGN_CANONICAL_PATH>'),
+  ('<ARBOR_E2E_RUN_ID>', '<RECOVERY_ATTACHMENT_UUID>', '<USER_A_UUID>',
+   '<PROJECT_A1_UUID>', '<CONVERSATION_A1_UUID>', 'chat-attachments',
+   '<EXACT_RECOVERY_CANONICAL_PATH>');
+
+create temporary table arbor_e2e_attachment_deleted_ids (
+  attachment_id uuid primary key
+) on commit drop;
+
+do $arbor_e2e_cleanup$
+declare
+  expected_count integer;
+  matched_count integer;
+  deleted_count integer;
+begin
+  select count(*) into expected_count
+  from pg_temp.arbor_e2e_attachment_cleanup_targets;
+
+  if expected_count <> 5
+     or (select count(distinct run_id)
+         from pg_temp.arbor_e2e_attachment_cleanup_targets) <> 1 then
+    raise exception 'ARBOR E2E cleanup manifest cardinality mismatch';
+  end if;
+
+  if exists (
+    select 1
+    from pg_temp.arbor_e2e_attachment_cleanup_targets t
+    where t.storage_path not like (
+      t.user_id::text || '/' || t.project_id::text || '/' ||
+      t.conversation_id::text || '/' || t.attachment_id::text || '/%'
+    )
+    or position(t.run_id in t.storage_path) = 0
+  ) then
+    raise exception 'ARBOR E2E cleanup target path mismatch';
+  end if;
+
+  select count(*) into matched_count
+  from public.chat_attachments a
+  join pg_temp.arbor_e2e_attachment_cleanup_targets t
+    on a.id = t.attachment_id
+   and a.user_id = t.user_id
+   and a.project_id = t.project_id
+   and a.conversation_id = t.conversation_id
+   and a.storage_bucket = t.storage_bucket
+   and a.storage_path = t.storage_path;
+
+  if matched_count <> expected_count then
+    raise exception 'ARBOR E2E cleanup pre-delete row mismatch';
+  end if;
+
+  with deleted as (
+    delete from public.chat_attachments a
+    using pg_temp.arbor_e2e_attachment_cleanup_targets t
+    where a.id = t.attachment_id
+      and a.user_id = t.user_id
+      and a.project_id = t.project_id
+      and a.conversation_id = t.conversation_id
+      and a.storage_bucket = t.storage_bucket
+      and a.storage_path = t.storage_path
+    returning a.id
+  )
+  insert into pg_temp.arbor_e2e_attachment_deleted_ids (attachment_id)
+  select id from deleted;
+
+  get diagnostics deleted_count = row_count;
+  if deleted_count <> expected_count then
+    raise exception 'ARBOR E2E cleanup affected-row mismatch';
+  end if;
+
+  if exists (
+    select 1
+    from public.chat_attachments a
+    join pg_temp.arbor_e2e_attachment_cleanup_targets t on a.id = t.attachment_id
+  ) then
+    raise exception 'ARBOR E2E cleanup residue remains';
+  end if;
+end
+$arbor_e2e_cleanup$;
+
+select attachment_id
+from pg_temp.arbor_e2e_attachment_deleted_ids
+order by attachment_id;
+
+commit;
+```
+
+The returned IDs must equal the five manifest IDs. Then independently verify
+the whole attachment table and bucket returned to their captured zero baselines.
+Do not delete E2E parent resources unless the frozen manifest says this run
+created them; any such cleanup requires separate exact-ID operations.
+
+If cleanup does not converge, do not broaden predicates, grant DELETE, add an
+RPC, or delete by prefix. Preserve the frozen manifest, report exact bounded
+residue, and stop for human recovery.
+
+## Conditional rollback policy
+
+An E2E failure does not automatically authorize rollback. Keep the tightened
+migration in place by default when the transaction committed correctly, the
+catalog matches the approved after-state, the failure is confined to broker or
+application behavior, and no unrelated active path is affected. In that case:
+
+- mark attachment operations unavailable/fail-closed;
+- clean the exact synthetic fixtures;
+- preserve the redacted manifest and bounded evidence; and
+- correct the application defect under a separate approval gate.
+
+Consider the exact rollback only if the migration produced incorrect grant or
+policy state, caused effects outside the attachment boundary, affected database
+integrity, or explicit human review concludes rollback is safer than retaining
+the hardened state. Rollback always requires an explicit human decision unless
+an emergency database-integrity event makes immediate recovery necessary.

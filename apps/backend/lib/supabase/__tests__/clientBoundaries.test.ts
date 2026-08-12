@@ -302,6 +302,45 @@ describe("Supabase client boundaries", () => {
     expect(rollback).not.toMatch(/(?:update|alter table)\s+storage\.buckets/gi);
   });
 
+  it("pre-seeds E2E fixtures before hardening and reserves cleanup for exact owner SQL", () => {
+    const plan = fs.readFileSync(
+      path.resolve(
+        process.cwd(),
+        "../../docs/migrations/milestone-1b-attachment-e2e-fixture-plan.md",
+      ),
+      "utf8",
+    );
+    const normalized = plan.toLowerCase().replace(/\s+/g, " ");
+
+    expect(plan.indexOf("## Pre-seed → migrate → verify")).toBeLessThan(
+      plan.indexOf("## Exact administrative metadata cleanup"),
+    );
+    expect(normalized).toContain(
+      "create exactly five manifest-tracked metadata rows before migration",
+    );
+    expect(normalized).toContain(
+      "expected pre-migration seeded state is exactly five metadata rows and four objects",
+    );
+    expect(normalized).toContain(
+      "after migration, `service_role` has only `select, update`",
+    );
+    expect(normalized).toContain(
+      "neither fixture creation nor final metadata hard deletion may rely on it",
+    );
+    expect(normalized).toContain(
+      "delete from public.chat_attachments a using pg_temp.arbor_e2e_attachment_cleanup_targets t",
+    );
+    expect(normalized).toContain("get diagnostics deleted_count = row_count");
+    expect(normalized).toContain(
+      "an e2e failure does not automatically authorize rollback",
+    );
+    expect(normalized).toContain(
+      "the current branch and `origin/main` have no active canonical supabase migration-history mechanism",
+    );
+    expect(plan).not.toMatch(/create\s+(?:or\s+replace\s+)?function/gi);
+    expect(plan).not.toMatch(/grant\s+delete\s+on\s+public\.chat_attachments/gi);
+  });
+
   it("keeps the legacy correction route as a canonical-handler adapter", () => {
     const canonical = fs.readFileSync(
       path.resolve(process.cwd(), "app/api/memory/correct/route.ts"),

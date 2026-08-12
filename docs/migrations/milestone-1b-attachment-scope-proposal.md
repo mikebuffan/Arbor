@@ -180,37 +180,53 @@ behavioral, memory, telemetry, heartbeat, or Cron behavior changes.
 Immediately before any later execution, confirm the approved fresh capture has
 not drifted. The detailed synthetic fixture, verification, and cleanup runbook
 is `docs/migrations/milestone-1b-attachment-e2e-fixture-plan.md`. Its bounded
-server/admin fixture runner is a test-only tool and is not an application API.
+server/admin pre-seed runner is a test-only tool and is not an application API.
+All attachment fixtures are created and manifest-verified before migration;
+post-migration service-role authority is never used for metadata INSERT or
+hard DELETE.
 
-On an isolated Supabase branch or after separate production approval:
+The current branch and `origin/main` have no canonical migration-history
+mechanism. The only tracked `supabase/migrations` artifact is on an unmerged
+historical branch and implements the rejected direct-upload model. Execution is
+therefore blocked until Mike/Nox identify or approve a durable canonical
+migration-recording mechanism. This proposal does not invent one.
 
-1. Apply the reviewed forward transaction.
-2. Confirm the only authenticated attachment metadata policy is scoped SELECT.
-3. Confirm `anon` has no effective metadata privilege, `authenticated` has only
+After that traceability gate and separate execution approval:
+
+1. Confirm the zero baseline and final exact live capture.
+2. Pre-seed and manifest-verify all five metadata/four Storage fixtures.
+3. Apply the byte-approved forward transaction.
+4. Confirm the only authenticated attachment metadata policy is scoped SELECT.
+5. Confirm `anon` has no effective metadata privilege, `authenticated` has only
    `SELECT`, and `service_role` has only `SELECT, UPDATE` on this table.
-4. Confirm no authenticated `chat-attachments` Storage policy remains.
-5. With two synthetic users and two projects for User A, prove scoped metadata
+6. Confirm no authenticated `chat-attachments` Storage policy remains.
+7. With two synthetic users and two projects for User A, prove scoped metadata
    SELECT and broker read/delete succeed only for the correct scope.
-6. Prove wrong-project, wrong-conversation, foreign-user, and noncanonical-path
+8. Prove wrong-project, wrong-conversation, foreign-user, and noncanonical-path
    broker requests fail non-enumeratingly before privileged access.
-7. Prove anonymous metadata SELECT/INSERT/UPDATE/DELETE and authenticated
+9. Prove anonymous metadata SELECT/INSERT/UPDATE/DELETE and authenticated
    metadata INSERT/UPDATE/DELETE fail.
-8. Prove direct authenticated Storage INSERT, SELECT, UPDATE, and DELETE fail,
+10. Prove direct authenticated Storage INSERT, SELECT, UPDATE, and DELETE fail,
    including same-user cross-project attempts.
-9. Prove Storage-removal and metadata-soft-delete partial failures converge on
+11. Prove Storage-removal and metadata-soft-delete partial failures converge on
    retry without false success or raw diagnostics.
-10. Confirm signed URLs, paths, credentials, private content, and raw provider
+12. Confirm signed URLs, paths, credentials, private content, and raw provider
    errors are absent from logs and telemetry.
-11. Check Supabase security/performance advisors and Storage logs.
+13. Clean exact Storage paths, then hard-delete the five exact metadata tuples
+    in the separately approved database-owner transaction from the runbook.
+14. Prove the table and bucket return to their zero baselines.
+15. Check Supabase security/performance advisors and Storage logs.
 
 ## Recovery
 
-If verification fails, stop attachment traffic and allow issued 60-second
-signed URLs to expire. Restore the exact grants, policy names and definitions,
-policy modes, RLS/FORCE RLS state, bucket configuration, and Storage policies
-from the independently reviewed 2026-08-12 capture. The rollback explicitly
-restores MAINTAIN and the other seven direct privileges to each captured role,
-keeps `PUBLIC` empty, recreates every captured policy as permissive, and restores
-owner/RLS/FORCE RLS state. Remove synthetic Storage objects through the bounded
-fixture runner, verify absence, then remove synthetic metadata. Re-run the
-complete matrix and compare the restored catalog to the captured state.
+Do not automatically restore the weak pre-migration policies when an E2E
+assertion fails. If the migration committed correctly, its catalog matches the
+approved hardened state, and the failure is isolated to broker/application
+behavior with no unrelated impact, retain the hardened state, mark attachments
+unavailable/fail-closed, clean exact fixtures, preserve evidence, and fix the
+application separately.
+
+Use the exact rollback only for incorrect policy/grant state, unintended
+database effects outside the attachment boundary, database-integrity impact,
+or an explicit human judgment that rollback is safer. Except for an emergency
+database-integrity event, rollback remains a separate explicit human decision.
