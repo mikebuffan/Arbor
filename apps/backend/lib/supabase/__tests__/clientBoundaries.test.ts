@@ -242,7 +242,7 @@ describe("Supabase client boundaries", () => {
     expect(storageGrantChanges).toEqual([]);
   });
 
-  it("keeps rollback fail-closed until the immediate pre-apply grants are captured", () => {
+  it("restores the exact fresh Firefly ACL and policy capture", () => {
     const rollback = fs.readFileSync(
       path.resolve(
         process.cwd(),
@@ -250,11 +250,56 @@ describe("Supabase client boundaries", () => {
       ),
       "utf8",
     );
+    const normalized = rollback.toLowerCase().replace(/\s+/g, " ");
+    const createdPolicies = Array.from(
+      rollback.matchAll(/create policy\s+"([^"]+)"/gi),
+      (match) => match[1],
+    );
+    const storageGrantChanges = rollback
+      .split(/\r?\n/)
+      .map((line) => line.trim().toLowerCase())
+      .filter((line) => /^(?:grant|revoke)\b/.test(line))
+      .filter((line) => /\bstorage\.(?:objects|buckets)\b/.test(line));
+    const capturedPrivileges =
+      "delete, insert, maintain, references, select, trigger, truncate, update";
 
-    expect(rollback).toContain("rollback_requires_fresh_firefly_capture");
-    expect(rollback).toContain("raise exception");
-    expect(rollback).not.toMatch(/^\s*(?:grant|revoke)\b/gim);
-    expect(rollback).not.toMatch(/^\s*create\s+policy\b/gim);
+    expect(normalized).toContain(
+      "alter table public.chat_attachments owner to postgres;",
+    );
+    expect(normalized).toContain(
+      "alter table public.chat_attachments enable row level security;",
+    );
+    expect(normalized).toContain(
+      "alter table public.chat_attachments no force row level security;",
+    );
+    expect(normalized).toContain(
+      "revoke all privileges on table public.chat_attachments from public;",
+    );
+    for (const role of ["anon", "authenticated", "service_role"]) {
+      expect(normalized).toContain(
+        `grant ${capturedPrivileges} on table public.chat_attachments to ${role};`,
+      );
+    }
+    expect(createdPolicies).toEqual([
+      "chat attachments delete own metadata",
+      "chat attachments insert own metadata",
+      "chat attachments select own metadata",
+      "chat attachments update own metadata",
+      "chat attachments delete approved own objects",
+      "chat attachments delete own files",
+      "chat attachments insert approved own objects",
+      "chat attachments insert own files",
+      "chat attachments select approved own objects",
+      "chat attachments select own files",
+      "chat attachments update approved own objects",
+      "chat attachments update own files",
+    ]);
+    expect(rollback.match(/\bas permissive\b/gi)).toHaveLength(12);
+    expect(normalized).toContain("and a.status = 'pending'");
+    expect(normalized).toContain("and a.status in ('pending', 'uploaded')");
+    expect(storageGrantChanges).toEqual([]);
+    expect(rollback).not.toMatch(/^\s*grant\s+[^;]*\([^;]*\)\s+on\s+table/gim);
+    expect(rollback).not.toMatch(/(?:update|alter table)\s+storage\.buckets/gi);
   });
 
   it("keeps the legacy correction route as a canonical-handler adapter", () => {

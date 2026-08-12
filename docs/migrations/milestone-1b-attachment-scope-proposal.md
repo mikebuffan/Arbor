@@ -1,9 +1,9 @@
 # Milestone 1B attachment-scope proposal
 
 Status: **application broker implemented locally; policy proposal not applied**.
-Applying either SQL file is a separate human approval gate. The 2026-08-08
-catalog snapshot is historical evidence only; it must not be assumed to control
-at execution time.
+Applying either SQL file is a separate human approval gate. A fresh Firefly
+catalog capture was independently reviewed on 2026-08-12 and converted into
+the exact checked-in pre-apply rollback package.
 
 ## Catalog finding
 
@@ -19,6 +19,19 @@ The historical approved-object INSERT policy also requires status `pending`,
 while the live status constraint observed during preflight permits `uploading`,
 `uploaded`, `failed`, or `deleted`. No active canonical upload-intent/complete
 API or Flutter attachment caller currently exists.
+
+The fresh pre-execution capture confirms owner `postgres`, RLS enabled, FORCE
+RLS false, no `PUBLIC` table ACL, no explicit column ACL, no effective
+parent-role bypass, no database function or custom trigger referencing the
+table, and exact agreement with the preflight policy definitions. The table
+and bucket are empty. The private `chat-attachments` bucket remains limited to
+10 MiB with the captured MIME allowlist.
+
+PostgreSQL 17 adds the table privilege `MAINTAIN`. The live ACL grants DELETE,
+INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, and UPDATE directly to
+each of `anon`, `authenticated`, and `service_role`. The forward `REVOKE ALL
+PRIVILEGES` already removes all eight privileges, including MAINTAIN, before
+the narrower grants are applied. No forward-SQL change is required.
 
 ## Affected objects and resulting direct posture
 
@@ -84,10 +97,9 @@ The intended resulting grants are:
 | owner/database-owner roles | unchanged |
 
 The forward transaction resets only the three named application roles before
-regranting this exact matrix. The immediate pre-apply capture must additionally
-prove that `PUBLIC`, role membership, column grants, or another grantee does not
-provide an effective bypass. Any such finding is a stop-and-reconcile condition,
-not permission to weaken the matrix.
+regranting this exact matrix. The fresh capture proves that `PUBLIC`, role
+membership, column grants, and other grantees do not provide an effective
+bypass.
 
 ## Broker contract and consistency model
 
@@ -165,11 +177,10 @@ behavioral, memory, telemetry, heartbeat, or Cron behavior changes.
 
 ## Real Firefly verification plan
 
-Immediately before any later execution, capture the exact live policy names
-and expressions, permissive/restrictive state, RLS and FORCE RLS state, table
-and column grants (including `PUBLIC` and effective role membership), and
-bucket configuration. Reconcile both forward and rollback SQL to that fresh
-capture before applying anything.
+Immediately before any later execution, confirm the approved fresh capture has
+not drifted. The detailed synthetic fixture, verification, and cleanup runbook
+is `docs/migrations/milestone-1b-attachment-e2e-fixture-plan.md`. Its bounded
+server/admin fixture runner is a test-only tool and is not an application API.
 
 On an isolated Supabase branch or after separate production approval:
 
@@ -197,9 +208,9 @@ On an isolated Supabase branch or after separate production approval:
 If verification fails, stop attachment traffic and allow issued 60-second
 signed URLs to expire. Restore the exact grants, policy names and definitions,
 policy modes, RLS/FORCE RLS state, bucket configuration, and Storage policies
-from the immediate pre-apply capture. The checked-in rollback file intentionally
-raises an exception until that capture has been converted into reviewed
-rollback SQL; no historical grant set is authoritative. Remove synthetic
-Storage objects through the Storage API, verify absence, then remove synthetic
-metadata. Re-run the complete matrix and compare the restored catalog to the
-captured state.
+from the independently reviewed 2026-08-12 capture. The rollback explicitly
+restores MAINTAIN and the other seven direct privileges to each captured role,
+keeps `PUBLIC` empty, recreates every captured policy as permissive, and restores
+owner/RLS/FORCE RLS state. Remove synthetic Storage objects through the bounded
+fixture runner, verify absence, then remove synthetic metadata. Re-run the
+complete matrix and compare the restored catalog to the captured state.
