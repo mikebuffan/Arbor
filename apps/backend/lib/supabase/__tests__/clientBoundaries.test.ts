@@ -175,9 +175,36 @@ describe("Supabase client boundaries", () => {
     expect(broker.indexOf("await assertAttachmentOwnedByScope")).toBeLessThan(
       broker.indexOf("supabaseAdmin().storage"),
     );
+    expect(broker).toContain("const privilegedClient = supabaseAdmin()");
+    expect(broker).toContain('.from("chat_attachments")');
+    expect(broker).not.toMatch(
+      /scope\.supabase[\s\S]{0,240}?\.from\("chat_attachments"\)[\s\S]{0,240}?\.update\(/,
+    );
     expect(broker).not.toMatch(/SUPABASE_SERVICE_ROLE/);
     expect(routes.join("\n")).not.toContain("@/lib/supabase/admin");
     expect(routes.join("\n")).not.toMatch(/SUPABASE_SERVICE_ROLE/);
+  });
+
+  it("leaves no direct authenticated attachment write policy in the proposal", () => {
+    const proposal = fs.readFileSync(
+      path.resolve(
+        process.cwd(),
+        "../../docs/migrations/PROPOSED_milestone_1b_attachment_scope.sql",
+      ),
+      "utf8",
+    );
+    const createdPolicies = Array.from(
+      proposal.matchAll(/create policy\s+"([^"]+)"/gi),
+      (match) => match[1],
+    );
+
+    expect(createdPolicies).toEqual(["chat attachments select scoped metadata"]);
+    expect(proposal).not.toMatch(
+      /on\s+public\.chat_attachments[\s\S]{0,120}?for\s+(?:insert|update|delete)\b/gi,
+    );
+    expect(proposal).not.toMatch(
+      /create policy[\s\S]{0,120}?on\s+storage\.objects/gi,
+    );
   });
 
   it("keeps the legacy correction route as a canonical-handler adapter", () => {

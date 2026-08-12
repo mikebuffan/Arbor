@@ -73,7 +73,8 @@ export async function deleteAttachment(
     throw new RouteAccessError(404, "attachment_not_found");
   }
 
-  const storage = supabaseAdmin().storage.from(attachment.storage_bucket);
+  const privilegedClient = supabaseAdmin();
+  const storage = privilegedClient.storage.from(attachment.storage_bucket);
   const preflight = await storage.exists(attachment.storage_path);
   if (preflight.error) {
     throw brokerFailure("delete", "storage_preflight");
@@ -91,7 +92,7 @@ export async function deleteAttachment(
     throw brokerFailure("delete", "storage_verify");
   }
 
-  const { count, error } = await scope.supabase
+  const { count, error } = await privilegedClient
     .from("chat_attachments")
     .update(
       {
@@ -105,6 +106,8 @@ export async function deleteAttachment(
     .eq("user_id", scope.userId)
     .eq("project_id", scope.projectId)
     .eq("conversation_id", scope.conversationId)
+    .eq("storage_bucket", attachment.storage_bucket)
+    .eq("storage_path", attachment.storage_path)
     .eq("status", attachment.status)
     .is("deleted_at", null);
 

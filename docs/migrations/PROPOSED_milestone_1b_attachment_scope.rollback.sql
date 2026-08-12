@@ -1,5 +1,7 @@
--- ROLLBACK FOR THE 2026-08-08 CATALOG SNAPSHOT ONLY.
--- Review policy drift before use. DO NOT APPLY WITHOUT APPROVAL.
+-- REVIEW-ONLY ROLLBACK FOR THE 2026-08-08 CATALOG SNAPSHOT ONLY.
+-- Immediately before any later execution, capture exact live policy names,
+-- expressions, modes, RLS/FORCE RLS state, grants, and bucket configuration.
+-- Reconcile any drift before use. DO NOT APPLY WITHOUT APPROVAL.
 
 begin;
 
