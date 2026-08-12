@@ -49,6 +49,16 @@ using (
   )
 );
 
+-- Least-privilege Data API posture for this table. Owner/database roles are
+-- intentionally untouched. The service role needs SELECT for the scoped
+-- UPDATE predicates and UPDATE for the broker's bounded metadata soft-delete.
+revoke all privileges on table public.chat_attachments from anon;
+revoke all privileges on table public.chat_attachments from authenticated;
+revoke all privileges on table public.chat_attachments from service_role;
+
+grant select on table public.chat_attachments to authenticated;
+grant select, update on table public.chat_attachments to service_role;
+
 drop policy if exists "chat attachments delete approved own objects" on storage.objects;
 drop policy if exists "chat attachments delete own files" on storage.objects;
 drop policy if exists "chat attachments insert approved own objects" on storage.objects;
@@ -64,5 +74,6 @@ drop policy if exists "chat attachments insert scoped upload objects" on storage
 -- policy is created for chat-attachments. The only direct authenticated access
 -- retained is scoped metadata SELECT for broker authorization. Brokered signed
 -- reads and deletes use a server-only privileged client after that validation.
+-- No grant on storage.objects or storage.buckets is changed by this proposal.
 
 commit;

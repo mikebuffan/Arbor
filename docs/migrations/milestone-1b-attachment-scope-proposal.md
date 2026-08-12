@@ -26,11 +26,15 @@ API or Flutter attachment caller currently exists.
 - Create one authenticated scoped SELECT policy on `public.chat_attachments`
   for request-scoped broker authorization.
 - Do not create authenticated metadata INSERT, UPDATE, or DELETE policies.
+- Revoke all table privileges on `public.chat_attachments` from `anon`,
+  `authenticated`, and `service_role`, then grant only `SELECT` to
+  `authenticated` and `SELECT, UPDATE` to `service_role`.
 - Drop the eight current attachment policies on `storage.objects`.
 - Do not create authenticated Storage INSERT, SELECT, UPDATE, or DELETE
   policies for bucket `chat-attachments`.
 - Change no tables, columns, constraints, indexes, functions, triggers, RPCs,
-  grants, buckets, or data.
+  buckets, or data. Change no owner/database-role privilege.
+- Change no grant on `storage.objects` or `storage.buckets`.
 - Change no policy for another Storage bucket or future user-global resource.
 
 The resulting direct authenticated Storage posture for `chat-attachments` is
@@ -54,6 +58,36 @@ canonical project/conversation scope, `uploading` state, expiration, MIME and
 size constraints, Storage insertion authorization, completion verification,
 transition to `uploaded`, retry and abandonment handling, cleanup behavior,
 and Flutter integration. That work is outside Milestone 1B.
+
+## Grant posture and dependency audit
+
+The active repository contains exactly two `chat_attachments` Data API call
+sites. `lib/attachments/scope.ts` performs a request-scoped authenticated
+`SELECT` after independently proving project and conversation ownership.
+`lib/attachments/broker.ts` performs the bounded metadata soft-delete with the
+server-only service-role client after that proof and verified Storage absence.
+The latter needs table `UPDATE` plus `SELECT` for its constrained predicates.
+
+No active Flutter/browser/anonymous caller reads or writes
+`chat_attachments`. No active client needs authenticated metadata INSERT,
+UPDATE, or DELETE. No repository SQL function, RPC, SECURITY DEFINER/INVOKER
+function, or authenticated database function references the table. Historical
+attachment upload/intent/complete code is not active in this repository.
+
+The intended resulting grants are:
+
+| Role | `public.chat_attachments` table privileges |
+| --- | --- |
+| `anon` | none |
+| `authenticated` | `SELECT` only |
+| `service_role` | `SELECT, UPDATE` only |
+| owner/database-owner roles | unchanged |
+
+The forward transaction resets only the three named application roles before
+regranting this exact matrix. The immediate pre-apply capture must additionally
+prove that `PUBLIC`, role membership, column grants, or another grantee does not
+provide an effective bypass. Any such finding is a stop-and-reconcile condition,
+not permission to weaken the matrix.
 
 ## Broker contract and consistency model
 
@@ -111,15 +145,17 @@ labels.
 | Direct authenticated metadata UPDATE | Allowed for an owned active row | Denied |
 | Direct authenticated metadata DELETE | Allowed for an owned row | Denied |
 | Scoped authenticated metadata SELECT used by broker | Allowed by current own-metadata policy | Allowed by the single scoped SELECT policy |
+| Anonymous metadata SELECT or write | Broad grant exists but RLS currently denies | Denied by no table privilege and no policy |
+| Broker metadata soft-delete | Service role has broad table privileges | Allowed with only service-role `SELECT, UPDATE` after scoped proof |
 
 ## Security and Companion Impact
 
 Security impact: closes permissive-policy bypass, foreign metadata spoofing,
 cross-conversation binding, direct same-user cross-project object access, and
-direct authenticated attachment writes. The service-role credential remains
-server-only and is invoked only after request-scoped proof. Removing policies
-does not remove underlying table grants, but RLS denies operations for which no
-applicable policy exists.
+direct authenticated attachment writes. It also removes whole-table and
+write privileges that RLS alone does not constrain. The service-role credential
+remains server-only and is invoked only after request-scoped proof; its metadata
+authority is reduced to `SELECT, UPDATE` on this table.
 
 Companion Impact: downloads and deletes must use the scoped server broker.
 Callers must supply attachment, project, and conversation UUIDs. Attachment
@@ -130,33 +166,40 @@ behavioral, memory, telemetry, heartbeat, or Cron behavior changes.
 ## Real Firefly verification plan
 
 Immediately before any later execution, capture the exact live policy names
-and expressions, permissive/restrictive state, RLS and FORCE RLS state,
-relevant grants, and bucket configuration. Reconcile both forward and rollback
-SQL to that fresh capture before applying anything.
+and expressions, permissive/restrictive state, RLS and FORCE RLS state, table
+and column grants (including `PUBLIC` and effective role membership), and
+bucket configuration. Reconcile both forward and rollback SQL to that fresh
+capture before applying anything.
 
 On an isolated Supabase branch or after separate production approval:
 
 1. Apply the reviewed forward transaction.
 2. Confirm the only authenticated attachment metadata policy is scoped SELECT.
-3. Confirm no authenticated `chat-attachments` Storage policy remains.
-4. With two synthetic users and two projects for User A, prove scoped metadata
+3. Confirm `anon` has no effective metadata privilege, `authenticated` has only
+   `SELECT`, and `service_role` has only `SELECT, UPDATE` on this table.
+4. Confirm no authenticated `chat-attachments` Storage policy remains.
+5. With two synthetic users and two projects for User A, prove scoped metadata
    SELECT and broker read/delete succeed only for the correct scope.
-5. Prove wrong-project, wrong-conversation, foreign-user, and noncanonical-path
+6. Prove wrong-project, wrong-conversation, foreign-user, and noncanonical-path
    broker requests fail non-enumeratingly before privileged access.
-6. Prove direct authenticated metadata INSERT, UPDATE, and DELETE fail.
-7. Prove direct authenticated Storage INSERT, SELECT, UPDATE, and DELETE fail,
+7. Prove anonymous metadata SELECT/INSERT/UPDATE/DELETE and authenticated
+   metadata INSERT/UPDATE/DELETE fail.
+8. Prove direct authenticated Storage INSERT, SELECT, UPDATE, and DELETE fail,
    including same-user cross-project attempts.
-8. Prove Storage-removal and metadata-soft-delete partial failures converge on
+9. Prove Storage-removal and metadata-soft-delete partial failures converge on
    retry without false success or raw diagnostics.
-9. Confirm signed URLs, paths, credentials, private content, and raw provider
+10. Confirm signed URLs, paths, credentials, private content, and raw provider
    errors are absent from logs and telemetry.
-10. Check Supabase security/performance advisors and Storage logs.
+11. Check Supabase security/performance advisors and Storage logs.
 
 ## Recovery
 
-If verification fails, stop attachment traffic, allow issued 60-second signed
-URLs to expire, and restore policies from the fresh pre-apply capture. The
-checked-in rollback file represents the 2026-08-08 snapshot only and must be
-updated for any detected drift before use. Remove synthetic Storage objects
-through the Storage API, verify absence, then remove synthetic metadata. Re-run
-the complete matrix and confirm the restored policy definitions exactly.
+If verification fails, stop attachment traffic and allow issued 60-second
+signed URLs to expire. Restore the exact grants, policy names and definitions,
+policy modes, RLS/FORCE RLS state, bucket configuration, and Storage policies
+from the immediate pre-apply capture. The checked-in rollback file intentionally
+raises an exception until that capture has been converted into reviewed
+rollback SQL; no historical grant set is authoritative. Remove synthetic
+Storage objects through the Storage API, verify absence, then remove synthetic
+metadata. Re-run the complete matrix and compare the restored catalog to the
+captured state.

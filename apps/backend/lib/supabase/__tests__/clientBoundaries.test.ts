@@ -207,6 +207,56 @@ describe("Supabase client boundaries", () => {
     );
   });
 
+  it("pins the direct attachment Data API grants to the least privilege matrix", () => {
+    const proposal = fs.readFileSync(
+      path.resolve(
+        process.cwd(),
+        "../../docs/migrations/PROPOSED_milestone_1b_attachment_scope.sql",
+      ),
+      "utf8",
+    );
+    const normalized = proposal.toLowerCase().replace(/\s+/g, " ");
+    const tableGrants = proposal
+      .split(/\r?\n/)
+      .map((line) => line.trim().toLowerCase())
+      .filter((line) => line.startsWith("grant "));
+    const storageGrantChanges = proposal
+      .split(/\r?\n/)
+      .map((line) => line.trim().toLowerCase())
+      .filter((line) => /^(?:grant|revoke)\b/.test(line))
+      .filter((line) => /\bstorage\.(?:objects|buckets)\b/.test(line));
+
+    expect(normalized).toContain(
+      "revoke all privileges on table public.chat_attachments from anon;",
+    );
+    expect(normalized).toContain(
+      "revoke all privileges on table public.chat_attachments from authenticated;",
+    );
+    expect(normalized).toContain(
+      "revoke all privileges on table public.chat_attachments from service_role;",
+    );
+    expect(tableGrants).toEqual([
+      "grant select on table public.chat_attachments to authenticated;",
+      "grant select, update on table public.chat_attachments to service_role;",
+    ]);
+    expect(storageGrantChanges).toEqual([]);
+  });
+
+  it("keeps rollback fail-closed until the immediate pre-apply grants are captured", () => {
+    const rollback = fs.readFileSync(
+      path.resolve(
+        process.cwd(),
+        "../../docs/migrations/PROPOSED_milestone_1b_attachment_scope.rollback.sql",
+      ),
+      "utf8",
+    );
+
+    expect(rollback).toContain("rollback_requires_fresh_firefly_capture");
+    expect(rollback).toContain("raise exception");
+    expect(rollback).not.toMatch(/^\s*(?:grant|revoke)\b/gim);
+    expect(rollback).not.toMatch(/^\s*create\s+policy\b/gim);
+  });
+
   it("keeps the legacy correction route as a canonical-handler adapter", () => {
     const canonical = fs.readFileSync(
       path.resolve(process.cwd(), "app/api/memory/correct/route.ts"),
