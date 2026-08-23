@@ -1,9 +1,10 @@
 # Milestone 1B attachment-scope proposal
 
-Status: **application broker implemented locally; policy proposal not applied**.
-Applying either SQL file is a separate human approval gate. A fresh Firefly
-catalog capture was independently reviewed on 2026-08-12 and converted into
-the exact checked-in pre-apply rollback package.
+Status: **application broker implemented; canonical migration prepared and
+verified locally; Firefly migration not applied**. Applying the canonical
+forward migration or rollback remains a separate human approval gate. A fresh
+Firefly catalog capture was independently reviewed on 2026-08-12 and converted
+into the exact checked-in pre-apply rollback package.
 
 ## Catalog finding
 
@@ -185,13 +186,23 @@ All attachment fixtures are created and manifest-verified before migration;
 post-migration service-role authority is never used for metadata INSERT or
 hard DELETE.
 
-The current branch and `origin/main` have no canonical migration-history
-mechanism. The only tracked `supabase/migrations` artifact is on an unmerged
-historical branch and implements the rejected direct-upload model. Execution is
-therefore blocked until Mike/Nox identify or approve a durable canonical
-migration-recording mechanism. This proposal does not invent one.
+The approved canonical migration-history mechanism is now the repository-root
+`supabase/migrations/` directory. The ordered local chain is:
 
-After that traceability gate and separate execution approval:
+1. `20260823175536_firefly_public_baseline.sql`;
+2. `20260823175539_firefly_storage_attachment_policies_baseline.sql`;
+3. `20260823175543_milestone_1b_attachment_scope.sql`.
+
+The third file is byte-identical to
+`docs/migrations/PROPOSED_milestone_1b_attachment_scope.sql` with SHA-256
+`9154E5281125CE5F5C13C3C93897BB2ACF2395E480B6FC0D64CC05B4E886E0F5`.
+The baseline capture, exclusions, hashes, local reset evidence, and future
+remote-history bootstrap are recorded in
+`docs/migrations/firefly-migration-canon-bootstrap.md`. Firefly still has no
+`supabase_migrations` history objects; creating or repairing that history and
+applying the third migration remain separately gated remote changes.
+
+After separate migration-history and execution approval:
 
 1. Confirm the zero baseline and final exact live capture.
 2. Pre-seed and manifest-verify all five metadata/four Storage fixtures.

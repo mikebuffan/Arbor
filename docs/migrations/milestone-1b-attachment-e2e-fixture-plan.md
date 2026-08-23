@@ -5,19 +5,18 @@ administrative cleanup, and real Firefly E2E remain separately gated.
 
 ## Migration-history stop gate
 
-The current branch and `origin/main` have no active canonical Supabase
-migration-history mechanism: there is no tracked `supabase/config.toml`, no
-`supabase/migrations/` directory, no migration command/script, and no documented
-applied-history workflow. A historical file exists only on the unmerged
-`origin/arbor-memory-ledger-upgrades` branch at
-`supabase/migrations/20260514_chat_attachments.sql`; it is not part of main and
-contains the superseded direct-upload design. It is evidence of a prior
-convention, not an active canonical mechanism, and must not be revived.
+The repository-root `supabase/migrations/` directory is now the approved
+canonical migration ledger. The locally verified ordered chain is the Firefly
+public baseline, the eight-policy attachment Storage baseline, and
+`supabase/migrations/20260823175543_milestone_1b_attachment_scope.sql`.
+The executable Milestone file is byte-identical to the approved proposal.
 
-Therefore migration execution is blocked until Mike/Nox explicitly establish
-or identify the canonical durable migration-recording mechanism and approve the
-exact forward SQL as an artifact in that mechanism. This runbook does not
-invent a directory, filename, or migration-history entry.
+Firefly still has no `supabase_migrations` history schema/table. The exact future
+history-bootstrap procedure is documented in
+`docs/migrations/firefly-migration-canon-bootstrap.md`. Migration-history repair,
+forward migration execution, fixture creation, and real-service E2E remain
+separately gated. The superseded historical direct-upload migration must not be
+revived.
 
 ## Fixture authority boundary
 
