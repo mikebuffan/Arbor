@@ -1,7 +1,8 @@
 # Firefly Supabase migration-canon bootstrap
 
-Status: **canonical local artifacts verified; Firefly unchanged; remote history
-bootstrap and migration execution not approved**.
+Status: **canonical local artifacts verified; Firefly migration history
+bootstrapped with the two baseline versions; application schema unchanged;
+Milestone 1B migration execution not approved**.
 
 ## Tooling and source
 
@@ -96,25 +97,95 @@ seven analyzer-only warnings for OUT variables in the Supabase-managed dynamic
 SQL function `storage.search_by_timestamp`; managed Storage function code is
 outside Arbor's migration ownership.
 
-## Exact future Firefly history bootstrap
+## Executed Firefly history bootstrap
 
-Do not run these commands without the separate remote-history and migration
-execution approvals.
+On 2026-08-23, the separately approved migration-history-only bootstrap was run
+from the linked clean worktree at
+`9eb8edbccd40612fbac18aecb56b060f02d5b28a` using the pinned CLI. The linked
+project ref was `ncpdlyakrzfvobmwzbon`, and the three canonical migration hashes
+still matched the values above.
 
-Immediately before execution, repeat the exact live catalog/zero-fixture capture
-and verify no drift. Then, from the linked clean worktree:
+The exact authorized repair command and output were:
 
 ```powershell
 corepack pnpm dlx supabase@2.115.0 migration repair --linked --status applied 20260823175536 20260823175539
-corepack pnpm dlx supabase@2.115.0 migration list --linked
+```
+
+```text
+Initialising login role...
+Connecting to remote database...
+Repaired migration history: [20260823175536 20260823175539] => applied
+{"versions":["20260823175536","20260823175539"],"status":"applied","repairAll":false,"message":"Migration history repaired"}
+```
+
+No application migration SQL was executed. The repair created the previously
+absent `supabase_migrations` history objects and recorded exactly these remote
+rows:
+
+| Version | Name |
+| --- | --- |
+| `20260823175536` | `firefly_public_baseline` |
+| `20260823175539` | `firefly_storage_attachment_policies_baseline` |
+
+`migration list --linked` returned exactly:
+
+```json
+{"migrations":[{"local":"20260823175536","remote":"20260823175536","time":"2026-08-23 17:55:36"},{"local":"20260823175539","remote":"20260823175539","time":"2026-08-23 17:55:39"},{"local":"20260823175543","remote":"","time":"2026-08-23 17:55:43"}],"message":"Migrations listed"}
+```
+
+Therefore both baseline versions are present locally and remotely, while
+`20260823175543` remains local-only and pending.
+
+The required non-mutating push preview was then run:
+
+```powershell
 corepack pnpm dlx supabase@2.115.0 db push --linked --dry-run --skip-vault
 ```
 
-The repair operation is required because Firefly has no migration-history
-schema/table. It will create the Supabase migration-history objects as needed
-and mark only the two baseline versions as already applied; it must not execute
-either baseline SQL file against Firefly. The dry run must show only
-`20260823175543_milestone_1b_attachment_scope.sql` as pending.
+```text
+Initialising login role...
+DRY RUN: migrations will *not* be pushed to the database.
+Connecting to remote database...
+Would push these migrations:
+ • 20260823175543_milestone_1b_attachment_scope.sql
+{"upToDate":false,"dryRun":true,"migrations":["20260823175543_milestone_1b_attachment_scope.sql"],"seeds":[],"roles":[],"message":"Finished supabase db push."}
+```
+
+The dry run identified only the approved Milestone 1B attachment-scope artifact
+as pending. It identified no seed or roles operation.
+
+### Pre/post catalog proof
+
+Read-only snapshots were captured immediately before and after the repair at
+`2026-08-24T00:35:34.199146Z` and `2026-08-24T00:40:36.066021Z`. Every
+application-catalog fingerprint and count remained identical:
+
+| Catalog surface | Before | After |
+| --- | --- | --- |
+| Public tables | 33 / `1e29d37a0dbe000f647d3e9ebd45237f` | 33 / `1e29d37a0dbe000f647d3e9ebd45237f` |
+| Public columns | 326 / `cef405582d8676825cdc167c1af0b127` | 326 / `cef405582d8676825cdc167c1af0b127` |
+| Public constraints | 86 / `5d22e90894bfc00073aa0b9cac941a90` | 86 / `5d22e90894bfc00073aa0b9cac941a90` |
+| Public indexes | 108 / `44781593948c993ed199cafd9ffdee49` | 108 / `44781593948c993ed199cafd9ffdee49` |
+| Public policies | 40 / `8b5d0b27a789a4825db5227951876a41` | 40 / `8b5d0b27a789a4825db5227951876a41` |
+| Public role grants | 952 / `ce7ab2cc02e2915e58e8ff430e5e9a96` | 952 / `ce7ab2cc02e2915e58e8ff430e5e9a96` |
+
+The attachment-specific comparison also remained exact:
+
+- `public.chat_attachments`: zero rows, owner `postgres`, RLS enabled, FORCE
+  RLS false, and the same four permissive metadata policies;
+- `storage.objects` for `chat-attachments`: zero objects and the same eight
+  attachment policies;
+- direct privileges for each of `anon`, `authenticated`, and `service_role`:
+  `DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE`;
+- `chat-attachments` bucket: private, 10 MiB, versioning disabled, and the same
+  six-type MIME allowlist.
+
+The only remote database delta was the authorized creation/update of Supabase
+migration-history metadata and its two approved baseline records.
+
+## Exact future Milestone migration command
+
+Do not run this command without separate migration-execution approval.
 
 Only after explicit execution approval:
 
@@ -128,6 +199,7 @@ Vault synchronization. No seed or baseline SQL is pushed.
 
 ## Stop gate
 
-No Firefly SQL, migration repair, history creation, policy/grant/RLS change,
-bucket change, fixture creation, E2E, remote push, PR update, deployment,
-Flutter change, Cron/heartbeat action, or merge is authorized by this document.
+The history-only bootstrap above is complete. No Milestone migration execution,
+policy/grant/RLS change, bucket change, fixture creation, E2E, remote push, PR
+update, deployment, Flutter change, Cron/heartbeat action, or merge is
+authorized by this document.
