@@ -15,6 +15,64 @@ type BrokerFailureStage =
   | "storage_verify"
   | "metadata_soft_delete";
 
+type StorageObjectState = "present" | "absent" | "error";
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+async function inspectPrivilegedStorageObject(
+  bucket: string,
+  storagePath: string,
+): Promise<StorageObjectState> {
+  const baseUrl =
+    process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRoleKey =
+    process.env.SUPABASE_SERVICE_ROLE_KEY ??
+    process.env.SUPABASE_SERVICE_ROLE;
+  if (!baseUrl || !serviceRoleKey) return "error";
+
+  const encodedObject = [bucket, ...storagePath.split("/")]
+    .map((segment) => encodeURIComponent(segment))
+    .join("/");
+
+  try {
+    const response = await fetch(
+      `${baseUrl.replace(/\/$/, "")}/storage/v1/object/info/${encodedObject}`,
+      {
+        method: "GET",
+        headers: {
+          apikey: serviceRoleKey,
+          Authorization: `Bearer ${serviceRoleKey}`,
+          "x-application-role": "admin",
+        },
+        cache: "no-store",
+      },
+    );
+
+    if (response.ok) return "present";
+
+    let diagnostic: unknown;
+    try {
+      diagnostic = await response.json();
+    } catch {
+      return "error";
+    }
+
+    if (
+      (response.status === 400 || response.status === 404) &&
+      isRecord(diagnostic) &&
+      diagnostic.code === "NoSuchKey"
+    ) {
+      return "absent";
+    }
+
+    return "error";
+  } catch {
+    return "error";
+  }
+}
+
 function reportBrokerFailure(
   operation: BrokerOperation,
   stage: BrokerFailureStage,
@@ -75,20 +133,26 @@ export async function deleteAttachment(
 
   const privilegedClient = supabaseAdmin();
   const storage = privilegedClient.storage.from(attachment.storage_bucket);
-  const preflight = await storage.exists(attachment.storage_path);
-  if (preflight.error) {
+  const preflight = await inspectPrivilegedStorageObject(
+    attachment.storage_bucket,
+    attachment.storage_path,
+  );
+  if (preflight === "error") {
     throw brokerFailure("delete", "storage_preflight");
   }
 
-  if (preflight.data) {
+  if (preflight === "present") {
     const removal = await storage.remove([attachment.storage_path]);
     if (removal.error) {
       throw brokerFailure("delete", "storage_remove");
     }
   }
 
-  const verification = await storage.exists(attachment.storage_path);
-  if (verification.error || verification.data) {
+  const verification = await inspectPrivilegedStorageObject(
+    attachment.storage_bucket,
+    attachment.storage_path,
+  );
+  if (verification !== "absent") {
     throw brokerFailure("delete", "storage_verify");
   }
 

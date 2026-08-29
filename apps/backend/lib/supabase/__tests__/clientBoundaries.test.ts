@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { createHash } from "node:crypto";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -176,13 +177,82 @@ describe("Supabase client boundaries", () => {
       broker.indexOf("supabaseAdmin().storage"),
     );
     expect(broker).toContain("const privilegedClient = supabaseAdmin()");
+    expect(broker).toContain('import "server-only"');
+    expect(broker).toContain("SUPABASE_SERVICE_ROLE_KEY");
+    expect(broker.indexOf("await assertAttachmentOwnedByScope")).toBeLessThan(
+      broker.indexOf("await inspectPrivilegedStorageObject"),
+    );
     expect(broker).toContain('.from("chat_attachments")');
     expect(broker).not.toMatch(
       /scope\.supabase[\s\S]{0,240}?\.from\("chat_attachments"\)[\s\S]{0,240}?\.update\(/,
     );
-    expect(broker).not.toMatch(/SUPABASE_SERVICE_ROLE/);
     expect(routes.join("\n")).not.toContain("@/lib/supabase/admin");
     expect(routes.join("\n")).not.toMatch(/SUPABASE_SERVICE_ROLE/);
+  });
+
+  it("preserves applied migrations and limits the forward correction to one policy", () => {
+    const migrationsRoot = path.resolve(process.cwd(), "../../supabase/migrations");
+    const immutableMigrations = new Map([
+      [
+        "20260823175536_firefly_public_baseline.sql",
+        "126323db0d707e40a23d436aa6eece60eb2034125bcabafb66d5a88a5b9f0c69",
+      ],
+      [
+        "20260823175539_firefly_storage_attachment_policies_baseline.sql",
+        "0730bdb431bbdf208526d32df6daeabf21f62e872130c23b27d4dde0706562ba",
+      ],
+      [
+        "20260823175543_milestone_1b_attachment_scope.sql",
+        "9154e5281125ce5f5c13c3c93897bb2acf2395e480b6fc0d64cc05b4e886e0f5",
+      ],
+    ]);
+
+    for (const [filename, expectedHash] of immutableMigrations) {
+      const contents = fs.readFileSync(path.join(migrationsRoot, filename));
+      expect(createHash("sha256").update(contents).digest("hex")).toBe(
+        expectedHash,
+      );
+    }
+
+    const correctionFiles = fs
+      .readdirSync(migrationsRoot)
+      .filter((filename) =>
+        filename.endsWith("_fix_attachment_scoped_metadata_policy.sql"),
+      );
+    expect(correctionFiles).toHaveLength(1);
+
+    const correction = fs.readFileSync(
+      path.join(migrationsRoot, correctionFiles[0]),
+      "utf8",
+    );
+    const normalized = correction.toLowerCase().replace(/\s+/g, " ");
+
+    expect(correction.match(/drop policy/gi)).toHaveLength(1);
+    expect(correction.match(/create policy/gi)).toHaveLength(1);
+    expect(normalized).toContain(
+      'drop policy if exists "chat attachments select scoped metadata" on public.chat_attachments;',
+    );
+    expect(normalized).toContain(
+      'create policy "chat attachments select scoped metadata" on public.chat_attachments for select to authenticated',
+    );
+    expect(normalized).toContain(
+      "c.id = chat_attachments.conversation_id",
+    );
+    expect(normalized).toContain(
+      "c.project_id = chat_attachments.project_id",
+    );
+    expect(normalized).toContain("m.id = chat_attachments.message_id");
+    expect(normalized).toContain(
+      "m.project_id = chat_attachments.project_id",
+    );
+    expect(normalized).toContain(
+      "m.conversation_id = chat_attachments.conversation_id",
+    );
+    expect(normalized).not.toContain("c.project_id = c.project_id");
+    expect(normalized).not.toContain("m.project_id = m.project_id");
+    expect(normalized).not.toContain("m.conversation_id = m.conversation_id");
+    expect(correction).not.toMatch(/\b(?:grant|revoke|alter\s+table)\b/gi);
+    expect(correction).not.toMatch(/\bstorage\.(?:objects|buckets)\b/gi);
   });
 
   it("leaves no direct authenticated attachment write policy in the proposal", () => {
@@ -335,7 +405,7 @@ describe("Supabase client boundaries", () => {
       "an e2e failure does not automatically authorize rollback",
     );
     expect(normalized).toContain(
-      "the current branch and `origin/main` have no active canonical supabase migration-history mechanism",
+      "the repository-root `supabase/migrations/` directory is now the approved canonical migration ledger",
     );
     expect(plan).not.toMatch(/create\s+(?:or\s+replace\s+)?function/gi);
     expect(plan).not.toMatch(/grant\s+delete\s+on\s+public\.chat_attachments/gi);

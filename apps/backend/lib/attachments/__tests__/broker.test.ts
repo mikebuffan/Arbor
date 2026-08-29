@@ -5,7 +5,7 @@ const storageMocks = vi.hoisted(() => ({
   supabaseAdmin: vi.fn(),
   storageFrom: vi.fn(),
   createSignedUrl: vi.fn(),
-  exists: vi.fn(),
+  storageInfoFetch: vi.fn(),
   remove: vi.fn(),
   adminFrom: vi.fn(),
   metadataUpdate: vi.fn(),
@@ -100,6 +100,29 @@ function scope(supabase: SupabaseClient) {
   };
 }
 
+function storagePresent() {
+  return new Response(null, { status: 200 });
+}
+
+function storageDiagnostic(
+  diagnostic: Record<string, unknown>,
+  status = 400,
+) {
+  return new Response(JSON.stringify(diagnostic), {
+    status,
+    headers: { "content-type": "application/json" },
+  });
+}
+
+function storageAbsent() {
+  return storageDiagnostic({
+    code: "NoSuchKey",
+    error: "not_found",
+    statusCode: "404",
+    message: "private object detail",
+  });
+}
+
 describe("attachment broker", () => {
   let warn: ReturnType<typeof vi.spyOn>;
 
@@ -107,10 +130,12 @@ describe("attachment broker", () => {
     vi.clearAllMocks();
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-08-10T12:00:00.000Z"));
+    vi.stubEnv("SUPABASE_URL", "https://supabase.example");
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "server-only-secret");
+    vi.stubGlobal("fetch", storageMocks.storageInfoFetch);
     warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     storageMocks.storageFrom.mockReturnValue({
       createSignedUrl: storageMocks.createSignedUrl,
-      exists: storageMocks.exists,
       remove: storageMocks.remove,
     });
     storageMocks.metadataUpdate.mockReturnValue(privilegedMetadataQuery);
@@ -128,6 +153,8 @@ describe("attachment broker", () => {
   afterEach(() => {
     warn.mockRestore();
     vi.useRealTimers();
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
   });
 
   it("allows same-user access in the correct project and returns only transient access data", async () => {
@@ -237,9 +264,9 @@ describe("attachment broker", () => {
 
   it("uses no direct authenticated metadata mutation after scoped authorization", async () => {
     const { client, attachmentRoot } = userClient();
-    storageMocks.exists
-      .mockResolvedValueOnce({ data: true, error: null })
-      .mockResolvedValueOnce({ data: false, error: null });
+    storageMocks.storageInfoFetch
+      .mockResolvedValueOnce(storagePresent())
+      .mockResolvedValueOnce(storageAbsent());
     storageMocks.remove.mockResolvedValue({ data: [], error: null });
 
     await expect(
@@ -270,13 +297,13 @@ describe("attachment broker", () => {
     ]);
     expect(storageMocks.metadataIs).toHaveBeenCalledWith("deleted_at", null);
     expect(storageMocks.metadataUpdate.mock.invocationCallOrder[0]).toBeGreaterThan(
-      storageMocks.exists.mock.invocationCallOrder[1],
+      storageMocks.storageInfoFetch.mock.invocationCallOrder[1],
     );
   });
 
   it("does not mutate metadata when Storage deletion fails", async () => {
     const { client } = userClient();
-    storageMocks.exists.mockResolvedValueOnce({ data: true, error: null });
+    storageMocks.storageInfoFetch.mockResolvedValueOnce(storagePresent());
     storageMocks.remove.mockResolvedValue({
       data: null,
       error: { message: "raw storage failure" },
@@ -300,9 +327,9 @@ describe("attachment broker", () => {
       count: null,
       error: { message: "raw metadata failure" },
     });
-    storageMocks.exists
-      .mockResolvedValueOnce({ data: true, error: null })
-      .mockResolvedValueOnce({ data: false, error: null });
+    storageMocks.storageInfoFetch
+      .mockResolvedValueOnce(storagePresent())
+      .mockResolvedValueOnce(storageAbsent());
     storageMocks.remove.mockResolvedValue({ data: [], error: null });
 
     await expect(deleteAttachment(scope(client))).rejects.toMatchObject({
@@ -321,9 +348,9 @@ describe("attachment broker", () => {
     async (count) => {
       const { client } = userClient();
       storageMocks.metadataIs.mockResolvedValueOnce({ count, error: null });
-      storageMocks.exists
-        .mockResolvedValueOnce({ data: false, error: null })
-        .mockResolvedValueOnce({ data: false, error: null });
+      storageMocks.storageInfoFetch
+        .mockResolvedValueOnce(storageAbsent())
+        .mockResolvedValueOnce(storageAbsent());
 
       await expect(deleteAttachment(scope(client))).rejects.toMatchObject({
         status: 500,
@@ -346,11 +373,11 @@ describe("attachment broker", () => {
         error: { code: "metadata_failure" },
       })
       .mockResolvedValueOnce({ count: 1, error: null });
-    storageMocks.exists
-      .mockResolvedValueOnce({ data: true, error: null })
-      .mockResolvedValueOnce({ data: false, error: null })
-      .mockResolvedValueOnce({ data: false, error: null })
-      .mockResolvedValueOnce({ data: false, error: null });
+    storageMocks.storageInfoFetch
+      .mockResolvedValueOnce(storagePresent())
+      .mockResolvedValueOnce(storageAbsent())
+      .mockResolvedValueOnce(storageAbsent())
+      .mockResolvedValueOnce(storageAbsent());
     storageMocks.remove.mockResolvedValue({ data: [], error: null });
 
     await expect(deleteAttachment(scope(client))).rejects.toMatchObject({
@@ -362,20 +389,74 @@ describe("attachment broker", () => {
 
   it("soft-deletes metadata when the scoped Storage object is already absent", async () => {
     const { client } = userClient();
-    storageMocks.exists
-      .mockResolvedValueOnce({ data: false, error: null })
-      .mockResolvedValueOnce({ data: false, error: null });
+    storageMocks.storageInfoFetch
+      .mockResolvedValueOnce(storageAbsent())
+      .mockResolvedValueOnce(storageAbsent());
 
     await expect(deleteAttachment(scope(client))).resolves.toBeUndefined();
     expect(storageMocks.remove).not.toHaveBeenCalled();
     expect(storageMocks.metadataUpdate).toHaveBeenCalledOnce();
+    expect(JSON.stringify(warn.mock.calls)).not.toContain(
+      "private object detail",
+    );
+  });
+
+  it.each([
+    [
+      "NoSuchBucket",
+      storageDiagnostic({ code: "NoSuchBucket", message: "private bucket" }),
+    ],
+    [
+      "legacy not_found",
+      storageDiagnostic({ error: "not_found", statusCode: "404" }, 404),
+    ],
+    ["generic 404", storageDiagnostic({ statusCode: "404" }, 404)],
+    ["InvalidJWT", storageDiagnostic({ code: "InvalidJWT" }, 401)],
+    ["unknown code", storageDiagnostic({ code: "InternalError" }, 500)],
+    ["NoSuchKey on an invalid status", storageDiagnostic({ code: "NoSuchKey" }, 500)],
+  ])("rejects %s instead of inferring object absence", async (_label, response) => {
+    const { client } = userClient();
+    storageMocks.storageInfoFetch.mockResolvedValueOnce(response);
+
+    await expect(deleteAttachment(scope(client))).rejects.toMatchObject({
+      status: 500,
+      code: "server_error",
+    });
+    expect(storageMocks.remove).not.toHaveBeenCalled();
+    expect(storageMocks.metadataUpdate).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledWith("attachment_broker_failure", {
+      operation: "delete",
+      stage: "storage_preflight",
+    });
+    expect(JSON.stringify(warn.mock.calls)).not.toContain("private bucket");
+  });
+
+  it("rejects malformed and unreachable Storage diagnostics", async () => {
+    const malformedClient = userClient().client;
+    const unreachableClient = userClient().client;
+    storageMocks.storageInfoFetch
+      .mockResolvedValueOnce(new Response("not-json", { status: 404 }))
+      .mockRejectedValueOnce(new Error("private network detail"));
+
+    await expect(deleteAttachment(scope(malformedClient))).rejects.toMatchObject({
+      status: 500,
+      code: "server_error",
+    });
+    await expect(deleteAttachment(scope(unreachableClient))).rejects.toMatchObject({
+      status: 500,
+      code: "server_error",
+    });
+    expect(storageMocks.metadataUpdate).not.toHaveBeenCalled();
+    expect(JSON.stringify(warn.mock.calls)).not.toContain(
+      "private network detail",
+    );
   });
 
   it("does not soft-delete metadata when absence cannot be verified", async () => {
     const { client } = userClient();
-    storageMocks.exists
-      .mockResolvedValueOnce({ data: true, error: null })
-      .mockResolvedValueOnce({ data: true, error: null });
+    storageMocks.storageInfoFetch
+      .mockResolvedValueOnce(storagePresent())
+      .mockResolvedValueOnce(storagePresent());
     storageMocks.remove.mockResolvedValue({ data: [], error: null });
 
     await expect(deleteAttachment(scope(client))).rejects.toMatchObject({
@@ -393,9 +474,9 @@ describe("attachment broker", () => {
     const { client } = userClient({
       metadataResponses: [attachment, null],
     });
-    storageMocks.exists
-      .mockResolvedValueOnce({ data: true, error: null })
-      .mockResolvedValueOnce({ data: false, error: null });
+    storageMocks.storageInfoFetch
+      .mockResolvedValueOnce(storagePresent())
+      .mockResolvedValueOnce(storageAbsent());
     storageMocks.remove.mockResolvedValue({ data: [], error: null });
 
     await expect(deleteAttachment(scope(client))).resolves.toBeUndefined();
