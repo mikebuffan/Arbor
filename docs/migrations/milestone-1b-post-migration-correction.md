@@ -1,6 +1,7 @@
 # Milestone 1B attachment post-migration correction evidence
 
-Status: local forward correction only; Firefly correction not applied
+Status: corrective migration applied to Firefly and real-service attachment
+authorization accepted
 
 ## Preserved Firefly event
 
@@ -77,3 +78,71 @@ The temporary local-emulator port override required by the Windows reserved
 port range was restored exactly before verification completed. No Firefly SQL,
 migration-history operation, row/object mutation, policy/grant change, fixture
 seed, or E2E execution occurred during this correction phase.
+
+## Executed corrective migration and acceptance evidence
+
+The separately approved corrective migration was applied with the pinned
+Supabase CLI `2.115.0` after the linked dry run identified only
+`20260829070348_fix_attachment_scoped_metadata_policy.sql` as pending. Its
+pre-execution SHA-256 remained
+`BC7CF87A040A3E975847F53BF11EF5DFA79CAFF3F7AE78274A2E05FB62173CB9`.
+The push executed that migration only, with no seed or roles operation. The
+remote migration ledger now contains, in order:
+
+1. `20260823175536`;
+2. `20260823175539`;
+3. `20260823175543`;
+4. `20260829070348`.
+
+The installed catalog contains exactly one permissive authenticated `SELECT`
+policy named `chat attachments select scoped metadata`. Its deparsed expression
+contains each required outer-row correlation:
+
+- `c.project_id = chat_attachments.project_id`;
+- `m.project_id = chat_attachments.project_id`;
+- `m.conversation_id = chat_attachments.conversation_id`.
+
+The corresponding `c.project_id = c.project_id`,
+`m.project_id = m.project_id`, and
+`m.conversation_id = m.conversation_id` tautologies are absent. Table owner
+`postgres`, RLS enabled, FORCE RLS false, no explicit column ACL, private
+10 MiB bucket configuration, and the captured MIME allowlist remain unchanged.
+The final direct privilege matrix is `anon`: none; `authenticated`: `SELECT`;
+and `service_role`: `SELECT, UPDATE`. No applicable authenticated attachment
+Storage policy exists.
+
+Real-service run `ARBOR_E2E_20260829T075720Z_C22C77E0` froze exactly five
+synthetic metadata rows and four harmless Storage objects before the corrective
+migration. The post-migration catalog gate confirmed all fixtures survived
+unchanged. The run then proved anonymous metadata denial, valid scoped metadata
+read, project/conversation/user/message isolation, authenticated metadata-write
+denial, direct authenticated Storage-write/read isolation, scoped broker signed
+read, non-enumerating wrong-scope broker denial, durable broker delete, and
+retry convergence after an already-absent object.
+
+Firefly's actual body-bearing missing-object response was HTTP `400` with
+structured `code = NoSuchKey`, legacy `error = not_found`, and legacy
+`statusCode = 404`. The broker accepted only the structured `NoSuchKey`
+classification. Permanent tests continued to reject `NoSuchBucket`, legacy or
+generic 404 responses without `NoSuchKey`, malformed diagnostics, unknown
+codes, unreachable Storage, and `NoSuchKey` on an invalid status.
+
+The authenticated Storage DELETE denial exposed a client-envelope nuance:
+Supabase returned an empty success envelope when RLS deleted zero rows. A
+privileged exact-object recheck proved the object remained present. The durable
+authorization result was therefore denial; an empty envelope alone is not
+accepted as proof of mutation success. Future mutation-denial E2E assertions
+must verify post-operation durable state.
+
+The backend emitted only bounded route/status/timing output during the run. No
+credential, signed URL, canonical Storage path, private fixture content, or raw
+Storage/Supabase error entered application logs or telemetry. The relevant
+local attachment/security Vitest set passed 56/56 after the harness correction,
+and the permanent pgTAP policy suite passed 20/20.
+
+Cleanup removed only the exact manifested Storage paths and attachment tuples,
+then removed the run's two messages, three conversations, three projects, and
+two Auth users by exact identifiers. Final verification found zero
+`chat_attachments` rows, zero `chat-attachments` objects, and no synthetic run
+residue. No rollback was requested or executed because the installed catalog,
+authorization behavior, and database integrity matched the approved target.
