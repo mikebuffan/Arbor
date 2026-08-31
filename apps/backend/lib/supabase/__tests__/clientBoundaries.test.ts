@@ -407,6 +407,15 @@ describe("Supabase client boundaries", () => {
     expect(normalized).toContain(
       "the repository-root `supabase/migrations/` directory is now the approved canonical migration ledger",
     );
+    expect(normalized).toContain(
+      "an sdk/api error envelope alone is not the authorization oracle",
+    );
+    expect(normalized).toContain(
+      "an empty/success delete envelope plus a still-present object confirms authorization denial",
+    );
+    expect(normalized).toContain(
+      "object absence means deletion occurred and fails the test",
+    );
     expect(plan).not.toMatch(/create\s+(?:or\s+replace\s+)?function/gi);
     expect(plan).not.toMatch(/grant\s+delete\s+on\s+public\.chat_attachments/gi);
   });

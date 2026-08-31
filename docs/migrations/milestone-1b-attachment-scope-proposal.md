@@ -216,9 +216,14 @@ After separate migration-history and execution approval:
 8. Prove wrong-project, wrong-conversation, foreign-user, and noncanonical-path
    broker requests fail non-enumeratingly before privileged access.
 9. Prove anonymous metadata SELECT/INSERT/UPDATE/DELETE and authenticated
-   metadata INSERT/UPDATE/DELETE fail.
-10. Prove direct authenticated Storage INSERT, SELECT, UPDATE, and DELETE fail,
-   including same-user cross-project attempts.
+   metadata INSERT/UPDATE/DELETE are denied by re-reading exact manifest-bound
+   state after every mutation attempt; do not treat the SDK/API envelope alone
+   as proof.
+10. Prove direct authenticated Storage INSERT, SELECT, UPDATE, and DELETE are
+    denied, including same-user cross-project attempts. Verify INSERT creates no
+    object and UPDATE/DELETE leave the exact original object present and
+    unchanged. An empty/success DELETE envelope is denial only when the durable
+    object remains; object absence is a failed authorization assertion.
 11. Prove Storage-removal and metadata-soft-delete partial failures converge on
    retry without false success or raw diagnostics.
 12. Confirm signed URLs, paths, credentials, private content, and raw provider

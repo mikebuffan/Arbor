@@ -59,6 +59,13 @@ fingerprints matched exactly for `projects`, `conversations`, `messages`,
 cover columns/types/defaults, owner, RLS/FORCE RLS, ACLs including PostgreSQL 17
 `MAINTAIN`, constraints, indexes, and policy expressions.
 
+The repository root marks `supabase/migrations/*.sql` as `-text` in
+`.gitattributes`. This prevents Git `core.autocrlf` from rewriting applied
+migration byte streams during checkout. Candidate preparation reverified the
+four canonical files against their accepted SHA-256 values before any linked
+dry run; line-ending normalization is not permitted to change an applied
+migration's recorded bytes.
+
 ## Local reset verification
 
 `supabase db reset --local --version 20260823175539` succeeded and reconstructed

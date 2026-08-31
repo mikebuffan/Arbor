@@ -107,15 +107,24 @@ Run in this strict order:
    scoped authenticated metadata SELECT policy; no attachment Storage policy;
    `anon` none; `authenticated` SELECT; `service_role` SELECT and UPDATE; bucket
    unchanged; and the exact five-row/four-object fixture state preserved.
-8. As `anon`, prove metadata SELECT and all metadata writes fail.
+8. As `anon`, prove metadata SELECT and all metadata writes are denied. For
+   writes, snapshot the exact target tuple first and re-read it afterward; an
+   SDK/API error envelope alone is not the authorization oracle.
 9. As User A, prove scoped metadata SELECT returns only the correct A1 fixtures;
    wrong project, wrong conversation, A2 substitution, and User B resources are
    denied.
-10. As User A, prove metadata INSERT, UPDATE, and DELETE fail, including foreign
-    project/conversation spoofing attempts.
+10. As User A, prove metadata INSERT, UPDATE, and DELETE are denied, including
+    foreign project/conversation spoofing attempts. Verify the attempted INSERT
+    created no row and that the exact UPDATE/DELETE targets remain byte-for-byte
+    unchanged after each call, even if the client returns an empty success
+    envelope.
 11. Through the authenticated Storage client, prove INSERT, SELECT/download,
-    UPDATE/upsert, and DELETE all fail. Repeat read/delete attempts against the
-    A2 and User B objects.
+    UPDATE/upsert, and DELETE are denied. Repeat read/delete attempts against
+    the A2 and User B objects. For INSERT, prove the attempted object is absent;
+    for UPDATE and DELETE, hash or otherwise verify the exact original object is
+    still present and unchanged. In particular, an empty/success DELETE envelope
+    plus a still-present object confirms authorization denial; object absence
+    means deletion occurred and fails the test.
 12. Call the signed-read broker for the valid-read fixture. Confirm the exact
     harmless content, short expiry, `Cache-Control: no-store`, and no bucket/path
     disclosure. Never log or persist the signed URL.
@@ -132,6 +141,16 @@ Run in this strict order:
 
 Any unexpected allow, false success, boundary drift, or manifest mismatch fails
 verification. Do not change grants or runtime code in place.
+
+### Mutation-denial oracle
+
+Denied mutation tests use durable post-operation state as their primary oracle.
+HTTP status, SDK `error`, and returned row/object arrays are recorded as
+diagnostic envelope evidence only. A test passes only when exact manifest-bound
+state proves that no unauthorized row or object was created, changed, or
+removed. This rule applies to metadata and Storage mutation attempts and avoids
+misclassifying PostgREST or Storage zero-row success envelopes as authorization
+escapes.
 
 ## Post-test Storage cleanup
 
