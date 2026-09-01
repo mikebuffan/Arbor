@@ -17,13 +17,13 @@ const Body = z.object({
 });
 
 export async function POST(req: Request) {
-  const { userId: authedUserId } = await requireUser(req);
+  const { supabase, userId: authedUserId } = await requireUser(req);
 
   const body = await req.json();
   const parsed = Body.safeParse(body);
   if (!parsed.success) return NextResponse.json({ ok: false, error: "Bad request" }, { status: 400 });
 
   const { items } = parsed.data;
-  const res = await upsertMemoryItems(authedUserId, items);
+  const res = await upsertMemoryItems(authedUserId, items, null, supabase);
   return NextResponse.json({ ok: true, res });
 }

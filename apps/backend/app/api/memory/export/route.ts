@@ -1,38 +1,64 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseFromAuthHeader } from "@/lib/supabase/bearer";
-import { supabaseAdmin } from "@/lib/supabase/admin";
-import { MemoryService } from "@/lib/memory/memoryService";
+import { assertProjectOwnedByUser } from "@/lib/auth/ownership";
+import { routeErrorResponse } from "@/lib/auth/routeAuthorization";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
-  const supabase = supabaseFromAuthHeader(req);
-  const { data, error } = await supabase.auth.getUser();
-  if (error || !data?.user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  try {
+    const supabase = supabaseFromAuthHeader(req);
+    const { data, error } = await supabase.auth.getUser();
+    if (error || !data?.user) {
+      return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    }
 
-  const url = new URL(req.url);
-  const scope = url.searchParams.get("scope") ?? undefined;
-  const conversationId = url.searchParams.get("conversationId") ?? undefined;
-  const projectId = url.searchParams.get("projectId") ?? null;
+    const url = new URL(req.url);
+    const projectId = url.searchParams.get("projectId") ?? null;
+    if (projectId) {
+      await assertProjectOwnedByUser(supabase, data.user.id, projectId);
+    }
 
-  const admin = supabaseAdmin();
+    const includeDiscarded =
+      url.searchParams.get("includeDiscarded") === "true";
+    let query = supabase
+      .from("memory_items")
+      .select("key, value, tier, status, deleted_at")
+      .eq("user_id", data.user.id);
 
-  const svc = new MemoryService({
-    supabase,
-    admin,
-    userId: data.user.id,
-    projectId,
-  });
+    query = projectId
+      ? query.eq("project_id", projectId)
+      : query.is("project_id", null);
 
-  const includeDiscarded = url.searchParams.get("includeDiscarded") === "true";
-  const items = await svc.listItems({ includeDiscarded });
+    if (!includeDiscarded) {
+      query = query.is("deleted_at", null).eq("status", "active");
+    }
 
-  const md =
-    `# Arbor / Firefly Memory Export\nGenerated: ${new Date().toISOString()}\n\n` +
-    items.map((i: any) => `- (${i.category}/${i.status}) ${i.text}`).join("\n");
+    const { data: items, error: listError } = await query
+      .order("pinned", { ascending: false })
+      .order("importance", { ascending: false })
+      .limit(500);
+    if (listError) throw listError;
 
-  return new NextResponse(md, {
-    headers: { "content-type": "text/markdown; charset=utf-8" },
-  });
+    const md =
+      `# Arbor / Firefly Memory Export\nGenerated: ${new Date().toISOString()}\n\n` +
+      (items ?? [])
+        .map((item) => {
+          const value =
+            typeof item.value === "object" &&
+            item.value !== null &&
+            "text" in item.value
+              ? String(item.value.text)
+              : JSON.stringify(item.value);
+          return `- (${item.tier}/${item.status}) ${item.key}: ${value}`;
+        })
+        .join("\n");
+
+    return new NextResponse(md, {
+      headers: { "content-type": "text/markdown; charset=utf-8" },
+    });
+  } catch (error: unknown) {
+    return routeErrorResponse(error);
+  }
 }

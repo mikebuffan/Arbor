@@ -1,3 +1,5 @@
+import "server-only";
+
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import * as Sentry from "@sentry/nextjs";
 import { SpanStatusCode } from "@opentelemetry/api";

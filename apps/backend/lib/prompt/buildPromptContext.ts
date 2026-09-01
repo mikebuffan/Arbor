@@ -1,4 +1,4 @@
-import { supabaseAdmin } from "@/lib/supabase/admin";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   getMemoryContext,
   type RetrievedMemoryItem,
@@ -23,6 +23,7 @@ export function invalidatePromptCache(params: {
 }
 
 type BuildPromptParams = {
+  supabase: SupabaseClient;
   authedUserId: string;
   projectId?: string | null;
   conversationId?: string | null;
@@ -112,14 +113,14 @@ ${lines.join("\n")}
 }
 
 export async function buildPromptContext({
+  supabase,
   authedUserId,
   projectId = null,
   conversationId = null,
   latestUserText,
   safety = null,
 }: BuildPromptParams): Promise<BuiltPromptContext> {
-  const admin = supabaseAdmin();
-  const { data: project, error: projectError } = await admin
+  const { data: project, error: projectError } = await supabase
     .from("projects")
     .select("persona, framework_version, description")
     .eq("user_id", authedUserId)
@@ -156,7 +157,7 @@ export async function buildPromptContext({
     - Maintain supportive but non-therapeutic tone.
     `.trim();
   const anchors = projectId 
-    ? await getProjectAnchors({ authedUserId, projectId })
+    ? await getProjectAnchors({ supabase, authedUserId, projectId })
     : [];
   const anchorBlock = anchorsToPromptBlock(anchors);
     
@@ -170,6 +171,7 @@ export async function buildPromptContext({
   const negativePrefsFromAnchors = buildNegativePrefsGuardFromAnchors(anchors);
 
   const memContext = await getMemoryContext({
+    supabase,
     authedUserId,
     projectId,
     latestUserText,

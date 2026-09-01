@@ -1,4 +1,4 @@
-import { supabaseAdmin, safeQuery } from "@/lib/supabase/admin";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { LOCK_ON_CORRECTION_COUNT } from "@/lib/memory/rules";
 import type { MemoryItem, MemoryUpsertResult } from "@/lib/memory/types";
 import { embedText, embedTexts, memoryToEmbedString } from "@/lib/memory/embeddings";
@@ -21,32 +21,48 @@ function normalizeEmbedding(emb: any): number[] {
   return [];
 }
 
-async function findExisting(params: { authedUserId: string; key: string }) {
-  const admin = supabaseAdmin();
-  const { authedUserId, key } = params;
+async function findExisting(params: {
+  supabase: SupabaseClient;
+  authedUserId: string;
+  projectId: string | null;
+  key: string;
+}) {
+  const { supabase, authedUserId, projectId, key } = params;
 
-  const { data, error } = await admin
+  let query = supabase
     .from(ITEMS_TABLE)
     .select("*")
     .eq("user_id", authedUserId)
-    .eq("key", key)
-    .maybeSingle();
+    .eq("key", key);
+
+  query = projectId
+    ? query.eq("project_id", projectId)
+    : query.is("project_id", null);
+
+  const { data, error } = await query.maybeSingle();
 
   if (error) throw error;
   return data;
 }
 
 async function logEvent(params: {
+  supabase: SupabaseClient;
   authedUserId: string;
   projectId: string | null;
   key: string;
   event_type: string;
   payload: any;
 }) {
-  const admin = supabaseAdmin();
-  const { authedUserId, projectId, key, event_type, payload } = params;
+  const {
+    supabase,
+    authedUserId,
+    projectId,
+    key,
+    event_type,
+    payload,
+  } = params;
 
-  const { error } = await admin.from(EVENTS_TABLE).insert({
+  const { error } = await supabase.from(EVENTS_TABLE).insert({
     user_id: authedUserId,
     project_id: projectId,
     question: "memory_event",
@@ -56,177 +72,206 @@ async function logEvent(params: {
     payload,
   });
 
-  if (error) console.warn("memory_pending insert failed:", error);
+  if (error) {
+    const candidateCode =
+      typeof error.code === "string" ? error.code.slice(0, 32) : "unknown";
+    const code = /^[a-z0-9_]+$/i.test(candidateCode)
+      ? candidateCode
+      : "unknown";
+    console.warn("[memory] write failed", {
+      subsystem: "memory",
+      operation: "pending_event_insert",
+      code,
+      resourceType: EVENTS_TABLE,
+    });
+  }
 }
 
 export async function upsertMemoryItems(
   authedUserId: string,
   items: MemoryItem[],
-  projectId: string | null = null
+  projectId: string | null,
+  supabase: SupabaseClient,
 ): Promise<MemoryUpsertResult> {
   const start = Date.now();
+  const res: MemoryUpsertResult = {
+    created: [],
+    updated: [],
+    locked: [],
+    ignored: [],
+  };
 
-  const result = await safeQuery<MemoryUpsertResult>(
-    async (_client) => {
-      const admin = supabaseAdmin();
-      const res: MemoryUpsertResult = { created: [], updated: [], locked: [], ignored: [] };
+  const prepared = items
+    .map((item) => {
+      const key = item.key?.trim();
+      if (!key) return null;
+      return { item, key, embedStr: memoryToEmbedString(key, item.value) };
+    })
+    .filter(Boolean) as Array<{
+    item: MemoryItem;
+    key: string;
+    embedStr: string;
+  }>;
 
-      const prepared = items
-        .map((item) => {
-          const key = item.key?.trim();
-          if (!key) return null;
-          return { item, key, embedStr: memoryToEmbedString(key, item.value) };
+  if (!prepared.length) return res;
+
+  let batched: number[][] | null = null;
+  try {
+    batched = await embedTexts(prepared.map((p) => p.embedStr));
+  } catch {
+    console.warn("[memory] embedding failed", {
+      subsystem: "memory",
+      operation: "batch_embedding",
+      code: "provider_error",
+      resourceType: "embedding_batch",
+      fallback: "per_item",
+    });
+    batched = null;
+  }
+
+  for (let i = 0; i < prepared.length; i++) {
+    const { item, key } = prepared[i];
+
+    const nowIso = new Date().toISOString();
+    const value = toJsonValue(item.value);
+    const tier = item.tier ?? "normal";
+    const user_trigger_only = !!item.user_trigger_only;
+    const importance = Number(item.importance ?? 5);
+    const confidence = Number(item.confidence ?? 0.75);
+    const pinned = tier === "core";
+
+    const rawEmbedding =
+      batched?.[i] ?? (await embedText(memoryToEmbedString(key, item.value)));
+    const embedding = normalizeEmbedding(rawEmbedding);
+
+    const existing = await findExisting({
+      supabase,
+      authedUserId,
+      projectId,
+      key,
+    });
+
+    if (!existing) {
+      const { error } = await supabase.from(ITEMS_TABLE).insert({
+        user_id: authedUserId,
+        project_id: projectId,
+        key,
+        value,
+        tier,
+        scope: item.scope ?? "conversation",
+        user_trigger_only,
+        importance,
+        confidence,
+        locked: false,
+        pinned,
+        status: "active",
+        deleted_at: null,
+        mention_count: 0,
+        correction_count: 0,
+        last_seen_at: nowIso,
+        last_reinforced_at: nowIso,
+        updated_at: nowIso,
+        embedding,
+      });
+      if (error) throw error;
+
+      await logEvent({
+        supabase,
+        authedUserId,
+        projectId,
+        key,
+        event_type: "create",
+        payload: { key, tier, user_trigger_only, importance, confidence },
+      });
+
+      res.created.push(key);
+      continue;
+    }
+
+    if (existing.locked) {
+      const { error } = await supabase
+        .from(ITEMS_TABLE)
+        .update({
+          mention_count: Number(existing.mention_count ?? 0) + 1,
+          last_seen_at: nowIso,
+          last_reinforced_at: nowIso,
+          updated_at: nowIso,
         })
-        .filter(Boolean) as Array<{ item: MemoryItem; key: string; embedStr: string }>;
+        .eq("id", existing.id)
+        .eq("user_id", authedUserId);
+      if (error) throw error;
 
-      if (!prepared.length) return res;
+      await logEvent({
+        supabase,
+        authedUserId,
+        projectId,
+        key,
+        event_type: "locked_ignore",
+        payload: { reason: "locked" },
+      });
 
-      let batched: number[][] | null = null;
-      try {
-        batched = await embedTexts(prepared.map((p) => p.embedStr));
-      } catch (e) {
-        console.warn("[upsertMemoryItems] batch embedding failed; falling back to per-item", e);
-        batched = null;
-      }
+      res.ignored.push(key);
+      res.locked.push(key);
+      continue;
+    }
 
-      for (let i = 0; i < prepared.length; i++) {
-        const { item, key } = prepared[i];
+    const { error } = await supabase
+      .from(ITEMS_TABLE)
+      .update({
+        project_id: projectId ?? existing.project_id ?? null,
+        value,
+        tier: tier ?? existing.tier ?? "normal",
+        scope: item.scope ?? existing.scope ?? "conversation",
+        user_trigger_only,
+        importance: Math.max(Number(existing.importance ?? 5), importance),
+        confidence,
+        pinned: pinned || !!existing.pinned,
+        mention_count: Number(existing.mention_count ?? 0) + 1,
+        last_seen_at: nowIso,
+        last_reinforced_at: nowIso,
+        updated_at: nowIso,
+        embedding,
+      })
+      .eq("id", existing.id)
+      .eq("user_id", authedUserId);
 
-        const nowIso = new Date().toISOString();
-        const value = toJsonValue(item.value);
-        const tier = item.tier ?? "normal";
-        const user_trigger_only = !!item.user_trigger_only;
-        const importance = Number(item.importance ?? 5);
-        const confidence = Number(item.confidence ?? 0.75);
-        const pinned = tier === "core";
+    if (error) throw error;
 
-        const rawEmbedding =
-          batched?.[i] ?? (await embedText(memoryToEmbedString(key, item.value)));
-        const embedding = normalizeEmbedding(rawEmbedding);
+    await logEvent({
+      supabase,
+      authedUserId,
+      projectId,
+      key,
+      event_type: "update",
+      payload: { changed: true },
+    });
 
-        const existing = await findExisting({ authedUserId, key });
-
-        if (!existing) {
-          const { error } = await admin.from(ITEMS_TABLE).insert({
-            user_id: authedUserId,
-            project_id: projectId,
-            key,
-            value,
-            tier,
-            scope: item.scope ?? "conversation",
-            user_trigger_only,
-            importance,
-            confidence,
-            locked: false,
-            pinned,
-            status: "active",
-            deleted_at: null,
-            mention_count: 0,
-            correction_count: 0,
-            last_seen_at: nowIso,
-            last_reinforced_at: nowIso,
-            updated_at: nowIso,
-            embedding,
-          });
-          if (error) throw error;
-
-          await logEvent({
-            authedUserId,
-            projectId,
-            key,
-            event_type: "create",
-            payload: { key, tier, user_trigger_only, importance, confidence },
-          });
-
-          res.created.push(key);
-          continue;
-        }
-
-        if (existing.locked) {
-          const { error } = await admin
-            .from(ITEMS_TABLE)
-            .update({
-              mention_count: Number(existing.mention_count ?? 0) + 1,
-              last_seen_at: nowIso,
-              last_reinforced_at: nowIso,
-              updated_at: nowIso,
-            })
-            .eq("id", existing.id);
-          if (error) throw error;
-
-          await logEvent({
-            authedUserId,
-            projectId,
-            key,
-            event_type: "locked_ignore",
-            payload: { reason: "locked", attempted_value: value },
-          });
-
-          res.ignored.push(key);
-          res.locked.push(key);
-          continue;
-        }
-
-        const { error } = await admin
-          .from(ITEMS_TABLE)
-          .update({
-            project_id: projectId ?? existing.project_id ?? null,
-            value,
-            tier: tier ?? existing.tier ?? "normal",
-            scope: item.scope ?? existing.scope ?? "conversation",
-            user_trigger_only,
-            importance: Math.max(Number(existing.importance ?? 5), importance),
-            confidence,
-            pinned: pinned || !!existing.pinned,
-            mention_count: Number(existing.mention_count ?? 0) + 1,
-            last_seen_at: nowIso,
-            last_reinforced_at: nowIso,
-            updated_at: nowIso,
-            embedding,
-          })
-          .eq("id", existing.id);
-
-        if (error) throw error;
-
-        await logEvent({
-          authedUserId,
-          projectId,
-          key,
-          event_type: "update",
-          payload: { before: existing.value, after: value },
-        });
-
-        res.updated.push(key);
-      }
-
-      return res;
-    },
-    "upsertMemoryItems"
-  );
+    res.updated.push(key);
+  }
 
   const duration = Date.now() - start;
   await logMemoryEvent("upsert_summary", {
     items: items.length,
-    created: result.created.length,
-    updated: result.updated.length,
+    created: res.created.length,
+    updated: res.updated.length,
     duration,
   });
 
-  return result;
+  return res;
 }
 
 export async function correctMemoryItem(params: {
+  supabase: SupabaseClient;
   authedUserId: string;
   key: string;
   newValue: Record<string, any> | string;
   projectId?: string | null;
-}) {
-  const admin = supabaseAdmin();
-  const { authedUserId, key, newValue } = params;
+}): Promise<{ id: string | null; locked: boolean }> {
+  const { supabase, authedUserId, key, newValue } = params;
   const projectId = params.projectId ?? null;
 
   const cleanKey = key.trim();
-  if (!cleanKey) return { locked: false };
+  if (!cleanKey) return { id: null, locked: false };
 
   const nowIso = new Date().toISOString();
   const value = toJsonValue(newValue);
@@ -234,16 +279,23 @@ export async function correctMemoryItem(params: {
   const rawEmbedding = await embedText(memoryToEmbedString(cleanKey, newValue));
   const embedding = normalizeEmbedding(rawEmbedding);
 
-  const existing = await findExisting({ authedUserId, key: cleanKey });
+  const existing = await findExisting({
+    supabase,
+    authedUserId,
+    projectId,
+    key: cleanKey,
+  });
 
   if (!existing) {
-    const { error } = await admin.from(ITEMS_TABLE).insert({
+    const { data, error } = await supabase
+      .from(ITEMS_TABLE)
+      .insert({
       user_id: authedUserId,
       project_id: projectId,
       key: cleanKey,
       value,
       tier: "core",
-      scope: "global",
+      scope: projectId ? "project" : "global",
       user_trigger_only: false,
       importance: 10,
       confidence: 1.0,
@@ -257,25 +309,28 @@ export async function correctMemoryItem(params: {
       last_reinforced_at: nowIso,
       updated_at: nowIso,
       embedding,
-    });
+      })
+      .select("id")
+      .single();
 
     if (error) throw error;
 
     await logEvent({
+      supabase,
       authedUserId,
       projectId,
       key: cleanKey,
       event_type: "correct_create",
-      payload: { newValue: value, correction_count: 1 },
+      payload: { correction_count: 1 },
     });
 
-    return { locked: false };
+    return { id: data.id as string, locked: false };
   }
 
   const nextCorrectionCount = Number(existing.correction_count ?? 0) + 1;
   const shouldLock = nextCorrectionCount >= LOCK_ON_CORRECTION_COUNT;
 
-  const { error } = await admin
+  const { data, error } = await supabase
     .from(ITEMS_TABLE)
     .update({
       project_id: projectId ?? existing.project_id ?? null,
@@ -292,19 +347,23 @@ export async function correctMemoryItem(params: {
       last_reinforced_at: nowIso,
       updated_at: nowIso,
     })
-    .eq("id", existing.id);
+    .eq("id", existing.id)
+    .eq("user_id", authedUserId)
+    .select("id")
+    .single();
 
   if (error) throw error;
 
   await logEvent({
+    supabase,
     authedUserId,
     projectId,
     key: cleanKey,
     event_type: shouldLock ? "lock" : "correct",
-    payload: { newValue: value, correction_count: nextCorrectionCount },
+    payload: { correction_count: nextCorrectionCount },
   });
 
-  return { locked: shouldLock };
+  return { id: data.id as string, locked: shouldLock };
 }
 
 export async function updateMemoryStrength(memoryId: string, delta: number) {
@@ -346,9 +405,9 @@ export async function updateMemoryStrength(memoryId: string, delta: number) {
 export async function reinforceMemoryUse(
   authedUserId: string,
   keysUsed: string[],
-  projectId: string | null = null
+  projectId: string | null,
+  supabase: SupabaseClient,
 ) {
-  const admin = supabaseAdmin();
   if (!keysUsed.length) return;
 
   const nowIso = new Date().toISOString();
@@ -357,12 +416,17 @@ export async function reinforceMemoryUse(
     const cleanKey = key.trim();
     if (!cleanKey) continue;
 
-    const existing = await findExisting({ authedUserId, key: cleanKey });
+    const existing = await findExisting({
+      supabase,
+      authedUserId,
+      projectId,
+      key: cleanKey,
+    });
     if (!existing || existing.locked) continue;
 
     const nextCount = Number(existing.mention_count ?? 0) + 1;
 
-    const { error } = await admin
+    const { error } = await supabase
       .from(ITEMS_TABLE)
       .update({
         mention_count: nextCount,
@@ -370,11 +434,13 @@ export async function reinforceMemoryUse(
         last_reinforced_at: nowIso,
         updated_at: nowIso,
       })
-      .eq("id", existing.id);
+      .eq("id", existing.id)
+      .eq("user_id", authedUserId);
 
     if (error) throw error;
 
     await logEvent({
+      supabase,
       authedUserId,
       projectId,
       key: cleanKey,

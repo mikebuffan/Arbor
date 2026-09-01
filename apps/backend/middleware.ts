@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
+const attachmentBrokerPaths = new Set([
+  "/api/chat/attachments/access",
+  "/api/chat/attachments/delete",
+]);
+
 function cors(req: NextRequest) {
   const origin = req.headers.get("origin") ?? "*";
   return {
@@ -27,6 +32,10 @@ export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   if (isStaticOrPublicPath(pathname)) {
+    return NextResponse.next();
+  }
+
+  if (attachmentBrokerPaths.has(pathname)) {
     return NextResponse.next();
   }
 

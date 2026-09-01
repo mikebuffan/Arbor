@@ -29,6 +29,7 @@ export async function POST(req: Request) {
   const { projectId, memKey, memValue, displayText, pinned, locked } = parsed.data;
 
   const result = await setProjectAnchor({
+    supabase,
     authedUserId: userId,
     projectId,
     memKey: memKey.trim(),

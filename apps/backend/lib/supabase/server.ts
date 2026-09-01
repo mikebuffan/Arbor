@@ -1,25 +1,25 @@
-import { cookies } from "next/headers";
-import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import "server-only";
 
-let client: SupabaseClient | null = null;
+import { supabaseAdmin } from "@/lib/supabase/admin";
 
-export async function getServerSupabase(): Promise<SupabaseClient> {
-  if (client) return client;
+function safeDiagnosticLabel(value: string, fallback: string): string {
+  const candidate = value.slice(0, 64);
+  return /^[a-z0-9_.:-]+$/i.test(candidate) ? candidate : fallback;
+}
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+function safeRetryCode(error: unknown): string {
+  if (typeof error !== "object" || error === null) return "unknown";
 
-  const store = await cookies();
-  const token = store.get("sb-access-token")?.value;
+  const candidate = error as { code?: unknown; status?: unknown };
+  if (typeof candidate.code === "string") {
+    return safeDiagnosticLabel(candidate.code, "unknown");
+  }
+  if (typeof candidate.status === "number") return `http_${candidate.status}`;
+  return "unknown";
+}
 
-  client = createClient(url, key, {
-    auth: { persistSession: false },
-    global: {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    },
-  });
-
-  return client;
+export async function getServerSupabase() {
+  return supabaseAdmin();
 }
 
 // Reliable retry wrapper
@@ -33,7 +33,14 @@ export async function supabaseRetry<T>(
     } catch (err: any) {
       if (i === retries - 1) throw err;
       if (err?.status >= 500 || err?.code === "PGRST000") {
-        console.warn(`[SupabaseRetry] ${i + 1}/${retries} retrying after error:`, err.message);
+        console.warn("[supabase] request retry", {
+          subsystem: "supabase",
+          operation: "request_retry",
+          code: safeRetryCode(err),
+          resourceType: "database_request",
+          attempt: i + 1,
+          maxAttempts: retries,
+        });
         await new Promise((r) => setTimeout(r, 200 * i));
       }
     }
@@ -43,7 +50,13 @@ export async function supabaseRetry<T>(
 
 // Optional telemetry for development
 export function logSupabaseEvent(eventType: string, payload: any) {
+  void payload;
   if (process.env.NODE_ENV === "development") {
-    console.debug(`[Supabase:${eventType}]`, payload);
+    console.debug("[supabase] event", {
+      subsystem: "supabase",
+      operation: safeDiagnosticLabel(eventType, "event"),
+      code: "event",
+      resourceType: "database_request",
+    });
   }
 }
