@@ -20,7 +20,10 @@ import {
   OPTIONS as accessOptions,
   POST as accessPost,
 } from "@/app/api/chat/attachments/access/route";
-import { POST as deletePost } from "@/app/api/chat/attachments/delete/route";
+import {
+  OPTIONS as deleteOptions,
+  POST as deletePost,
+} from "@/app/api/chat/attachments/delete/route";
 
 const requestScope = {
   attachmentId: "00000000-0000-4000-8000-000000000001",
@@ -39,6 +42,21 @@ function postRequest(path: string, body: unknown) {
     },
     body: JSON.stringify(body),
   });
+}
+
+function expectAttachmentHeaders(response: Response) {
+  expect(response.headers.get("access-control-allow-origin")).toBe(
+    "https://companion.test",
+  );
+  expect(response.headers.get("vary")).toBe("origin");
+  expect(response.headers.get("access-control-allow-methods")).toBe(
+    "POST, OPTIONS",
+  );
+  expect(response.headers.get("access-control-allow-headers")).toBe(
+    "content-type, authorization, apikey, x-client-info",
+  );
+  expect(response.headers.get("access-control-max-age")).toBe("86400");
+  expect(response.headers.get("cache-control")).toBe("no-store");
 }
 
 describe("attachment API contracts", () => {
@@ -81,42 +99,76 @@ describe("attachment API contracts", () => {
     });
   });
 
-  it("authenticates before returning invalid_request for malformed scope", async () => {
-    const response = await accessPost(
-      postRequest("/api/chat/attachments/access", {
-        ...requestScope,
-        projectId: "not-a-uuid",
-      }),
-    );
+  it.each([
+    ["access", "/api/chat/attachments/access", accessPost],
+    ["delete", "/api/chat/attachments/delete", deletePost],
+  ])(
+    "authenticates before returning invalid_request for malformed %s scope",
+    async (_name, path, handler) => {
+      const response = await handler(
+        postRequest(path, {
+          ...requestScope,
+          projectId: "not-a-uuid",
+        }),
+      );
 
-    expect(response.status).toBe(400);
-    expect(await response.json()).toEqual({
-      ok: false,
-      error: "invalid_request",
-    });
-    expect(mocks.requireUser).toHaveBeenCalledOnce();
-    expect(mocks.createAttachmentAccess).not.toHaveBeenCalled();
-  });
+      expect(response.status).toBe(400);
+      expect(await response.json()).toEqual({
+        ok: false,
+        error: "invalid_request",
+      });
+      expectAttachmentHeaders(response);
+      expect(mocks.requireUser).toHaveBeenCalledOnce();
+      expect(mocks.createAttachmentAccess).not.toHaveBeenCalled();
+      expect(mocks.deleteAttachment).not.toHaveBeenCalled();
+    },
+  );
 
-  it("returns the approved 401 response with no-store and CORS headers", async () => {
-    mocks.requireUser.mockRejectedValue(
-      new RouteAccessError(401, "auth_required"),
-    );
+  it.each([
+    ["access", "/api/chat/attachments/access", accessPost],
+    ["delete", "/api/chat/attachments/delete", deletePost],
+  ])(
+    "returns the approved 401 response with scoped headers for %s",
+    async (_name, path, handler) => {
+      mocks.requireUser.mockRejectedValue(
+        new RouteAccessError(401, "auth_required"),
+      );
 
-    const response = await accessPost(
-      postRequest("/api/chat/attachments/access", requestScope),
-    );
+      const response = await handler(postRequest(path, requestScope));
 
-    expect(response.status).toBe(401);
-    expect(await response.json()).toEqual({
-      ok: false,
-      error: "invalid_token",
-    });
-    expect(response.headers.get("cache-control")).toBe("no-store");
-    expect(response.headers.get("access-control-allow-origin")).toBe(
-      "https://companion.test",
-    );
-  });
+      expect(response.status).toBe(401);
+      expect(await response.json()).toEqual({
+        ok: false,
+        error: "invalid_token",
+      });
+      expectAttachmentHeaders(response);
+      expect(mocks.createAttachmentAccess).not.toHaveBeenCalled();
+      expect(mocks.deleteAttachment).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    ["access", "/api/chat/attachments/access", accessPost],
+    ["delete", "/api/chat/attachments/delete", deletePost],
+  ])(
+    "keeps malformed unauthenticated %s requests on the scoped 401 contract",
+    async (_name, path, handler) => {
+      mocks.requireUser.mockRejectedValue(
+        new RouteAccessError(401, "auth_required"),
+      );
+
+      const response = await handler(postRequest(path, {}));
+
+      expect(response.status).toBe(401);
+      expect(await response.json()).toEqual({
+        ok: false,
+        error: "invalid_token",
+      });
+      expectAttachmentHeaders(response);
+      expect(mocks.createAttachmentAccess).not.toHaveBeenCalled();
+      expect(mocks.deleteAttachment).not.toHaveBeenCalled();
+    },
+  );
 
   it("returns one non-enumerating 404 contract for attachment scope denial", async () => {
     mocks.createAttachmentAccess.mockRejectedValue(
@@ -191,18 +243,21 @@ describe("attachment API contracts", () => {
     expect(mocks.deleteAttachment).not.toHaveBeenCalled();
   });
 
-  it("serves the approved CORS preflight without caching", async () => {
-    const response = await accessOptions(
-      new Request("https://arbor.test/api/chat/attachments/access", {
-        method: "OPTIONS",
-        headers: { origin: "https://companion.test" },
-      }),
-    );
+  it.each([
+    ["access", "/api/chat/attachments/access", accessOptions],
+    ["delete", "/api/chat/attachments/delete", deleteOptions],
+  ])(
+    "serves the approved %s CORS preflight without caching",
+    async (_name, path, handler) => {
+      const response = await handler(
+        new Request(`https://arbor.test${path}`, {
+          method: "OPTIONS",
+          headers: { origin: "https://companion.test" },
+        }),
+      );
 
-    expect(response.status).toBe(204);
-    expect(response.headers.get("access-control-allow-methods")).toBe(
-      "POST, OPTIONS",
-    );
-    expect(response.headers.get("cache-control")).toBe("no-store");
-  });
+      expect(response.status).toBe(204);
+      expectAttachmentHeaders(response);
+    },
+  );
 });
