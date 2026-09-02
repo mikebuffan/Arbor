@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 
 export class RouteAccessError extends Error {
   constructor(
-    readonly status: 401 | 403 | 404 | 500,
+    readonly status: 401 | 403 | 404 | 409 | 500,
     readonly code: string,
   ) {
     super(code);

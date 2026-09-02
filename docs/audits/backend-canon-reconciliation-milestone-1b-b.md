@@ -1,12 +1,14 @@
 # Arbor Backend Canon Reconciliation — Milestone 1B-B
 
-Status: implementation evidence in progress
+Status: locally reconciled and verified; remote publication not authorized
 
-Branch: `codex/milestone-1b-heartbeat-schema-alignment`
+Branch: `codex/milestone-1b-b-reconciliation`
 
-Base: `ea909b7e968798c41a1e7e9c50719230e248c232`
+Original PR #3 head: `51e1bea4e88486f604e0533d63b12b527ec6ecc4`
 
-Prepared: 2026-07-28
+Merged 1B-A base: `250855cfbb91324492888a955af0976d165e17c7`
+
+Reconciled: 2026-09-01
 
 ## 1. Scope and non-actions
 
@@ -15,7 +17,12 @@ Supabase contracts. It does not change the external heartbeat response, enable
 Vercel Cron, configure or rotate secrets, mutate production rows, create a
 migration, or change RLS, grants, RPCs, constraints, indexes, or storage.
 
-It does not depend on the unmerged Milestone 1B-A branch.
+This candidate preserves the original PR #3 head as first-parent ancestry and
+merges the accepted Milestone 1B-A `main` commit without rebasing or rewriting
+history. Its effective diff against merged `main` remains the approved eleven
+1B-B files. The only merge conflict was the sensitive-logging regression test;
+it was resolved by retaining the union of the 1B-A and 1B-B source lists and
+assertions. No runtime conflict occurred.
 
 ## 2. Reference files and precedence
 
@@ -52,8 +59,10 @@ Important precedence evidence:
 
 ## 3. Verified live catalog
 
-Read-only catalog queries were rerun against Supabase project
-`ncpdlyakrzfvobmwzbon`. No application row data was read.
+Read-only catalog queries were rerun on 2026-09-01 against Supabase project
+`ncpdlyakrzfvobmwzbon` on PostgreSQL 17.6. The catalog transaction was explicitly
+read-only, no application row data was read, and no Firefly object was changed.
+No schema drift affecting the accepted 1B-B implementation was found.
 
 ### `system_locks`
 
@@ -85,6 +94,29 @@ Read-only catalog queries were rerun against Supabase project
 - `event_type text null`
 - `payload jsonb null`
 
+### `memory_items` sync fields
+
+- `id uuid not null default gen_random_uuid()`
+- `project_id uuid null`
+- `key text not null`
+- `value jsonb not null default '{}'`
+- `status text not null default 'active'`
+- `deleted_at timestamptz null`
+
+### System and routine reconciliation
+
+- `projects.id uuid not null` remains the only project field read by the loop.
+- `app_users` and `system_jobs` exist, but the reconciled loop does not need or
+  query either relation.
+- `system_locks`, `system_heartbeats`, `projects`, `memory_items`, and
+  `memory_pending` have RLS enabled and FORCE RLS disabled.
+- No trigger exists on the directly used tables.
+- No public heartbeat, lock, decay, reflection, or sync routine supplies a
+  missing persistence contract. The matched memory routines operate on
+  `memory_items` and are not called by this bounded implementation.
+- The unique `system_locks.name` index/constraint required by the upsert remains
+  present.
+
 ### Relevant absences
 
 - No public `users`
@@ -93,6 +125,13 @@ Read-only catalog queries were rerun against Supabase project
 - No `memory_items.strength`
 - No `memory_items.mem_key`
 - No `memory_items.mem_value`
+
+### Migration alignment
+
+Pinned Supabase CLI 2.115.0 reported all four local versions present remotely:
+`20260823175536`, `20260823175539`, `20260823175543`, and `20260829070348`.
+`db push --linked --dry-run --skip-vault` reported the remote database up to
+date with no pending migrations, seeds, or roles.
 
 ## 4. Selected implementation
 
@@ -151,9 +190,9 @@ Approval remains required before:
 - deletion or rename;
 - merge.
 
-## 7. Verification plan
+## 7. Verification evidence
 
-Tests prove:
+Focused tests prove:
 
 - live lock column names are used;
 - no public `users` or `app_users` scan occurs;
@@ -167,3 +206,41 @@ Tests prove:
 - global events are not written to user-owned `memory_pending`;
 - existing missing, invalid, and unconfigured `CRON_SECRET` behavior remains;
 - the route returns 500 when the internal heartbeat rejects.
+
+Results recorded on 2026-09-01:
+
+- focused 1B-B/security set: 5 files, 21/21 tests passed;
+- relevant merged 1B-A authorization: 4 files, 26/26 tests passed;
+- durable chat: 2 files, 16/16 tests passed;
+- attachment/security: 4 files, 52/52 tests passed;
+- full Vitest: 21 files passed, 1 file failed; 134/135 tests passed. The only
+  failure is the inherited `Michael`/`Mike` assertion in
+  `promoteIdentityAnchors.test.ts`;
+- standalone TypeScript: passed;
+- production Next.js build: passed with inert local build-time placeholders;
+  compilation, TypeScript, page-data collection, and the 30-route manifest all
+  completed. The sole warning is the inherited middleware-to-proxy deprecation;
+- changed-file ESLint: zero findings;
+- effective-candidate `git diff --check origin/main`: passed. The in-progress
+  merge-index comparison to the old PR parent still reports inherited CRLF
+  whitespace inside byte-identical 1B-A migration files, which are outside the
+  final diff and were not changed;
+- sensitive-log scan: only fixed literal operational messages are emitted; no
+  raw error, response, payload, credential, or private-content logging survived;
+- service-role scan: runtime use is limited to the approved memory logger,
+  heartbeat loop, and memory sync maintenance boundaries. Merged 1B-A ordinary
+  route restrictions remain covered by `clientBoundaries.test.ts`;
+- obsolete-schema scan: no runtime reference to public `users`, `app_users`,
+  `memory_reflections`, `job_queue`, `mem_key`, `mem_value`, or `strength`;
+- no authenticated heartbeat or maintenance task was invoked against Firefly.
+
+Canonical migration SHA-256 values remain:
+
+- `20260823175536_firefly_public_baseline.sql`:
+  `126323DB0D707E40A23D436AA6EECE60EB2034125BCABAFB66D5A88A5B9F0C69`
+- `20260823175539_firefly_storage_attachment_policies_baseline.sql`:
+  `0730BDB431BBDF208526D32DF6DAEABF21F62E872130C23B27D4DDE0706562BA`
+- `20260823175543_milestone_1b_attachment_scope.sql`:
+  `9154E5281125CE5F5C13C3C93897BB2ACF2395E480B6FC0D64CC05B4E886E0F5`
+- `20260829070348_fix_attachment_scoped_metadata_policy.sql`:
+  `BC7CF87A040A3E975847F53BF11EF5DFA79CAFF3F7AE78274A2E05FB62173CB9`

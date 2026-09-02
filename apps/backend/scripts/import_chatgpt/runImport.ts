@@ -1,7 +1,7 @@
 import path from "node:path";
 import fs from "node:fs";
 import { globSync } from "glob";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { consolidateMemoryItems } from "@/lib/memory/consolidate";
 import { streamConversationsFile, parseConversationObject, NormalizedTurn } from "./parseChatGPT";
 import { extractMemoryFromText } from "@/lib/memory/extractor";
@@ -101,18 +101,28 @@ function formatTranscript(turns: NormalizedTurn[]) {
     .join("\n\n---\n\n");
 }
 
-async function ensureProjectRow(supabase: any, projectId: string) {
+async function ensureProjectRow(
+  supabase: SupabaseClient,
+  projectId: string,
+  userId: string,
+) {
   const { data, error } = await supabase
     .from("projects")
-    .select("id")
+    .select("id, user_id")
     .eq("id", projectId)
     .maybeSingle();
 
   if (error) throw error;
-  if (data?.id) return;
+  if (data?.id) {
+    if (data.user_id !== userId) {
+      throw new Error("Import project is not owned by the requested user");
+    }
+    return;
+  }
 
   const { error: insErr } = await supabase.from("projects").insert({
     id: projectId,
+    user_id: userId,
     name: "Imported Project",
     created_at: new Date().toISOString(),
   });
@@ -143,7 +153,7 @@ export async function runImport(params: {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
-  if (projectId) await ensureProjectRow(supabase, projectId);
+  if (projectId) await ensureProjectRow(supabase, projectId, userId);
 
   const checkpoint = loadCheckpoint();
 
@@ -240,7 +250,12 @@ export async function runImport(params: {
         if (globals.length) {
           const targetUser = globalUserId ?? userId;
           await withTimeout(
-            upsertMemoryItems(targetUser, globals as any, projectId ?? undefined),
+            upsertMemoryItems(
+              targetUser,
+              globals,
+              projectId ?? null,
+              supabase,
+            ),
             120000,
             "upsertMemoryItems globals"
           );
@@ -248,7 +263,12 @@ export async function runImport(params: {
 
         if (locals.length) {
           await withTimeout(
-            upsertMemoryItems(userId, locals as any, projectId ?? undefined),
+            upsertMemoryItems(
+              userId,
+              locals,
+              projectId ?? null,
+              supabase,
+            ),
             120000,
             "upsertMemoryItems locals"
           );

@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { promoteIdentityAnchors } from "@/lib/memory/promoteIdentityAnchors";
 
 vi.mock("@/lib/memory/anchors", () => {
@@ -18,6 +19,8 @@ import { setProjectAnchor, getProjectAnchors } from "@/lib/memory/anchors";
 import { invalidatePromptCache } from "@/lib/prompt/buildPromptContext";
 
 describe("promoteIdentityAnchors - negative anchors", () => {
+  const supabase = {} as SupabaseClient;
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -26,6 +29,7 @@ describe("promoteIdentityAnchors - negative anchors", () => {
     (getProjectAnchors as any).mockResolvedValueOnce([]);
 
     await promoteIdentityAnchors({
+      supabase,
       authedUserId: "u1",
       projectId: "p1",
       userText: `Don't call me Mike. Call me Dude.`,
@@ -50,6 +54,7 @@ describe("promoteIdentityAnchors - negative anchors", () => {
     ]);
 
     await promoteIdentityAnchors({
+      supabase,
       authedUserId: "u1",
       projectId: "p1",
       userText: `Also don't call me Michael.`,

@@ -251,7 +251,7 @@ export async function extractMemoryFromText(params: {
   const transcript = sanitizeForJson(transcriptRaw);
 
   if (/i\s+meant|correction|let\s+me\s+clarify/i.test(transcript)) {
-    await logMemoryEvent("correction_detected", { text: transcript.slice(0, 5000) });
+    await logMemoryEvent("correction_detected", {});
   }
 
     const system = sanitizeForJson(`
@@ -336,7 +336,6 @@ export async function extractMemoryFromText(params: {
     });
   } catch (err) {
     console.error("[extractMemoryFromText] request failed");
-    console.error("[extractMemoryFromText] transcript preview:", transcript.slice(0, 500));
     throw err;
   }
 
@@ -344,7 +343,7 @@ export async function extractMemoryFromText(params: {
   const parsed = parseExtractionPayload(raw);
 
   if (!parsed) {
-    console.warn("Memory extraction parse failed. raw=", raw);
+    console.warn("[extractMemoryFromText] response parse failed");
     return [];
   }
 

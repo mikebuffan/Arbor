@@ -18,6 +18,30 @@ export type DecisionOutcomeInput = {
   postcheckApproved?: boolean;
 };
 
+function safeDiagnosticCode(error: unknown): string {
+  if (typeof error !== "object" || error === null || !("code" in error)) {
+    return "unknown";
+  }
+
+  const candidate = error.code;
+  if (typeof candidate !== "string") return "unknown";
+
+  const code = candidate.slice(0, 32);
+  return /^[a-z0-9_]+$/i.test(code) ? code : "unknown";
+}
+
+function warnDecisionOutcomeWriteFailure(
+  operation: "insert" | "insert_exception",
+  error: unknown,
+) {
+  console.warn("[decision-outcome] write failed", {
+    subsystem: "safety",
+    operation,
+    code: safeDiagnosticCode(error),
+    resourceType: "decision_outcomes",
+  });
+}
+
 export async function logDecisionOutcome(input: DecisionOutcomeInput) {
   // 1) Keep existing log stream
   await logMemoryEvent("decision_outcome", {
@@ -45,9 +69,9 @@ export async function logDecisionOutcome(input: DecisionOutcomeInput) {
     });
 
     if (error) {
-      console.warn("[DECISION OUTCOME INSERT FAILED]", error);
+      warnDecisionOutcomeWriteFailure("insert", error);
     }
-  } catch (e) {
-    console.warn("[DECISION OUTCOME INSERT EXCEPTION]", e);
+  } catch (error: unknown) {
+    warnDecisionOutcomeWriteFailure("insert_exception", error);
   }
 }

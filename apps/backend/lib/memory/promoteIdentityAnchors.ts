@@ -1,3 +1,4 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { setProjectAnchor, getProjectAnchors } from "@/lib/memory/anchors";
 import type { MemoryItem } from "@/lib/memory/types";
 import { invalidatePromptCache } from "@/lib/prompt/buildPromptContext";
@@ -14,24 +15,36 @@ function mergeList(existing: string | null | undefined, addOne: string) {
 }
 
 async function getExistingAnchorValue(params: {
+  supabase: SupabaseClient;
   authedUserId: string;
   projectId: string;
   memKey: string;
 }): Promise<string | null> {
-  const { authedUserId, projectId, memKey } = params;
+  const { supabase, authedUserId, projectId, memKey } = params;
 
-  const anchors = await getProjectAnchors({ authedUserId, projectId });
+  const anchors = await getProjectAnchors({
+    supabase,
+    authedUserId,
+    projectId,
+  });
   const found = (anchors ?? []).find((a: any) => a.key === memKey);
   return found?.value ?? null;
 }
 
 export async function promoteIdentityAnchors(params: {
+    supabase: SupabaseClient;
     authedUserId: string;
     projectId: string | null;
     userText: string;
     extracted?: MemoryItem[];
 }) {
-    const { authedUserId, projectId, userText, extracted = [] } = params;
+    const {
+        supabase,
+        authedUserId,
+        projectId,
+        userText,
+        extracted = [],
+    } = params;
     if (!projectId) return;
     let didWriteAnchor = false;
 
@@ -62,6 +75,7 @@ export async function promoteIdentityAnchors(params: {
 
     if (preferred) {
         await setProjectAnchor({
+            supabase,
             authedUserId,
             projectId,
             memKey: "user.preferred_address",
@@ -73,6 +87,7 @@ export async function promoteIdentityAnchors(params: {
         didWriteAnchor = true;
 
         await setProjectAnchor({
+            supabase,
             authedUserId,
             projectId,
             memKey: "user.display_name",
@@ -86,6 +101,7 @@ export async function promoteIdentityAnchors(params: {
 
     if (legalOrGiven) {
         await setProjectAnchor({
+            supabase,
             authedUserId,
             projectId,
             memKey: "user.legal_name",
@@ -101,6 +117,7 @@ export async function promoteIdentityAnchors(params: {
 
     if (dontCall) {
         const existing = await getExistingAnchorValue({
+            supabase,
             authedUserId,
             projectId: projectId!,
             memKey: "user.do_not_call",
@@ -108,6 +125,7 @@ export async function promoteIdentityAnchors(params: {
         const merged = mergeList(existing, dontCall);
 
         await setProjectAnchor({
+            supabase,
             authedUserId,
             projectId,
             memKey: "user.do_not_call",
@@ -122,6 +140,7 @@ export async function promoteIdentityAnchors(params: {
 
     if (dontUseMyName) {
         await setProjectAnchor({
+            supabase,
             authedUserId,
             projectId,
             memKey: "user.do_not_use_name",
@@ -135,6 +154,7 @@ export async function promoteIdentityAnchors(params: {
 
     if (dontUseRealName) {
         await setProjectAnchor({
+            supabase,
             authedUserId,
             projectId,
             memKey: "user.do_not_use_real_name",
@@ -166,6 +186,7 @@ export async function promoteIdentityAnchors(params: {
         if (!val) continue;
 
         await setProjectAnchor({
+            supabase,
             authedUserId,
             projectId,
             memKey: anchorKey,

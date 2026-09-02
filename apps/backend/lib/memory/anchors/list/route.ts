@@ -16,6 +16,7 @@ export async function GET(req: NextRequest) {
   }
 
   const anchors = await getProjectAnchors({
+    supabase,
     authedUserId: data.user.id,
     projectId,
   });
