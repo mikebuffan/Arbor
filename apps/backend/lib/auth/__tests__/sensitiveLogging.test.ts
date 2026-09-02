@@ -18,12 +18,17 @@ const files = [
   "lib/attachments/http.ts",
   "lib/arbor/telemetry/buildTelemetry.ts",
   "lib/memory/extractor.ts",
+  "lib/memory/logger.ts",
   "lib/memory/retrieval.ts",
   "lib/memory/store.ts",
   "lib/prompt/buildPromptContext.ts",
   "lib/safety/decisionOutcome.ts",
   "lib/safety/postcheck.ts",
   "lib/supabase/server.ts",
+  "lib/system/loop.ts",
+  "lib/tasks/decay.ts",
+  "lib/tasks/reflection.ts",
+  "lib/tasks/sync.ts",
 ];
 
 describe("Milestone 1A sensitive logging", () => {
