@@ -119,6 +119,53 @@ function scalarStrings(value: unknown): string[] {
   return Object.values(value).flatMap(scalarStrings);
 }
 
+function normalizedEvidenceText(value: string) {
+  return value
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function isRecallOnlyUserTurn(userText: string) {
+  const text = userText.trim();
+  return (
+    /^(?:what|which|who|where|when|why|how|do|does|did|is|are|was|were|can|could|would|will|have|has|had)\b[\s\S]*\?$/i.test(
+      text,
+    ) ||
+    /^(?:please\s+)?(?:remind|tell|show|repeat|recall)\s+me\b/i.test(text)
+  );
+}
+
+function memoryValueHasDirectUserEvidence(
+  value: unknown,
+  userText: string,
+) {
+  const normalizedUserText = normalizedEvidenceText(userText);
+  if (!normalizedUserText) return false;
+
+  const values = scalarStrings(value)
+    .map(normalizedEvidenceText)
+    .filter((candidate) => candidate.length >= 2);
+  if (!values.length) return false;
+
+  const boundedUserText = ` ${normalizedUserText} `;
+  return values.every((candidate) =>
+    boundedUserText.includes(` ${candidate} `),
+  );
+}
+
+export function retainUserAuthoredAssertionItems(params: {
+  userText: string;
+  items: MemoryItem[];
+}) {
+  if (isRecallOnlyUserTurn(params.userText)) return [];
+  return params.items.filter((item) =>
+    memoryValueHasDirectUserEvidence(item.value, params.userText),
+  );
+}
+
 function candidateHasExactValue(
   candidate: CorrectionCandidate,
   value: string,
@@ -235,7 +282,13 @@ export function classifyMemoryTurn(params: {
 }): ClassifiedMemoryTurn {
   const correction = parseExplicitMemoryCorrection(params.userText);
   if (!correction) {
-    return { kind: "assertion", items: params.extractedItems };
+    return {
+      kind: "assertion",
+      items: retainUserAuthoredAssertionItems({
+        userText: params.userText,
+        items: params.extractedItems,
+      }),
+    };
   }
 
   return {

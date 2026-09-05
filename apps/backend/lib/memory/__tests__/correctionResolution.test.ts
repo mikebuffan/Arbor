@@ -103,6 +103,71 @@ describe("explicit conversational memory correction", () => {
     });
   });
 
+  it("does not persist the B1 assistant recall as a new authoritative alias", async () => {
+    const activeItems: MemoryItem[] = [
+      {
+        key: "project.observatory.access_phrase",
+        value: { value: "Silver Orchard" },
+        tier: "normal",
+        scope: "project",
+        user_trigger_only: false,
+        importance: 8,
+        confidence: 0.99,
+      },
+    ];
+    const assistantDerivedAlias: MemoryItem = {
+      key: "project.fictional_observatory.access_phrase",
+      value: { value: "Silver Orchard" },
+      tier: "normal",
+      scope: "project",
+      user_trigger_only: false,
+      importance: 6,
+      confidence: 0.7,
+    };
+    const classified = classifyMemoryTurn({
+      userText:
+        "What was the access phrase for the fictional observatory in this project?",
+      extractedItems: [assistantDerivedAlias],
+    });
+    const upsertItems = vi.fn(
+      async (
+        _userId: string,
+        items: MemoryItem[],
+      ) => {
+        activeItems.push(...items);
+        return {
+          created: items.map((item) => item.key),
+          updated: [],
+          locked: [],
+          ignored: [],
+        };
+      },
+    );
+
+    expect(classified).toEqual({ kind: "assertion", items: [] });
+    await persistClassifiedMemoryTurn(
+      {
+        supabase: emptySupabase,
+        userId,
+        projectId: projectA,
+        classified,
+        injectedMemoryIds: [],
+      },
+      { upsertItems },
+    );
+
+    expect(upsertItems).toHaveBeenCalledWith(
+      userId,
+      [],
+      projectA,
+      emptySupabase,
+    );
+    expect(activeItems).toHaveLength(1);
+    expect(activeItems[0].key).toBe(
+      "project.observatory.access_phrase",
+    );
+  });
+
   it("resolves a same-key correction using exact old value and injection evidence", () => {
     const target = candidate();
     expect(

@@ -141,12 +141,14 @@ describe("memory correction storage semantics", () => {
       }),
     ).resolves.toEqual(["alias-1", "alias-2"]);
 
-    expect(query.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        status: "tombstoned",
-        delete_reason: "superseded_by_correction",
-      }),
-    );
+    const updateShape = query.update.mock.calls[0][0];
+    expect(updateShape).toMatchObject({
+      status: "tombstoned",
+      delete_reason: "superseded_by_correction",
+    });
+    expect(updateShape.deleted_at).toEqual(expect.any(String));
+    expect(Number.isNaN(Date.parse(updateShape.deleted_at))).toBe(false);
+    expect(updateShape.status).not.toBe("superseded_by_correction");
     expect(query.eq).toHaveBeenCalledWith("user_id", "user-a");
     expect(query.eq).toHaveBeenCalledWith("project_id", "project-a");
     expect(query.in).toHaveBeenCalledWith("id", ["alias-1", "alias-2"]);

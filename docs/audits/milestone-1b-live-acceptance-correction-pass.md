@@ -76,6 +76,45 @@ equivalent old-value rows are soft-tombstoned with
 `delete_reason = superseded_by_correction` and auditable per-alias events.
 No row is hard-deleted and no schema/status contract changes.
 
+## Ordinary assertion provenance boundary
+
+The combined user/assistant transcript remains available to the extractor so
+assistant context can still resolve the key or subject of a user assertion.
+Before ordinary extracted items reach `upsertMemoryItems()`, however, the
+application now requires direct user authorship evidence:
+
+- recall-only interrogatives and recall commands cannot produce durable
+  assertion items;
+- every scalar value in a proposed item must appear directly in the user's
+  message;
+- explicit corrections bypass ordinary assertion persistence and continue to
+  use the correction resolver described above.
+
+This deterministically blocks the B1 structure: the question did not contain
+`Silver Orchard`, so the assistant's restatement cannot create
+`project.fictional_observatory.access_phrase`. It also blocks an assistant-only
+invention during a non-question turn when the proposed value is absent from
+the user's message.
+
+Companion Impact: assistant text is retained as non-authoritative reference
+context, but inferred or normalized values that the user did not actually say
+will now fail closed instead of becoming durable memory. This may reduce
+automatic capture of implicit or boolean-only preferences; an explicit user
+statement remains persistable. No persona, response-generation, or existing
+retrieval behavior changes.
+
+## Live-compatible stale alias state
+
+Stale aliases use the existing Firefly representation exactly:
+
+- `status = 'tombstoned'`;
+- `deleted_at = <current non-null ISO timestamp>`;
+- `delete_reason = 'superseded_by_correction'`.
+
+The code never writes `status = 'superseded_by_correction'`. Retrieval already
+requires `status = 'active'` and `deleted_at IS NULL`, so the superseded row is
+not selectable after convergence.
+
 ## Post-response lifecycle
 
 The route no longer launches unmanaged promises. One narrow scheduler
