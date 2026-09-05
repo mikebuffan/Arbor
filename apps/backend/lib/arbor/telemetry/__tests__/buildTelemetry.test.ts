@@ -84,13 +84,15 @@ describe("bounded telemetry writer", () => {
     warn.mockRestore();
   });
 
-  it("runs telemetry behind the chat background boundary", () => {
+  it("runs telemetry behind the supported post-response lifecycle boundary", () => {
     const source = fs.readFileSync(
       path.resolve(process.cwd(), "app/api/chat/route.ts"),
       "utf8",
     );
 
-    expect(source).toContain('runBg("telemetry"');
+    expect(source).toContain("scheduleChatPostResponseWork({");
+    expect(source).toContain("telemetry: async () =>");
     expect(source).toContain("await buildTelemetry(");
+    expect(source).not.toContain("runBg(");
   });
 });
