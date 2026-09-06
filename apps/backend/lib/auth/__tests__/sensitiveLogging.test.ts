@@ -19,6 +19,7 @@ const files = [
   "lib/arbor/telemetry/buildTelemetry.ts",
   "lib/chat/postResponseScheduler.ts",
   "lib/memory/correctionResolution.ts",
+  "lib/memory/durableEvents.ts",
   "lib/memory/extractor.ts",
   "lib/memory/retrieval.ts",
   "lib/memory/store.ts",

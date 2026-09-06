@@ -16,7 +16,7 @@ import {
   persistClassifiedMemoryTurn,
 } from "@/lib/memory/correctionResolution";
 import { postcheckResponse } from "@/lib/safety/postcheck";
-import { logMemoryEvent } from "@/lib/memory/logger";
+import { writeDurableChatCompletedEvent } from "@/lib/memory/durableEvents";
 import { evaluateDecisionContext } from "@/lib/governance/evaluateDecisionContext";
 import { realWorldSafetyAddendum } from "@/lib/governance/realWorldSafetyAddendum";
 import { logDecisionOutcome } from "@/lib/safety/decisionOutcome";
@@ -370,7 +370,8 @@ export async function POST(req: Request) {
             );
           }
 
-          await logMemoryEvent("chat_completed", {
+          await writeDurableChatCompletedEvent({
+            supabase,
             userId,
             projectId,
             conversationId: convoId,
