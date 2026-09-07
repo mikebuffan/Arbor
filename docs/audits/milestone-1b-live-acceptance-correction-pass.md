@@ -118,11 +118,30 @@ not selectable after convergence.
 ## Post-response lifecycle
 
 The route no longer launches unmanaged promises. One narrow scheduler
-registers telemetry, memory processing, conversation update, and decision
-outcome with stable Next.js `after()`. The continuation attempts all four
-operations concurrently, contains each failure independently, and emits only
-an allowlisted task name plus a bounded diagnostic code. A completed retry
-registers nothing.
+registers telemetry, ordinary/inferred memory processing, conversation update,
+and decision outcome with stable Next.js `after()`. The continuation attempts
+all four operations concurrently, contains each failure independently, and
+emits only an allowlisted task name plus a bounded diagnostic code. A completed
+retry registers nothing.
+
+An unambiguous explicit user correction is the narrow exception. The route
+classifies that intent deterministically from `userText`, resolves it only
+against authenticated, scope-matched, actually injected candidates, and
+awaits the canonical correction primitive after response guarding/postcheck
+but before the final assistant-message insert. A failed or unresolved
+correction therefore produces a bounded non-success response and cannot leave
+behind a durable assistant acknowledgement. Once the synchronous correction
+has succeeded, the post-response memory operation retains its extraction and
+durable `chat_completed` work but skips correction persistence. A completed
+same-`turnId` retry returns at the durable-turn check before either correction
+or continuation scheduling.
+
+The resolver also recognizes an already-corrected, actually injected canonical
+value. This closes the narrow retry window in which the correction committed
+but the subsequent assistant insert failed: retry can finish remaining stale
+alias convergence without incrementing the canonical correction count or
+emitting a second correction event. It does not weaken user, project, semantic,
+ambiguity, locked-row, or injection checks.
 
 `after()` extends the Vercel request invocation lifetime so response delivery
 does not wait for this work. It is request-lifecycle continuation, not
@@ -145,3 +164,11 @@ The canonical run produced six of seven expected `trace_logs` rows and six of
 seven durable decision outcomes. That request-lifecycle loss is the evidence
 for replacing `runBg()`; it must not be represented as a telemetry privacy
 failure.
+
+## Inherited Michael/Mike assertion debt
+
+The Michael/Mike assertion failure is pre-existing and was reproduced outside
+this explicit-correction durability change. It is deliberately deferred as
+unrelated Milestone 1B technical debt. Verification reports it as the one known
+full-suite failure; this audit does not represent that assertion as passing and
+this correction pass does not modify it.

@@ -52,6 +52,11 @@ export type CorrectionResolution =
       staleAliases: CorrectionCandidate[];
     }
   | {
+      status: "already_applied";
+      canonical: CorrectionCandidate;
+      staleAliases: CorrectionCandidate[];
+    }
+  | {
       status: "not_found" | "not_injected" | "ambiguous";
       canonical: null;
       staleAliases: [];
@@ -305,17 +310,54 @@ export function resolveExplicitCorrection(params: {
   candidates: CorrectionCandidate[];
   injectedMemoryIds: string[];
 }): CorrectionResolution {
-  const scoped = params.candidates.filter(
+  const scopedCandidates = params.candidates.filter((candidate) =>
+    candidateIsInScope({
+      candidate,
+      userId: params.userId,
+      projectId: params.projectId,
+      correction: params.correction,
+    }),
+  );
+  const alreadyCorrected = scopedCandidates.filter(
     (candidate) =>
-      candidateIsInScope({
-        candidate,
-        userId: params.userId,
-        projectId: params.projectId,
-        correction: params.correction,
-      }) &&
+      candidateHasExactValue(candidate, params.correction.correctedValue) &&
+      candidateMatchesSubject(candidate, params.correction.subject),
+  );
+  const scoped = scopedCandidates.filter(
+    (candidate) =>
       candidateHasExactValue(candidate, params.correction.oldValue) &&
       candidateMatchesSubject(candidate, params.correction.subject),
   );
+
+  if (alreadyCorrected.length) {
+    const equivalent = [...alreadyCorrected, ...scoped];
+    const signatures = new Set(
+      equivalent.map((candidate) => semanticMemoryKey(candidate.key)),
+    );
+    const injected = new Set(params.injectedMemoryIds);
+    if (!alreadyCorrected.some((candidate) => injected.has(candidate.id))) {
+      return { status: "not_injected", canonical: null, staleAliases: [] };
+    }
+    if (signatures.size !== 1) {
+      return { status: "ambiguous", canonical: null, staleAliases: [] };
+    }
+
+    const locked = equivalent.filter((candidate) => candidate.locked);
+    const lockedOldValue = scoped.some((candidate) => candidate.locked);
+    if (locked.length > 1 || lockedOldValue) {
+      return { status: "ambiguous", canonical: null, staleAliases: [] };
+    }
+
+    const canonical = [...alreadyCorrected].sort(rankCanonical)[0];
+    return {
+      status: "already_applied",
+      canonical,
+      staleAliases: equivalent.filter(
+        (candidate) => candidate.id !== canonical.id,
+      ),
+    };
+  }
+
   if (!scoped.length) {
     return { status: "not_found", canonical: null, staleAliases: [] };
   }
@@ -436,7 +478,10 @@ export async function persistClassifiedMemoryTurn(
     injectedMemoryIds: params.injectedMemoryIds,
   });
 
-  if (resolution.status !== "resolved") {
+  if (
+    resolution.status !== "resolved" &&
+    resolution.status !== "already_applied"
+  ) {
     await logMemoryEvent("correction_unresolved", {
       userId: params.userId,
       projectId: params.projectId,
@@ -455,29 +500,36 @@ export async function persistClassifiedMemoryTurn(
     params.classified.correction.scopeHint === "global"
       ? null
       : params.projectId;
-  const corrected = await dependencies.applyCorrection({
-    supabase: params.supabase,
-    userId: params.userId,
-    projectId: correctionProjectId,
-    key: resolution.canonical.key,
-    correctedValue: params.classified.correction.correctedValue,
-  });
-  const supersededIds = await dependencies.supersedeAliases({
-    supabase: params.supabase,
-    authedUserId: params.userId,
-    projectId: correctionProjectId,
-    canonicalId: resolution.canonical.id,
-    aliases: resolution.staleAliases.map((candidate) => ({
-      id: candidate.id,
-      key: candidate.key,
-    })),
-  });
-  await logMemoryEvent("correction_converged", {
-    userId: params.userId,
-    projectId: correctionProjectId,
-    status: "applied",
-    supersededCount: supersededIds.length,
-  });
+  const corrected =
+    resolution.status === "resolved"
+      ? await dependencies.applyCorrection({
+          supabase: params.supabase,
+          userId: params.userId,
+          projectId: correctionProjectId,
+          key: resolution.canonical.key,
+          correctedValue: params.classified.correction.correctedValue,
+        })
+      : { id: resolution.canonical.id, locked: !!resolution.canonical.locked };
+  const supersededIds = resolution.staleAliases.length
+    ? await dependencies.supersedeAliases({
+        supabase: params.supabase,
+        authedUserId: params.userId,
+        projectId: correctionProjectId,
+        canonicalId: resolution.canonical.id,
+        aliases: resolution.staleAliases.map((candidate) => ({
+          id: candidate.id,
+          key: candidate.key,
+        })),
+      })
+    : [];
+  if (resolution.status === "resolved") {
+    await logMemoryEvent("correction_converged", {
+      userId: params.userId,
+      projectId: correctionProjectId,
+      status: "applied",
+      supersededCount: supersededIds.length,
+    });
+  }
 
   return {
     kind: "correction" as const,

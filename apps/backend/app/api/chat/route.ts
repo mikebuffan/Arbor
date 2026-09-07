@@ -6,7 +6,10 @@ import {
   assertConversationOwnedByUser,
   assertProjectOwnedByUser,
 } from "@/lib/auth/ownership";
-import { routeErrorResponse } from "@/lib/auth/routeAuthorization";
+import {
+  RouteAccessError,
+  routeErrorResponse,
+} from "@/lib/auth/routeAuthorization";
 import { openAIChat } from "@/lib/providers/openai";
 import { buildPromptContext } from "@/lib/prompt/buildPromptContext";
 import { extractMemoryFromText } from "@/lib/memory/extractor";
@@ -285,6 +288,12 @@ export async function POST(req: Request) {
       messages: messagesForModel,
     });
 
+    const deterministicMemoryTurn = classifyMemoryTurn({
+      userText,
+      extractedItems: [],
+    });
+    let explicitCorrectionHandledSynchronously = false;
+
     const finalAssistant = await finalizeAndPersistAssistantTurn({
       store: turnStore,
       messageId: resolvedTurn.ids.assistantMessageId,
@@ -300,6 +309,26 @@ export async function POST(req: Request) {
           projectId,
           assistantText,
         }),
+      beforePersist:
+        deterministicMemoryTurn.kind === "correction"
+          ? async () => {
+              const result = await persistClassifiedMemoryTurn({
+                supabase,
+                userId,
+                projectId,
+                classified: deterministicMemoryTurn,
+                injectedMemoryIds: selectedMemoryItems.map((item) => item.id),
+              });
+              if (
+                result.kind !== "correction" ||
+                (result.resolution.status !== "resolved" &&
+                  result.resolution.status !== "already_applied")
+              ) {
+                throw new RouteAccessError(409, "correction_unresolved");
+              }
+              explicitCorrectionHandledSynchronously = true;
+            }
+          : undefined,
     });
     const assistantText = finalAssistant.assistantText;
 
@@ -354,13 +383,15 @@ export async function POST(req: Request) {
                 : [],
           });
 
-          await persistClassifiedMemoryTurn({
-            supabase,
-            userId,
-            projectId,
-            classified,
-            injectedMemoryIds: selectedMemoryItems.map((item) => item.id),
-          });
+          if (!explicitCorrectionHandledSynchronously) {
+            await persistClassifiedMemoryTurn({
+              supabase,
+              userId,
+              projectId,
+              classified,
+              injectedMemoryIds: selectedMemoryItems.map((item) => item.id),
+            });
+          }
           if (classified.kind === "assertion") {
             await reinforceMemoryUse(
               userId,

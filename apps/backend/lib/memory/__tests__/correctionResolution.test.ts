@@ -185,6 +185,107 @@ describe("explicit conversational memory correction", () => {
     });
   });
 
+  it("treats an injected already-corrected value as an idempotent retry", async () => {
+    const corrected = candidate({
+      value: { value: "Blue Lantern" },
+      correction_count: 1,
+    });
+    const applyCorrection = vi.fn();
+    const supersedeAliases = vi.fn().mockResolvedValue([]);
+
+    const result = await persistClassifiedMemoryTurn(
+      {
+        supabase: emptySupabase,
+        userId,
+        projectId: projectA,
+        classified: classifyMemoryTurn({
+          userText: explicitText,
+          extractedItems: [],
+        }),
+        injectedMemoryIds: [corrected.id],
+      },
+      {
+        loadCandidates: vi.fn().mockResolvedValue([corrected]),
+        applyCorrection,
+        supersedeAliases,
+      },
+    );
+
+    expect(result).toMatchObject({
+      kind: "correction",
+      resolution: {
+        status: "already_applied",
+        canonical: { id: corrected.id },
+        staleAliases: [],
+      },
+      corrected: { id: corrected.id, locked: false },
+      supersededIds: [],
+    });
+    expect(applyCorrection).not.toHaveBeenCalled();
+    expect(supersedeAliases).not.toHaveBeenCalled();
+  });
+
+  it("finishes stale-alias convergence without incrementing an already-corrected row", async () => {
+    const corrected = candidate({
+      value: { value: "Blue Lantern" },
+      correction_count: 1,
+    });
+    const stale = candidate({
+      id: "45454545-4545-4545-8545-454545454545",
+      key: "project.fictional_observatory.access_phrase",
+    });
+    const applyCorrection = vi.fn();
+    const supersedeAliases = vi.fn().mockResolvedValue([stale.id]);
+
+    const result = await persistClassifiedMemoryTurn(
+      {
+        supabase: emptySupabase,
+        userId,
+        projectId: projectA,
+        classified: classifyMemoryTurn({
+          userText: explicitText,
+          extractedItems: [],
+        }),
+        injectedMemoryIds: [corrected.id, stale.id],
+      },
+      {
+        loadCandidates: vi.fn().mockResolvedValue([corrected, stale]),
+        applyCorrection,
+        supersedeAliases,
+      },
+    );
+
+    expect(result).toMatchObject({
+      resolution: {
+        status: "already_applied",
+        canonical: { id: corrected.id },
+        staleAliases: [{ id: stale.id }],
+      },
+      supersededIds: [stale.id],
+    });
+    expect(applyCorrection).not.toHaveBeenCalled();
+    expect(supersedeAliases).toHaveBeenCalledWith(
+      expect.objectContaining({
+        canonicalId: corrected.id,
+        aliases: [{ id: stale.id, key: stale.key }],
+      }),
+    );
+  });
+
+  it("does not accept an already-corrected value that was not injected", () => {
+    const corrected = candidate({ value: { value: "Blue Lantern" } });
+
+    expect(
+      resolveExplicitCorrection({
+        userId,
+        projectId: projectA,
+        correction: correction(),
+        candidates: [corrected],
+        injectedMemoryIds: [],
+      }).status,
+    ).toBe("not_injected");
+  });
+
   it("normalizes the observed extractor key drift into one semantic fact", () => {
     expect(semanticMemoryKey("project.observatory.access_phrase")).toBe(
       "access.observatory.phrase",
