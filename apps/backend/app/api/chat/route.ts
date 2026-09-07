@@ -10,9 +10,13 @@ import { routeErrorResponse } from "@/lib/auth/routeAuthorization";
 import { openAIChat } from "@/lib/providers/openai";
 import { buildPromptContext } from "@/lib/prompt/buildPromptContext";
 import { extractMemoryFromText } from "@/lib/memory/extractor";
-import { upsertMemoryItems, reinforceMemoryUse } from "@/lib/memory/store";
+import { reinforceMemoryUse } from "@/lib/memory/store";
+import {
+  classifyMemoryTurn,
+  persistClassifiedMemoryTurn,
+} from "@/lib/memory/correctionResolution";
 import { postcheckResponse } from "@/lib/safety/postcheck";
-import { logMemoryEvent } from "@/lib/memory/logger";
+import { writeDurableChatCompletedEvent } from "@/lib/memory/durableEvents";
 import { evaluateDecisionContext } from "@/lib/governance/evaluateDecisionContext";
 import { realWorldSafetyAddendum } from "@/lib/governance/realWorldSafetyAddendum";
 import { logDecisionOutcome } from "@/lib/safety/decisionOutcome";
@@ -28,6 +32,7 @@ import {
 import { buildProofSnapshot } from "@/lib/arbor/ProofSnapshot";
 import { buildTelemetry } from "@/lib/arbor/telemetry/buildTelemetry";
 import { getOrCreateOpenEpisode } from "@/lib/arbor/episodes/getOrCreateOpenEpisode";
+import { scheduleChatPostResponseWork } from "@/lib/chat/postResponseScheduler";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -73,10 +78,6 @@ function getCorsHeaders(req: Request) {
     "access-control-allow-headers": "content-type, authorization, apikey, x-client-info",
     "access-control-max-age": "86400",
   };
-}
-
-function runBg(label: string, fn: () => Promise<unknown>) {
-  void fn().catch(() => console.warn(`[bg:${label}] failed`));
 }
 
 function assistantTextFromResponse(response: unknown): string {
@@ -314,71 +315,93 @@ export async function POST(req: Request) {
 
     const retrievalLatencyMs = Math.round(performance.now() - t0);
 
-    if (finalAssistant.created) {
-      runBg("telemetry", async () => {
-        await buildTelemetry(
-          {
-            traceId,
+    scheduleChatPostResponseWork({
+      newlyCreated: finalAssistant.created,
+      operations: {
+        telemetry: async () => {
+          await buildTelemetry(
+            {
+              traceId,
+              userId,
+              projectId,
+              threadId: convoId,
+              episodeId,
+              retrievalLatencyMs,
+              logicGatesHit: [],
+            },
+            proofSnapshot,
+          );
+        },
+
+        memory_pipeline: async () => {
+          const extracted = await extractMemoryFromText({
+            userText,
+            assistantText,
+          });
+          const classified = classifyMemoryTurn({
+            userText,
+            extractedItems: extracted,
+          });
+
+          await promoteIdentityAnchors({
+            supabase,
+            authedUserId: userId,
+            projectId,
+            userText,
+            extracted:
+              classified.kind === "assertion"
+                ? classified.items
+                : [],
+          });
+
+          await persistClassifiedMemoryTurn({
+            supabase,
             userId,
             projectId,
-            threadId: convoId,
-            episodeId,
-            retrievalLatencyMs,
-            logicGatesHit: [],
-          },
-          proofSnapshot
-        );
-      });
+            classified,
+            injectedMemoryIds: selectedMemoryItems.map((item) => item.id),
+          });
+          if (classified.kind === "assertion") {
+            await reinforceMemoryUse(
+              userId,
+              injectedMemoryKeys,
+              projectId,
+              supabase,
+            );
+          }
 
-      runBg("memory_pipeline", async () => {
-        const extracted = await extractMemoryFromText({ userText, assistantText });
+          await writeDurableChatCompletedEvent({
+            supabase,
+            userId,
+            projectId,
+            conversationId: convoId,
+          });
+        },
 
-        await promoteIdentityAnchors({
-          supabase,
-          authedUserId: userId,
-          projectId,
-          userText,
-          extracted,
-        });
+        conversation_update: async () => {
+          await supabase
+            .from("conversations")
+            .update({ updated_at: new Date().toISOString() })
+            .eq("id", convoId)
+            .eq("user_id", userId);
+        },
 
-        await upsertMemoryItems(userId, extracted, projectId, supabase);
-        await reinforceMemoryUse(
-          userId,
-          injectedMemoryKeys,
-          projectId,
-          supabase,
-        );
-
-        await logMemoryEvent("chat_completed", {
-          userId,
-          projectId,
-          conversationId: convoId,
-        });
-      });
-
-      runBg("conversation_update", async () => {
-        await supabase
-          .from("conversations")
-          .update({ updated_at: new Date().toISOString() })
-          .eq("id", convoId)
-          .eq("user_id", userId);
-      });
-
-      runBg("decision_outcome", async () => {
-        await logDecisionOutcome({
-          userId,
-          projectId,
-          conversationId: convoId,
-          severityScore: decisionContext?.severityScore ?? 0,
-          riskBand: decisionContext?.riskBand ?? null,
-          emotionalIntensity: decisionContext?.emotionalIntensity ?? null,
-          flags: decisionContext?.flags ?? {},
-          actionTaken: safety?.assistantPreface ? "safety_preface" : "none",
-          model: process.env.OPENAI_CHAT_MODEL ?? null,
-          postcheckApproved: !finalAssistant.flagged,
-        });
-      });
-    }
+        decision_outcome: async () => {
+          await logDecisionOutcome({
+            userId,
+            projectId,
+            conversationId: convoId,
+            severityScore: decisionContext?.severityScore ?? 0,
+            riskBand: decisionContext?.riskBand ?? null,
+            emotionalIntensity: decisionContext?.emotionalIntensity ?? null,
+            flags: decisionContext?.flags ?? {},
+            actionTaken: safety?.assistantPreface ? "safety_preface" : "none",
+            model: process.env.OPENAI_CHAT_MODEL ?? null,
+            postcheckApproved: !finalAssistant.flagged,
+          });
+        },
+      },
+    });
 
     /* =====================================================
       3.10.5 DEV-ONLY — REMOVE BEFORE SHIPPING

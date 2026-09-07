@@ -17,6 +17,9 @@ const files = [
   "lib/attachments/broker.ts",
   "lib/attachments/http.ts",
   "lib/arbor/telemetry/buildTelemetry.ts",
+  "lib/chat/postResponseScheduler.ts",
+  "lib/memory/correctionResolution.ts",
+  "lib/memory/durableEvents.ts",
   "lib/memory/extractor.ts",
   "lib/memory/retrieval.ts",
   "lib/memory/store.ts",
@@ -24,6 +27,7 @@ const files = [
   "lib/safety/decisionOutcome.ts",
   "lib/safety/postcheck.ts",
   "lib/supabase/server.ts",
+  "scripts/live_acceptance/telemetryPrivacyAudit.ts",
 ];
 
 describe("Milestone 1A sensitive logging", () => {
