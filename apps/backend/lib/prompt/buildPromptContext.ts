@@ -11,6 +11,11 @@ import {
   type AnchorRow,
 } from "@/lib/memory/anchors";
 import type { SafetyAddendum } from "@/lib/governance/realWorldSafetyAddendum";
+import {
+  buildArborBehaviorProjection,
+  type ArborBehaviorProof,
+  type ArborInteractionMode,
+} from "@/lib/arbor/behavior/behaviorProjection";
 
 export function invalidatePromptCache(params: {
   authedUserId: string;
@@ -29,11 +34,13 @@ type BuildPromptParams = {
   conversationId?: string | null;
   latestUserText: string;
   safety?: SafetyAddendum | null;
+  interactionMode?: ArborInteractionMode;
 };
 
 export type BuiltPromptContext = {
   systemPrompt: string;
   injectedMemoryItems: RetrievedMemoryItem[];
+  behaviorProof: ArborBehaviorProof;
 };
 
 function isTruthyAnchor(v: unknown): boolean {
@@ -119,6 +126,7 @@ export async function buildPromptContext({
   conversationId = null,
   latestUserText,
   safety = null,
+  interactionMode = "text",
 }: BuildPromptParams): Promise<BuiltPromptContext> {
   const { data: project, error: projectError } = await supabase
     .from("projects")
@@ -192,8 +200,22 @@ export async function buildPromptContext({
     .map(([cat, arr]) => `${cat.toUpperCase()}:\n${arr.map((x) => `- ${x}`).join("\n")}`)
     .join("\n\n");
 
+  const behaviorProjection = buildArborBehaviorProjection({
+    mode: interactionMode,
+    projectBehaviorPhilosophy: philosophy,
+    stableBehaviorMaterial: [
+      anchorBlock,
+      NEGATIVE_PREFS_GUARD,
+      negativePrefsFromAnchors,
+    ].filter(Boolean),
+    correctionRules: [negativePrefsFromAnchors].filter(Boolean),
+    continuityMaterial: [anchorBlock, memoryText].filter(Boolean),
+  });
+
   const systemPrompt = `
     You are ${ASSISTANT_NAME}. ${IDENTITY_LOCK}
+
+    ${behaviorProjection.promptBlock}
 
     Meta Guards:
     ${META_GUARDS}
@@ -222,10 +244,22 @@ export async function buildPromptContext({
     ${fallbackPrompt ? "\n\n" + fallbackPrompt : ""}
     `.trim();
 
-  await logMemoryEvent("prompt_built", { authedUserId, projectId, tokenLength: systemPrompt.length });
+  await logMemoryEvent("prompt_built", {
+    authedUserId,
+    projectId,
+    tokenLength: systemPrompt.length,
+    interactionMode,
+    behaviorCoreFingerprint: behaviorProjection.proof.coreFingerprint,
+    behaviorContinuityFingerprint:
+      behaviorProjection.proof.continuityFingerprint,
+    behaviorProjectionFingerprint:
+      behaviorProjection.proof.projectionFingerprint,
+  });
+
   return {
     systemPrompt,
     injectedMemoryItems: selectedItems,
+    behaviorProof: behaviorProjection.proof,
   };
 }
 
