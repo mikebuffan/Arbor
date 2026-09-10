@@ -35,12 +35,21 @@ function lastMeaningful(
   rows: MessageRow[],
   role: "user" | "assistant",
 ): string | null {
-  for (let index = rows.length - 1; index >= 0; index -= 1) {
+  for (
+    let index = rows.length - 1;
+    index >= 0;
+    index -= 1
+  ) {
     const row = rows[index];
-    if (row?.role === role && meaningful(row.content)) {
+
+    if (
+      row?.role === role &&
+      meaningful(row.content)
+    ) {
       return row.content.trim();
     }
   }
+
   return null;
 }
 
@@ -52,46 +61,69 @@ export async function loadContinuityState(input: {
   channel: "text" | "voice";
   activeCorrections?: string[];
 }): Promise<ArborContinuityState> {
-  const [agency, subsystem, messagesResult] = await Promise.all([
-    loadAgencyState(input),
-    loadSubsystemState(input),
-    input.supabase
-      .from("messages")
-      .select("role,content")
-      .eq("user_id", input.userId)
-      .eq("conversation_id", input.conversationId)
-      .is("deleted_at", null)
-      .order("created_at", { ascending: true })
-      .limit(50),
-  ]);
+  const now = new Date().toISOString();
 
-  if (messagesResult.error) throw messagesResult.error;
+  const [agency, subsystem, messagesResult] =
+    await Promise.all([
+      loadAgencyState(input),
+      loadSubsystemState(input),
+      input.supabase
+        .from("messages")
+        .select("role,content")
+        .eq("user_id", input.userId)
+        .eq(
+          "conversation_id",
+          input.conversationId,
+        )
+        .is("deleted_at", null)
+        .or(
+          `expires_at.is.null,expires_at.gt.${now}`,
+        )
+        .order("created_at", {
+          ascending: true,
+        })
+        .limit(50),
+    ]);
 
-  const rows = (messagesResult.data ?? []) as MessageRow[];
+  if (messagesResult.error) {
+    throw messagesResult.error;
+  }
+
+  const rows =
+    (messagesResult.data ?? []) as MessageRow[];
 
   return buildContinuityState({
     agency,
-    activeSubsystem: subsystem.activeSubsystem,
+    activeSubsystem:
+      subsystem.activeSubsystem,
     channel: input.channel,
-    lastMeaningfulUserTurn: lastMeaningful(rows, "user"),
-    lastMeaningfulArborTurn: lastMeaningful(rows, "assistant"),
+    lastMeaningfulUserTurn:
+      lastMeaningful(rows, "user"),
+    lastMeaningfulArborTurn:
+      lastMeaningful(rows, "assistant"),
     activeCorrections:
       input.activeCorrections ?? [],
   });
 }
 
 export async function loadContinuityStateSafe(
-  input: Parameters<typeof loadContinuityState>[0],
+  input: Parameters<
+    typeof loadContinuityState
+  >[0],
 ): Promise<ArborContinuityState> {
   try {
     return await loadContinuityState(input);
   } catch (error) {
-    console.warn("[arbor:continuity] fallback", error);
+    console.warn(
+      "[arbor:continuity] fallback",
+      error,
+    );
 
     return buildContinuityState({
       activeSubsystem: "arbor",
       channel: input.channel,
-      activeCorrections: input.activeCorrections,
+      activeCorrections:
+        input.activeCorrections,
     });
   }
 }
