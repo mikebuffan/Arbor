@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { subsystemCue } from "./cues";
+import { resolveSubsystemCue } from "./cues";
 import {
   loadSubsystemState,
   persistActiveSubsystem,
@@ -69,7 +69,7 @@ export async function buildArborInjectedContext(input: {
   userText: string;
 }): Promise<ArborInjectedContext> {
   const state = await loadSubsystemState(input);
-  const cue = subsystemCue(input.userText);
+  const cue = resolveSubsystemCue(input.userText);
   const activeSubsystem = cue ?? state.activeSubsystem;
 
   if (cue && cue !== state.activeSubsystem) {
