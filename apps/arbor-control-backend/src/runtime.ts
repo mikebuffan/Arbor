@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 
+import type { ArborAuditSink } from "./audit.js";
 import { ARBOR_CORE_INJECTION } from "./identity.js";
 import { runAgency } from "./agency.js";
 import { resolveSubsystem, subsystemInjection } from "./subsystems.js";
@@ -37,6 +38,7 @@ export class ArborControlRuntime {
   constructor(
     private readonly store: ArborStateStore,
     private readonly bridge: ArborBackendBridge,
+    private readonly audit?: ArborAuditSink,
   ) {}
 
   async getState(input: {
@@ -120,8 +122,19 @@ export class ArborControlRuntime {
     authorization?: string,
   ): Promise<CanonicalArborResponse> {
     const scope = stateScope(request);
-    const prior = await this.getState(request);
     const turnId = request.turnId ?? crypto.randomUUID();
+
+    await this.record(turnId, request, "input", "turn_started", {
+      channel: request.channel ?? "text",
+    });
+
+    const prior = await this.getState(request);
+
+    await this.record(turnId, request, "retrieve", "state_loaded", {
+      subsystem: prior.activeSubsystem,
+      unresolvedCount: prior.unresolvedWork.length,
+      voiceId: prior.voiceId,
+    });
 
     const activeSubsystem = resolveSubsystem(
       request.userText,
@@ -140,6 +153,10 @@ export class ArborControlRuntime {
           ? prior.goal
           : request.userText.trim(),
     };
+
+    await this.record(turnId, request, "decide", "subsystem_resolved", {
+      subsystem: activeSubsystem,
+    });
 
     const externalState = await this.bridge.loadState({
       projectId: request.projectId,
@@ -187,7 +204,30 @@ export class ArborControlRuntime {
       },
     });
 
+    await this.record(
+      turnId,
+      request,
+      agency.status === "blocked" ? "blocked" : "verify",
+      agency.status === "blocked"
+        ? "agency_blocked"
+        : "agency_verified",
+      {
+        complete: agency.status === "complete",
+        toolCalls: agency.toolCalls,
+        unresolvedCount: agency.state.unresolvedWork.length,
+        blockedReason:
+          agency.status === "blocked"
+            ? agency.blocker
+            : undefined,
+      },
+    );
+
     await this.store.save(scope, agency.state);
+
+    await this.record(turnId, request, "persist", "state_persisted", {
+      subsystem: agency.state.activeSubsystem,
+      unresolvedCount: agency.state.unresolvedWork.length,
+    });
 
     const response: CanonicalArborResponse = {
       text: agency.text,
@@ -206,6 +246,13 @@ export class ArborControlRuntime {
 
     await this.store.saveTurn(response);
 
+    await this.record(turnId, request, "generate", "canonical_response_saved", {
+      subsystem: activeSubsystem,
+      channel: response.channel,
+      characterCount: response.text.length,
+      voiceId: response.voice.voiceId,
+    });
+
     await this.bridge.persistTurn({
       projectId: request.projectId,
       conversationId: request.conversationId,
@@ -215,6 +262,44 @@ export class ArborControlRuntime {
       authorization,
     });
 
+    await this.record(turnId, request, "complete", "turn_completed", {
+      subsystem: activeSubsystem,
+      channel: response.channel,
+      toolCalls: agency.toolCalls,
+    });
+
     return response;
+  }
+
+  private async record(
+    turnId: string,
+    request: ArborTurnRequest,
+    phase:
+      | "input"
+      | "retrieve"
+      | "decide"
+      | "act"
+      | "observe"
+      | "verify"
+      | "update"
+      | "generate"
+      | "persist"
+      | "render"
+      | "complete"
+      | "blocked"
+      | "error",
+    event: string,
+    detail?: Record<string, unknown>,
+  ): Promise<void> {
+    if (!this.audit) return;
+
+    await this.audit.record({
+      turnId,
+      projectId: request.projectId,
+      conversationId: request.conversationId,
+      phase,
+      event,
+      detail,
+    });
   }
 }
