@@ -1,7 +1,13 @@
-create table if not exists public.arbor_runtime_state
+create table if not exists public.arbor_conversation_state
 (
-  user_id uuid not null,
-  project_id uuid not null,
+  user_id uuid not null
+    references auth.users(id)
+    on delete cascade,
+
+  project_id uuid not null
+    references public.projects(id)
+    on delete cascade,
+
   conversation_id uuid not null,
 
   state jsonb not null default '{}'::jsonb,
@@ -15,17 +21,41 @@ create table if not exists public.arbor_runtime_state
   )
 );
 
-alter table public.arbor_runtime_state
+alter table public.arbor_conversation_state
 enable row level security;
 
 drop policy if exists
-  "users manage own arbor runtime state"
-on public.arbor_runtime_state;
+  "conversation_state_select_own"
+on public.arbor_conversation_state;
+
+drop policy if exists
+  "conversation_state_insert_own"
+on public.arbor_conversation_state;
+
+drop policy if exists
+  "conversation_state_update_own"
+on public.arbor_conversation_state;
 
 create policy
-  "users manage own arbor runtime state"
-on public.arbor_runtime_state
-for all
+  "conversation_state_select_own"
+on public.arbor_conversation_state
+for select
+using (
+  auth.uid() = user_id
+);
+
+create policy
+  "conversation_state_insert_own"
+on public.arbor_conversation_state
+for insert
+with check (
+  auth.uid() = user_id
+);
+
+create policy
+  "conversation_state_update_own"
+on public.arbor_conversation_state
+for update
 using (
   auth.uid() = user_id
 )
@@ -34,8 +64,8 @@ with check (
 );
 
 create index if not exists
-  arbor_runtime_state_updated_at_idx
-on public.arbor_runtime_state
+  arbor_conversation_state_updated_at_idx
+on public.arbor_conversation_state
 (
   user_id,
   project_id,
