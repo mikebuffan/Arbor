@@ -56,6 +56,7 @@ const base: ArborRuntimeState = {
     }),
   ],
   behaviorProof: null,
+  pendingSelfUpdate: null,
   createdAt:
     "2026-09-10T21:00:00.000Z",
   updatedAt:
