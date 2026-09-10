@@ -15,6 +15,7 @@ export function isMissingRuntimeTable(error: unknown): boolean {
     record.code === "42P01" ||
     record.code === "PGRST205" ||
     text.includes("arbor_runtime_state") ||
+    text.includes("arbor_conversation_state") ||
     text.includes("arbor_timeline_events") ||
     text.includes("annabelle_workspace_state") ||
     text.includes("annabelle_workspace_revisions") ||
