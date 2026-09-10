@@ -42,7 +42,7 @@ export async function runAgencyTick(params: {
   }
 
   const decision = decideRecovery(chosen, {
-    failedStrategy: params.failedStrategy,
+    failedStrategy: params.failedStrategy ?? undefined,
     alternateActions: params.alternateActions,
     requiresAuthority: params.requiresAuthority,
     irreversible: params.irreversible,
