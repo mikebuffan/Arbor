@@ -2,13 +2,16 @@ import http from "node:http";
 import { z } from "zod";
 
 import { ArborControlRuntime } from "./runtime.js";
-import { InMemoryArborStateStore } from "./stateStore.js";
+import { JsonFileArborStateStore } from "./stateStore.js";
 import { MikeBackendBridge } from "./backendBridge.js";
+import { ArborVoiceRenderer } from "./voice.js";
 
+const store = new JsonFileArborStateStore();
 const runtime = new ArborControlRuntime(
-  new InMemoryArborStateStore(),
+  store,
   new MikeBackendBridge(),
 );
+const voice = new ArborVoiceRenderer(store);
 
 const Body = z.object({
   userText: z.string().min(1).max(100_000),
@@ -27,6 +30,30 @@ const server = http.createServer(async (req, res) => {
         ok: true,
         service: "arbor-control-backend",
       });
+      return;
+    }
+
+    if (req.method === "GET" && req.url?.startsWith("/v1/voice/")) {
+      const turnId = decodeURIComponent(
+        req.url.slice("/v1/voice/".length),
+      );
+
+      if (!turnId) {
+        json(res, 400, {
+          ok: false,
+          error: "turn_id_required",
+        });
+        return;
+      }
+
+      const rendered = await voice.renderTurn(turnId);
+
+      res.writeHead(200, {
+        "content-type": rendered.contentType,
+        "cache-control": "no-store",
+        "x-arbor-turn-id": turnId,
+      });
+      res.end(Buffer.from(rendered.audio));
       return;
     }
 
