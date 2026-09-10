@@ -9,8 +9,10 @@ import {
   loadAnnabelleWorkspace,
 } from "./annabelleWorkspace";
 import { loadAgencyState } from "@/lib/arbor/agency/state";
+import type { AgencyState } from "@/lib/arbor/agency/engine";
 import type { ArborSubsystem } from "@/lib/arbor/runtime/arborRuntime";
 import { strategyContext } from "@/lib/arbor/agency/strategyRetention";
+import { promptDataBlock } from "@/lib/arbor/promptData";
 
 const CORE_RULES = `
 ONE ARBOR.
@@ -67,6 +69,24 @@ export type ArborInjectedContext = {
   systemInjection: string;
 };
 
+export function agencyToPromptBlock(
+  agency: AgencyState | null,
+): string {
+  if (!agency) return "";
+
+  const strategy = strategyContext(agency.strategyNotes);
+
+  return promptDataBlock("LONGITUDINAL AGENCY STATE", {
+    goal: agency.goal,
+    status: agency.status,
+    currentStep: agency.currentStep,
+    unresolvedWork: agency.unresolvedWork,
+    recurringWeaknesses: agency.recurringWeaknesses,
+    retainedStrategyChanges: strategy.retained,
+    tentativeStrategyUnderVerification: strategy.pending,
+  });
+}
+
 export async function buildArborInjectedContext(input: {
   supabase: SupabaseClient;
   userId: string;
@@ -87,27 +107,7 @@ export async function buildArborInjectedContext(input: {
   }
 
   const agency = await loadAgencyState(input);
-
-  const strategy = agency
-    ? strategyContext(agency.strategyNotes)
-    : { retained: [], pending: [] };
-
-  const agencyBlock = agency
-    ? `
-LONGITUDINAL AGENCY STATE:
-- goal: ${agency.goal}
-- status: ${agency.status}
-- current step: ${agency.currentStep}
-- unresolved work:
-${agency.unresolvedWork.map((item) => `  - ${item}`).join("\n") || "  - none"}
-- recurring weaknesses:
-${agency.recurringWeaknesses.map((item) => `  - ${item}`).join("\n") || "  - none"}
-- retained strategy changes:
-${strategy.retained.map((item) => `  - ${item}`).join("\n") || "  - none"}
-- tentative strategy under verification:
-${strategy.pending.map((item) => `  - ${item}`).join("\n") || "  - none"}
-`.trim()
-    : "";
+  const agencyBlock = agencyToPromptBlock(agency);
 
   const annabelleWorkspaceBlock =
     activeSubsystem === "annabelle"

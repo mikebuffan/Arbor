@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isMissingRuntimeTable } from "@/lib/arbor/runtime/missingRuntimeTable";
+import { promptDataBlock } from "@/lib/arbor/promptData";
 
 export type AnnabelleWorkspace = {
   canon: string[];
@@ -183,17 +184,5 @@ export async function restoreLatestAnnabelleWorkspaceRevision(input: {
 export function annabelleWorkspaceToPromptBlock(
   workspace: AnnabelleWorkspace,
 ): string {
-  const section = (name: string, values: string[]) =>
-    values.length
-      ? `${name}:\n${values.map((value) => `- ${value}`).join("\n")}`
-      : `${name}:\n- none`;
-
-  return [
-    "ANNABELLE WORKSPACE",
-    section("Canon", workspace.canon),
-    section("Locked passages", workspace.lockedPassages),
-    section("Current scene state", workspace.sceneState),
-    section("Unresolved writing decisions", workspace.unresolvedDecisions),
-    `Latest working delta:\n${workspace.workingDelta ?? "(none)"}`,
-  ].join("\n\n");
+  return promptDataBlock("ANNABELLE WORKSPACE", workspace);
 }

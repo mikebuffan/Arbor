@@ -1,4 +1,5 @@
 import type { AgencyState } from "../agency/engine";
+import { promptDataBlock } from "../promptData";
 import type { ArborSubsystem } from "../runtime/arborRuntime";
 
 export type ArborContinuityState = {
@@ -40,25 +41,8 @@ export function buildContinuityState(input: {
   };
 }
 
-export function continuityToPromptBlock(state: ArborContinuityState): string {
-  const list = (heading: string, values: string[]) =>
-    [
-      heading,
-      values.length
-        ? values.map((value) => `- ${value}`).join("\n")
-        : "- none",
-    ].join("\n");
-
-  return [
-    "CONTINUITY STATE",
-    `Channel: ${state.channel}`,
-    `Active subsystem: ${state.activeSubsystem}`,
-    `Current goal: ${state.currentGoal ?? "(unknown)"}`,
-    `Last meaningful user turn: ${state.lastMeaningfulUserTurn ?? "(unknown)"}`,
-    `Last meaningful Arbor turn: ${state.lastMeaningfulArborTurn ?? "(unknown)"}`,
-    list("Unresolved work:", state.unresolvedWork),
-    list("Recurring weaknesses:", state.recurringWeaknesses),
-    list("Retained strategy changes:", state.retainedStrategies),
-    list("Active corrections:", state.activeCorrections),
-  ].join("\n");
+export function continuityToPromptBlock(
+  state: ArborContinuityState,
+): string {
+  return promptDataBlock("CONTINUITY STATE", state);
 }
