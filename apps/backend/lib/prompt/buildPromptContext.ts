@@ -22,6 +22,11 @@ import {
   continuityToPromptBlock,
 } from "@/lib/arbor/continuity/state";
 import { loadContinuityStateSafe } from "@/lib/arbor/continuity/store";
+import { projectRuntimeHost } from "@/lib/arbor/host/runtimeProjection";
+import type {
+  HostStartupProjection,
+  OneArborHostState,
+} from "@/lib/arbor/host/oneArborHostBridge";
 
 export function invalidatePromptCache(params: {
   authedUserId: string;
@@ -39,6 +44,7 @@ type BuildPromptParams = {
   latestUserText: string;
   safety?: SafetyAddendum | null;
   interactionMode?: "text" | "voice";
+  hostSessionId?: string | null;
 };
 
 export type BuiltPromptContext = {
@@ -48,6 +54,8 @@ export type BuiltPromptContext = {
   voiceId: string;
   acousticCorrections: string[];
   behaviorProof: ArborBehaviorProof;
+  hostState: OneArborHostState;
+  hostStartup: HostStartupProjection;
 };
 
 function isTruthyAnchor(v: unknown): boolean {
@@ -131,6 +139,7 @@ export async function buildPromptContext({
   latestUserText,
   safety = null,
   interactionMode = "text",
+  hostSessionId = null,
 }: BuildPromptParams): Promise<BuiltPromptContext> {
   const { data: project, error: projectError } = await supabase
     .from("projects")
