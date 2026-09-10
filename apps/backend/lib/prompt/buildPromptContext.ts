@@ -16,6 +16,10 @@ import {
   type ArborBehaviorProof,
   type ArborInteractionMode,
 } from "@/lib/arbor/behavior/behaviorProjection";
+import {
+  listActiveWorkSafe,
+  workStateToPromptBlock,
+} from "@/lib/arbor/agency/workStore";
 
 export function invalidatePromptCache(params: {
   authedUserId: string;
@@ -200,6 +204,17 @@ export async function buildPromptContext({
     .map(([cat, arr]) => `${cat.toUpperCase()}:\n${arr.map((x) => `- ${x}`).join("\n")}`)
     .join("\n\n");
 
+  const activeWork = projectId
+    ? await listActiveWorkSafe({
+        supabase,
+        userId: authedUserId,
+        projectId,
+        limit: 8,
+      })
+    : [];
+
+  const activeWorkBlock = workStateToPromptBlock(activeWork);
+
   const behaviorProjection = buildArborBehaviorProjection({
     mode: interactionMode,
     projectBehaviorPhilosophy: philosophy,
@@ -209,7 +224,11 @@ export async function buildPromptContext({
       negativePrefsFromAnchors,
     ].filter(Boolean),
     correctionRules: [negativePrefsFromAnchors].filter(Boolean),
-    continuityMaterial: [anchorBlock, memoryText].filter(Boolean),
+    continuityMaterial: [
+      anchorBlock,
+      memoryText,
+      activeWorkBlock,
+    ].filter(Boolean),
   });
 
   const systemPrompt = `
@@ -237,6 +256,8 @@ export async function buildPromptContext({
 
     Relevant context:
     ${memoryText || "(none)"}
+
+    ${activeWorkBlock ? "\n" + activeWorkBlock + "\n" : ""}
 
     Engage with empathy, continuity, and directness. Do not fabricate, overextrapolate, or alter facts.
     Maintain tone and memory alignment across sessions.
