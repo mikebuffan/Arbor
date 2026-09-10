@@ -75,10 +75,8 @@ export async function loadContinuityState(input: {
     channel: input.channel,
     lastMeaningfulUserTurn: lastMeaningful(rows, "user"),
     lastMeaningfulArborTurn: lastMeaningful(rows, "assistant"),
-    activeCorrections: [
-      ...subsystem.acousticCorrections,
-      ...(input.activeCorrections ?? []),
-    ],
+    activeCorrections:
+      input.activeCorrections ?? [],
   });
 }
 
