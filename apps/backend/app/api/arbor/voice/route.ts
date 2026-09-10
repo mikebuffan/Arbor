@@ -35,6 +35,16 @@ const Body =
         .min(1)
         .max(12000),
 
+    sourceMode:
+      z.enum([
+        "text",
+        "voice",
+        "annabelle",
+      ])
+        .default(
+          "voice",
+        ),
+
     persona:
       z.enum([
         "arbor",
@@ -145,6 +155,7 @@ export async function POST(
 
     const {
       text,
+      sourceMode,
       persona,
       voiceId,
       speed,
@@ -215,6 +226,12 @@ export async function POST(
 
           "x-arbor-persona":
             persona,
+
+          "x-arbor-source-mode":
+            sourceMode,
+
+          "x-arbor-tts-boundary":
+            "render-only",
 
           ...(result.requestId
             ? {
