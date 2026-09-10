@@ -23,11 +23,12 @@ class RealtimeTranscriptEvent {
 class RealtimeTranscriptionClient {
   RealtimeTranscriptionClient({
     required ArborApiClient api,
-    required this.projectId,
-  }) : _api = api;
+    String? projectId,
+  })  : _api = api,
+        _projectId = projectId;
 
   final ArborApiClient _api;
-  final String projectId;
+  String? _projectId;
 
   RTCPeerConnection? _peer;
   RTCDataChannel? _events;
@@ -41,6 +42,18 @@ class RealtimeTranscriptionClient {
   Stream<RealtimeTranscriptEvent> get transcripts =>
       _transcripts.stream;
   Stream<RealtimeSpeechEvent> get speech => _speech.stream;
+
+  String get projectId {
+    final value = _projectId;
+
+    if (value == null || value.isEmpty) {
+      throw StateError(
+        'Realtime session has not resolved a project yet',
+      );
+    }
+
+    return value;
+  }
 
   bool get connected => _peer != null;
 
@@ -95,10 +108,21 @@ class RealtimeTranscriptionClient {
       final answer = await _api.postText(
         '/api/arbor/voice/realtime',
         body: {
-          'projectId': projectId,
+          if (_projectId != null)
+            'projectId': _projectId,
           'sdp': offerSdp,
         },
       );
+
+      final resolvedProjectId =
+          answer.headers['x-arbor-project-id'];
+
+      if (resolvedProjectId == null ||
+          resolvedProjectId.isEmpty) {
+        throw StateError(
+          'Realtime handshake did not return project identity',
+        );
+      }
 
       await peer.setRemoteDescription(
         RTCSessionDescription(
@@ -107,6 +131,7 @@ class RealtimeTranscriptionClient {
         ),
       );
 
+      _projectId = resolvedProjectId;
       _peer = peer;
       _events = events;
       _microphone = microphone;
