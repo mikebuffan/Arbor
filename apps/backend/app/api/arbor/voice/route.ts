@@ -9,6 +9,8 @@ import { loadSubsystemState } from "@/lib/arbor/subsystem/state";
 import { buildVoiceInstructions } from "@/lib/arbor/voice/identity";
 import { synthesizeOpenAiTts } from "@/lib/arbor/voice/openaiTts";
 import { loadCanonicalAssistantTextForTurn } from "@/lib/arbor/voice/canonicalTurn";
+import { ArborTimeline } from "@/lib/arbor/timeline/runTimeline";
+import { SupabaseTimelineStore } from "@/lib/arbor/timeline/supabaseStore";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -66,6 +68,26 @@ export async function POST(req: Request) {
       projectId,
     });
 
+    const timeline = await ArborTimeline.create(
+      new SupabaseTimelineStore(supabase),
+      {
+        userId,
+        projectId,
+        turnId,
+        subsystem: voiceState.activeSubsystem,
+        channel: "voice",
+      },
+    );
+
+    await timeline.record(
+      "render",
+      "adapter_selected",
+      {
+        adapter: "voice",
+        voiceId: voiceState.voiceId,
+      },
+    );
+
     const result = await synthesizeOpenAiTts({
       text: canonicalText,
       voice: voiceState.voiceId,
@@ -74,6 +96,16 @@ export async function POST(req: Request) {
         voiceState.acousticCorrections,
       ),
     });
+
+    await timeline.record(
+      "render",
+      "render_completed",
+      {
+        adapter: "voice",
+        providerRequestId: result.requestId,
+        bytes: result.audio.byteLength,
+      },
+    );
 
     const audioBody = result.audio.buffer.slice(
       result.audio.byteOffset,
