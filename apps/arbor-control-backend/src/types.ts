@@ -55,3 +55,17 @@ export type CanonicalArborResponse = {
     acousticCorrections: string[];
   };
 };
+
+export type ArborConversationMessage = {
+  role: "user" | "assistant";
+  content: string;
+};
+
+export type StoredArborTurn = {
+  turnId: string;
+  scope: string;
+  requestFingerprint: string;
+  userText: string;
+  createdAt: string;
+  response: CanonicalArborResponse;
+};
