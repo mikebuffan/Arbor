@@ -13,6 +13,12 @@ import {
 import { buildPromptContext } from "@/lib/prompt/buildPromptContext";
 import { runOpenAIAgencyAgent } from "@/lib/arbor/agency/openaiAgent";
 import { AgencyToolRegistry } from "@/lib/arbor/agency/tools";
+import {
+  beginAgencySession,
+  blockAgencySession,
+  completeAgencySession,
+  recordAgencyProgress,
+} from "@/lib/arbor/agency/session";
 import { extractMemoryFromText } from "@/lib/memory/extractor";
 import { reinforceMemoryUse } from "@/lib/memory/store";
 import {
@@ -243,6 +249,13 @@ export async function POST(req: Request) {
     const decisionContext = evaluateDecisionContext({ userText });
     const safety = realWorldSafetyAddendum(decisionContext);
 
+    const agencySession = await beginAgencySession({
+      supabase,
+      userId,
+      projectId,
+      userText,
+    });
+
     const historyPromise = loadRecentMessages(supabase, userId, convoId, 20);
     const promptContextPromise = buildPromptContext({
       supabase,
@@ -307,7 +320,40 @@ export async function POST(req: Request) {
     });
 
     if (agentResult.status === "blocked") {
+      await blockAgencySession({
+        supabase,
+        userId,
+        projectId,
+        agency: agencySession,
+        blocker: agentResult.reason,
+        unresolvedWork: Array.from(
+          new Set([
+            ...agencySession.unresolvedWork,
+            `blocked tool: ${agentResult.toolName}`,
+          ]),
+        ),
+      });
+
       throw new RouteAccessError(409, "agency_boundary");
+    }
+
+    if (agencySession.unresolvedWork.length) {
+      await recordAgencyProgress({
+        supabase,
+        userId,
+        projectId,
+        agency: agencySession,
+        step: agencySession.currentStep + 1,
+        unresolvedWork: agencySession.unresolvedWork,
+      });
+    } else {
+      await completeAgencySession({
+        supabase,
+        userId,
+        projectId,
+        agency: agencySession,
+        verified: true,
+      });
     }
 
     const deterministicMemoryTurn = classifyMemoryTurn({
