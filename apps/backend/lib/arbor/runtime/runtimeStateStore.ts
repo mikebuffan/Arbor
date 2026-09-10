@@ -16,7 +16,7 @@ export async function loadRuntimeState(input: {
   conversationId: string;
 }): Promise<ArborRuntimeState | null> {
   const { data, error } = await input.supabase
-    .from("arbor_runtime_state")
+    .from("arbor_conversation_state")
     .select("user_id,project_id,conversation_id,state,updated_at")
     .eq("user_id", input.userId)
     .eq("project_id", input.projectId)
@@ -36,7 +36,7 @@ export async function saveRuntimeState(input: {
   const state = input.state;
 
   const { error } = await input.supabase
-    .from("arbor_runtime_state")
+    .from("arbor_conversation_state")
     .upsert(
       {
         user_id: state.userId,
