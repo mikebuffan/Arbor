@@ -5,6 +5,7 @@ import { runAgency } from "./agency.js";
 import { resolveSubsystem, subsystemInjection } from "./subsystems.js";
 import {
   addAcousticCorrection,
+  pushAnnabelleRevision,
   renderAnnabelleWorkspace,
   type AnnabelleWorkspace,
 } from "./controlState.js";
@@ -70,9 +71,13 @@ export class ArborControlRuntime {
   }): Promise<ArborState> {
     const scope = stateScope(input);
     const current = await this.getState(input);
+    const revisioned = pushAnnabelleRevision(
+      current,
+      "direct Annabelle workspace replacement",
+    );
 
     const next: ArborState = {
-      ...current,
+      ...revisioned,
       annabelle: structuredClone(input.workspace),
     };
 
