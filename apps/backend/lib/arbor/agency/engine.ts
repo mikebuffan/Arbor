@@ -1,3 +1,5 @@
+import { recordStrategyCandidate } from "./strategyRetention";
+
 export type AgencyBlocker =
   | "external_authority"
   | "irreversible_action"
@@ -106,14 +108,21 @@ export async function runAgency<SharedState>(input: {
       verification,
     });
 
+    const strategyUpdate = audit.strategyChange
+      ? recordStrategyCandidate(
+          agency.strategyNotes,
+          audit.strategyChange,
+        )
+      : null;
+
     agency = {
       ...agency,
       recurringWeaknesses: audit.recurringWeakness
         ? [...agency.recurringWeaknesses, audit.recurringWeakness].slice(-20)
         : agency.recurringWeaknesses,
-      strategyNotes: audit.strategyChange
-        ? [...agency.strategyNotes, audit.strategyChange].slice(-20)
-        : agency.strategyNotes,
+      strategyNotes:
+        strategyUpdate?.notes ??
+        agency.strategyNotes,
     };
 
     await input.runtime.persist({ agency, shared });
