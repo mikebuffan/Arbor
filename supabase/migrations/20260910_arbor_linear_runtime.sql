@@ -35,6 +35,19 @@ create table if not exists public.arbor_timeline_events (
   unique (turn_id, sequence)
 );
 
+create table if not exists public.annabelle_workspace_state (
+  user_id uuid not null references auth.users(id) on delete cascade,
+  project_id uuid not null references public.projects(id) on delete cascade,
+  canon jsonb not null default '[]'::jsonb,
+  locked_passages jsonb not null default '[]'::jsonb,
+  scene_state jsonb not null default '[]'::jsonb,
+  unresolved_decisions jsonb not null default '[]'::jsonb,
+  working_delta text null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  primary key (user_id, project_id)
+);
+
 create index if not exists arbor_timeline_turn_idx
   on public.arbor_timeline_events (turn_id, sequence);
 
@@ -43,6 +56,7 @@ create index if not exists arbor_timeline_project_idx
 
 alter table public.arbor_runtime_state enable row level security;
 alter table public.arbor_timeline_events enable row level security;
+alter table public.annabelle_workspace_state enable row level security;
 
 create policy "runtime_state_select_own"
 on public.arbor_runtime_state for select
@@ -63,4 +77,17 @@ using (auth.uid() = user_id);
 
 create policy "timeline_insert_own"
 on public.arbor_timeline_events for insert
+with check (auth.uid() = user_id);
+
+create policy "annabelle_workspace_select_own"
+on public.annabelle_workspace_state for select
+using (auth.uid() = user_id);
+
+create policy "annabelle_workspace_insert_own"
+on public.annabelle_workspace_state for insert
+with check (auth.uid() = user_id);
+
+create policy "annabelle_workspace_update_own"
+on public.annabelle_workspace_state for update
+using (auth.uid() = user_id)
 with check (auth.uid() = user_id);
