@@ -34,6 +34,7 @@ export type AnnabelleWorkspaceRevisionState = {
 export type SelfModelIdentityState = {
   version: string;
   checksum: string;
+  sourceDigest: string;
   sourceQuestionCount: number;
   promotedPatternIds: string[];
   initializedAt: string;
