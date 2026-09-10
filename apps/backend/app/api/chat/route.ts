@@ -318,6 +318,7 @@ export async function POST(req: Request) {
 
     const agentResult = await runOpenAIAgencyAgent({
       instructions: systemPrompt,
+      goal: agencyState.goal,
       messages: history
         .filter(
           (
@@ -392,6 +393,32 @@ export async function POST(req: Request) {
             "action_completed",
             { capability: name },
             name,
+          );
+        },
+        async onVerification({
+          complete,
+          unresolvedWork,
+          evidence,
+          strategyCorrection,
+        }) {
+          agencyState = await recordAgencyProgress({
+            supabase,
+            userId,
+            projectId,
+            agency: agencyState,
+            step: agencyState.currentStep,
+            unresolvedWork,
+            strategyChange: strategyCorrection ?? undefined,
+          });
+
+          await timeline.record(
+            "verify",
+            complete ? "verification_passed" : "verification_failed",
+            {
+              evidence,
+              unresolvedWork,
+              strategyCorrection,
+            },
           );
         },
         async onBoundary({ name, reason }) {
