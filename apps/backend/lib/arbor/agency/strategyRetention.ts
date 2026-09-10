@@ -1,4 +1,5 @@
 const PENDING_PREFIX = "__arbor_pending_strategy_v1__:";
+const REQUIRED_CONFIRMATIONS = 2;
 
 export type StrategyRetentionState = {
   retained: string[];
@@ -32,8 +33,11 @@ function decodePending(
       return null;
     }
 
+    const strategy = parsed.strategy.trim();
+    if (!strategy) return null;
+
     return {
-      strategy: parsed.strategy.trim(),
+      strategy,
       confirmations: Math.max(
         1,
         Math.floor(parsed.confirmations),
@@ -51,11 +55,17 @@ export function readStrategyRetention(
   let pending: StrategyRetentionState["pending"] = null;
 
   for (const note of notes) {
-    const decoded = decodePending(note);
+    if (note.startsWith(PENDING_PREFIX)) {
+      const decoded = decodePending(note);
 
-    if (decoded) {
-      pending = decoded;
-    } else if (note.trim()) {
+      if (decoded) {
+        pending = decoded;
+      }
+
+      continue;
+    }
+
+    if (note.trim()) {
       retained.push(note.trim());
     }
   }
@@ -74,20 +84,52 @@ export function recordStrategyCandidate(
   disposition: "pending" | "retained";
 } {
   const strategy = candidate.trim();
+  const current = readStrategyRetention(notes);
 
   if (!strategy) {
     return {
-      notes,
+      notes: [
+        ...current.retained,
+        ...(current.pending
+          ? [encodePending(current.pending)]
+          : []),
+      ].slice(-20),
       disposition: "pending",
     };
   }
 
-  const current = readStrategyRetention(notes);
+  if (current.retained.includes(strategy)) {
+    return {
+      notes: current.retained,
+      disposition: "retained",
+    };
+  }
 
   if (current.pending?.strategy === strategy) {
+    const confirmations =
+      current.pending.confirmations + 1;
+
+    if (confirmations >= REQUIRED_CONFIRMATIONS) {
+      return {
+        notes: Array.from(
+          new Set([
+            ...current.retained,
+            strategy,
+          ]),
+        ).slice(-20),
+        disposition: "retained",
+      };
+    }
+
     return {
-      notes: [...current.retained, strategy].slice(-20),
-      disposition: "retained",
+      notes: [
+        ...current.retained,
+        encodePending({
+          strategy,
+          confirmations,
+        }),
+      ].slice(-20),
+      disposition: "pending",
     };
   }
 
@@ -113,10 +155,11 @@ export function strategyContext(
 
   return {
     retained: state.retained,
-    pending: state.pending ? [state.pending.strategy] : [],
+    pending: state.pending
+      ? [state.pending.strategy]
+      : [],
   };
 }
-
 
 export function retainStrategy(
   notes: string[],
