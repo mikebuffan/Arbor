@@ -67,3 +67,33 @@ jobs:
 
       - name: Build Android debug APK
         run: flutter build apk --debug
+
+  behavior_guard_sync:
+    name: Wire behavior guard
+    if: github.head_ref == 'arbor-behavior-regression-guard'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: arbor-behavior-regression-guard
+
+      - name: Apply exact behavior-guard wiring
+        run: python .github/scripts/wire_behavior_guard.py
+
+      - name: Commit wiring
+        run: |
+          git add \
+            apps/backend/lib/arbor/agency/openaiAgent.ts \
+            apps/backend/lib/arbor/agency/__tests__/updateLifecycle.test.ts \
+            apps/backend/lib/prompt/buildPromptContext.ts \
+            apps/backend/app/api/chat/route.ts
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git config user.name "Arbor CI"
+          git config user.email "actions@users.noreply.github.com"
+          git commit -m "fix(agency): wire behavioral regressions into self-update"
+          git push origin HEAD:arbor-behavior-regression-guard
