@@ -266,10 +266,12 @@ export async function runOpenAIAgencyAgent(input: {
       });
 
       if (toolNeedsUserBoundary(tool)) {
-        const reason =
+        const reason:
+          | "irreversible_action"
+          | "high_consequence_fork" =
           tool.risk === "irreversible"
-            ? ("irreversible_action" as const)
-            : ("high_consequence_fork" as const);
+            ? "irreversible_action"
+            : "high_consequence_fork";
 
         await input.hooks?.onBoundary?.({
           round,
