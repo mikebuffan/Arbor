@@ -37,6 +37,7 @@ export type AgencyLoopHooks = {
   onVerification?: (input: {
     round: number;
     complete: boolean;
+    score: number;
     unresolvedWork: string[];
     evidence: string[];
     strategyCorrection: string | null;
