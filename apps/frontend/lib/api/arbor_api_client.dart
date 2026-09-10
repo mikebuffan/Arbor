@@ -45,7 +45,6 @@ class ArborApiClient {
 
     return decoded as Map<String, dynamic>;
   }
-}
 
   Future<Uint8List> postBytes(
     String path, {
