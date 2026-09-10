@@ -101,7 +101,7 @@ describe("runAgency", () => {
     expect(result.agency.unresolvedWork).toEqual(["publish external change"]);
   });
 
-  it("retains a learned strategy correction", async () => {
+  it("retains a learned strategy correction only after repeated evidence", async () => {
     let rounds = 0;
 
     const runtime: AgencyRuntime<Shared> = {
@@ -110,13 +110,16 @@ describe("runAgency", () => {
       },
       async assess({ shared }) {
         return {
-          complete: shared.completed >= 1,
-          unresolvedWork: shared.completed ? [] : ["fix approach"],
+          complete: shared.completed >= 2,
+          unresolvedWork:
+            shared.completed >= 2
+              ? []
+              : ["fix approach"],
         };
       },
       async choose() {
         return {
-          id: "fix",
+          id: `fix-${rounds}`,
           description: "fix approach",
           reversible: true,
         };
@@ -126,26 +129,51 @@ describe("runAgency", () => {
         return 1;
       },
       async integrate({ shared, result }) {
-        return { completed: shared.completed + Number(result) };
+        return {
+          completed:
+            shared.completed +
+            Number(result),
+        };
       },
       async verify() {
-        return { ok: false, correction: "do not narrate instead of acting" };
+        return {
+          ok: false,
+          correction:
+            "do not narrate instead of acting",
+        };
       },
       async selfAudit({ verification }) {
         return {
-          recurringWeakness: "status narration",
-          strategyChange: verification.correction,
+          recurringWeakness:
+            "status narration",
+          strategyChange:
+            verification.correction,
         };
       },
       async persist() {},
     };
 
-    const result = await runAgency({ goal: "fix approach", runtime });
+    const result = await runAgency({
+      goal: "fix approach",
+      runtime,
+    });
 
-    expect(rounds).toBe(1);
-    expect(result.agency.recurringWeaknesses).toContain("status narration");
-    expect(result.agency.strategyNotes).toContain(
+    expect(rounds).toBe(2);
+    expect(
+      result.agency.recurringWeaknesses,
+    ).toContain("status narration");
+    expect(
+      result.agency.strategyNotes,
+    ).toContain(
       "do not narrate instead of acting",
     );
+    expect(
+      result.agency.strategyNotes.some(
+        (note) =>
+          note.startsWith(
+            "__arbor_pending_strategy_v1__:",
+          ),
+      ),
+    ).toBe(false);
   });
 });
