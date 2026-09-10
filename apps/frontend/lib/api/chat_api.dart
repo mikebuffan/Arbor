@@ -11,12 +11,14 @@ class ChatApi {
     String? conversationId,
     String? turnId,
     required String userText,
+    String interactionMode = 'text',
   }) async {
     final resolvedTurnId = turnId ?? newTurnId();
 
     final body = <String, dynamic>{
       'turnId': resolvedTurnId,
       'userText': userText,
+      'interactionMode': interactionMode,
     };
 
     if (projectId != null) body['projectId'] = projectId;
