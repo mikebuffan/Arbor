@@ -19,7 +19,7 @@ import {
 import {
   listActiveWorkSafe,
   workStateToPromptBlock,
-} from "@/lib/arbor/agency/workStore";
+} from "@/lib/arbor/agency/store";
 
 export function invalidatePromptCache(params: {
   authedUserId: string;
