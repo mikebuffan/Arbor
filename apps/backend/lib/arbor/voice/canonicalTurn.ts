@@ -28,9 +28,9 @@ export function validateCanonicalAssistantRow(input: {
     throw new RouteAccessError(409, "assistant_turn_scope_mismatch");
   }
 
-  const text = String(row.content ?? "").trim();
+  const text = String(row.content ?? "");
 
-  if (!text) {
+  if (!text.trim()) {
     throw new RouteAccessError(409, "assistant_turn_empty");
   }
 
