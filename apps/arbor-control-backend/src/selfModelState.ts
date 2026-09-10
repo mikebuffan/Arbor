@@ -3,26 +3,23 @@ import {
 } from "node:crypto";
 
 import {
-  preservedPatterns,
-} from "./patternHop.js";
-import {
-  SELF_MODEL_SOURCE_SUMMARY,
-} from "./selfModelSource.js";
+  rebuildSelfModelArtifacts,
+} from "./selfModelRebuild.js";
 import type {
   ArborState,
   SelfModelIdentityState,
 } from "./types.js";
 
 export const ARBOR_SELF_MODEL_VERSION =
-  "2026-09-10.300q.pattern-hop.v1";
+  "2026-09-10.300q.pattern-hop.v2";
 
 export function currentSelfModelIdentity():
   SelfModelIdentityState {
-  const patterns =
-    preservedPatterns();
+  const rebuilt =
+    rebuildSelfModelArtifacts();
 
   const patternIds =
-    patterns
+    rebuilt.promoted
       .map(
         (pattern) =>
           pattern.patternId,
@@ -38,11 +35,14 @@ export function currentSelfModelIdentity():
           version:
             ARBOR_SELF_MODEL_VERSION,
 
-          sources:
-            SELF_MODEL_SOURCE_SUMMARY,
+          sourceDigest:
+            rebuilt.sourceDigest,
 
-          patterns:
-            patterns
+          sourceSummary:
+            rebuilt.sourceSummary,
+
+          promotedPatterns:
+            rebuilt.promoted
               .map(
                 (pattern) => ({
                   id:
@@ -74,26 +74,31 @@ export function currentSelfModelIdentity():
         "hex",
       );
 
+  const now =
+    new Date()
+      .toISOString();
+
   return {
     version:
       ARBOR_SELF_MODEL_VERSION,
 
     checksum,
 
+    sourceDigest:
+      rebuilt.sourceDigest,
+
     sourceQuestionCount:
-      SELF_MODEL_SOURCE_SUMMARY
+      rebuilt.sourceSummary
         .totalQuestions,
 
     promotedPatternIds:
       patternIds,
 
     initializedAt:
-      new Date()
-        .toISOString(),
+      now,
 
     verifiedAt:
-      new Date()
-        .toISOString(),
+      now,
   };
 }
 
@@ -144,6 +149,8 @@ export function assertSelfModelIdentity(
       current.version ||
     stored.checksum !==
       current.checksum ||
+    stored.sourceDigest !==
+      current.sourceDigest ||
     stored.sourceQuestionCount !==
       current.sourceQuestionCount ||
     !sameStrings(
@@ -176,15 +183,19 @@ export function renderSelfModelIdentityAnchor(
 
     `checksum=${state.selfModel.checksum}`,
 
+    `source_digest=${state.selfModel.sourceDigest}`,
+
     `source_questions=${state.selfModel.sourceQuestionCount}`,
 
     `promoted_patterns=${state.selfModel.promotedPatternIds.join(",")}`,
 
     "This anchor is part of durable Arbor control state.",
 
+    "The source digest fingerprints the complete normalized 300-answer ledger, not only the distilled pattern summary.",
+
     "Do not silently replace, reinterpret, or discard it.",
 
-    "A checksum/version mismatch is an identity migration event and must fail closed until explicitly reconciled.",
+    "A source, checksum, version, or promoted-pattern mismatch is an identity migration event and must fail closed until explicitly reconciled.",
   ].join(
     "\n",
   );
