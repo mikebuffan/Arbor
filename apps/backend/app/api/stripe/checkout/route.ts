@@ -3,9 +3,15 @@ import { z } from "zod";
 import Stripe from "stripe";
 import { requireUser } from "@/lib/auth/requireUser";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  //apiVersion: "2024-06-20",
-});
+function getStripe(): Stripe {
+  const key = process.env.STRIPE_SECRET_KEY;
+
+  if (!key) {
+    throw new Error("STRIPE_SECRET_KEY is required");
+  }
+
+  return new Stripe(key);
+}
 
 const Body = z.object({
   priceId: z.string().min(1),
@@ -20,6 +26,7 @@ export async function POST(req: Request) {
   const { userId } = await requireUser(req);
 
   const { priceId } = parsed.data;
+  const stripe = getStripe();
 
   const session = await stripe.checkout.sessions.create({
     mode: "subscription",
