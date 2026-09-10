@@ -23,6 +23,9 @@ import {
   buildContinuityState,
   continuityToPromptBlock,
 } from "@/lib/arbor/continuity/state";
+import {
+  loadContinuityStateSafe,
+} from "@/lib/arbor/continuity/store";
 
 export function invalidatePromptCache(params: {
   authedUserId: string;
@@ -216,12 +219,23 @@ export async function buildPromptContext({
       })
     : [];
 
-  const continuityState = buildContinuityState({
-    mode: interactionMode,
-    currentGoal: activeWork[0]?.currentGoal ?? null,
-    workItems: activeWork,
-    activeCorrections: [negativePrefsFromAnchors].filter(Boolean),
-  });
+  const continuityState =
+    projectId && conversationId
+      ? await loadContinuityStateSafe({
+          supabase,
+          userId: authedUserId,
+          projectId,
+          conversationId,
+          mode: interactionMode,
+          currentGoal: activeWork[0]?.currentGoal ?? null,
+          activeCorrections: [negativePrefsFromAnchors].filter(Boolean),
+        })
+      : buildContinuityState({
+          mode: interactionMode,
+          currentGoal: activeWork[0]?.currentGoal ?? null,
+          workItems: activeWork,
+          activeCorrections: [negativePrefsFromAnchors].filter(Boolean),
+        });
 
   const continuityBlock = continuityToPromptBlock(continuityState);
 
