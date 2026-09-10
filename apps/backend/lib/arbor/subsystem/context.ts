@@ -4,6 +4,10 @@ import {
   loadSubsystemState,
   persistActiveSubsystem,
 } from "./state";
+import {
+  annabelleWorkspaceToPromptBlock,
+  loadAnnabelleWorkspace,
+} from "./annabelleWorkspace";
 import { loadAgencyState } from "@/lib/arbor/agency/state";
 import type { ArborSubsystem } from "@/lib/arbor/runtime/arborRuntime";
 
@@ -98,6 +102,17 @@ ${agency.strategyNotes.map((item) => `  - ${item}`).join("\n") || "  - none"}
 `.trim()
     : "";
 
+  const annabelleWorkspaceBlock =
+    activeSubsystem === "annabelle"
+      ? annabelleWorkspaceToPromptBlock(
+          await loadAnnabelleWorkspace({
+            supabase: input.supabase,
+            userId: input.userId,
+            projectId: input.projectId,
+          }),
+        )
+      : "";
+
   return {
     activeSubsystem,
     voiceId: state.voiceId,
@@ -105,6 +120,7 @@ ${agency.strategyNotes.map((item) => `  - ${item}`).join("\n") || "  - none"}
     systemInjection: [
       CORE_RULES,
       activeSubsystem === "annabelle" ? ANNABELLE_RULES : ARBOR_RULES,
+      annabelleWorkspaceBlock,
       agencyBlock,
     ]
       .filter(Boolean)
