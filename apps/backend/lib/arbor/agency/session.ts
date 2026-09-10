@@ -5,6 +5,7 @@ import {
   persistAgencyState,
 } from "./state";
 import { resolveAgencyGoal } from "./continuation";
+import { recordStrategyCandidate } from "./strategyRetention";
 
 export async function beginAgencySession(input: {
   supabase: SupabaseClient;
@@ -43,6 +44,13 @@ export async function recordAgencyProgress(input: {
   recurringWeakness?: string;
   strategyChange?: string;
 }): Promise<AgencyState> {
+  const strategyUpdate = input.strategyChange
+    ? recordStrategyCandidate(
+        input.agency.strategyNotes,
+        input.strategyChange,
+      )
+    : null;
+
   const next: AgencyState = {
     ...input.agency,
     status: "active",
@@ -55,12 +63,9 @@ export async function recordAgencyProgress(input: {
           input.recurringWeakness,
         ].slice(-20)
       : input.agency.recurringWeaknesses,
-    strategyNotes: input.strategyChange
-      ? [
-          ...input.agency.strategyNotes,
-          input.strategyChange,
-        ].slice(-20)
-      : input.agency.strategyNotes,
+    strategyNotes:
+      strategyUpdate?.notes ??
+      input.agency.strategyNotes,
     blocker: null,
   };
 
