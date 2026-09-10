@@ -17,6 +17,7 @@ export function isMissingRuntimeTable(error: unknown): boolean {
     text.includes("arbor_runtime_state") ||
     text.includes("arbor_timeline_events") ||
     text.includes("annabelle_workspace_state") ||
-    text.includes("annabelle_workspace_revisions")
+    text.includes("annabelle_workspace_revisions") ||
+    text.includes("arbor_agency_strategy_candidates")
   );
 }
