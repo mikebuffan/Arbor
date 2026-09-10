@@ -16,6 +16,21 @@ export type StrategyCandidate = {
   status: "candidate" | "retained" | "reverted";
 };
 
+export type AnnabelleWorkspaceState = {
+  canon: string[];
+  lockedPassages: string[];
+  sceneState: string[];
+  unresolvedDecisions: string[];
+  workingDelta: string | null;
+};
+
+export type AnnabelleWorkspaceRevisionState = {
+  id: string;
+  createdAt: string;
+  reason: string;
+  workspace: AnnabelleWorkspaceState;
+};
+
 export type ArborState = {
   activeSubsystem: ArborSubsystem;
   goal: string | null;
@@ -24,13 +39,8 @@ export type ArborState = {
   strategyCandidates?: StrategyCandidate[];
   acousticCorrections: string[];
   voiceId: string;
-  annabelle?: {
-    canon: string[];
-    lockedPassages: string[];
-    sceneState: string[];
-    unresolvedDecisions: string[];
-    workingDelta: string | null;
-  };
+  annabelle?: AnnabelleWorkspaceState;
+  annabelleRevisions?: AnnabelleWorkspaceRevisionState[];
 };
 
 export type CanonicalArborResponse = {
