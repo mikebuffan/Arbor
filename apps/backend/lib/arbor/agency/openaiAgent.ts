@@ -4,7 +4,10 @@ import {
   AgencyToolRegistry,
   toolNeedsUserBoundary,
 } from "./tools";
-import { verifyAgencyCompletion } from "./verifier";
+import {
+  verifyAgencyCompletion,
+  type AgencyCompletionVerification,
+} from "./verifier";
 
 export type AgencyMessage = {
   role: "user" | "assistant";
@@ -117,6 +120,27 @@ function latestUserGoal(input: {
   );
 }
 
+function continuationPrompt(
+  verification: AgencyCompletionVerification,
+  strategyCandidate: string | null,
+): string {
+  return [
+    "INTERNAL COMPLETION CHECK: the goal is not complete.",
+    `Unresolved work: ${
+      verification.unresolvedWork.join("; ") || "unspecified"
+    }`,
+    strategyCandidate
+      ? `Strategy correction under verification: ${strategyCandidate}`
+      : verification.strategyCorrection
+        ? `Strategy correction: ${verification.strategyCorrection}`
+        : "",
+    "Continue the work now. Use available tools/research when useful.",
+    "Do not merely report what remains if it can be completed with an available reversible action.",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
 export async function runOpenAIAgencyAgent(input: {
   instructions: string;
   goal?: string;
@@ -131,6 +155,7 @@ export async function runOpenAIAgencyAgent(input: {
 }): Promise<AgentResult> {
   const maxRounds = input.maxRounds ?? 16;
   let toolCalls = 0;
+  let activeStrategyCandidate: string | null = null;
 
   const firstInput = input.messages?.length
     ? input.messages
@@ -197,12 +222,52 @@ export async function runOpenAIAgencyAgent(input: {
         candidateText: text,
       });
 
+      if (verification.strategyCorrection?.trim()) {
+        activeStrategyCandidate =
+          verification.strategyCorrection.trim();
+      }
+
       await input.hooks?.onVerification?.({
         round,
         ...verification,
+        strategyCorrection:
+          activeStrategyCandidate ??
+          verification.strategyCorrection,
       });
 
       if (verification.complete) {
+        if (activeStrategyCandidate) {
+          const secondVerification =
+            await verifyAgencyCompletion({
+              goal,
+              candidateText: text,
+            });
+
+          await input.hooks?.onVerification?.({
+            round,
+            ...secondVerification,
+            strategyCorrection: activeStrategyCandidate,
+          });
+
+          if (!secondVerification.complete) {
+            response = await openai.responses.create({
+              model:
+                process.env.OPENAI_AGENCY_MODEL ??
+                process.env.OPENAI_MODEL ??
+                "gpt-5",
+              instructions: input.instructions,
+              previous_response_id: response.id,
+              input: continuationPrompt(
+                secondVerification,
+                activeStrategyCandidate,
+              ),
+              ...toolFields,
+            });
+
+            continue;
+          }
+        }
+
         await input.hooks?.onComplete?.({
           rounds: round + 1,
           toolCalls,
@@ -224,19 +289,10 @@ export async function runOpenAIAgencyAgent(input: {
           "gpt-5",
         instructions: input.instructions,
         previous_response_id: response.id,
-        input: [
-          "INTERNAL COMPLETION CHECK: the goal is not complete.",
-          `Unresolved work: ${
-            verification.unresolvedWork.join("; ") || "unspecified"
-          }`,
-          verification.strategyCorrection
-            ? `Strategy correction: ${verification.strategyCorrection}`
-            : "",
-          "Continue the work now. Use available tools/research when useful.",
-          "Do not merely report what remains if it can be completed with an available reversible action.",
-        ]
-          .filter(Boolean)
-          .join("\n"),
+        input: continuationPrompt(
+          verification,
+          activeStrategyCandidate,
+        ),
         ...toolFields,
       });
 
