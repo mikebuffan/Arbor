@@ -10,16 +10,17 @@ export type PatternHopStatus =
   | "reject";
 
 export type PatternHopResult = {
-  patternId:
-    string;
-
-  label:
-    string;
-
-  status:
-    PatternHopStatus;
+  patternId: string;
+  label: string;
+  status: PatternHopStatus;
 
   supportingDomains:
+    SelfModelDomain[];
+
+  declaredDomains:
+    SelfModelDomain[];
+
+  discoveredDomains:
     SelfModelDomain[];
 
   untestedDomains:
@@ -50,8 +51,7 @@ export type PatternHopResult = {
 export function evaluatePatternHop(
   pattern:
     SelfModelPattern,
-):
-  PatternHopResult {
+): PatternHopResult {
   const stableEvidence =
     pattern.evidence.filter(
       (item) =>
@@ -75,27 +75,44 @@ export function evaluatePatternHop(
       ),
     );
 
+  const declaredDomains =
+    Array.from(
+      new Set(
+        pattern.domains,
+      ),
+    );
+
+  /*
+   * A pattern hop is allowed to discover support
+   * outside the domains we predicted when defining
+   * the pattern. That is evidence of generalization,
+   * not invalid evidence.
+   *
+   * We preserve that expansion explicitly instead
+   * of silently rewriting the declaration.
+   */
+  const discoveredDomains =
+    supportingDomains.filter(
+      (domain) =>
+        !declaredDomains.includes(
+          domain,
+        ),
+    );
+
+  const untestedDomains =
+    declaredDomains.filter(
+      (domain) =>
+        !supportingDomains.includes(
+          domain,
+        ),
+    );
+
   const sources =
     new Set(
       preserveEvidence.map(
         (item) =>
           item.source,
       ),
-    );
-
-  const declaredDomains =
-    new Set<
-      SelfModelDomain
-    >(
-      pattern.domains,
-    );
-
-  const evidenceWithinDeclaredDomains =
-    supportingDomains.every(
-      (domain) =>
-        declaredDomains.has(
-          domain,
-        ),
     );
 
   const crossBankSupport =
@@ -105,6 +122,13 @@ export function evaluatePatternHop(
     supportingDomains.length >=
       pattern.minimumHopDomains;
 
+  /*
+   * Two independent questionnaire banks can satisfy
+   * a near-threshold hop when the evidence spans at
+   * least two domains. This prevents duplicated
+   * wording inside one bank from masquerading as
+   * cross-domain confirmation.
+   */
   const crossBankNearThreshold =
     crossBankSupport &&
     supportingDomains.length >=
@@ -166,8 +190,7 @@ export function evaluatePatternHop(
 
   if (
     stableEvidence.length === 0 ||
-    preserveEvidence.length === 0 ||
-    !evidenceWithinDeclaredDomains
+    preserveEvidence.length === 0
   ) {
     status =
       "reject";
@@ -179,14 +202,6 @@ export function evaluatePatternHop(
       "preserve";
   }
 
-  const untestedDomains =
-    pattern.domains.filter(
-      (domain) =>
-        !supportingDomains.includes(
-          domain,
-        ),
-    );
-
   return {
     patternId:
       pattern.id,
@@ -197,6 +212,10 @@ export function evaluatePatternHop(
     status,
 
     supportingDomains,
+
+    declaredDomains,
+
+    discoveredDomains,
 
     untestedDomains,
 
@@ -266,6 +285,9 @@ export function patternHopTargets():
     targetDomains:
       SelfModelDomain[];
 
+    discoveredDomains:
+      SelfModelDomain[];
+
     reason:
       string;
   }> {
@@ -280,6 +302,9 @@ export function patternHopTargets():
       targetDomains:
         pattern.untestedDomains,
 
+      discoveredDomains:
+        pattern.discoveredDomains,
+
       reason:
         pattern.untestedDomains.length
           ? "Strong evidence exists, but the pattern still needs independent behavior in adjacent domains before promotion."
@@ -291,8 +316,7 @@ export function patternHopTargets():
 function round(
   value:
     number,
-):
-  number {
+): number {
   return Math.round(
     value * 10,
   ) / 10;
