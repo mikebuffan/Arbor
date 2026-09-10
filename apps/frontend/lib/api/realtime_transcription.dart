@@ -5,6 +5,11 @@ import 'package:flutter_webrtc/flutter_webrtc.dart';
 
 import 'arbor_api_client.dart';
 
+enum RealtimeSpeechEvent {
+  started,
+  stopped,
+}
+
 class RealtimeTranscriptEvent {
   const RealtimeTranscriptEvent({
     required this.text,
@@ -30,9 +35,12 @@ class RealtimeTranscriptionClient {
 
   final _transcripts =
       StreamController<RealtimeTranscriptEvent>.broadcast();
+  final _speech =
+      StreamController<RealtimeSpeechEvent>.broadcast();
 
   Stream<RealtimeTranscriptEvent> get transcripts =>
       _transcripts.stream;
+  Stream<RealtimeSpeechEvent> get speech => _speech.stream;
 
   bool get connected => _peer != null;
 
@@ -119,6 +127,16 @@ class RealtimeTranscriptionClient {
 
     final type = decoded['type'];
 
+    if (type == 'input_audio_buffer.speech_started') {
+      _speech.add(RealtimeSpeechEvent.started);
+      return;
+    }
+
+    if (type == 'input_audio_buffer.speech_stopped') {
+      _speech.add(RealtimeSpeechEvent.stopped);
+      return;
+    }
+
     if (type ==
         'conversation.item.input_audio_transcription.delta') {
       final delta = decoded['delta'];
@@ -180,5 +198,6 @@ class RealtimeTranscriptionClient {
   Future<void> dispose() async {
     await disconnect();
     await _transcripts.close();
+    await _speech.close();
   }
 }
