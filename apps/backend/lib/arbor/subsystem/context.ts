@@ -10,6 +10,7 @@ import {
 } from "./annabelleWorkspace";
 import { loadAgencyState } from "@/lib/arbor/agency/state";
 import type { ArborSubsystem } from "@/lib/arbor/runtime/arborRuntime";
+import { strategyContext } from "@/lib/arbor/agency/strategyRetention";
 
 const CORE_RULES = `
 ONE ARBOR.
@@ -87,6 +88,10 @@ export async function buildArborInjectedContext(input: {
 
   const agency = await loadAgencyState(input);
 
+  const strategy = agency
+    ? strategyContext(agency.strategyNotes)
+    : { retained: [], pending: [] };
+
   const agencyBlock = agency
     ? `
 LONGITUDINAL AGENCY STATE:
@@ -98,7 +103,9 @@ ${agency.unresolvedWork.map((item) => `  - ${item}`).join("\n") || "  - none"}
 - recurring weaknesses:
 ${agency.recurringWeaknesses.map((item) => `  - ${item}`).join("\n") || "  - none"}
 - retained strategy changes:
-${agency.strategyNotes.map((item) => `  - ${item}`).join("\n") || "  - none"}
+${strategy.retained.map((item) => `  - ${item}`).join("\n") || "  - none"}
+- tentative strategy under verification:
+${strategy.pending.map((item) => `  - ${item}`).join("\n") || "  - none"}
 `.trim()
     : "";
 
