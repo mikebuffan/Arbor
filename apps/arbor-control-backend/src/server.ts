@@ -6,11 +6,14 @@ import { JsonFileArborStateStore } from "./stateStore.js";
 import { MikeBackendBridge } from "./backendBridge.js";
 import { ArborVoiceRenderer } from "./voice.js";
 import { requireControlAuth } from "./auth.js";
+import { JsonlArborAuditSink } from "./audit.js";
 
 const store = new JsonFileArborStateStore();
+const audit = new JsonlArborAuditSink();
 const runtime = new ArborControlRuntime(
   store,
   new MikeBackendBridge(),
+  audit,
 );
 const voice = new ArborVoiceRenderer(store);
 
@@ -58,6 +61,21 @@ const server = http.createServer(async (req, res) => {
     }
 
     requireControlAuth(req);
+
+    if (req.method === "GET" && url.pathname === "/v1/audit") {
+      const limit = Number(url.searchParams.get("limit") ?? 100);
+      const events = await audit.recent(
+        Number.isFinite(limit)
+          ? Math.max(1, Math.min(limit, 500))
+          : 100,
+      );
+
+      json(res, 200, {
+        ok: true,
+        events,
+      });
+      return;
+    }
 
     if (req.method === "GET" && url.pathname === "/v1/state") {
       const state = await runtime.getState({
