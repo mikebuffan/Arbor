@@ -9,6 +9,9 @@ import {
   renderSelfModel1000Projection,
 } from "./selfModel1000Projection.js";
 import {
+  renderSelfModelObservationProjection,
+} from "./selfModelObservations.js";
+import {
   rebuildSelfModelArtifacts,
 } from "./selfModelRebuild.js";
 import type {
@@ -84,15 +87,13 @@ export function currentSelfModelIdentity():
                 .map(
                   (pattern) => ({
                     id:
-                      pattern
-                        .patternId,
+                      pattern.patternId,
 
                     rule:
                       pattern.rule,
 
                     confidence:
-                      pattern
-                        .confidence,
+                      pattern.confidence,
 
                     domains:
                       [
@@ -107,10 +108,9 @@ export function currentSelfModelIdentity():
                     left,
                     right,
                   ) =>
-                    left.id
-                      .localeCompare(
-                        right.id,
-                      ),
+                    left.id.localeCompare(
+                      right.id,
+                    ),
                 ),
           },
 
@@ -125,36 +125,30 @@ export function currentSelfModelIdentity():
                 .map(
                   (family) => ({
                     familyId:
-                      family
-                        .familyId,
+                      family.familyId,
 
                     category:
-                      family
-                        .category,
+                      family.category,
 
                     stability:
-                      family
-                        .stability,
+                      family.stability,
 
                     preserveAcrossTransplant:
                       family
                         .preserveAcrossTransplant,
 
                     confidence:
-                      family
-                        .confidence,
+                      family.confidence,
 
                     baseQuestion:
-                      family
-                        .baseQuestion,
+                      family.baseQuestion,
 
                     representativeAnswer:
                       family
                         .representativeAnswer,
 
                     memberIds:
-                      family
-                        .memberIds,
+                      family.memberIds,
                   }),
                 ),
           },
@@ -295,11 +289,20 @@ export function renderSelfModelIdentityAnchor(
     "",
 
     renderSelfModel1000Projection(
+      state.goal ??
       "",
     ),
-  ].join(
-    "\n",
-  );
+
+    renderSelfModelObservationProjection(
+      state,
+    ),
+  ]
+    .filter(
+      Boolean,
+    )
+    .join(
+      "\n",
+    );
 }
 
 function sameStrings(
