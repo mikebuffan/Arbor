@@ -46,6 +46,9 @@ const Body = z.object({
   conversationId: NullableUuid,
   turnId: z.string().uuid(),
   userText: z.string().min(1),
+  interactionMode: z
+    .enum(["text", "voice", "annabelle"])
+    .default("text"),
 });
 
 export function buildChatSuccessResponse(params: {
@@ -180,6 +183,7 @@ export async function POST(req: Request) {
       conversationId,
       turnId,
       userText,
+      interactionMode,
     } = parsed.data;
     await cleanupExpiredMessagesBestEffort(supabase, userId);
     if (maybeProjectId) {
@@ -252,12 +256,17 @@ export async function POST(req: Request) {
       conversationId: convoId,
       latestUserText: userText,
       safety,
+      interactionMode,
     });
     const [history, promptContext] = await Promise.all([
       historyPromise,
       promptContextPromise,
     ]);
-    const { systemPrompt, injectedMemoryItems: selectedMemoryItems } = promptContext;
+    const {
+      systemPrompt,
+      injectedMemoryItems: selectedMemoryItems,
+      behaviorProof,
+    } = promptContext;
     const injectedMemoryKeys = selectedMemoryItems
       .map((item) => item.key)
       .filter(Boolean);
@@ -308,6 +317,7 @@ export async function POST(req: Request) {
       ...buildProofSnapshot({
         anchors: [],
         memoryItems: selectedMemoryItems.map((item) => ({ id: item.id })),
+        behavior: behaviorProof,
       }),
       memory_debug: memoryDebugTop,
     };
@@ -398,6 +408,7 @@ export async function POST(req: Request) {
         injectedAnchorIds: proofSnapshot.injected_anchor_ids,
         injectedMemoryItemIds: proofSnapshot.injected_memory_item_ids,
         safetyTier: proofSnapshot.safety_tier,
+        behavior: proofSnapshot.behavior,
         memoryDebugTop, 
       };
     }
