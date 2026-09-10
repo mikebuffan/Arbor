@@ -26,9 +26,11 @@ export function evaluateSelfUpdate(
   const before = Number.isFinite(evidence.beforeScore)
     ? evidence.beforeScore
     : 0;
+
   const after = Number.isFinite(evidence.afterScore)
     ? evidence.afterScore
     : 0;
+
   const delta = after - before;
 
   if (evidence.identityRegression || evidence.newFailureIntroduced) {
