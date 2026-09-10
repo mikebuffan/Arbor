@@ -1,3 +1,6 @@
+import type { ArborBehaviorProof } from "../behavior/behaviorProjection";
+import { evaluateIdentityCompatibility } from "./identityGuard";
+
 export type SelfUpdateDisposition =
   | "retain"
   | "revert"
@@ -43,8 +46,7 @@ export function evaluateSelfUpdate(
   if (evidence.verificationCount < 2) {
     return {
       disposition: "continue_verifying",
-      reason:
-        "insufficient repeated verification to retain the update",
+      reason: "insufficient repeated verification to retain the update",
       delta,
     };
   }
@@ -52,8 +54,7 @@ export function evaluateSelfUpdate(
   if (delta > 0) {
     return {
       disposition: "retain",
-      reason:
-        "repeated verification shows improvement without regression",
+      reason: "repeated verification shows improvement without regression",
       delta,
     };
   }
@@ -63,4 +64,39 @@ export function evaluateSelfUpdate(
     reason: "verification did not demonstrate improvement",
     delta,
   };
+}
+
+export function evaluateSelfUpdateWithIdentityGuard(input: {
+  beforeScore: number;
+  afterScore: number;
+  verificationCount: number;
+  newFailureIntroduced: boolean;
+  beforeBehavior: ArborBehaviorProof;
+  afterBehavior: ArborBehaviorProof;
+  protectedCorrectionsBefore?: string[];
+  protectedCorrectionsAfter?: string[];
+}): SelfUpdateDecision {
+  const identity = evaluateIdentityCompatibility({
+    before: input.beforeBehavior,
+    after: input.afterBehavior,
+    protectedCorrectionsBefore: input.protectedCorrectionsBefore,
+    protectedCorrectionsAfter: input.protectedCorrectionsAfter,
+  });
+
+  const decision = evaluateSelfUpdate({
+    beforeScore: input.beforeScore,
+    afterScore: input.afterScore,
+    verificationCount: input.verificationCount,
+    identityRegression: !identity.compatible,
+    newFailureIntroduced: input.newFailureIntroduced,
+  });
+
+  if (decision.disposition === "revert" && !identity.compatible) {
+    return {
+      ...decision,
+      reason: `identity guard rejected update: ${identity.reasons.join("; ")}`,
+    };
+  }
+
+  return decision;
 }
