@@ -39,6 +39,8 @@ jobs:
         run: pnpm --filter firefly-backend test
 
       - name: Build backend
+        env:
+          OPENAI_API_KEY: ci-placeholder-not-a-real-key
         run: pnpm --filter firefly-backend build
 
   flutter:
