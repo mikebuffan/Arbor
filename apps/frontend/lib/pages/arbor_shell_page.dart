@@ -1,14 +1,22 @@
 import 'package:flutter/material.dart';
 
 import 'chat_test_page.dart';
+import 'voice_page.dart';
+
+enum _ArborSurface {
+  text,
+  voice,
+}
 
 class ArborShellPage extends StatefulWidget {
   const ArborShellPage({
     super.key,
     this.chatLayer,
+    this.voiceLayer,
   });
 
   final Widget? chatLayer;
+  final Widget? voiceLayer;
 
   @override
   State<ArborShellPage> createState() => _ArborShellPageState();
@@ -19,6 +27,7 @@ class _ArborShellPageState extends State<ArborShellPage>
   late AnimationController _controller;
 
   double _position = 0.0;
+  _ArborSurface _surface = _ArborSurface.text;
 
   @override
   void initState() {
@@ -35,6 +44,11 @@ class _ArborShellPageState extends State<ArborShellPage>
         _position = _controller.value;
       });
     });
+  }
+
+  void _openSurface(_ArborSurface surface) {
+    setState(() => _surface = surface);
+    _controller.forward();
   }
 
   void _onDragUpdate(DragUpdateDetails details, double height) {
@@ -67,12 +81,17 @@ class _ArborShellPageState extends State<ArborShellPage>
         onVerticalDragEnd: _onDragEnd,
         child: Stack(
           children: [
-            _ChatLayer(
-              child: widget.chatLayer,
+            _ConversationLayer(
+              surface: _surface,
+              chatLayer: widget.chatLayer,
+              voiceLayer: widget.voiceLayer,
             ),
             Transform.translate(
               offset: Offset(0, (0 - _position) * height),
-              child: const _HomeLayer(),
+              child: _HomeLayer(
+                onText: () => _openSurface(_ArborSurface.text),
+                onVoice: () => _openSurface(_ArborSurface.voice),
+              ),
             ),
           ],
         ),
@@ -82,7 +101,13 @@ class _ArborShellPageState extends State<ArborShellPage>
 }
 
 class _HomeLayer extends StatelessWidget {
-  const _HomeLayer();
+  const _HomeLayer({
+    required this.onText,
+    required this.onVoice,
+  });
+
+  final VoidCallback onText;
+  final VoidCallback onVoice;
 
   @override
   Widget build(BuildContext context) {
@@ -96,7 +121,7 @@ class _HomeLayer extends StatelessWidget {
               child: Center(
                 child: Transform.translate(
                   offset: const Offset(0, -40),
-                  child: Column(
+                  child: const Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       _ArborTitle(),
@@ -114,11 +139,14 @@ class _HomeLayer extends StatelessWidget {
             bottom: 0,
             child: _LeftMenu(),
           ),
-          const Positioned(
+          Positioned(
             right: 24,
             top: 0,
             bottom: 0,
-            child: _RightMenu(),
+            child: _RightMenu(
+              onText: onText,
+              onVoice: onVoice,
+            ),
           ),
         ],
       ),
@@ -126,16 +154,27 @@ class _HomeLayer extends StatelessWidget {
   }
 }
 
-class _ChatLayer extends StatelessWidget {
-  const _ChatLayer({
-    this.child,
+class _ConversationLayer extends StatelessWidget {
+  const _ConversationLayer({
+    required this.surface,
+    this.chatLayer,
+    this.voiceLayer,
   });
 
-  final Widget? child;
+  final _ArborSurface surface;
+  final Widget? chatLayer;
+  final Widget? voiceLayer;
 
   @override
   Widget build(BuildContext context) {
-    return child ?? const ChatTestPage();
+    return IndexedStack(
+      key: const ValueKey('arbor-surface-stack'),
+      index: surface == _ArborSurface.text ? 0 : 1,
+      children: [
+        chatLayer ?? const ChatTestPage(),
+        voiceLayer ?? const VoicePage(),
+      ],
+    );
   }
 }
 
@@ -223,27 +262,44 @@ class _CenterFlare extends StatelessWidget {
 }
 
 class _GlassButton extends StatelessWidget {
-  final String label;
+  const _GlassButton(
+    this.label, {
+    this.onTap,
+  });
 
-  const _GlassButton(this.label);
+  final String label;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.04),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.12),
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 8),
+        padding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 10,
         ),
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(
-          color: Colors.white70,
-          fontSize: 14,
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(
+            onTap == null ? 0.04 : 0.07,
+          ),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: Colors.white.withOpacity(
+              onTap == null ? 0.12 : 0.22,
+            ),
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: onTap == null
+                ? Colors.white70
+                : Colors.white,
+            fontSize: 14,
+          ),
         ),
       ),
     );
@@ -270,19 +326,27 @@ class _LeftMenu extends StatelessWidget {
 }
 
 class _RightMenu extends StatelessWidget {
-  const _RightMenu();
+  const _RightMenu({
+    required this.onText,
+    required this.onVoice,
+  });
+
+  final VoidCallback onText;
+  final VoidCallback onVoice;
 
   @override
   Widget build(BuildContext context) {
-    return const Column(
+    return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        _GlassButton('Help'),
-        _GlassButton('Notes'),
-        _GlassButton('History'),
-        _GlassButton('Reports'),
-        _GlassButton('Settings'),
+        _GlassButton('Text', onTap: onText),
+        _GlassButton('Voice', onTap: onVoice),
+        const _GlassButton('Help'),
+        const _GlassButton('Notes'),
+        const _GlassButton('History'),
+        const _GlassButton('Reports'),
+        const _GlassButton('Settings'),
       ],
     );
   }
