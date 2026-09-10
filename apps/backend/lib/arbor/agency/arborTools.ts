@@ -7,8 +7,8 @@ import {
 } from "@/lib/arbor/subsystem/state";
 import {
   loadAnnabelleWorkspace,
-  persistAnnabelleWorkspace,
-  type AnnabelleWorkspace,
+  restoreLatestAnnabelleWorkspaceRevision,
+  updateAnnabelleWorkspace,
 } from "@/lib/arbor/subsystem/annabelleWorkspace";
 import { allowedArborVoiceIds } from "@/lib/arbor/voice/voiceConfig";
 
@@ -76,45 +76,123 @@ export function buildArborAgencyTools(input: {
       },
     })
     .register({
-      name: "annabelle_replace_workspace",
+      name: "annabelle_set_list_section",
       description:
-        "Replace Annabelle's project-level workspace after the user has established or corrected canon/scene state. This is reversible project state, not manuscript publication.",
+        "Update one Annabelle list section without touching the others. Use for canon, locked passages, current scene state, or unresolved writing decisions. The prior workspace is revisioned first.",
       risk: "reversible_write",
       parameters: {
         type: "object",
         properties: {
-          canon: { type: "array", items: { type: "string" } },
-          lockedPassages: { type: "array", items: { type: "string" } },
-          sceneState: { type: "array", items: { type: "string" } },
-          unresolvedDecisions: { type: "array", items: { type: "string" } },
-          workingDelta: { type: ["string", "null"] },
+          section: {
+            type: "string",
+            enum: [
+              "canon",
+              "lockedPassages",
+              "sceneState",
+              "unresolvedDecisions",
+            ],
+          },
+          values: {
+            type: "array",
+            items: { type: "string" },
+          },
+          reason: {
+            type: "string",
+            minLength: 1,
+            maxLength: 500,
+          },
         },
-        required: [
+        required: ["section", "values", "reason"],
+        additionalProperties: false,
+      },
+      async execute(args, context) {
+        const section = String(args.section);
+        const values = strings(args.values);
+        const reason = String(args.reason);
+
+        const allowed = new Set([
           "canon",
           "lockedPassages",
           "sceneState",
           "unresolvedDecisions",
-          "workingDelta",
-        ],
+        ]);
+
+        if (!allowed.has(section)) {
+          throw new Error("annabelle_workspace_section_invalid");
+        }
+
+        const next = await updateAnnabelleWorkspace(
+          {
+            supabase: input.supabase,
+            userId: context.userId,
+            projectId: context.projectId,
+            reason,
+          },
+          (current) => ({
+            ...current,
+            [section]: values,
+          }),
+        );
+
+        return { saved: true, section, workspace: next };
+      },
+    })
+    .register({
+      name: "annabelle_set_working_delta",
+      description:
+        "Set Annabelle's latest working delta without changing canon or scene state. The prior workspace is revisioned first.",
+      risk: "reversible_write",
+      parameters: {
+        type: "object",
+        properties: {
+          workingDelta: {
+            type: ["string", "null"],
+          },
+          reason: {
+            type: "string",
+            minLength: 1,
+            maxLength: 500,
+          },
+        },
+        required: ["workingDelta", "reason"],
         additionalProperties: false,
       },
       async execute(args, context) {
-        const workspace: AnnabelleWorkspace = {
-          canon: strings(args.canon),
-          lockedPassages: strings(args.lockedPassages),
-          sceneState: strings(args.sceneState),
-          unresolvedDecisions: strings(args.unresolvedDecisions),
-          workingDelta: nullableString(args.workingDelta),
-        };
+        const workingDelta = nullableString(args.workingDelta);
 
-        await persistAnnabelleWorkspace({
+        const next = await updateAnnabelleWorkspace(
+          {
+            supabase: input.supabase,
+            userId: context.userId,
+            projectId: context.projectId,
+            reason: String(args.reason),
+          },
+          (current) => ({
+            ...current,
+            workingDelta,
+          }),
+        );
+
+        return { saved: true, workspace: next };
+      },
+    })
+    .register({
+      name: "annabelle_restore_previous_workspace",
+      description:
+        "Restore Annabelle's most recent saved before-snapshot when a workspace update needs to be rolled back.",
+      risk: "reversible_write",
+      parameters: {
+        type: "object",
+        properties: {},
+        required: [],
+        additionalProperties: false,
+      },
+      async execute(_args, context) {
+        return restoreLatestAnnabelleWorkspaceRevision({
           supabase: input.supabase,
           userId: context.userId,
           projectId: context.projectId,
-          workspace,
         });
-
-        return { saved: true };
       },
     })
     .register({
@@ -148,7 +226,7 @@ export function buildArborAgencyTools(input: {
     .register({
       name: "arbor_set_voice",
       description:
-        "Change Arbor's server-owned TTS base voice only when the user explicitly asks to change/test the base voice. The value must be in the server allowlist.",
+        "Change Arbor's server-owned TTS base voice only when the user explicitly asks to change or test the base voice. The value must be in the server allowlist.",
       risk: "reversible_write",
       parameters: {
         type: "object",
