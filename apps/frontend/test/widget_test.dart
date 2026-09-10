@@ -1,12 +1,17 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:frontend/main.dart';
+import 'package:frontend/pages/arbor_shell_page.dart';
 
 void main() {
   testWidgets(
-    'Arbor app renders the Arbor shell',
+    'Arbor shell renders home and chat layers',
     (WidgetTester tester) async {
       await tester.pumpWidget(
-        const ArborApp(),
+        const MaterialApp(
+          home: ArborShellPage(
+            chatLayer: Text('CHAT'),
+          ),
+        ),
       );
 
       expect(
