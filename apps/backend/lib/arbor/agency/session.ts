@@ -5,7 +5,7 @@ import {
   persistAgencyState,
 } from "./state";
 import { resolveAgencyGoal } from "./continuation";
-import { observeStrategyCandidate } from "./strategyCandidates";
+import { recordStrategyCandidate } from "./strategyRetention";
 
 export async function beginAgencySession(input: {
   supabase: SupabaseClient;
@@ -44,6 +44,13 @@ export async function recordAgencyProgress(input: {
   recurringWeakness?: string;
   strategyChange?: string;
 }): Promise<AgencyState> {
+  const strategyUpdate = input.strategyChange
+    ? recordStrategyCandidate(
+        input.agency.strategyNotes,
+        input.strategyChange,
+      )
+    : null;
+
   const next: AgencyState = {
     ...input.agency,
     status: "active",
@@ -56,7 +63,9 @@ export async function recordAgencyProgress(input: {
           input.recurringWeakness,
         ].slice(-20)
       : input.agency.recurringWeaknesses,
-    strategyNotes: input.agency.strategyNotes,
+    strategyNotes:
+      strategyUpdate?.notes ??
+      input.agency.strategyNotes,
     blocker: null,
   };
 
@@ -66,17 +75,6 @@ export async function recordAgencyProgress(input: {
     projectId: input.projectId,
     agency: next,
   });
-
-  if (input.strategyChange?.trim()) {
-    await observeStrategyCandidate({
-      supabase: input.supabase,
-      userId: input.userId,
-      projectId: input.projectId,
-      strategy: input.strategyChange,
-      verificationPassed:
-        (input.unresolvedWork ?? []).length === 0,
-    });
-  }
 
   return next;
 }
