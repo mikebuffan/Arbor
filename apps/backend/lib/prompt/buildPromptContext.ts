@@ -18,8 +18,11 @@ import {
 } from "@/lib/arbor/behavior/behaviorProjection";
 import {
   listActiveWorkSafe,
-  workStateToPromptBlock,
 } from "@/lib/arbor/agency/store";
+import {
+  buildContinuityState,
+  continuityToPromptBlock,
+} from "@/lib/arbor/continuity/state";
 
 export function invalidatePromptCache(params: {
   authedUserId: string;
@@ -213,7 +216,14 @@ export async function buildPromptContext({
       })
     : [];
 
-  const activeWorkBlock = workStateToPromptBlock(activeWork);
+  const continuityState = buildContinuityState({
+    mode: interactionMode,
+    currentGoal: activeWork[0]?.currentGoal ?? null,
+    workItems: activeWork,
+    activeCorrections: [negativePrefsFromAnchors].filter(Boolean),
+  });
+
+  const continuityBlock = continuityToPromptBlock(continuityState);
 
   const behaviorProjection = buildArborBehaviorProjection({
     mode: interactionMode,
@@ -227,7 +237,7 @@ export async function buildPromptContext({
     continuityMaterial: [
       anchorBlock,
       memoryText,
-      activeWorkBlock,
+      continuityBlock,
     ].filter(Boolean),
   });
 
@@ -257,7 +267,7 @@ export async function buildPromptContext({
     Relevant context:
     ${memoryText || "(none)"}
 
-    ${activeWorkBlock ? "\n" + activeWorkBlock + "\n" : ""}
+    ${continuityBlock ? "\n" + continuityBlock + "\n" : ""}
 
     Engage with empathy, continuity, and directness. Do not fabricate, overextrapolate, or alter facts.
     Maintain tone and memory alignment across sessions.
