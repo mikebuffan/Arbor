@@ -307,7 +307,6 @@ export async function POST(req: Request) {
       lastMeaningfulUserTurn: userText,
       agency: agencyState,
       behaviorProof,
-      pendingSelfUpdate,
       now: new Date().toISOString(),
     });
 
@@ -677,6 +676,7 @@ export async function POST(req: Request) {
       agency: agencyState,
       corrections: runtimeCorrections,
       behaviorProof,
+      pendingSelfUpdate,
       now: new Date().toISOString(),
     });
 
