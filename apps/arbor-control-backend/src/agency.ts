@@ -50,7 +50,7 @@ export async function runAgency(input: {
   userText: string;
   state: ArborState;
   capabilities?: ArborCapabilityRegistry;
-  context: CapabilityContext;
+  context: Omit<CapabilityContext, "state">;
   maxRounds?: number;
 }): Promise<AgencyResult> {
   const maxRounds = input.maxRounds ?? 12;
@@ -119,10 +119,20 @@ export async function runAgency(input: {
           };
         }
 
-        const result = await capability.execute(
+        const execution = await capability.execute(
           args,
-          input.context,
+          {
+            ...input.context,
+            state,
+          },
         );
+
+        if (execution.statePatch) {
+          state = {
+            ...state,
+            ...execution.statePatch,
+          };
+        }
 
         toolCalls += 1;
 
@@ -131,7 +141,7 @@ export async function runAgency(input: {
           call_id: call.call_id,
           output: JSON.stringify({
             ok: true,
-            result,
+            result: execution.result,
           }),
         });
       }
