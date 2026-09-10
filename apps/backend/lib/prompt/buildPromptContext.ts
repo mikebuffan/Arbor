@@ -22,6 +22,12 @@ import {
   continuityToPromptBlock,
 } from "@/lib/arbor/continuity/state";
 import { loadContinuityStateSafe } from "@/lib/arbor/continuity/store";
+import {
+  loadRuntimeState,
+} from "@/lib/arbor/runtime/runtimeStateStore";
+import {
+  projectRuntimeStartup,
+} from "@/lib/arbor/runtime/hostProjection";
 
 export function invalidatePromptCache(params: {
   authedUserId: string;
