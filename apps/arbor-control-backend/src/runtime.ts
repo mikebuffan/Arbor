@@ -3,6 +3,11 @@ import crypto from "node:crypto";
 import { ARBOR_CORE_INJECTION } from "./identity.js";
 import { runAgency } from "./agency.js";
 import { resolveSubsystem, subsystemInjection } from "./subsystems.js";
+import {
+  addAcousticCorrection,
+  renderAnnabelleWorkspace,
+  type AnnabelleWorkspace,
+} from "./controlState.js";
 import { stateScope, type ArborStateStore } from "./stateStore.js";
 import type { ArborBackendBridge } from "./backendBridge.js";
 import type {
@@ -29,12 +34,54 @@ export class ArborControlRuntime {
     private readonly bridge: ArborBackendBridge,
   ) {}
 
+  async getState(input: {
+    projectId?: string;
+    conversationId?: string;
+  }): Promise<ArborState> {
+    const scope = stateScope(input);
+
+    return (
+      (await this.store.load(scope)) ??
+      structuredClone(DEFAULT_STATE)
+    );
+  }
+
+  async setAnnabelleWorkspace(input: {
+    projectId?: string;
+    conversationId?: string;
+    workspace: AnnabelleWorkspace;
+  }): Promise<ArborState> {
+    const scope = stateScope(input);
+    const current = await this.getState(input);
+
+    const next: ArborState = {
+      ...current,
+      annabelle: structuredClone(input.workspace),
+    };
+
+    await this.store.save(scope, next);
+    return next;
+  }
+
+  async addVoiceCorrection(input: {
+    projectId?: string;
+    conversationId?: string;
+    correction: string;
+  }): Promise<ArborState> {
+    const scope = stateScope(input);
+    const current = await this.getState(input);
+    const next = addAcousticCorrection(current, input.correction);
+
+    await this.store.save(scope, next);
+    return next;
+  }
+
   async runTurn(
     request: ArborTurnRequest,
     authorization?: string,
   ): Promise<CanonicalArborResponse> {
     const scope = stateScope(request);
-    const prior = (await this.store.load(scope)) ?? DEFAULT_STATE;
+    const prior = await this.getState(request);
 
     const activeSubsystem = resolveSubsystem(
       request.userText,
@@ -63,6 +110,14 @@ export class ArborControlRuntime {
     const instructions = [
       ARBOR_CORE_INJECTION,
       subsystemInjection(state),
+      activeSubsystem === "annabelle"
+        ? renderAnnabelleWorkspace(state)
+        : "",
+      state.acousticCorrections.length
+        ? `VOICE ACOUSTIC CORRECTIONS:\n${state.acousticCorrections
+            .map((item) => `- ${item}`)
+            .join("\n")}`
+        : "",
       Object.keys(externalState).length
         ? `EXTERNAL BACKEND CONTEXT:\n${JSON.stringify(externalState)}`
         : "",
