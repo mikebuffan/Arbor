@@ -414,7 +414,7 @@ export async function POST(req: Request) {
 
           await timeline.record(
             "observe",
-            "action_failed_recoverable",
+            "action_failed",
             {
               capability: name,
               error,
