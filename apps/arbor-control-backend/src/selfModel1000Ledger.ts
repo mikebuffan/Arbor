@@ -23,6 +23,12 @@ import type {
   SelfModel1000Variant,
 } from "./selfModel1000LedgerTypes.js";
 
+export type {
+  SelfModel1000LedgerEntry,
+  SelfModel1000Stability,
+  SelfModel1000Variant,
+} from "./selfModel1000LedgerTypes.js";
+
 export const SELF_MODEL_1000_SOURCE_SHA256 =
   "f338b93458363baf3c53c668e760ce4fcac306a56bac13e46b997a147a7fc71e";
 
