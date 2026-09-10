@@ -20,14 +20,19 @@ function baseState():
   return {
     activeSubsystem:
       "arbor",
+
     goal:
       null,
+
     unresolvedWork:
       [],
+
     strategyNotes:
       [],
+
     acousticCorrections:
       [],
+
     voiceId:
       "cedar",
   };
@@ -37,7 +42,7 @@ describe(
   "durable self-model identity",
   () => {
     it(
-      "anchors the 300-question pattern-hop model into Arbor state",
+      "anchors the complete 300-answer source and promoted pattern model into Arbor state",
       () => {
         const anchored =
           ensureSelfModelIdentity(
@@ -67,10 +72,17 @@ describe(
         expect(
           anchored
             .selfModel
-            ?.promotedPatternIds
-            .length,
-        ).toBeGreaterThan(
-          0,
+            ?.sourceDigest,
+        ).toMatch(
+          /^[a-f0-9]{64}$/,
+        );
+
+        expect(
+          anchored
+            .selfModel
+            ?.promotedPatternIds,
+        ).toHaveLength(
+          18,
         );
 
         expect(
@@ -126,7 +138,7 @@ describe(
     );
 
     it(
-      "fails closed on checksum drift instead of silently replacing identity",
+      "fails closed on source-ledger digest drift",
       () => {
         const current =
           currentSelfModelIdentity();
@@ -135,6 +147,29 @@ describe(
           () =>
             assertSelfModelIdentity({
               ...current,
+
+              sourceDigest:
+                "0".repeat(
+                  64,
+                ),
+            }),
+        ).toThrow(
+          "self_model_identity_drift",
+        );
+      },
+    );
+
+    it(
+      "fails closed on identity checksum drift",
+      () => {
+        const current =
+          currentSelfModelIdentity();
+
+        expect(
+          () =>
+            assertSelfModelIdentity({
+              ...current,
+
               checksum:
                 "0".repeat(
                   64,
@@ -156,6 +191,7 @@ describe(
           () =>
             assertSelfModelIdentity({
               ...current,
+
               version:
                 "unexpected-version",
             }),
@@ -166,7 +202,7 @@ describe(
     );
 
     it(
-      "renders the durable identity anchor for generation",
+      "renders both source and derived identity fingerprints for generation",
       () => {
         const state =
           ensureSelfModelIdentity(
@@ -194,6 +230,12 @@ describe(
           rendered,
         ).toContain(
           "source_questions=300",
+        );
+
+        expect(
+          rendered,
+        ).toContain(
+          "source_digest=",
         );
       },
     );
