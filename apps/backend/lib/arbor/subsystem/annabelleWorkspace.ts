@@ -87,6 +87,99 @@ export async function persistAnnabelleWorkspace(input: {
   }
 }
 
+export async function persistAnnabelleWorkspaceRevision(input: {
+  supabase: SupabaseClient;
+  userId: string;
+  projectId: string;
+  workspace: AnnabelleWorkspace;
+  reason: string;
+}): Promise<void> {
+  const { error } = await input.supabase
+    .from("annabelle_workspace_revisions")
+    .insert({
+      id: crypto.randomUUID(),
+      user_id: input.userId,
+      project_id: input.projectId,
+      snapshot: input.workspace,
+      reason: input.reason.slice(0, 500),
+      created_at: new Date().toISOString(),
+    });
+
+  if (error) {
+    if (isMissingRuntimeTable(error)) return;
+    throw error;
+  }
+}
+
+export async function updateAnnabelleWorkspace(
+  input: {
+    supabase: SupabaseClient;
+    userId: string;
+    projectId: string;
+    reason: string;
+  },
+  mutate: (current: AnnabelleWorkspace) => AnnabelleWorkspace,
+): Promise<AnnabelleWorkspace> {
+  const current = await loadAnnabelleWorkspace(input);
+
+  await persistAnnabelleWorkspaceRevision({
+    ...input,
+    workspace: current,
+  });
+
+  const next = mutate(current);
+
+  await persistAnnabelleWorkspace({
+    ...input,
+    workspace: next,
+  });
+
+  return next;
+}
+
+export async function restoreLatestAnnabelleWorkspaceRevision(input: {
+  supabase: SupabaseClient;
+  userId: string;
+  projectId: string;
+}): Promise<AnnabelleWorkspace> {
+  const { data, error } = await input.supabase
+    .from("annabelle_workspace_revisions")
+    .select("snapshot")
+    .eq("user_id", input.userId)
+    .eq("project_id", input.projectId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    if (isMissingRuntimeTable(error)) return loadAnnabelleWorkspace(input);
+    throw error;
+  }
+
+  if (!data?.snapshot || typeof data.snapshot !== "object") {
+    return loadAnnabelleWorkspace(input);
+  }
+
+  const snapshot = data.snapshot as Record<string, unknown>;
+  const restored: AnnabelleWorkspace = {
+    canon: toStrings(snapshot.canon),
+    lockedPassages: toStrings(snapshot.lockedPassages),
+    sceneState: toStrings(snapshot.sceneState),
+    unresolvedDecisions: toStrings(snapshot.unresolvedDecisions),
+    workingDelta:
+      typeof snapshot.workingDelta === "string"
+        ? snapshot.workingDelta
+        : null,
+  };
+
+  await persistAnnabelleWorkspace({
+    ...input,
+    workspace: restored,
+  });
+
+  return restored;
+}
+
 export function annabelleWorkspaceToPromptBlock(
   workspace: AnnabelleWorkspace,
 ): string {
