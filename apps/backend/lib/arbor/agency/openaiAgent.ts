@@ -1,6 +1,9 @@
 import { openai } from "@/lib/providers/openai";
 import type { AgencyToolContext } from "./tools";
-import { AgencyToolRegistry, toolNeedsUserBoundary } from "./tools";
+import {
+  AgencyToolRegistry,
+  toolNeedsUserBoundary,
+} from "./tools";
 
 export type AgencyMessage = {
   role: "user" | "assistant";
@@ -32,9 +35,11 @@ export type AgentResult =
 
 function parseArguments(raw: string): Record<string, unknown> {
   const parsed = JSON.parse(raw);
+
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
     throw new Error("agency_tool_arguments_invalid");
   }
+
   return parsed as Record<string, unknown>;
 }
 
@@ -47,6 +52,20 @@ function functionCalls(output: unknown[]): FunctionCall[] {
           (item as { type?: string }).type === "function_call",
       ),
   );
+}
+
+function requestTools(
+  tools: Array<Record<string, unknown>>,
+): {
+  tools?: any;
+  tool_choice?: "auto";
+} {
+  if (!tools.length) return {};
+
+  return {
+    tools: tools as any,
+    tool_choice: "auto",
+  };
 }
 
 export async function runOpenAIAgencyAgent(input: {
@@ -67,7 +86,10 @@ export async function runOpenAIAgencyAgent(input: {
       ? input.userText
       : "";
 
-  if (typeof firstInput === "string" && !firstInput.trim()) {
+  if (
+    (typeof firstInput === "string" && !firstInput.trim()) ||
+    (Array.isArray(firstInput) && !firstInput.length)
+  ) {
     throw new Error("agency_input_required");
   }
 
@@ -76,6 +98,8 @@ export async function runOpenAIAgencyAgent(input: {
     ...input.tools.openAIToolDefinitions(),
   ];
 
+  const toolFields = requestTools(tools);
+
   let response = await openai.responses.create({
     model:
       process.env.OPENAI_AGENCY_MODEL ??
@@ -83,8 +107,7 @@ export async function runOpenAIAgencyAgent(input: {
       "gpt-5",
     instructions: input.instructions,
     input: firstInput as any,
-    tools: tools as any,
-    tool_choice: "auto",
+    ...toolFields,
   });
 
   for (let round = 0; round < maxRounds; round += 1) {
@@ -141,8 +164,7 @@ export async function runOpenAIAgencyAgent(input: {
       instructions: input.instructions,
       previous_response_id: response.id,
       input: outputs as any,
-      tools: tools as any,
-      tool_choice: "auto",
+      ...toolFields,
     });
   }
 
