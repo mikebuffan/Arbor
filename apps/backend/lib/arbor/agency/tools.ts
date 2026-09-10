@@ -17,6 +17,13 @@ export type AgencyTool = {
   parameters: Record<string, unknown>;
   risk: AgencyToolRisk;
 
+  /**
+   * Semantically equivalent capability names the agent may choose
+   * after this capability fails. Arbor never blindly replays the
+   * same arguments into an alternate capability.
+   */
+  alternateRoutes?: string[];
+
   execute(
     args: Record<string, unknown>,
     context: AgencyToolContext,
@@ -24,11 +31,14 @@ export type AgencyTool = {
 };
 
 export class AgencyToolRegistry {
-  private readonly tools = new Map<string, AgencyTool>();
+  private readonly tools =
+    new Map<string, AgencyTool>();
 
   register(tool: AgencyTool): this {
     if (this.tools.has(tool.name)) {
-      throw new Error(`agency_tool_duplicate:${tool.name}`);
+      throw new Error(
+        `agency_tool_duplicate:${tool.name}`,
+      );
     }
 
     this.tools.set(tool.name, tool);
@@ -37,7 +47,13 @@ export class AgencyToolRegistry {
 
   get(name: string): AgencyTool {
     const tool = this.tools.get(name);
-    if (!tool) throw new Error(`agency_tool_unknown:${name}`);
+
+    if (!tool) {
+      throw new Error(
+        `agency_tool_unknown:${name}`,
+      );
+    }
+
     return tool;
   }
 
@@ -45,7 +61,8 @@ export class AgencyToolRegistry {
     return [...this.tools.values()];
   }
 
-  openAIToolDefinitions(): Array<Record<string, unknown>> {
+  openAIToolDefinitions():
+    Array<Record<string, unknown>> {
     return this.list().map((tool) => ({
       type: "function",
       name: tool.name,
@@ -56,6 +73,11 @@ export class AgencyToolRegistry {
   }
 }
 
-export function toolNeedsUserBoundary(tool: AgencyTool): boolean {
-  return tool.risk === "irreversible" || tool.risk === "high_consequence";
+export function toolNeedsUserBoundary(
+  tool: AgencyTool,
+): boolean {
+  return (
+    tool.risk === "irreversible" ||
+    tool.risk === "high_consequence"
+  );
 }
