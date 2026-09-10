@@ -2,6 +2,7 @@ import { openai } from "@/lib/providers/openai";
 
 export type AgencyCompletionVerification = {
   complete: boolean;
+  score: number;
   unresolvedWork: string[];
   evidence: string[];
   strategyCorrection: string | null;
@@ -9,6 +10,7 @@ export type AgencyCompletionVerification = {
 
 const EMPTY_FAILURE: AgencyCompletionVerification = {
   complete: false,
+  score: 0,
   unresolvedWork: ["completion verification was not parseable"],
   evidence: [],
   strategyCorrection:
@@ -41,8 +43,17 @@ export function parseAgencyVerification(
             .filter(Boolean)
         : [];
 
+    const score =
+      typeof parsed.score === "number" &&
+      Number.isFinite(parsed.score)
+        ? Math.max(0, Math.min(1, parsed.score))
+        : parsed.complete
+          ? 1
+          : 0;
+
     return {
       complete: parsed.complete,
+      score,
       unresolvedWork: strings(parsed.unresolvedWork),
       evidence: strings(parsed.evidence),
       strategyCorrection:
@@ -72,8 +83,9 @@ export async function verifyAgencyCompletion(input: {
       "Do not reward promises to work later, status narration, or descriptions of actions that were not evidenced.",
       "If the goal requires tool/action evidence and the candidate lacks it, mark complete=false.",
       "Do not invent missing evidence.",
+      "score must be between 0 and 1 and represent how completely the candidate satisfies the goal based on available evidence.",
       "Return JSON only with exactly these keys:",
-      '{"complete":boolean,"unresolvedWork":string[],"evidence":string[],"strategyCorrection":string|null}',
+      '{"complete":boolean,"score":number,"unresolvedWork":string[],"evidence":string[],"strategyCorrection":string|null}',
     ].join("\n"),
     input: [
       `GOAL:\n${input.goal}`,
