@@ -7,7 +7,7 @@ import { routeErrorResponse } from "@/lib/auth/routeAuthorization";
 
 import { loadSubsystemState } from "@/lib/arbor/subsystem/state";
 import { buildVoiceInstructions } from "@/lib/arbor/voice/identity";
-import { synthesizeOpenAiTts } from "@/lib/arbor/voice/openaiTts";
+import { synthesizeArborSpeech } from "@/lib/arbor/voice/speechPipeline";
 import { loadCanonicalAssistantTextForTurn } from "@/lib/arbor/voice/canonicalTurn";
 import { ArborTimeline } from "@/lib/arbor/timeline/runTimeline";
 import { SupabaseTimelineStore } from "@/lib/arbor/timeline/supabaseStore";
@@ -88,7 +88,7 @@ export async function POST(req: Request) {
       },
     );
 
-    const result = await synthesizeOpenAiTts({
+    const result = await synthesizeArborSpeech({
       text: canonicalText,
       voice: voiceState.voiceId,
       instructions: buildVoiceInstructions(
@@ -102,7 +102,8 @@ export async function POST(req: Request) {
       "render_completed",
       {
         adapter: "voice",
-        providerRequestId: result.requestId,
+        providerRequestIds: result.requestIds,
+        chunks: result.chunks,
         bytes: result.audio.byteLength,
       },
     );
@@ -121,8 +122,9 @@ export async function POST(req: Request) {
         "x-arbor-turn-id": turnId,
         "x-arbor-subsystem": voiceState.activeSubsystem,
         "x-arbor-voice": voiceState.voiceId,
-        ...(result.requestId
-          ? { "x-provider-request-id": result.requestId }
+        "x-arbor-voice-chunks": String(result.chunks),
+        ...(result.requestIds.length
+          ? { "x-provider-request-id": result.requestIds.join(",") }
           : {}),
       },
     });
