@@ -8,6 +8,14 @@ type ProofSnapshotInput = {
     minutesSinceLastTurn?: number;
   };
   logicGatesHit?: string[];
+  behavior?: {
+    schemaVersion: number;
+    contractVersion: string;
+    mode: string;
+    coreFingerprint: string;
+    continuityFingerprint: string;
+    projectionFingerprint: string;
+  };
 };
 
 export function buildProofSnapshot(input: ProofSnapshotInput) {
@@ -17,6 +25,7 @@ export function buildProofSnapshot(input: ProofSnapshotInput) {
     safety_tier: input.safetyTier ?? 'none',
     rhythm: input.rhythm ?? {},
     logic_gates_hit: input.logicGatesHit ?? [],
+    behavior: input.behavior ?? null,
     built_at: new Date().toISOString(),
   };
 }
