@@ -1,3 +1,4 @@
+import type { ArborAuditSink } from "./audit.js";
 import type { ArborStateStore } from "./stateStore.js";
 
 const MAX_CHARS = 1800;
@@ -21,40 +22,93 @@ class TtsHttpError extends Error {
 }
 
 export class ArborVoiceRenderer {
-  constructor(private readonly store: ArborStateStore) {}
+  constructor(
+    private readonly store: ArborStateStore,
+    private readonly audit?: ArborAuditSink,
+  ) {}
 
   async renderTurn(turnId: string): Promise<{
     audio: Uint8Array;
     contentType: "audio/wav";
   }> {
-    const turn = await this.store.loadTurn(turnId);
+    const stored = await this.store.loadTurn(turnId);
 
-    if (!turn) {
+    if (!stored) {
       throw new Error("canonical_turn_not_found");
     }
 
-    const chunks = chunkExact(turn.text);
-    const pcmParts: Uint8Array[] = [];
+    const turn = stored.response;
 
-    for (const chunk of chunks) {
-      pcmParts.push(
-        await renderPcm({
-          text: chunk,
+    await this.audit?.record({
+      turnId,
+      projectId: turn.projectId,
+      conversationId: turn.conversationId,
+      phase: "render",
+      event: "voice_render_started",
+      detail: {
+        subsystem: turn.subsystem,
+        channel: turn.channel,
+        voiceId: turn.voice.voiceId,
+        characterCount: turn.text.length,
+      },
+    });
+
+    try {
+      const chunks = chunkExact(turn.text);
+      const pcmParts: Uint8Array[] = [];
+
+      for (const chunk of chunks) {
+        pcmParts.push(
+          await renderPcm({
+            text: chunk,
+            voiceId: turn.voice.voiceId,
+            instructions: voiceInstructions(
+              turn.subsystem,
+              turn.voice.acousticCorrections,
+            ),
+          }),
+        );
+      }
+
+      const pcm = concat(pcmParts);
+      const audio = pcm16MonoToWav(pcm, SAMPLE_RATE);
+
+      await this.audit?.record({
+        turnId,
+        projectId: turn.projectId,
+        conversationId: turn.conversationId,
+        phase: "render",
+        event: "voice_render_completed",
+        detail: {
+          subsystem: turn.subsystem,
+          channel: turn.channel,
           voiceId: turn.voice.voiceId,
-          instructions: voiceInstructions(
-            turn.subsystem,
-            turn.voice.acousticCorrections,
-          ),
-        }),
-      );
+          characterCount: turn.text.length,
+          chunkCount: chunks.length,
+          audioBytes: audio.byteLength,
+        },
+      });
+
+      return {
+        audio,
+        contentType: "audio/wav",
+      };
+    } catch (error) {
+      await this.audit?.record({
+        turnId,
+        projectId: turn.projectId,
+        conversationId: turn.conversationId,
+        phase: "error",
+        event: "voice_render_failed",
+        detail: {
+          subsystem: turn.subsystem,
+          channel: turn.channel,
+          voiceId: turn.voice.voiceId,
+        },
+      }).catch(() => undefined);
+
+      throw error;
     }
-
-    const pcm = concat(pcmParts);
-
-    return {
-      audio: pcm16MonoToWav(pcm, SAMPLE_RATE),
-      contentType: "audio/wav",
-    };
   }
 }
 
@@ -217,7 +271,6 @@ function concat(chunks: Uint8Array[]): Uint8Array {
     (total, chunk) => total + chunk.byteLength,
     0,
   );
-
   const output = new Uint8Array(size);
   let offset = 0;
 
