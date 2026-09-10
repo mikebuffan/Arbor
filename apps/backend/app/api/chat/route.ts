@@ -12,7 +12,7 @@ import {
 } from "@/lib/auth/routeAuthorization";
 import { buildPromptContext } from "@/lib/prompt/buildPromptContext";
 import { runOpenAIAgencyAgent } from "@/lib/arbor/agency/openaiAgent";
-import { AgencyToolRegistry } from "@/lib/arbor/agency/tools";
+import { buildArborAgencyTools } from "@/lib/arbor/agency/arborTools";
 import {
   beginAgencySession,
   blockAgencySession,
@@ -314,7 +314,7 @@ export async function POST(req: Request) {
       scope: item.scope,
     }));
 
-    const agencyTools = new AgencyToolRegistry();
+    const agencyTools = buildArborAgencyTools({ supabase });
 
     const agentResult = await runOpenAIAgencyAgent({
       instructions: systemPrompt,
