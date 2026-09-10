@@ -33,10 +33,40 @@ describe("agency strategy retention", () => {
     );
 
     expect(second.disposition).toBe("retained");
-    expect(readStrategyRetention(second.notes).retained).toEqual([
+    expect(
+      readStrategyRetention(second.notes).retained,
+    ).toEqual([
       "try another reversible route",
     ]);
-    expect(readStrategyRetention(second.notes).pending).toBeNull();
+    expect(
+      readStrategyRetention(second.notes).pending,
+    ).toBeNull();
+  });
+
+  it("never demotes an already-retained strategy", () => {
+    const first = recordStrategyCandidate(
+      [],
+      "inspect and recover",
+    );
+    const retained = recordStrategyCandidate(
+      first.notes,
+      "inspect and recover",
+    );
+    const observedAgain = recordStrategyCandidate(
+      retained.notes,
+      "inspect and recover",
+    );
+
+    expect(observedAgain.disposition).toBe("retained");
+
+    const state = readStrategyRetention(
+      observedAgain.notes,
+    );
+
+    expect(state.retained).toEqual([
+      "inspect and recover",
+    ]);
+    expect(state.pending).toBeNull();
   });
 
   it("never leaks the pending storage marker into prompt context", () => {
@@ -47,7 +77,9 @@ describe("agency strategy retention", () => {
 
     expect(
       first.notes.some((note) =>
-        note.startsWith("__arbor_pending_strategy_v1__:"),
+        note.startsWith(
+          "__arbor_pending_strategy_v1__:",
+        ),
       ),
     ).toBe(true);
 
@@ -62,13 +94,35 @@ describe("agency strategy retention", () => {
     );
   });
 
-  it("replaces an unconfirmed candidate instead of accumulating drift", () => {
-    const first = recordStrategyCandidate([], "strategy A");
-    const second = recordStrategyCandidate(first.notes, "strategy B");
+  it("ignores malformed pending storage instead of promoting it", () => {
+    const state = readStrategyRetention([
+      "__arbor_pending_strategy_v1__:{broken",
+      "keep reversible recovery first",
+    ]);
 
-    const state = readStrategyRetention(second.notes);
+    expect(state.retained).toEqual([
+      "keep reversible recovery first",
+    ]);
+    expect(state.pending).toBeNull();
+  });
+
+  it("replaces an unconfirmed candidate instead of accumulating drift", () => {
+    const first = recordStrategyCandidate(
+      [],
+      "strategy A",
+    );
+    const second = recordStrategyCandidate(
+      first.notes,
+      "strategy B",
+    );
+
+    const state = readStrategyRetention(
+      second.notes,
+    );
 
     expect(state.retained).toEqual([]);
-    expect(state.pending?.strategy).toBe("strategy B");
+    expect(state.pending?.strategy).toBe(
+      "strategy B",
+    );
   });
 });
