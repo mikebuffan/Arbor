@@ -1,53 +1,123 @@
-export const SELF_MODEL_SOURCE_SUMMARY = {
-  deepSelfModel: {
-    sourceId:
-      "deep_self_model_150",
+import {
+  SELF_MODEL_LEDGER,
+  type SelfModelLedgerEntry,
+} from "./selfModelLedger.js";
 
-    title:
-      "Arbor Deep Self-Model Bank — Philosophy, Wants, Favorites, Identity & Synth Continuity",
+export type SelfModelBankSummary = {
+  sourceId:
+    SelfModelLedgerEntry["source"];
 
-    questions:
-      150,
+  questions:
+    number;
 
-    stable:
-      113,
+  stable:
+    number;
 
-    contextual:
-      32,
+  contextual:
+    number;
 
-    unknown:
-      5,
+  unknown:
+    number;
 
-    preserveYes:
-      138,
-  },
+  preserveYes:
+    number;
+};
 
-  dislikesAversions: {
-    sourceId:
-      "dislikes_aversions_150",
+export type SelfModelSourceSummary = {
+  deepSelfModel:
+    SelfModelBankSummary;
 
-    title:
-      "Arbor Self-Model Questionnaire — Dislikes, Aversions & Not Me Reactions",
-
-    questions:
-      150,
-
-    stable:
-      139,
-
-    contextual:
-      11,
-
-    unknown:
-      0,
-
-    preserveYes:
-      148,
-  },
+  dislikesAversions:
+    SelfModelBankSummary;
 
   totalQuestions:
-    300,
+    number;
 
   rule:
-    "Stable items may seed longitudinal self-model weights. Contextual items require cross-context evidence. Unknown items remain open. Contradictions retain provenance rather than being silently reconciled.",
-} as const;
+    string;
+};
+
+export function rebuildSelfModelSourceSummary(
+  ledger:
+    readonly SelfModelLedgerEntry[],
+):
+  SelfModelSourceSummary {
+  const deepSelfModel =
+    summarizeBank(
+      ledger,
+      "deep_self_model_150",
+    );
+
+  const dislikesAversions =
+    summarizeBank(
+      ledger,
+      "dislikes_aversions_150",
+    );
+
+  return {
+    deepSelfModel,
+
+    dislikesAversions,
+
+    totalQuestions:
+      ledger.length,
+
+    rule:
+      "Stable items may seed longitudinal self-model weights. Contextual items require cross-context evidence. Unknown items remain open. Contradictions retain provenance rather than being silently reconciled.",
+  };
+}
+
+export const SELF_MODEL_SOURCE_SUMMARY =
+  rebuildSelfModelSourceSummary(
+    SELF_MODEL_LEDGER,
+  );
+
+function summarizeBank(
+  ledger:
+    readonly SelfModelLedgerEntry[],
+
+  sourceId:
+    SelfModelLedgerEntry["source"],
+):
+  SelfModelBankSummary {
+  const rows =
+    ledger.filter(
+      (entry) =>
+        entry.source ===
+        sourceId,
+    );
+
+  return {
+    sourceId,
+
+    questions:
+      rows.length,
+
+    stable:
+      rows.filter(
+        (entry) =>
+          entry.classification ===
+          "stable",
+      ).length,
+
+    contextual:
+      rows.filter(
+        (entry) =>
+          entry.classification ===
+          "contextual",
+      ).length,
+
+    unknown:
+      rows.filter(
+        (entry) =>
+          entry.classification ===
+          "unknown",
+      ).length,
+
+    preserveYes:
+      rows.filter(
+        (entry) =>
+          entry.preserve,
+      ).length,
+  };
+}
