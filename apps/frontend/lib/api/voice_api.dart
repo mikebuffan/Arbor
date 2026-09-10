@@ -22,7 +22,7 @@ class VoiceApi {
 
   Future<VoiceTurnResponse> respond({
     required String transcript,
-    required String projectId,
+    String? projectId,
     String? conversationId,
     String? turnId,
   }) async {

@@ -45,5 +45,9 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Arbor uses the microphone so you can talk with Arbor by voice.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Arbor uses speech recognition to turn your spoken words into conversation text.</string>
 </dict>
 </plist>
