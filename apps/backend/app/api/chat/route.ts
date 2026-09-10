@@ -63,6 +63,7 @@ const Body = z.object({
   conversationId: NullableUuid,
   turnId: z.string().uuid(),
   userText: z.string().min(1),
+  interactionMode: z.enum(["text", "voice"]).default("text"),
 });
 
 export function buildChatSuccessResponse(params: {
@@ -183,6 +184,7 @@ export async function POST(req: Request) {
       conversationId,
       turnId,
       userText,
+      interactionMode,
     } = parsed.data;
 
     await cleanupExpiredMessagesBestEffort(supabase, userId);
@@ -264,6 +266,7 @@ export async function POST(req: Request) {
       conversationId: convoId,
       latestUserText: userText,
       safety,
+      interactionMode,
     });
 
     const [history, promptContext] = await Promise.all([
@@ -275,6 +278,7 @@ export async function POST(req: Request) {
       systemPrompt,
       injectedMemoryItems: selectedMemoryItems,
       activeSubsystem,
+      behaviorProof,
     } = promptContext;
 
     const timeline = await ArborTimeline.create(
@@ -285,7 +289,7 @@ export async function POST(req: Request) {
         conversationId: convoId,
         turnId,
         subsystem: activeSubsystem,
-        channel: "text",
+        channel: interactionMode,
       },
     );
 
@@ -395,6 +399,31 @@ export async function POST(req: Request) {
             name,
           );
         },
+        async onToolError({ name, error }) {
+          agencyState = await recordAgencyProgress({
+            supabase,
+            userId,
+            projectId,
+            agency: agencyState,
+            step: agencyState.currentStep,
+            unresolvedWork: [`recover capability: ${name}`],
+            recurringWeakness: `tool failure: ${name}`,
+            strategyChange:
+              `When ${name} fails, inspect the failure and choose another reversible route before stopping.`,
+          });
+
+          await timeline.record(
+            "observe",
+            "action_failed_recoverable",
+            {
+              capability: name,
+              error,
+              unresolvedWork: agencyState.unresolvedWork,
+            },
+            name,
+          );
+        },
+
         async onVerification({
           complete,
           unresolvedWork,
@@ -522,6 +551,7 @@ export async function POST(req: Request) {
       ...buildProofSnapshot({
         anchors: [],
         memoryItems: selectedMemoryItems.map((item) => ({ id: item.id })),
+        behavior: behaviorProof,
       }),
       memory_debug: memoryDebugTop,
     };
@@ -635,6 +665,7 @@ export async function POST(req: Request) {
         injectedAnchorIds: proofSnapshot.injected_anchor_ids,
         injectedMemoryItemIds: proofSnapshot.injected_memory_item_ids,
         safetyTier: proofSnapshot.safety_tier,
+        behavior: proofSnapshot.behavior,
         memoryDebugTop,
         agentToolCalls: agentResult.toolCalls,
         agencyStatus: agencyState.status,
