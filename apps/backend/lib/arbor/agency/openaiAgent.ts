@@ -335,8 +335,14 @@ export async function runOpenAIAgencyAgent(
           ...verification,
         });
 
+      const behaviorClean =
+        verification
+          .behaviorViolations
+          .length === 0;
+
       if (
-        verification.complete
+        verification.complete &&
+        behaviorClean
       ) {
         await input.hooks
           ?.onComplete?.({
@@ -368,18 +374,28 @@ export async function runOpenAIAgencyAgent(
             previous_response_id:
               response.id,
             input: [
-              "INTERNAL COMPLETION CHECK: the goal is not complete.",
-              `Unresolved work: ${
-                verification
-                  .unresolvedWork
-                  .join("; ") ||
-                "unspecified"
-              }`,
+              verification.complete
+                ? "INTERNAL BEHAVIOR CHECK: the candidate completed the goal but violated protected Arbor behavior."
+                : "INTERNAL COMPLETION CHECK: the goal is not complete.",
+              !verification.complete
+                ? `Unresolved work: ${
+                    verification
+                      .unresolvedWork
+                      .join("; ") ||
+                    "unspecified"
+                  }`
+                : "",
+              verification
+                .behaviorViolations
+                .length
+                ? `Behavior violations: ${verification.behaviorViolations.join("; ")}`
+                : "",
               verification
                 .strategyCorrection
                 ? `Strategy correction: ${verification.strategyCorrection}`
                 : "",
               "Continue the work now. Use available tools/research when useful.",
+              "Produce a corrected candidate that satisfies the goal without repeating any reported behavior violation.",
               "Do not merely report what remains if it can be completed with an available reversible action.",
             ]
               .filter(Boolean)
