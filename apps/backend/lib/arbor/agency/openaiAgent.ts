@@ -2,6 +2,11 @@ import { openai } from "@/lib/providers/openai";
 import type { AgencyToolContext } from "./tools";
 import { AgencyToolRegistry, toolNeedsUserBoundary } from "./tools";
 
+export type AgencyMessage = {
+  role: "user" | "assistant";
+  content: string;
+};
+
 type FunctionCall = {
   type: "function_call";
   call_id: string;
@@ -9,7 +14,7 @@ type FunctionCall = {
   arguments: string;
 };
 
-type AgentResult =
+export type AgentResult =
   | {
       status: "complete";
       text: string;
@@ -46,7 +51,8 @@ function functionCalls(output: unknown[]): FunctionCall[] {
 
 export async function runOpenAIAgencyAgent(input: {
   instructions: string;
-  userText: string;
+  userText?: string;
+  messages?: AgencyMessage[];
   tools: AgencyToolRegistry;
   context: AgencyToolContext;
   allowWebResearch?: boolean;
@@ -54,6 +60,16 @@ export async function runOpenAIAgencyAgent(input: {
 }): Promise<AgentResult> {
   const maxRounds = input.maxRounds ?? 16;
   let toolCalls = 0;
+
+  const firstInput = input.messages?.length
+    ? input.messages
+    : input.userText
+      ? input.userText
+      : "";
+
+  if (typeof firstInput === "string" && !firstInput.trim()) {
+    throw new Error("agency_input_required");
+  }
 
   const tools: Array<Record<string, unknown>> = [
     ...(input.allowWebResearch ? [{ type: "web_search" }] : []),
@@ -66,7 +82,7 @@ export async function runOpenAIAgencyAgent(input: {
       process.env.OPENAI_MODEL ??
       "gpt-5",
     instructions: input.instructions,
-    input: input.userText,
+    input: firstInput as any,
     tools: tools as any,
     tool_choice: "auto",
   });
