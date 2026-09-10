@@ -67,6 +67,7 @@ class VoiceSessionController {
       StreamController<VoiceSessionSnapshot>.broadcast();
 
   StreamSubscription<RealtimeTranscriptEvent>? _transcriptSub;
+  StreamSubscription<RealtimeSpeechEvent>? _speechSub;
   StreamSubscription<void>? _playerCompleteSub;
 
   VoiceSessionSnapshot _snapshot = const VoiceSessionSnapshot(
@@ -88,6 +89,18 @@ class VoiceSessionController {
 
     _transcriptSub = transcription.transcripts.listen(
       _onTranscript,
+      onError: _fail,
+    );
+
+    _speechSub = transcription.speech.listen(
+      (event) {
+        if (_disposed) return;
+
+        if (event == RealtimeSpeechEvent.started &&
+            _snapshot.state == VoiceSessionState.speaking) {
+          unawaited(interrupt());
+        }
+      },
       onError: _fail,
     );
 
@@ -222,6 +235,7 @@ class VoiceSessionController {
     _generation += 1;
 
     await _transcriptSub?.cancel();
+    await _speechSub?.cancel();
     await _playerCompleteSub?.cancel();
     await transcription.dispose();
     await _player.stop();
