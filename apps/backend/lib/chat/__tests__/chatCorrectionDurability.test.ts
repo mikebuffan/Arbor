@@ -11,6 +11,11 @@ const mocks = vi.hoisted(() => ({
   assertProjectOwnedByUser: vi.fn(),
   assertConversationOwnedByUser: vi.fn(),
   openAIChat: vi.fn(),
+  runOpenAIAgencyAgent: vi.fn(),
+  beginAgencySession: vi.fn(),
+  recordAgencyProgress: vi.fn(),
+  blockAgencySession: vi.fn(),
+  completeAgencySession: vi.fn(),
   buildPromptContext: vi.fn(),
   extractMemoryFromText: vi.fn(),
   persistClassifiedMemoryTurn: vi.fn(),
@@ -34,6 +39,15 @@ vi.mock("@/lib/auth/ownership", () => ({
 }));
 vi.mock("@/lib/providers/openai", () => ({
   openAIChat: mocks.openAIChat,
+}));
+vi.mock("@/lib/arbor/agency/openaiAgent", () => ({
+  runOpenAIAgencyAgent: mocks.runOpenAIAgencyAgent,
+}));
+vi.mock("@/lib/arbor/agency/session", () => ({
+  beginAgencySession: mocks.beginAgencySession,
+  recordAgencyProgress: mocks.recordAgencyProgress,
+  blockAgencySession: mocks.blockAgencySession,
+  completeAgencySession: mocks.completeAgencySession,
 }));
 vi.mock("@/lib/prompt/buildPromptContext", () => ({
   buildPromptContext: mocks.buildPromptContext,
@@ -194,8 +208,48 @@ describe("explicit correction request-path durability", () => {
     mocks.assertConversationOwnedByUser.mockResolvedValue(undefined);
     mocks.createSupabaseChatTurnStore.mockReturnValue(turnStore);
     mocks.getOrCreateOpenEpisode.mockResolvedValue(EPISODE_ID);
+    const agencyState = {
+      goal: USER_TEXT,
+      status: "active" as const,
+      currentStep: 0,
+      unresolvedWork: [],
+      recurringWeaknesses: [],
+      strategyNotes: [],
+      blocker: null,
+    };
+    mocks.beginAgencySession.mockResolvedValue(agencyState);
+    mocks.recordAgencyProgress.mockImplementation(async ({ agency }) => agency);
+    mocks.blockAgencySession.mockImplementation(
+      async ({ agency, blocker, unresolvedWork }) => ({
+        ...agency,
+        status: "blocked" as const,
+        blocker,
+        unresolvedWork,
+      }),
+    );
+    mocks.completeAgencySession.mockImplementation(
+      async ({ agency, verified }) => ({
+        ...agency,
+        status: verified ? "complete" as const : "active" as const,
+        unresolvedWork: verified ? [] : agency.unresolvedWork,
+      }),
+    );
+    mocks.runOpenAIAgencyAgent.mockResolvedValue({
+      status: "complete" as const,
+      text: "Understood: Amber Quill.",
+      responseId: "response-1",
+      toolCalls: 0,
+    });
     mocks.buildPromptContext.mockResolvedValue({
       systemPrompt: "Bounded system prompt",
+      behaviorProof: {
+        schemaVersion: 1,
+        contractVersion: "test",
+        mode: "text",
+        coreFingerprint: "core",
+        continuityFingerprint: "continuity",
+        projectionFingerprint: "projection",
+      },
       injectedMemoryItems: [
         {
           id: MEMORY_ID,
@@ -349,7 +403,7 @@ describe("explicit correction request-path durability", () => {
     expect(aliasSupersessions).toBe(1);
     expect(correctionEvents).toBe(1);
     expect(mocks.persistClassifiedMemoryTurn).toHaveBeenCalledTimes(1);
-    expect(mocks.openAIChat).toHaveBeenCalledTimes(1);
+    expect(mocks.runOpenAIAgencyAgent).toHaveBeenCalledTimes(1);
     expect(mocks.scheduleChatPostResponseWork).toHaveBeenCalledTimes(1);
     expect(mocks.writeDurableChatCompletedEvent).toHaveBeenCalledTimes(1);
     expect(turnStore.messages).toHaveLength(2);
