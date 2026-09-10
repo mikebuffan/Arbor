@@ -9,11 +9,19 @@ export type ArborTurnRequest = {
   channel?: ArborChannel;
 };
 
+export type StrategyCandidate = {
+  strategy: string;
+  successes: number;
+  failures: number;
+  status: "candidate" | "retained" | "reverted";
+};
+
 export type ArborState = {
   activeSubsystem: ArborSubsystem;
   goal: string | null;
   unresolvedWork: string[];
   strategyNotes: string[];
+  strategyCandidates?: StrategyCandidate[];
   acousticCorrections: string[];
   voiceId: string;
   annabelle?: {
