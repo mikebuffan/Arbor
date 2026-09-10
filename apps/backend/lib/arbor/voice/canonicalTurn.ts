@@ -8,6 +8,8 @@ export type CanonicalAssistantRow = {
   conversation_id: string;
   role: string;
   content: unknown;
+  deleted_at?: string | null;
+  expires_at?: string | null;
 };
 
 export type CanonicalAssistantTurn = {
@@ -19,6 +21,7 @@ export function validateCanonicalAssistantTurn(input: {
   row: CanonicalAssistantRow | null;
   userId: string;
   projectId: string;
+  now?: string;
 }): CanonicalAssistantTurn {
   const { row } = input;
 
@@ -27,6 +30,31 @@ export function validateCanonicalAssistantTurn(input: {
       404,
       "assistant_turn_not_found",
     );
+  }
+
+  if (row.deleted_at) {
+    throw new RouteAccessError(
+      404,
+      "assistant_turn_not_found",
+    );
+  }
+
+  if (row.expires_at) {
+    const expiresAt = Date.parse(row.expires_at);
+    const now = Date.parse(
+      input.now ?? new Date().toISOString(),
+    );
+
+    if (
+      !Number.isFinite(expiresAt) ||
+      !Number.isFinite(now) ||
+      expiresAt <= now
+    ) {
+      throw new RouteAccessError(
+        404,
+        "assistant_turn_not_found",
+      );
+    }
   }
 
   if (
@@ -69,6 +97,7 @@ export function validateCanonicalAssistantRow(input: {
   row: CanonicalAssistantRow | null;
   userId: string;
   projectId: string;
+  now?: string;
 }): string {
   return validateCanonicalAssistantTurn(input).text;
 }
@@ -84,12 +113,18 @@ export async function loadCanonicalAssistantTurnForTurn(input: {
     turnId: input.turnId,
   });
 
+  const now = new Date().toISOString();
+
   const { data, error } = await input.supabase
     .from("messages")
     .select(
-      "user_id,project_id,conversation_id,role,content",
+      "user_id,project_id,conversation_id,role,content,deleted_at,expires_at",
     )
     .eq("id", ids.assistantMessageId)
+    .is("deleted_at", null)
+    .or(
+      `expires_at.is.null,expires_at.gt.${now}`,
+    )
     .maybeSingle();
 
   if (error) throw error;
@@ -100,6 +135,7 @@ export async function loadCanonicalAssistantTurnForTurn(input: {
       null,
     userId: input.userId,
     projectId: input.projectId,
+    now,
   });
 }
 
