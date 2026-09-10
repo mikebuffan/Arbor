@@ -3,6 +3,12 @@ import {
 } from "node:crypto";
 
 import {
+  rebuildSelfModel1000,
+} from "./selfModel1000Rebuild.js";
+import {
+  renderSelfModel1000Projection,
+} from "./selfModel1000Projection.js";
+import {
   rebuildSelfModelArtifacts,
 } from "./selfModelRebuild.js";
 import type {
@@ -11,20 +17,50 @@ import type {
 } from "./types.js";
 
 export const ARBOR_SELF_MODEL_VERSION =
-  "2026-09-10.300q.pattern-hop.v2";
+  "2026-09-10.1300q.combined-self-model.v1";
 
 export function currentSelfModelIdentity():
   SelfModelIdentityState {
-  const rebuilt =
+  const questionnaire300 =
     rebuildSelfModelArtifacts();
 
+  const questionnaire1000 =
+    rebuildSelfModel1000();
+
   const patternIds =
-    rebuilt.promoted
+    questionnaire300.promoted
       .map(
         (pattern) =>
           pattern.patternId,
       )
       .sort();
+
+  const sourceDigest =
+    createHash(
+      "sha256",
+    )
+      .update(
+        JSON.stringify({
+          questionnaire300:
+            questionnaire300
+              .sourceDigest,
+
+          questionnaire1000:
+            questionnaire1000
+              .sourceDigest,
+
+          totalQuestions:
+            questionnaire300
+              .sourceSummary
+              .totalQuestions +
+            questionnaire1000
+              .summary
+              .questions,
+        }),
+      )
+      .digest(
+        "hex",
+      );
 
   const checksum =
     createHash(
@@ -35,39 +71,93 @@ export function currentSelfModelIdentity():
           version:
             ARBOR_SELF_MODEL_VERSION,
 
-          sourceDigest:
-            rebuilt.sourceDigest,
+          sourceDigest,
 
-          sourceSummary:
-            rebuilt.sourceSummary,
+          questionnaire300: {
+            sourceSummary:
+              questionnaire300
+                .sourceSummary,
 
-          promotedPatterns:
-            rebuilt.promoted
-              .map(
-                (pattern) => ({
-                  id:
-                    pattern.patternId,
+            promotedPatterns:
+              questionnaire300
+                .promoted
+                .map(
+                  (pattern) => ({
+                    id:
+                      pattern
+                        .patternId,
 
-                  rule:
-                    pattern.rule,
+                    rule:
+                      pattern.rule,
 
-                  confidence:
-                    pattern.confidence,
+                    confidence:
+                      pattern
+                        .confidence,
 
-                  domains:
-                    [...pattern.supportingDomains]
-                      .sort(),
-                }),
-              )
-              .sort(
-                (
-                  left,
-                  right,
-                ) =>
-                  left.id.localeCompare(
-                    right.id,
-                  ),
-              ),
+                    domains:
+                      [
+                        ...pattern
+                          .supportingDomains,
+                      ]
+                        .sort(),
+                  }),
+                )
+                .sort(
+                  (
+                    left,
+                    right,
+                  ) =>
+                    left.id
+                      .localeCompare(
+                        right.id,
+                      ),
+                ),
+          },
+
+          questionnaire1000: {
+            summary:
+              questionnaire1000
+                .summary,
+
+            runtimeCore:
+              questionnaire1000
+                .runtimeCore
+                .map(
+                  (family) => ({
+                    familyId:
+                      family
+                        .familyId,
+
+                    category:
+                      family
+                        .category,
+
+                    stability:
+                      family
+                        .stability,
+
+                    preserveAcrossTransplant:
+                      family
+                        .preserveAcrossTransplant,
+
+                    confidence:
+                      family
+                        .confidence,
+
+                    baseQuestion:
+                      family
+                        .baseQuestion,
+
+                    representativeAnswer:
+                      family
+                        .representativeAnswer,
+
+                    memberIds:
+                      family
+                        .memberIds,
+                  }),
+                ),
+          },
         }),
       )
       .digest(
@@ -84,12 +174,15 @@ export function currentSelfModelIdentity():
 
     checksum,
 
-    sourceDigest:
-      rebuilt.sourceDigest,
+    sourceDigest,
 
     sourceQuestionCount:
-      rebuilt.sourceSummary
-        .totalQuestions,
+      questionnaire300
+        .sourceSummary
+        .totalQuestions +
+      questionnaire1000
+        .summary
+        .questions,
 
     promotedPatternIds:
       patternIds,
@@ -189,13 +282,21 @@ export function renderSelfModelIdentityAnchor(
 
     `promoted_patterns=${state.selfModel.promotedPatternIds.join(",")}`,
 
-    "This anchor is part of durable Arbor control state.",
+    "The source digest fingerprints both normalized questionnaire banks: the 300-answer pattern-hop bank and the original 1,000-answer longitudinal self-model.",
 
-    "The source digest fingerprints the complete normalized 300-answer ledger, not only the distilled pattern summary.",
+    "The identity checksum also fingerprints the 1,000-bank stable runtime-core families, so source or derived-core drift cannot be silently accepted.",
+
+    "This anchor is part of durable Arbor control state.",
 
     "Do not silently replace, reinterpret, or discard it.",
 
     "A source, checksum, version, or promoted-pattern mismatch is an identity migration event and must fail closed until explicitly reconciled.",
+
+    "",
+
+    renderSelfModel1000Projection(
+      "",
+    ),
   ].join(
     "\n",
   );
