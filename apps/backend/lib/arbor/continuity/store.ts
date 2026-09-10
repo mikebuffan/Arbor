@@ -84,3 +84,23 @@ export async function loadContinuityState(params: {
     activeCorrections: params.activeCorrections,
   });
 }
+
+
+export async function loadContinuityStateSafe(
+  params: Parameters<typeof loadContinuityState>[0],
+): Promise<ArborContinuityState> {
+  try {
+    return await loadContinuityState(params);
+  } catch (error) {
+    console.warn(
+      "[arbor:continuity] falling back to minimal continuity state",
+      error,
+    );
+
+    return buildContinuityState({
+      mode: params.mode,
+      currentGoal: params.currentGoal,
+      activeCorrections: params.activeCorrections,
+    });
+  }
+}
