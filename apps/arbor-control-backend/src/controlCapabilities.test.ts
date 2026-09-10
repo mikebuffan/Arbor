@@ -109,7 +109,7 @@ describe(
     );
 
     it(
-      "returns an Annabelle working-delta patch with previous value",
+      "revisions Annabelle before changing the working delta",
       async () => {
         const registry =
           buildControlCapabilities();
@@ -124,6 +124,8 @@ describe(
             {
               workingDelta:
                 "New scene delta",
+              reason:
+                "advance scene draft",
             },
             {
               projectId:
@@ -152,11 +154,13 @@ describe(
 
         expect(
           execution.result,
-        ).toEqual({
+        ).toMatchObject({
           previous:
             "Old delta",
           current:
             "New scene delta",
+          revisionCount:
+            1,
         });
 
         expect(
@@ -166,6 +170,108 @@ describe(
         ).toBe(
           "New scene delta",
         );
+
+        expect(
+          execution.statePatch
+            ?.annabelleRevisions
+            ?.at(-1)
+            ?.workspace
+            .workingDelta,
+        ).toBe(
+          "Old delta",
+        );
+      },
+    );
+
+    it(
+      "restores the latest Annabelle workspace revision",
+      async () => {
+        const registry =
+          buildControlCapabilities();
+
+        const setDelta =
+          registry.get(
+            "annabelle_set_working_delta",
+          );
+
+        const changed =
+          await setDelta.execute(
+            {
+              workingDelta:
+                "New scene delta",
+              reason:
+                "advance scene draft",
+            },
+            {
+              projectId:
+                "project-1",
+              turnId:
+                "turn-1",
+              state: {
+                ...baseState,
+                activeSubsystem:
+                  "annabelle",
+                annabelle: {
+                  canon:
+                    ["canon"],
+                  lockedPassages:
+                    [],
+                  sceneState:
+                    [],
+                  unresolvedDecisions:
+                    [],
+                  workingDelta:
+                    "Old delta",
+                },
+              },
+            },
+          );
+
+        const changedState: ArborState = {
+          ...baseState,
+          activeSubsystem:
+            "annabelle",
+          ...changed.statePatch,
+        };
+
+        const restore =
+          registry.get(
+            "annabelle_restore_previous_workspace",
+          );
+
+        const restored =
+          await restore.execute(
+            {},
+            {
+              projectId:
+                "project-1",
+              turnId:
+                "turn-2",
+              state:
+                changedState,
+            },
+          );
+
+        expect(
+          restored.statePatch
+            ?.annabelle
+            ?.workingDelta,
+        ).toBe(
+          "Old delta",
+        );
+
+        expect(
+          restored.statePatch
+            ?.annabelle
+            ?.canon,
+        ).toEqual([
+          "canon",
+        ]);
+
+        expect(
+          restored.statePatch
+            ?.annabelleRevisions,
+        ).toEqual([]);
       },
     );
   },
