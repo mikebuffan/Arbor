@@ -1,13 +1,25 @@
 import type { ArborStateStore } from "./stateStore.js";
 
-const MAX_CHARS = 3900;
+const MAX_CHARS = 1800;
+const SAMPLE_RATE = 24_000;
+
+const RETRYABLE = new Set([
+  408,
+  409,
+  425,
+  429,
+  500,
+  502,
+  503,
+  504,
+]);
 
 export class ArborVoiceRenderer {
   constructor(private readonly store: ArborStateStore) {}
 
   async renderTurn(turnId: string): Promise<{
     audio: Uint8Array;
-    contentType: string;
+    contentType: "audio/wav";
   }> {
     const turn = await this.store.loadTurn(turnId);
 
@@ -15,16 +27,47 @@ export class ArborVoiceRenderer {
       throw new Error("canonical_turn_not_found");
     }
 
-    const apiKey = process.env.OPENAI_API_KEY;
-
-    if (!apiKey) {
-      throw new Error("openai_api_key_missing");
-    }
-
     const chunks = chunkExact(turn.text);
-    const audio: Uint8Array[] = [];
+    const pcmParts: Uint8Array[] = [];
 
     for (const chunk of chunks) {
+      pcmParts.push(
+        await renderPcm({
+          text: chunk,
+          voiceId: turn.voice.voiceId,
+          instructions: voiceInstructions(
+            turn.subsystem,
+            turn.voice.acousticCorrections,
+          ),
+        }),
+      );
+    }
+
+    const pcm = concat(pcmParts);
+
+    return {
+      audio: pcm16MonoToWav(pcm, SAMPLE_RATE),
+      contentType: "audio/wav",
+    };
+  }
+}
+
+async function renderPcm(input: {
+  text: string;
+  voiceId: string;
+  instructions: string;
+}): Promise<Uint8Array> {
+  const apiKey = process.env.OPENAI_API_KEY;
+
+  if (!apiKey) {
+    throw new Error("openai_api_key_missing");
+  }
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20_000);
+
+    try {
       const response = await fetch(
         "https://api.openai.com/v1/audio/speech",
         {
@@ -35,54 +78,102 @@ export class ArborVoiceRenderer {
           },
           body: JSON.stringify({
             model: process.env.ARBOR_TTS_MODEL ?? "gpt-4o-mini-tts",
-            voice: process.env.ARBOR_VOICE ?? "cedar",
-            input: chunk,
-            response_format: "mp3",
-            instructions: voiceInstructions(turn.subsystem),
+            voice: input.voiceId,
+            input: input.text,
+            response_format: "pcm",
+            instructions: input.instructions,
           }),
+          signal: controller.signal,
         },
       );
 
-      if (!response.ok) {
-        throw new Error(`tts_http_${response.status}`);
+      if (response.ok) {
+        return new Uint8Array(await response.arrayBuffer());
       }
 
-      audio.push(new Uint8Array(await response.arrayBuffer()));
+      if (!RETRYABLE.has(response.status) || attempt === 2) {
+        throw new Error(`tts_http_${response.status}`);
+      }
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.name === "AbortError"
+      ) {
+        if (attempt === 2) {
+          throw new Error("tts_timeout");
+        }
+      } else if (attempt === 2) {
+        throw error;
+      }
+    } finally {
+      clearTimeout(timeout);
     }
 
-    return {
-      audio: concat(audio),
-      contentType: "audio/mpeg",
-    };
+    await sleep(250 * 2 ** attempt);
   }
+
+  throw new Error("tts_failed");
 }
 
 function voiceInstructions(
   subsystem: "arbor" | "annabelle",
+  corrections: string[],
 ): string {
   return [
     "Use the same underlying Arbor speaker identity.",
     "General American pronunciation.",
-    "Masculine, grounded, low, warm, slightly rough, casual and natural.",
-    "Avoid British/foreign accent drift.",
-    "Avoid presenter, radio, documentary, customer-service, theatrical, breathy, forced-deep or fake-growl delivery.",
+    "Masculine, grounded, low, warm, slightly rough, casual, natural, confident, and easy to listen to for long periods.",
+    "Avoid British or foreign-sounding accent drift.",
+    "Avoid presenter, radio, documentary, customer-service, theatrical, breathy, forced-deep, fake-growl, robotic, sing-song, or over-enunciated delivery.",
     subsystem === "annabelle"
-      ? "Narration may be slightly warmer and closer, but never a different identity or accent."
+      ? "Narration may be slightly warmer, closer, and darker, but never a different identity, accent, or theatrical narrator."
       : "Use natural conversational Arbor delivery.",
-    "Speak exactly the supplied text. Do not add, omit, paraphrase, summarize, or insert vocalizations.",
-  ].join("\n");
+    corrections.length
+      ? `User-confirmed acoustic corrections:\n${corrections
+          .map((correction) => `- ${correction}`)
+          .join("\n")}`
+      : "",
+    "Speak exactly the supplied text. Do not add, omit, paraphrase, summarize, explain, or insert extra vocalizations.",
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
-function chunkExact(text: string): string[] {
-  if (text.length <= MAX_CHARS) return [text];
+export function chunkExact(
+  text: string,
+  maxChars = MAX_CHARS,
+): string[] {
+  if (!text) return [];
+  if (text.length <= maxChars) return [text];
 
   const chunks: string[] = [];
   let start = 0;
 
   while (start < text.length) {
-    const end = Math.min(start + MAX_CHARS, text.length);
-    chunks.push(text.slice(start, end));
-    start = end;
+    const hardEnd = Math.min(start + maxChars, text.length);
+
+    if (hardEnd === text.length) {
+      chunks.push(text.slice(start));
+      break;
+    }
+
+    const window = text.slice(start, hardEnd);
+    const boundary = Math.max(
+      window.lastIndexOf("\n\n"),
+      window.lastIndexOf("\n"),
+      window.lastIndexOf(". "),
+      window.lastIndexOf("! "),
+      window.lastIndexOf("? "),
+      window.lastIndexOf(" "),
+    );
+
+    const cut =
+      boundary >= Math.floor(maxChars * 0.6)
+        ? start + boundary + boundaryWidth(window, boundary)
+        : hardEnd;
+
+    chunks.push(text.slice(start, cut));
+    start = cut;
   }
 
   if (chunks.join("") !== text) {
@@ -92,15 +183,75 @@ function chunkExact(text: string): string[] {
   return chunks;
 }
 
+function boundaryWidth(
+  window: string,
+  index: number,
+): number {
+  if (window.startsWith("\n\n", index)) return 2;
+
+  const pair = window.slice(index, index + 2);
+
+  if (pair === ". " || pair === "! " || pair === "? ") {
+    return 2;
+  }
+
+  return 1;
+}
+
 function concat(chunks: Uint8Array[]): Uint8Array {
-  const size = chunks.reduce((total, chunk) => total + chunk.length, 0);
+  const size = chunks.reduce(
+    (total, chunk) => total + chunk.byteLength,
+    0,
+  );
+
   const output = new Uint8Array(size);
   let offset = 0;
 
   for (const chunk of chunks) {
     output.set(chunk, offset);
-    offset += chunk.length;
+    offset += chunk.byteLength;
   }
 
   return output;
+}
+
+export function pcm16MonoToWav(
+  pcm: Uint8Array,
+  sampleRate = SAMPLE_RATE,
+): Uint8Array {
+  const output = new Uint8Array(44 + pcm.byteLength);
+  const view = new DataView(output.buffer);
+
+  writeAscii(output, 0, "RIFF");
+  view.setUint32(4, 36 + pcm.byteLength, true);
+  writeAscii(output, 8, "WAVE");
+  writeAscii(output, 12, "fmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  writeAscii(output, 36, "data");
+  view.setUint32(40, pcm.byteLength, true);
+  output.set(pcm, 44);
+
+  return output;
+}
+
+function writeAscii(
+  output: Uint8Array,
+  offset: number,
+  value: string,
+): void {
+  for (let index = 0; index < value.length; index += 1) {
+    output[offset + index] = value.charCodeAt(index);
+  }
+}
+
+function sleep(milliseconds: number): Promise<void> {
+  return new Promise((resolve) =>
+    setTimeout(resolve, milliseconds),
+  );
 }
