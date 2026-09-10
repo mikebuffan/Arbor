@@ -115,7 +115,6 @@ export function buildArborBehaviorProjection(
   const guardRequirements = clean([
     ...CORE_RULES,
     ...modeRules,
-    philosophy,
     ...correctionRules,
   ]);
 
