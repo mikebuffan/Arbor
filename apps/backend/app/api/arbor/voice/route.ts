@@ -8,7 +8,9 @@ import { routeErrorResponse } from "@/lib/auth/routeAuthorization";
 import { loadSubsystemState } from "@/lib/arbor/subsystem/state";
 import { buildVoiceInstructions } from "@/lib/arbor/voice/identity";
 import { synthesizeArborSpeech } from "@/lib/arbor/voice/speechPipeline";
-import { loadCanonicalAssistantTextForTurn } from "@/lib/arbor/voice/canonicalTurn";
+import { loadCanonicalAssistantTurnForTurn } from "@/lib/arbor/voice/canonicalTurn";
+import { loadRuntimeState } from "@/lib/arbor/runtime/runtimeStateStore";
+import { acousticCorrections } from "@/lib/arbor/runtime/corrections";
 import { ArborTimeline } from "@/lib/arbor/timeline/runTimeline";
 import { SupabaseTimelineStore } from "@/lib/arbor/timeline/supabaseStore";
 
@@ -55,18 +57,46 @@ export async function POST(req: Request) {
 
     await assertProjectOwnedByUser(supabase, userId, projectId);
 
-    const canonicalText = await loadCanonicalAssistantTextForTurn({
-      supabase,
-      userId,
-      projectId,
-      turnId,
-    });
+    const canonicalTurn =
+      await loadCanonicalAssistantTurnForTurn({
+        supabase,
+        userId,
+        projectId,
+        turnId,
+      });
+
+    const canonicalText =
+      canonicalTurn.text;
 
     const voiceState = await loadSubsystemState({
       supabase,
       userId,
       projectId,
     });
+
+    const conversationRuntime =
+      await loadRuntimeState({
+        supabase,
+        userId,
+        projectId,
+        conversationId:
+          canonicalTurn.conversationId,
+      });
+
+    const runtimeAcousticCorrections =
+      conversationRuntime
+        ? acousticCorrections(
+            conversationRuntime.corrections,
+          )
+        : [];
+
+    const voiceCorrections =
+      Array.from(
+        new Set([
+          ...voiceState.acousticCorrections,
+          ...runtimeAcousticCorrections,
+        ]),
+      );
 
     const timeline = await ArborTimeline.create(
       new SupabaseTimelineStore(supabase),
@@ -93,7 +123,7 @@ export async function POST(req: Request) {
       voice: voiceState.voiceId,
       instructions: buildVoiceInstructions(
         voiceState.activeSubsystem,
-        voiceState.acousticCorrections,
+        voiceCorrections,
       ),
     });
 
