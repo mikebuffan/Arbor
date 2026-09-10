@@ -47,69 +47,88 @@ class RealtimeTranscriptionClient {
   Future<void> connect() async {
     if (_peer != null) return;
 
-    final peer = await createPeerConnection({
-      'sdpSemantics': 'unified-plan',
-    });
+    RTCPeerConnection? peer;
+    RTCDataChannel? events;
+    MediaStream? microphone;
 
-    final microphone =
-        await navigator.mediaDevices.getUserMedia({
-      'audio': {
-        'echoCancellation': true,
-        'noiseSuppression': true,
-        'autoGainControl': true,
-      },
-      'video': false,
-    });
+    try {
+      peer = await createPeerConnection({
+        'sdpSemantics': 'unified-plan',
+      });
 
-    for (final track in microphone.getAudioTracks()) {
-      await peer.addTrack(track, microphone);
-    }
+      microphone =
+          await navigator.mediaDevices.getUserMedia({
+        'audio': {
+          'echoCancellation': true,
+          'noiseSuppression': true,
+          'autoGainControl': true,
+        },
+        'video': false,
+      });
 
-    final init = RTCDataChannelInit();
-    init.ordered = true;
-
-    final events =
-        await peer.createDataChannel('oai-events', init);
-
-    events.onMessage = _handleEvent;
-
-    final offer = await peer.createOffer({
-      'offerToReceiveAudio': false,
-      'offerToReceiveVideo': false,
-    });
-
-    await peer.setLocalDescription(offer);
-
-    final local = await peer.getLocalDescription();
-    final offerSdp = local?.sdp;
-
-    if (offerSdp == null || offerSdp.isEmpty) {
-      await events.close();
-      for (final track in microphone.getTracks()) {
-        track.stop();
+      for (final track in microphone.getAudioTracks()) {
+        await peer.addTrack(track, microphone);
       }
-      await peer.close();
-      throw StateError('Realtime offer did not contain SDP');
+
+      final init = RTCDataChannelInit();
+      init.ordered = true;
+
+      events = await peer.createDataChannel(
+        'oai-events',
+        init,
+      );
+
+      events.onMessage = _handleEvent;
+
+      final offer = await peer.createOffer();
+      await peer.setLocalDescription(offer);
+
+      final local = await peer.getLocalDescription();
+      final offerSdp = local?.sdp;
+
+      if (offerSdp == null || offerSdp.isEmpty) {
+        throw StateError(
+          'Realtime offer did not contain SDP',
+        );
+      }
+
+      final answer = await _api.postText(
+        '/api/arbor/voice/realtime',
+        body: {
+          'projectId': projectId,
+          'sdp': offerSdp,
+        },
+      );
+
+      await peer.setRemoteDescription(
+        RTCSessionDescription(
+          answer.text,
+          'answer',
+        ),
+      );
+
+      _peer = peer;
+      _events = events;
+      _microphone = microphone;
+    } catch (_) {
+      if (events != null) {
+        await events.close();
+      }
+
+      if (microphone != null) {
+        for (final track in microphone.getTracks()) {
+          track.stop();
+        }
+        await microphone.dispose();
+      }
+
+      if (peer != null) {
+        await peer.close();
+        await peer.dispose();
+      }
+
+      rethrow;
     }
-
-    final answer = await _api.postText(
-      '/api/arbor/voice/realtime',
-      body: {
-        'projectId': projectId,
-        'sdp': offerSdp,
-      },
-    );
-
-    await peer.setRemoteDescription(
-      RTCSessionDescription(
-        answer.text,
-        'answer',
-      ),
-    );
-
-    _peer = peer;
-    _events = events;
-    _microphone = microphone;
   }
 
   void _handleEvent(RTCDataChannelMessage message) {
