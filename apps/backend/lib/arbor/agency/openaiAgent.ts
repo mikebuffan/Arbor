@@ -23,6 +23,11 @@ export type AgencyLoopHooks = {
     name: string;
     result: unknown;
   }) => Promise<void>;
+  onToolError?: (input: {
+    round: number;
+    name: string;
+    error: string;
+  }) => Promise<void>;
   onBoundary?: (input: {
     round: number;
     name: string;
@@ -282,20 +287,46 @@ export async function runOpenAIAgencyAgent(input: {
         };
       }
 
-      const result = await tool.execute(args, input.context);
-      toolCalls += 1;
+      try {
+        const result = await tool.execute(args, input.context);
+        toolCalls += 1;
 
-      await input.hooks?.onToolResult?.({
-        round,
-        name: tool.name,
-        result,
-      });
+        await input.hooks?.onToolResult?.({
+          round,
+          name: tool.name,
+          result,
+        });
 
-      outputs.push({
-        type: "function_call_output",
-        call_id: call.call_id,
-        output: JSON.stringify({ ok: true, result }),
-      });
+        outputs.push({
+          type: "function_call_output",
+          call_id: call.call_id,
+          output: JSON.stringify({ ok: true, result }),
+        });
+      } catch (error) {
+        toolCalls += 1;
+
+        const message =
+          error instanceof Error
+            ? error.message.slice(0, 500)
+            : "tool_execution_failed";
+
+        await input.hooks?.onToolError?.({
+          round,
+          name: tool.name,
+          error: message,
+        });
+
+        outputs.push({
+          type: "function_call_output",
+          call_id: call.call_id,
+          output: JSON.stringify({
+            ok: false,
+            error: message,
+            instruction:
+              "Inspect the failure and choose another valid reversible route if one exists.",
+          }),
+        });
+      }
     }
 
     response = await openai.responses.create({
