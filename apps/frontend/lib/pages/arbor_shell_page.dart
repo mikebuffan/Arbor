@@ -84,11 +84,11 @@ class _HomeLayer extends StatelessWidget {
       child: Stack(
         children: [
           const _CornerGlows(),
-          const Positioned.fill(
+          Positioned.fill(
             child: IgnorePointer(
               child: Center(
                 child: Transform.translate(
-                  offset: Offset(0, -40),
+                  offset: const Offset(0, -40),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
