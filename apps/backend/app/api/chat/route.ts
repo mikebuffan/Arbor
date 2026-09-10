@@ -347,6 +347,20 @@ export async function POST(req: Request) {
             unresolvedWork: [],
           });
         },
+        async onToolError({ name, error }) {
+          agencyState = await recordAgencyProgress({
+            supabase,
+            userId,
+            projectId,
+            agency: agencyState,
+            step: agencyState.currentStep,
+            unresolvedWork: [`recover capability: ${name}`],
+            recurringWeakness: `tool failure: ${name}`,
+            strategyChange:
+              `When ${name} fails (${error}), inspect the failure and choose another reversible route before stopping.`,
+          });
+        },
+
         async onBoundary({ name, reason }) {
           agencyState = await blockAgencySession({
             supabase,
