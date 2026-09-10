@@ -1,30 +1,10 @@
 import 'dart:convert';
-import 'package:supabase_flutter/supabase_flutter.dart';
+
 import 'package:http/http.dart' as http;
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-class ChatResponse {
-  final String projectId;
-  final String conversationId;
-  final String assistantText;
-
-  ChatResponse({
-    required this.projectId,
-    required this.conversationId,
-    required this.assistantText,
-  });
-
-  factory ChatResponse.fromJson(Map<String, dynamic> json) {
-    final pid = json['projectId'];
-    final cid = json['conversationId'];
-    final text = json['assistantText'];
-
-    if (pid is! String || pid.isEmpty) throw Exception('Invalid projectId in response');
-    if (cid is! String || cid.isEmpty) throw Exception('Invalid conversationId in response');
-    if (text is! String) throw Exception('Invalid assistantText in response');
-
-    return ChatResponse(projectId: pid, conversationId: cid, assistantText: text);
-  }
-}
+import 'arbor_api_client.dart';
+import 'chat_api.dart' as canonical;
 
 class ArborApi {
   static const String baseUrl = String.fromEnvironment(
@@ -32,61 +12,63 @@ class ArborApi {
     defaultValue: 'http://localhost:3000',
   );
 
-  static Future<String?> getLastConversationId({required String projectId}) async {
+  static final ArborApiClient _client =
+      ArborApiClient(baseUrl: baseUrl);
+
+  static final canonical.ChatApi _chat =
+      canonical.ChatApi(_client);
+
+  static Future<String?> getLastConversationId({
+    required String projectId,
+  }) async {
     final supa = Supabase.instance.client;
     final token = supa.auth.currentSession?.accessToken;
-    if (token == null) throw Exception("Not authed");
 
-    final uri = Uri.parse("$baseUrl/api/conversations/last?projectId=$projectId");
+    if (token == null) {
+      throw Exception('Not authed');
+    }
+
+    final uri = Uri.parse(
+      '$baseUrl/api/conversations/last?projectId=$projectId',
+    );
 
     final resp = await http.get(
       uri,
       headers: {
-        "authorization": "Bearer $token",
+        'authorization': 'Bearer $token',
       },
     );
 
-    if (resp.statusCode == 204) return null; // no conversations yet
+    if (resp.statusCode == 204) return null;
+
     if (resp.statusCode < 200 || resp.statusCode >= 300) {
-      throw Exception("getLastConversationId failed: ${resp.statusCode} ${resp.body}");
+      throw Exception(
+        'getLastConversationId failed: '
+        '${resp.statusCode} ${resp.body}',
+      );
     }
 
-    final json = jsonDecode(resp.body) as Map<String, dynamic>;
-    final id = json["conversationId"];
-    return id is String && id.isNotEmpty ? id : null;
+    final json =
+        jsonDecode(resp.body) as Map<String, dynamic>;
+
+    final id = json['conversationId'];
+
+    return id is String && id.isNotEmpty
+        ? id
+        : null;
   }
 
-  static Future<ChatResponse> sendMessage({
+  static Future<canonical.ChatResponse> sendMessage({
     required String userText,
     String? projectId,
     String? conversationId,
-  }) async {
-    final supa = Supabase.instance.client;
-    final token = supa.auth.currentSession?.accessToken;
-    if (token == null) throw Exception("Not authed");
-
-    final uri = Uri.parse("$baseUrl/api/chat");
-
-    final body = <String, dynamic>{
-      "userText": userText,
-      "projectId": projectId,
-      "conversationId": conversationId,
-    }..removeWhere((k, v) => v == null);
-
-    final resp = await http.post(
-      uri,
-      headers: {
-        "authorization": "Bearer $token",
-        "content-type": "application/json",
-      },
-      body: jsonEncode(body),
+    String? turnId,
+  }) {
+    return _chat.sendMessage(
+      projectId: projectId,
+      conversationId: conversationId,
+      turnId: turnId,
+      userText: userText,
     );
-
-    if (resp.statusCode < 200 || resp.statusCode >= 300) {
-      throw Exception("sendMessage failed: ${resp.statusCode} ${resp.body}");
-    }
-
-    final json = jsonDecode(resp.body) as Map<String, dynamic>;
-    return ChatResponse.fromJson(json);
   }
 }
