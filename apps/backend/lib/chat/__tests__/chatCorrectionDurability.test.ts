@@ -19,6 +19,8 @@ const mocks = vi.hoisted(() => ({
   recordAgencyProgress: vi.fn(),
   blockAgencySession: vi.fn(),
   completeAgencySession: vi.fn(),
+  beginRuntimeSession: vi.fn(),
+  updateRuntimeSession: vi.fn(),
   buildPromptContext: vi.fn(),
   extractMemoryFromText: vi.fn(),
   persistClassifiedMemoryTurn: vi.fn(),
@@ -62,6 +64,10 @@ vi.mock("@/lib/arbor/agency/session", () => ({
   recordAgencyProgress: mocks.recordAgencyProgress,
   blockAgencySession: mocks.blockAgencySession,
   completeAgencySession: mocks.completeAgencySession,
+}));
+vi.mock("@/lib/arbor/runtime/runtimeSession", () => ({
+  beginRuntimeSession: mocks.beginRuntimeSession,
+  updateRuntimeSession: mocks.updateRuntimeSession,
 }));
 vi.mock("@/lib/prompt/buildPromptContext", () => ({
   buildPromptContext: mocks.buildPromptContext,
@@ -248,6 +254,35 @@ describe("explicit correction request-path durability", () => {
         ...agency,
         status: verified ? "complete" as const : "active" as const,
         unresolvedWork: verified ? [] : agency.unresolvedWork,
+      }),
+    );
+
+    const runtimeState = {
+      schemaVersion: 1 as const,
+      userId: USER_ID,
+      projectId: PROJECT_ID,
+      conversationId:
+        "66666666-6666-4666-8666-666666666666",
+      channel: "text" as const,
+      activeSubsystem: "arbor" as const,
+      currentGoal: USER_TEXT,
+      lastMeaningfulUserTurn: USER_TEXT,
+      lastMeaningfulArborTurn: null,
+      agency: agencyState,
+      corrections: [],
+      behaviorProof: null,
+      pendingSelfUpdate: null,
+      createdAt:
+        "2026-09-10T21:00:00.000Z",
+      updatedAt:
+        "2026-09-10T21:00:00.000Z",
+    };
+
+    mocks.beginRuntimeSession.mockResolvedValue(runtimeState);
+    mocks.updateRuntimeSession.mockImplementation(
+      async ({ state, ...updates }) => ({
+        ...state,
+        ...updates,
       }),
     );
 
