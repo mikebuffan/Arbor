@@ -27,6 +27,7 @@ const base: ArborRuntimeState = {
   corrections: [],
 
   behaviorProof: null,
+  pendingSelfUpdate: null,
 
   createdAt: "2026-09-10T20:00:00.000Z",
   updatedAt: "2026-09-10T20:00:00.000Z",
