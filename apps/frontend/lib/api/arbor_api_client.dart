@@ -101,6 +101,41 @@ class ArborApiClient {
     );
   }
 
+  Future<TextApiResponse> postText(
+    String path, {
+    required Map<String, dynamic> body,
+  }) async {
+    final uri = Uri.parse('$baseUrl$path');
+
+    final response = await _http.post(
+      uri,
+      headers: await _authHeaders(),
+      body: jsonEncode(body),
+    );
+
+    if (response.statusCode >= 400) {
+      dynamic error;
+
+      try {
+        final decoded = jsonDecode(response.body);
+        error = decoded is Map ? decoded['error'] : decoded;
+      } catch (_) {
+        error = response.body;
+      }
+
+      throw ApiException(
+        statusCode: response.statusCode,
+        error: error,
+      );
+    }
+
+    return TextApiResponse(
+      text: response.body,
+      contentType: response.headers['content-type'],
+      headers: response.headers,
+    );
+  }
+
   void close() {
     _http.close();
   }
@@ -114,6 +149,18 @@ class BinaryApiResponse {
   });
 
   final Uint8List bytes;
+  final String? contentType;
+  final Map<String, String> headers;
+}
+
+class TextApiResponse {
+  const TextApiResponse({
+    required this.text,
+    required this.contentType,
+    required this.headers,
+  });
+
+  final String text;
   final String? contentType;
   final Map<String, String> headers;
 }
