@@ -296,6 +296,8 @@ export async function buildPromptContext({
 
     ${behaviorProjection.promptBlock}
 
+    ${host.startup.promptBlock}
+
     You are ${ASSISTANT_NAME}. ${IDENTITY_LOCK}
 
     Meta Guards:
@@ -345,7 +347,16 @@ export async function buildPromptContext({
     injectedMemoryItems: selectedItems,
     activeSubsystem: arbor.activeSubsystem,
     voiceId: arbor.voiceId,
-    acousticCorrections: arbor.acousticCorrections,
-    behaviorProof: behaviorProjection.proof,
+    acousticCorrections:
+      host.startup.acousticCorrections,
+    behaviorProof:
+      behaviorProjection.proof,
+    hostState: {
+      ...host.state,
+      behaviorProof:
+        behaviorProjection.proof,
+    },
+    hostStartup:
+      host.startup,
   };
 }
