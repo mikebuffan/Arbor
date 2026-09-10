@@ -1,4 +1,10 @@
-export type ArborAudioFormat = "mp3" | "wav" | "opus" | "aac" | "flac";
+export type ArborAudioFormat =
+  | "mp3"
+  | "wav"
+  | "opus"
+  | "aac"
+  | "flac"
+  | "pcm";
 
 export type OpenAiTtsInput = {
   text: string;
