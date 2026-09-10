@@ -12,9 +12,17 @@ import type {
   ArborState,
 } from "./types.js";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+let openaiClient: OpenAI | null = null;
+
+function getOpenAI(): OpenAI {
+  if (!openaiClient) {
+    openaiClient = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+  }
+
+  return openaiClient;
+}
 
 export type AgencyHooks = {
   onRoundStart?: (input: {
@@ -120,7 +128,7 @@ export async function runAgency(input: {
     },
   ];
 
-  let response = await openai.responses.create({
+  let response = await getOpenAI().responses.create({
     model,
     instructions: input.instructions,
     input: firstInput as any,
@@ -228,7 +236,7 @@ export async function runAgency(input: {
         });
       }
 
-      response = await openai.responses.create({
+      response = await getOpenAI().responses.create({
         model,
         instructions: input.instructions,
         previous_response_id: response.id,
@@ -406,7 +414,7 @@ async function continueResponse(input: {
   verification: CompletionVerification;
   pendingStrategy: string | null;
 }) {
-  return openai.responses.create({
+  return getOpenAI().responses.create({
     model: input.model,
     instructions: input.instructions,
     previous_response_id: input.previousResponseId,
@@ -440,7 +448,7 @@ async function verifyCompletion(input: {
   candidate: string;
   actionEvidenceCount: number;
 }): Promise<CompletionVerification> {
-  const response = await openai.responses.create({
+  const response = await getOpenAI().responses.create({
     model:
       process.env.ARBOR_VERIFIER_MODEL ??
       process.env.ARBOR_MODEL ??
