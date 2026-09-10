@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ArborRuntimeState } from "./runtimeState";
+import { isMissingRuntimeTable } from "./missingRuntimeTable";
 
 type RuntimeRow = {
   user_id: string;
@@ -23,7 +24,11 @@ export async function loadRuntimeState(input: {
     .eq("conversation_id", input.conversationId)
     .maybeSingle();
 
-  if (error) throw error;
+  if (error) {
+    if (isMissingRuntimeTable(error)) return null;
+    throw error;
+  }
+
   if (!data) return null;
 
   return (data as RuntimeRow).state;
@@ -50,5 +55,8 @@ export async function saveRuntimeState(input: {
       },
     );
 
-  if (error) throw error;
+  if (error) {
+    if (isMissingRuntimeTable(error)) return;
+    throw error;
+  }
 }
