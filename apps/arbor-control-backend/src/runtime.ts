@@ -152,6 +152,12 @@ export class ArborControlRuntime {
       turnId,
       subsystem: activeSubsystem,
       channel: request.channel ?? "text",
+      voice: {
+        voiceId: agency.state.voiceId,
+        acousticCorrections: [
+          ...agency.state.acousticCorrections,
+        ],
+      },
     };
 
     await this.store.saveTurn(response);
