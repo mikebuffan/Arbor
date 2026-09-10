@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { stripe } from "@/lib/stripe";
+import { getStripe } from "@/lib/stripe";
 import { supabaseFromAuthHeader } from "@/lib/supabaseFromAuthHeader";
 
 export const runtime = "nodejs";
@@ -33,6 +33,8 @@ export async function POST(req: Request) {
   if (!data?.stripe_customer_id) {
     return NextResponse.json({ error: "No customer on file" }, { status: 400 });
   }
+
+  const stripe = getStripe();
 
   const session = await stripe.billingPortal.sessions.create({
     customer: data.stripe_customer_id,
