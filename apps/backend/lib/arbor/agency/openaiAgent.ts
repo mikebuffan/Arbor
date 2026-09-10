@@ -4,6 +4,7 @@ import {
   AgencyToolRegistry,
   toolNeedsUserBoundary,
 } from "./tools";
+import { verifyAgencyCompletion } from "./verifier";
 
 export type AgencyMessage = {
   role: "user" | "assistant";
@@ -27,6 +28,13 @@ export type AgencyLoopHooks = {
     name: string;
     reason: "irreversible_action" | "high_consequence_fork";
     arguments: Record<string, unknown>;
+  }) => Promise<void>;
+  onVerification?: (input: {
+    round: number;
+    complete: boolean;
+    unresolvedWork: string[];
+    evidence: string[];
+    strategyCorrection: string | null;
   }) => Promise<void>;
   onComplete?: (input: {
     rounds: number;
@@ -93,13 +101,31 @@ function requestTools(
   };
 }
 
+function latestUserGoal(input: {
+  goal?: string;
+  userText?: string;
+  messages?: AgencyMessage[];
+}): string {
+  return (
+    input.goal?.trim() ||
+    input.userText?.trim() ||
+    [...(input.messages ?? [])]
+      .reverse()
+      .find((message) => message.role === "user")
+      ?.content.trim() ||
+    ""
+  );
+}
+
 export async function runOpenAIAgencyAgent(input: {
   instructions: string;
+  goal?: string;
   userText?: string;
   messages?: AgencyMessage[];
   tools: AgencyToolRegistry;
   context: AgencyToolContext;
   allowWebResearch?: boolean;
+  verifyCompletion?: boolean;
   maxRounds?: number;
   hooks?: AgencyLoopHooks;
 }): Promise<AgentResult> {
@@ -118,6 +144,13 @@ export async function runOpenAIAgencyAgent(input: {
   ) {
     throw new Error("agency_input_required");
   }
+
+  const goal = latestUserGoal(input);
+  if (!goal) throw new Error("agency_goal_required");
+
+  const shouldVerify =
+    input.verifyCompletion ??
+    process.env.ARBOR_AGENCY_VERIFY_COMPLETION !== "false";
 
   const tools: Array<Record<string, unknown>> = [
     ...(input.allowWebResearch ? [{ type: "web_search" }] : []),
@@ -144,18 +177,70 @@ export async function runOpenAIAgencyAgent(input: {
     if (!calls.length) {
       const text = response.output_text?.trim() ?? "";
 
-      await input.hooks?.onComplete?.({
-        rounds: round + 1,
-        toolCalls,
-        text,
+      if (!shouldVerify) {
+        await input.hooks?.onComplete?.({
+          rounds: round + 1,
+          toolCalls,
+          text,
+        });
+
+        return {
+          status: "complete",
+          text,
+          responseId: response.id,
+          toolCalls,
+        };
+      }
+
+      const verification = await verifyAgencyCompletion({
+        goal,
+        candidateText: text,
       });
 
-      return {
-        status: "complete",
-        text,
-        responseId: response.id,
-        toolCalls,
-      };
+      await input.hooks?.onVerification?.({
+        round,
+        ...verification,
+      });
+
+      if (verification.complete) {
+        await input.hooks?.onComplete?.({
+          rounds: round + 1,
+          toolCalls,
+          text,
+        });
+
+        return {
+          status: "complete",
+          text,
+          responseId: response.id,
+          toolCalls,
+        };
+      }
+
+      response = await openai.responses.create({
+        model:
+          process.env.OPENAI_AGENCY_MODEL ??
+          process.env.OPENAI_MODEL ??
+          "gpt-5",
+        instructions: input.instructions,
+        previous_response_id: response.id,
+        input: [
+          "INTERNAL COMPLETION CHECK: the goal is not complete.",
+          `Unresolved work: ${
+            verification.unresolvedWork.join("; ") || "unspecified"
+          }`,
+          verification.strategyCorrection
+            ? `Strategy correction: ${verification.strategyCorrection}`
+            : "",
+          "Continue the work now. Use available tools/research when useful.",
+          "Do not merely report what remains if it can be completed with an available reversible action.",
+        ]
+          .filter(Boolean)
+          .join("\n"),
+        ...toolFields,
+      });
+
+      continue;
     }
 
     const outputs: Array<{
@@ -177,8 +262,8 @@ export async function runOpenAIAgencyAgent(input: {
       if (toolNeedsUserBoundary(tool)) {
         const reason =
           tool.risk === "irreversible"
-            ? "irreversible_action" as const
-            : "high_consequence_fork" as const;
+            ? ("irreversible_action" as const)
+            : ("high_consequence_fork" as const);
 
         await input.hooks?.onBoundary?.({
           round,
