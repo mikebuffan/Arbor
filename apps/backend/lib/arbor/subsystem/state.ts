@@ -1,6 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ArborSubsystem } from "@/lib/arbor/runtime/arborRuntime";
 import { isMissingRuntimeTable } from "@/lib/arbor/runtime/missingRuntimeTable";
+import {
+  assertAllowedArborVoiceId,
+  defaultArborVoiceId,
+} from "@/lib/arbor/voice/voiceConfig";
 
 export type ArborSubsystemState = {
   activeSubsystem: ArborSubsystem;
@@ -10,7 +14,7 @@ export type ArborSubsystemState = {
 
 const DEFAULT_STATE: ArborSubsystemState = {
   activeSubsystem: "arbor",
-  voiceId: process.env.ARBOR_OPENAI_VOICE ?? "cedar",
+  voiceId: defaultArborVoiceId(),
   acousticCorrections: [],
 };
 
@@ -21,6 +25,14 @@ function toCorrections(raw: unknown): string[] {
     .map((value) => value.trim())
     .filter(Boolean)
     .slice(-20);
+}
+
+function safePersistedVoiceId(raw: unknown): string {
+  try {
+    return assertAllowedArborVoiceId(String(raw ?? ""));
+  } catch {
+    return DEFAULT_STATE.voiceId;
+  }
 }
 
 export async function loadSubsystemState(input: {
@@ -44,7 +56,7 @@ export async function loadSubsystemState(input: {
   return {
     activeSubsystem:
       (data.active_subsystem as ArborSubsystem | null) ?? "arbor",
-    voiceId: String(data.voice_id ?? DEFAULT_STATE.voiceId),
+    voiceId: safePersistedVoiceId(data.voice_id),
     acousticCorrections: toCorrections(data.acoustic_corrections),
   };
 }
@@ -92,8 +104,7 @@ export async function persistVoiceId(input: {
   projectId: string;
   voiceId: string;
 }): Promise<void> {
-  const voiceId = input.voiceId.trim();
-  if (!voiceId) throw new Error("voice_id_required");
+  const voiceId = assertAllowedArborVoiceId(input.voiceId);
 
   await upsertState(input, {
     voice_id: voiceId,
