@@ -4,24 +4,7 @@ import {
   loadAgencyState,
   persistAgencyState,
 } from "./state";
-
-const CONTINUATION =
-  /^(?:go|okay|ok|continue|keep going|do it|finish it|yes|yep|yeah|please do|carry on)[.!?\s]*$/i;
-
-function compactGoal(userText: string): string {
-  return userText.trim().replace(/\s+/g, " ").slice(0, 500);
-}
-
-function shouldResumePriorGoal(
-  userText: string,
-  prior: AgencyState | null,
-): boolean {
-  if (!prior) return false;
-  if (prior.status !== "active" && prior.status !== "blocked") {
-    return false;
-  }
-  return CONTINUATION.test(userText.trim());
-}
+import { resolveAgencyGoal } from "./continuation";
 
 export async function beginAgencySession(input: {
   supabase: SupabaseClient;
@@ -30,22 +13,13 @@ export async function beginAgencySession(input: {
   userText: string;
 }): Promise<AgencyState> {
   const prior = await loadAgencyState(input);
-
-  const hasUnresolvedPrior = Boolean(
-    prior &&
-      (prior.status === "active" || prior.status === "blocked") &&
-      prior.unresolvedWork.length,
-  );
-
-  const goal = hasUnresolvedPrior
-    ? prior!.goal
-    : compactGoal(input.userText);
+  const { goal, resume } = resolveAgencyGoal(input.userText, prior);
 
   const agency: AgencyState = {
     goal,
     status: "active",
-    currentStep: hasUnresolvedPrior ? prior!.currentStep : 0,
-    unresolvedWork: hasUnresolvedPrior ? prior!.unresolvedWork : [],
+    currentStep: resume && prior ? prior.currentStep : 0,
+    unresolvedWork: resume && prior ? prior.unresolvedWork : [],
     recurringWeaknesses: prior?.recurringWeaknesses ?? [],
     strategyNotes: prior?.strategyNotes ?? [],
     blocker: null,
