@@ -59,6 +59,34 @@ export async function loadAnnabelleWorkspace(input: {
   };
 }
 
+export async function persistAnnabelleWorkspace(input: {
+  supabase: SupabaseClient;
+  userId: string;
+  projectId: string;
+  workspace: AnnabelleWorkspace;
+}): Promise<void> {
+  const { error } = await input.supabase
+    .from("annabelle_workspace_state")
+    .upsert(
+      {
+        user_id: input.userId,
+        project_id: input.projectId,
+        canon: input.workspace.canon,
+        locked_passages: input.workspace.lockedPassages,
+        scene_state: input.workspace.sceneState,
+        unresolved_decisions: input.workspace.unresolvedDecisions,
+        working_delta: input.workspace.workingDelta,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id,project_id" },
+    );
+
+  if (error) {
+    if (isMissingRuntimeTable(error)) return;
+    throw error;
+  }
+}
+
 export function annabelleWorkspaceToPromptBlock(
   workspace: AnnabelleWorkspace,
 ): string {
