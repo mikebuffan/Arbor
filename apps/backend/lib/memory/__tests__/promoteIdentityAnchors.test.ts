@@ -50,7 +50,7 @@ describe("promoteIdentityAnchors - negative anchors", () => {
 
   it("merges user.do_not_call on subsequent updates", async () => {
     (getProjectAnchors as any).mockResolvedValueOnce([
-      { mem_key: "user.do_not_call", mem_value: "Mike" },
+      { key: "user.do_not_call", value: "Mike" },
     ]);
 
     await promoteIdentityAnchors({
