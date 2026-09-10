@@ -67,3 +67,29 @@ jobs:
 
       - name: Build Android debug APK
         run: flutter build apk --debug
+
+  behavior_output_sync:
+    name: Reject regressed output
+    if: github.head_ref == 'arbor-behavior-regression-guard'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: arbor-behavior-regression-guard
+
+      - name: Apply output rejection patch
+        run: python .github/scripts/reject_behavior_regression.py
+
+      - name: Commit output rejection
+        run: |
+          git add apps/backend/lib/arbor/agency/openaiAgent.ts
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git config user.name "Arbor CI"
+          git config user.email "actions@users.noreply.github.com"
+          git commit -m "fix(agency): reject behavior-regressed candidate output"
+          git push origin HEAD:arbor-behavior-regression-guard
