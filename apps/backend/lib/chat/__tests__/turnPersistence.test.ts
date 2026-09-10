@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { deriveChatTurnIds } from "@/lib/chat/turnIdentity";
 import {
   claimUserTurn,
@@ -133,6 +133,68 @@ describe("durable chat turns", () => {
     expect(store.messages.get(turn.ids.assistantMessageId)?.content).toBe(
       "Exact safe replacement",
     );
+  });
+
+  it("awaits the final pre-persistence durability boundary before inserting", async () => {
+    const store = new MemoryTurnStore();
+    const turnId = "abababab-abab-4bab-8bab-abababababab";
+    const turn = await startTurn({
+      store,
+      turnId,
+      userText: "Correction: the phrase is Amber Quill, not Copper Lark.",
+    });
+    const beforePersist = vi.fn(async (finalAssistantText: string) => {
+      expect(finalAssistantText).toBe("Exact safe replacement");
+      expect(store.messages.has(turn.ids.assistantMessageId)).toBe(false);
+    });
+
+    await finalizeAndPersistAssistantTurn({
+      store,
+      messageId: turn.ids.assistantMessageId,
+      userId: USER_ID,
+      projectId: PROJECT_ID,
+      conversationId: turn.conversationId,
+      episodeId: EPISODE_ID,
+      rawAssistantText: "Unsafe draft",
+      postcheck: async () => ({
+        approved: false,
+        replacement: "Exact safe replacement",
+      }),
+      beforePersist,
+    });
+
+    expect(beforePersist).toHaveBeenCalledTimes(1);
+    expect(store.messages.get(turn.ids.assistantMessageId)?.content).toBe(
+      "Exact safe replacement",
+    );
+  });
+
+  it("does not persist an assistant response when the durability boundary fails", async () => {
+    const store = new MemoryTurnStore();
+    const turnId = "acacacac-acac-4cac-8cac-acacacacacac";
+    const turn = await startTurn({
+      store,
+      turnId,
+      userText: "Correction: the phrase is Amber Quill, not Copper Lark.",
+    });
+
+    await expect(
+      finalizeAndPersistAssistantTurn({
+        store,
+        messageId: turn.ids.assistantMessageId,
+        userId: USER_ID,
+        projectId: PROJECT_ID,
+        conversationId: turn.conversationId,
+        episodeId: EPISODE_ID,
+        rawAssistantText: "I will remember Amber Quill.",
+        postcheck: async () => ({ approved: true }),
+        beforePersist: async () => {
+          throw new Error("private database payload");
+        },
+      }),
+    ).rejects.toThrow("private database payload");
+
+    expect(store.messages.has(turn.ids.assistantMessageId)).toBe(false);
   });
 
   it("persists the exact response-language fallback", async () => {

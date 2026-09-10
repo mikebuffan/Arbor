@@ -332,6 +332,7 @@ export async function finalizeAndPersistAssistantTurn(params: {
     approved: boolean;
     replacement?: string;
   }>;
+  beforePersist?: (finalAssistantText: string) => Promise<void>;
 }) {
   const guardedText = guardAssistantText(params.rawAssistantText).text;
   const assistantText = params.assistantPreface
@@ -341,6 +342,7 @@ export async function finalizeAndPersistAssistantTurn(params: {
   const finalText = postcheck.approved
     ? assistantText
     : (postcheck.replacement ?? assistantText);
+  await params.beforePersist?.(finalText);
   const persisted = await persistFinalAssistantTurn({
     store: params.store,
     messageId: params.messageId,

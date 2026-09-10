@@ -1,3 +1,5 @@
+import type { ArborBehaviorProof } from "./behavior/behaviorProjection";
+
 type ProofSnapshotInput = {
   anchors: { id: string }[];
   memoryItems: { id: string }[];
@@ -8,6 +10,7 @@ type ProofSnapshotInput = {
     minutesSinceLastTurn?: number;
   };
   logicGatesHit?: string[];
+  behavior?: ArborBehaviorProof;
 };
 
 export function buildProofSnapshot(input: ProofSnapshotInput) {
@@ -17,6 +20,7 @@ export function buildProofSnapshot(input: ProofSnapshotInput) {
     safety_tier: input.safetyTier ?? 'none',
     rhythm: input.rhythm ?? {},
     logic_gates_hit: input.logicGatesHit ?? [],
+    behavior: input.behavior,
     built_at: new Date().toISOString(),
   };
 }

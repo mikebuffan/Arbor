@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { stripe } from "@/lib/stripe";
+import { getStripe } from "@/lib/stripe";
 import { supabaseAdmin } from "@/lib/supabaseServer";
 import type Stripe from "stripe";
 
@@ -11,6 +11,7 @@ export async function POST(req: Request) {
   if (!sig) return NextResponse.json({ error: "Missing stripe-signature" }, { status: 400 });
 
   const rawBody = await req.text();
+  const stripe = getStripe();
 
   let event: Stripe.Event;
   try {

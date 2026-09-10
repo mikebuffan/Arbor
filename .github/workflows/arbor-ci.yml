@@ -1,0 +1,63 @@
+name: Arbor Integration CI
+
+on:
+  pull_request:
+    branches:
+      - main
+      - arbor-linear-runtime
+  workflow_dispatch:
+
+concurrency:
+  group: arbor-integration-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend test + build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - run: corepack enable
+      - run: corepack prepare pnpm@10.30.3 --activate
+      - run: pnpm install --frozen-lockfile
+
+      - name: Run backend tests
+        env:
+          OPENAI_API_KEY: ci-placeholder-not-a-real-key
+        run: pnpm --filter firefly-backend test
+
+      - name: Build backend
+        env:
+          OPENAI_API_KEY: ci-placeholder-not-a-real-key
+        run: pnpm --filter firefly-backend build
+
+  flutter:
+    name: Flutter analyze + test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    defaults:
+      run:
+        working-directory: apps/frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - run: flutter test

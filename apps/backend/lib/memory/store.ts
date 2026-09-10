@@ -366,6 +366,66 @@ export async function correctMemoryItem(params: {
   return { id: data.id as string, locked: shouldLock };
 }
 
+export async function supersedeMemoryAliases(params: {
+  supabase: SupabaseClient;
+  authedUserId: string;
+  projectId: string | null;
+  canonicalId: string;
+  aliases: Array<{ id: string; key: string }>;
+}): Promise<string[]> {
+  const aliases = params.aliases.filter(
+    (alias) => alias.id && alias.id !== params.canonicalId,
+  );
+  if (!aliases.length) return [];
+
+  const aliasIds = Array.from(new Set(aliases.map((alias) => alias.id)));
+  const nowIso = new Date().toISOString();
+  let query = params.supabase
+    .from(ITEMS_TABLE)
+    .update({
+      status: "tombstoned",
+      deleted_at: nowIso,
+      delete_reason: "superseded_by_correction",
+      updated_at: nowIso,
+    })
+    .eq("user_id", params.authedUserId)
+    .eq("status", "active")
+    .is("deleted_at", null)
+    .in("id", aliasIds);
+
+  query = params.projectId
+    ? query.eq("project_id", params.projectId).neq("scope", "global")
+    : query.is("project_id", null).eq("scope", "global");
+
+  const { data, error } = await query.select("id,key");
+  if (error) throw error;
+
+  const affected = (data ?? []) as Array<{ id: string; key: string }>;
+  const affectedIds = affected.map((row) => row.id).sort();
+  if (
+    affectedIds.length !== aliasIds.length ||
+    affectedIds.some((id, index) => id !== [...aliasIds].sort()[index])
+  ) {
+    throw new Error("memory_alias_supersession_incomplete");
+  }
+
+  for (const alias of affected) {
+    await logEvent({
+      supabase: params.supabase,
+      authedUserId: params.authedUserId,
+      projectId: params.projectId,
+      key: alias.key,
+      event_type: "superseded_by_correction",
+      payload: {
+        canonical_id: params.canonicalId,
+        reason: "explicit_correction",
+      },
+    });
+  }
+
+  return affectedIds;
+}
+
 export async function updateMemoryStrength(memoryId: string, delta: number) {
   const supabase = await getServerSupabase();
 

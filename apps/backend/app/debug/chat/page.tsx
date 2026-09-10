@@ -2,10 +2,18 @@
 import { useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+function getSupabase() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!url || !anonKey) {
+    throw new Error(
+      "Debug chat requires NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY",
+    );
+  }
+
+  return createClient(url, anonKey);
+}
 
 export default function DebugChatPage() {
   const [email, setEmail] = useState("");
@@ -19,6 +27,7 @@ export default function DebugChatPage() {
   const [conversationId, setConversationId] = useState<string | null>(null);
 
   async function signIn() {
+    const supabase = getSupabase();
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
       setReply(`Sign-in failed: ${error.message}`);
@@ -39,6 +48,7 @@ export default function DebugChatPage() {
     setReply("");
 
     try {
+      const supabase = getSupabase();
       const { data } = await supabase.auth.getSession();
       const token = data.session?.access_token;
       if (!token) throw new Error("Not logged in");
@@ -47,7 +57,11 @@ export default function DebugChatPage() {
       const UUID_RE =
         /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-      const body: any = { userText: msg };
+      const body: Record<string, unknown> = {
+        turnId: crypto.randomUUID(),
+        userText: msg,
+        interactionMode: "text",
+      };
       if (projectId && UUID_RE.test(projectId)) body.projectId = projectId;
       if (conversationId && UUID_RE.test(conversationId)) body.conversationId = conversationId;
 

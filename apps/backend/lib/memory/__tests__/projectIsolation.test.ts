@@ -196,4 +196,68 @@ describe("memory project isolation", () => {
     );
     expect(source).toContain("void params.useCache");
   });
+
+  it("retrieves the corrected value and excludes superseded stale aliases", async () => {
+    const response = {
+      data: [
+        {
+          id: "canonical",
+          project_id: "project-a",
+          key: "project.observatory.access_phrase",
+          value: { text: "Blue Lantern" },
+          tier: "core",
+          scope: "project",
+          status: "active",
+          deleted_at: null,
+          pinned: true,
+          locked: false,
+        },
+        {
+          id: "stale-alias",
+          project_id: "project-a",
+          key: "project.fictional_observatory.access_phrase",
+          value: { text: "Silver Orchard" },
+          tier: "normal",
+          scope: "project",
+          status: "tombstoned",
+          deleted_at: "2026-09-02T05:00:00.000Z",
+          pinned: false,
+          locked: false,
+        },
+      ],
+      error: null,
+    };
+    const query = {
+      select: vi.fn(),
+      eq: vi.fn(),
+      is: vi.fn(),
+      order: vi.fn(),
+      or: vi.fn(),
+      limit: vi.fn(),
+      then: (resolve: (value: typeof response) => unknown) =>
+        Promise.resolve(response).then(resolve),
+    };
+    query.select.mockReturnValue(query);
+    query.eq.mockReturnValue(query);
+    query.is.mockReturnValue(query);
+    query.order.mockReturnValue(query);
+    query.or.mockReturnValue(query);
+    query.limit.mockReturnValue(query);
+    const supabase = {
+      from: vi.fn().mockReturnValue(query),
+    } as unknown as SupabaseClient;
+
+    const result = await getMemoryContext({
+      supabase,
+      authedUserId: "user-a",
+      projectId: "project-a",
+      latestUserText: "What is the observatory access phrase?",
+    });
+
+    expect(result.keysUsed).toEqual([
+      "project.observatory.access_phrase",
+    ]);
+    expect(JSON.stringify(result)).toContain("Blue Lantern");
+    expect(JSON.stringify(result)).not.toContain("Silver Orchard");
+  });
 });

@@ -6,13 +6,29 @@ import {
   assertConversationOwnedByUser,
   assertProjectOwnedByUser,
 } from "@/lib/auth/ownership";
-import { routeErrorResponse } from "@/lib/auth/routeAuthorization";
-import { openAIChat } from "@/lib/providers/openai";
+import {
+  RouteAccessError,
+  routeErrorResponse,
+} from "@/lib/auth/routeAuthorization";
 import { buildPromptContext } from "@/lib/prompt/buildPromptContext";
+import { runOpenAIAgencyAgent } from "@/lib/arbor/agency/openaiAgent";
+import { buildArborAgencyTools } from "@/lib/arbor/agency/arborTools";
+import {
+  beginAgencySession,
+  blockAgencySession,
+  completeAgencySession,
+  recordAgencyProgress,
+} from "@/lib/arbor/agency/session";
+import { ArborTimeline } from "@/lib/arbor/timeline/runTimeline";
+import { SupabaseTimelineStore } from "@/lib/arbor/timeline/supabaseStore";
 import { extractMemoryFromText } from "@/lib/memory/extractor";
-import { upsertMemoryItems, reinforceMemoryUse } from "@/lib/memory/store";
+import { reinforceMemoryUse } from "@/lib/memory/store";
+import {
+  classifyMemoryTurn,
+  persistClassifiedMemoryTurn,
+} from "@/lib/memory/correctionResolution";
 import { postcheckResponse } from "@/lib/safety/postcheck";
-import { logMemoryEvent } from "@/lib/memory/logger";
+import { writeDurableChatCompletedEvent } from "@/lib/memory/durableEvents";
 import { evaluateDecisionContext } from "@/lib/governance/evaluateDecisionContext";
 import { realWorldSafetyAddendum } from "@/lib/governance/realWorldSafetyAddendum";
 import { logDecisionOutcome } from "@/lib/safety/decisionOutcome";
@@ -26,8 +42,24 @@ import {
 } from "@/lib/chat/turnPersistence";
 
 import { buildProofSnapshot } from "@/lib/arbor/ProofSnapshot";
+import {
+  beginRuntimeSession,
+  updateRuntimeSession,
+} from "@/lib/arbor/runtime/runtimeSession";
+import {
+  createCorrection,
+} from "@/lib/arbor/runtime/corrections";
+import {
+  beginSelfUpdate,
+  decideSelfUpdate,
+  recordSelfUpdateVerification,
+} from "@/lib/arbor/agency/updateLifecycle";
+import {
+  retainStrategy,
+} from "@/lib/arbor/agency/strategyRetention";
 import { buildTelemetry } from "@/lib/arbor/telemetry/buildTelemetry";
 import { getOrCreateOpenEpisode } from "@/lib/arbor/episodes/getOrCreateOpenEpisode";
+import { scheduleChatPostResponseWork } from "@/lib/chat/postResponseScheduler";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -38,7 +70,7 @@ type Msg = { role: "user" | "assistant" | "system"; content: string };
 
 const NullableUuid = z.preprocess(
   (v) => (v === null || v === "" ? undefined : v),
-  z.string().uuid().optional()
+  z.string().uuid().optional(),
 );
 
 const Body = z.object({
@@ -46,6 +78,7 @@ const Body = z.object({
   conversationId: NullableUuid,
   turnId: z.string().uuid(),
   userText: z.string().min(1),
+  interactionMode: z.enum(["text", "voice"]).default("text"),
 });
 
 export function buildChatSuccessResponse(params: {
@@ -68,26 +101,12 @@ function getCorsHeaders(req: Request) {
 
   return {
     "access-control-allow-origin": origin,
-    "vary": "origin",
+    vary: "origin",
     "access-control-allow-methods": "POST, OPTIONS",
-    "access-control-allow-headers": "content-type, authorization, apikey, x-client-info",
+    "access-control-allow-headers":
+      "content-type, authorization, apikey, x-client-info",
     "access-control-max-age": "86400",
   };
-}
-
-function runBg(label: string, fn: () => Promise<unknown>) {
-  void fn().catch(() => console.warn(`[bg:${label}] failed`));
-}
-
-function assistantTextFromResponse(response: unknown): string {
-  if (!response || typeof response !== "object" || !("choices" in response)) {
-    return "";
-  }
-
-  const choices = (response as {
-    choices?: Array<{ message?: { content?: string | null } }>;
-  }).choices;
-  return choices?.[0]?.message?.content ?? "";
 }
 
 export async function OPTIONS(req: Request) {
@@ -127,7 +146,7 @@ export async function loadRecentMessages(
   supabase: SupabaseClient,
   userId: string,
   conversationId: string,
-  limit = 20
+  limit = 20,
 ): Promise<Msg[]> {
   const { data, error } = await supabase
     .from("messages")
@@ -163,7 +182,7 @@ async function cleanupExpiredMessagesBestEffort(
 }
 
 export async function POST(req: Request) {
-  const t0 = performance.now(); 
+  const t0 = performance.now();
 
   try {
     const { supabase, userId } = await requireUser(req);
@@ -171,7 +190,7 @@ export async function POST(req: Request) {
     if (!parsed.success) {
       return NextResponse.json(
         { ok: false, error: parsed.error.flatten() },
-        { status: 400, headers: getCorsHeaders(req) }
+        { status: 400, headers: getCorsHeaders(req) },
       );
     }
 
@@ -180,12 +199,15 @@ export async function POST(req: Request) {
       conversationId,
       turnId,
       userText,
+      interactionMode,
     } = parsed.data;
+
     await cleanupExpiredMessagesBestEffort(supabase, userId);
     if (maybeProjectId) {
       await assertProjectOwnedByUser(supabase, userId, maybeProjectId);
     }
-    const projectId = maybeProjectId ?? (await getOrCreateDefaultProjectId(supabase, userId));
+    const projectId =
+      maybeProjectId ?? (await getOrCreateDefaultProjectId(supabase, userId));
 
     const turnStore = createSupabaseChatTurnStore(supabase);
     const resolvedTurn = await resolveConversationForTurn({
@@ -241,6 +263,13 @@ export async function POST(req: Request) {
       );
     }
 
+    let agencyState = await beginAgencySession({
+      supabase,
+      userId,
+      projectId,
+      userText,
+    });
+
     const decisionContext = evaluateDecisionContext({ userText });
     const safety = realWorldSafetyAddendum(decisionContext);
 
@@ -252,12 +281,69 @@ export async function POST(req: Request) {
       conversationId: convoId,
       latestUserText: userText,
       safety,
+      interactionMode,
+      hostSessionId: turnId,
     });
+
     const [history, promptContext] = await Promise.all([
       historyPromise,
       promptContextPromise,
     ]);
-    const { systemPrompt, injectedMemoryItems: selectedMemoryItems } = promptContext;
+
+    const {
+      systemPrompt,
+      injectedMemoryItems: selectedMemoryItems,
+      activeSubsystem,
+      behaviorProof,
+    } = promptContext;
+
+    const runtimeSession = await beginRuntimeSession({
+      supabase,
+      userId,
+      projectId,
+      conversationId: convoId,
+      channel: interactionMode,
+      activeSubsystem,
+      currentGoal: agencyState.goal,
+      lastMeaningfulUserTurn: userText,
+      agency: agencyState,
+      behaviorProof,
+      now: new Date().toISOString(),
+    });
+
+    let pendingSelfUpdate =
+      runtimeSession.pendingSelfUpdate;
+
+    const protectedCorrections =
+      runtimeSession.corrections
+        .filter((correction) =>
+          correction.protected,
+        )
+        .map((correction) =>
+          correction.value,
+        );
+
+    const timeline = await ArborTimeline.create(
+      new SupabaseTimelineStore(supabase),
+      {
+        userId,
+        projectId,
+        conversationId: convoId,
+        turnId,
+        subsystem: activeSubsystem,
+        channel: interactionMode,
+      },
+    );
+
+    await timeline.record("input", "turn_started", {
+      goal: agencyState.goal,
+    });
+
+    await timeline.record("retrieve", "state_loaded", {
+      agencyStatus: agencyState.status,
+      unresolvedWork: agencyState.unresolvedWork,
+    });
+
     const injectedMemoryKeys = selectedMemoryItems
       .map((item) => item.key)
       .filter(Boolean);
@@ -274,15 +360,250 @@ export async function POST(req: Request) {
       scope: item.scope,
     }));
 
-    const messagesForModel: Msg[] = [
-      { role: "system", content: systemPrompt },
-      ...history,
-    ];
+    const agencyTools = buildArborAgencyTools({ supabase });
 
-    const aiResponse = await openAIChat({
-      model: process.env.OPENAI_CHAT_MODEL ?? "gpt-5",
-      messages: messagesForModel,
+    const agentResult = await runOpenAIAgencyAgent({
+      instructions: systemPrompt,
+      goal: agencyState.goal,
+      messages: history
+        .filter(
+          (
+            message,
+          ): message is Msg & { role: "user" | "assistant" } =>
+            message.role === "user" || message.role === "assistant",
+        )
+        .map((message) => ({
+          role: message.role,
+          content: message.content,
+        })),
+      tools: agencyTools,
+      context: {
+        userId,
+        projectId,
+        conversationId: convoId,
+        turnId,
+      },
+      allowWebResearch: process.env.ARBOR_ENABLE_WEB_RESEARCH !== "false",
+      hooks: {
+        async onRoundStart(round) {
+          agencyState = await recordAgencyProgress({
+            supabase,
+            userId,
+            projectId,
+            agency: agencyState,
+            step: Math.max(agencyState.currentStep + 1, round + 1),
+          });
+
+          await timeline.record("decide", "goal_resolved", {
+            round,
+            goal: agencyState.goal,
+            unresolvedWork: agencyState.unresolvedWork,
+          });
+        },
+        async onToolSelected({ name, arguments: args }) {
+          agencyState = await recordAgencyProgress({
+            supabase,
+            userId,
+            projectId,
+            agency: agencyState,
+            step: agencyState.currentStep,
+            unresolvedWork: [`execute capability: ${name}`],
+          });
+
+          await timeline.record(
+            "decide",
+            "action_selected",
+            { capability: name, arguments: args },
+            name,
+          );
+
+          await timeline.record(
+            "act",
+            "action_started",
+            { capability: name },
+            name,
+          );
+        },
+        async onToolResult({ name }) {
+          agencyState = await recordAgencyProgress({
+            supabase,
+            userId,
+            projectId,
+            agency: agencyState,
+            step: agencyState.currentStep,
+            unresolvedWork: [],
+          });
+
+          await timeline.record(
+            "observe",
+            "action_completed",
+            { capability: name },
+            name,
+          );
+        },
+        async onToolError({ name, error }) {
+          agencyState = await recordAgencyProgress({
+            supabase,
+            userId,
+            projectId,
+            agency: agencyState,
+            step: agencyState.currentStep,
+            unresolvedWork: [`recover capability: ${name}`],
+            recurringWeakness: `tool failure: ${name}`,
+            strategyChange:
+              `When ${name} fails, inspect the failure and choose another reversible route before stopping.`,
+          });
+
+          await timeline.record(
+            "observe",
+            "action_failed",
+            {
+              capability: name,
+              error,
+              unresolvedWork: agencyState.unresolvedWork,
+            },
+            name,
+          );
+        },
+
+        async onVerification({
+          complete,
+          score,
+          unresolvedWork,
+          evidence,
+          strategyCorrection,
+        }) {
+          let resolvedStrategy: string | null = null;
+
+          if (pendingSelfUpdate) {
+            pendingSelfUpdate =
+              recordSelfUpdateVerification(
+                pendingSelfUpdate,
+                {
+                  score,
+                  behavior: behaviorProof,
+                  protectedCorrections,
+                  now: new Date().toISOString(),
+                },
+              );
+
+            const lifecycle =
+              decideSelfUpdate(
+                pendingSelfUpdate,
+              );
+
+            if (
+              lifecycle.decision.disposition ===
+              "retain"
+            ) {
+              resolvedStrategy =
+                pendingSelfUpdate.strategy;
+
+              agencyState = {
+                ...agencyState,
+                strategyNotes:
+                  retainStrategy(
+                    agencyState.strategyNotes,
+                    pendingSelfUpdate.strategy,
+                  ),
+              };
+
+              pendingSelfUpdate = null;
+            } else if (
+              lifecycle.decision.disposition ===
+              "revert"
+            ) {
+              resolvedStrategy =
+                pendingSelfUpdate.strategy;
+              pendingSelfUpdate = null;
+            }
+          }
+
+          if (
+            strategyCorrection &&
+            !pendingSelfUpdate &&
+            strategyCorrection !== resolvedStrategy
+          ) {
+            pendingSelfUpdate =
+              beginSelfUpdate({
+                id: crypto.randomUUID(),
+                strategy: strategyCorrection,
+                baselineScore: score,
+                behavior: behaviorProof,
+                protectedCorrections,
+                now: new Date().toISOString(),
+              });
+          }
+
+          agencyState = await recordAgencyProgress({
+            supabase,
+            userId,
+            projectId,
+            agency: agencyState,
+            step: agencyState.currentStep,
+            unresolvedWork,
+          });
+
+          await timeline.record(
+            "verify",
+            complete ? "verification_passed" : "verification_failed",
+            {
+              score,
+              evidence,
+              unresolvedWork,
+              strategyCorrection,
+              pendingSelfUpdate:
+                pendingSelfUpdate?.strategy ?? null,
+            },
+          );
+        },
+        async onBoundary({ name, reason }) {
+          agencyState = await blockAgencySession({
+            supabase,
+            userId,
+            projectId,
+            agency: agencyState,
+            blocker: reason,
+            unresolvedWork: [`complete boundary action: ${name}`],
+          });
+
+          await timeline.record(
+            "blocked",
+            "turn_blocked",
+            {
+              capability: name,
+              reason,
+              unresolvedWork: agencyState.unresolvedWork,
+            },
+            name,
+          );
+        },
+      },
     });
+
+    if (agentResult.status === "blocked") {
+      throw new RouteAccessError(409, "agency_boundary");
+    }
+
+    const deterministicMemoryTurn = classifyMemoryTurn({
+      userText,
+      extractedItems: [],
+    });
+
+    const runtimeCorrections =
+      deterministicMemoryTurn.kind === "correction"
+        ? [
+            createCorrection({
+              value: userText,
+              source:
+                activeSubsystem === "annabelle"
+                  ? "annabelle"
+                  : interactionMode,
+              observedAt: new Date().toISOString(),
+            }),
+          ]
+        : [];
+    let explicitCorrectionHandledSynchronously = false;
 
     const finalAssistant = await finalizeAndPersistAssistantTurn({
       store: turnStore,
@@ -291,7 +612,7 @@ export async function POST(req: Request) {
       projectId,
       conversationId: convoId,
       episodeId,
-      rawAssistantText: assistantTextFromResponse(aiResponse),
+      rawAssistantText: agentResult.text,
       assistantPreface: safety?.assistantPreface ?? undefined,
       postcheck: (assistantText) =>
         postcheckResponse({
@@ -299,8 +620,66 @@ export async function POST(req: Request) {
           projectId,
           assistantText,
         }),
+      beforePersist:
+        deterministicMemoryTurn.kind === "correction"
+          ? async () => {
+              const result = await persistClassifiedMemoryTurn({
+                supabase,
+                userId,
+                projectId,
+                classified: deterministicMemoryTurn,
+                injectedMemoryIds: selectedMemoryItems.map((item) => item.id),
+              });
+              if (
+                result.kind !== "correction" ||
+                (result.resolution.status !== "resolved" &&
+                  result.resolution.status !== "already_applied")
+              ) {
+                throw new RouteAccessError(409, "correction_unresolved");
+              }
+              explicitCorrectionHandledSynchronously = true;
+            }
+          : undefined,
     });
+
+    agencyState = await completeAgencySession({
+      supabase,
+      userId,
+      projectId,
+      agency: agencyState,
+      verified: !finalAssistant.flagged,
+    });
+
+    await timeline.record(
+      "generate",
+      "canonical_response_generated",
+      {
+        characterCount: finalAssistant.assistantText.length,
+        flagged: finalAssistant.flagged,
+      },
+    );
+
+    await timeline.record("persist", "state_persisted", {
+      agencyStatus: agencyState.status,
+    });
+
+    await timeline.record("complete", "turn_completed");
+
     const assistantText = finalAssistant.assistantText;
+
+    await updateRuntimeSession({
+      supabase,
+      state: runtimeSession,
+      activeSubsystem,
+      channel: interactionMode,
+      currentGoal: agencyState.goal,
+      lastMeaningfulArborTurn: assistantText,
+      agency: agencyState,
+      corrections: runtimeCorrections,
+      behaviorProof,
+      pendingSelfUpdate,
+      now: new Date().toISOString(),
+    });
 
     const traceId = crypto.randomUUID();
 
@@ -308,81 +687,105 @@ export async function POST(req: Request) {
       ...buildProofSnapshot({
         anchors: [],
         memoryItems: selectedMemoryItems.map((item) => ({ id: item.id })),
+        behavior: behaviorProof,
       }),
       memory_debug: memoryDebugTop,
     };
 
     const retrievalLatencyMs = Math.round(performance.now() - t0);
 
-    if (finalAssistant.created) {
-      runBg("telemetry", async () => {
-        await buildTelemetry(
-          {
-            traceId,
+    scheduleChatPostResponseWork({
+      newlyCreated: finalAssistant.created,
+      operations: {
+        telemetry: async () => {
+          await buildTelemetry(
+            {
+              traceId,
+              userId,
+              projectId,
+              threadId: convoId,
+              episodeId,
+              retrievalLatencyMs,
+              logicGatesHit: [],
+            },
+            proofSnapshot,
+          );
+        },
+
+        memory_pipeline: async () => {
+          const extracted = await extractMemoryFromText({
+            userText,
+            assistantText,
+          });
+          const classified = classifyMemoryTurn({
+            userText,
+            extractedItems: extracted,
+          });
+
+          await promoteIdentityAnchors({
+            supabase,
+            authedUserId: userId,
+            projectId,
+            userText,
+            extracted:
+              classified.kind === "assertion" ? classified.items : [],
+          });
+
+          if (!explicitCorrectionHandledSynchronously) {
+            await persistClassifiedMemoryTurn({
+              supabase,
+              userId,
+              projectId,
+              classified,
+              injectedMemoryIds: selectedMemoryItems.map((item) => item.id),
+            });
+          }
+
+          if (classified.kind === "assertion") {
+            await reinforceMemoryUse(
+              userId,
+              injectedMemoryKeys,
+              projectId,
+              supabase,
+            );
+          }
+
+          await writeDurableChatCompletedEvent({
+            supabase,
             userId,
             projectId,
-            threadId: convoId,
-            episodeId,
-            retrievalLatencyMs,
-            logicGatesHit: [],
-          },
-          proofSnapshot
-        );
-      });
+            conversationId: convoId,
+          });
+        },
 
-      runBg("memory_pipeline", async () => {
-        const extracted = await extractMemoryFromText({ userText, assistantText });
+        conversation_update: async () => {
+          await supabase
+            .from("conversations")
+            .update({ updated_at: new Date().toISOString() })
+            .eq("id", convoId)
+            .eq("user_id", userId);
+        },
 
-        await promoteIdentityAnchors({
-          supabase,
-          authedUserId: userId,
-          projectId,
-          userText,
-          extracted,
-        });
+        decision_outcome: async () => {
+          await logDecisionOutcome({
+            userId,
+            projectId,
+            conversationId: convoId,
+            severityScore: decisionContext?.severityScore ?? 0,
+            riskBand: decisionContext?.riskBand ?? null,
+            emotionalIntensity: decisionContext?.emotionalIntensity ?? null,
+            flags: decisionContext?.flags ?? {},
+            actionTaken: safety?.assistantPreface ? "safety_preface" : "none",
+            model:
+              process.env.OPENAI_AGENCY_MODEL ??
+              process.env.OPENAI_MODEL ??
+              "gpt-5",
+            postcheckApproved: !finalAssistant.flagged,
+          });
+        },
+      },
+    });
 
-        await upsertMemoryItems(userId, extracted, projectId, supabase);
-        await reinforceMemoryUse(
-          userId,
-          injectedMemoryKeys,
-          projectId,
-          supabase,
-        );
-
-        await logMemoryEvent("chat_completed", {
-          userId,
-          projectId,
-          conversationId: convoId,
-        });
-      });
-
-      runBg("conversation_update", async () => {
-        await supabase
-          .from("conversations")
-          .update({ updated_at: new Date().toISOString() })
-          .eq("id", convoId)
-          .eq("user_id", userId);
-      });
-
-      runBg("decision_outcome", async () => {
-        await logDecisionOutcome({
-          userId,
-          projectId,
-          conversationId: convoId,
-          severityScore: decisionContext?.severityScore ?? 0,
-          riskBand: decisionContext?.riskBand ?? null,
-          emotionalIntensity: decisionContext?.emotionalIntensity ?? null,
-          flags: decisionContext?.flags ?? {},
-          actionTaken: safety?.assistantPreface ? "safety_preface" : "none",
-          model: process.env.OPENAI_CHAT_MODEL ?? null,
-          postcheckApproved: !finalAssistant.flagged,
-        });
-      });
-    }
-
-    /* =====================================================
-      3.10.5 DEV-ONLY — REMOVE BEFORE SHIPPING
-      ===================================================== */
     const response: ReturnType<typeof buildChatSuccessResponse> & {
       _telemetry?: Record<string, unknown>;
     } = buildChatSuccessResponse({
@@ -398,7 +801,11 @@ export async function POST(req: Request) {
         injectedAnchorIds: proofSnapshot.injected_anchor_ids,
         injectedMemoryItemIds: proofSnapshot.injected_memory_item_ids,
         safetyTier: proofSnapshot.safety_tier,
-        memoryDebugTop, 
+        behavior: proofSnapshot.behavior,
+        memoryDebugTop,
+        agentToolCalls: agentResult.toolCalls,
+        agencyStatus: agencyState.status,
+        agencyStep: agencyState.currentStep,
       };
     }
 
@@ -406,7 +813,6 @@ export async function POST(req: Request) {
       status: 200,
       headers: getCorsHeaders(req),
     });
-
   } catch (error: unknown) {
     const response = routeErrorResponse(error);
     for (const [name, value] of Object.entries(getCorsHeaders(req))) {
