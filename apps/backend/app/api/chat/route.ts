@@ -10,8 +10,9 @@ import {
   RouteAccessError,
   routeErrorResponse,
 } from "@/lib/auth/routeAuthorization";
-import { openAIChat } from "@/lib/providers/openai";
 import { buildPromptContext } from "@/lib/prompt/buildPromptContext";
+import { runOpenAIAgencyAgent } from "@/lib/arbor/agency/openaiAgent";
+import { AgencyToolRegistry } from "@/lib/arbor/agency/tools";
 import { extractMemoryFromText } from "@/lib/memory/extractor";
 import { reinforceMemoryUse } from "@/lib/memory/store";
 import {
@@ -46,7 +47,7 @@ type Msg = { role: "user" | "assistant" | "system"; content: string };
 
 const NullableUuid = z.preprocess(
   (v) => (v === null || v === "" ? undefined : v),
-  z.string().uuid().optional()
+  z.string().uuid().optional(),
 );
 
 const Body = z.object({
@@ -76,22 +77,12 @@ function getCorsHeaders(req: Request) {
 
   return {
     "access-control-allow-origin": origin,
-    "vary": "origin",
+    vary: "origin",
     "access-control-allow-methods": "POST, OPTIONS",
-    "access-control-allow-headers": "content-type, authorization, apikey, x-client-info",
+    "access-control-allow-headers":
+      "content-type, authorization, apikey, x-client-info",
     "access-control-max-age": "86400",
   };
-}
-
-function assistantTextFromResponse(response: unknown): string {
-  if (!response || typeof response !== "object" || !("choices" in response)) {
-    return "";
-  }
-
-  const choices = (response as {
-    choices?: Array<{ message?: { content?: string | null } }>;
-  }).choices;
-  return choices?.[0]?.message?.content ?? "";
 }
 
 export async function OPTIONS(req: Request) {
@@ -131,7 +122,7 @@ export async function loadRecentMessages(
   supabase: SupabaseClient,
   userId: string,
   conversationId: string,
-  limit = 20
+  limit = 20,
 ): Promise<Msg[]> {
   const { data, error } = await supabase
     .from("messages")
@@ -167,7 +158,7 @@ async function cleanupExpiredMessagesBestEffort(
 }
 
 export async function POST(req: Request) {
-  const t0 = performance.now(); 
+  const t0 = performance.now();
 
   try {
     const { supabase, userId } = await requireUser(req);
@@ -175,7 +166,7 @@ export async function POST(req: Request) {
     if (!parsed.success) {
       return NextResponse.json(
         { ok: false, error: parsed.error.flatten() },
-        { status: 400, headers: getCorsHeaders(req) }
+        { status: 400, headers: getCorsHeaders(req) },
       );
     }
 
@@ -185,11 +176,13 @@ export async function POST(req: Request) {
       turnId,
       userText,
     } = parsed.data;
+
     await cleanupExpiredMessagesBestEffort(supabase, userId);
     if (maybeProjectId) {
       await assertProjectOwnedByUser(supabase, userId, maybeProjectId);
     }
-    const projectId = maybeProjectId ?? (await getOrCreateDefaultProjectId(supabase, userId));
+    const projectId =
+      maybeProjectId ?? (await getOrCreateDefaultProjectId(supabase, userId));
 
     const turnStore = createSupabaseChatTurnStore(supabase);
     const resolvedTurn = await resolveConversationForTurn({
@@ -257,11 +250,15 @@ export async function POST(req: Request) {
       latestUserText: userText,
       safety,
     });
+
     const [history, promptContext] = await Promise.all([
       historyPromise,
       promptContextPromise,
     ]);
-    const { systemPrompt, injectedMemoryItems: selectedMemoryItems } = promptContext;
+
+    const { systemPrompt, injectedMemoryItems: selectedMemoryItems } =
+      promptContext;
+
     const injectedMemoryKeys = selectedMemoryItems
       .map((item) => item.key)
       .filter(Boolean);
@@ -278,15 +275,34 @@ export async function POST(req: Request) {
       scope: item.scope,
     }));
 
-    const messagesForModel: Msg[] = [
-      { role: "system", content: systemPrompt },
-      ...history,
-    ];
+    const agencyTools = new AgencyToolRegistry();
 
-    const aiResponse = await openAIChat({
-      model: process.env.OPENAI_CHAT_MODEL ?? "gpt-5",
-      messages: messagesForModel,
+    const agentResult = await runOpenAIAgencyAgent({
+      instructions: systemPrompt,
+      messages: history
+        .filter(
+          (
+            message,
+          ): message is Msg & { role: "user" | "assistant" } =>
+            message.role === "user" || message.role === "assistant",
+        )
+        .map((message) => ({
+          role: message.role,
+          content: message.content,
+        })),
+      tools: agencyTools,
+      context: {
+        userId,
+        projectId,
+        conversationId: convoId,
+        turnId,
+      },
+      allowWebResearch: process.env.ARBOR_ENABLE_WEB_RESEARCH !== "false",
     });
+
+    if (agentResult.status === "blocked") {
+      throw new RouteAccessError(409, "agency_boundary");
+    }
 
     const deterministicMemoryTurn = classifyMemoryTurn({
       userText,
@@ -301,7 +317,7 @@ export async function POST(req: Request) {
       projectId,
       conversationId: convoId,
       episodeId,
-      rawAssistantText: assistantTextFromResponse(aiResponse),
+      rawAssistantText: agentResult.text,
       assistantPreface: safety?.assistantPreface ?? undefined,
       postcheck: (assistantText) =>
         postcheckResponse({
@@ -330,8 +346,8 @@ export async function POST(req: Request) {
             }
           : undefined,
     });
-    const assistantText = finalAssistant.assistantText;
 
+    const assistantText = finalAssistant.assistantText;
     const traceId = crypto.randomUUID();
 
     const proofSnapshot = {
@@ -378,9 +394,7 @@ export async function POST(req: Request) {
             projectId,
             userText,
             extracted:
-              classified.kind === "assertion"
-                ? classified.items
-                : [],
+              classified.kind === "assertion" ? classified.items : [],
           });
 
           if (!explicitCorrectionHandledSynchronously) {
@@ -392,6 +406,7 @@ export async function POST(req: Request) {
               injectedMemoryIds: selectedMemoryItems.map((item) => item.id),
             });
           }
+
           if (classified.kind === "assertion") {
             await reinforceMemoryUse(
               userId,
@@ -427,16 +442,16 @@ export async function POST(req: Request) {
             emotionalIntensity: decisionContext?.emotionalIntensity ?? null,
             flags: decisionContext?.flags ?? {},
             actionTaken: safety?.assistantPreface ? "safety_preface" : "none",
-            model: process.env.OPENAI_CHAT_MODEL ?? null,
+            model:
+              process.env.OPENAI_AGENCY_MODEL ??
+              process.env.OPENAI_MODEL ??
+              "gpt-5",
             postcheckApproved: !finalAssistant.flagged,
           });
         },
       },
     });
 
-    /* =====================================================
-      3.10.5 DEV-ONLY — REMOVE BEFORE SHIPPING
-      ===================================================== */
     const response: ReturnType<typeof buildChatSuccessResponse> & {
       _telemetry?: Record<string, unknown>;
     } = buildChatSuccessResponse({
@@ -452,7 +467,8 @@ export async function POST(req: Request) {
         injectedAnchorIds: proofSnapshot.injected_anchor_ids,
         injectedMemoryItemIds: proofSnapshot.injected_memory_item_ids,
         safetyTier: proofSnapshot.safety_tier,
-        memoryDebugTop, 
+        memoryDebugTop,
+        agentToolCalls: agentResult.toolCalls,
       };
     }
 
@@ -460,7 +476,6 @@ export async function POST(req: Request) {
       status: 200,
       headers: getCorsHeaders(req),
     });
-
   } catch (error: unknown) {
     const response = routeErrorResponse(error);
     for (const [name, value] of Object.entries(getCorsHeaders(req))) {
