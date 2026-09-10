@@ -1,5 +1,11 @@
 import type { ArborTimeline } from "../timeline/runTimeline";
 import type { ArborSubsystem } from "./arborRuntime";
+import {
+  runAgency,
+  type AgencyAction,
+  type AgencyState,
+  type AgencyVerification,
+} from "@/lib/arbor/agency/engine";
 
 export type ArborChannel = "text" | "voice";
 
@@ -20,6 +26,7 @@ export type CanonicalTurnResult<State, Rendered> = {
   subsystem: ArborSubsystem;
   canonicalText: string;
   rendered: Rendered;
+  agency: AgencyState;
 };
 
 export interface CanonicalTurnRuntime<State, Rendered> {
@@ -43,47 +50,41 @@ export interface CanonicalTurnRuntime<State, Rendered> {
 
   assess(input: CanonicalTurnContext<State>): Promise<{
     complete: boolean;
+    unresolvedWork: string[];
     evidence?: unknown;
   }>;
 
-  choose(input: CanonicalTurnContext<State>): Promise<{
-    id: string;
-    description: string;
-    irreversible?: boolean;
-    requiresExternalAuthority?: boolean;
-    requiresMissingPreference?: boolean;
-    highConsequenceFork?: boolean;
-  }>;
+  choose(input: CanonicalTurnContext<State>): Promise<AgencyAction>;
 
   execute(input: {
     context: CanonicalTurnContext<State>;
-    action: { id: string; description: string };
+    action: AgencyAction;
   }): Promise<unknown>;
 
   integrate(input: {
     context: CanonicalTurnContext<State>;
-    action: { id: string; description: string };
+    action: AgencyAction;
     result: unknown;
   }): Promise<State>;
 
   verify(input: {
     context: CanonicalTurnContext<State>;
-    action: { id: string; description: string };
+    action: AgencyAction;
     result: unknown;
+  }): Promise<AgencyVerification>;
+
+  selfAudit(input: {
+    context: CanonicalTurnContext<State>;
+    verification: AgencyVerification;
   }): Promise<{
-    ok: boolean;
-    evidence?: unknown;
-    correction?: string;
+    recurringWeakness?: string;
+    strategyChange?: string;
   }>;
 
-  selfUpdate(input: {
+  persistAgency(input: {
     context: CanonicalTurnContext<State>;
-    verification: {
-      ok: boolean;
-      evidence?: unknown;
-      correction?: string;
-    };
-  }): Promise<State>;
+    agency: AgencyState;
+  }): Promise<void>;
 
   generateCanonical(input: CanonicalTurnContext<State>): Promise<string>;
 
@@ -98,19 +99,6 @@ export interface CanonicalTurnRuntime<State, Rendered> {
   }): Promise<Rendered>;
 }
 
-function blocker(action: {
-  irreversible?: boolean;
-  requiresExternalAuthority?: boolean;
-  requiresMissingPreference?: boolean;
-  highConsequenceFork?: boolean;
-}): string | null {
-  if (action.requiresExternalAuthority) return "external_authority";
-  if (action.irreversible) return "irreversible_action";
-  if (action.requiresMissingPreference) return "missing_preference";
-  if (action.highConsequenceFork) return "high_consequence_fork";
-  return null;
-}
-
 export async function runCanonicalTurn<State, Rendered>(input: {
   runtime: CanonicalTurnRuntime<State, Rendered>;
   timeline: ArborTimeline;
@@ -120,6 +108,7 @@ export async function runCanonicalTurn<State, Rendered>(input: {
   turnId: string;
   userText: string;
   channel: ArborChannel;
+  goal: string;
   maxAgencySteps?: number;
 }): Promise<CanonicalTurnResult<State, Rendered>> {
   const {
@@ -131,11 +120,12 @@ export async function runCanonicalTurn<State, Rendered>(input: {
     turnId,
     userText,
     channel,
+    goal,
   } = input;
 
   await timeline.record("input", "turn_started");
 
-  let state = await runtime.loadState({
+  const initialState = await runtime.loadState({
     userId,
     projectId,
     conversationId,
@@ -144,11 +134,14 @@ export async function runCanonicalTurn<State, Rendered>(input: {
 
   await timeline.record("retrieve", "state_loaded");
 
-  const subsystem = await runtime.resolveSubsystem({ userText, state });
+  const subsystem = await runtime.resolveSubsystem({
+    userText,
+    state: initialState,
+  });
 
   const injectedContext = await runtime.buildContext({
     userText,
-    state,
+    state: initialState,
     subsystem,
   });
 
@@ -159,61 +152,129 @@ export async function runCanonicalTurn<State, Rendered>(input: {
     turnId,
     userText,
     channel,
-    state,
+    state: initialState,
     subsystem,
     injectedContext,
   };
 
-  const maxSteps = input.maxAgencySteps ?? 64;
-
-  for (let step = 0; step < maxSteps; step += 1) {
-    const assessment = await runtime.assess(context);
-    if (assessment.complete) break;
-
-    const action = await runtime.choose(context);
-
-    await timeline.record(
-      "decide",
-      "action_selected",
-      { description: action.description },
-      action.id,
-    );
-
-    const stop = blocker(action);
-    if (stop) {
-      await timeline.record("blocked", "turn_blocked", { reason: stop }, action.id);
-      throw new Error(`arbor_turn_blocked:${stop}`);
-    }
-
-    await timeline.record("act", "action_started", {}, action.id);
-
-    const result = await runtime.execute({ context, action });
-
-    await timeline.record("observe", "action_completed", {}, action.id);
-
-    state = await runtime.integrate({ context, action, result });
-    context = { ...context, state };
-
-    const verification = await runtime.verify({ context, action, result });
-
-    await timeline.record(
-      "verify",
-      verification.ok ? "verification_passed" : "verification_failed",
-      {
-        evidence: verification.evidence,
-        correction: verification.correction,
+  const agencyResult = await runAgency<State>({
+    goal,
+    maxSteps: input.maxAgencySteps,
+    runtime: {
+      async loadSharedState() {
+        return context.state;
       },
-      action.id,
-    );
 
-    state = await runtime.selfUpdate({ context, verification });
-    context = { ...context, state };
+      async assess({ shared }) {
+        context = { ...context, state: shared };
+        return runtime.assess(context);
+      },
 
+      async choose({ shared }) {
+        context = { ...context, state: shared };
+        const action = await runtime.choose(context);
+
+        await timeline.record(
+          "decide",
+          "action_selected",
+          { description: action.description },
+          action.id,
+        );
+
+        return action;
+      },
+
+      async execute({ shared, action }) {
+        context = { ...context, state: shared };
+
+        await timeline.record("act", "action_started", {}, action.id);
+
+        const result = await runtime.execute({
+          context,
+          action,
+        });
+
+        await timeline.record("observe", "action_completed", {}, action.id);
+
+        return result;
+      },
+
+      async integrate({ shared, action, result }) {
+        context = { ...context, state: shared };
+
+        const next = await runtime.integrate({
+          context,
+          action,
+          result,
+        });
+
+        context = { ...context, state: next };
+        return next;
+      },
+
+      async verify({ shared, action, result }) {
+        context = { ...context, state: shared };
+
+        const verification = await runtime.verify({
+          context,
+          action,
+          result,
+        });
+
+        await timeline.record(
+          "verify",
+          verification.ok ? "verification_passed" : "verification_failed",
+          {
+            evidence: verification.evidence,
+            correction: verification.correction,
+          },
+          action.id,
+        );
+
+        return verification;
+      },
+
+      async selfAudit({ shared, verification }) {
+        context = { ...context, state: shared };
+
+        const audit = await runtime.selfAudit({
+          context,
+          verification,
+        });
+
+        await timeline.record(
+          "update",
+          "strategy_updated",
+          {
+            verificationOk: verification.ok,
+            recurringWeakness: audit.recurringWeakness,
+            strategyChange: audit.strategyChange,
+          },
+        );
+
+        return audit;
+      },
+
+      async persist({ agency, shared }) {
+        context = { ...context, state: shared };
+        await runtime.persistAgency({ context, agency });
+      },
+    },
+  });
+
+  context = {
+    ...context,
+    state: agencyResult.shared,
+  };
+
+  if (agencyResult.agency.status === "blocked") {
     await timeline.record(
-      "update",
-      "strategy_updated",
-      { verificationOk: verification.ok },
-      action.id,
+      "blocked",
+      "turn_blocked",
+      {
+        reason: agencyResult.agency.blocker,
+        unresolvedWork: agencyResult.agency.unresolvedWork,
+      },
     );
   }
 
@@ -228,10 +289,22 @@ export async function runCanonicalTurn<State, Rendered>(input: {
   await runtime.persist({ context, canonicalText });
   await timeline.record("persist", "state_persisted");
 
-  const rendered = await runtime.render({ context, canonicalText });
+  const rendered = await runtime.render({
+    context,
+    canonicalText,
+  });
 
   await timeline.record("render", "render_completed");
-  await timeline.record("complete", "turn_completed");
 
-  return { state, subsystem, canonicalText, rendered };
+  if (agencyResult.agency.status === "complete") {
+    await timeline.record("complete", "turn_completed");
+  }
+
+  return {
+    state: agencyResult.shared,
+    subsystem,
+    canonicalText,
+    rendered,
+    agency: agencyResult.agency,
+  };
 }
