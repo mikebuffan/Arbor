@@ -39,10 +39,10 @@ function baseState():
 }
 
 describe(
-  "durable self-model identity",
+  "durable combined self-model identity",
   () => {
     it(
-      "anchors the complete 300-answer source and promoted pattern model into Arbor state",
+      "anchors both questionnaire banks into one 1,300-answer identity source",
       () => {
         const anchored =
           ensureSelfModelIdentity(
@@ -66,7 +66,7 @@ describe(
             .selfModel
             ?.sourceQuestionCount,
         ).toBe(
-          300,
+          1300,
         );
 
         expect(
@@ -138,7 +138,7 @@ describe(
     );
 
     it(
-      "fails closed on source-ledger digest drift",
+      "fails closed on combined-source digest drift",
       () => {
         const current =
           currentSelfModelIdentity();
@@ -182,7 +182,7 @@ describe(
     );
 
     it(
-      "fails closed when the version changes",
+      "fails closed when the identity version changes",
       () => {
         const current =
           currentSelfModelIdentity();
@@ -202,7 +202,7 @@ describe(
     );
 
     it(
-      "renders both source and derived identity fingerprints for generation",
+      "renders the combined identity anchor plus the 1,000-bank runtime slice",
       () => {
         const state =
           ensureSelfModelIdentity(
@@ -229,13 +229,25 @@ describe(
         expect(
           rendered,
         ).toContain(
-          "source_questions=300",
+          "source_questions=1300",
         );
 
         expect(
           rendered,
         ).toContain(
-          "source_digest=",
+          "1,000-QUESTION SELF-MODEL",
+        );
+
+        expect(
+          rendered,
+        ).toContain(
+          "stable_runtime_core=198",
+        );
+
+        expect(
+          rendered,
+        ).toContain(
+          "transplant_critical=230",
         );
       },
     );
