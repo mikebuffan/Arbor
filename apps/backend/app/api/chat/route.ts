@@ -19,6 +19,8 @@ import {
   completeAgencySession,
   recordAgencyProgress,
 } from "@/lib/arbor/agency/session";
+import { ArborTimeline } from "@/lib/arbor/timeline/runTimeline";
+import { SupabaseTimelineStore } from "@/lib/arbor/timeline/supabaseStore";
 import { extractMemoryFromText } from "@/lib/memory/extractor";
 import { reinforceMemoryUse } from "@/lib/memory/store";
 import {
@@ -269,8 +271,32 @@ export async function POST(req: Request) {
       promptContextPromise,
     ]);
 
-    const { systemPrompt, injectedMemoryItems: selectedMemoryItems } =
-      promptContext;
+    const {
+      systemPrompt,
+      injectedMemoryItems: selectedMemoryItems,
+      activeSubsystem,
+    } = promptContext;
+
+    const timeline = await ArborTimeline.create(
+      new SupabaseTimelineStore(supabase),
+      {
+        userId,
+        projectId,
+        conversationId: convoId,
+        turnId,
+        subsystem: activeSubsystem,
+        channel: "text",
+      },
+    );
+
+    await timeline.record("input", "turn_started", {
+      goal: agencyState.goal,
+    });
+
+    await timeline.record("retrieve", "state_loaded", {
+      agencyStatus: agencyState.status,
+      unresolvedWork: agencyState.unresolvedWork,
+    });
 
     const injectedMemoryKeys = selectedMemoryItems
       .map((item) => item.key)
@@ -320,8 +346,14 @@ export async function POST(req: Request) {
             agency: agencyState,
             step: Math.max(agencyState.currentStep + 1, round + 1),
           });
+
+          await timeline.record("decide", "goal_resolved", {
+            round,
+            goal: agencyState.goal,
+            unresolvedWork: agencyState.unresolvedWork,
+          });
         },
-        async onToolSelected({ name }) {
+        async onToolSelected({ name, arguments: args }) {
           agencyState = await recordAgencyProgress({
             supabase,
             userId,
@@ -330,8 +362,22 @@ export async function POST(req: Request) {
             step: agencyState.currentStep,
             unresolvedWork: [`execute capability: ${name}`],
           });
+
+          await timeline.record(
+            "decide",
+            "action_selected",
+            { capability: name, arguments: args },
+            name,
+          );
+
+          await timeline.record(
+            "act",
+            "action_started",
+            { capability: name },
+            name,
+          );
         },
-        async onToolResult() {
+        async onToolResult({ name }) {
           agencyState = await recordAgencyProgress({
             supabase,
             userId,
@@ -340,6 +386,13 @@ export async function POST(req: Request) {
             step: agencyState.currentStep,
             unresolvedWork: [],
           });
+
+          await timeline.record(
+            "observe",
+            "action_completed",
+            { capability: name },
+            name,
+          );
         },
         async onBoundary({ name, reason }) {
           agencyState = await blockAgencySession({
@@ -350,6 +403,17 @@ export async function POST(req: Request) {
             blocker: reason,
             unresolvedWork: [`complete boundary action: ${name}`],
           });
+
+          await timeline.record(
+            "blocked",
+            "turn_blocked",
+            {
+              capability: name,
+              reason,
+              unresolvedWork: agencyState.unresolvedWork,
+            },
+            name,
+          );
         },
       },
     });
@@ -408,6 +472,21 @@ export async function POST(req: Request) {
       agency: agencyState,
       verified: !finalAssistant.flagged,
     });
+
+    await timeline.record(
+      "generate",
+      "canonical_response_generated",
+      {
+        characterCount: finalAssistant.assistantText.length,
+        flagged: finalAssistant.flagged,
+      },
+    );
+
+    await timeline.record("persist", "state_persisted", {
+      agencyStatus: agencyState.status,
+    });
+
+    await timeline.record("complete", "turn_completed");
 
     const assistantText = finalAssistant.assistantText;
     const traceId = crypto.randomUUID();
