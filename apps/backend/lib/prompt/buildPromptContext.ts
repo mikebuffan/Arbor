@@ -253,6 +253,24 @@ export async function buildPromptContext({
 
   const continuityBlock = continuityToPromptBlock(continuityState);
 
+  const host = projectRuntimeHost({
+    sessionId:
+      hostSessionId ??
+      conversationId ??
+      "host-session",
+    projectId:
+      projectId ??
+      "default-project",
+    conversationId,
+    continuity: continuityState,
+    activeSubsystem: arbor.activeSubsystem,
+    acousticCorrections: arbor.acousticCorrections,
+    behavioralCorrections:
+      [negativePrefsFromAnchors].filter(Boolean),
+    behaviorProof: null,
+    updatedAt: new Date().toISOString(),
+  });
+
   const behaviorMode =
     arbor.activeSubsystem === "annabelle" ? "annabelle" : interactionMode;
 
@@ -269,6 +287,7 @@ export async function buildPromptContext({
       memoryText,
       arbor.systemInjection,
       continuityBlock,
+      host.startup.promptBlock,
     ].filter(Boolean),
   });
 
