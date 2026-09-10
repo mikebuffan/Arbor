@@ -116,3 +116,23 @@ export function strategyContext(
     pending: state.pending ? [state.pending.strategy] : [],
   };
 }
+
+
+export function retainStrategy(
+  notes: string[],
+  strategy: string,
+): string[] {
+  const current = readStrategyRetention(notes);
+  const value = strategy.trim();
+
+  if (!value) {
+    return current.retained;
+  }
+
+  return Array.from(
+    new Set([
+      ...current.retained,
+      value,
+    ]),
+  ).slice(-20);
+}
