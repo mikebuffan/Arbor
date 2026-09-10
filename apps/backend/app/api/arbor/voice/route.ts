@@ -8,6 +8,7 @@ import { routeErrorResponse } from "@/lib/auth/routeAuthorization";
 import { loadSubsystemState } from "@/lib/arbor/subsystem/state";
 import { buildVoiceInstructions } from "@/lib/arbor/voice/identity";
 import { synthesizeOpenAiTts } from "@/lib/arbor/voice/openaiTts";
+import { loadCanonicalAssistantTextForTurn } from "@/lib/arbor/voice/canonicalTurn";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,7 +16,6 @@ export const dynamic = "force-dynamic";
 const Body = z.object({
   projectId: z.string().uuid(),
   turnId: z.string().uuid(),
-  text: z.string().min(1).max(4096),
 });
 
 function getCorsHeaders(req: Request) {
@@ -49,9 +49,16 @@ export async function POST(req: Request) {
       );
     }
 
-    const { projectId, turnId, text } = parsed.data;
+    const { projectId, turnId } = parsed.data;
 
     await assertProjectOwnedByUser(supabase, userId, projectId);
+
+    const canonicalText = await loadCanonicalAssistantTextForTurn({
+      supabase,
+      userId,
+      projectId,
+      turnId,
+    });
 
     const voiceState = await loadSubsystemState({
       supabase,
@@ -60,7 +67,7 @@ export async function POST(req: Request) {
     });
 
     const result = await synthesizeOpenAiTts({
-      text,
+      text: canonicalText,
       voice: voiceState.voiceId,
       instructions: buildVoiceInstructions(
         voiceState.activeSubsystem,
