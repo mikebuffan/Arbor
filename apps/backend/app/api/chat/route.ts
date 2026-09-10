@@ -295,6 +295,7 @@ export async function POST(req: Request) {
       injectedMemoryItems: selectedMemoryItems,
       activeSubsystem,
       behaviorProof,
+      behaviorGuardRequirements,
     } = promptContext;
 
     const runtimeSession = await beginRuntimeSession({
@@ -384,6 +385,7 @@ export async function POST(req: Request) {
         turnId,
       },
       allowWebResearch: process.env.ARBOR_ENABLE_WEB_RESEARCH !== "false",
+      behaviorRequirements: behaviorGuardRequirements,
       hooks: {
         async onRoundStart(round) {
           agencyState = await recordAgencyProgress({
@@ -472,6 +474,7 @@ export async function POST(req: Request) {
           unresolvedWork,
           evidence,
           strategyCorrection,
+          behaviorViolations,
         }) {
           let resolvedStrategy: string | null = null;
 
@@ -483,6 +486,8 @@ export async function POST(req: Request) {
                   score,
                   behavior: behaviorProof,
                   protectedCorrections,
+                  newFailureIntroduced:
+                    behaviorViolations.length > 0,
                   now: new Date().toISOString(),
                 },
               );
@@ -552,6 +557,7 @@ export async function POST(req: Request) {
               evidence,
               unresolvedWork,
               strategyCorrection,
+              behaviorViolations,
               pendingSelfUpdate:
                 pendingSelfUpdate?.strategy ?? null,
             },

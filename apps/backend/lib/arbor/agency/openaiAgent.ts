@@ -73,6 +73,7 @@ export type AgencyLoopHooks = {
       evidence: string[];
       strategyCorrection:
         string | null;
+      behaviorViolations: string[];
     },
   ) => Promise<void>;
 
@@ -200,6 +201,7 @@ export async function runOpenAIAgencyAgent(
     context: AgencyToolContext;
     allowWebResearch?: boolean;
     verifyCompletion?: boolean;
+    behaviorRequirements?: string[];
     maxRounds?: number;
     hooks?: AgencyLoopHooks;
   },
@@ -322,6 +324,8 @@ export async function runOpenAIAgencyAgent(
             goal,
             candidateText:
               text,
+            behaviorRequirements:
+              input.behaviorRequirements,
           },
         );
 
