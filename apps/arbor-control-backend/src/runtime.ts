@@ -8,6 +8,9 @@ import {
   renderAnnabelleWorkspace,
   type AnnabelleWorkspace,
 } from "./controlState.js";
+import {
+  buildControlCapabilities,
+} from "./controlCapabilities.js";
 import { stateScope, type ArborStateStore } from "./stateStore.js";
 import { defaultVoiceId, normalizeVoiceId } from "./voiceConfig.js";
 import type { ArborBackendBridge } from "./backendBridge.js";
@@ -113,6 +116,7 @@ export class ArborControlRuntime {
   ): Promise<CanonicalArborResponse> {
     const scope = stateScope(request);
     const prior = await this.getState(request);
+    const turnId = request.turnId ?? crypto.randomUUID();
 
     const activeSubsystem = resolveSubsystem(
       request.userText,
@@ -170,11 +174,15 @@ export class ArborControlRuntime {
       instructions,
       userText: request.userText,
       state,
+      capabilities: buildControlCapabilities(),
+      context: {
+        projectId: request.projectId,
+        conversationId: request.conversationId,
+        turnId,
+      },
     });
 
     await this.store.save(scope, agency.state);
-
-    const turnId = request.turnId ?? crypto.randomUUID();
 
     const response: CanonicalArborResponse = {
       text: agency.text,
