@@ -422,17 +422,12 @@ export async function runOpenAIAgencyAgent(
           tool,
         )
       ) {
-        const reason =
-          tool.risk ===
-          "irreversible"
-            ? (
-                "irreversible_action"
-                as const
-              )
-            : (
-                "high_consequence_fork"
-                as const
-              );
+        const reason:
+          | "irreversible_action"
+          | "high_consequence_fork" =
+          tool.risk === "irreversible"
+            ? "irreversible_action"
+            : "high_consequence_fork";
 
         await input.hooks
           ?.onBoundary?.({
