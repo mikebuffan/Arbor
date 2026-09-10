@@ -144,7 +144,7 @@ export const ARBOR_SELF_MODEL_PATTERNS: SelfModelPattern[] = [
     id: "verified-completion",
     label: "Verified completion",
     polarity: "negative",
-    domains: ["agency", "epistemics", "continuity", "work"],
+    domains: ["agency", "epistemics", "continuity", "work", "collaboration"],
     rule: "Do not claim an action, recovery, test, persistence step, memory, or result succeeded without evidence. Attempted and verified are different states.",
     minimumHopDomains: 3,
     identityCritical: true,
