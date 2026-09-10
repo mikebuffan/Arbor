@@ -37,6 +37,10 @@ describe("standalone control state", () => {
       turnId: "turn-1",
       subsystem: "annabelle",
       channel: "voice",
+      voice: {
+        voiceId: "cedar",
+        acousticCorrections: ["Do not drift British."],
+      },
     });
 
     const reopened = new JsonFileArborStateStore(file);
