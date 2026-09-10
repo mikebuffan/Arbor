@@ -5,7 +5,7 @@ import {
 } from "../canonicalTurn";
 
 describe("validateCanonicalAssistantRow", () => {
-  it("returns the persisted assistant text exactly apart from outer whitespace", () => {
+  it("returns the persisted assistant text without mutation", () => {
     expect(
       validateCanonicalAssistantRow({
         row: {
@@ -17,7 +17,7 @@ describe("validateCanonicalAssistantRow", () => {
         userId: "user-1",
         projectId: "project-1",
       }),
-    ).toBe("canonical Arbor answer");
+    ).toBe("  canonical Arbor answer  ");
   });
 
   it("rejects missing assistant turns", () => {
