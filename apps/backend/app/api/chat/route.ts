@@ -246,15 +246,15 @@ export async function POST(req: Request) {
       );
     }
 
-    const decisionContext = evaluateDecisionContext({ userText });
-    const safety = realWorldSafetyAddendum(decisionContext);
-
-    const agencySession = await beginAgencySession({
+    let agencyState = await beginAgencySession({
       supabase,
       userId,
       projectId,
       userText,
     });
+
+    const decisionContext = evaluateDecisionContext({ userText });
+    const safety = realWorldSafetyAddendum(decisionContext);
 
     const historyPromise = loadRecentMessages(supabase, userId, convoId, 20);
     const promptContextPromise = buildPromptContext({
@@ -317,43 +317,51 @@ export async function POST(req: Request) {
         turnId,
       },
       allowWebResearch: process.env.ARBOR_ENABLE_WEB_RESEARCH !== "false",
+      hooks: {
+        async onRoundStart(round) {
+          agencyState = await recordAgencyProgress({
+            supabase,
+            userId,
+            projectId,
+            agency: agencyState,
+            step: Math.max(agencyState.currentStep + 1, round + 1),
+          });
+        },
+        async onToolSelected({ name }) {
+          agencyState = await recordAgencyProgress({
+            supabase,
+            userId,
+            projectId,
+            agency: agencyState,
+            step: agencyState.currentStep,
+            unresolvedWork: [`execute capability: ${name}`],
+          });
+        },
+        async onToolResult() {
+          agencyState = await recordAgencyProgress({
+            supabase,
+            userId,
+            projectId,
+            agency: agencyState,
+            step: agencyState.currentStep,
+            unresolvedWork: [],
+          });
+        },
+        async onBoundary({ name, reason }) {
+          agencyState = await blockAgencySession({
+            supabase,
+            userId,
+            projectId,
+            agency: agencyState,
+            blocker: reason,
+            unresolvedWork: [`complete boundary action: ${name}`],
+          });
+        },
+      },
     });
 
     if (agentResult.status === "blocked") {
-      await blockAgencySession({
-        supabase,
-        userId,
-        projectId,
-        agency: agencySession,
-        blocker: agentResult.reason,
-        unresolvedWork: Array.from(
-          new Set([
-            ...agencySession.unresolvedWork,
-            `blocked tool: ${agentResult.toolName}`,
-          ]),
-        ),
-      });
-
       throw new RouteAccessError(409, "agency_boundary");
-    }
-
-    if (agencySession.unresolvedWork.length) {
-      await recordAgencyProgress({
-        supabase,
-        userId,
-        projectId,
-        agency: agencySession,
-        step: agencySession.currentStep + 1,
-        unresolvedWork: agencySession.unresolvedWork,
-      });
-    } else {
-      await completeAgencySession({
-        supabase,
-        userId,
-        projectId,
-        agency: agencySession,
-        verified: true,
-      });
     }
 
     const deterministicMemoryTurn = classifyMemoryTurn({
@@ -397,6 +405,14 @@ export async function POST(req: Request) {
               explicitCorrectionHandledSynchronously = true;
             }
           : undefined,
+    });
+
+    agencyState = await completeAgencySession({
+      supabase,
+      userId,
+      projectId,
+      agency: agencyState,
+      verified: !finalAssistant.flagged,
     });
 
     const assistantText = finalAssistant.assistantText;
@@ -523,6 +539,8 @@ export async function POST(req: Request) {
         behavior: proofSnapshot.behavior,
         memoryDebugTop,
         agentToolCalls: agentResult.toolCalls,
+        agencyStatus: agencyState.status,
+        agencyStep: agencyState.currentStep,
       };
     }
 
