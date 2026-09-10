@@ -14,6 +14,12 @@ const RETRYABLE = new Set([
   504,
 ]);
 
+class TtsHttpError extends Error {
+  constructor(readonly status: number) {
+    super(`tts_http_${status}`);
+  }
+}
+
 export class ArborVoiceRenderer {
   constructor(private readonly store: ArborStateStore) {}
 
@@ -91,10 +97,18 @@ async function renderPcm(input: {
         return new Uint8Array(await response.arrayBuffer());
       }
 
-      if (!RETRYABLE.has(response.status) || attempt === 2) {
-        throw new Error(`tts_http_${response.status}`);
+      if (!RETRYABLE.has(response.status)) {
+        throw new TtsHttpError(response.status);
+      }
+
+      if (attempt === 2) {
+        throw new TtsHttpError(response.status);
       }
     } catch (error) {
+      if (error instanceof TtsHttpError) {
+        throw error;
+      }
+
       if (
         error instanceof Error &&
         error.name === "AbortError"
@@ -103,7 +117,7 @@ async function renderPcm(input: {
           throw new Error("tts_timeout");
         }
       } else if (attempt === 2) {
-        throw error;
+        throw new Error("tts_network_error");
       }
     } finally {
       clearTimeout(timeout);
