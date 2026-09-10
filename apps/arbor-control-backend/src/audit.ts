@@ -41,35 +41,40 @@ export interface ArborAuditSink {
   ): Promise<ArborAuditEvent[]>;
 }
 
-export class JsonlArborAuditSink
-  implements ArborAuditSink
-{
+export class JsonlArborAuditSink implements ArborAuditSink {
+  private writeTail: Promise<void> = Promise.resolve();
+
   constructor(
     private readonly file =
-      process.env.ARBOR_AUDIT_FILE ??
-      ".arbor-control/audit.jsonl",
+      process.env.ARBOR_AUDIT_FILE ?? ".arbor-control/audit.jsonl",
   ) {}
 
   async record(
     event: Omit<ArborAuditEvent, "id" | "at">,
   ): Promise<void> {
-    await mkdir(
-      dirname(this.file),
-      { recursive: true },
+    const operation = this.writeTail.then(async () => {
+      await mkdir(dirname(this.file), { recursive: true });
+
+      const row: ArborAuditEvent = {
+        id: crypto.randomUUID(),
+        at: new Date().toISOString(),
+        ...event,
+        detail: sanitizeDetail(event.detail),
+      };
+
+      await appendFile(
+        this.file,
+        `${JSON.stringify(row)}\n`,
+        "utf8",
+      );
+    });
+
+    this.writeTail = operation.then(
+      () => undefined,
+      () => undefined,
     );
 
-    const row: ArborAuditEvent = {
-      id: crypto.randomUUID(),
-      at: new Date().toISOString(),
-      ...event,
-      detail: sanitizeDetail(event.detail),
-    };
-
-    await appendFile(
-      this.file,
-      `${JSON.stringify(row)}\n`,
-      "utf8",
-    );
+    return operation;
   }
 
   async recent(
@@ -77,19 +82,17 @@ export class JsonlArborAuditSink
   ): Promise<ArborAuditEvent[]> {
     if (limit < 1) return [];
 
+    await this.writeTail;
+
     try {
-      const text = await readFile(
-        this.file,
-        "utf8",
-      );
+      const text = await readFile(this.file, "utf8");
 
       return text
         .split("\n")
         .filter(Boolean)
         .slice(-Math.min(limit, 500))
         .map(
-          (line) =>
-            JSON.parse(line) as ArborAuditEvent,
+          (line) => JSON.parse(line) as ArborAuditEvent,
         );
     } catch (error) {
       if (
@@ -106,9 +109,7 @@ export class JsonlArborAuditSink
 }
 
 function sanitizeDetail(
-  detail:
-    | Record<string, unknown>
-    | undefined,
+  detail: Record<string, unknown> | undefined,
 ): Record<string, unknown> | undefined {
   if (!detail) return undefined;
 
@@ -125,6 +126,11 @@ function sanitizeDetail(
     "voiceId",
     "characterCount",
     "blockedReason",
+    "chunkCount",
+    "audioBytes",
+    "historyMessages",
+    "externalContextAvailable",
+    "replayed",
   ]);
 
   return Object.fromEntries(
