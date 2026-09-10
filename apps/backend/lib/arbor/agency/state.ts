@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AgencyState } from "./engine";
+import { isMissingRuntimeTable } from "@/lib/arbor/runtime/missingRuntimeTable";
 
 function toStrings(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
@@ -23,7 +24,10 @@ export async function loadAgencyState(input: {
     .eq("project_id", input.projectId)
     .maybeSingle();
 
-  if (error) throw error;
+  if (error) {
+    if (isMissingRuntimeTable(error)) return null;
+    throw error;
+  }
   if (!data?.agency_goal || !data?.agency_status) return null;
 
   return {
@@ -61,7 +65,10 @@ export async function persistAgencyState(input: {
       { onConflict: "user_id,project_id" },
     );
 
-  if (error) throw error;
+  if (error) {
+    if (isMissingRuntimeTable(error)) return;
+    throw error;
+  }
 }
 
 export async function clearCompletedAgencyState(input: {
@@ -82,5 +89,8 @@ export async function clearCompletedAgencyState(input: {
     .eq("user_id", input.userId)
     .eq("project_id", input.projectId);
 
-  if (error) throw error;
+  if (error) {
+    if (isMissingRuntimeTable(error)) return;
+    throw error;
+  }
 }
