@@ -3,7 +3,9 @@ import {
   randomUUID,
 } from "node:crypto";
 
-import type { ArborAuditSink } from "./audit.js";
+import type {
+  ArborAuditSink,
+} from "./audit.js";
 import {
   runAgency,
   type AgencyResult,
@@ -22,10 +24,16 @@ import {
 import {
   buildControlCapabilities,
 } from "./controlCapabilities.js";
-import { ARBOR_CORE_INJECTION } from "./identity.js";
+import {
+  ARBOR_CORE_INJECTION,
+} from "./identity.js";
 import {
   renderSelfModelProjection,
 } from "./selfModelProjection.js";
+import {
+  ensureSelfModelIdentity,
+  renderSelfModelIdentityAnchor,
+} from "./selfModelState.js";
 import {
   stateScope,
   type ArborStateStore,
@@ -57,36 +65,71 @@ const DEFAULT_STATE: ArborState = {
   voiceId: defaultVoiceId(),
 };
 
-export type AgencyRunner = typeof runAgency;
+export type AgencyRunner =
+  typeof runAgency;
 
 export class ArborControlRuntime {
   private readonly scopeTails =
-    new Map<string, Promise<void>>();
+    new Map<
+      string,
+      Promise<void>
+    >();
 
   constructor(
-    private readonly store: ArborStateStore,
-    private readonly bridge: ArborBackendBridge =
+    private readonly store:
+      ArborStateStore,
+
+    private readonly bridge:
+      ArborBackendBridge =
       new MikeBackendBridge(),
-    private readonly audit?: ArborAuditSink,
-    private readonly agencyRunner: AgencyRunner =
+
+    private readonly audit?:
+      ArborAuditSink,
+
+    private readonly agencyRunner:
+      AgencyRunner =
       runAgency,
   ) {}
 
-  async getState(input: {
-    projectId?: string;
-    conversationId?: string;
-  }): Promise<ArborState> {
-    const scope = stateScope(input);
+  async getState(
+    input: {
+      projectId?:
+        string;
+
+      conversationId?:
+        string;
+    },
+  ): Promise<ArborState> {
+    const scope =
+      stateScope(
+        input,
+      );
+
     const saved =
-      await this.store.load(scope);
+      await this.store
+        .load(
+          scope,
+        );
 
     if (!saved) {
-      return structuredClone(
-        DEFAULT_STATE,
-      );
+      const initialized =
+        ensureSelfModelIdentity(
+          structuredClone(
+            DEFAULT_STATE,
+          ),
+        );
+
+      await this.store
+        .save(
+          scope,
+          initialized,
+        );
+
+      return initialized;
     }
 
-    let voiceId: string;
+    let voiceId:
+      string;
 
     try {
       voiceId =
@@ -98,25 +141,49 @@ export class ArborControlRuntime {
         defaultVoiceId();
     }
 
-    return {
-      ...saved,
-      voiceId,
-    };
+    const normalized =
+      ensureSelfModelIdentity({
+        ...saved,
+        voiceId,
+      });
+
+    if (
+      !saved.selfModel
+    ) {
+      await this.store
+        .save(
+          scope,
+          normalized,
+        );
+    }
+
+    return normalized;
   }
 
-  async setAnnabelleWorkspace(input: {
-    projectId?: string;
-    conversationId?: string;
-    workspace: AnnabelleWorkspace;
-  }): Promise<ArborState> {
+  async setAnnabelleWorkspace(
+    input: {
+      projectId?:
+        string;
+
+      conversationId?:
+        string;
+
+      workspace:
+        AnnabelleWorkspace;
+    },
+  ): Promise<ArborState> {
     const scope =
-      stateScope(input);
+      stateScope(
+        input,
+      );
 
     return this.withScopeLock(
       scope,
       async () => {
         const current =
-          await this.getState(input);
+          await this.getState(
+            input,
+          );
 
         const revisioned =
           pushAnnabelleRevision(
@@ -124,65 +191,89 @@ export class ArborControlRuntime {
             "direct Annabelle workspace replacement",
           );
 
-        const next: ArborState = {
+        const next:
+          ArborState = {
           ...revisioned,
+
           annabelle:
             structuredClone(
               input.workspace,
             ),
         };
 
-        await this.store.save(
-          scope,
-          next,
-        );
+        await this.store
+          .save(
+            scope,
+            next,
+          );
 
         return next;
       },
     );
   }
 
-  async restoreAnnabelleWorkspace(input: {
-    projectId?: string;
-    conversationId?: string;
-  }): Promise<ArborState> {
+  async restoreAnnabelleWorkspace(
+    input: {
+      projectId?:
+        string;
+
+      conversationId?:
+        string;
+    },
+  ): Promise<ArborState> {
     const scope =
-      stateScope(input);
+      stateScope(
+        input,
+      );
 
     return this.withScopeLock(
       scope,
       async () => {
         const current =
-          await this.getState(input);
+          await this.getState(
+            input,
+          );
 
         const restored =
           restoreLatestAnnabelleRevision(
             current,
           );
 
-        await this.store.save(
-          scope,
-          restored,
-        );
+        await this.store
+          .save(
+            scope,
+            restored,
+          );
 
         return restored;
       },
     );
   }
 
-  async addVoiceCorrection(input: {
-    projectId?: string;
-    conversationId?: string;
-    correction: string;
-  }): Promise<ArborState> {
+  async addVoiceCorrection(
+    input: {
+      projectId?:
+        string;
+
+      conversationId?:
+        string;
+
+      correction:
+        string;
+    },
+  ): Promise<ArborState> {
     const scope =
-      stateScope(input);
+      stateScope(
+        input,
+      );
 
     return this.withScopeLock(
       scope,
       async () => {
         const current =
-          await this.getState(input);
+          await this.getState(
+            input,
+          );
 
         const next =
           addAcousticCorrection(
@@ -190,42 +281,57 @@ export class ArborControlRuntime {
             input.correction,
           );
 
-        await this.store.save(
-          scope,
-          next,
-        );
+        await this.store
+          .save(
+            scope,
+            next,
+          );
 
         return next;
       },
     );
   }
 
-  async setVoice(input: {
-    projectId?: string;
-    conversationId?: string;
-    voiceId: string;
-  }): Promise<ArborState> {
+  async setVoice(
+    input: {
+      projectId?:
+        string;
+
+      conversationId?:
+        string;
+
+      voiceId:
+        string;
+    },
+  ): Promise<ArborState> {
     const scope =
-      stateScope(input);
+      stateScope(
+        input,
+      );
 
     return this.withScopeLock(
       scope,
       async () => {
         const current =
-          await this.getState(input);
+          await this.getState(
+            input,
+          );
 
-        const next: ArborState = {
+        const next:
+          ArborState = {
           ...current,
+
           voiceId:
             normalizeVoiceId(
               input.voiceId,
             ),
         };
 
-        await this.store.save(
-          scope,
-          next,
-        );
+        await this.store
+          .save(
+            scope,
+            next,
+          );
 
         return next;
       },
@@ -233,11 +339,18 @@ export class ArborControlRuntime {
   }
 
   async runTurn(
-    request: ArborTurnRequest,
-    authorization?: string,
-  ): Promise<CanonicalArborResponse> {
+    request:
+      ArborTurnRequest,
+
+    authorization?:
+      string,
+  ): Promise<
+    CanonicalArborResponse
+  > {
     const scope =
-      stateScope(request);
+      stateScope(
+        request,
+      );
 
     const turnId =
       request.turnId ??
@@ -262,13 +375,26 @@ export class ArborControlRuntime {
     );
   }
 
-  private async runTurnLocked(input: {
-    request: ArborTurnRequest;
-    authorization?: string;
-    scope: string;
-    turnId: string;
-    fingerprint: string;
-  }): Promise<CanonicalArborResponse> {
+  private async runTurnLocked(
+    input: {
+      request:
+        ArborTurnRequest;
+
+      authorization?:
+        string;
+
+      scope:
+        string;
+
+      turnId:
+        string;
+
+      fingerprint:
+        string;
+    },
+  ): Promise<
+    CanonicalArborResponse
+  > {
     const {
       request,
       authorization,
@@ -279,9 +405,10 @@ export class ArborControlRuntime {
 
     try {
       const existing =
-        await this.store.loadTurn(
-          turnId,
-        );
+        await this.store
+          .loadTurn(
+            turnId,
+          );
 
       if (existing) {
         if (
@@ -300,12 +427,17 @@ export class ArborControlRuntime {
           "complete",
           "turn_replayed",
           {
-            replayed: true,
+            replayed:
+              true,
+
             subsystem:
-              existing.response
+              existing
+                .response
                 .subsystem,
+
             channel:
-              existing.response
+              existing
+                .response
                 .channel,
           },
         );
@@ -346,12 +478,17 @@ export class ArborControlRuntime {
         "state_loaded",
         {
           subsystem:
-            prior.activeSubsystem,
+            prior
+              .activeSubsystem,
+
           unresolvedCount:
-            prior.unresolvedWork
+            prior
+              .unresolvedWork
               .length,
+
           voiceId:
             prior.voiceId,
+
           historyMessages:
             history.length,
         },
@@ -364,21 +501,28 @@ export class ArborControlRuntime {
         );
 
       const resume =
-        prior.unresolvedWork
-          .length > 0 &&
+        prior
+          .unresolvedWork
+          .length >
+          0 &&
         CONTINUATION.test(
-          request.userText
+          request
+            .userText
             .trim(),
         );
 
-      const state: ArborState = {
+      const state:
+        ArborState = {
         ...prior,
+
         activeSubsystem,
+
         goal:
           resume &&
           prior.goal
             ? prior.goal
-            : request.userText
+            : request
+                .userText
                 .trim(),
       };
 
@@ -407,19 +551,25 @@ export class ArborControlRuntime {
           await this.bridge
             .loadState({
               projectId:
-                request.projectId,
+                request
+                  .projectId,
+
               conversationId:
                 request
                   .conversationId,
+
               authorization,
             });
 
         externalContextAvailable =
           Object.keys(
             externalState,
-          ).length > 0;
+          ).length >
+          0;
       } catch {
-        externalState = {};
+        externalState =
+          {};
+
         externalContextAvailable =
           false;
       }
@@ -437,6 +587,10 @@ export class ArborControlRuntime {
       const instructions = [
         ARBOR_CORE_INJECTION,
 
+        renderSelfModelIdentityAnchor(
+          state,
+        ),
+
         renderSelfModelProjection(),
 
         subsystemInjection(
@@ -450,14 +604,19 @@ export class ArborControlRuntime {
             )
           : "",
 
-        state.acousticCorrections
+        state
+          .acousticCorrections
           .length
           ? `VOICE ACOUSTIC CORRECTIONS:\n${state.acousticCorrections
               .map(
-                (item) =>
+                (
+                  item,
+                ) =>
                   `- ${item}`,
               )
-              .join("\n")}`
+              .join(
+                "\n",
+              )}`
           : "",
 
         Object.keys(
@@ -468,46 +627,68 @@ export class ArborControlRuntime {
             )}`
           : "",
 
-        state.strategyNotes
+        state
+          .strategyNotes
           .length
           ? `RETAINED STRATEGIES:\n${state.strategyNotes
               .map(
-                (item) =>
+                (
+                  item,
+                ) =>
                   `- ${item}`,
               )
-              .join("\n")}`
+              .join(
+                "\n",
+              )}`
           : "",
 
-        state.unresolvedWork
+        state
+          .unresolvedWork
           .length
           ? `UNRESOLVED WORK:\n${state.unresolvedWork
               .map(
-                (item) =>
+                (
+                  item,
+                ) =>
                   `- ${item}`,
               )
-              .join("\n")}`
+              .join(
+                "\n",
+              )}`
           : "",
       ]
-        .filter(Boolean)
-        .join("\n\n");
+        .filter(
+          Boolean,
+        )
+        .join(
+          "\n\n",
+        );
 
       const agency =
         await this.agencyRunner({
           instructions,
+
           userText:
             request.userText,
+
           history,
+
           state,
+
           capabilities:
             buildControlCapabilities(),
+
           context: {
             projectId:
               request.projectId,
+
             conversationId:
               request
                 .conversationId,
+
             turnId,
           },
+
           hooks: {
             onCapabilityStart:
               async ({
@@ -561,8 +742,11 @@ export class ArborControlRuntime {
                   "agency_boundary",
                   {
                     round,
+
                     capability,
+
                     risk,
+
                     blockedReason:
                       blocker,
                   },
@@ -585,8 +769,11 @@ export class ArborControlRuntime {
                   "completion_checked",
                   {
                     round,
+
                     complete,
+
                     unresolvedCount,
+
                     toolCalls:
                       toolCalls +
                       researchCalls,
@@ -603,6 +790,7 @@ export class ArborControlRuntime {
                     "strategy_candidate_observed",
                     {
                       round,
+
                       strategyCandidate,
                     },
                   );
@@ -627,12 +815,20 @@ export class ArborControlRuntime {
         {
           subsystem:
             activeSubsystem,
+
           channel:
             response.channel,
+
           characterCount:
-            response.text.length,
+            response
+              .text
+              .length,
+
           voiceId:
-            response.voice.voiceId,
+            response
+              .voice
+              .voiceId,
+
           complete:
             agency.status ===
             "complete",
@@ -642,22 +838,28 @@ export class ArborControlRuntime {
       const storedTurn:
         StoredArborTurn = {
         turnId,
+
         scope,
+
         requestFingerprint:
           fingerprint,
+
         userText:
           request.userText,
+
         createdAt:
           new Date()
             .toISOString(),
+
         response,
       };
 
-      await this.store.commitTurn(
-        scope,
-        agency.state,
-        storedTurn,
-      );
+      await this.store
+        .commitTurn(
+          scope,
+          agency.state,
+          storedTurn,
+        );
 
       await this.record(
         turnId,
@@ -666,29 +868,43 @@ export class ArborControlRuntime {
         "state_and_canonical_turn_persisted",
         {
           subsystem:
-            agency.state
+            agency
+              .state
               .activeSubsystem,
+
           unresolvedCount:
-            agency.state
+            agency
+              .state
               .unresolvedWork
               .length,
+
           characterCount:
-            response.text.length,
+            response
+              .text
+              .length,
         },
       );
 
       await this.bridge
         .persistTurn({
           projectId:
-            request.projectId,
+            request
+              .projectId,
+
           conversationId:
             request
               .conversationId,
+
           turnId,
+
           userText:
-            request.userText,
+            request
+              .userText,
+
           assistantText:
-            response.text,
+            response
+              .text,
+
           authorization,
         });
 
@@ -700,11 +916,16 @@ export class ArborControlRuntime {
         {
           subsystem:
             activeSubsystem,
+
           channel:
             response.channel,
+
           toolCalls:
-            agency.toolCalls +
-            agency.researchCalls,
+            agency
+              .toolCalls +
+            agency
+              .researchCalls,
+
           complete:
             agency.status ===
             "complete",
@@ -719,7 +940,8 @@ export class ArborControlRuntime {
         "error",
         "turn_failed",
       ).catch(
-        () => undefined,
+        () =>
+          undefined,
       );
 
       throw error;
@@ -729,51 +951,76 @@ export class ArborControlRuntime {
   private buildCanonicalResponse(
     request:
       ArborTurnRequest,
+
     turnId:
       string,
+
     activeSubsystem:
       ArborState[
         "activeSubsystem"
       ],
+
     agency:
       AgencyResult,
-  ): CanonicalArborResponse {
+  ):
+    CanonicalArborResponse {
     return {
       text:
         agency.text,
+
       projectId:
         request.projectId,
+
       conversationId:
         request
           .conversationId,
+
       turnId,
+
       subsystem:
         activeSubsystem,
+
       channel:
         request.channel ??
         "text",
+
       voice: {
         voiceId:
-          agency.state.voiceId,
+          agency
+            .state
+            .voiceId,
+
         acousticCorrections: [
-          ...agency.state
+          ...agency
+            .state
             .acousticCorrections,
         ],
       },
     };
   }
 
-  private async withScopeLock<T>(
-    scope: string,
-    work: () => Promise<T>,
+  private async withScopeLock<
+    T
+  >(
+    scope:
+      string,
+
+    work:
+      () =>
+        Promise<T>,
   ): Promise<T> {
-    const previous = (
-      this.scopeTails
-        .get(scope) ??
-      Promise.resolve()
-    ).catch(
-      () => undefined,
-    );
+    const previous =
+      (
+        this
+          .scopeTails
+          .get(
+            scope,
+          ) ??
+        Promise.resolve()
+      ).catch(
+        () =>
+          undefined,
+      );
 
     let release:
       () => void =
@@ -781,7 +1028,9 @@ export class ArborControlRuntime {
 
     const gate =
       new Promise<void>(
-        (resolve) => {
+        (
+          resolve,
+        ) => {
           release =
             resolve;
         },
@@ -789,13 +1038,15 @@ export class ArborControlRuntime {
 
     const tail =
       previous.then(
-        () => gate,
+        () =>
+          gate,
       );
 
-    this.scopeTails.set(
-      scope,
-      tail,
-    );
+    this.scopeTails
+      .set(
+        scope,
+        tail,
+      );
 
     await previous;
 
@@ -805,20 +1056,29 @@ export class ArborControlRuntime {
       release();
 
       if (
-        this.scopeTails
-          .get(scope) ===
+        this
+          .scopeTails
+          .get(
+            scope,
+          ) ===
         tail
       ) {
-        this.scopeTails
-          .delete(scope);
+        this
+          .scopeTails
+          .delete(
+            scope,
+          );
       }
     }
   }
 
   private async record(
-    turnId: string,
+    turnId:
+      string,
+
     request:
       ArborTurnRequest,
+
     phase:
       | "input"
       | "retrieve"
@@ -833,35 +1093,49 @@ export class ArborControlRuntime {
       | "complete"
       | "blocked"
       | "error",
-    event: string,
+
+    event:
+      string,
+
     detail?:
       Record<
         string,
         unknown
       >,
   ): Promise<void> {
-    if (!this.audit) {
+    if (
+      !this.audit
+    ) {
       return;
     }
 
-    await this.audit.record({
-      turnId,
-      projectId:
-        request.projectId,
-      conversationId:
-        request
-          .conversationId,
-      phase,
-      event,
-      detail,
-    });
+    await this.audit
+      .record({
+        turnId,
+
+        projectId:
+          request
+            .projectId,
+
+        conversationId:
+          request
+            .conversationId,
+
+        phase,
+
+        event,
+
+        detail,
+      });
   }
 }
 
 function requestFingerprint(
   request:
     ArborTurnRequest,
-  scope: string,
+
+  scope:
+    string,
 ): string {
   return createHash(
     "sha256",
@@ -869,12 +1143,16 @@ function requestFingerprint(
     .update(
       JSON.stringify({
         scope,
+
         userText:
           request.userText,
+
         channel:
           request.channel ??
           "text",
       }),
     )
-    .digest("hex");
+    .digest(
+      "hex",
+    );
 }
