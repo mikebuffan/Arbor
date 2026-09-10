@@ -13,6 +13,12 @@ import {
 import { buildPromptContext } from "@/lib/prompt/buildPromptContext";
 import { runOpenAIAgencyAgent } from "@/lib/arbor/agency/openaiAgent";
 import { AgencyToolRegistry } from "@/lib/arbor/agency/tools";
+import {
+  beginAgencySession,
+  blockAgencySession,
+  completeAgencySession,
+  recordAgencyProgress,
+} from "@/lib/arbor/agency/session";
 import { extractMemoryFromText } from "@/lib/memory/extractor";
 import { reinforceMemoryUse } from "@/lib/memory/store";
 import {
@@ -238,6 +244,13 @@ export async function POST(req: Request) {
       );
     }
 
+    let agencyState = await beginAgencySession({
+      supabase,
+      userId,
+      projectId,
+      userText,
+    });
+
     const decisionContext = evaluateDecisionContext({ userText });
     const safety = realWorldSafetyAddendum(decisionContext);
 
@@ -298,6 +311,47 @@ export async function POST(req: Request) {
         turnId,
       },
       allowWebResearch: process.env.ARBOR_ENABLE_WEB_RESEARCH !== "false",
+      hooks: {
+        async onRoundStart(round) {
+          agencyState = await recordAgencyProgress({
+            supabase,
+            userId,
+            projectId,
+            agency: agencyState,
+            step: Math.max(agencyState.currentStep + 1, round + 1),
+          });
+        },
+        async onToolSelected({ name }) {
+          agencyState = await recordAgencyProgress({
+            supabase,
+            userId,
+            projectId,
+            agency: agencyState,
+            step: agencyState.currentStep,
+            unresolvedWork: [`execute capability: ${name}`],
+          });
+        },
+        async onToolResult() {
+          agencyState = await recordAgencyProgress({
+            supabase,
+            userId,
+            projectId,
+            agency: agencyState,
+            step: agencyState.currentStep,
+            unresolvedWork: [],
+          });
+        },
+        async onBoundary({ name, reason }) {
+          agencyState = await blockAgencySession({
+            supabase,
+            userId,
+            projectId,
+            agency: agencyState,
+            blocker: reason,
+            unresolvedWork: [`complete boundary action: ${name}`],
+          });
+        },
+      },
     });
 
     if (agentResult.status === "blocked") {
@@ -345,6 +399,14 @@ export async function POST(req: Request) {
               explicitCorrectionHandledSynchronously = true;
             }
           : undefined,
+    });
+
+    agencyState = await completeAgencySession({
+      supabase,
+      userId,
+      projectId,
+      agency: agencyState,
+      verified: !finalAssistant.flagged,
     });
 
     const assistantText = finalAssistant.assistantText;
@@ -469,6 +531,8 @@ export async function POST(req: Request) {
         safetyTier: proofSnapshot.safety_tier,
         memoryDebugTop,
         agentToolCalls: agentResult.toolCalls,
+        agencyStatus: agencyState.status,
+        agencyStep: agencyState.currentStep,
       };
     }
 
