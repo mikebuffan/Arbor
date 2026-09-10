@@ -39,6 +39,29 @@ describe("agency strategy retention", () => {
     expect(readStrategyRetention(second.notes).pending).toBeNull();
   });
 
+  it("never leaks the pending storage marker into prompt context", () => {
+    const first = recordStrategyCandidate(
+      [],
+      "inspect and recover",
+    );
+
+    expect(
+      first.notes.some((note) =>
+        note.startsWith("__arbor_pending_strategy_v1__:"),
+      ),
+    ).toBe(true);
+
+    const context = strategyContext(first.notes);
+
+    expect(context.pending).toEqual([
+      "inspect and recover",
+    ]);
+
+    expect(JSON.stringify(context)).not.toContain(
+      "__arbor_pending_strategy_v1__:",
+    );
+  });
+
   it("replaces an unconfirmed candidate instead of accumulating drift", () => {
     const first = recordStrategyCandidate([], "strategy A");
     const second = recordStrategyCandidate(first.notes, "strategy B");
