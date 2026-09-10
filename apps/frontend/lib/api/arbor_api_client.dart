@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -44,6 +45,47 @@ class ArborApiClient {
 
     return decoded as Map<String, dynamic>;
   }
+  Future<Uint8List> postBytes(
+    String path, {
+    required Map<String, dynamic> body,
+  }) async {
+    final session = Supabase.instance.client.auth.currentSession;
+    final token = session?.accessToken;
+
+    if (token == null) {
+      throw Exception('Not authenticated');
+    }
+
+    final uri = Uri.parse('$baseUrl$path');
+
+    final response = await _http.post(
+      uri,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode(body),
+    );
+
+    if (response.statusCode >= 400) {
+      dynamic error = 'request_failed';
+
+      try {
+        final decoded = jsonDecode(response.body);
+        error = decoded is Map ? decoded['error'] : decoded;
+      } catch (_) {
+        // Do not surface arbitrary binary response content.
+      }
+
+      throw ApiException(
+        statusCode: response.statusCode,
+        error: error,
+      );
+    }
+
+    return response.bodyBytes;
+  }
+
 }
 
 class ApiException implements Exception {
