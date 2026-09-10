@@ -3,6 +3,8 @@ import {
 } from "./capabilities.js";
 import {
   addAcousticCorrection,
+  pushAnnabelleRevision,
+  restoreLatestAnnabelleRevision,
 } from "./controlState.js";
 
 export function buildControlCapabilities():
@@ -98,7 +100,7 @@ export function buildControlCapabilities():
     name:
       "annabelle_set_working_delta",
     description:
-      "Set Annabelle's current working-delta text in Arbor's own control state. The previous value is returned so the change can be reversed exactly.",
+      "Set Annabelle's current working-delta text in Arbor's control state. The previous workspace is revisioned first so the change can be restored.",
     risk:
       "reversible_write",
     parameters: {
@@ -111,37 +113,58 @@ export function buildControlCapabilities():
             "null",
           ],
         },
+        reason: {
+          type:
+            "string",
+          minLength:
+            1,
+          maxLength:
+            500,
+        },
       },
       additionalProperties:
         false,
       required: [
         "workingDelta",
+        "reason",
       ],
     },
     async execute(
       args,
       context,
     ) {
+      const reason =
+        requireString(
+          args.reason,
+          "reason",
+        );
+
+      const revisioned =
+        pushAnnabelleRevision(
+          context.state,
+          reason,
+        );
+
       const previous =
-        context.state.annabelle
+        revisioned.annabelle
           ?.workingDelta ??
         null;
 
       const annabelle = {
         canon:
-          context.state.annabelle
+          revisioned.annabelle
             ?.canon ??
           [],
         lockedPassages:
-          context.state.annabelle
+          revisioned.annabelle
             ?.lockedPassages ??
           [],
         sceneState:
-          context.state.annabelle
+          revisioned.annabelle
             ?.sceneState ??
           [],
         unresolvedDecisions:
-          context.state.annabelle
+          revisioned.annabelle
             ?.unresolvedDecisions ??
           [],
         workingDelta:
@@ -160,9 +183,62 @@ export function buildControlCapabilities():
           current:
             annabelle
               .workingDelta,
+          revisionCount:
+            revisioned
+              .annabelleRevisions
+              ?.length ??
+            0,
         },
         statePatch: {
           annabelle,
+          annabelleRevisions:
+            revisioned
+              .annabelleRevisions,
+        },
+      };
+    },
+  });
+
+  registry.register({
+    name:
+      "annabelle_restore_previous_workspace",
+    description:
+      "Restore Annabelle's most recent workspace revision in Arbor's control state.",
+    risk:
+      "reversible_write",
+    parameters: {
+      type:
+        "object",
+      properties: {},
+      additionalProperties:
+        false,
+      required: [],
+    },
+    async execute(
+      _args,
+      context,
+    ) {
+      const restored =
+        restoreLatestAnnabelleRevision(
+          context.state,
+        );
+
+      return {
+        result: {
+          restored:
+            true,
+          remainingRevisions:
+            restored
+              .annabelleRevisions
+              ?.length ??
+            0,
+        },
+        statePatch: {
+          annabelle:
+            restored.annabelle,
+          annabelleRevisions:
+            restored
+              .annabelleRevisions,
         },
       };
     },
