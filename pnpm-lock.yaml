@@ -18,6 +18,29 @@ importers:
         specifier: ^4.0.18
         version: 4.0.18(@opentelemetry/api@1.9.0)(@types/node@20.19.30)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)
 
+
+  apps/arbor-control-backend:
+    dependencies:
+      openai:
+        specifier: ^6.15.0
+        version: 6.16.0(ws@8.19.0)(zod@4.3.5)
+      zod:
+        specifier: ^4.2.1
+        version: 4.3.5
+    devDependencies:
+      '@types/node':
+        specifier: ^20.19.30
+        version: 20.19.30
+      tsx:
+        specifier: ^4.21.0
+        version: 4.21.0
+      typescript:
+        specifier: ^5
+        version: 5.9.3
+      vitest:
+        specifier: ^4.0.18
+        version: 4.0.18(@opentelemetry/api@1.9.0)(@types/node@20.19.30)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)
+
   apps/backend:
     dependencies:
       '@opentelemetry/api':
