@@ -36,6 +36,8 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Run backend tests
+        env:
+          OPENAI_API_KEY: ci-placeholder-not-a-real-key
         run: pnpm --filter firefly-backend test
 
       - name: Build backend
