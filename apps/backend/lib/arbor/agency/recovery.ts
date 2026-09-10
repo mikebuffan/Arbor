@@ -1,3 +1,5 @@
+import type { ArborWorkState } from "./workState";
+
 export type RecoveryDisposition =
   | "retry"
   | "alternate_route"
@@ -16,7 +18,10 @@ export function chooseRecovery(input: {
   needsUserAuthority: boolean;
   irreversible: boolean;
 }): RecoveryDecision {
-  if (input.needsUserAuthority || input.irreversible) {
+  if (
+    input.needsUserAuthority ||
+    input.irreversible
+  ) {
     return {
       disposition: "ask_user",
       reason:
@@ -55,5 +60,87 @@ export function chooseRecovery(input: {
     disposition: "block",
     reason:
       "no authorized reversible recovery route remains",
+  };
+}
+
+export type StatefulRecoveryDecision =
+  | {
+      kind: "alternate";
+      nextAction: string;
+      reason: string;
+    }
+  | {
+      kind: "retry";
+      nextAction: string;
+      reason: string;
+    }
+  | {
+      kind: "block";
+      nextAction: null;
+      reason: string;
+    };
+
+export function decideRecovery(
+  state: ArborWorkState,
+  input: {
+    failedStrategy?: string;
+    alternateActions?: string[];
+    requiresAuthority?: boolean;
+    irreversible?: boolean;
+  },
+): StatefulRecoveryDecision {
+  if (
+    input.requiresAuthority ||
+    input.irreversible
+  ) {
+    return {
+      kind: "block",
+      nextAction: null,
+      reason:
+        "recovery requires authority or crosses an irreversible boundary",
+    };
+  }
+
+  const failed =
+    input.failedStrategy?.trim() || null;
+
+  const attempted = new Set(
+    state.attemptedStrategies,
+  );
+
+  if (failed) {
+    attempted.add(failed);
+  }
+
+  const alternate =
+    (input.alternateActions ?? []).find(
+      (candidate) =>
+        candidate.trim() &&
+        !attempted.has(candidate),
+    ) ?? null;
+
+  if (alternate) {
+    return {
+      kind: "alternate",
+      nextAction: alternate,
+      reason:
+        "an authorized untried alternate route remains",
+    };
+  }
+
+  if (failed && state.nextAction === failed) {
+    return {
+      kind: "retry",
+      nextAction: failed,
+      reason:
+        "no alternate route is available; one controlled retry remains",
+    };
+  }
+
+  return {
+    kind: "block",
+    nextAction: null,
+    reason:
+      "no authorized untried recovery route remains",
   };
 }
