@@ -21,7 +21,9 @@ import {
   buildContinuityState,
   continuityToPromptBlock,
 } from "@/lib/arbor/continuity/state";
-import { loadContinuityStateSafe } from "@/lib/arbor/continuity/store";
+import {
+  loadContinuityStateSafe,
+} from "@/lib/arbor/continuity/store";
 
 export function invalidatePromptCache(params: {
   authedUserId: string;
