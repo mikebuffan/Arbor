@@ -80,6 +80,8 @@ export async function POST(req: Request) {
         "content-type": result.contentType,
         "cache-control": "no-store",
         "x-arbor-turn-id": turnId,
+        "x-arbor-channel": "voice",
+        "x-arbor-tts-boundary": "render-only",
         "x-arbor-subsystem": voiceState.activeSubsystem,
         "x-arbor-voice": voiceState.voiceId,
         ...(result.requestId
