@@ -4,13 +4,49 @@ import {
   ArborCapabilityRegistry,
   requiresUserBoundary,
   type CapabilityContext,
+  type CapabilityRisk,
 } from "./capabilities.js";
 import { observeStrategy } from "./selfUpdate.js";
-import type { ArborState } from "./types.js";
+import type {
+  ArborConversationMessage,
+  ArborState,
+} from "./types.js";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
+
+export type AgencyHooks = {
+  onRoundStart?: (input: {
+    round: number;
+  }) => Promise<void>;
+  onCapabilityStart?: (input: {
+    round: number;
+    capability: string;
+    risk: CapabilityRisk;
+  }) => Promise<void>;
+  onCapabilityResult?: (input: {
+    round: number;
+    capability: string;
+    risk: CapabilityRisk;
+  }) => Promise<void>;
+  onBoundary?: (input: {
+    round: number;
+    capability: string;
+    risk: CapabilityRisk;
+    blocker:
+      | "irreversible_action"
+      | "high_consequence_fork";
+  }) => Promise<void>;
+  onVerification?: (input: {
+    round: number;
+    complete: boolean;
+    unresolvedCount: number;
+    strategyCandidate: string | null;
+    toolCalls: number;
+    researchCalls: number;
+  }) => Promise<void>;
+};
 
 export type AgencyResult =
   | {
@@ -19,6 +55,7 @@ export type AgencyResult =
       state: ArborState;
       rounds: number;
       toolCalls: number;
+      researchCalls: number;
     }
   | {
       status: "blocked";
@@ -26,6 +63,7 @@ export type AgencyResult =
       state: ArborState;
       rounds: number;
       toolCalls: number;
+      researchCalls: number;
       blocker:
         | "irreversible_action"
         | "high_consequence_fork";
@@ -48,10 +86,12 @@ type FunctionCall = {
 export async function runAgency(input: {
   instructions: string;
   userText: string;
+  history?: ArborConversationMessage[];
   state: ArborState;
   capabilities?: ArborCapabilityRegistry;
   context: Omit<CapabilityContext, "state">;
   maxRounds?: number;
+  hooks?: AgencyHooks;
 }): Promise<AgencyResult> {
   const maxRounds = input.maxRounds ?? 12;
   const capabilities =
@@ -61,25 +101,47 @@ export async function runAgency(input: {
   let pendingStrategy: string | null = null;
   let strategyAppliesFromRound: number | null = null;
   let toolCalls = 0;
+  let researchCalls = 0;
 
   const tools: Array<Record<string, unknown>> = [
-    { type: "web_search_preview" },
+    ...(process.env.ARBOR_ENABLE_WEB_RESEARCH === "false"
+      ? []
+      : [{ type: "web_search" }]),
     ...capabilities.openAITools(),
   ];
 
   const model = process.env.ARBOR_MODEL ?? "gpt-5.6";
   const goal = state.goal ?? input.userText;
+  const firstInput = [
+    ...(input.history ?? []),
+    {
+      role: "user" as const,
+      content: input.userText,
+    },
+  ];
 
   let response = await openai.responses.create({
     model,
     instructions: input.instructions,
-    input: input.userText,
-    tools: tools as any,
-    tool_choice: "auto",
+    input: firstInput as any,
+    ...(tools.length
+      ? {
+          tools: tools as any,
+          tool_choice: "auto" as const,
+        }
+      : {}),
   });
 
   for (let round = 0; round < maxRounds; round += 1) {
-    const calls = functionCalls(response.output as unknown[]);
+    await input.hooks?.onRoundStart?.({ round });
+
+    researchCalls += countWebSearchCalls(
+      response.output as unknown[],
+    );
+
+    const calls = functionCalls(
+      response.output as unknown[],
+    );
 
     if (calls.length) {
       const outputs: Array<{
@@ -91,6 +153,12 @@ export async function runAgency(input: {
       for (const call of calls) {
         const capability = capabilities.get(call.name);
         const args = parseArguments(call.arguments);
+
+        await input.hooks?.onCapabilityStart?.({
+          round,
+          capability: capability.name,
+          risk: capability.risk,
+        });
 
         if (requiresUserBoundary(capability)) {
           const blocker =
@@ -105,6 +173,13 @@ export async function runAgency(input: {
             ],
           };
 
+          await input.hooks?.onBoundary?.({
+            round,
+            capability: capability.name,
+            risk: capability.risk,
+            blocker,
+          });
+
           return {
             status: "blocked",
             text:
@@ -114,6 +189,7 @@ export async function runAgency(input: {
             state,
             rounds: round + 1,
             toolCalls,
+            researchCalls,
             blocker,
             capability: capability.name,
           };
@@ -136,6 +212,12 @@ export async function runAgency(input: {
 
         toolCalls += 1;
 
+        await input.hooks?.onCapabilityResult?.({
+          round,
+          capability: capability.name,
+          risk: capability.risk,
+        });
+
         outputs.push({
           type: "function_call_output",
           call_id: call.call_id,
@@ -151,8 +233,12 @@ export async function runAgency(input: {
         instructions: input.instructions,
         previous_response_id: response.id,
         input: outputs as any,
-        tools: tools as any,
-        tool_choice: "auto",
+        ...(tools.length
+          ? {
+              tools: tools as any,
+              tool_choice: "auto" as const,
+            }
+          : {}),
       });
 
       continue;
@@ -163,7 +249,7 @@ export async function runAgency(input: {
     const verification = await verifyCompletion({
       goal,
       candidate: text,
-      toolCalls,
+      actionEvidenceCount: toolCalls + researchCalls,
     });
 
     state = {
@@ -184,17 +270,25 @@ export async function runAgency(input: {
     }
 
     if (verification.strategyCorrection?.trim()) {
-      pendingStrategy =
-        verification.strategyCorrection.trim();
+      pendingStrategy = verification.strategyCorrection.trim();
       strategyAppliesFromRound = round + 1;
     }
+
+    await input.hooks?.onVerification?.({
+      round,
+      complete: verification.complete,
+      unresolvedCount: verification.unresolvedWork.length,
+      strategyCandidate: verification.strategyCorrection,
+      toolCalls,
+      researchCalls,
+    });
 
     if (verification.complete) {
       if (pendingStrategy) {
         const confirmation = await verifyCompletion({
           goal,
           candidate: text,
-          toolCalls,
+          actionEvidenceCount: toolCalls + researchCalls,
         });
 
         state = observeStrategy(
@@ -202,6 +296,15 @@ export async function runAgency(input: {
           pendingStrategy,
           confirmation.complete,
         );
+
+        await input.hooks?.onVerification?.({
+          round,
+          complete: confirmation.complete,
+          unresolvedCount: confirmation.unresolvedWork.length,
+          strategyCandidate: pendingStrategy,
+          toolCalls,
+          researchCalls,
+        });
 
         if (!confirmation.complete) {
           state = {
@@ -231,6 +334,7 @@ export async function runAgency(input: {
         },
         rounds: round + 1,
         toolCalls,
+        researchCalls,
       };
     }
 
@@ -264,6 +368,18 @@ function functionCalls(output: unknown[]): FunctionCall[] {
       );
     },
   );
+}
+
+function countWebSearchCalls(output: unknown[]): number {
+  return output.filter((item) => {
+    if (!item || typeof item !== "object") {
+      return false;
+    }
+
+    return (
+      (item as { type?: string }).type === "web_search_call"
+    );
+  }).length;
 }
 
 function parseArguments(
@@ -310,15 +426,19 @@ async function continueResponse(input: {
     ]
       .filter(Boolean)
       .join("\n"),
-    tools: input.tools as any,
-    tool_choice: "auto",
+    ...(input.tools.length
+      ? {
+          tools: input.tools as any,
+          tool_choice: "auto" as const,
+        }
+      : {}),
   });
 }
 
 async function verifyCompletion(input: {
   goal: string;
   candidate: string;
-  toolCalls: number;
+  actionEvidenceCount: number;
 }): Promise<CompletionVerification> {
   const response = await openai.responses.create({
     model:
@@ -328,14 +448,14 @@ async function verifyCompletion(input: {
     instructions: [
       "You are Arbor's completion verifier.",
       "Do not accept promises, status narration, or unevidenced claims as completion.",
-      "If the goal required an action and no capability/tool evidence exists, completion must be false.",
-      "A strategy correction is a candidate, not a durable identity rule.",
+      "If the goal required an action and no capability or research evidence exists, completion must be false.",
+      "A strategy correction is a task-execution candidate, not a durable identity, safety, authority, Voice, or Annabelle rule.",
       "Return JSON only:",
       '{"complete":boolean,"unresolvedWork":string[],"strategyCorrection":string|null}',
     ].join("\n"),
     input: [
       `GOAL:\n${input.goal}`,
-      `CAPABILITY TOOL CALLS COMPLETED: ${input.toolCalls}`,
+      `ACTION/RESEARCH CALLS COMPLETED: ${input.actionEvidenceCount}`,
       `CANDIDATE:\n${input.candidate}`,
     ].join("\n\n"),
   });
@@ -366,11 +486,8 @@ async function verifyCompletion(input: {
   } catch {
     return {
       complete: false,
-      unresolvedWork: [
-        "completion verification failed",
-      ],
-      strategyCorrection:
-        "verify before claiming completion",
+      unresolvedWork: ["completion verification failed"],
+      strategyCorrection: "verify before claiming completion",
     };
   }
 }
