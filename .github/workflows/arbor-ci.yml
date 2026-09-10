@@ -7,9 +7,6 @@ on:
       - arbor-linear-runtime
   workflow_dispatch:
 
-permissions:
-  contents: write
-
 concurrency:
   group: arbor-integration-${{ github.ref }}
   cancel-in-progress: true
@@ -59,31 +56,6 @@ jobs:
           cache: true
 
       - run: flutter pub get
-
-      - name: Sync generated Flutter state for Voice
-        if: >
-          github.head_ref == 'arbor-live-voice-ui' &&
-          github.event.pull_request.head.repo.full_name == github.repository
-        run: |
-          if git diff --quiet -- pubspec.lock analysis_options.yaml; then
-            exit 0
-          fi
-
-          cp pubspec.lock /tmp/arbor-pubspec.lock
-          cp analysis_options.yaml /tmp/arbor-analysis-options.yaml
-          cd ../..
-
-          git fetch origin arbor-live-voice-ui
-          git checkout -B arbor-live-voice-ui origin/arbor-live-voice-ui
-
-          cp /tmp/arbor-pubspec.lock apps/frontend/pubspec.lock
-          cp /tmp/arbor-analysis-options.yaml apps/frontend/analysis_options.yaml
-
-          git config user.name "Arbor CI"
-          git config user.email "actions@users.noreply.github.com"
-          git add apps/frontend/pubspec.lock apps/frontend/analysis_options.yaml
-          git commit -m "chore(flutter): refresh generated dependency state"
-          git push origin HEAD:arbor-live-voice-ui
 
       - name: Verify Flutter generated state is current
         run: git diff --exit-code -- pubspec.lock analysis_options.yaml
