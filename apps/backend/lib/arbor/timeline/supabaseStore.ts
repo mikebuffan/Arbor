@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ArborTimelineCursor, ArborTimelineEvent } from "./types";
 import type { AppendTimelineEventInput, ArborTimelineStore } from "./store";
+import { isMissingRuntimeTable } from "@/lib/arbor/runtime/missingRuntimeTable";
 
 export class SupabaseTimelineStore implements ArborTimelineStore {
   constructor(private readonly supabase: SupabaseClient) {}
@@ -14,7 +15,12 @@ export class SupabaseTimelineStore implements ArborTimelineStore {
       .limit(1)
       .maybeSingle();
 
-    if (error) throw error;
+    if (error) {
+      if (isMissingRuntimeTable(error)) {
+        return { turnId, nextSequence: 0 };
+      }
+      throw error;
+    }
 
     return {
       turnId,
@@ -64,7 +70,7 @@ export class SupabaseTimelineStore implements ArborTimelineStore {
         created_at: event.createdAt,
       });
 
-    if (error) throw error;
+    if (error && !isMissingRuntimeTable(error)) throw error;
 
     return {
       event,
@@ -79,7 +85,10 @@ export class SupabaseTimelineStore implements ArborTimelineStore {
       .eq("turn_id", turnId)
       .order("sequence", { ascending: true });
 
-    if (error) throw error;
+    if (error) {
+      if (isMissingRuntimeTable(error)) return [];
+      throw error;
+    }
     return (data ?? []).map(mapRow);
   }
 
@@ -92,7 +101,10 @@ export class SupabaseTimelineStore implements ArborTimelineStore {
       .limit(1)
       .maybeSingle();
 
-    if (error) throw error;
+    if (error) {
+      if (isMissingRuntimeTable(error)) return null;
+      throw error;
+    }
     return data ? mapRow(data) : null;
   }
 }
