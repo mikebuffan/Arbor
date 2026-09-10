@@ -1,6 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { chooseNextWork, scoreWorkState } from "./prioritizer";
-import { decideRecovery, type RecoveryDecision } from "./recovery";
+import {
+  decideRecovery,
+  type StatefulRecoveryDecision,
+} from "./recovery";
 import { listActiveWork, saveWorkState } from "./store";
 import {
   addWorkEvidence,
@@ -12,7 +15,7 @@ import {
 export type AgencyTick = {
   work: ArborWorkState | null;
   priorityScore: number | null;
-  decision: RecoveryDecision | null;
+  decision: StatefulRecoveryDecision | null;
 };
 
 export async function runAgencyTick(params: {
