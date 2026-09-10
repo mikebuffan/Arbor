@@ -14,6 +14,7 @@ export type ArborBehaviorProof = {
 export type ArborBehaviorProjection = {
   proof: ArborBehaviorProof;
   promptBlock: string;
+  guardRequirements: string[];
 };
 
 export type BuildArborBehaviorProjectionInput = {
@@ -111,6 +112,13 @@ export function buildArborBehaviorProjection(
     renderRules("Mode projection:", modeRules),
   ].filter(Boolean);
 
+  const guardRequirements = clean([
+    ...CORE_RULES,
+    ...modeRules,
+    philosophy,
+    ...correctionRules,
+  ]);
+
   return {
     proof: {
       schemaVersion: 1,
@@ -121,5 +129,6 @@ export function buildArborBehaviorProjection(
       projectionFingerprint,
     },
     promptBlock: sections.join("\n\n"),
+    guardRequirements,
   };
 }
