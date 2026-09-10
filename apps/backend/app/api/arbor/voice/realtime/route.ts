@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { requireUser } from "@/lib/auth/requireUser";
 import { assertProjectOwnedByUser } from "@/lib/auth/ownership";
@@ -8,8 +9,16 @@ import { routeErrorResponse } from "@/lib/auth/routeAuthorization";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+const NullableUuid = z.preprocess(
+  (value) =>
+    value == null || value === ""
+      ? undefined
+      : value,
+  z.string().uuid().optional(),
+);
+
 const Body = z.object({
-  projectId: z.string().uuid(),
+  projectId: NullableUuid,
   sdp: z.string().min(1).max(200_000),
 });
 
@@ -22,6 +31,35 @@ function cors(req: Request) {
       "content-type, authorization, apikey, x-client-info",
     "access-control-max-age": "86400",
   };
+}
+
+async function getOrCreateDefaultProjectId(
+  supabase: SupabaseClient,
+  userId: string,
+): Promise<string> {
+  const { data: existing, error: readError } = await supabase
+    .from("projects")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("name", "Default Project")
+    .maybeSingle();
+
+  if (readError) throw readError;
+  if (existing?.id) return String(existing.id);
+
+  const { data: created, error: createError } = await supabase
+    .from("projects")
+    .insert({
+      user_id: userId,
+      name: "Default Project",
+      persona_id: "arbor",
+      framework_version: "v1",
+    })
+    .select("id")
+    .single();
+
+  if (createError) throw createError;
+  return String(created.id);
 }
 
 export async function OPTIONS(req: Request) {
@@ -46,14 +84,22 @@ export async function POST(req: Request) {
       );
     }
 
-    const { projectId, sdp } = parsed.data;
+    const projectId =
+      parsed.data.projectId ??
+      (await getOrCreateDefaultProjectId(
+        supabase,
+        userId,
+      ));
 
-    await assertProjectOwnedByUser(
-      supabase,
-      userId,
-      projectId,
-    );
+    if (parsed.data.projectId) {
+      await assertProjectOwnedByUser(
+        supabase,
+        userId,
+        projectId,
+      );
+    }
 
+    const { sdp } = parsed.data;
     const apiKey = process.env.OPENAI_API_KEY;
 
     if (!apiKey) {
@@ -142,6 +188,7 @@ export async function POST(req: Request) {
           ...cors(req),
           "content-type": "application/sdp",
           "cache-control": "no-store",
+          "x-arbor-project-id": projectId,
           ...(response.headers.get("x-request-id")
             ? {
                 "x-provider-request-id":
