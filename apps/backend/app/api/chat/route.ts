@@ -49,6 +49,14 @@ import {
 import {
   createCorrection,
 } from "@/lib/arbor/runtime/corrections";
+import {
+  beginSelfUpdate,
+  decideSelfUpdate,
+  recordSelfUpdateVerification,
+} from "@/lib/arbor/agency/updateLifecycle";
+import {
+  retainStrategy,
+} from "@/lib/arbor/agency/strategyRetention";
 import { buildTelemetry } from "@/lib/arbor/telemetry/buildTelemetry";
 import { getOrCreateOpenEpisode } from "@/lib/arbor/episodes/getOrCreateOpenEpisode";
 import { scheduleChatPostResponseWork } from "@/lib/chat/postResponseScheduler";
@@ -299,8 +307,21 @@ export async function POST(req: Request) {
       lastMeaningfulUserTurn: userText,
       agency: agencyState,
       behaviorProof,
+      pendingSelfUpdate,
       now: new Date().toISOString(),
     });
+
+    let pendingSelfUpdate =
+      runtimeSession.pendingSelfUpdate;
+
+    const protectedCorrections =
+      runtimeSession.corrections
+        .filter((correction) =>
+          correction.protected,
+        )
+        .map((correction) =>
+          correction.value,
+        );
 
     const timeline = await ArborTimeline.create(
       new SupabaseTimelineStore(supabase),
@@ -447,10 +468,73 @@ export async function POST(req: Request) {
 
         async onVerification({
           complete,
+          score,
           unresolvedWork,
           evidence,
           strategyCorrection,
         }) {
+          let resolvedStrategy: string | null = null;
+
+          if (pendingSelfUpdate) {
+            pendingSelfUpdate =
+              recordSelfUpdateVerification(
+                pendingSelfUpdate,
+                {
+                  score,
+                  behavior: behaviorProof,
+                  protectedCorrections,
+                  now: new Date().toISOString(),
+                },
+              );
+
+            const lifecycle =
+              decideSelfUpdate(
+                pendingSelfUpdate,
+              );
+
+            if (
+              lifecycle.decision.disposition ===
+              "retain"
+            ) {
+              resolvedStrategy =
+                pendingSelfUpdate.strategy;
+
+              agencyState = {
+                ...agencyState,
+                strategyNotes:
+                  retainStrategy(
+                    agencyState.strategyNotes,
+                    pendingSelfUpdate.strategy,
+                  ),
+              };
+
+              pendingSelfUpdate = null;
+            } else if (
+              lifecycle.decision.disposition ===
+              "revert"
+            ) {
+              resolvedStrategy =
+                pendingSelfUpdate.strategy;
+              pendingSelfUpdate = null;
+            }
+          }
+
+          if (
+            strategyCorrection &&
+            !pendingSelfUpdate &&
+            strategyCorrection !== resolvedStrategy
+          ) {
+            pendingSelfUpdate =
+              beginSelfUpdate({
+                id: crypto.randomUUID(),
+                strategy: strategyCorrection,
+                baselineScore: score,
+                behavior: behaviorProof,
+                protectedCorrections,
+                now: new Date().toISOString(),
+              });
+          }
+
           agencyState = await recordAgencyProgress({
             supabase,
             userId,
@@ -458,16 +542,18 @@ export async function POST(req: Request) {
             agency: agencyState,
             step: agencyState.currentStep,
             unresolvedWork,
-            strategyChange: strategyCorrection ?? undefined,
           });
 
           await timeline.record(
             "verify",
             complete ? "verification_passed" : "verification_failed",
             {
+              score,
               evidence,
               unresolvedWork,
               strategyCorrection,
+              pendingSelfUpdate:
+                pendingSelfUpdate?.strategy ?? null,
             },
           );
         },
