@@ -9,6 +9,7 @@ import {
   type AnnabelleWorkspace,
 } from "./controlState.js";
 import { stateScope, type ArborStateStore } from "./stateStore.js";
+import { defaultVoiceId, normalizeVoiceId } from "./voiceConfig.js";
 import type { ArborBackendBridge } from "./backendBridge.js";
 import type {
   ArborState,
@@ -25,7 +26,7 @@ const DEFAULT_STATE: ArborState = {
   unresolvedWork: [],
   strategyNotes: [],
   acousticCorrections: [],
-  voiceId: process.env.ARBOR_VOICE ?? "cedar",
+  voiceId: defaultVoiceId(),
 };
 
 export class ArborControlRuntime {
@@ -39,11 +40,24 @@ export class ArborControlRuntime {
     conversationId?: string;
   }): Promise<ArborState> {
     const scope = stateScope(input);
+    const saved = await this.store.load(scope);
 
-    return (
-      (await this.store.load(scope)) ??
-      structuredClone(DEFAULT_STATE)
-    );
+    if (!saved) {
+      return structuredClone(DEFAULT_STATE);
+    }
+
+    let voiceId: string;
+
+    try {
+      voiceId = normalizeVoiceId(saved.voiceId);
+    } catch {
+      voiceId = defaultVoiceId();
+    }
+
+    return {
+      ...saved,
+      voiceId,
+    };
   }
 
   async setAnnabelleWorkspace(input: {
@@ -71,6 +85,23 @@ export class ArborControlRuntime {
     const scope = stateScope(input);
     const current = await this.getState(input);
     const next = addAcousticCorrection(current, input.correction);
+
+    await this.store.save(scope, next);
+    return next;
+  }
+
+  async setVoice(input: {
+    projectId?: string;
+    conversationId?: string;
+    voiceId: string;
+  }): Promise<ArborState> {
+    const scope = stateScope(input);
+    const current = await this.getState(input);
+
+    const next: ArborState = {
+      ...current,
+      voiceId: normalizeVoiceId(input.voiceId),
+    };
 
     await this.store.save(scope, next);
     return next;
