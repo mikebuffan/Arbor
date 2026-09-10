@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'chat_test_page.dart';
+
 class ArborShellPage extends StatefulWidget {
   const ArborShellPage({super.key});
 
@@ -11,7 +13,6 @@ class _ArborShellPageState extends State<ArborShellPage>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
 
-  // 1 = home, 0= chat
   double _position = 0.0;
 
   @override
@@ -45,6 +46,12 @@ class _ArborShellPageState extends State<ArborShellPage>
   }
 
   @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final height = MediaQuery.of(context).size.height;
 
@@ -55,11 +62,10 @@ class _ArborShellPageState extends State<ArborShellPage>
         onVerticalDragEnd: _onDragEnd,
         child: Stack(
           children: [
-            _ChatLayer(),
-
+            const _ChatLayer(),
             Transform.translate(
               offset: Offset(0, (0 - _position) * height),
-              child: _HomeLayer(),
+              child: const _HomeLayer(),
             ),
           ],
         ),
@@ -69,6 +75,8 @@ class _ArborShellPageState extends State<ArborShellPage>
 }
 
 class _HomeLayer extends StatelessWidget {
+  const _HomeLayer();
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -76,15 +84,14 @@ class _HomeLayer extends StatelessWidget {
       child: Stack(
         children: [
           const _CornerGlows(),
-
-          Positioned.fill(
+          const Positioned.fill(
             child: IgnorePointer(
               child: Center(
                 child: Transform.translate(
-                  offset: const Offset(0, -40),
+                  offset: Offset(0, -40),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
-                    children: const [
+                    children: [
                       _ArborTitle(),
                       SizedBox(height: 18),
                       _CenterFlare(),
@@ -94,14 +101,12 @@ class _HomeLayer extends StatelessWidget {
               ),
             ),
           ),
-          
           const Positioned(
             left: 24,
             top: 0,
             bottom: 0,
             child: _LeftMenu(),
           ),
-
           const Positioned(
             right: 24,
             top: 0,
@@ -115,37 +120,35 @@ class _HomeLayer extends StatelessWidget {
 }
 
 class _ChatLayer extends StatelessWidget {
+  const _ChatLayer();
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: const Color(0xFF12051B),
-      child: const Center(
-        child: Text(
-          "CHAT",
-          style: TextStyle(color: Colors.white, fontSize: 24),
-        ),
-      ),
-    );
+    return const ChatTestPage();
   }
 }
 
-  class _CornerGlows extends StatelessWidget {
-    const _CornerGlows();
+class _CornerGlows extends StatelessWidget {
+  const _CornerGlows();
 
-    @override
-    Widget build(BuildContext context) {
-      return Stack(
-        children: [
-          _glow(-120, -120),
-          _glow(null, -120, right: -120),
-          _glow(-120, null, bottom: -120),
-          _glow(null, null, right: -120, bottom: -120),
-        ],
-      );
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        _glow(-120, -120),
+        _glow(null, -120, right: -120),
+        _glow(-120, null, bottom: -120),
+        _glow(null, null, right: -120, bottom: -120),
+      ],
+    );
   }
 
-  Widget _glow(double? left, double? top,
-      {double? right, double? bottom}) {
+  Widget _glow(
+    double? left,
+    double? top, {
+    double? right,
+    double? bottom,
+  }) {
     return Positioned(
       left: left,
       top: top,
@@ -175,10 +178,10 @@ class _ArborTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      "ARBOR",
+    return const Text(
+      'ARBOR',
       style: TextStyle(
-        color: const Color(0xFFE9E9EE),
+        color: Color(0xFFE9E9EE),
         fontSize: 32,
         letterSpacing: 6,
         fontWeight: FontWeight.w300,
@@ -195,11 +198,11 @@ class _CenterFlare extends StatelessWidget {
     return Container(
       height: 2,
       width: 160,
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         gradient: LinearGradient(
           colors: [
             Colors.transparent,
-            const Color(0xFFF3387A),
+            Color(0xFFF3387A),
             Colors.transparent,
           ],
         ),
@@ -234,22 +237,22 @@ class _GlassButton extends StatelessWidget {
       ),
     );
   }
-} 
+}
 
 class _LeftMenu extends StatelessWidget {
   const _LeftMenu();
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return const Column(
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: const [
-        _GlassButton("Bored"),
-        _GlassButton("Focus"),
-        _GlassButton("Reset"),
-        _GlassButton("Challenge"),
-        _GlassButton("Criminology"),
+      children: [
+        _GlassButton('Bored'),
+        _GlassButton('Focus'),
+        _GlassButton('Reset'),
+        _GlassButton('Challenge'),
+        _GlassButton('Criminology'),
       ],
     );
   }
@@ -260,15 +263,15 @@ class _RightMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return const Column(
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.end,
-      children: const [
-        _GlassButton("Help"),
-        _GlassButton("Notes"),
-        _GlassButton("History"),
-        _GlassButton("Reports"),
-        _GlassButton("Settings"),
+      children: [
+        _GlassButton('Help'),
+        _GlassButton('Notes'),
+        _GlassButton('History'),
+        _GlassButton('Reports'),
+        _GlassButton('Settings'),
       ],
     );
   }
