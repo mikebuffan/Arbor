@@ -42,6 +42,13 @@ import {
 } from "@/lib/chat/turnPersistence";
 
 import { buildProofSnapshot } from "@/lib/arbor/ProofSnapshot";
+import {
+  beginRuntimeSession,
+  updateRuntimeSession,
+} from "@/lib/arbor/runtime/runtimeSession";
+import {
+  createCorrection,
+} from "@/lib/arbor/runtime/corrections";
 import { buildTelemetry } from "@/lib/arbor/telemetry/buildTelemetry";
 import { getOrCreateOpenEpisode } from "@/lib/arbor/episodes/getOrCreateOpenEpisode";
 import { scheduleChatPostResponseWork } from "@/lib/chat/postResponseScheduler";
@@ -281,6 +288,20 @@ export async function POST(req: Request) {
       behaviorProof,
     } = promptContext;
 
+    const runtimeSession = await beginRuntimeSession({
+      supabase,
+      userId,
+      projectId,
+      conversationId: convoId,
+      channel: interactionMode,
+      activeSubsystem,
+      currentGoal: agencyState.goal,
+      lastMeaningfulUserTurn: userText,
+      agency: agencyState,
+      behaviorProof,
+      now: new Date().toISOString(),
+    });
+
     const timeline = await ArborTimeline.create(
       new SupabaseTimelineStore(supabase),
       {
@@ -482,6 +503,20 @@ export async function POST(req: Request) {
       userText,
       extractedItems: [],
     });
+
+    const runtimeCorrections =
+      deterministicMemoryTurn.kind === "correction"
+        ? [
+            createCorrection({
+              value: userText,
+              source:
+                activeSubsystem === "annabelle"
+                  ? "annabelle"
+                  : interactionMode,
+              observedAt: new Date().toISOString(),
+            }),
+          ]
+        : [];
     let explicitCorrectionHandledSynchronously = false;
 
     const finalAssistant = await finalizeAndPersistAssistantTurn({
@@ -545,6 +580,20 @@ export async function POST(req: Request) {
     await timeline.record("complete", "turn_completed");
 
     const assistantText = finalAssistant.assistantText;
+
+    await updateRuntimeSession({
+      supabase,
+      state: runtimeSession,
+      activeSubsystem,
+      channel: interactionMode,
+      currentGoal: agencyState.goal,
+      lastMeaningfulArborTurn: assistantText,
+      agency: agencyState,
+      corrections: runtimeCorrections,
+      behaviorProof,
+      now: new Date().toISOString(),
+    });
+
     const traceId = crypto.randomUUID();
 
     const proofSnapshot = {
