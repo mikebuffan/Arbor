@@ -13,6 +13,17 @@ import {
 import type { SafetyAddendum } from "@/lib/governance/realWorldSafetyAddendum";
 import { buildArborInjectedContext } from "@/lib/arbor/subsystem/context";
 import type { ArborSubsystem } from "@/lib/arbor/runtime/arborRuntime";
+import {
+  buildArborBehaviorProjection,
+  type ArborBehaviorProof,
+} from "@/lib/arbor/behavior/behaviorProjection";
+import {
+  buildContinuityState,
+  continuityToPromptBlock,
+} from "@/lib/arbor/continuity/state";
+import {
+  loadContinuityStateSafe,
+} from "@/lib/arbor/continuity/store";
 
 export function invalidatePromptCache(params: {
   authedUserId: string;
@@ -29,6 +40,7 @@ type BuildPromptParams = {
   conversationId?: string | null;
   latestUserText: string;
   safety?: SafetyAddendum | null;
+  interactionMode?: "text" | "voice";
 };
 
 export type BuiltPromptContext = {
@@ -37,6 +49,7 @@ export type BuiltPromptContext = {
   activeSubsystem: ArborSubsystem;
   voiceId: string;
   acousticCorrections: string[];
+  behaviorProof: ArborBehaviorProof;
 };
 
 function isTruthyAnchor(v: unknown): boolean {
@@ -119,6 +132,7 @@ export async function buildPromptContext({
   conversationId = null,
   latestUserText,
   safety = null,
+  interactionMode = "text",
 }: BuildPromptParams): Promise<BuiltPromptContext> {
   const { data: project, error: projectError } = await supabase
     .from("projects")
@@ -214,8 +228,47 @@ export async function buildPromptContext({
         systemInjection: "",
       };
 
+  const continuityState =
+    projectId && conversationId
+      ? await loadContinuityStateSafe({
+          supabase,
+          userId: authedUserId,
+          projectId,
+          conversationId,
+          channel: interactionMode,
+          activeCorrections: [negativePrefsFromAnchors].filter(Boolean),
+        })
+      : buildContinuityState({
+          activeSubsystem: arbor.activeSubsystem,
+          channel: interactionMode,
+          activeCorrections: [negativePrefsFromAnchors].filter(Boolean),
+        });
+
+  const continuityBlock = continuityToPromptBlock(continuityState);
+
+  const behaviorMode =
+    arbor.activeSubsystem === "annabelle" ? "annabelle" : interactionMode;
+
+  const behaviorProjection = buildArborBehaviorProjection({
+    mode: behaviorMode,
+    projectBehaviorPhilosophy: philosophy,
+    stableBehaviorMaterial: [
+      anchorBlock,
+      NEGATIVE_PREFS_GUARD,
+      negativePrefsFromAnchors,
+    ].filter(Boolean),
+    correctionRules: [negativePrefsFromAnchors].filter(Boolean),
+    continuityMaterial: [
+      memoryText,
+      arbor.systemInjection,
+      continuityBlock,
+    ].filter(Boolean),
+  });
+
   const systemPrompt = `
     ${arbor.systemInjection}
+
+    ${behaviorProjection.promptBlock}
 
     You are ${ASSISTANT_NAME}. ${IDENTITY_LOCK}
 
@@ -240,6 +293,8 @@ export async function buildPromptContext({
     Relevant context:
     ${memoryText || "(none)"}
 
+    ${continuityBlock}
+
     Engage with empathy, continuity, and directness. Do not fabricate, overextrapolate, or alter facts.
     Maintain tone and memory alignment across sessions.
 
@@ -250,6 +305,13 @@ export async function buildPromptContext({
     authedUserId,
     projectId,
     tokenLength: systemPrompt.length,
+    interactionMode,
+    activeSubsystem: arbor.activeSubsystem,
+    behaviorCoreFingerprint: behaviorProjection.proof.coreFingerprint,
+    behaviorContinuityFingerprint:
+      behaviorProjection.proof.continuityFingerprint,
+    behaviorProjectionFingerprint:
+      behaviorProjection.proof.projectionFingerprint,
   });
 
   return {
@@ -258,5 +320,6 @@ export async function buildPromptContext({
     activeSubsystem: arbor.activeSubsystem,
     voiceId: arbor.voiceId,
     acousticCorrections: arbor.acousticCorrections,
+    behaviorProof: behaviorProjection.proof,
   };
 }
