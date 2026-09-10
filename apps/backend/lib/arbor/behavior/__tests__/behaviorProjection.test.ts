@@ -24,6 +24,30 @@ describe("one Arbor behavior projection", () => {
     );
   });
 
+  it("keeps Annabelle inside the same core identity", () => {
+    const text = buildArborBehaviorProjection({
+      ...shared,
+      mode: "text",
+    });
+
+    const annabelle = buildArborBehaviorProjection({
+      ...shared,
+      mode: "annabelle",
+    });
+
+    expect(annabelle.proof.coreFingerprint).toBe(
+      text.proof.coreFingerprint,
+    );
+
+    expect(annabelle.proof.continuityFingerprint).toBe(
+      text.proof.continuityFingerprint,
+    );
+
+    expect(annabelle.proof.projectionFingerprint).not.toBe(
+      text.proof.projectionFingerprint,
+    );
+  });
+
   it("keeps acoustic drift separate from identity", () => {
     const voice = buildArborBehaviorProjection({ ...shared, mode: "voice" });
     expect(voice.promptBlock).toContain(
