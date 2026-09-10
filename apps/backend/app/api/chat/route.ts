@@ -357,7 +357,7 @@ export async function POST(req: Request) {
             unresolvedWork: [`recover capability: ${name}`],
             recurringWeakness: `tool failure: ${name}`,
             strategyChange:
-              `When ${name} fails (${error}), inspect the failure and choose another reversible route before stopping.`,
+              `When ${name} fails, inspect the failure and choose another reversible route before stopping.`,
           });
         },
 
