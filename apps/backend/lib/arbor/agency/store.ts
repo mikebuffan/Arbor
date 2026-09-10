@@ -49,17 +49,48 @@ export async function listActiveWork(params: {
   supabase: SupabaseClient;
   userId: string;
   projectId: string;
+  limit?: number;
 }): Promise<ArborWorkState[]> {
-  const { data, error } = await params.supabase
+  const {
+    supabase,
+    userId,
+    projectId,
+    limit = 10,
+  } = params;
+
+  const { data, error } = await supabase
     .from("arbor_work_items")
     .select("*")
-    .eq("user_id", params.userId)
-    .eq("project_id", params.projectId)
+    .eq("user_id", userId)
+    .eq("project_id", projectId)
     .not("status", "in", '("resolved","reverted")')
-    .order("updated_at", { ascending: false });
+    .order("updated_at", { ascending: false })
+    .limit(limit);
 
   if (error) throw error;
+
   return ((data ?? []) as WorkRow[]).map(fromRow);
+}
+
+export async function listActiveWorkSafe(
+  params: Parameters<typeof listActiveWork>[0],
+): Promise<ArborWorkState[]> {
+  try {
+    return await listActiveWork(params);
+  } catch (error) {
+    const code =
+      error &&
+      typeof error === "object" &&
+      "code" in error
+        ? String((error as { code?: unknown }).code ?? "")
+        : "";
+
+    if (code === "42P01" || code === "PGRST205") {
+      return [];
+    }
+
+    throw error;
+  }
 }
 
 export async function saveWorkState(params: {
@@ -67,10 +98,11 @@ export async function saveWorkState(params: {
   userId: string;
   state: ArborWorkState;
 }): Promise<ArborWorkState> {
-  const state = params.state;
+  const { supabase, userId, state } = params;
+
   const payload = {
     id: state.id,
-    user_id: params.userId,
+    user_id: userId,
     project_id: state.projectId,
     title: state.title,
     problem_key: state.problemKey,
@@ -88,12 +120,35 @@ export async function saveWorkState(params: {
     updated_at: state.updatedAt,
   };
 
-  const { data, error } = await params.supabase
+  const { data, error } = await supabase
     .from("arbor_work_items")
-    .upsert(payload, { onConflict: "user_id,project_id,problem_key" })
+    .upsert(payload, {
+      onConflict: "user_id,project_id,problem_key",
+    })
     .select("*")
     .single();
 
   if (error) throw error;
+
   return fromRow(data as WorkRow);
+}
+
+export function workStateToPromptBlock(
+  work: ArborWorkState[],
+): string {
+  if (!work.length) return "";
+
+  return [
+    "ACTIVE LONGITUDINAL WORK:",
+    ...work.flatMap((item) => [
+      `- ${item.title} [${item.status}]`,
+      `  Goal: ${item.currentGoal}`,
+      item.nextAction ? `  Next action: ${item.nextAction}` : "",
+      item.hypothesis
+        ? `  Hypothesis (${item.hypothesisConfidence ?? "unknown"}): ${item.hypothesis}`
+        : "",
+    ]),
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
