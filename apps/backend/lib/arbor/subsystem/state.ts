@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ArborSubsystem } from "@/lib/arbor/runtime/arborRuntime";
+import { isMissingRuntimeTable } from "@/lib/arbor/runtime/missingRuntimeTable";
 
 export type ArborSubsystemState = {
   activeSubsystem: ArborSubsystem;
@@ -34,7 +35,10 @@ export async function loadSubsystemState(input: {
     .eq("project_id", input.projectId)
     .maybeSingle();
 
-  if (error) throw error;
+  if (error) {
+    if (isMissingRuntimeTable(error)) return DEFAULT_STATE;
+    throw error;
+  }
   if (!data) return DEFAULT_STATE;
 
   return {
@@ -65,7 +69,10 @@ async function upsertState(
       { onConflict: "user_id,project_id" },
     );
 
-  if (error) throw error;
+  if (error) {
+    if (isMissingRuntimeTable(error)) return;
+    throw error;
+  }
 }
 
 export async function persistActiveSubsystem(input: {
