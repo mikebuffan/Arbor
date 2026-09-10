@@ -226,6 +226,29 @@ export async function buildPromptContext({
         systemInjection: "",
       };
 
+  const conversationRuntime =
+    projectId && conversationId
+      ? await loadRuntimeState({
+          supabase,
+          userId: authedUserId,
+          projectId,
+          conversationId,
+        })
+      : null;
+
+  const runtimeHost =
+    conversationRuntime
+      ? projectRuntimeStartup(
+          conversationRuntime,
+        )
+      : null;
+
+  const runtimeBehavioralCorrections =
+    runtimeHost?.behaviorCorrections ?? [];
+
+  const runtimeAcousticCorrections =
+    runtimeHost?.acousticCorrections ?? [];
+
   const continuityState =
     projectId && conversationId
       ? await loadContinuityStateSafe({
@@ -234,12 +257,18 @@ export async function buildPromptContext({
           projectId,
           conversationId,
           channel: interactionMode,
-          activeCorrections: [negativePrefsFromAnchors].filter(Boolean),
+          activeCorrections: [
+            negativePrefsFromAnchors,
+            ...runtimeBehavioralCorrections,
+          ].filter(Boolean),
         })
       : buildContinuityState({
           activeSubsystem: arbor.activeSubsystem,
           channel: interactionMode,
-          activeCorrections: [negativePrefsFromAnchors].filter(Boolean),
+          activeCorrections: [
+            negativePrefsFromAnchors,
+            ...runtimeBehavioralCorrections,
+          ].filter(Boolean),
         });
 
   const continuityBlock = continuityToPromptBlock(continuityState);
@@ -255,11 +284,15 @@ export async function buildPromptContext({
       NEGATIVE_PREFS_GUARD,
       negativePrefsFromAnchors,
     ].filter(Boolean),
-    correctionRules: [negativePrefsFromAnchors].filter(Boolean),
+    correctionRules: [
+      negativePrefsFromAnchors,
+      ...runtimeBehavioralCorrections,
+    ].filter(Boolean),
     continuityMaterial: [
       memoryText,
       arbor.systemInjection,
       continuityBlock,
+      runtimeHost?.startup.promptBlock ?? "",
     ].filter(Boolean),
   });
 
@@ -293,6 +326,8 @@ export async function buildPromptContext({
 
     ${continuityBlock}
 
+    ${runtimeHost?.startup.promptBlock ?? ""}
+
     Engage with empathy, continuity, and directness. Do not fabricate, overextrapolate, or alter facts.
     Maintain tone and memory alignment across sessions.
 
@@ -317,7 +352,12 @@ export async function buildPromptContext({
     injectedMemoryItems: selectedItems,
     activeSubsystem: arbor.activeSubsystem,
     voiceId: arbor.voiceId,
-    acousticCorrections: arbor.acousticCorrections,
+    acousticCorrections: Array.from(
+      new Set([
+        ...arbor.acousticCorrections,
+        ...runtimeAcousticCorrections,
+      ]),
+    ),
     behaviorProof: behaviorProjection.proof,
   };
 }
