@@ -73,7 +73,10 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    if (req.method === "POST" && url.pathname === "/v1/annabelle/workspace") {
+    if (
+      req.method === "POST" &&
+      url.pathname === "/v1/annabelle/workspace"
+    ) {
       const body = WorkspaceBody.parse(
         JSON.parse(await readBody(req)),
       );
@@ -87,7 +90,10 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    if (req.method === "POST" && url.pathname === "/v1/voice/correction") {
+    if (
+      req.method === "POST" &&
+      url.pathname === "/v1/voice/correction"
+    ) {
       const body = VoiceCorrectionBody.parse(
         JSON.parse(await readBody(req)),
       );
@@ -132,7 +138,7 @@ const server = http.createServer(async (req, res) => {
 
       const result = await runtime.runTurn(
         body,
-        req.headers.authorization,
+        upstreamAuthorization(req),
       );
 
       json(res, 200, {
@@ -171,6 +177,17 @@ server.listen(port, () => {
     `Arbor control backend listening on :${port}`,
   );
 });
+
+function upstreamAuthorization(
+  req: http.IncomingMessage,
+): string | undefined {
+  const raw =
+    req.headers["x-arbor-upstream-authorization"];
+
+  return Array.isArray(raw)
+    ? raw[0]
+    : raw;
+}
 
 function json(
   res: http.ServerResponse,
