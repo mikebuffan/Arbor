@@ -3,7 +3,12 @@ import 'package:flutter/material.dart';
 import 'chat_test_page.dart';
 
 class ArborShellPage extends StatefulWidget {
-  const ArborShellPage({super.key});
+  const ArborShellPage({
+    super.key,
+    this.chatLayer,
+  });
+
+  final Widget? chatLayer;
 
   @override
   State<ArborShellPage> createState() => _ArborShellPageState();
@@ -62,7 +67,9 @@ class _ArborShellPageState extends State<ArborShellPage>
         onVerticalDragEnd: _onDragEnd,
         child: Stack(
           children: [
-            const _ChatLayer(),
+            _ChatLayer(
+              child: widget.chatLayer,
+            ),
             Transform.translate(
               offset: Offset(0, (0 - _position) * height),
               child: const _HomeLayer(),
@@ -120,11 +127,15 @@ class _HomeLayer extends StatelessWidget {
 }
 
 class _ChatLayer extends StatelessWidget {
-  const _ChatLayer();
+  const _ChatLayer({
+    this.child,
+  });
+
+  final Widget? child;
 
   @override
   Widget build(BuildContext context) {
-    return const ChatTestPage();
+    return child ?? const ChatTestPage();
   }
 }
 
