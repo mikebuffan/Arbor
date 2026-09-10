@@ -30,14 +30,22 @@ export async function beginAgencySession(input: {
   userText: string;
 }): Promise<AgencyState> {
   const prior = await loadAgencyState(input);
-  const resume = shouldResumePriorGoal(input.userText, prior);
-  const goal = resume && prior ? prior.goal : compactGoal(input.userText);
+
+  const hasUnresolvedPrior = Boolean(
+    prior &&
+      (prior.status === "active" || prior.status === "blocked") &&
+      prior.unresolvedWork.length,
+  );
+
+  const goal = hasUnresolvedPrior
+    ? prior!.goal
+    : compactGoal(input.userText);
 
   const agency: AgencyState = {
     goal,
     status: "active",
-    currentStep: resume && prior ? prior.currentStep : 0,
-    unresolvedWork: resume && prior ? prior.unresolvedWork : [],
+    currentStep: hasUnresolvedPrior ? prior!.currentStep : 0,
+    unresolvedWork: hasUnresolvedPrior ? prior!.unresolvedWork : [],
     recurringWeaknesses: prior?.recurringWeaknesses ?? [],
     strategyNotes: prior?.strategyNotes ?? [],
     blocker: null,
