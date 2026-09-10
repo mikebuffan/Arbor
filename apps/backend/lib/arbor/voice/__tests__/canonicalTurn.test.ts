@@ -11,6 +11,7 @@ describe("validateCanonicalAssistantRow", () => {
         row: {
           user_id: "user-1",
           project_id: "project-1",
+          conversation_id: "conversation-1",
           role: "assistant",
           content: "  canonical Arbor answer  ",
         },
@@ -36,6 +37,7 @@ describe("validateCanonicalAssistantRow", () => {
         row: {
           user_id: "user-1",
           project_id: "other-project",
+          conversation_id: "conversation-1",
           role: "assistant",
           content: "nope",
         },
@@ -49,6 +51,7 @@ describe("validateCanonicalAssistantRow", () => {
         row: {
           user_id: "user-1",
           project_id: "project-1",
+          conversation_id: "conversation-1",
           role: "user",
           content: "also nope",
         },
@@ -64,6 +67,7 @@ describe("validateCanonicalAssistantRow", () => {
         row: {
           user_id: "user-1",
           project_id: "project-1",
+          conversation_id: "conversation-1",
           role: "assistant",
           content: "   ",
         },
