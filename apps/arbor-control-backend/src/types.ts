@@ -31,6 +31,15 @@ export type AnnabelleWorkspaceRevisionState = {
   workspace: AnnabelleWorkspaceState;
 };
 
+export type SelfModelIdentityState = {
+  version: string;
+  checksum: string;
+  sourceQuestionCount: number;
+  promotedPatternIds: string[];
+  initializedAt: string;
+  verifiedAt: string;
+};
+
 export type ArborState = {
   activeSubsystem: ArborSubsystem;
   goal: string | null;
@@ -39,6 +48,7 @@ export type ArborState = {
   strategyCandidates?: StrategyCandidate[];
   acousticCorrections: string[];
   voiceId: string;
+  selfModel?: SelfModelIdentityState;
   annabelle?: AnnabelleWorkspaceState;
   annabelleRevisions?: AnnabelleWorkspaceRevisionState[];
 };
