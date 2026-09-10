@@ -99,6 +99,8 @@ export class ArborControlRuntime {
       channel: request.channel ?? "text",
     };
 
+    await this.store.saveTurn(response);
+
     await this.bridge.persistTurn({
       projectId: request.projectId,
       conversationId: request.conversationId,
