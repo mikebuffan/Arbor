@@ -38,6 +38,8 @@ class VoiceApi {
     final body = <String, dynamic>{
       'text': chat.assistantText,
       'persona': persona,
+      'sourceMode':
+          persona == 'annabelle' ? 'annabelle' : 'voice',
     };
 
     if (voiceId != null) body['voiceId'] = voiceId;
