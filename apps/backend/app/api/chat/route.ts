@@ -267,6 +267,7 @@ export async function POST(req: Request) {
       latestUserText: userText,
       safety,
       interactionMode,
+      hostSessionId: turnId,
     });
 
     const [history, promptContext] = await Promise.all([
