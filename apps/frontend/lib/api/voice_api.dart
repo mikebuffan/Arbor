@@ -2,11 +2,47 @@ import 'dart:typed_data';
 
 import 'arbor_api_client.dart';
 import 'chat_api.dart';
+import 'turn_id.dart';
+
+class VoiceTurnResponse {
+  const VoiceTurnResponse({
+    required this.chat,
+    required this.audio,
+  });
+
+  final ChatResponse chat;
+  final VoiceAudio audio;
+}
 
 class VoiceApi {
-  VoiceApi(this._client);
+  VoiceApi(this._client) : _chat = ChatApi(_client);
 
   final ArborApiClient _client;
+  final ChatApi _chat;
+
+  Future<VoiceTurnResponse> respond({
+    required String transcript,
+    required String projectId,
+    String? conversationId,
+    String? turnId,
+  }) async {
+    final resolvedTurnId = turnId ?? newTurnId();
+
+    final chat = await _chat.sendMessage(
+      projectId: projectId,
+      conversationId: conversationId,
+      turnId: resolvedTurnId,
+      userText: transcript,
+      interactionMode: 'voice',
+    );
+
+    final audio = await synthesize(chat);
+
+    return VoiceTurnResponse(
+      chat: chat,
+      audio: audio,
+    );
+  }
 
   Future<VoiceAudio> synthesize(ChatResponse turn) async {
     final response = await _client.postBytes(
