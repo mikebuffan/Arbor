@@ -340,14 +340,10 @@ class _RightMenu extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        _GlassButton(
-          'Text',
-          onTap: onText,
-        ),
-        _GlassButton(
-          'Voice',
-          onTap: onVoice,
-        ),
+        _GlassButton('Text', onTap: onText),
+        _GlassButton('Voice', onTap: onVoice),
+        const _GlassButton('Help'),
+        const _GlassButton('Notes'),
         const _GlassButton('History'),
         const _GlassButton('Reports'),
         const _GlassButton('Settings'),
