@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:http/http.dart' as http;
+import 'turn_id.dart';
 
 class ChatResponse {
   final String projectId;
@@ -60,6 +61,8 @@ class ArborApi {
     required String userText,
     String? projectId,
     String? conversationId,
+    String interactionMode = 'text',
+    String? turnId,
   }) async {
     final supa = Supabase.instance.client;
     final token = supa.auth.currentSession?.accessToken;
@@ -68,7 +71,9 @@ class ArborApi {
     final uri = Uri.parse("$baseUrl/api/chat");
 
     final body = <String, dynamic>{
+      "turnId": turnId ?? createTurnId(),
       "userText": userText,
+      "interactionMode": interactionMode,
       "projectId": projectId,
       "conversationId": conversationId,
     }..removeWhere((k, v) => v == null);
