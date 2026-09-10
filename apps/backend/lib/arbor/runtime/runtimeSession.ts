@@ -13,6 +13,7 @@ import {
 
 import type { ArborBehaviorProof } from "../behavior/behaviorProjection";
 import type { AgencyState } from "../agency/engine";
+import type { PendingSelfUpdate } from "../agency/updateLifecycle";
 import type { ArborSubsystem } from "./arborRuntime";
 
 export async function beginRuntimeSession(input: {
@@ -33,6 +34,8 @@ export async function beginRuntimeSession(input: {
   corrections?: ArborCorrection[];
 
   behaviorProof?: ArborBehaviorProof | null;
+
+  pendingSelfUpdate?: PendingSelfUpdate | null;
 
   now: string;
 }): Promise<ArborRuntimeState> {
@@ -78,6 +81,11 @@ export async function beginRuntimeSession(input: {
       prior?.behaviorProof ??
       null,
 
+    pendingSelfUpdate:
+      input.pendingSelfUpdate === undefined
+        ? prior?.pendingSelfUpdate ?? null
+        : input.pendingSelfUpdate,
+
     createdAt:
       prior?.createdAt ??
       input.now,
@@ -111,6 +119,8 @@ export async function updateRuntimeSession(input: {
   corrections?: ArborCorrection[];
 
   behaviorProof?: ArborBehaviorProof | null;
+
+  pendingSelfUpdate?: PendingSelfUpdate | null;
 
   now: string;
 }): Promise<ArborRuntimeState> {
@@ -154,6 +164,11 @@ export async function updateRuntimeSession(input: {
       input.behaviorProof === undefined
         ? input.state.behaviorProof
         : input.behaviorProof,
+
+    pendingSelfUpdate:
+      input.pendingSelfUpdate === undefined
+        ? input.state.pendingSelfUpdate
+        : input.pendingSelfUpdate,
 
     updatedAt:
       input.now,
