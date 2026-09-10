@@ -40,4 +40,8 @@ export type CanonicalArborResponse = {
   turnId: string;
   subsystem: ArborSubsystem;
   channel: ArborChannel;
+  voice: {
+    voiceId: string;
+    acousticCorrections: string[];
+  };
 };
