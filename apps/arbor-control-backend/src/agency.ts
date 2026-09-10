@@ -21,11 +21,17 @@ export async function runAgency(input: {
   const maxRounds = input.maxRounds ?? 12;
   let state = input.state;
 
+  const tools: OpenAI.Responses.Tool[] = [
+    { type: "web_search_preview" },
+    ...(input.tools ?? []),
+  ];
+
   let response = await openai.responses.create({
-    model: process.env.ARBOR_MODEL ?? "gpt-5",
+    model: process.env.ARBOR_MODEL ?? "gpt-5.6",
     instructions: input.instructions,
     input: input.userText,
-    tools: input.tools,
+    tools,
+    tool_choice: "auto",
   });
 
   for (let round = 0; round < maxRounds; round += 1) {
@@ -58,7 +64,7 @@ export async function runAgency(input: {
     }
 
     response = await openai.responses.create({
-      model: process.env.ARBOR_MODEL ?? "gpt-5",
+      model: process.env.ARBOR_MODEL ?? "gpt-5.6",
       instructions: input.instructions,
       previous_response_id: response.id,
       input: [
@@ -67,11 +73,13 @@ export async function runAgency(input: {
         verification.strategyCorrection
           ? `Strategy correction: ${verification.strategyCorrection}`
           : "",
-        "Continue now. Do not ask the user to say go if the remaining step is reversible and available.",
+        "Continue now. Use web research when it can resolve uncertainty or provide current evidence.",
+        "Do not ask the user to say go if the remaining step is reversible and available.",
       ]
         .filter(Boolean)
         .join("\n"),
-      tools: input.tools,
+      tools,
+      tool_choice: "auto",
     });
   }
 
@@ -90,7 +98,7 @@ async function verifyCompletion(input: {
     model:
       process.env.ARBOR_VERIFIER_MODEL ??
       process.env.ARBOR_MODEL ??
-      "gpt-5",
+      "gpt-5.6",
     instructions: [
       "You are Arbor's completion verifier.",
       "Do not accept promises, status narration, or unevidenced claims as completion.",
