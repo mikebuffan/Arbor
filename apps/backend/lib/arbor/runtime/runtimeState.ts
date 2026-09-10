@@ -1,5 +1,6 @@
 import type { ArborBehaviorProof } from "../behavior/behaviorProjection";
 import type { AgencyState } from "../agency/engine";
+import type { PendingSelfUpdate } from "../agency/updateLifecycle";
 import type { ArborSubsystem } from "./arborRuntime";
 
 export type ArborChannel = "text" | "voice";
@@ -40,6 +41,8 @@ export type ArborRuntimeState = {
   corrections: ArborCorrection[];
 
   behaviorProof: ArborBehaviorProof | null;
+
+  pendingSelfUpdate: PendingSelfUpdate | null;
 
   createdAt: string;
   updatedAt: string;
