@@ -10,6 +10,31 @@ export type AgencyMessage = {
   content: string;
 };
 
+export type AgencyLoopHooks = {
+  onRoundStart?: (round: number) => Promise<void>;
+  onToolSelected?: (input: {
+    round: number;
+    name: string;
+    arguments: Record<string, unknown>;
+  }) => Promise<void>;
+  onToolResult?: (input: {
+    round: number;
+    name: string;
+    result: unknown;
+  }) => Promise<void>;
+  onBoundary?: (input: {
+    round: number;
+    name: string;
+    reason: "irreversible_action" | "high_consequence_fork";
+    arguments: Record<string, unknown>;
+  }) => Promise<void>;
+  onComplete?: (input: {
+    rounds: number;
+    toolCalls: number;
+    text: string;
+  }) => Promise<void>;
+};
+
 type FunctionCall = {
   type: "function_call";
   call_id: string;
@@ -76,6 +101,7 @@ export async function runOpenAIAgencyAgent(input: {
   context: AgencyToolContext;
   allowWebResearch?: boolean;
   maxRounds?: number;
+  hooks?: AgencyLoopHooks;
 }): Promise<AgentResult> {
   const maxRounds = input.maxRounds ?? 16;
   let toolCalls = 0;
@@ -111,12 +137,22 @@ export async function runOpenAIAgencyAgent(input: {
   });
 
   for (let round = 0; round < maxRounds; round += 1) {
+    await input.hooks?.onRoundStart?.(round);
+
     const calls = functionCalls(response.output as unknown[]);
 
     if (!calls.length) {
+      const text = response.output_text?.trim() ?? "";
+
+      await input.hooks?.onComplete?.({
+        rounds: round + 1,
+        toolCalls,
+        text,
+      });
+
       return {
         status: "complete",
-        text: response.output_text?.trim() ?? "",
+        text,
         responseId: response.id,
         toolCalls,
       };
@@ -132,13 +168,28 @@ export async function runOpenAIAgencyAgent(input: {
       const tool = input.tools.get(call.name);
       const args = parseArguments(call.arguments);
 
+      await input.hooks?.onToolSelected?.({
+        round,
+        name: tool.name,
+        arguments: args,
+      });
+
       if (toolNeedsUserBoundary(tool)) {
+        const reason =
+          tool.risk === "irreversible"
+            ? "irreversible_action" as const
+            : "high_consequence_fork" as const;
+
+        await input.hooks?.onBoundary?.({
+          round,
+          name: tool.name,
+          reason,
+          arguments: args,
+        });
+
         return {
           status: "blocked",
-          reason:
-            tool.risk === "irreversible"
-              ? "irreversible_action"
-              : "high_consequence_fork",
+          reason,
           toolName: tool.name,
           arguments: args,
           responseId: response.id,
@@ -148,6 +199,12 @@ export async function runOpenAIAgencyAgent(input: {
 
       const result = await tool.execute(args, input.context);
       toolCalls += 1;
+
+      await input.hooks?.onToolResult?.({
+        round,
+        name: tool.name,
+        result,
+      });
 
       outputs.push({
         type: "function_call_output",
