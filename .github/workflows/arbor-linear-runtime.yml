@@ -1,0 +1,43 @@
+name: Arbor Linear Runtime
+
+on:
+  push:
+    branches:
+      - arbor-linear-runtime
+  pull_request:
+    branches:
+      - codex/milestone-1b-live-acceptance-corrections
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.30.3
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Backend tests
+        run: pnpm --filter firefly-backend test
+
+      - name: Backend build
+        run: pnpm --filter firefly-backend build
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+          OPENAI_API_KEY: "ci-placeholder"
+          NEXT_PUBLIC_SUPABASE_URL: "https://example.supabase.co"
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: "ci-placeholder"
+          SUPABASE_URL: "https://example.supabase.co"
+          SUPABASE_ANON_KEY: "ci-placeholder"
+          SUPABASE_SERVICE_ROLE_KEY: "ci-placeholder"
