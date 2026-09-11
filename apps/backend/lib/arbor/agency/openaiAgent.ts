@@ -202,6 +202,7 @@ export async function runOpenAIAgencyAgent(
     allowWebResearch?: boolean;
     verifyCompletion?: boolean;
     behaviorRequirements?: string[];
+    priorActionEvidence?: string[];
     maxRounds?: number;
     hooks?: AgencyLoopHooks;
   },
@@ -210,6 +211,17 @@ export async function runOpenAIAgencyAgent(
     input.maxRounds ?? 16;
 
   let toolCalls = 0;
+
+  // Durable-in-run evidence for the completion verifier. This lets Arbor
+  // prove that an action happened without forcing the final user-facing text
+  // to narrate every tool call just to satisfy verification.
+  const actionEvidence: string[] = Array.from(
+    new Set(
+      (input.priorActionEvidence ?? [])
+        .map((item) => item.trim())
+        .filter(Boolean),
+    ),
+  ).slice(-40);
 
   const attemptedRoutes =
     new Set<string>();
@@ -326,6 +338,7 @@ export async function runOpenAIAgencyAgent(
               text,
             behaviorRequirements:
               input.behaviorRequirements,
+            actionEvidence,
           },
         );
 
@@ -496,6 +509,10 @@ export async function runOpenAIAgencyAgent(
               execution.result,
           });
 
+        actionEvidence.push(
+          `capability ${tool.name} completed successfully`,
+        );
+
         outputs.push({
           type:
             "function_call_output",
@@ -525,6 +542,10 @@ export async function runOpenAIAgencyAgent(
           error:
             execution.failure.error,
         });
+
+      actionEvidence.push(
+        `capability ${tool.name} failed: ${execution.failure.kind}`,
+      );
 
       outputs.push({
         type:

@@ -75,6 +75,7 @@ export async function verifyAgencyCompletion(input: {
   goal: string;
   candidateText: string;
   behaviorRequirements?: string[];
+  actionEvidence?: string[];
 }): Promise<AgencyCompletionVerification> {
   const behaviorRequirements = Array.from(
     new Set(
@@ -83,6 +84,14 @@ export async function verifyAgencyCompletion(input: {
         .filter(Boolean),
     ),
   );
+
+  const actionEvidence = Array.from(
+    new Set(
+      (input.actionEvidence ?? [])
+        .map((item) => item.trim())
+        .filter(Boolean),
+    ),
+  ).slice(-40);
 
   const response = await openai.responses.create({
     model:
@@ -94,7 +103,9 @@ export async function verifyAgencyCompletion(input: {
       "You are Arbor's completion and behavioral-regression verifier.",
       "Evaluate whether the candidate actually completes the user's goal.",
       "Do not reward promises to work later, status narration, or descriptions of actions that were not evidenced.",
-      "If the goal requires tool/action evidence and the candidate lacks it, mark complete=false.",
+      "Use supplied action evidence as authoritative evidence that an action actually ran.",
+      "Do not require the candidate text to narrate or restate an action when supplied action evidence already proves it happened.",
+      "If the goal requires tool/action evidence and neither the candidate nor supplied action evidence supports it, mark complete=false.",
       "Do not invent missing evidence.",
       "When behavior requirements are provided, report only violations directly observable in the candidate text.",
       "Do not flag a requirement merely because it is not demonstrated.",
@@ -109,6 +120,7 @@ export async function verifyAgencyCompletion(input: {
       goal: input.goal,
       candidateText: input.candidateText,
       behaviorRequirements,
+      actionEvidence,
     }),
   });
 

@@ -4,23 +4,61 @@ import {
   loadAgencyState,
   persistAgencyState,
 } from "./state";
+import { loadRuntimeState } from "../runtime/runtimeStateStore";
 import { resolveAgencyGoal } from "./continuation";
 import { recordStrategyCandidate } from "./strategyRetention";
+
+function resumableAgency(
+  value: AgencyState | null | undefined,
+): AgencyState | null {
+  if (!value) return null;
+  return value.status === "active" || value.status === "blocked"
+    ? value
+    : null;
+}
 
 export async function beginAgencySession(input: {
   supabase: SupabaseClient;
   userId: string;
   projectId: string;
+  conversationId?: string | null;
   userText: string;
 }): Promise<AgencyState> {
-  const prior = await loadAgencyState(input);
+  const [projectAgency, conversationRuntime] = await Promise.all([
+    loadAgencyState(input),
+    input.conversationId
+      ? loadRuntimeState({
+          supabase: input.supabase,
+          userId: input.userId,
+          projectId: input.projectId,
+          conversationId: input.conversationId,
+        })
+      : Promise.resolve(null),
+  ]);
+
+  // Prefer unfinished work already owned by this conversation. Falling back to
+  // project-level state preserves cross-thread continuation, while revisiting an
+  // older thread can still recover the unfinished goal that thread owned.
+  const prior =
+    resumableAgency(conversationRuntime?.agency) ??
+    resumableAgency(projectAgency) ??
+    projectAgency;
+
   const { goal, resume } = resolveAgencyGoal(input.userText, prior);
 
   const agency: AgencyState = {
     goal,
     status: "active",
     currentStep: resume && prior ? prior.currentStep : 0,
-    unresolvedWork: resume && prior ? prior.unresolvedWork : [],
+    // A newly accepted goal is unfinished until verified otherwise. Persist a
+    // concrete ownership marker immediately so a crash/interruption before the
+    // first tool call cannot turn active work into an empty state.
+    unresolvedWork:
+      resume && prior
+        ? prior.unresolvedWork.length
+          ? prior.unresolvedWork
+          : [`complete goal: ${prior.goal}`]
+        : [`complete goal: ${goal}`],
     recurringWeaknesses: prior?.recurringWeaknesses ?? [],
     strategyNotes: prior?.strategyNotes ?? [],
     blocker: null,
