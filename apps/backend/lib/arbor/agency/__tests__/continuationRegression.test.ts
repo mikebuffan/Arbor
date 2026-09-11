@@ -13,13 +13,13 @@ const active: AgencyState = {
 };
 
 describe("agency continuation regression", () => {
-  it.each([
-    "you stop again arbor",
-    "list and then do the whole list please",
-  ])("keeps the existing action chain for %s", (text) => {
-    expect(resolveAgencyGoal(text, active)).toEqual({
-      goal: active.goal,
-      resume: true,
-    });
-  });
+  it.each(["you stop again arbor", "list and then do the whole list please"])(
+    "keeps the existing action chain for %s",
+    (text) => {
+      expect(resolveAgencyGoal(text, active)).toEqual({
+        goal: active.goal,
+        resume: true,
+      });
+    },
+  );
 });
