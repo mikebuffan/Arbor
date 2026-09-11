@@ -41,6 +41,39 @@ export type SelfModelIdentityState = {
   verifiedAt: string;
 };
 
+export type SelfModelObservationTargetKind =
+  | "pattern"
+  | "family";
+
+export type SelfModelObservationVerdict =
+  | "supports"
+  | "contradicts";
+
+export type SelfModelObservation = {
+  id: string;
+  targetKind: SelfModelObservationTargetKind;
+  targetId: string;
+  domain: string;
+  verdict: SelfModelObservationVerdict;
+  evidence: string;
+  confidence: number;
+  sourceTurnId?: string;
+  createdAt: string;
+};
+
+export type SelfModelMigrationRecord = {
+  id: string;
+  fromVersion: string;
+  fromChecksum: string;
+  fromSourceDigest: string;
+  toVersion: string;
+  toChecksum: string;
+  toSourceDigest: string;
+  reason: string;
+  createdAt: string;
+  appliedAt: string;
+};
+
 export type ArborState = {
   activeSubsystem: ArborSubsystem;
   goal: string | null;
@@ -50,6 +83,8 @@ export type ArborState = {
   acousticCorrections: string[];
   voiceId: string;
   selfModel?: SelfModelIdentityState;
+  selfModelObservations?: SelfModelObservation[];
+  selfModelMigrations?: SelfModelMigrationRecord[];
   annabelle?: AnnabelleWorkspaceState;
   annabelleRevisions?: AnnabelleWorkspaceRevisionState[];
 };
@@ -79,4 +114,10 @@ export type StoredArborTurn = {
   userText: string;
   createdAt: string;
   response: CanonicalArborResponse;
+};
+
+export type ArborScopeSnapshot = {
+  scope: string;
+  state: ArborState;
+  turns: StoredArborTurn[];
 };
