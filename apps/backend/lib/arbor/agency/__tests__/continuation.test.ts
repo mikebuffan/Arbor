@@ -40,7 +40,7 @@ describe("agency continuation", () => {
     });
   });
 
-  it("treats blocker replies as continuation unless the user explicitly switches goals", () => {
+  it("treats blocker replies as continuation", () => {
     const blocked: AgencyState = {
       ...prior,
       status: "blocked",
@@ -53,14 +53,16 @@ describe("agency continuation", () => {
     });
   });
 
-  it("does not hijack a new explicit goal", () => {
+  it("allows an explicit goal switch", () => {
     const resolved = resolveAgencyGoal(
       "instead, explain the deployment failure",
       prior,
     );
 
-    expect(resolved.resume).toBe(false);
-    expect(resolved.goal).toBe("instead, explain the deployment failure");
+    expect(resolved).toEqual({
+      goal: "instead, explain the deployment failure",
+      resume: false,
+    });
   });
 
   it("does not resume a completed goal", () => {
