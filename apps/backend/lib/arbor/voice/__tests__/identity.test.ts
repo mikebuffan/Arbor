@@ -1,14 +1,26 @@
 import { describe, expect, it } from "vitest";
-import { buildVoiceInstructions } from "../identity";
+import {
+  buildVoiceInstructions,
+  voiceSpeechSpeed,
+} from "../identity";
 
 describe("Arbor voice identity", () => {
-  it("locks General American and rejects British drift", () => {
+  it("locks the Pacific Northwest / General American baseline and rejects British drift", () => {
     const instructions = buildVoiceInstructions("arbor");
 
-    expect(instructions).toContain("General American");
-    expect(instructions).toContain("Avoid British");
-    expect(instructions).not.toContain(
+    expect(instructions).toContain(
       "Pacific Northwest / General American",
+    );
+    expect(instructions).toContain("rhotic");
+    expect(instructions).toContain("Avoid British");
+    expect(instructions).toContain(
+      "Release phrase endings promptly",
+    );
+    expect(instructions).toContain(
+      "Keep vowels compact and clean",
+    );
+    expect(instructions).toContain(
+      "short, ordinary conversational pauses",
     );
   });
 
@@ -21,6 +33,14 @@ describe("Arbor voice identity", () => {
     expect(instructions).toContain(
       "not a separate voice identity",
     );
+    expect(instructions).toContain(
+      "vowels and phrase endings must remain acoustically stable and American",
+    );
+  });
+
+  it("uses a slightly quicker conversational speed without speeding narration", () => {
+    expect(voiceSpeechSpeed("arbor")).toBe(1.05);
+    expect(voiceSpeechSpeed("annabelle")).toBe(1.0);
   });
 
   it("forces exact canonical text and includes saved acoustic corrections", () => {
