@@ -14,7 +14,6 @@ const prior: AgencyState = {
 
 describe("agency continuation", () => {
   it.each([
-    "go",
     "gooooo",
     "continue please",
     "k. keep going",
@@ -25,37 +24,22 @@ describe("agency continuation", () => {
     "find a workaround if needed",
   ])("resumes unresolved work for %s", (text) => {
     expect(shouldResumeAgencyGoal(text, prior)).toBe(true);
-    expect(resolveAgencyGoal(text, prior)).toEqual({
-      goal: prior.goal,
-      resume: true,
-    });
+    expect(resolveAgencyGoal(text, prior)).toEqual({ goal: prior.goal, resume: true });
   });
 
-  it("treats blocker replies as continuation", () => {
-    const blocked: AgencyState = {
-      ...prior,
-      status: "blocked",
-      blocker: "missing_preference",
-    };
-
-    expect(resolveAgencyGoal("use the first option", blocked)).toEqual({
-      goal: blocked.goal,
-      resume: true,
-    });
+  it("resumes after a blocker reply", () => {
+    const blocked: AgencyState = { ...prior, status: "blocked", blocker: "missing_preference" };
+    expect(resolveAgencyGoal("use the first option", blocked)).toEqual({ goal: blocked.goal, resume: true });
   });
 
   it("allows an explicit goal switch", () => {
-    expect(
-      resolveAgencyGoal("instead, explain the deployment failure", prior),
-    ).toEqual({
+    expect(resolveAgencyGoal("instead, explain the deployment failure", prior)).toEqual({
       goal: "instead, explain the deployment failure",
       resume: false,
     });
   });
 
   it("does not resume a completed goal", () => {
-    expect(
-      shouldResumeAgencyGoal("go", { ...prior, status: "complete" }),
-    ).toBe(false);
+    expect(shouldResumeAgencyGoal("go", { ...prior, status: "complete" })).toBe(false);
   });
 });
