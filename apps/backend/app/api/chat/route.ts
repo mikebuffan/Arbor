@@ -388,6 +388,11 @@ export async function POST(req: Request) {
       },
       allowWebResearch: process.env.ARBOR_ENABLE_WEB_RESEARCH !== "false",
       behaviorRequirements: behaviorGuardRequirements,
+      priorActionEvidence: agencyState.unresolvedWork
+        .filter((item) => item.startsWith("verify capability result: "))
+        .map((item) =>
+          `capability ${item.slice("verify capability result: ".length)} completed successfully`,
+        ),
       hooks: {
         async onRoundStart(round) {
           agencyState = await recordAgencyProgress({
