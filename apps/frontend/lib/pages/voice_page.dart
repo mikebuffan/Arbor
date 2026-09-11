@@ -358,11 +358,11 @@ class _VoicePageState extends State<VoicePage> {
           ),
           SafeArea(
             child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 760),
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 760),
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
                 children: [
                   Row(
                     children: [
@@ -467,13 +467,14 @@ class _VoicePageState extends State<VoicePage> {
                       style: TextStyle(color: Colors.white54),
                     ),
                   ),
-                ],
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
-        ),
-      ],
-    ),
+        ],
+      ),
     );
   }
 }
