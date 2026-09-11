@@ -38,10 +38,7 @@ describe("agency continuation regression", () => {
     const blocked: AgencyState = {
       ...active,
       status: "blocked",
-      blocker: {
-        kind: "missing_information",
-        reason: "Need the branch name",
-      },
+      blocker: "missing_preference",
     };
 
     expect(
