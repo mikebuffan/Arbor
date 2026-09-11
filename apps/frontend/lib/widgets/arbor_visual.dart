@@ -302,69 +302,95 @@ class _ArborGlowPainter extends CustomPainter {
       radius: radius,
     );
 
-    // Layer 1: broad atmospheric bloom.
+    // Layer 1: very broad ambient spill into the background.
     final atmosphere = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 54 + activity * 14
+      ..strokeWidth = 76 + activity * 18
       ..color = const Color(0xFFF3387A)
-          .withOpacity(0.025 + activity * 0.025)
+          .withOpacity(0.014 + activity * 0.018)
       ..maskFilter = const MaskFilter.blur(
         BlurStyle.normal,
-        34,
+        46,
       );
 
-    // Layer 2: medium magenta halo.
+    // Layer 2: outer magenta fog.
+    final outerFog = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 48 + activity * 12
+      ..color = const Color(0xFFE31B78)
+          .withOpacity(0.03 + activity * 0.025)
+      ..maskFilter = const MaskFilter.blur(
+        BlurStyle.normal,
+        30,
+      );
+
+    // Layer 3: medium bloom.
     final bloom = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 24 + activity * 8
+      ..strokeWidth = 28 + activity * 9
       ..color = const Color(0xFFFF2F92)
-          .withOpacity(0.07 + activity * 0.05)
+          .withOpacity(0.065 + activity * 0.05)
       ..maskFilter = const MaskFilter.blur(
         BlurStyle.normal,
-        18,
+        19,
       );
 
-    // Layer 3: inner hot-pink haze hugging the rim.
+    // Layer 4: hot inner haze hugging the rim.
     final hotGlow = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 10 + activity * 3
+      ..strokeWidth = 14 + activity * 4
       ..color = const Color(0xFFFF4D9C)
-          .withOpacity(0.18 + activity * 0.08)
+          .withOpacity(0.15 + activity * 0.08)
       ..maskFilter = const MaskFilter.blur(
         BlurStyle.normal,
-        7,
+        9,
       );
 
-    // Layer 4: bright rim with a soft falloff around the curve.
+    // Layer 5: concentrated neon bloom.
+    final neonBloom = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 6 + activity * 2
+      ..color = const Color(0xFFFF6BAA)
+          .withOpacity(0.27 + activity * 0.10)
+      ..maskFilter = const MaskFilter.blur(
+        BlurStyle.normal,
+        4,
+      );
+
+    // Layer 6: bright rim with curved intensity variation.
     final rim = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.6 + activity * 0.9
+      ..strokeWidth = 2.4 + activity * 0.8
       ..shader = const SweepGradient(
         colors: [
           Color(0x00F3387A),
-          Color(0xFFF3387A),
-          Color(0xFFFF7DB2),
-          Color(0xFFFFD0E2),
-          Color(0xFFFF7DB2),
-          Color(0xFFF3387A),
+          Color(0x99F3387A),
+          Color(0xFFFF4D9C),
+          Color(0xFFFF9BC4),
+          Color(0xFFFFE1EC),
+          Color(0xFFFF9BC4),
+          Color(0xFFFF4D9C),
+          Color(0x99F3387A),
           Color(0x00F3387A),
         ],
       ).createShader(rect)
       ..maskFilter = const MaskFilter.blur(
         BlurStyle.normal,
-        1.2,
+        1.1,
       );
 
-    // Layer 5: razor-thin highlight so the edge never reads flat.
+    // Layer 7: thin white-pink specular edge.
     final highlight = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 0.9
-      ..color = const Color(0xFFFFD7E8)
-          .withOpacity(0.48 + activity * 0.18);
+      ..strokeWidth = 0.75
+      ..color = const Color(0xFFFFEAF2)
+          .withOpacity(0.56 + activity * 0.16);
 
     canvas.drawCircle(corner, radius, atmosphere);
+    canvas.drawCircle(corner, radius, outerFog);
     canvas.drawCircle(corner, radius, bloom);
     canvas.drawCircle(corner, radius, hotGlow);
+    canvas.drawCircle(corner, radius, neonBloom);
     canvas.drawCircle(corner, radius, rim);
     canvas.drawCircle(corner, radius, highlight);
   }
