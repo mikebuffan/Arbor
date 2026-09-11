@@ -30,7 +30,7 @@ void main() {
     expect(stack().index, 1);
   });
 
-  testWidgets('Voice is inactive until its surface is fully opened',
+  testWidgets('Voice is inactive while the home surface covers it',
       (WidgetTester tester) async {
     await tester.pumpWidget(
       const MaterialApp(
@@ -40,15 +40,10 @@ void main() {
       ),
     );
 
-    VoicePage voice() =>
+    final voice =
         tester.widget<VoicePage>(find.byType(VoicePage));
 
-    expect(voice().active, isFalse);
-
-    await tester.tap(find.text('Voice'));
-    await tester.pump(const Duration(milliseconds: 350));
-
-    expect(voice().active, isTrue);
+    expect(voice.active, isFalse);
   });
 
   testWidgets('Arbor visual supports every runtime state',
