@@ -6,6 +6,9 @@ import {
   pushAnnabelleRevision,
   restoreLatestAnnabelleRevision,
 } from "./controlState.js";
+import {
+  addSelfModelObservation,
+} from "./selfModelObservations.js";
 
 export function buildControlCapabilities():
   ArborCapabilityRegistry {
@@ -91,6 +94,161 @@ export function buildControlCapabilities():
         statePatch: {
           acousticCorrections:
             next.acousticCorrections,
+        },
+      };
+    },
+  });
+
+  registry.register({
+    name:
+      "arbor_record_self_model_observation",
+    description:
+      "Record concrete, inspectable behavioral evidence about Arbor's self-model. Use only evidence actually demonstrated in the current interaction or verified action result. Never record a desired trait, prompt instruction, or self-description as evidence by itself.",
+    risk:
+      "reversible_write",
+    parameters: {
+      type:
+        "object",
+      properties: {
+        targetKind: {
+          type:
+            "string",
+          enum: [
+            "pattern",
+            "family",
+          ],
+        },
+        targetId: {
+          type:
+            "string",
+          minLength:
+            1,
+          maxLength:
+            200,
+        },
+        domain: {
+          type:
+            "string",
+          minLength:
+            1,
+          maxLength:
+            100,
+        },
+        verdict: {
+          type:
+            "string",
+          enum: [
+            "supports",
+            "contradicts",
+          ],
+        },
+        evidence: {
+          type:
+            "string",
+          minLength:
+            1,
+          maxLength:
+            2000,
+        },
+        confidence: {
+          type:
+            "number",
+          minimum:
+            0,
+          maximum:
+            1,
+        },
+      },
+      additionalProperties:
+        false,
+      required: [
+        "targetKind",
+        "targetId",
+        "domain",
+        "verdict",
+        "evidence",
+        "confidence",
+      ],
+    },
+    async execute(
+      args,
+      context,
+    ) {
+      const targetKind =
+        requireEnum(
+          args.targetKind,
+          [
+            "pattern",
+            "family",
+          ] as const,
+          "targetKind",
+        );
+
+      const verdict =
+        requireEnum(
+          args.verdict,
+          [
+            "supports",
+            "contradicts",
+          ] as const,
+          "verdict",
+        );
+
+      const targetId =
+        requireString(
+          args.targetId,
+          "targetId",
+        );
+
+      const domain =
+        requireString(
+          args.domain,
+          "domain",
+        );
+
+      const evidence =
+        requireString(
+          args.evidence,
+          "evidence",
+        );
+
+      const confidence =
+        requireNumber(
+          args.confidence,
+          "confidence",
+        );
+
+      const next =
+        addSelfModelObservation(
+          context.state,
+          {
+            targetKind,
+            targetId,
+            domain,
+            verdict,
+            evidence,
+            confidence,
+            sourceTurnId:
+              context.turnId,
+          },
+        );
+
+      return {
+        result: {
+          recorded:
+            (next
+              .selfModelObservations
+              ?.length ??
+            0) >
+            (context.state
+              .selfModelObservations
+              ?.length ??
+            0),
+        },
+        statePatch: {
+          selfModelObservations:
+            next
+              .selfModelObservations,
         },
       };
     },
@@ -264,4 +422,55 @@ function requireString(
   }
 
   return value;
+}
+
+function requireNumber(
+  value:
+    unknown,
+  field:
+    string,
+): number {
+  if (
+    typeof value !==
+      "number" ||
+    !Number.isFinite(
+      value,
+    )
+  ) {
+    throw new Error(
+      `invalid_${field}`,
+    );
+  }
+
+  return value;
+}
+
+function requireEnum<
+  const T extends
+    readonly string[],
+>(
+  value:
+    unknown,
+  allowed:
+    T,
+  field:
+    string,
+):
+  T[number] {
+  if (
+    typeof value !==
+      "string" ||
+    !allowed.some(
+      (item) =>
+        item ===
+        value,
+    )
+  ) {
+    throw new Error(
+      `invalid_${field}`,
+    );
+  }
+
+  return value as
+    T[number];
 }

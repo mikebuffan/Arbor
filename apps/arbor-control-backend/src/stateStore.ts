@@ -9,6 +9,7 @@ import { dirname } from "node:path";
 
 import type {
   ArborConversationMessage,
+  ArborScopeSnapshot,
   ArborState,
   StoredArborTurn,
 } from "./types.js";
@@ -17,6 +18,11 @@ type DiskState = {
   states: Record<string, ArborState>;
   turns: Record<string, StoredArborTurn>;
   history: Record<string, string[]>;
+};
+
+export type ArborStateMutationResult<T> = {
+  state: ArborState;
+  result: T;
 };
 
 export interface ArborStateStore {
@@ -33,6 +39,18 @@ export interface ArborStateStore {
     scope: string,
     limitTurns?: number,
   ): Promise<ArborConversationMessage[]>;
+  mutate<T>(
+    scope: string,
+    mutate: (
+      current: ArborState | null,
+    ) => ArborStateMutationResult<T> | Promise<ArborStateMutationResult<T>>,
+  ): Promise<T>;
+  exportScope(
+    scope: string,
+  ): Promise<ArborScopeSnapshot>;
+  importScope(
+    snapshot: ArborScopeSnapshot,
+  ): Promise<void>;
 }
 
 export class JsonFileArborStateStore implements ArborStateStore {
@@ -53,7 +71,7 @@ export class JsonFileArborStateStore implements ArborStateStore {
     scope: string,
     state: ArborState,
   ): Promise<void> {
-    return this.enqueueMutation((db) => {
+    await this.enqueueMutation((db) => {
       db.states[scope] = structuredClone(state);
     });
   }
@@ -65,7 +83,7 @@ export class JsonFileArborStateStore implements ArborStateStore {
   }
 
   async saveTurn(turn: StoredArborTurn): Promise<void> {
-    return this.enqueueMutation((db) => {
+    await this.enqueueMutation((db) => {
       this.putTurn(db, turn);
     });
   }
@@ -75,7 +93,7 @@ export class JsonFileArborStateStore implements ArborStateStore {
     state: ArborState,
     turn: StoredArborTurn,
   ): Promise<void> {
-    return this.enqueueMutation((db) => {
+    await this.enqueueMutation((db) => {
       db.states[scope] = structuredClone(state);
       this.putTurn(db, turn);
     });
@@ -112,6 +130,95 @@ export class JsonFileArborStateStore implements ArborStateStore {
     return messages;
   }
 
+  async mutate<T>(
+    scope: string,
+    mutate: (
+      current: ArborState | null,
+    ) => ArborStateMutationResult<T> | Promise<ArborStateMutationResult<T>>,
+  ): Promise<T> {
+    return this.enqueueMutation(async (db) => {
+      const current =
+        db.states[scope] ?? null;
+
+      const outcome =
+        await mutate(
+          current
+            ? structuredClone(current)
+            : null,
+        );
+
+      db.states[scope] =
+        structuredClone(outcome.state);
+
+      return outcome.result;
+    });
+  }
+
+  async exportScope(
+    scope: string,
+  ): Promise<ArborScopeSnapshot> {
+    await this.waitForWrites();
+    const db = await this.readUnlocked();
+    const state = db.states[scope];
+
+    if (!state) {
+      throw new Error("transplant_scope_not_found");
+    }
+
+    const turns =
+      (db.history[scope] ?? [])
+        .map((turnId) => db.turns[turnId])
+        .filter(
+          (turn): turn is StoredArborTurn =>
+            Boolean(turn),
+        )
+        .map((turn) => structuredClone(turn));
+
+    return {
+      scope,
+      state: structuredClone(state),
+      turns,
+    };
+  }
+
+  async importScope(
+    snapshot: ArborScopeSnapshot,
+  ): Promise<void> {
+    await this.enqueueMutation((db) => {
+      if (
+        db.states[snapshot.scope] ||
+        (db.history[snapshot.scope]?.length ?? 0) > 0
+      ) {
+        throw new Error("transplant_target_not_empty");
+      }
+
+      db.states[snapshot.scope] =
+        structuredClone(snapshot.state);
+
+      db.history[snapshot.scope] = [];
+
+      for (const turn of snapshot.turns) {
+        if (turn.scope !== snapshot.scope) {
+          throw new Error("transplant_turn_scope_mismatch");
+        }
+
+        const existing = db.turns[turn.turnId];
+
+        if (
+          existing &&
+          existing.requestFingerprint !== turn.requestFingerprint
+        ) {
+          throw new Error("turn_id_conflict");
+        }
+
+        db.turns[turn.turnId] =
+          structuredClone(turn);
+
+        db.history[snapshot.scope].push(turn.turnId);
+      }
+    });
+  }
+
   private putTurn(
     db: DiskState,
     turn: StoredArborTurn,
@@ -137,21 +244,42 @@ export class JsonFileArborStateStore implements ArborStateStore {
     }
   }
 
-  private async enqueueMutation(
-    mutate: (db: DiskState) => Promise<void> | void,
-  ): Promise<void> {
-    const operation = this.writeTail.then(async () => {
-      const db = await this.readUnlocked();
-      await mutate(db);
-      await this.writeAtomic(db);
-    });
+  private async enqueueMutation<T>(
+    mutate: (db: DiskState) => Promise<T> | T,
+  ): Promise<T> {
+    let resolveResult:
+      (value: T | PromiseLike<T>) => void =
+      () => undefined;
+
+    let rejectResult:
+      (reason?: unknown) => void =
+      () => undefined;
+
+    const result =
+      new Promise<T>((resolve, reject) => {
+        resolveResult = resolve;
+        rejectResult = reject;
+      });
+
+    const operation =
+      this.writeTail.then(async () => {
+        try {
+          const db = await this.readUnlocked();
+          const value = await mutate(db);
+          await this.writeAtomic(db);
+          resolveResult(value);
+        } catch (error) {
+          rejectResult(error);
+          throw error;
+        }
+      });
 
     this.writeTail = operation.then(
       () => undefined,
       () => undefined,
     );
 
-    return operation;
+    return result;
   }
 
   private async waitForWrites(): Promise<void> {

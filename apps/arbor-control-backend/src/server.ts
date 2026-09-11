@@ -7,9 +7,19 @@ import {
 import { JsonlArborAuditSink } from "./audit.js";
 import { requireControlAuth } from "./auth.js";
 import { MikeBackendBridge } from "./backendBridge.js";
+import {
+  assertProductionPersistenceConfigured,
+  productionPersistenceStatus,
+} from "./productionConfig.js";
 import { ArborControlRuntime } from "./runtime.js";
+import { SelfModelControlService } from "./selfModelControl.js";
 import { JsonFileArborStateStore } from "./stateStore.js";
+import type {
+  ArborTransplantBundle,
+} from "./transplant.js";
 import { ArborVoiceRenderer } from "./voice.js";
+
+assertProductionPersistenceConfigured();
 
 const store = new JsonFileArborStateStore();
 const audit = new JsonlArborAuditSink();
@@ -18,6 +28,7 @@ const runtime = new ArborControlRuntime(
   new MikeBackendBridge(),
   audit,
 );
+const selfModel = new SelfModelControlService(store);
 const voice = new ArborVoiceRenderer(store, audit);
 
 const ScopeFields = {
@@ -57,6 +68,29 @@ const VoiceSelectBody = z.object({
   voiceId: z.string().min(1).max(100),
 });
 
+const SelfModelObservationBody = z.object({
+  ...ScopeFields,
+  observation: z.object({
+    targetKind: z.enum(["pattern", "family"]),
+    targetId: z.string().min(1).max(200),
+    domain: z.string().min(1).max(100),
+    verdict: z.enum(["supports", "contradicts"]),
+    evidence: z.string().min(1).max(2000),
+    confidence: z.number().min(0).max(1),
+    sourceTurnId: z.string().min(1).max(500).optional(),
+  }),
+});
+
+const SelfModelMigrationBody = z.object({
+  ...ScopeFields,
+  expectedCurrentChecksum: z.string().min(1).max(200),
+  reason: z.string().min(1).max(2000),
+});
+
+const TransplantImportBody = z.object({
+  bundle: z.unknown(),
+});
+
 const port = Number(process.env.PORT ?? 4100);
 
 const server = http.createServer(async (req, res) => {
@@ -71,6 +105,26 @@ const server = http.createServer(async (req, res) => {
         ok: true,
         service: "arbor-control-backend",
       });
+      return;
+    }
+
+    if (req.method === "GET" && url.pathname === "/ready") {
+      const persistence =
+        productionPersistenceStatus();
+
+      json(
+        res,
+        persistence.durableConfigurationReady
+          ? 200
+          : 503,
+        {
+          ok:
+            persistence.durableConfigurationReady,
+          service:
+            "arbor-control-backend",
+          persistence,
+        },
+      );
       return;
     }
 
@@ -179,6 +233,96 @@ const server = http.createServer(async (req, res) => {
         "x-arbor-turn-id": turnId,
       });
       res.end(Buffer.from(rendered.audio));
+      return;
+    }
+
+    if (
+      req.method === "POST" &&
+      url.pathname === "/v1/self-model/observe"
+    ) {
+      const body =
+        SelfModelObservationBody.parse(
+          await readJson(req),
+        );
+
+      const result =
+        await selfModel.recordObservation(body);
+
+      json(res, 200, {
+        ok: true,
+        ...result,
+      });
+      return;
+    }
+
+    if (
+      req.method === "GET" &&
+      url.pathname === "/v1/self-model/migration"
+    ) {
+      const plan =
+        await selfModel.previewMigration(
+          scopeFromUrl(url),
+        );
+
+      json(res, 200, {
+        ok: true,
+        plan,
+      });
+      return;
+    }
+
+    if (
+      req.method === "POST" &&
+      url.pathname === "/v1/self-model/migration"
+    ) {
+      const body =
+        SelfModelMigrationBody.parse(
+          await readJson(req),
+        );
+
+      const result =
+        await selfModel.applyMigration(body);
+
+      json(res, 200, {
+        ok: true,
+        ...result,
+      });
+      return;
+    }
+
+    if (
+      req.method === "GET" &&
+      url.pathname === "/v1/transplant/export"
+    ) {
+      const bundle =
+        await selfModel.exportTransplant(
+          scopeFromUrl(url),
+        );
+
+      json(res, 200, {
+        ok: true,
+        bundle,
+      });
+      return;
+    }
+
+    if (
+      req.method === "POST" &&
+      url.pathname === "/v1/transplant/import"
+    ) {
+      const body =
+        TransplantImportBody.parse(
+          await readJson(req),
+        );
+
+      await selfModel.importTransplant(
+        body.bundle as ArborTransplantBundle,
+      );
+
+      json(res, 200, {
+        ok: true,
+        imported: true,
+      });
       return;
     }
 
@@ -331,6 +475,14 @@ function classifyError(error: unknown): {
 
     case "turn_id_required":
     case "voice_not_allowed":
+    case "self_model_observation_domain_required":
+    case "self_model_observation_evidence_required":
+    case "self_model_observation_confidence_invalid":
+    case "self_model_observation_pattern_unknown":
+    case "self_model_observation_family_invalid":
+    case "self_model_observation_family_unknown":
+    case "self_model_migration_reason_required":
+    case "self_model_migration_not_required":
       return {
         status: 400,
         code: message,
@@ -338,6 +490,15 @@ function classifyError(error: unknown): {
 
     case "turn_id_conflict":
     case "control_state_missing":
+    case "self_model_identity_drift":
+    case "self_model_migration_source_missing":
+    case "self_model_migration_stale":
+    case "transplant_target_not_empty":
+    case "transplant_identity_checksum_mismatch":
+    case "transplant_checksum_mismatch":
+    case "transplant_scope_mismatch":
+    case "transplant_turn_scope_mismatch":
+    case "transplant_duplicate_turn":
       return {
         status: 409,
         code: message,
@@ -345,8 +506,16 @@ function classifyError(error: unknown): {
 
     case "canonical_turn_not_found":
     case "annabelle_revision_not_found":
+    case "transplant_scope_not_found":
       return {
         status: 404,
+        code: message,
+      };
+
+    case "transplant_schema_unsupported":
+    case "transplant_identity_missing":
+      return {
+        status: 400,
         code: message,
       };
 
