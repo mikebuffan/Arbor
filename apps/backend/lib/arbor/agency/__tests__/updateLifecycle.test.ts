@@ -141,4 +141,40 @@ describe("Arbor self-update lifecycle", () => {
       decideSelfUpdate(update).decision.disposition,
     ).toBe("revert");
   });
+
+  it("reverts an improved strategy when output behavior regresses", () => {
+    let update = beginSelfUpdate({
+      id: "u4",
+      strategy: "compress every answer",
+      baselineScore: 0.4,
+      behavior,
+      protectedCorrections: [],
+      now: "2026-09-10T21:00:00.000Z",
+    });
+
+    update = recordSelfUpdateVerification(
+      update,
+      {
+        score: 0.9,
+        behavior,
+        protectedCorrections: [],
+        newFailureIntroduced: true,
+        now: "2026-09-10T21:01:00.000Z",
+      },
+    );
+
+    update = recordSelfUpdateVerification(
+      update,
+      {
+        score: 0.95,
+        behavior,
+        protectedCorrections: [],
+        now: "2026-09-10T21:02:00.000Z",
+      },
+    );
+
+    expect(
+      decideSelfUpdate(update).decision.disposition,
+    ).toBe("revert");
+  });
 });
