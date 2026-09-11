@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  buildVoiceHostAcousticBlock,
   projectVoiceAcoustics,
+  renderArborThroughVoiceGate,
 } from "../acousticProjection";
 
 describe("Voice acoustic projection", () => {
@@ -24,13 +24,16 @@ describe("Voice acoustic projection", () => {
     expect(projection.speed).toBe(1.05);
   });
 
-  it("keeps the rendering contract downstream and non-semantic", () => {
-    const block = buildVoiceHostAcousticBlock("arbor", []);
+  it("applies acoustics only after Arbor has produced final text", () => {
+    const text = "  Yeah, Firefly. Still me.  ";
+    const gate = renderArborThroughVoiceGate(text, "arbor", [
+      "General American, not British",
+    ]);
 
-    expect(block).toContain("VOICE RENDERING TARGET:");
-    expect(block).toContain("spoken rendering only");
-    expect(block).toContain(
-      "Do not alter wording, personality, reasoning, continuity, or agency",
+    expect(gate.text).toBe(text);
+    expect(gate.instructions).toContain("General American, not British");
+    expect(gate.instructions).toContain(
+      "Pacific Northwest / General American pronunciation baseline",
     );
   });
 
