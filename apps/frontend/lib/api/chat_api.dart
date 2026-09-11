@@ -34,6 +34,16 @@ class ChatApi {
   }) async {
     final userId = Supabase.instance.client.auth.currentUser?.id;
 
+    final explicitNewThread =
+        projectId != null && conversationId == null;
+
+    if (userId != null && explicitNewThread) {
+      await _session.startNewThread(
+        userId: userId,
+        projectId: projectId,
+      );
+    }
+
     final shared =
         userId == null ? null : await _session.contextFor(userId);
 
