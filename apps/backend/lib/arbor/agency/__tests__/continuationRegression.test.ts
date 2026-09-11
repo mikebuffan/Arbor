@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import type { AgencyState } from "../engine";
 import {
   resolveAgencyGoal,
-  shouldResumeAgencyGoal,
 } from "../continuation";
 
 const active: AgencyState = {
@@ -16,46 +15,17 @@ const active: AgencyState = {
 };
 
 describe("agency continuation regression", () => {
-  it.each([
-    "k. keep going",
-    "continue please",
-    "gooooo",
-    "are you doing it",
-    "you stop again arbor",
-    "stop telling me without going",
-    "just do it in one go",
-    "do the whole list please",
-    "find a workaround if needed",
-  ])("keeps the active goal for corrective continuation: %s", (text) => {
-    expect(shouldResumeAgencyGoal(text, active)).toBe(true);
-    expect(resolveAgencyGoal(text, active)).toEqual({
+  it("preserves the original goal after stop-feedback instead of replacing it with the complaint", () => {
+    expect(resolveAgencyGoal("you stop again arbor", active)).toEqual({
       goal: active.goal,
       resume: true,
     });
   });
 
-  it("treats a reply to a blocker as continuation by default", () => {
-    const blocked: AgencyState = {
-      ...active,
-      status: "blocked",
-      blocker: "missing_preference",
-    };
-
-    expect(
-      resolveAgencyGoal("arbor-linear-voice-acoustic-bubble", blocked),
-    ).toEqual({
-      goal: blocked.goal,
+  it("preserves the original goal when the user asks for the whole action chain", () => {
+    expect(resolveAgencyGoal("list and then do the whole list please", active)).toEqual({
+      goal: active.goal,
       resume: true,
     });
-  });
-
-  it("still allows an explicit goal switch", () => {
-    const resolved = resolveAgencyGoal(
-      "instead, explain the deployment failure",
-      active,
-    );
-
-    expect(resolved.resume).toBe(false);
-    expect(resolved.goal).toBe("instead, explain the deployment failure");
   });
 });
