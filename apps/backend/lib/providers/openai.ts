@@ -6,14 +6,45 @@ export type ModelMessage = {
   content: string;
 };
 
+const DEFAULT_OPENAI_TIMEOUT_MS = 45_000;
+
+function positiveInt(
+  value: string | undefined,
+  fallback: number,
+): number {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0
+    ? parsed
+    : fallback;
+}
+
+export function openAIClientOptions(
+  env: Record<string, string | undefined> = process.env,
+) {
+  return {
+    timeout: positiveInt(
+      env.ARBOR_OPENAI_TIMEOUT_MS,
+      DEFAULT_OPENAI_TIMEOUT_MS,
+    ),
+    // Arbor already owns retry/recovery at the workflow level. Do not let
+    // the SDK silently multiply a single model call into a multi-minute wait.
+    maxRetries: 0,
+  };
+}
+
 export const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!,
+  ...openAIClientOptions(),
 });
 
 function getClient() {
   const key = process.env.OPENAI_API_KEY;
   if (!key) throw new Error("OPENAI_API_KEY is required");
-  return new OpenAI({ apiKey: key });
+
+  return new OpenAI({
+    apiKey: key,
+    ...openAIClientOptions(),
+  });
 }
 
 export async function generateWithOpenAI(messages: ModelMessage[]) {
@@ -24,7 +55,7 @@ export async function generateWithOpenAI(messages: ModelMessage[]) {
     try {
       const res = await client.responses.create({
         model,
-        input: messages.map(m => ({
+        input: messages.map((m) => ({
           role: m.role,
           content: m.content,
         })),
@@ -36,10 +67,11 @@ export async function generateWithOpenAI(messages: ModelMessage[]) {
       if (err.status === 429 || err.status >= 500) {
         const delay = 250 * (attempt + 1);
         console.warn(`OpenAI retrying in ${delay}ms...`);
-        await new Promise(r => setTimeout(r, delay));
+        await new Promise((r) => setTimeout(r, delay));
       }
     }
   }
+
   throw new Error("OpenAI: exhausted retries");
 }
 
@@ -54,7 +86,7 @@ export async function openAIChat({
   stream?: boolean;
   maxRetries?: number;
 }) {
-  const formatted: ChatCompletionMessageParam[] = messages.map(m => ({
+  const formatted: ChatCompletionMessageParam[] = messages.map((m) => ({
     role: m.role as "system" | "user" | "assistant",
     content: m.content,
   }));
@@ -72,7 +104,7 @@ export async function openAIChat({
       if (err.status === 429) {
         const delay = 250 * (attempt + 1);
         console.warn(`Chat API rate-limited. Retrying in ${delay}ms`);
-        await new Promise(r => setTimeout(r, delay));
+        await new Promise((r) => setTimeout(r, delay));
       }
     }
   }
@@ -87,7 +119,7 @@ export async function openAIEmbed(text: string) {
 }
 
 export async function openAIEmbedMany(inputs: string[]) {
-  const cleaned = inputs.map(x => String(x ?? ""));
+  const cleaned = inputs.map((x) => String(x ?? ""));
   const maxRetries = 3;
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
@@ -103,7 +135,7 @@ export async function openAIEmbedMany(inputs: string[]) {
       if (err?.status === 429 || err?.status >= 500) {
         const delay = 250 * (attempt + 1);
         console.warn(`Embeddings rate-limited. Retrying in ${delay}ms`);
-        await new Promise(r => setTimeout(r, delay));
+        await new Promise((r) => setTimeout(r, delay));
         continue;
       }
       throw err;
