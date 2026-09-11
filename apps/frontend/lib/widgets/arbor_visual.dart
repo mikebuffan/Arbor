@@ -71,7 +71,7 @@ class _ArborVisualState extends State<ArborVisual>
           return Stack(
             fit: StackFit.expand,
             children: [
-              const ColoredBox(color: Color(0xFF0E0316)),
+              const ColoredBox(color: Color(0xFF111015)),
               CustomPaint(
                 painter: _ArborGlowPainter(
                   state: widget.state,
@@ -81,7 +81,7 @@ class _ArborVisualState extends State<ArborVisual>
               ),
               Center(
                 child: Transform.translate(
-                  offset: const Offset(0, -40),
+                  offset: const Offset(0, -54),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -92,10 +92,10 @@ class _ArborVisualState extends State<ArborVisual>
                         child: const Text(
                           'ARBOR',
                           style: TextStyle(
-                            color: Color(0xFFE9E9EE),
-                            fontSize: 32,
-                            letterSpacing: 6,
-                            fontWeight: FontWeight.w300,
+                            color: Color(0xFFDADADF),
+                            fontSize: 24,
+                            letterSpacing: 5.4,
+                            fontWeight: FontWeight.w200,
                           ),
                         ),
                       ),
@@ -131,10 +131,10 @@ class _CenterPulse extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final width = switch (state) {
-      ArborVisualState.idle => 160.0,
-      ArborVisualState.listening => 175.0,
-      ArborVisualState.thinking => 190.0,
-      ArborVisualState.speaking => 205.0,
+      ArborVisualState.idle => 118.0,
+      ArborVisualState.listening => 142.0,
+      ArborVisualState.thinking => 158.0,
+      ArborVisualState.speaking => 176.0,
     };
 
     return AnimatedContainer(
@@ -177,7 +177,7 @@ class _PulsePainter extends CustomPainter {
           Colors.transparent,
         ],
       ).createShader(Offset.zero & size)
-      ..strokeWidth = 2.2
+      ..strokeWidth = 1.6
       ..style = PaintingStyle.stroke
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5);
 
@@ -191,7 +191,7 @@ class _PulsePainter extends CustomPainter {
           Colors.transparent,
         ],
       ).createShader(Offset.zero & size)
-      ..strokeWidth = 1.25
+      ..strokeWidth = 0.9
       ..style = PaintingStyle.stroke;
 
     Path makePath() {
