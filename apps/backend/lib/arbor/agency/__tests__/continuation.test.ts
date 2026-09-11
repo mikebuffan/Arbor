@@ -60,9 +60,7 @@ describe("agency continuation", () => {
     );
 
     expect(resolved.resume).toBe(false);
-    expect(resolved.goal).toBe(
-      "instead, explain the deployment failure",
-    );
+    expect(resolved.goal).toBe("instead, explain the deployment failure");
   });
 
   it("does not resume a completed goal", () => {
