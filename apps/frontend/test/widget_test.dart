@@ -40,8 +40,12 @@ void main() {
       ),
     );
 
-    final voice =
-        tester.widget<VoicePage>(find.byType(VoicePage));
+    final voice = tester.widget<VoicePage>(
+      find.byType(
+        VoicePage,
+        skipOffstage: false,
+      ),
+    );
 
     expect(voice.active, isFalse);
   });
