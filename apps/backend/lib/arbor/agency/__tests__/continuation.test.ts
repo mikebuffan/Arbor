@@ -30,7 +30,7 @@ describe("agency continuation", () => {
     "are you doing it",
     "you stop again arbor",
     "just do it in one go",
-    "do the whole list please",
+    "list and then do the whole list please",
     "find a workaround if needed",
   ])("resumes unresolved work for %s", (text) => {
     expect(shouldResumeAgencyGoal(text, prior)).toBe(true);
