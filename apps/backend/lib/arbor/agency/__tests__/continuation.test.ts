@@ -63,16 +63,36 @@ describe("agency continuation", () => {
     });
   });
 
-  it("resumes after a blocker reply", () => {
+  it.each([
+    "use the first option",
+    "option 2",
+    "choose the latter",
+    "go with cedar",
+  ])("resumes after a blocker reply: %s", (text) => {
     const blocked: AgencyState = {
       ...prior,
       status: "blocked",
       blocker: "missing_preference",
     };
 
-    expect(resolveAgencyGoal("use the first option", blocked)).toEqual({
+    expect(resolveAgencyGoal(text, blocked)).toEqual({
       goal: blocked.goal,
       resume: true,
+    });
+  });
+
+  it("does not let a blocked task hijack an unrelated new request", () => {
+    const blocked: AgencyState = {
+      ...prior,
+      status: "blocked",
+      blocker: "missing_preference",
+    };
+
+    expect(
+      resolveAgencyGoal("what's the weather in Pullman?", blocked),
+    ).toEqual({
+      goal: "what's the weather in Pullman?",
+      resume: false,
     });
   });
 
