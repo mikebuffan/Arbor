@@ -1,12 +1,14 @@
 import {
   buildVoiceInstructions,
   type ArborVoicePersona,
+  voiceSpeechSpeed,
 } from "./identity";
 
 export type VoiceAcousticProjection = {
   persona: ArborVoicePersona;
   corrections: string[];
   instructions: string;
+  speed: number;
 };
 
 function uniqueCorrections(values: string[]): string[] {
@@ -25,6 +27,7 @@ export function projectVoiceAcoustics(
     persona,
     corrections: canonicalCorrections,
     instructions: buildVoiceInstructions(persona, canonicalCorrections),
+    speed: voiceSpeechSpeed(persona),
   };
 }
 
