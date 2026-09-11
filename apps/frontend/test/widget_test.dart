@@ -24,7 +24,7 @@ void main() {
     expect(stack().index, 0);
 
     await tester.tap(find.text('Voice'));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 350));
 
     expect(stack().index, 1);
   });
