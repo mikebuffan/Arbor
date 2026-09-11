@@ -63,8 +63,7 @@ class VoiceSessionController {
 
   String? conversationId;
 
-  final _snapshots =
-      StreamController<VoiceSessionSnapshot>.broadcast();
+  final _snapshots = StreamController<VoiceSessionSnapshot>.broadcast();
 
   StreamSubscription<RealtimeTranscriptEvent>? _transcriptSub;
   StreamSubscription<RealtimeSpeechEvent>? _speechSub;
@@ -131,8 +130,7 @@ class VoiceSessionController {
     if (!event.finalTurn) {
       _emit(
         _snapshot.copyWith(
-          partialTranscript:
-              '${_snapshot.partialTranscript}${event.text}',
+          partialTranscript: '${_snapshot.partialTranscript}${event.text}',
         ),
       );
       return;
@@ -162,6 +160,7 @@ class VoiceSessionController {
         projectId: transcription.projectId,
         conversationId: conversationId,
         userText: userText,
+        interactionMode: 'voice',
       );
 
       if (_disposed || generation != _generation) return;

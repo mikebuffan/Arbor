@@ -13,11 +13,25 @@ class ArborApiClient {
   final String baseUrl;
   final http.Client _http;
 
+  Uri _uri(
+    String path, {
+    Map<String, String>? queryParameters,
+  }) {
+    final root = baseUrl.endsWith('/')
+        ? baseUrl.substring(0, baseUrl.length - 1)
+        : baseUrl;
+    final normalizedPath = path.startsWith('/') ? path : '/$path';
+
+    return Uri.parse('$root$normalizedPath').replace(
+      queryParameters: queryParameters,
+    );
+  }
+
   Future<Map<String, String>> _authHeaders({
     bool json = true,
   }) async {
-    final session = Supabase.instance.client.auth.currentSession;
-    final token = session?.accessToken;
+    final token =
+        Supabase.instance.client.auth.currentSession?.accessToken;
 
     if (token == null) {
       throw Exception('Not authenticated');
@@ -29,32 +43,64 @@ class ArborApiClient {
     };
   }
 
+  dynamic _decode(String body) {
+    if (body.trim().isEmpty) return null;
+
+    try {
+      return jsonDecode(body);
+    } catch (_) {
+      return body;
+    }
+  }
+
+  void _requireSuccess(
+    int statusCode,
+    dynamic decoded,
+  ) {
+    if (statusCode >= 200 && statusCode < 300) return;
+
+    throw ApiException(
+      statusCode: statusCode,
+      error: decoded is Map ? decoded['error'] ?? decoded : decoded,
+    );
+  }
+
+  Future<Map<String, dynamic>?> get(
+    String path, {
+    Map<String, String>? queryParameters,
+  }) async {
+    final response = await _http.get(
+      _uri(path, queryParameters: queryParameters),
+      headers: await _authHeaders(json: false),
+    );
+
+    if (response.statusCode == 204) return null;
+
+    final decoded = _decode(response.body);
+    _requireSuccess(response.statusCode, decoded);
+
+    if (decoded is! Map<String, dynamic>) {
+      throw ApiException(
+        statusCode: response.statusCode,
+        error: 'Expected JSON object response',
+      );
+    }
+
+    return decoded;
+  }
+
   Future<Map<String, dynamic>> post(
     String path, {
     required Map<String, dynamic> body,
   }) async {
-    final uri = Uri.parse('$baseUrl$path');
-
     final response = await _http.post(
-      uri,
+      _uri(path),
       headers: await _authHeaders(),
       body: jsonEncode(body),
     );
 
-    dynamic decoded;
-
-    try {
-      decoded = jsonDecode(response.body);
-    } catch (_) {
-      decoded = response.body;
-    }
-
-    if (response.statusCode >= 400) {
-      throw ApiException(
-        statusCode: response.statusCode,
-        error: decoded is Map ? decoded['error'] : decoded,
-      );
-    }
+    final decoded = _decode(response.body);
+    _requireSuccess(response.statusCode, decoded);
 
     if (decoded is! Map<String, dynamic>) {
       throw ApiException(
@@ -70,28 +116,15 @@ class ArborApiClient {
     String path, {
     required Map<String, dynamic> body,
   }) async {
-    final uri = Uri.parse('$baseUrl$path');
-
     final response = await _http.post(
-      uri,
+      _uri(path),
       headers: await _authHeaders(),
       body: jsonEncode(body),
     );
 
-    if (response.statusCode >= 400) {
-      dynamic error;
-
-      try {
-        final decoded = jsonDecode(response.body);
-        error = decoded is Map ? decoded['error'] : decoded;
-      } catch (_) {
-        error = response.body;
-      }
-
-      throw ApiException(
-        statusCode: response.statusCode,
-        error: error,
-      );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      final decoded = _decode(response.body);
+      _requireSuccess(response.statusCode, decoded);
     }
 
     return BinaryApiResponse(
@@ -105,28 +138,15 @@ class ArborApiClient {
     String path, {
     required Map<String, dynamic> body,
   }) async {
-    final uri = Uri.parse('$baseUrl$path');
-
     final response = await _http.post(
-      uri,
+      _uri(path),
       headers: await _authHeaders(),
       body: jsonEncode(body),
     );
 
-    if (response.statusCode >= 400) {
-      dynamic error;
-
-      try {
-        final decoded = jsonDecode(response.body);
-        error = decoded is Map ? decoded['error'] : decoded;
-      } catch (_) {
-        error = response.body;
-      }
-
-      throw ApiException(
-        statusCode: response.statusCode,
-        error: error,
-      );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      final decoded = _decode(response.body);
+      _requireSuccess(response.statusCode, decoded);
     }
 
     return TextApiResponse(

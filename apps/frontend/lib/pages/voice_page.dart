@@ -7,7 +7,9 @@ import 'package:speech_to_text/speech_to_text.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../api/arbor_api_client.dart';
+import '../api/arbor_session.dart';
 import '../api/voice_api.dart';
+import '../config/arbor_config.dart';
 import '../widgets/arbor_visual.dart';
 
 class VoicePage extends StatefulWidget {
@@ -18,10 +20,7 @@ class VoicePage extends StatefulWidget {
 }
 
 class _VoicePageState extends State<VoicePage> {
-  static const _apiBaseUrl = String.fromEnvironment(
-    'ARBOR_API_URL',
-    defaultValue: 'http://localhost:3000',
-  );
+  static const _apiBaseUrl = ArborConfig.apiBaseUrl;
 
   final SpeechToText _speech = SpeechToText();
   final AudioPlayer _player = AudioPlayer();
@@ -266,7 +265,10 @@ class _VoicePageState extends State<VoicePage> {
       });
 
       await _player.play(
-        BytesSource(result.audio.bytes),
+        BytesSource(
+          result.audio.bytes,
+          mimeType: result.audio.contentType,
+        ),
       );
     } catch (error) {
       if (!mounted) return;
@@ -312,9 +314,22 @@ class _VoicePageState extends State<VoicePage> {
     await _speech.cancel();
     await _player.stop();
 
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+
+    if (userId != null) {
+      await ArborSession.instance.startNewThread(
+        userId: userId,
+        projectId: _projectId,
+      );
+    }
+
     if (!mounted) return;
 
+    final shared =
+        userId == null ? null : ArborSession.instance.peek(userId);
+
     setState(() {
+      _projectId = shared?.projectId ?? _projectId;
       _conversationId = null;
       _transcript = '';
       _assistantText = '';
@@ -363,110 +378,112 @@ class _VoicePageState extends State<VoicePage> {
                 child: Padding(
                   padding: const EdgeInsets.all(24),
                   child: Column(
-                children: [
-                  Row(
                     children: [
-                      const Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'ARBOR VOICE',
-                              style: TextStyle(
-                                fontSize: 24,
-                                letterSpacing: 3,
-                                fontWeight: FontWeight.w400,
+                      Row(
+                        children: [
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'ARBOR VOICE',
+                                  style: TextStyle(
+                                    fontSize: 24,
+                                    letterSpacing: 3,
+                                    fontWeight: FontWeight.w400,
+                                  ),
+                                ),
+                                SizedBox(height: 4),
+                                Text(
+                                  'same conversation, spoken',
+                                  style: TextStyle(color: Colors.white60),
+                                ),
+                              ],
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: _newThread,
+                            child: const Text('New thread'),
+                          ),
+                        ],
+                      ),
+                      const Spacer(),
+                      AnimatedScale(
+                        scale: micScale,
+                        duration: const Duration(milliseconds: 100),
+                        child: GestureDetector(
+                          onTap: _playing ? _interrupt : _toggleMic,
+                          child: Container(
+                            width: 150,
+                            height: 150,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: _listening
+                                  ? const Color(0xFFF3387A).withOpacity(0.24)
+                                  : Colors.white.withOpacity(0.06),
+                              border: Border.all(
+                                color: _listening
+                                    ? const Color(0xFFF3387A)
+                                    : Colors.white24,
+                                width: 2,
                               ),
                             ),
-                            SizedBox(height: 4),
-                            Text(
-                              'same conversation, spoken',
-                              style: TextStyle(color: Colors.white60),
+                            child: Icon(
+                              _playing
+                                  ? Icons.hearing_rounded
+                                  : _listening
+                                      ? Icons.mic_rounded
+                                      : Icons.mic_none_rounded,
+                              size: 58,
+                              color: Colors.white,
                             ),
-                          ],
-                        ),
-                      ),
-                      TextButton(
-                        onPressed: _newThread,
-                        child: const Text('New thread'),
-                      ),
-                    ],
-                  ),
-                  const Spacer(),
-                  AnimatedScale(
-                    scale: micScale,
-                    duration: const Duration(milliseconds: 100),
-                    child: GestureDetector(
-                      onTap: _playing ? _interrupt : _toggleMic,
-                      child: Container(
-                        width: 150,
-                        height: 150,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: _listening
-                              ? const Color(0xFFF3387A).withOpacity(0.24)
-                              : Colors.white.withOpacity(0.06),
-                          border: Border.all(
-                            color: _listening
-                                ? const Color(0xFFF3387A)
-                                : Colors.white24,
-                            width: 2,
                           ),
                         ),
-                        child: Icon(
-                          _playing
-                              ? Icons.hearing_rounded
-                              : _listening
-                                  ? Icons.mic_rounded
-                                  : Icons.mic_none_rounded,
-                          size: 58,
-                          color: Colors.white,
+                      ),
+                      const SizedBox(height: 24),
+                      Text(
+                        _status,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 15,
                         ),
                       ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  Text(
-                    _status,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 15,
-                    ),
-                  ),
-                  if (_playing) ...[
-                    const SizedBox(height: 10),
-                    TextButton.icon(
-                      onPressed: _interrupt,
-                      icon: const Icon(Icons.mic_rounded),
-                      label: const Text('Interrupt'),
-                    ),
-                  ],
-                  const SizedBox(height: 28),
-                  _VoiceTextCard(
-                    label: 'YOU',
-                    text: _transcript,
-                    emptyText: _listening ? 'Listening…' : 'Nothing spoken yet.',
-                  ),
-                  const SizedBox(height: 12),
-                  _VoiceTextCard(
-                    label: 'ARBOR',
-                    text: _assistantText,
-                    emptyText: 'No reply yet.',
-                  ),
-                  const Spacer(),
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    value: _handsFree,
-                    onChanged: (value) {
-                      setState(() => _handsFree = value);
-                    },
-                    title: const Text('Hands-free next turn'),
-                    subtitle: const Text(
-                      'Reopen the mic after Arbor finishes speaking.',
-                      style: TextStyle(color: Colors.white54),
-                    ),
-                  ),
+                      if (_playing) ...[
+                        const SizedBox(height: 10),
+                        TextButton.icon(
+                          onPressed: _interrupt,
+                          icon: const Icon(Icons.mic_rounded),
+                          label: const Text('Interrupt'),
+                        ),
+                      ],
+                      const SizedBox(height: 28),
+                      _VoiceTextCard(
+                        label: 'YOU',
+                        text: _transcript,
+                        emptyText: _listening
+                            ? 'Listening…'
+                            : 'Nothing spoken yet.',
+                      ),
+                      const SizedBox(height: 12),
+                      _VoiceTextCard(
+                        label: 'ARBOR',
+                        text: _assistantText,
+                        emptyText: 'No reply yet.',
+                      ),
+                      const Spacer(),
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        value: _handsFree,
+                        onChanged: (value) {
+                          setState(() => _handsFree = value);
+                        },
+                        title: const Text('Hands-free next turn'),
+                        subtitle: const Text(
+                          'Reopen the mic after Arbor finishes speaking.',
+                          style: TextStyle(color: Colors.white54),
+                        ),
+                      ),
                     ],
                   ),
                 ),
