@@ -8,7 +8,9 @@ import { routeErrorResponse } from "@/lib/auth/routeAuthorization";
 import { VoiceAdapter } from "@/lib/arbor/adapters/voice";
 import type { CanonicalArborOutput } from "@/lib/arbor/runtime/arborRuntime";
 import { loadSubsystemState } from "@/lib/arbor/subsystem/state";
-import { projectVoiceAcoustics } from "@/lib/arbor/voice/acousticProjection";
+import {
+  renderArborThroughVoiceGate,
+} from "@/lib/arbor/voice/acousticProjection";
 import {
   synthesizeArborSpeech,
   type ArborSpeechResult,
@@ -94,13 +96,14 @@ export async function POST(req: Request) {
       ]),
     );
 
-    const acousticGate = projectVoiceAcoustics(
+    const acousticGate = renderArborThroughVoiceGate(
+      canonicalTurn.text,
       voiceState.activeSubsystem,
       voiceCorrections,
     );
 
     const canonical: CanonicalArborOutput = {
-      text: canonicalTurn.text,
+      text: acousticGate.text,
       activeSubsystem: voiceState.activeSubsystem,
       channel: "voice",
       turnId,
