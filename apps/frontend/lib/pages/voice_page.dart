@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../api/arbor_api_client.dart';
 import '../api/voice_api.dart';
+import '../widgets/arbor_visual.dart';
 
 class VoicePage extends StatefulWidget {
   const VoicePage({super.key});
@@ -47,6 +48,13 @@ class _VoicePageState extends State<VoicePage> {
 
   bool get _isAuthed =>
       Supabase.instance.client.auth.currentSession?.accessToken != null;
+
+  ArborVisualState get _visualState {
+    if (_playing) return ArborVisualState.speaking;
+    if (_sending) return ArborVisualState.thinking;
+    if (_listening) return ArborVisualState.listening;
+    return ArborVisualState.idle;
+  }
 
   @override
   void initState() {
@@ -336,8 +344,20 @@ class _VoicePageState extends State<VoicePage> {
 
     return Scaffold(
       backgroundColor: const Color(0xFF0E0316),
-      body: SafeArea(
-        child: Center(
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: Opacity(
+              opacity: 0.34,
+              child: ArborVisual(
+                state: _visualState,
+                soundLevel: _soundLevel,
+                showTitle: false,
+              ),
+            ),
+          ),
+          SafeArea(
+            child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 760),
             child: Padding(
@@ -452,7 +472,8 @@ class _VoicePageState extends State<VoicePage> {
             ),
           ),
         ),
-      ),
+      ],
+    ),
     );
   }
 }
