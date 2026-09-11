@@ -13,7 +13,12 @@ import '../config/arbor_config.dart';
 import '../widgets/arbor_visual.dart';
 
 class VoicePage extends StatefulWidget {
-  const VoicePage({super.key});
+  const VoicePage({
+    super.key,
+    this.active = true,
+  });
+
+  final bool active;
 
   @override
   State<VoicePage> createState() => _VoicePageState();
@@ -44,6 +49,7 @@ class _VoicePageState extends State<VoicePage> {
   bool _submittedThisListen = false;
   bool _handsFree = true;
   double _soundLevel = 0;
+  int _generation = 0;
 
   bool get _isAuthed =>
       Supabase.instance.client.auth.currentSession?.accessToken != null;
@@ -63,7 +69,7 @@ class _VoicePageState extends State<VoicePage> {
     _voiceApi = VoiceApi(_client);
 
     _playerComplete = _player.onPlayerComplete.listen((_) {
-      if (!mounted) return;
+      if (!mounted || !widget.active) return;
 
       setState(() {
         _playing = false;
@@ -76,7 +82,13 @@ class _VoicePageState extends State<VoicePage> {
         Future<void>.delayed(
           const Duration(milliseconds: 350),
           () async {
-            if (!mounted || _sending || _playing || _listening) return;
+            if (!mounted ||
+                !widget.active ||
+                _sending ||
+                _playing ||
+                _listening) {
+              return;
+            }
             await _startListening();
           },
         );
@@ -84,7 +96,55 @@ class _VoicePageState extends State<VoicePage> {
     });
   }
 
+  @override
+  void didUpdateWidget(covariant VoicePage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (oldWidget.active && !widget.active) {
+      unawaited(_deactivate());
+      return;
+    }
+
+    if (!oldWidget.active && widget.active) {
+      _generation += 1;
+      unawaited(_restoreSharedSession());
+    }
+  }
+
+  Future<void> _restoreSharedSession() async {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null || !widget.active) return;
+
+    final shared = await ArborSession.instance.contextFor(userId);
+
+    if (!mounted || !widget.active) return;
+
+    setState(() {
+      _projectId = shared?.projectId ?? _projectId;
+      _conversationId = shared?.conversationId;
+    });
+  }
+
+  Future<void> _deactivate() async {
+    final generation = ++_generation;
+    _submittedThisListen = true;
+
+    await _speech.cancel();
+    await _player.stop();
+
+    if (!mounted || widget.active || generation != _generation) return;
+
+    setState(() {
+      _listening = false;
+      _sending = false;
+      _playing = false;
+      _soundLevel = 0;
+      _status = 'Tap the mic when you’re ready.';
+    });
+  }
+
   Future<bool> _ensureSpeechReady() async {
+    if (!widget.active) return false;
     if (_speechReady) return true;
     if (_initializingSpeech) return false;
 
@@ -97,7 +157,7 @@ class _VoicePageState extends State<VoicePage> {
       final available = await _speech.initialize(
         onStatus: _onSpeechStatus,
         onError: (error) {
-          if (!mounted) return;
+          if (!mounted || !widget.active) return;
 
           setState(() {
             _listening = false;
@@ -109,7 +169,7 @@ class _VoicePageState extends State<VoicePage> {
         ],
       );
 
-      if (!mounted) return false;
+      if (!mounted || !widget.active) return false;
 
       setState(() {
         _speechReady = available;
@@ -127,7 +187,7 @@ class _VoicePageState extends State<VoicePage> {
   }
 
   void _onSpeechResult(SpeechRecognitionResult result) {
-    if (!mounted) return;
+    if (!mounted || !widget.active) return;
 
     setState(() {
       _transcript = result.recognizedWords;
@@ -139,7 +199,7 @@ class _VoicePageState extends State<VoicePage> {
   }
 
   void _onSpeechStatus(String status) {
-    if (!mounted) return;
+    if (!mounted || !widget.active) return;
 
     if (status == SpeechToText.listeningStatus) {
       setState(() {
@@ -167,7 +227,7 @@ class _VoicePageState extends State<VoicePage> {
   }
 
   Future<void> _startListening() async {
-    if (_sending || _listening) return;
+    if (!widget.active || _sending || _listening) return;
 
     if (!_isAuthed) {
       setState(() {
@@ -178,12 +238,12 @@ class _VoicePageState extends State<VoicePage> {
 
     if (_playing) {
       await _player.stop();
-      if (!mounted) return;
+      if (!mounted || !widget.active) return;
       setState(() => _playing = false);
     }
 
     final ready = await _ensureSpeechReady();
-    if (!ready || !mounted) return;
+    if (!ready || !mounted || !widget.active) return;
 
     setState(() {
       _transcript = '';
@@ -196,7 +256,7 @@ class _VoicePageState extends State<VoicePage> {
       await _speech.listen(
         onResult: _onSpeechResult,
         onSoundLevelChange: (level) {
-          if (!mounted) return;
+          if (!mounted || !widget.active) return;
           setState(() => _soundLevel = level);
         },
         listenOptions: SpeechListenOptions(
@@ -209,7 +269,7 @@ class _VoicePageState extends State<VoicePage> {
         ),
       );
     } catch (error) {
-      if (!mounted) return;
+      if (!mounted || !widget.active) return;
 
       setState(() {
         _listening = false;
@@ -221,9 +281,14 @@ class _VoicePageState extends State<VoicePage> {
   Future<void> _stopListeningAndSend() async {
     if (!_listening) return;
 
+    if (!widget.active) {
+      await _speech.cancel();
+      return;
+    }
+
     await _speech.stop();
 
-    if (!mounted) return;
+    if (!mounted || !widget.active) return;
 
     setState(() {
       _listening = false;
@@ -236,8 +301,15 @@ class _VoicePageState extends State<VoicePage> {
   Future<void> _submitRecognizedTurn() async {
     final text = _transcript.trim();
 
-    if (_submittedThisListen || _sending || text.isEmpty) return;
+    if (!widget.active ||
+        _submittedThisListen ||
+        _sending ||
+        text.isEmpty) {
+      return;
+    }
+
     _submittedThisListen = true;
+    final generation = ++_generation;
 
     setState(() {
       _sending = true;
@@ -254,7 +326,11 @@ class _VoicePageState extends State<VoicePage> {
         conversationId: _conversationId,
       );
 
-      if (!mounted) return;
+      if (!mounted ||
+          !widget.active ||
+          generation != _generation) {
+        return;
+      }
 
       setState(() {
         _projectId = result.chat.projectId;
@@ -271,21 +347,25 @@ class _VoicePageState extends State<VoicePage> {
         ),
       );
     } catch (error) {
-      if (!mounted) return;
+      if (!mounted ||
+          !widget.active ||
+          generation != _generation) {
+        return;
+      }
 
       setState(() {
         _playing = false;
         _status = 'Voice turn failed: $error';
       });
     } finally {
-      if (mounted) {
+      if (mounted && generation == _generation) {
         setState(() => _sending = false);
       }
     }
   }
 
   Future<void> _toggleMic() async {
-    if (_sending) return;
+    if (!widget.active || _sending) return;
 
     if (_listening) {
       await _stopListeningAndSend();
@@ -296,11 +376,11 @@ class _VoicePageState extends State<VoicePage> {
   }
 
   Future<void> _interrupt() async {
-    if (!_playing) return;
+    if (!widget.active || !_playing) return;
 
     await _player.stop();
 
-    if (!mounted) return;
+    if (!mounted || !widget.active) return;
 
     setState(() {
       _playing = false;
@@ -311,6 +391,11 @@ class _VoicePageState extends State<VoicePage> {
   }
 
   Future<void> _newThread() async {
+    if (!widget.active) return;
+
+    _generation += 1;
+    _submittedThisListen = true;
+
     await _speech.cancel();
     await _player.stop();
 
@@ -323,7 +408,7 @@ class _VoicePageState extends State<VoicePage> {
       );
     }
 
-    if (!mounted) return;
+    if (!mounted || !widget.active) return;
 
     final shared =
         userId == null ? null : ArborSession.instance.peek(userId);
@@ -344,6 +429,7 @@ class _VoicePageState extends State<VoicePage> {
 
   @override
   void dispose() {
+    _generation += 1;
     _playerComplete?.cancel();
     _speech.cancel();
     _player.dispose();
@@ -402,7 +488,7 @@ class _VoicePageState extends State<VoicePage> {
                             ),
                           ),
                           TextButton(
-                            onPressed: _newThread,
+                            onPressed: widget.active ? _newThread : null,
                             child: const Text('New thread'),
                           ),
                         ],
@@ -412,7 +498,9 @@ class _VoicePageState extends State<VoicePage> {
                         scale: micScale,
                         duration: const Duration(milliseconds: 100),
                         child: GestureDetector(
-                          onTap: _playing ? _interrupt : _toggleMic,
+                          onTap: widget.active
+                              ? (_playing ? _interrupt : _toggleMic)
+                              : null,
                           child: Container(
                             width: 150,
                             height: 150,
@@ -449,7 +537,7 @@ class _VoicePageState extends State<VoicePage> {
                           fontSize: 15,
                         ),
                       ),
-                      if (_playing) ...[
+                      if (_playing && widget.active) ...[
                         const SizedBox(height: 10),
                         TextButton.icon(
                           onPressed: _interrupt,
@@ -475,9 +563,11 @@ class _VoicePageState extends State<VoicePage> {
                       SwitchListTile(
                         contentPadding: EdgeInsets.zero,
                         value: _handsFree,
-                        onChanged: (value) {
-                          setState(() => _handsFree = value);
-                        },
+                        onChanged: widget.active
+                            ? (value) {
+                                setState(() => _handsFree = value);
+                              }
+                            : null,
                         title: const Text('Hands-free next turn'),
                         subtitle: const Text(
                           'Reopen the mic after Arbor finishes speaking.',
