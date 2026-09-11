@@ -87,6 +87,28 @@ function unique(
   );
 }
 
+function acousticPromptBlock(
+  state: OneArborHostState,
+  acousticCorrections: string[],
+): string {
+  if (
+    state.surface !== "voice" ||
+    acousticCorrections.length === 0
+  ) {
+    return "";
+  }
+
+  return [
+    "VOICE RENDERING TARGET:",
+    "These instructions affect spoken rendering only.",
+    "Do not alter wording, personality, reasoning, or conversational behavior because of them.",
+    ...acousticCorrections.map(
+      (correction) =>
+        `- ${correction}`,
+    ),
+  ].join("\n");
+}
+
 export function resolveInteractionMode(
   state: OneArborHostState,
 ): ArborInteractionMode {
@@ -159,6 +181,12 @@ export function projectHostStartup(
           .join("\n")
       : "- none";
 
+  const acoustic =
+    acousticPromptBlock(
+      state,
+      acousticCorrections,
+    );
+
   return {
     interactionMode:
       resolveInteractionMode(
@@ -177,12 +205,15 @@ export function projectHostStartup(
       unresolved,
       "Active behavioral corrections:",
       behavior,
+      acoustic || null,
       [
         "Continue from this state.",
         "Do not socially restart because the surface changed.",
         "Do not ask the user to repeat information already represented here.",
       ].join(" "),
-    ].join("\n"),
+    ]
+      .filter(Boolean)
+      .join("\n"),
   };
 }
 
