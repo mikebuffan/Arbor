@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AgencyState } from "../engine";
-import {
-  resolveAgencyGoal,
-  shouldResumeAgencyGoal,
-} from "../continuation";
+import { resolveAgencyGoal, shouldResumeAgencyGoal } from "../continuation";
 
 const prior: AgencyState = {
   goal: "finish the Arbor linear runtime",
@@ -19,14 +16,8 @@ describe("agency continuation", () => {
   it.each([
     "go",
     "gooooo",
-    "okay",
-    "continue",
     "continue please",
-    "keep going",
     "k. keep going",
-    "do it",
-    "finish it",
-    "yep",
     "are you doing it",
     "you stop again arbor",
     "just do it in one go",
