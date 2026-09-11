@@ -267,6 +267,7 @@ export async function POST(req: Request) {
       supabase,
       userId,
       projectId,
+      conversationId: convoId,
       userText,
     });
 
