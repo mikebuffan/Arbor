@@ -69,6 +69,8 @@ class _ArborShellPageState extends State<ArborShellPage>
   @override
   Widget build(BuildContext context) {
     final height = MediaQuery.of(context).size.height;
+    final voiceActive =
+        _surface == _ArborSurface.voice && _position > 0.95;
 
     return Scaffold(
       backgroundColor: const Color(0xFF111015),
@@ -79,6 +81,7 @@ class _ArborShellPageState extends State<ArborShellPage>
           children: [
             _ConversationLayer(
               surface: _surface,
+              voiceActive: voiceActive,
               chatLayer: widget.chatLayer,
               voiceLayer: widget.voiceLayer,
             ),
@@ -135,11 +138,13 @@ class _HomeLayer extends StatelessWidget {
 class _ConversationLayer extends StatelessWidget {
   const _ConversationLayer({
     required this.surface,
+    required this.voiceActive,
     this.chatLayer,
     this.voiceLayer,
   });
 
   final _ArborSurface surface;
+  final bool voiceActive;
   final Widget? chatLayer;
   final Widget? voiceLayer;
 
@@ -150,7 +155,7 @@ class _ConversationLayer extends StatelessWidget {
       index: surface == _ArborSurface.text ? 0 : 1,
       children: [
         chatLayer ?? const ChatTestPage(),
-        voiceLayer ?? const VoicePage(),
+        voiceLayer ?? VoicePage(active: voiceActive),
       ],
     );
   }
