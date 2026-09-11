@@ -433,7 +433,11 @@ export async function POST(req: Request) {
             projectId,
             agency: agencyState,
             step: agencyState.currentStep,
-            unresolvedWork: [],
+            // A successful tool call is not the same thing as a completed goal.
+            // Keep durable unfinished work alive until the verifier explicitly
+            // proves completion. This also makes a process interruption between
+            // action and verification resumable on the next turn.
+            unresolvedWork: [`verify capability result: ${name}`],
           });
 
           await timeline.record(
