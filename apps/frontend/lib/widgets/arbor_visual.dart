@@ -81,7 +81,7 @@ class _ArborVisualState extends State<ArborVisual>
               ),
               Center(
                 child: Transform.translate(
-                  offset: const Offset(0, -54),
+                  offset: const Offset(0, -78),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -92,10 +92,10 @@ class _ArborVisualState extends State<ArborVisual>
                         child: const Text(
                           'ARBOR',
                           style: TextStyle(
-                            color: Color(0xFFDADADF),
-                            fontSize: 24,
-                            letterSpacing: 5.4,
-                            fontWeight: FontWeight.w200,
+                            color: Color(0xFFD8C7D2),
+                            fontSize: 22,
+                            letterSpacing: 4.8,
+                            fontWeight: FontWeight.w300,
                           ),
                         ),
                       ),
@@ -131,7 +131,7 @@ class _CenterPulse extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final width = switch (state) {
-      ArborVisualState.idle => 118.0,
+      ArborVisualState.idle => 170.0,
       ArborVisualState.listening => 142.0,
       ArborVisualState.thinking => 158.0,
       ArborVisualState.speaking => 176.0,
@@ -177,7 +177,7 @@ class _PulsePainter extends CustomPainter {
           Colors.transparent,
         ],
       ).createShader(Offset.zero & size)
-      ..strokeWidth = 1.6
+      ..strokeWidth = 2.0
       ..style = PaintingStyle.stroke
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5);
 
@@ -191,7 +191,7 @@ class _PulsePainter extends CustomPainter {
           Colors.transparent,
         ],
       ).createShader(Offset.zero & size)
-      ..strokeWidth = 0.9
+      ..strokeWidth = 0.8
       ..style = PaintingStyle.stroke;
 
     Path makePath() {
@@ -242,7 +242,7 @@ class _PulsePainter extends CustomPainter {
 
     canvas.drawCircle(
       Offset(size.width / 2, centerY),
-      1.5 + activity * 1.8,
+      1.2 + activity * 1.45,
       flare,
     );
   }
@@ -268,7 +268,7 @@ class _ArborGlowPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final shortest = math.min(size.width, size.height);
-    final baseRadius = shortest * 0.245;
+    final baseRadius = shortest * 0.255;
     final breathing =
         1 + math.sin(phase * math.pi * 2) *
             (state == ArborVisualState.idle ? 0.006 : 0.014);
@@ -277,8 +277,8 @@ class _ArborGlowPainter extends CustomPainter {
     // The reference uses four independent quarter-orbs tucked into the
     // corners. Their centers sit just outside the canvas; using the literal
     // screen corners makes the circles meet in the middle on tall phones.
-    final insetX = shortest * 0.055;
-    final insetY = shortest * 0.045;
+    final insetX = shortest * 0.045;
+    final insetY = shortest * 0.035;
     final corners = <Offset>[
       Offset(-insetX, -insetY),
       Offset(size.width + insetX, -insetY),
