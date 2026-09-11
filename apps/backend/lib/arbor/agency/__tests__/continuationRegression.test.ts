@@ -1,8 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AgencyState } from "../engine";
-import {
-  resolveAgencyGoal,
-} from "../continuation";
+import { resolveAgencyGoal } from "../continuation";
 
 const active: AgencyState = {
   goal: "finish the full acoustics implementation and verify it",
@@ -15,14 +13,14 @@ const active: AgencyState = {
 };
 
 describe("agency continuation regression", () => {
-  it("preserves the original goal after stop-feedback instead of replacing it with the complaint", () => {
+  it("does not replace active work with stop-feedback", () => {
     expect(resolveAgencyGoal("you stop again arbor", active)).toEqual({
       goal: active.goal,
       resume: true,
     });
   });
 
-  it("preserves the original goal when the user asks for the whole action chain", () => {
+  it("does not replace active work with an action-chain instruction", () => {
     expect(
       resolveAgencyGoal("list and then do the whole list please", active),
     ).toEqual({
