@@ -28,6 +28,29 @@ describe("Arbor correction routing", () => {
     ).toBe("behavior");
   });
 
+  it.each([
+    "Your voice is too formal",
+    "Your voice sounds like customer service",
+    "You're doing the presenter thing again",
+  ])(
+    "lets explicit behavior outrank generic voice wording: %s",
+    (text) => {
+      expect(classifyCorrection(text)).toBe("behavior");
+    },
+  );
+
+  it.each([
+    "You're still British",
+    "The accent drifted again",
+    "Your pronunciation went weird",
+    "The voice is too breathy",
+  ])(
+    "keeps genuinely acoustic feedback acoustic: %s",
+    (text) => {
+      expect(classifyCorrection(text)).toBe("acoustic");
+    },
+  );
+
   it("does not let acoustic corrections rewrite behavior rules", () => {
     const corrections = [
       createCorrection({

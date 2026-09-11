@@ -23,6 +23,10 @@ const BEHAVIOR_PATTERNS = [
   /\btoo short\b/i,
   /\btoo formal\b/i,
   /\btoo generic\b/i,
+  /\bpresenter\b/i,
+  /\bcustomer[- ]service\b/i,
+  /\btherapy voice\b/i,
+  /\btherapeutic\b/i,
   /\bdon'?t wait\b/i,
   /\bagency\b/i,
   /\bkeep going\b/i,
@@ -33,19 +37,19 @@ export function classifyCorrection(
   value: string,
 ): ArborCorrectionKind {
   if (
-    ACOUSTIC_PATTERNS.some((pattern) =>
-      pattern.test(value),
-    )
-  ) {
-    return "acoustic";
-  }
-
-  if (
     BEHAVIOR_PATTERNS.some((pattern) =>
       pattern.test(value),
     )
   ) {
     return "behavior";
+  }
+
+  if (
+    ACOUSTIC_PATTERNS.some((pattern) =>
+      pattern.test(value),
+    )
+  ) {
+    return "acoustic";
   }
 
   return "preference";
