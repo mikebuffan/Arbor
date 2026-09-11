@@ -54,23 +54,17 @@ describe("agency continuation", () => {
   });
 
   it("allows an explicit goal switch", () => {
-    const resolved = resolveAgencyGoal(
-      "instead, explain the deployment failure",
-      prior,
-    );
-
-    expect(resolved).toEqual({
+    expect(
+      resolveAgencyGoal("instead, explain the deployment failure", prior),
+    ).toEqual({
       goal: "instead, explain the deployment failure",
       resume: false,
     });
   });
 
   it("does not resume a completed goal", () => {
-    const completed: AgencyState = {
-      ...prior,
-      status: "complete",
-    };
-
-    expect(shouldResumeAgencyGoal("go", completed)).toBe(false);
+    expect(
+      shouldResumeAgencyGoal("go", { ...prior, status: "complete" }),
+    ).toBe(false);
   });
 });
