@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/pages/arbor_shell_page.dart';
+import 'package:frontend/pages/voice_page.dart';
 import 'package:frontend/widgets/arbor_visual.dart';
 
 void main() {
@@ -27,6 +28,26 @@ void main() {
     await tester.pump(const Duration(milliseconds: 350));
 
     expect(stack().index, 1);
+  });
+
+  testWidgets('Voice is inactive while the home surface covers it',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: ArborShellPage(
+          chatLayer: Text('CHAT'),
+        ),
+      ),
+    );
+
+    final voice = tester.widget<VoicePage>(
+      find.byType(
+        VoicePage,
+        skipOffstage: false,
+      ),
+    );
+
+    expect(voice.active, isFalse);
   });
 
   testWidgets('Arbor visual supports every runtime state',
