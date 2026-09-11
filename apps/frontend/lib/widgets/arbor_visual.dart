@@ -268,42 +268,105 @@ class _ArborGlowPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final shortest = math.min(size.width, size.height);
-    final radius = shortest * 0.46;
+    final baseRadius = shortest * 0.52;
     final breathing =
-        1 + math.sin(phase * math.pi * 2) * (state == ArborVisualState.idle ? .01 : .025);
-    final r = radius * breathing;
+        1 + math.sin(phase * math.pi * 2) *
+            (state == ArborVisualState.idle ? 0.006 : 0.014);
+    final radius = baseRadius * breathing;
 
-    final centers = <Offset>[
-      Offset(-r * .28, -r * .28),
-      Offset(size.width + r * .28, -r * .28),
-      Offset(-r * .28, size.height + r * .28),
-      Offset(size.width + r * .28, size.height + r * .28),
+    final corners = <Offset>[
+      const Offset(0, 0),
+      Offset(size.width, 0),
+      Offset(0, size.height),
+      Offset(size.width, size.height),
     ];
 
-    for (final center in centers) {
-      final rect = Rect.fromCircle(center: center, radius: r);
-      final halo = Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 20 + activity * 12
-        ..color = const Color(0xFFF3387A).withOpacity(.08 + activity * .08)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 24);
-      final edge = Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.2 + activity * 1.4
-        ..shader = const SweepGradient(
-          colors: [
-            Color(0x00F3387A),
-            Color(0xFFFF2F92),
-            Color(0xFFFF7DB2),
-            Color(0xFFF3387A),
-            Color(0x00F3387A),
-          ],
-        ).createShader(rect)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.5);
-
-      canvas.drawCircle(center, r, halo);
-      canvas.drawCircle(center, r, edge);
+    for (final corner in corners) {
+      _paintLayeredArch(
+        canvas,
+        corner: corner,
+        radius: radius,
+        activity: activity,
+      );
     }
+  }
+
+  void _paintLayeredArch(
+    Canvas canvas, {
+    required Offset corner,
+    required double radius,
+    required double activity,
+  }) {
+    final rect = Rect.fromCircle(
+      center: corner,
+      radius: radius,
+    );
+
+    // Layer 1: broad atmospheric bloom.
+    final atmosphere = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 54 + activity * 14
+      ..color = const Color(0xFFF3387A)
+          .withOpacity(0.025 + activity * 0.025)
+      ..maskFilter = const MaskFilter.blur(
+        BlurStyle.normal,
+        34,
+      );
+
+    // Layer 2: medium magenta halo.
+    final bloom = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 24 + activity * 8
+      ..color = const Color(0xFFFF2F92)
+          .withOpacity(0.07 + activity * 0.05)
+      ..maskFilter = const MaskFilter.blur(
+        BlurStyle.normal,
+        18,
+      );
+
+    // Layer 3: inner hot-pink haze hugging the rim.
+    final hotGlow = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 10 + activity * 3
+      ..color = const Color(0xFFFF4D9C)
+          .withOpacity(0.18 + activity * 0.08)
+      ..maskFilter = const MaskFilter.blur(
+        BlurStyle.normal,
+        7,
+      );
+
+    // Layer 4: bright rim with a soft falloff around the curve.
+    final rim = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.6 + activity * 0.9
+      ..shader = const SweepGradient(
+        colors: [
+          Color(0x00F3387A),
+          Color(0xFFF3387A),
+          Color(0xFFFF7DB2),
+          Color(0xFFFFD0E2),
+          Color(0xFFFF7DB2),
+          Color(0xFFF3387A),
+          Color(0x00F3387A),
+        ],
+      ).createShader(rect)
+      ..maskFilter = const MaskFilter.blur(
+        BlurStyle.normal,
+        1.2,
+      );
+
+    // Layer 5: razor-thin highlight so the edge never reads flat.
+    final highlight = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 0.9
+      ..color = const Color(0xFFFFD7E8)
+          .withOpacity(0.48 + activity * 0.18);
+
+    canvas.drawCircle(corner, radius, atmosphere);
+    canvas.drawCircle(corner, radius, bloom);
+    canvas.drawCircle(corner, radius, hotGlow);
+    canvas.drawCircle(corner, radius, rim);
+    canvas.drawCircle(corner, radius, highlight);
   }
 
   @override
