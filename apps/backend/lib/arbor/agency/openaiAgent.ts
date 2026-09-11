@@ -202,6 +202,7 @@ export async function runOpenAIAgencyAgent(
     allowWebResearch?: boolean;
     verifyCompletion?: boolean;
     behaviorRequirements?: string[];
+    priorActionEvidence?: string[];
     maxRounds?: number;
     hooks?: AgencyLoopHooks;
   },
@@ -214,7 +215,13 @@ export async function runOpenAIAgencyAgent(
   // Durable-in-run evidence for the completion verifier. This lets Arbor
   // prove that an action happened without forcing the final user-facing text
   // to narrate every tool call just to satisfy verification.
-  const actionEvidence: string[] = [];
+  const actionEvidence: string[] = Array.from(
+    new Set(
+      (input.priorActionEvidence ?? [])
+        .map((item) => item.trim())
+        .filter(Boolean),
+    ),
+  ).slice(-40);
 
   const attemptedRoutes =
     new Set<string>();
