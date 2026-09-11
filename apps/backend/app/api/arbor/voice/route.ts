@@ -6,7 +6,10 @@ import { assertProjectOwnedByUser } from "@/lib/auth/ownership";
 import { routeErrorResponse } from "@/lib/auth/routeAuthorization";
 
 import { loadSubsystemState } from "@/lib/arbor/subsystem/state";
-import { buildVoiceInstructions } from "@/lib/arbor/voice/identity";
+import {
+  buildVoiceInstructions,
+  voiceSpeechSpeed,
+} from "@/lib/arbor/voice/identity";
 import { synthesizeArborSpeech } from "@/lib/arbor/voice/speechPipeline";
 import { loadCanonicalAssistantTurnForTurn } from "@/lib/arbor/voice/canonicalTurn";
 import { loadRuntimeState } from "@/lib/arbor/runtime/runtimeStateStore";
@@ -65,8 +68,7 @@ export async function POST(req: Request) {
         turnId,
       });
 
-    const canonicalText =
-      canonicalTurn.text;
+    const canonicalText = canonicalTurn.text;
 
     const voiceState = await loadSubsystemState({
       supabase,
@@ -74,29 +76,23 @@ export async function POST(req: Request) {
       projectId,
     });
 
-    const conversationRuntime =
-      await loadRuntimeState({
-        supabase,
-        userId,
-        projectId,
-        conversationId:
-          canonicalTurn.conversationId,
-      });
+    const conversationRuntime = await loadRuntimeState({
+      supabase,
+      userId,
+      projectId,
+      conversationId: canonicalTurn.conversationId,
+    });
 
-    const runtimeAcousticCorrections =
-      conversationRuntime
-        ? acousticCorrections(
-            conversationRuntime.corrections,
-          )
-        : [];
+    const runtimeAcousticCorrections = conversationRuntime
+      ? acousticCorrections(conversationRuntime.corrections)
+      : [];
 
-    const voiceCorrections =
-      Array.from(
-        new Set([
-          ...voiceState.acousticCorrections,
-          ...runtimeAcousticCorrections,
-        ]),
-      );
+    const voiceCorrections = Array.from(
+      new Set([
+        ...voiceState.acousticCorrections,
+        ...runtimeAcousticCorrections,
+      ]),
+    );
 
     const timeline = await ArborTimeline.create(
       new SupabaseTimelineStore(supabase),
@@ -109,12 +105,15 @@ export async function POST(req: Request) {
       },
     );
 
+    const speechSpeed = voiceSpeechSpeed(voiceState.activeSubsystem);
+
     await timeline.record(
       "render",
       "adapter_selected",
       {
         adapter: "voice",
         voiceId: voiceState.voiceId,
+        speechSpeed,
       },
     );
 
@@ -125,6 +124,7 @@ export async function POST(req: Request) {
         voiceState.activeSubsystem,
         voiceCorrections,
       ),
+      speed: speechSpeed,
     });
 
     await timeline.record(
@@ -135,6 +135,7 @@ export async function POST(req: Request) {
         providerRequestIds: result.requestIds,
         chunks: result.chunks,
         bytes: result.audio.byteLength,
+        speechSpeed,
       },
     );
 
@@ -153,6 +154,7 @@ export async function POST(req: Request) {
         "x-arbor-subsystem": voiceState.activeSubsystem,
         "x-arbor-voice": voiceState.voiceId,
         "x-arbor-voice-chunks": String(result.chunks),
+        "x-arbor-voice-speed": String(speechSpeed),
         ...(result.requestIds.length
           ? { "x-provider-request-id": result.requestIds.join(",") }
           : {}),
