@@ -4,6 +4,10 @@ on:
   push:
     branches:
       - arbor-control-backend
+      - main
+    paths:
+      - "apps/arbor-control-backend/**"
+      - ".github/workflows/arbor-control-backend.yml"
   pull_request:
     paths:
       - "apps/arbor-control-backend/**"
