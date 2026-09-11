@@ -284,6 +284,7 @@ export async function POST(req: Request) {
       safety,
       interactionMode,
       hostSessionId: turnId,
+      currentGoal: agencyState.goal,
     });
 
     const [history, promptContext] = await Promise.all([
