@@ -62,6 +62,7 @@ export type BuiltPromptContext = {
   voiceId: string;
   acousticCorrections: string[];
   behaviorProof: ArborBehaviorProof;
+  behaviorGuardRequirements: string[];
   hostState: OneArborHostState;
   hostStartup: HostStartupProjection;
 };
@@ -402,6 +403,8 @@ export async function buildPromptContext({
       host.startup.acousticCorrections,
     behaviorProof:
       behaviorProjection.proof,
+    behaviorGuardRequirements:
+      behaviorProjection.guardRequirements,
     hostState: {
       ...host.state,
       behaviorProof:
