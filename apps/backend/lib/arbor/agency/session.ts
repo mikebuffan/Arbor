@@ -4,16 +4,46 @@ import {
   loadAgencyState,
   persistAgencyState,
 } from "./state";
+import { loadRuntimeState } from "../runtime/runtimeStateStore";
 import { resolveAgencyGoal } from "./continuation";
 import { recordStrategyCandidate } from "./strategyRetention";
+
+function resumableAgency(
+  value: AgencyState | null | undefined,
+): AgencyState | null {
+  if (!value) return null;
+  return value.status === "active" || value.status === "blocked"
+    ? value
+    : null;
+}
 
 export async function beginAgencySession(input: {
   supabase: SupabaseClient;
   userId: string;
   projectId: string;
+  conversationId?: string | null;
   userText: string;
 }): Promise<AgencyState> {
-  const prior = await loadAgencyState(input);
+  const [projectAgency, conversationRuntime] = await Promise.all([
+    loadAgencyState(input),
+    input.conversationId
+      ? loadRuntimeState({
+          supabase: input.supabase,
+          userId: input.userId,
+          projectId: input.projectId,
+          conversationId: input.conversationId,
+        })
+      : Promise.resolve(null),
+  ]);
+
+  // Prefer unfinished work already owned by this conversation. Falling back to
+  // project-level state preserves cross-thread continuation, while revisiting an
+  // older thread can still recover the unfinished goal that thread owned.
+  const prior =
+    resumableAgency(conversationRuntime?.agency) ??
+    resumableAgency(projectAgency) ??
+    projectAgency;
+
   const { goal, resume } = resolveAgencyGoal(input.userText, prior);
 
   const agency: AgencyState = {
