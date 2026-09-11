@@ -31,6 +31,11 @@ describe("Arbor behavior guard requirements", () => {
         item.includes("one Arbor across Text, Voice, and Annabelle"),
       ),
     ).toBe(true);
+    expect(
+      projection.guardRequirements.some((item) =>
+        item.includes("Do not stop after announcing the next action"),
+      ),
+    ).toBe(true);
     expect(projection.guardRequirements).not.toContain(
       "Grounded, direct, and familiar.",
     );
