@@ -182,6 +182,22 @@ describe("Milestone 1A route security", () => {
     expect(mocks.heartbeat).toHaveBeenCalledOnce();
   });
 
+  it("returns failure when an authenticated heartbeat task fails", async () => {
+    mocks.heartbeat.mockRejectedValueOnce(new Error("required task failed"));
+
+    const response = await heartbeatGet(
+      new Request("https://arbor.test/api/admin/system/heartbeat", {
+        headers: { authorization: "Bearer machine-secret" },
+      }),
+    );
+
+    expect(response.status).toBe(500);
+    expect(await response.json()).toEqual({
+      ok: false,
+      error: "server_error",
+    });
+  });
+
   it("rejects an ordinary authenticated user from global decay", async () => {
     const response = await decayPost(
       new Request("https://arbor.test/api/admin/memory/decay", {
