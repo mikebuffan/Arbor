@@ -592,9 +592,12 @@ export async function POST(req: Request) {
       },
     });
 
-    if (agentResult.status === "blocked") {
-      throw new RouteAccessError(409, "agency_boundary");
-    }
+    const agentText =
+      agentResult.status === "blocked"
+        ? agentResult.reason === "irreversible_action"
+          ? `I need your approval before I do ${agentResult.toolName.replaceAll("_", " ")} because that action cannot be safely undone.`
+          : `I need your choice before I do ${agentResult.toolName.replaceAll("_", " ")} because this is a high-consequence fork.`
+        : agentResult.text;
 
     const deterministicMemoryTurn = classifyMemoryTurn({
       userText,
@@ -623,7 +626,7 @@ export async function POST(req: Request) {
       projectId,
       conversationId: convoId,
       episodeId,
-      rawAssistantText: agentResult.text,
+      rawAssistantText: agentText,
       assistantPreface: safety?.assistantPreface ?? undefined,
       postcheck: (assistantText) =>
         postcheckResponse({
@@ -653,13 +656,15 @@ export async function POST(req: Request) {
           : undefined,
     });
 
-    agencyState = await completeAgencySession({
-      supabase,
-      userId,
-      projectId,
-      agency: agencyState,
-      verified: !finalAssistant.flagged,
-    });
+    if (agentResult.status === "complete") {
+      agencyState = await completeAgencySession({
+        supabase,
+        userId,
+        projectId,
+        agency: agencyState,
+        verified: !finalAssistant.flagged,
+      });
+    }
 
     await timeline.record(
       "generate",
