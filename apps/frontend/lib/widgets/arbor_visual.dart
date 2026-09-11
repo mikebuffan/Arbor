@@ -268,17 +268,22 @@ class _ArborGlowPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final shortest = math.min(size.width, size.height);
-    final baseRadius = shortest * 0.52;
+    final baseRadius = shortest * 0.245;
     final breathing =
         1 + math.sin(phase * math.pi * 2) *
             (state == ArborVisualState.idle ? 0.006 : 0.014);
     final radius = baseRadius * breathing;
 
+    // The reference uses four independent quarter-orbs tucked into the
+    // corners. Their centers sit just outside the canvas; using the literal
+    // screen corners makes the circles meet in the middle on tall phones.
+    final insetX = shortest * 0.055;
+    final insetY = shortest * 0.045;
     final corners = <Offset>[
-      const Offset(0, 0),
-      Offset(size.width, 0),
-      Offset(0, size.height),
-      Offset(size.width, size.height),
+      Offset(-insetX, -insetY),
+      Offset(size.width + insetX, -insetY),
+      Offset(-insetX, size.height + insetY),
+      Offset(size.width + insetX, size.height + insetY),
     ];
 
     for (final corner in corners) {
