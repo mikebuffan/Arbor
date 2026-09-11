@@ -8,10 +8,7 @@ import { routeErrorResponse } from "@/lib/auth/routeAuthorization";
 import { VoiceAdapter } from "@/lib/arbor/adapters/voice";
 import type { CanonicalArborOutput } from "@/lib/arbor/runtime/arborRuntime";
 import { loadSubsystemState } from "@/lib/arbor/subsystem/state";
-import {
-  buildVoiceInstructions,
-  voiceSpeechSpeed,
-} from "@/lib/arbor/voice/identity";
+import { projectVoiceAcoustics } from "@/lib/arbor/voice/acousticProjection";
 import {
   synthesizeArborSpeech,
   type ArborSpeechResult,
@@ -97,8 +94,7 @@ export async function POST(req: Request) {
       ]),
     );
 
-    const speechSpeed = voiceSpeechSpeed(voiceState.activeSubsystem);
-    const instructions = buildVoiceInstructions(
+    const acousticGate = projectVoiceAcoustics(
       voiceState.activeSubsystem,
       voiceCorrections,
     );
@@ -117,12 +113,12 @@ export async function POST(req: Request) {
             text,
             voice: voiceId,
             instructions: voiceInstructions,
-            speed: speechSpeed,
+            speed: acousticGate.speed,
           }),
       },
       {
         voiceId: voiceState.voiceId,
-        instructions,
+        instructions: acousticGate.instructions,
       },
     );
 
@@ -144,7 +140,7 @@ export async function POST(req: Request) {
         adapter: "voice",
         canonical: true,
         voiceId: voiceState.voiceId,
-        speechSpeed,
+        speechSpeed: acousticGate.speed,
       },
     );
 
@@ -159,7 +155,7 @@ export async function POST(req: Request) {
         providerRequestIds: result.requestIds,
         chunks: result.chunks,
         bytes: result.audio.byteLength,
-        speechSpeed,
+        speechSpeed: acousticGate.speed,
       },
     );
 
@@ -178,7 +174,7 @@ export async function POST(req: Request) {
         "x-arbor-subsystem": voiceState.activeSubsystem,
         "x-arbor-voice": voiceState.voiceId,
         "x-arbor-voice-chunks": String(result.chunks),
-        "x-arbor-voice-speed": String(speechSpeed),
+        "x-arbor-voice-speed": String(acousticGate.speed),
         "x-arbor-canonical-adapter": "voice",
         ...(result.requestIds.length
           ? { "x-provider-request-id": result.requestIds.join(",") }
