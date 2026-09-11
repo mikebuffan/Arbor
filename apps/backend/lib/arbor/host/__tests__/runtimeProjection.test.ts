@@ -40,7 +40,7 @@ describe(
   "runtime to host projection",
   () => {
     it(
-      "projects acoustic corrections into Voice while preserving behavioral corrections",
+      "keeps Voice acoustics outside host prompting while preserving corrections for the downstream gate",
       () => {
         const result =
           projectRuntimeHost(input);
@@ -53,13 +53,13 @@ describe(
 
         expect(
           result.startup.promptBlock,
-        ).toContain(
+        ).not.toContain(
           "VOICE RENDERING TARGET:",
         );
 
         expect(
           result.startup.promptBlock,
-        ).toContain(
+        ).not.toContain(
           "General American, not British",
         );
 

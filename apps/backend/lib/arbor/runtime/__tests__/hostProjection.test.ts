@@ -64,7 +64,7 @@ const base: ArborRuntimeState = {
 };
 
 describe("runtime to host projection", () => {
-  it("projects acoustic corrections into Voice host prompting", () => {
+  it("keeps acoustic corrections downstream from Voice host prompting", () => {
     const projected =
       projectRuntimeStartup(base);
 
@@ -76,13 +76,13 @@ describe("runtime to host projection", () => {
 
     expect(
       projected.startup.promptBlock,
-    ).toContain(
+    ).not.toContain(
       "VOICE RENDERING TARGET:",
     );
 
     expect(
       projected.startup.promptBlock,
-    ).toContain(
+    ).not.toContain(
       "General American, not British",
     );
 
