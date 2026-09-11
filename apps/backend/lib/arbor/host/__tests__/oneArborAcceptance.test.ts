@@ -80,7 +80,10 @@ describe("One Arbor end-to-end host acceptance", () => {
     expect(voiceStartup.promptBlock).toContain(
       "Continue obvious reversible work without waiting for another go.",
     );
-    expect(voiceStartup.promptBlock).not.toContain(
+    expect(voiceStartup.promptBlock).toContain(
+      "VOICE RENDERING TARGET:",
+    );
+    expect(voiceStartup.promptBlock).toContain(
       "Use natural General American speech; avoid British accent drift.",
     );
     expect(voiceStartup.acousticCorrections).toEqual([
@@ -98,6 +101,9 @@ describe("One Arbor end-to-end host acceptance", () => {
 
     expect(annabelleStartup.interactionMode).toBe(
       "annabelle",
+    );
+    expect(annabelleStartup.promptBlock).toContain(
+      "Use natural General American speech; avoid British accent drift.",
     );
     expect(annabelle.currentGoal).toBe(
       start.currentGoal,
@@ -125,6 +131,12 @@ describe("One Arbor end-to-end host acceptance", () => {
       projectHostStartup(textAgain);
 
     expect(finalStartup.interactionMode).toBe("text");
+    expect(finalStartup.promptBlock).not.toContain(
+      "VOICE RENDERING TARGET:",
+    );
+    expect(finalStartup.promptBlock).not.toContain(
+      "Use natural General American speech; avoid British accent drift.",
+    );
     expect(textAgain.currentGoal).toBe(
       start.currentGoal,
     );
