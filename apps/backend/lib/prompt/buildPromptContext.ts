@@ -53,6 +53,7 @@ type BuildPromptParams = {
   safety?: SafetyAddendum | null;
   interactionMode?: "text" | "voice";
   hostSessionId?: string | null;
+  currentGoal?: string | null;
 };
 
 export type BuiltPromptContext = {
@@ -149,6 +150,7 @@ export async function buildPromptContext({
   safety = null,
   interactionMode = "text",
   hostSessionId = null,
+  currentGoal = null,
 }: BuildPromptParams): Promise<BuiltPromptContext> {
   const { data: project, error: projectError } = await supabase
     .from("projects")
@@ -265,7 +267,9 @@ export async function buildPromptContext({
     runtimeHost?.behaviorCorrections ?? [];
 
   const pendingStrategyUnderVerification =
-    conversationRuntime?.pendingSelfUpdate?.strategy?.trim() || null;
+    conversationRuntime?.currentGoal === currentGoal
+      ? conversationRuntime?.pendingSelfUpdate?.strategy?.trim() || null
+      : null;
 
   const runtimeAcousticCorrections =
     runtimeHost?.acousticCorrections ?? [];
