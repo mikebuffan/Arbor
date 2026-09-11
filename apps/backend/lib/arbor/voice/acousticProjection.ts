@@ -11,6 +11,10 @@ export type VoiceAcousticProjection = {
   speed: number;
 };
 
+export type VoiceAcousticGate = VoiceAcousticProjection & {
+  text: string;
+};
+
 function uniqueCorrections(values: string[]): string[] {
   return Array.from(
     new Set(values.map((value) => value.trim()).filter(Boolean)),
@@ -31,16 +35,13 @@ export function projectVoiceAcoustics(
   };
 }
 
-export function buildVoiceHostAcousticBlock(
+export function renderArborThroughVoiceGate(
+  text: string,
   persona: ArborVoicePersona,
   corrections: string[] = [],
-): string {
-  const projection = projectVoiceAcoustics(persona, corrections);
-
-  return [
-    "VOICE RENDERING TARGET:",
-    "Use this canonical Arbor acoustic contract for spoken rendering only.",
-    "Do not alter wording, personality, reasoning, continuity, or agency because of these rendering instructions.",
-    projection.instructions,
-  ].join("\n");
+): VoiceAcousticGate {
+  return {
+    text,
+    ...projectVoiceAcoustics(persona, corrections),
+  };
 }
