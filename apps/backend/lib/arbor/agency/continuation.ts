@@ -18,19 +18,11 @@ export function shouldResumeAgencyGoal(
   prior: AgencyState | null,
 ): boolean {
   if (!prior) return false;
-
-  if (prior.status !== "active" && prior.status !== "blocked") {
-    return false;
-  }
+  if (prior.status !== "active" && prior.status !== "blocked") return false;
 
   const text = userText.trim();
-  if (!text || EXPLICIT_GOAL_SWITCH.test(text)) {
-    return false;
-  }
-
-  if (prior.status === "blocked") {
-    return true;
-  }
+  if (!text || EXPLICIT_GOAL_SWITCH.test(text)) return false;
+  if (prior.status === "blocked") return true;
 
   return SHORT_CONTINUATION.test(text) || CONTINUATION_SIGNAL.test(text);
 }
