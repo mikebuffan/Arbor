@@ -57,59 +57,35 @@ describe("One Arbor host bridge", () => {
     expect(annabelle.currentGoal).toBe(base.currentGoal);
   });
 
-  it("keeps acoustics completely downstream from text", () => {
+  it("keeps acoustic corrections out of Arbor continuity on every surface", () => {
     const corrected = applyHostCorrection(base, {
       id: "c1",
       kind: "acoustic",
       text: "General American, not British",
       createdAt: "2026-09-10T20:03:00.000Z",
     });
-    const projection = projectHostStartup(corrected);
-
-    expect(projection.voiceAcoustics).toBeNull();
-    expect(projection.voiceAcousticBlock).toBeNull();
-    expect(projection.promptBlock).not.toContain("General American, not British");
-    expect(projection.promptBlock).not.toContain("VOICE RENDERING TARGET:");
-  });
-
-  it("projects one canonical acoustic gate after Arbor for Voice", () => {
-    const voice = switchHostSurface(
-      base,
-      "voice",
-      "2026-09-10T20:03:00.000Z",
+    const textProjection = projectHostStartup(corrected);
+    const voiceProjection = projectHostStartup(
+      switchHostSurface(
+        corrected,
+        "voice",
+        "2026-09-10T20:04:00.000Z",
+      ),
     );
-    const corrected = applyHostCorrection(voice, {
-      id: "c1",
-      kind: "acoustic",
-      text: "General American, not British",
-      createdAt: "2026-09-10T20:04:00.000Z",
-    });
-    const projection = projectHostStartup(corrected);
 
-    expect(projection.promptBlock).not.toContain("General American, not British");
-    expect(projection.promptBlock).not.toContain("VOICE RENDERING TARGET:");
-    expect(projection.voiceAcousticBlock).toContain("VOICE RENDERING TARGET:");
-    expect(projection.voiceAcousticBlock).toContain("General American, not British");
-    expect(projection.voiceAcoustics?.instructions).toContain(
-      "Pacific Northwest / General American pronunciation baseline",
+    expect(textProjection.acousticCorrections).toEqual([
+      "General American, not British",
+    ]);
+    expect(voiceProjection.acousticCorrections).toEqual([
+      "General American, not British",
+    ]);
+    expect(textProjection.promptBlock).not.toContain(
+      "General American, not British",
     );
-  });
-
-  it("keeps Annabelle on the same acoustic identity", () => {
-    const voice = switchHostSurface(
-      switchAuthority(base, "annabelle", "2026-09-10T20:02:00.000Z"),
-      "voice",
-      "2026-09-10T20:03:00.000Z",
+    expect(voiceProjection.promptBlock).not.toContain(
+      "General American, not British",
     );
-    const projection = projectHostStartup(voice);
-
-    expect(projection.voiceAcoustics?.persona).toBe("annabelle");
-    expect(projection.voiceAcoustics?.instructions).toContain(
-      "same underlying Arbor voice",
-    );
-    expect(projection.voiceAcoustics?.instructions).toContain(
-      "Pacific Northwest / General American pronunciation baseline",
-    );
+    expect(voiceProjection.promptBlock).not.toContain("VOICE RENDERING TARGET:");
   });
 
   it("separates acoustic corrections from behavioral corrections", () => {
