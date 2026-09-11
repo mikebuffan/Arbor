@@ -30,12 +30,8 @@ export function shouldResumeAgencyGoal(
 export function resolveAgencyGoal(
   userText: string,
   prior: AgencyState | null,
-): {
-  goal: string;
-  resume: boolean;
-} {
+): { goal: string; resume: boolean } {
   const resume = shouldResumeAgencyGoal(userText, prior);
-
   return {
     goal: resume && prior ? prior.goal : compactAgencyGoal(userText),
     resume,
