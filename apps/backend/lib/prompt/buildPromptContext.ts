@@ -53,6 +53,7 @@ type BuildPromptParams = {
   safety?: SafetyAddendum | null;
   interactionMode?: "text" | "voice";
   hostSessionId?: string | null;
+  currentGoal?: string | null;
 };
 
 export type BuiltPromptContext = {
@@ -149,6 +150,7 @@ export async function buildPromptContext({
   safety = null,
   interactionMode = "text",
   hostSessionId = null,
+  currentGoal = null,
 }: BuildPromptParams): Promise<BuiltPromptContext> {
   const { data: project, error: projectError } = await supabase
     .from("projects")
@@ -264,6 +266,11 @@ export async function buildPromptContext({
   const runtimeBehavioralCorrections =
     runtimeHost?.behaviorCorrections ?? [];
 
+  const pendingStrategyUnderVerification =
+    conversationRuntime?.currentGoal === currentGoal
+      ? conversationRuntime?.pendingSelfUpdate?.strategy?.trim() || null
+      : null;
+
   const runtimeAcousticCorrections =
     runtimeHost?.acousticCorrections ?? [];
 
@@ -334,12 +341,18 @@ export async function buildPromptContext({
     correctionRules: [
       negativePrefsFromAnchors,
       ...runtimeBehavioralCorrections,
+      pendingStrategyUnderVerification
+        ? `Tentative self-update under verification: ${pendingStrategyUnderVerification}`
+        : "",
     ].filter(Boolean),
     continuityMaterial: [
       memoryText,
       arbor.systemInjection,
       continuityBlock,
       host.startup.promptBlock,
+      pendingStrategyUnderVerification
+        ? `Tentative agency strategy under verification: ${pendingStrategyUnderVerification}`
+        : "",
     ].filter(Boolean),
   });
 
