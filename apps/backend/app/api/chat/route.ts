@@ -551,7 +551,14 @@ export async function POST(req: Request) {
             projectId,
             agency: agencyState,
             step: agencyState.currentStep,
-            unresolvedWork,
+            // Even a passing verifier has one durable step left: persist the
+            // canonical assistant turn and commit the agency session complete.
+            // Keep that ownership marker until completeAgencySession clears it.
+            unresolvedWork: complete
+              ? ["finalize verified goal"]
+              : unresolvedWork.length
+                ? unresolvedWork
+                : [`continue goal: ${agencyState.goal}`],
           });
 
           await timeline.record(
