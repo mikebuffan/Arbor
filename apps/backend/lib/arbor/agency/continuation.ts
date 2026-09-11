@@ -24,9 +24,7 @@ export function shouldResumeAgencyGoal(
   }
 
   const text = userText.trim();
-  if (!text) return false;
-
-  if (EXPLICIT_GOAL_SWITCH.test(text)) {
+  if (!text || EXPLICIT_GOAL_SWITCH.test(text)) {
     return false;
   }
 
