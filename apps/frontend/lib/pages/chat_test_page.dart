@@ -1,17 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/services.dart';
 import 'package:frontend/api/arbor_api.dart';
-import 'dart:async';
-import 'dart:ui';
+import 'package:frontend/api/arbor_session.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ArborHeader extends StatelessWidget {
-  final bool isAuthed;
-  final String? userId;
-  final String? projectId;
-  final String? conversationId;
-  final VoidCallback? onNewThread;
-
   const ArborHeader({
     super.key,
     required this.isAuthed,
@@ -20,6 +15,12 @@ class ArborHeader extends StatelessWidget {
     this.conversationId,
     this.onNewThread,
   });
+
+  final bool isAuthed;
+  final String? userId;
+  final String? projectId;
+  final String? conversationId;
+  final VoidCallback? onNewThread;
 
   @override
   Widget build(BuildContext context) {
@@ -54,10 +55,15 @@ class ArborHeader extends StatelessWidget {
                 onPressed: isAuthed ? onNewThread : null,
                 style: TextButton.styleFrom(
                   foregroundColor: Colors.white70,
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
-                    side: BorderSide(color: Colors.white.withOpacity(0.10)),
+                    side: BorderSide(
+                      color: Colors.white.withOpacity(0.10),
+                    ),
                   ),
                   backgroundColor: Colors.white.withOpacity(0.04),
                 ),
@@ -74,7 +80,10 @@ class ArborHeader extends StatelessWidget {
           ),
         ],
         const SizedBox(height: 18),
-        Divider(color: Colors.white.withOpacity(0.08), height: 1),
+        Divider(
+          color: Colors.white.withOpacity(0.08),
+          height: 1,
+        ),
         const SizedBox(height: 18),
       ],
     );
@@ -82,22 +91,30 @@ class ArborHeader extends StatelessWidget {
 }
 
 class _AuthPill extends StatelessWidget {
-  final bool isAuthed;
-
   const _AuthPill({required this.isAuthed});
+
+  final bool isAuthed;
 
   @override
   Widget build(BuildContext context) {
     final label = isAuthed ? 'Signed in' : 'Not signed in';
-    final icon = isAuthed ? Icons.verified_rounded : Icons.lock_outline_rounded;
-    final iconColor = isAuthed ? Colors.greenAccent : Colors.orangeAccent;
+    final icon = isAuthed
+        ? Icons.verified_rounded
+        : Icons.lock_outline_rounded;
+    final iconColor =
+        isAuthed ? Colors.greenAccent : Colors.orangeAccent;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 12,
+        vertical: 10,
+      ),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.04),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withOpacity(0.10)),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.10),
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -124,38 +141,59 @@ class ChatTestPage extends StatefulWidget {
 }
 
 class _ChatMessage {
+  const _ChatMessage({
+    required this.isUser,
+    required this.text,
+  });
+
   final bool isUser;
   final String text;
-
-  _ChatMessage({required this.isUser, required this.text});
 }
 
 class _ChatTestPageState extends State<ChatTestPage> {
   final List<_ChatMessage> _messages = [];
   final _emailCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
-  final _msgCtrl = TextEditingController(text: '');
+  final _msgCtrl = TextEditingController();
   final _msgFocus = FocusNode();
   final _emailFocus = FocusNode();
   final _passFocus = FocusNode();
-
   final _scrollCtrl = ScrollController();
-  bool _isTyping = false;
 
+  bool _isTyping = false;
   bool _loading = false;
   String _output = '';
 
   StreamSubscription<AuthState>? _authSub;
+  VoidCallback? _msgListener;
 
   String? _projectId;
   String? _conversationId;
 
   SupabaseClient get _supabase => Supabase.instance.client;
 
-  bool get _isAuthed => _supabase.auth.currentSession?.accessToken != null;
+  bool get _isAuthed =>
+      _supabase.auth.currentSession?.accessToken != null;
+
   String? get _userId => _supabase.auth.currentUser?.id;
 
-  void _setOut(String s) => setState(() => _output = s);
+  void _setOut(String value) {
+    if (!mounted) return;
+    setState(() => _output = value);
+  }
+
+  Future<void> _restoreSharedSession() async {
+    final userId = _userId;
+    if (userId == null) return;
+
+    final shared = await ArborSession.instance.contextFor(userId);
+    if (!mounted || _userId != userId) return;
+
+    setState(() {
+      _projectId = shared?.projectId;
+      _conversationId = shared?.conversationId;
+    });
+  }
 
   Future<void> _signIn() async {
     setState(() {
@@ -176,22 +214,29 @@ class _ChatTestPageState extends State<ChatTestPage> {
         password: pass,
       );
 
-      if (res.user == null) throw Exception('Sign-in failed (no user returned)');
+      if (res.user == null) {
+        throw Exception('Sign-in failed (no user returned)');
+      }
 
-      setState(() {});
-      _setOut('Signed in as ${res.user!.email}\nuserId: ${res.user!.id}');
-    } on AuthException catch (e) {
-      _setOut('Auth error: ${e.message}');
-    } catch (e) {
-      _setOut(e.toString());
+      await _restoreSharedSession();
+      _setOut(
+        'Signed in as ${res.user!.email}\nuserId: ${res.user!.id}',
+      );
+    } on AuthException catch (error) {
+      _setOut('Auth error: ${error.message}');
+    } catch (error) {
+      _setOut(error.toString());
     } finally {
-      setState(() => _loading = false);
+      if (mounted) {
+        setState(() => _loading = false);
+      }
     }
   }
 
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_scrollCtrl.hasClients) return;
+
       _scrollCtrl.animateTo(
         _scrollCtrl.position.maxScrollExtent,
         duration: const Duration(milliseconds: 200),
@@ -201,6 +246,8 @@ class _ChatTestPageState extends State<ChatTestPage> {
   }
 
   Future<void> _signOut() async {
+    final userId = _userId;
+
     setState(() {
       _loading = true;
       _output = '';
@@ -208,57 +255,51 @@ class _ChatTestPageState extends State<ChatTestPage> {
 
     try {
       await _supabase.auth.signOut();
+
+      if (userId != null) {
+        await ArborSession.instance.clearStoredUser(userId);
+      }
+
+      if (!mounted) return;
+
       setState(() {
         _projectId = null;
         _conversationId = null;
         _messages.clear();
         _isTyping = false;
       });
+
       _setOut('Signed out.');
-    } catch (e) {
-      _setOut(e.toString());
+    } catch (error) {
+      _setOut(error.toString());
     } finally {
-      setState(() => _loading = false);
-    }
-  }
-
-  void _newThread() {
-    setState(() {
-      _conversationId = null;
-      _messages.clear();
-    });
-  }
-
-  bool _resuming = false;
-
-  Future<void> _resumeLastConversation() async {
-    if (_resuming) return;
-    _resuming = true;
-
-    try {
-      final projectId = _projectId;
-      if (projectId == null) return;
-
-      final lastId = await ArborApi.getLastConversationId(projectId: projectId);
-      if (!mounted) return;
-
-      setState(() {
-        _conversationId = lastId ?? _conversationId;
-      });
-    } finally {
-      _resuming = false;
-    }
-  }
-
-  Future<void> _maybeResumeAfterProjectArrives({String? previousProjectId}) async {
-    // If projectId just got set (first response) and we have no conversation yet,
-    // attempt to resume. If the backend endpoint returns null, we’ll fall back to
-    // whatever the chat response gives us.
-    if (_projectId != null && (previousProjectId == null || previousProjectId != _projectId)) {
-      if (_conversationId == null) {
-        await _resumeLastConversation();
+      if (mounted) {
+        setState(() => _loading = false);
       }
     }
+  }
+
+  Future<void> _newThread() async {
+    final userId = _userId;
+
+    if (userId != null) {
+      await ArborSession.instance.startNewThread(
+        userId: userId,
+        projectId: _projectId,
+      );
+    }
+
+    if (!mounted) return;
+
+    final shared =
+        userId == null ? null : ArborSession.instance.peek(userId);
+
+    setState(() {
+      _projectId = shared?.projectId ?? _projectId;
+      _conversationId = null;
+      _messages.clear();
+      _isTyping = false;
+    });
   }
 
   Future<void> _send() async {
@@ -270,13 +311,22 @@ class _ChatTestPageState extends State<ChatTestPage> {
     });
 
     try {
-      if (!_isAuthed) throw Exception('Not logged in');
+      if (!_isAuthed) {
+        throw Exception('Not logged in');
+      }
 
       final text = _msgCtrl.text.trim();
-      if (text.isEmpty) throw Exception('Message is empty');
+      if (text.isEmpty) {
+        throw Exception('Message is empty');
+      }
 
       setState(() {
-        _messages.add(_ChatMessage(isUser: true, text: text));
+        _messages.add(
+          _ChatMessage(
+            isUser: true,
+            text: text,
+          ),
+        );
         _isTyping = true;
       });
 
@@ -284,40 +334,46 @@ class _ChatTestPageState extends State<ChatTestPage> {
       _msgFocus.requestFocus();
       _scrollToBottom();
 
-      final prevProjectId = _projectId;
-
       final res = await ArborApi.sendMessage(
         projectId: _projectId,
         conversationId: _conversationId,
         userText: text,
       );
 
-      // Project can be assigned on first response; try to resume if needed.
-      setState(() {
-        _projectId = res.projectId;
-      });
-      await _maybeResumeAfterProjectArrives(previousProjectId: prevProjectId);
+      if (!mounted) return;
 
       setState(() {
-        // IMPORTANT: don’t overwrite a resumed conversationId.
-        _conversationId = _conversationId ?? res.conversationId;
+        _projectId = res.projectId;
+        _conversationId = res.conversationId;
         _isTyping = false;
-        _messages.add(_ChatMessage(isUser: false, text: res.assistantText));
+        _messages.add(
+          _ChatMessage(
+            isUser: false,
+            text: res.assistantText,
+          ),
+        );
       });
 
       _scrollToBottom();
-    } catch (e) {
+    } catch (error) {
+      if (!mounted) return;
+
       setState(() {
         _isTyping = false;
-        _messages.add(_ChatMessage(isUser: false, text: '⚠️ ${e.toString()}'));
+        _messages.add(
+          _ChatMessage(
+            isUser: false,
+            text: '⚠️ ${error.toString()}',
+          ),
+        );
       });
       _scrollToBottom();
     } finally {
-      setState(() => _loading = false);
+      if (mounted) {
+        setState(() => _loading = false);
+      }
     }
   }
-
-  VoidCallback? _msgListener;
 
   @override
   void initState() {
@@ -325,28 +381,29 @@ class _ChatTestPageState extends State<ChatTestPage> {
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      if (!_isAuthed) _emailFocus.requestFocus();
+
+      if (_isAuthed) {
+        unawaited(_restoreSharedSession());
+      } else {
+        _emailFocus.requestFocus();
+      }
     });
 
     _authSub = _supabase.auth.onAuthStateChange.listen((data) {
-      final session = data.session;
       if (!mounted) return;
 
-      if (session == null) {
+      if (data.session == null) {
         setState(() {
           _projectId = null;
           _conversationId = null;
           _messages.clear();
           _isTyping = false;
         });
-      } else {
-        // Session exists (startup/refresh/sign-in). If we already have a projectId
-        // and no active conversation, attempt to resume.
-        if (_projectId != null && _conversationId == null) {
-          _resumeLastConversation();
-        }
-        setState(() {});
+        return;
       }
+
+      unawaited(_restoreSharedSession());
+      setState(() {});
     });
 
     _msgListener = () {
@@ -363,7 +420,6 @@ class _ChatTestPageState extends State<ChatTestPage> {
     }
 
     _authSub?.cancel();
-
     _emailCtrl.dispose();
     _passCtrl.dispose();
     _emailFocus.dispose();
@@ -392,7 +448,9 @@ class _ChatTestPageState extends State<ChatTestPage> {
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.04),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.white.withOpacity(0.08)),
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.08),
+                  ),
                 ),
                 child: Column(
                   children: [
@@ -403,14 +461,15 @@ class _ChatTestPageState extends State<ChatTestPage> {
                       conversationId: _conversationId,
                       onNewThread: authed ? _newThread : null,
                     ),
-
                     if (!authed) ...[
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
                           color: Colors.white.withOpacity(0.03),
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: Colors.white.withOpacity(0.08)),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.08),
+                          ),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -453,7 +512,9 @@ class _ChatTestPageState extends State<ChatTestPage> {
                               children: [
                                 ElevatedButton(
                                   onPressed: _loading ? null : _signIn,
-                                  child: Text(_loading ? 'Signing in…' : 'Sign in'),
+                                  child: Text(
+                                    _loading ? 'Signing in…' : 'Sign in',
+                                  ),
                                 ),
                               ],
                             ),
@@ -461,7 +522,10 @@ class _ChatTestPageState extends State<ChatTestPage> {
                               const SizedBox(height: 10),
                               Text(
                                 _output,
-                                style: const TextStyle(color: Colors.white70, fontSize: 12),
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 12,
+                                ),
                               ),
                             ],
                           ],
@@ -474,7 +538,10 @@ class _ChatTestPageState extends State<ChatTestPage> {
                           const Expanded(
                             child: Text(
                               'Ready.',
-                              style: TextStyle(fontSize: 12, color: Colors.white70),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.white70,
+                              ),
                             ),
                           ),
                           TextButton(
@@ -485,17 +552,24 @@ class _ChatTestPageState extends State<ChatTestPage> {
                       ),
                       const SizedBox(height: 16),
                     ],
-
                     Shortcuts(
                       shortcuts: <ShortcutActivator, Intent>{
-                        const SingleActivator(LogicalKeyboardKey.enter): const _SendIntent(),
-                        const SingleActivator(LogicalKeyboardKey.enter, shift: true): const _NewlineIntent(),
-                        const SingleActivator(LogicalKeyboardKey.enter, control: true): const _SendIntent(),
+                        const SingleActivator(
+                          LogicalKeyboardKey.enter,
+                        ): const _SendIntent(),
+                        const SingleActivator(
+                          LogicalKeyboardKey.enter,
+                          shift: true,
+                        ): const _NewlineIntent(),
+                        const SingleActivator(
+                          LogicalKeyboardKey.enter,
+                          control: true,
+                        ): const _SendIntent(),
                       },
                       child: Actions(
                         actions: <Type, Action<Intent>>{
                           _SendIntent: CallbackAction<_SendIntent>(
-                            onInvoke: (intent) {
+                            onInvoke: (_) {
                               if (_loading || !_isAuthed) return null;
                               if (_msgCtrl.text.trim().isEmpty) return null;
                               _send();
@@ -503,17 +577,27 @@ class _ChatTestPageState extends State<ChatTestPage> {
                             },
                           ),
                           _NewlineIntent: CallbackAction<_NewlineIntent>(
-                            onInvoke: (intent) {
-                              final t = _msgCtrl.text;
-                              final sel = _msgCtrl.selection;
+                            onInvoke: (_) {
+                              final text = _msgCtrl.text;
+                              final selection = _msgCtrl.selection;
+                              final start = selection.start >= 0
+                                  ? selection.start
+                                  : text.length;
+                              final end = selection.end >= 0
+                                  ? selection.end
+                                  : text.length;
 
-                              final start = sel.start >= 0 ? sel.start : t.length;
-                              final end = sel.end >= 0 ? sel.end : t.length;
+                              final nextText = text.replaceRange(
+                                start,
+                                end,
+                                '\n',
+                              );
 
-                              final newText = t.replaceRange(start, end, "\n");
                               _msgCtrl.value = TextEditingValue(
-                                text: newText,
-                                selection: TextSelection.collapsed(offset: start + 1),
+                                text: nextText,
+                                selection: TextSelection.collapsed(
+                                  offset: start + 1,
+                                ),
                               );
                               return null;
                             },
@@ -522,7 +606,7 @@ class _ChatTestPageState extends State<ChatTestPage> {
                         child: Focus(
                           autofocus: authed,
                           child: TextField(
-                            autofocus: false, // avoid double-autofocus when authed
+                            autofocus: false,
                             focusNode: _msgFocus,
                             controller: _msgCtrl,
                             minLines: 2,
@@ -534,59 +618,84 @@ class _ChatTestPageState extends State<ChatTestPage> {
                               filled: true,
                               fillColor: Colors.white.withOpacity(0.03),
                             ),
-                            style: const TextStyle(color: Colors.white70),
+                            style: const TextStyle(
+                              color: Colors.white70,
+                            ),
                           ),
                         ),
                       ),
                     ),
-
                     const SizedBox(height: 12),
-
                     Row(
                       children: [
                         ElevatedButton(
-                          onPressed: (_loading || !authed || _msgCtrl.text.trim().isEmpty) ? null : _send,
-                          child: Text(_loading ? 'Arbor is thinking…' : 'Send'),
+                          onPressed: _loading ||
+                                  !authed ||
+                                  _msgCtrl.text.trim().isEmpty
+                              ? null
+                              : _send,
+                          child: Text(
+                            _loading ? 'Arbor is thinking…' : 'Send',
+                          ),
                         ),
                         const SizedBox(width: 12),
                         if (!authed)
-                          const Text('Sign in to send', style: TextStyle(color: Colors.white70)),
+                          const Text(
+                            'Sign in to send',
+                            style: TextStyle(color: Colors.white70),
+                          ),
                       ],
                     ),
-
                     const SizedBox(height: 16),
-
                     Expanded(
                       child: ListView.separated(
                         controller: _scrollCtrl,
                         padding: const EdgeInsets.only(top: 8),
-                        itemCount: _messages.length + (_isTyping ? 1 : 0),
-                        separatorBuilder: (_, __) => const SizedBox(height: 10),
-                        itemBuilder: (context, i) {
-                          final isTypingRow = _isTyping && i == _messages.length;
+                        itemCount:
+                            _messages.length + (_isTyping ? 1 : 0),
+                        separatorBuilder: (_, __) =>
+                            const SizedBox(height: 10),
+                        itemBuilder: (context, index) {
+                          final isTypingRow =
+                              _isTyping && index == _messages.length;
 
-                          final m = isTypingRow
-                              ? _ChatMessage(isUser: false, text: 'Arbor is thinking…')
-                              : _messages[i];
+                          final message = isTypingRow
+                              ? const _ChatMessage(
+                                  isUser: false,
+                                  text: 'Arbor is thinking…',
+                                )
+                              : _messages[index];
 
                           return Align(
-                            alignment: m.isUser ? Alignment.centerRight : Alignment.centerLeft,
+                            alignment: message.isUser
+                                ? Alignment.centerRight
+                                : Alignment.centerLeft,
                             child: Container(
-                              constraints: const BoxConstraints(maxWidth: 560),
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                              constraints: const BoxConstraints(
+                                maxWidth: 560,
+                              ),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 12,
+                              ),
                               decoration: BoxDecoration(
-                                color: m.isUser
-                                    ? const Color(0xFFF3387A).withOpacity(0.18)
+                                color: message.isUser
+                                    ? const Color(0xFFF3387A)
+                                        .withOpacity(0.18)
                                     : Colors.white.withOpacity(0.05),
                                 borderRadius: BorderRadius.circular(16),
-                                border: Border.all(color: Colors.white.withOpacity(0.08)),
+                                border: Border.all(
+                                  color: Colors.white.withOpacity(0.08),
+                                ),
                               ),
                               child: Text(
-                                m.text,
+                                message.text,
                                 style: TextStyle(
                                   color: Colors.white70,
                                   height: 1.4,
-                                  fontStyle: isTypingRow ? FontStyle.italic : FontStyle.normal,
+                                  fontStyle: isTypingRow
+                                      ? FontStyle.italic
+                                      : FontStyle.normal,
                                 ),
                               ),
                             ),
@@ -611,351 +720,4 @@ class _SendIntent extends Intent {
 
 class _NewlineIntent extends Intent {
   const _NewlineIntent();
-}
-
-// The rest of these widgets are currently unused in ChatTestPage,
-// but leaving them here is harmless for compilation.
-
-class _GlowOrb extends StatelessWidget {
-  final double size;
-  const _GlowOrb({required this.size});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: RadialGradient(
-          colors: [
-            const Color(0xFFF3387A).withOpacity(0.55),
-            const Color(0xFFF3387A).withOpacity(0.18),
-            Colors.transparent,
-          ],
-          stops: const [0.0, 0.38, 1.0],
-        ),
-      ),
-    );
-  }
-}
-
-class _TopArborBar extends StatelessWidget {
-  final bool isAuthed;
-  final VoidCallback? onNewThread;
-  final VoidCallback? onSignOut;
-  final bool loading;
-
-  const _TopArborBar({
-    required this.isAuthed,
-    required this.onNewThread,
-    required this.onSignOut,
-    required this.loading,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final t = Theme.of(context).textTheme;
-
-    return Column(
-      children: [
-        Row(
-          children: [
-            Text(
-              "ARBOR",
-              style: t.headlineSmall?.copyWith(
-                color: const Color(0xFF7A7F88).withOpacity(0.95),
-                letterSpacing: 6,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            const Spacer(),
-            if (isAuthed && onNewThread != null)
-              _GlassMiniButton(label: "New thread", onTap: loading ? null : onNewThread),
-          ],
-        ),
-        const SizedBox(height: 10),
-        Container(
-          height: 2,
-          width: 220,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(99),
-            gradient: LinearGradient(
-              colors: [
-                Colors.transparent,
-                const Color(0xFFF3387A).withOpacity(0.85),
-                Colors.transparent,
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            _StatusPill(isAuthed: isAuthed),
-            const Spacer(),
-            if (isAuthed && onSignOut != null)
-              TextButton(
-                onPressed: loading ? null : onSignOut,
-                style: TextButton.styleFrom(foregroundColor: Colors.white70),
-                child: const Text("Sign out"),
-              ),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-class _StatusPill extends StatelessWidget {
-  final bool isAuthed;
-  const _StatusPill({required this.isAuthed});
-
-  @override
-  Widget build(BuildContext context) {
-    final label = isAuthed ? "Signed in" : "Not signed in";
-    final icon = isAuthed ? Icons.verified_rounded : Icons.lock_outline_rounded;
-    final iconColor = isAuthed ? Colors.greenAccent : Colors.orangeAccent;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.04),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withOpacity(0.10)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: iconColor),
-          const SizedBox(width: 8),
-          Text(label, style: const TextStyle(color: Colors.white70, fontSize: 12)),
-        ],
-      ),
-    );
-  }
-}
-
-class _GlassMiniButton extends StatelessWidget {
-  final String label;
-  final VoidCallback? onTap;
-
-  const _GlassMiniButton({required this.label, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(14),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-        child: Material(
-          color: Colors.white.withOpacity(0.06),
-          child: InkWell(
-            onTap: onTap,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.white.withOpacity(0.10)),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Text(label, style: const TextStyle(color: Colors.white70)),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ChatBubble extends StatelessWidget {
-  final String text;
-  final bool isUser;
-  final bool isTyping;
-
-  const _ChatBubble({
-    required this.text,
-    required this.isUser,
-    required this.isTyping,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final bubbleColor = isUser
-        ? const Color(0xFFF3387A).withOpacity(0.22)
-        : Colors.white.withOpacity(0.06);
-
-    return Align(
-      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-          child: Container(
-            constraints: const BoxConstraints(maxWidth: 290),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            decoration: BoxDecoration(
-              color: bubbleColor,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white.withOpacity(0.10)),
-              boxShadow: isUser
-                  ? [
-                      BoxShadow(
-                        blurRadius: 22,
-                        spreadRadius: 1,
-                        color: const Color(0xFFF3387A).withOpacity(0.25),
-                      ),
-                    ]
-                  : null,
-            ),
-            child: Text(
-              text,
-              style: TextStyle(
-                color: Colors.white.withOpacity(0.85),
-                height: 1.35,
-                fontStyle: isTyping ? FontStyle.italic : FontStyle.normal,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ChatInputBar extends StatelessWidget {
-  final bool enabled;
-  final TextEditingController controller;
-  final FocusNode focusNode;
-  final VoidCallback? onSend;
-
-  const _ChatInputBar({
-    required this.enabled,
-    required this.controller,
-    required this.focusNode,
-    required this.onSend,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(18),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.04),
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: Colors.white.withOpacity(0.10)),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: controller,
-                  focusNode: focusNode,
-                  enabled: enabled,
-                  minLines: 1,
-                  maxLines: 4,
-                  style: TextStyle(color: Colors.white.withOpacity(0.90)),
-                  decoration: InputDecoration(
-                    hintText: "Type a message…",
-                    hintStyle: TextStyle(color: Colors.white.withOpacity(0.45)),
-                    border: InputBorder.none,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              IconButton(
-                onPressed: onSend,
-                icon: Icon(Icons.send_rounded, color: Colors.white.withOpacity(0.80)),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _LoginPanel extends StatelessWidget {
-  final bool loading;
-  final TextEditingController emailCtrl;
-  final TextEditingController passCtrl;
-  final FocusNode emailFocus;
-  final FocusNode passFocus;
-  final VoidCallback onSignIn;
-
-  const _LoginPanel({
-    required this.loading,
-    required this.emailCtrl,
-    required this.passCtrl,
-    required this.emailFocus,
-    required this.passFocus,
-    required this.onSignIn,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    InputDecoration deco(String label) => InputDecoration(
-          labelText: label,
-          labelStyle: TextStyle(color: Colors.white.withOpacity(0.65)),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide(color: Colors.white.withOpacity(0.12)),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide(color: const Color(0xFFF3387A).withOpacity(0.55)),
-          ),
-          filled: true,
-          fillColor: Colors.white.withOpacity(0.03),
-        );
-
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(18),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-        child: Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.04),
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: Colors.white.withOpacity(0.10)),
-          ),
-          child: Column(
-            children: [
-              TextField(
-                controller: emailCtrl,
-                focusNode: emailFocus,
-                keyboardType: TextInputType.emailAddress,
-                textInputAction: TextInputAction.next,
-                onSubmitted: (_) => passFocus.requestFocus(),
-                style: TextStyle(color: Colors.white.withOpacity(0.90)),
-                decoration: deco("Email"),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: passCtrl,
-                focusNode: passFocus,
-                obscureText: true,
-                textInputAction: TextInputAction.done,
-                onSubmitted: (_) => loading ? null : onSignIn(),
-                style: TextStyle(color: Colors.white.withOpacity(0.90)),
-                decoration: deco("Password"),
-              ),
-              const SizedBox(height: 10),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: ElevatedButton(
-                  onPressed: loading ? null : onSignIn,
-                  child: Text(loading ? "Signing in…" : "Sign in"),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }
