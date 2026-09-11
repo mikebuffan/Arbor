@@ -21,12 +21,17 @@ const files = [
   "lib/memory/correctionResolution.ts",
   "lib/memory/durableEvents.ts",
   "lib/memory/extractor.ts",
+  "lib/memory/logger.ts",
   "lib/memory/retrieval.ts",
   "lib/memory/store.ts",
   "lib/prompt/buildPromptContext.ts",
   "lib/safety/decisionOutcome.ts",
   "lib/safety/postcheck.ts",
   "lib/supabase/server.ts",
+  "lib/system/loop.ts",
+  "lib/tasks/decay.ts",
+  "lib/tasks/reflection.ts",
+  "lib/tasks/sync.ts",
   "scripts/live_acceptance/telemetryPrivacyAudit.ts",
 ];
 
