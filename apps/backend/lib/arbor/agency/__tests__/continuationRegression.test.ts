@@ -20,7 +20,7 @@ describe("agency continuation regression", () => {
     });
   });
 
-  it("does not replace active work with an action-chain instruction", () => {
+  it("does not replace active work with a full-chain instruction", () => {
     expect(
       resolveAgencyGoal("list and then do the whole list please", active),
     ).toEqual({
