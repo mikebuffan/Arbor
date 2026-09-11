@@ -11,6 +11,9 @@ import {
   switchHostSurface,
   type OneArborHostState,
 } from "../oneArborHostBridge";
+import {
+  projectVoiceAcoustics,
+} from "../../voice/acousticProjection";
 
 const start: OneArborHostState = {
   schemaVersion: 1,
@@ -66,6 +69,10 @@ describe("One Arbor end-to-end host acceptance", () => {
     );
 
     const voiceStartup = projectHostStartup(voice);
+    const voiceAcoustics = projectVoiceAcoustics(
+      "arbor",
+      voiceStartup.acousticCorrections,
+    );
 
     expect(voiceStartup.interactionMode).toBe("voice");
     expect(voiceStartup.promptBlock).toContain(
@@ -80,15 +87,18 @@ describe("One Arbor end-to-end host acceptance", () => {
     expect(voiceStartup.promptBlock).toContain(
       "Continue obvious reversible work without waiting for another go.",
     );
-    expect(voiceStartup.promptBlock).toContain(
+    expect(voiceStartup.promptBlock).not.toContain(
       "VOICE RENDERING TARGET:",
     );
-    expect(voiceStartup.promptBlock).toContain(
+    expect(voiceStartup.promptBlock).not.toContain(
       "Use natural General American speech; avoid British accent drift.",
     );
     expect(voiceStartup.acousticCorrections).toEqual([
       "Use natural General American speech; avoid British accent drift.",
     ]);
+    expect(voiceAcoustics.instructions).toContain(
+      "Use natural General American speech; avoid British accent drift.",
+    );
 
     const annabelle = switchAuthority(
       voice,
@@ -98,12 +108,22 @@ describe("One Arbor end-to-end host acceptance", () => {
 
     const annabelleStartup =
       projectHostStartup(annabelle);
+    const annabelleAcoustics = projectVoiceAcoustics(
+      "annabelle",
+      annabelleStartup.acousticCorrections,
+    );
 
     expect(annabelleStartup.interactionMode).toBe(
       "annabelle",
     );
-    expect(annabelleStartup.promptBlock).toContain(
+    expect(annabelleStartup.promptBlock).not.toContain(
       "Use natural General American speech; avoid British accent drift.",
+    );
+    expect(annabelleAcoustics.instructions).toContain(
+      "Use natural General American speech; avoid British accent drift.",
+    );
+    expect(annabelleAcoustics.instructions).toContain(
+      "same underlying Arbor voice",
     );
     expect(annabelle.currentGoal).toBe(
       start.currentGoal,
