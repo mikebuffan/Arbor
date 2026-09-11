@@ -34,7 +34,6 @@ describe("agency continuation", () => {
     "find a workaround if needed",
   ])("resumes unresolved work for %s", (text) => {
     expect(shouldResumeAgencyGoal(text, prior)).toBe(true);
-
     expect(resolveAgencyGoal(text, prior)).toEqual({
       goal: prior.goal,
       resume: true,
@@ -72,8 +71,6 @@ describe("agency continuation", () => {
       status: "complete",
     };
 
-    expect(
-      shouldResumeAgencyGoal("go", completed),
-    ).toBe(false);
+    expect(shouldResumeAgencyGoal("go", completed)).toBe(false);
   });
 });
