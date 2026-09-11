@@ -71,7 +71,7 @@ class _ArborShellPageState extends State<ArborShellPage>
     final height = MediaQuery.of(context).size.height;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0E0316),
+      backgroundColor: const Color(0xFF111015),
       body: GestureDetector(
         onVerticalDragUpdate: (d) => _onDragUpdate(d, height),
         onVerticalDragEnd: _onDragEnd,
@@ -113,13 +113,13 @@ class _HomeLayer extends StatelessWidget {
           child: ArborVisual(state: ArborVisualState.idle),
         ),
         const Positioned(
-          left: 24,
+          left: 18,
           top: 0,
           bottom: 0,
           child: _LeftMenu(),
         ),
         Positioned(
-          right: 24,
+          right: 18,
           top: 0,
           bottom: 0,
           child: _RightMenu(
@@ -171,23 +171,41 @@ class _GlassButton extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
       child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 8),
+        constraints: const BoxConstraints(minWidth: 72),
+        margin: const EdgeInsets.symmetric(vertical: 6),
         padding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 10,
+          horizontal: 12,
+          vertical: 7,
         ),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(onTap == null ? 0.04 : 0.07),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: Colors.white.withOpacity(onTap == null ? 0.12 : 0.22),
+          color: Colors.white.withOpacity(
+            onTap == null ? 0.022 : 0.035,
           ),
+          borderRadius: BorderRadius.circular(9),
+          border: Border.all(
+            color: Colors.white.withOpacity(
+              onTap == null ? 0.08 : 0.13,
+            ),
+            width: 0.8,
+          ),
+          boxShadow: [
+            BoxShadow(
+              blurRadius: 16,
+              spreadRadius: -8,
+              color: Colors.black.withOpacity(0.45),
+            ),
+          ],
         ),
         child: Text(
           label,
+          textAlign: TextAlign.center,
           style: TextStyle(
-            color: onTap == null ? Colors.white70 : Colors.white,
-            fontSize: 14,
+            color: onTap == null
+                ? Colors.white.withOpacity(0.56)
+                : Colors.white.withOpacity(0.78),
+            fontSize: 12,
+            letterSpacing: 0.15,
+            fontWeight: FontWeight.w400,
           ),
         ),
       ),
