@@ -21,6 +21,7 @@ describe("Voice acoustic projection", () => {
     expect(projection.instructions).toContain(
       "General American, not British",
     );
+    expect(projection.speed).toBe(1.05);
   });
 
   it("keeps the rendering contract downstream and non-semantic", () => {
@@ -37,6 +38,7 @@ describe("Voice acoustic projection", () => {
     const projection = projectVoiceAcoustics("annabelle");
 
     expect(projection.persona).toBe("annabelle");
+    expect(projection.speed).toBe(1.0);
     expect(projection.instructions).toContain("same underlying Arbor voice");
     expect(projection.instructions).toContain(
       "Pacific Northwest / General American pronunciation baseline",
