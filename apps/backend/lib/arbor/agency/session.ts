@@ -20,7 +20,15 @@ export async function beginAgencySession(input: {
     goal,
     status: "active",
     currentStep: resume && prior ? prior.currentStep : 0,
-    unresolvedWork: resume && prior ? prior.unresolvedWork : [],
+    // A newly accepted goal is unfinished until verified otherwise. Persist a
+    // concrete ownership marker immediately so a crash/interruption before the
+    // first tool call cannot turn active work into an empty state.
+    unresolvedWork:
+      resume && prior
+        ? prior.unresolvedWork.length
+          ? prior.unresolvedWork
+          : [`complete goal: ${prior.goal}`]
+        : [`complete goal: ${goal}`],
     recurringWeaknesses: prior?.recurringWeaknesses ?? [],
     strategyNotes: prior?.strategyNotes ?? [],
     blocker: null,
