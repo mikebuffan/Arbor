@@ -264,6 +264,9 @@ export async function buildPromptContext({
   const runtimeBehavioralCorrections =
     runtimeHost?.behaviorCorrections ?? [];
 
+  const pendingStrategyUnderVerification =
+    conversationRuntime?.pendingSelfUpdate?.strategy?.trim() || null;
+
   const runtimeAcousticCorrections =
     runtimeHost?.acousticCorrections ?? [];
 
@@ -334,12 +337,18 @@ export async function buildPromptContext({
     correctionRules: [
       negativePrefsFromAnchors,
       ...runtimeBehavioralCorrections,
+      pendingStrategyUnderVerification
+        ? `Tentative self-update under verification: ${pendingStrategyUnderVerification}`
+        : "",
     ].filter(Boolean),
     continuityMaterial: [
       memoryText,
       arbor.systemInjection,
       continuityBlock,
       host.startup.promptBlock,
+      pendingStrategyUnderVerification
+        ? `Tentative agency strategy under verification: ${pendingStrategyUnderVerification}`
+        : "",
     ].filter(Boolean),
   });
 
