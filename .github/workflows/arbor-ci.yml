@@ -69,4 +69,8 @@ jobs:
       - run: flutter test
 
       - name: Build Android debug APK
-        run: flutter build apk --debug
+        run: >
+          flutter build apk --debug
+          --dart-define=SUPABASE_URL=https://ncpdlyakrzfvobmwzbon.supabase.co
+          --dart-define=SUPABASE_ANON_KEY=sb_publishable_med7aHx1vGlYLih1QbdgtA_zQnRTSrS
+          --dart-define=ARBOR_API_URL=https://firefly-coral.vercel.app
