@@ -74,3 +74,11 @@ jobs:
           --dart-define=SUPABASE_URL=https://ncpdlyakrzfvobmwzbon.supabase.co
           --dart-define=SUPABASE_ANON_KEY=sb_publishable_med7aHx1vGlYLih1QbdgtA_zQnRTSrS
           --dart-define=ARBOR_API_URL=https://firefly-coral.vercel.app
+
+      - name: Upload Android debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: arbor-android-debug
+          path: apps/frontend/build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
+          retention-days: 7
