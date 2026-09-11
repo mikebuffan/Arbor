@@ -15,6 +15,9 @@ const STATUS_CHECK =
 const EXPLICIT_GOAL_SWITCH =
   /^(?:instead\b|new goal\b|switch(?:ing)? (?:to|goals?)\b|change (?:the )?goal\b|stop (?:that|this) and\b)/i;
 
+const BLOCKER_RESOLUTION_SIGNAL =
+  /^(?:yes|no|either|neither|use\b|pick\b|choose\b|select\b|go with\b|option\b|(?:the\s+)?(?:first|second|third|fourth|last|former|latter)\b)/i;
+
 export function compactAgencyGoal(userText: string): string {
   return userText.trim().replace(/\s+/g, " ").slice(0, 500);
 }
@@ -38,7 +41,13 @@ export function shouldResumeAgencyGoal(
 
   if (SHORT_CONTINUATION.test(text)) return true;
   if (!hasUnresolvedWork(prior)) return false;
-  if (prior.status === "blocked") return true;
+
+  if (
+    prior.status === "blocked" &&
+    BLOCKER_RESOLUTION_SIGNAL.test(text)
+  ) {
+    return true;
+  }
 
   return (
     CONTINUATION_SIGNAL.test(text) ||
