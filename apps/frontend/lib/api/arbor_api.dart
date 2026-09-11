@@ -1,7 +1,6 @@
-import 'dart:convert';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:http/http.dart' as http;
-import 'turn_id.dart';
+import '../config/arbor_config.dart';
+import 'arbor_api_client.dart';
+import 'chat_api.dart' as canonical;
 
 class ChatResponse {
   final String projectId;
@@ -13,48 +12,22 @@ class ChatResponse {
     required this.conversationId,
     required this.assistantText,
   });
-
-  factory ChatResponse.fromJson(Map<String, dynamic> json) {
-    final pid = json['projectId'];
-    final cid = json['conversationId'];
-    final text = json['assistantText'];
-
-    if (pid is! String || pid.isEmpty) throw Exception('Invalid projectId in response');
-    if (cid is! String || cid.isEmpty) throw Exception('Invalid conversationId in response');
-    if (text is! String) throw Exception('Invalid assistantText in response');
-
-    return ChatResponse(projectId: pid, conversationId: cid, assistantText: text);
-  }
 }
 
 class ArborApi {
-  static const String baseUrl = String.fromEnvironment(
-    'ARBOR_API_URL',
-    defaultValue: 'http://localhost:3000',
-  );
+  static const String baseUrl = ArborConfig.apiBaseUrl;
 
-  static Future<String?> getLastConversationId({required String projectId}) async {
-    final supa = Supabase.instance.client;
-    final token = supa.auth.currentSession?.accessToken;
-    if (token == null) throw Exception("Not authed");
+  static Future<String?> getLastConversationId({
+    required String projectId,
+  }) async {
+    final client = ArborApiClient(baseUrl: baseUrl);
 
-    final uri = Uri.parse("$baseUrl/api/conversations/last?projectId=$projectId");
-
-    final resp = await http.get(
-      uri,
-      headers: {
-        "authorization": "Bearer $token",
-      },
-    );
-
-    if (resp.statusCode == 204) return null; // no conversations yet
-    if (resp.statusCode < 200 || resp.statusCode >= 300) {
-      throw Exception("getLastConversationId failed: ${resp.statusCode} ${resp.body}");
+    try {
+      return await canonical.ChatApi(client)
+          .getLastConversationId(projectId: projectId);
+    } finally {
+      client.close();
     }
-
-    final json = jsonDecode(resp.body) as Map<String, dynamic>;
-    final id = json["conversationId"];
-    return id is String && id.isNotEmpty ? id : null;
   }
 
   static Future<ChatResponse> sendMessage({
@@ -64,34 +37,24 @@ class ArborApi {
     String interactionMode = 'text',
     String? turnId,
   }) async {
-    final supa = Supabase.instance.client;
-    final token = supa.auth.currentSession?.accessToken;
-    if (token == null) throw Exception("Not authed");
+    final client = ArborApiClient(baseUrl: baseUrl);
 
-    final uri = Uri.parse("$baseUrl/api/chat");
+    try {
+      final result = await canonical.ChatApi(client).sendMessage(
+        userText: userText,
+        projectId: projectId,
+        conversationId: conversationId,
+        interactionMode: interactionMode,
+        turnId: turnId,
+      );
 
-    final body = <String, dynamic>{
-      "turnId": turnId ?? newTurnId(),
-      "userText": userText,
-      "interactionMode": interactionMode,
-      "projectId": projectId,
-      "conversationId": conversationId,
-    }..removeWhere((k, v) => v == null);
-
-    final resp = await http.post(
-      uri,
-      headers: {
-        "authorization": "Bearer $token",
-        "content-type": "application/json",
-      },
-      body: jsonEncode(body),
-    );
-
-    if (resp.statusCode < 200 || resp.statusCode >= 300) {
-      throw Exception("sendMessage failed: ${resp.statusCode} ${resp.body}");
+      return ChatResponse(
+        projectId: result.projectId,
+        conversationId: result.conversationId,
+        assistantText: result.assistantText,
+      );
+    } finally {
+      client.close();
     }
-
-    final json = jsonDecode(resp.body) as Map<String, dynamic>;
-    return ChatResponse.fromJson(json);
   }
 }
