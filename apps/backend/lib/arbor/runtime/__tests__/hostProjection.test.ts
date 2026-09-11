@@ -64,16 +64,52 @@ const base: ArborRuntimeState = {
 };
 
 describe("runtime to host projection", () => {
-  it("keeps acoustic corrections out of behavioral prompt", () => {
+  it("projects acoustic corrections into Voice host prompting", () => {
     const projected =
-      projectRuntimeStartup(
-        base,
-      );
+      projectRuntimeStartup(base);
 
     expect(
       projected.startup.promptBlock,
     ).toContain(
       "Do not collapse into one-word acknowledgments",
+    );
+
+    expect(
+      projected.startup.promptBlock,
+    ).toContain(
+      "VOICE RENDERING TARGET:",
+    );
+
+    expect(
+      projected.startup.promptBlock,
+    ).toContain(
+      "General American, not British",
+    );
+
+    expect(
+      projected.acousticCorrections,
+    ).toEqual([
+      "General American, not British",
+    ]);
+  });
+
+  it("keeps acoustic corrections out of Text host prompting", () => {
+    const projected =
+      projectRuntimeStartup({
+        ...base,
+        channel: "text",
+      });
+
+    expect(
+      projected.startup.promptBlock,
+    ).toContain(
+      "Do not collapse into one-word acknowledgments",
+    );
+
+    expect(
+      projected.startup.promptBlock,
+    ).not.toContain(
+      "VOICE RENDERING TARGET:",
     );
 
     expect(
@@ -91,26 +127,18 @@ describe("runtime to host projection", () => {
 
   it("keeps authority and surface independent", () => {
     const projected =
-      projectRuntimeStartup(
-        base,
-      );
+      projectRuntimeStartup(base);
 
     expect(
       projected.hostState.surface,
-    ).toBe(
-      "voice",
-    );
+    ).toBe("voice");
 
     expect(
       projected.hostState.authority,
-    ).toBe(
-      "annabelle",
-    );
+    ).toBe("annabelle");
 
     expect(
       projected.startup.interactionMode,
-    ).toBe(
-      "annabelle",
-    );
+    ).toBe("annabelle");
   });
 });
