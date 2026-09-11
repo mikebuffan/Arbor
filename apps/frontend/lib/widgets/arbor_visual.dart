@@ -286,12 +286,13 @@ class _ArborGlowPainter extends CustomPainter {
       Offset(size.width + insetX, size.height + insetY),
     ];
 
-    for (final corner in corners) {
+    for (var i = 0; i < corners.length; i++) {
       _paintLayeredArch(
         canvas,
-        corner: corner,
+        corner: corners[i],
         radius: radius,
         activity: activity,
+        intensity: i < 2 ? 0.64 : 1.0,
       );
     }
   }
@@ -301,6 +302,7 @@ class _ArborGlowPainter extends CustomPainter {
     required Offset corner,
     required double radius,
     required double activity,
+    required double intensity,
   }) {
     final rect = Rect.fromCircle(
       center: corner,
@@ -312,7 +314,7 @@ class _ArborGlowPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 76 + activity * 18
       ..color = const Color(0xFFF3387A)
-          .withOpacity(0.014 + activity * 0.018)
+          .withOpacity((0.014 + activity * 0.018) * intensity)
       ..maskFilter = const MaskFilter.blur(
         BlurStyle.normal,
         46,
@@ -323,7 +325,7 @@ class _ArborGlowPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 48 + activity * 12
       ..color = const Color(0xFFE31B78)
-          .withOpacity(0.03 + activity * 0.025)
+          .withOpacity((0.03 + activity * 0.025) * intensity)
       ..maskFilter = const MaskFilter.blur(
         BlurStyle.normal,
         30,
@@ -334,7 +336,7 @@ class _ArborGlowPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 28 + activity * 9
       ..color = const Color(0xFFFF2F92)
-          .withOpacity(0.065 + activity * 0.05)
+          .withOpacity((0.065 + activity * 0.05) * intensity)
       ..maskFilter = const MaskFilter.blur(
         BlurStyle.normal,
         19,
@@ -345,7 +347,7 @@ class _ArborGlowPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 14 + activity * 4
       ..color = const Color(0xFFFF4D9C)
-          .withOpacity(0.15 + activity * 0.08)
+          .withOpacity((0.15 + activity * 0.08) * intensity)
       ..maskFilter = const MaskFilter.blur(
         BlurStyle.normal,
         9,
@@ -356,7 +358,7 @@ class _ArborGlowPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 6 + activity * 2
       ..color = const Color(0xFFFF6BAA)
-          .withOpacity(0.27 + activity * 0.10)
+          .withOpacity((0.27 + activity * 0.10) * intensity)
       ..maskFilter = const MaskFilter.blur(
         BlurStyle.normal,
         4,
@@ -389,7 +391,7 @@ class _ArborGlowPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 0.75
       ..color = const Color(0xFFFFEAF2)
-          .withOpacity(0.56 + activity * 0.16);
+          .withOpacity((0.56 + activity * 0.16) * intensity);
 
     canvas.drawCircle(corner, radius, atmosphere);
     canvas.drawCircle(corner, radius, outerFog);
