@@ -6,22 +6,28 @@ export type VoiceIdentity = {
   instructions: string;
 };
 
-export interface SpeechRenderer {
+export interface SpeechRenderer<Result = Uint8Array> {
   synthesize(input: {
     text: string;
     voiceId: string;
     instructions: string;
     turnId: string;
-  }): Promise<Uint8Array>;
+  }): Promise<Result>;
 }
 
-export class VoiceAdapter implements ArborAdapter<Uint8Array> {
+export class VoiceAdapter<Result = Uint8Array>
+  implements ArborAdapter<Result>
+{
   constructor(
-    private readonly speech: SpeechRenderer,
+    private readonly speech: SpeechRenderer<Result>,
     private readonly identity: VoiceIdentity,
   ) {}
 
-  async render(canonical: CanonicalArborOutput): Promise<Uint8Array> {
+  async render(canonical: CanonicalArborOutput): Promise<Result> {
+    if (canonical.channel !== "voice") {
+      throw new Error("voice_adapter_used_outside_voice");
+    }
+
     return this.speech.synthesize({
       text: canonical.text,
       voiceId: this.identity.voiceId,
