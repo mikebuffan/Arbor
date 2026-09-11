@@ -33,6 +33,36 @@ describe("agency continuation", () => {
     });
   });
 
+  it.each([
+    "don't wait for me",
+    "you didn't go",
+    "you're not done",
+    "finish what you can",
+    "why did you stop",
+    "you tell me to do my thing but you don't do your thing",
+    "what now",
+    "did you finish",
+    "what are we doing",
+  ])("resumes unresolved work for corrective/status turn: %s", (text) => {
+    expect(shouldResumeAgencyGoal(text, prior)).toBe(true);
+
+    expect(resolveAgencyGoal(text, prior)).toEqual({
+      goal: prior.goal,
+      resume: true,
+    });
+  });
+
+  it("does not let a status check revive empty work", () => {
+    const empty: AgencyState = {
+      ...prior,
+      unresolvedWork: [],
+    };
+
+    expect(
+      shouldResumeAgencyGoal("what now", empty),
+    ).toBe(false);
+  });
+
   it("does not hijack a new explicit goal", () => {
     const resolved = resolveAgencyGoal(
       "Explain the deployment failure instead",
