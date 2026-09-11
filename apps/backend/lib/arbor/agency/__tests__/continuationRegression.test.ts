@@ -23,7 +23,9 @@ describe("agency continuation regression", () => {
   });
 
   it("preserves the original goal when the user asks for the whole action chain", () => {
-    expect(resolveAgencyGoal("list and then do the whole list please", active)).toEqual({
+    expect(
+      resolveAgencyGoal("list and then do the whole list please", active),
+    ).toEqual({
       goal: active.goal,
       resume: true,
     });
