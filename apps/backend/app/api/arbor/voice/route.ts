@@ -5,12 +5,17 @@ import { requireUser } from "@/lib/auth/requireUser";
 import { assertProjectOwnedByUser } from "@/lib/auth/ownership";
 import { routeErrorResponse } from "@/lib/auth/routeAuthorization";
 
+import { VoiceAdapter } from "@/lib/arbor/adapters/voice";
+import type { CanonicalArborOutput } from "@/lib/arbor/runtime/arborRuntime";
 import { loadSubsystemState } from "@/lib/arbor/subsystem/state";
 import {
   buildVoiceInstructions,
   voiceSpeechSpeed,
 } from "@/lib/arbor/voice/identity";
-import { synthesizeArborSpeech } from "@/lib/arbor/voice/speechPipeline";
+import {
+  synthesizeArborSpeech,
+  type ArborSpeechResult,
+} from "@/lib/arbor/voice/speechPipeline";
 import { loadCanonicalAssistantTurnForTurn } from "@/lib/arbor/voice/canonicalTurn";
 import { loadRuntimeState } from "@/lib/arbor/runtime/runtimeStateStore";
 import { acousticCorrections } from "@/lib/arbor/runtime/corrections";
@@ -68,8 +73,6 @@ export async function POST(req: Request) {
         turnId,
       });
 
-    const canonicalText = canonicalTurn.text;
-
     const voiceState = await loadSubsystemState({
       supabase,
       userId,
@@ -94,6 +97,35 @@ export async function POST(req: Request) {
       ]),
     );
 
+    const speechSpeed = voiceSpeechSpeed(voiceState.activeSubsystem);
+    const instructions = buildVoiceInstructions(
+      voiceState.activeSubsystem,
+      voiceCorrections,
+    );
+
+    const canonical: CanonicalArborOutput = {
+      text: canonicalTurn.text,
+      activeSubsystem: voiceState.activeSubsystem,
+      channel: "voice",
+      turnId,
+    };
+
+    const voiceAdapter = new VoiceAdapter<ArborSpeechResult>(
+      {
+        synthesize: ({ text, voiceId, instructions: voiceInstructions }) =>
+          synthesizeArborSpeech({
+            text,
+            voice: voiceId,
+            instructions: voiceInstructions,
+            speed: speechSpeed,
+          }),
+      },
+      {
+        voiceId: voiceState.voiceId,
+        instructions,
+      },
+    );
+
     const timeline = await ArborTimeline.create(
       new SupabaseTimelineStore(supabase),
       {
@@ -105,33 +137,25 @@ export async function POST(req: Request) {
       },
     );
 
-    const speechSpeed = voiceSpeechSpeed(voiceState.activeSubsystem);
-
     await timeline.record(
       "render",
       "adapter_selected",
       {
         adapter: "voice",
+        canonical: true,
         voiceId: voiceState.voiceId,
         speechSpeed,
       },
     );
 
-    const result = await synthesizeArborSpeech({
-      text: canonicalText,
-      voice: voiceState.voiceId,
-      instructions: buildVoiceInstructions(
-        voiceState.activeSubsystem,
-        voiceCorrections,
-      ),
-      speed: speechSpeed,
-    });
+    const result = await voiceAdapter.render(canonical);
 
     await timeline.record(
       "render",
       "render_completed",
       {
         adapter: "voice",
+        canonical: true,
         providerRequestIds: result.requestIds,
         chunks: result.chunks,
         bytes: result.audio.byteLength,
@@ -155,6 +179,7 @@ export async function POST(req: Request) {
         "x-arbor-voice": voiceState.voiceId,
         "x-arbor-voice-chunks": String(result.chunks),
         "x-arbor-voice-speed": String(speechSpeed),
+        "x-arbor-canonical-adapter": "voice",
         ...(result.requestIds.length
           ? { "x-provider-request-id": result.requestIds.join(",") }
           : {}),
