@@ -1,14 +1,14 @@
 import 'dart:async';
 
-import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
-import 'package:speech_to_text/speech_recognition_result.dart';
-import 'package:speech_to_text/speech_to_text.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../api/arbor_api_client.dart';
 import '../api/arbor_session.dart';
+import '../api/chat_api.dart';
+import '../api/realtime_transcription.dart';
 import '../api/voice_api.dart';
+import '../api/voice_session_controller.dart';
 import '../config/arbor_config.dart';
 import '../widgets/arbor_visual.dart';
 
@@ -27,38 +27,61 @@ class VoicePage extends StatefulWidget {
 class _VoicePageState extends State<VoicePage> {
   static const _apiBaseUrl = ArborConfig.apiBaseUrl;
 
-  final SpeechToText _speech = SpeechToText();
-  final AudioPlayer _player = AudioPlayer();
-
   late final ArborApiClient _client;
+  late final ChatApi _chatApi;
   late final VoiceApi _voiceApi;
-  StreamSubscription<void>? _playerComplete;
+
+  VoiceSessionController? _controller;
+  StreamSubscription<VoiceSessionSnapshot>? _snapshotSub;
+
+  VoiceSessionSnapshot _snapshot = const VoiceSessionSnapshot(
+    state: VoiceSessionState.idle,
+  );
 
   String? _projectId;
   String? _conversationId;
 
-  String _transcript = '';
-  String _assistantText = '';
-  String _status = 'Tap the mic when you’re ready.';
-
-  bool _speechReady = false;
-  bool _initializingSpeech = false;
-  bool _listening = false;
-  bool _sending = false;
-  bool _playing = false;
-  bool _submittedThisListen = false;
-  bool _handsFree = true;
-  double _soundLevel = 0;
-  int _generation = 0;
+  bool _starting = false;
+  int _lifecycleGeneration = 0;
 
   bool get _isAuthed =>
       Supabase.instance.client.auth.currentSession?.accessToken != null;
 
   ArborVisualState get _visualState {
-    if (_playing) return ArborVisualState.speaking;
-    if (_sending) return ArborVisualState.thinking;
-    if (_listening) return ArborVisualState.listening;
-    return ArborVisualState.idle;
+    switch (_snapshot.state) {
+      case VoiceSessionState.listening:
+        return ArborVisualState.listening;
+      case VoiceSessionState.thinking:
+        return ArborVisualState.thinking;
+      case VoiceSessionState.speaking:
+        return ArborVisualState.speaking;
+      case VoiceSessionState.idle:
+      case VoiceSessionState.error:
+        return ArborVisualState.idle;
+    }
+  }
+
+  String get _status {
+    if (_starting) return 'Connecting Arbor Voice…';
+
+    if (widget.active && !_isAuthed) {
+      return 'Sign in on the Text screen first.';
+    }
+
+    switch (_snapshot.state) {
+      case VoiceSessionState.idle:
+        return widget.active
+            ? 'Voice ready.'
+            : 'Tap Voice when you’re ready.';
+      case VoiceSessionState.listening:
+        return 'Listening…';
+      case VoiceSessionState.thinking:
+        return 'Arbor is thinking…';
+      case VoiceSessionState.speaking:
+        return 'Arbor is speaking…';
+      case VoiceSessionState.error:
+        return 'Voice connection failed. Tap Restart Voice.';
+    }
   }
 
   @override
@@ -66,382 +89,233 @@ class _VoicePageState extends State<VoicePage> {
     super.initState();
 
     _client = ArborApiClient(baseUrl: _apiBaseUrl);
+    _chatApi = ChatApi(_client);
     _voiceApi = VoiceApi(_client);
 
-    _playerComplete = _player.onPlayerComplete.listen((_) {
-      if (!mounted || !widget.active) return;
-
-      setState(() {
-        _playing = false;
-        _status = _handsFree
-            ? 'Your turn.'
-            : 'Tap the mic to answer.';
+    if (widget.active) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && widget.active) {
+          unawaited(_activate());
+        }
       });
-
-      if (_handsFree && _isAuthed) {
-        Future<void>.delayed(
-          const Duration(milliseconds: 350),
-          () async {
-            if (!mounted ||
-                !widget.active ||
-                _sending ||
-                _playing ||
-                _listening) {
-              return;
-            }
-            await _startListening();
-          },
-        );
-      }
-    });
+    }
   }
 
   @override
   void didUpdateWidget(covariant VoicePage oldWidget) {
     super.didUpdateWidget(oldWidget);
 
-    if (oldWidget.active && !widget.active) {
-      unawaited(_deactivate());
-      return;
-    }
-
     if (!oldWidget.active && widget.active) {
-      _generation += 1;
-      unawaited(_restoreSharedSession());
+      unawaited(_activate());
+    } else if (oldWidget.active && !widget.active) {
+      unawaited(_deactivate());
     }
   }
 
-  Future<void> _restoreSharedSession() async {
-    final userId = Supabase.instance.client.auth.currentUser?.id;
-    if (userId == null || !widget.active) return;
-
-    final shared = await ArborSession.instance.contextFor(userId);
-
-    if (!mounted || !widget.active) return;
-
-    setState(() {
-      _projectId = shared?.projectId ?? _projectId;
-      _conversationId = shared?.conversationId;
-    });
-  }
-
-  Future<void> _deactivate() async {
-    final generation = ++_generation;
-    _submittedThisListen = true;
-
-    await _speech.cancel();
-    await _player.stop();
-
-    if (!mounted || widget.active || generation != _generation) return;
-
-    setState(() {
-      _listening = false;
-      _sending = false;
-      _playing = false;
-      _soundLevel = 0;
-      _status = 'Tap the mic when you’re ready.';
-    });
-  }
-
-  Future<bool> _ensureSpeechReady() async {
-    if (!widget.active) return false;
-    if (_speechReady) return true;
-    if (_initializingSpeech) return false;
-
-    setState(() {
-      _initializingSpeech = true;
-      _status = 'Checking microphone…';
-    });
-
-    try {
-      final available = await _speech.initialize(
-        onStatus: _onSpeechStatus,
-        onError: (error) {
-          if (!mounted || !widget.active) return;
-
-          setState(() {
-            _listening = false;
-            _status = 'Speech recognition error: ${error.errorMsg}';
-          });
-        },
-        options: [
-          SpeechToText.androidNoBluetooth,
-        ],
-      );
-
-      if (!mounted || !widget.active) return false;
-
-      setState(() {
-        _speechReady = available;
-        _status = available
-            ? 'Tap the mic when you’re ready.'
-            : 'Speech recognition is unavailable or microphone access was denied.';
-      });
-
-      return available;
-    } finally {
-      if (mounted) {
-        setState(() => _initializingSpeech = false);
-      }
-    }
-  }
-
-  void _onSpeechResult(SpeechRecognitionResult result) {
-    if (!mounted || !widget.active) return;
-
-    setState(() {
-      _transcript = result.recognizedWords;
-    });
-
-    if (result.finalResult) {
-      unawaited(_submitRecognizedTurn());
-    }
-  }
-
-  void _onSpeechStatus(String status) {
-    if (!mounted || !widget.active) return;
-
-    if (status == SpeechToText.listeningStatus) {
-      setState(() {
-        _listening = true;
-        _status = 'Listening…';
-      });
-      return;
-    }
-
-    if (status == SpeechToText.doneStatus ||
-        status == SpeechToText.notListeningStatus) {
-      setState(() {
-        _listening = false;
-        _soundLevel = 0;
-      });
-
-      if (_transcript.trim().isNotEmpty) {
-        unawaited(_submitRecognizedTurn());
-      } else if (!_sending && !_playing) {
-        setState(() {
-          _status = 'I didn’t catch anything. Tap the mic and try again.';
-        });
-      }
-    }
-  }
-
-  Future<void> _startListening() async {
-    if (!widget.active || _sending || _listening) return;
+  Future<void> _activate() async {
+    if (!widget.active || _starting || _controller != null) return;
 
     if (!_isAuthed) {
+      if (!mounted) return;
+
       setState(() {
-        _status = 'Sign in on the Text screen first.';
+        _snapshot = const VoiceSessionSnapshot(
+          state: VoiceSessionState.idle,
+        );
       });
       return;
     }
 
-    if (_playing) {
-      await _player.stop();
-      if (!mounted || !widget.active) return;
-      setState(() => _playing = false);
-    }
+    final generation = ++_lifecycleGeneration;
+    final userId = Supabase.instance.client.auth.currentUser?.id;
 
-    final ready = await _ensureSpeechReady();
-    if (!ready || !mounted || !widget.active) return;
+    if (userId == null) return;
 
-    setState(() {
-      _transcript = '';
-      _submittedThisListen = false;
-      _listening = true;
-      _status = 'Listening…';
-    });
+    setState(() => _starting = true);
 
     try {
-      await _speech.listen(
-        onResult: _onSpeechResult,
-        onSoundLevelChange: (level) {
-          if (!mounted || !widget.active) return;
-          setState(() => _soundLevel = level);
-        },
-        listenOptions: SpeechListenOptions(
-          partialResults: true,
-          cancelOnError: true,
-          listenMode: ListenMode.confirmation,
-          pauseFor: const Duration(seconds: 2),
-          listenFor: const Duration(seconds: 30),
-          autoPunctuation: true,
-        ),
-      );
-    } catch (error) {
-      if (!mounted || !widget.active) return;
+      final shared = await ArborSession.instance.contextFor(userId);
 
-      setState(() {
-        _listening = false;
-        _status = 'Couldn’t start listening: $error';
-      });
-    }
-  }
+      if (!mounted ||
+          !widget.active ||
+          generation != _lifecycleGeneration) {
+        return;
+      }
 
-  Future<void> _stopListeningAndSend() async {
-    if (!_listening) return;
+      _projectId = shared?.projectId;
+      _conversationId = shared?.conversationId;
 
-    if (!widget.active) {
-      await _speech.cancel();
-      return;
-    }
-
-    await _speech.stop();
-
-    if (!mounted || !widget.active) return;
-
-    setState(() {
-      _listening = false;
-      _soundLevel = 0;
-    });
-
-    await _submitRecognizedTurn();
-  }
-
-  Future<void> _submitRecognizedTurn() async {
-    final text = _transcript.trim();
-
-    if (!widget.active ||
-        _submittedThisListen ||
-        _sending ||
-        text.isEmpty) {
-      return;
-    }
-
-    _submittedThisListen = true;
-    final generation = ++_generation;
-
-    setState(() {
-      _sending = true;
-      _listening = false;
-      _status = 'Arbor is thinking…';
-    });
-
-    try {
-      await _speech.stop();
-
-      final result = await _voiceApi.respond(
-        transcript: text,
+      final transcription = RealtimeTranscriptionClient(
+        api: _client,
         projectId: _projectId,
+      );
+
+      final controller = VoiceSessionController(
+        chatApi: _chatApi,
+        voiceApi: _voiceApi,
+        transcription: transcription,
         conversationId: _conversationId,
       );
 
-      if (!mounted ||
-          !widget.active ||
-          generation != _generation) {
-        return;
-      }
+      final sub = controller.snapshots.listen((snapshot) {
+        if (!mounted ||
+            generation != _lifecycleGeneration ||
+            controller != _controller) {
+          return;
+        }
 
-      setState(() {
-        _projectId = result.chat.projectId;
-        _conversationId = result.chat.conversationId;
-        _assistantText = result.chat.assistantText;
-        _status = 'Arbor is speaking…';
-        _playing = true;
+        setState(() {
+          _snapshot = snapshot;
+          _conversationId = controller.conversationId;
+        });
       });
 
-      await _player.play(
-        BytesSource(
-          result.audio.bytes,
-          mimeType: result.audio.contentType,
-        ),
-      );
+      _controller = controller;
+      _snapshotSub = sub;
+
+      try {
+        await controller.start();
+
+        if (!mounted ||
+            !widget.active ||
+            generation != _lifecycleGeneration ||
+            controller != _controller) {
+          if (controller == _controller) {
+            _controller = null;
+            _snapshotSub = null;
+          }
+
+          await sub.cancel();
+          await controller.dispose();
+          return;
+        }
+
+        _projectId = transcription.projectId;
+
+        if (shared == null) {
+          await ArborSession.instance.startNewThread(
+            userId: userId,
+            projectId: _projectId,
+          );
+        }
+      } catch (error) {
+        if (controller == _controller) {
+          _controller = null;
+          _snapshotSub = null;
+        }
+
+        await sub.cancel();
+        await controller.dispose();
+
+        if (mounted && generation == _lifecycleGeneration) {
+          setState(() {
+            _snapshot = VoiceSessionSnapshot(
+              state: VoiceSessionState.error,
+              error: error,
+            );
+          });
+        }
+      }
     } catch (error) {
-      if (!mounted ||
-          !widget.active ||
-          generation != _generation) {
-        return;
+      if (mounted && generation == _lifecycleGeneration) {
+        setState(() {
+          _snapshot = VoiceSessionSnapshot(
+            state: VoiceSessionState.error,
+            error: error,
+          );
+        });
       }
-
-      setState(() {
-        _playing = false;
-        _status = 'Voice turn failed: $error';
-      });
     } finally {
-      if (mounted && generation == _generation) {
-        setState(() => _sending = false);
+      if (mounted && generation == _lifecycleGeneration) {
+        setState(() => _starting = false);
       }
     }
   }
 
-  Future<void> _toggleMic() async {
-    if (!widget.active || _sending) return;
+  Future<void> _deactivate() async {
+    _lifecycleGeneration += 1;
 
-    if (_listening) {
-      await _stopListeningAndSend();
-      return;
-    }
+    final sub = _snapshotSub;
+    final controller = _controller;
 
-    await _startListening();
-  }
+    _snapshotSub = null;
+    _controller = null;
 
-  Future<void> _interrupt() async {
-    if (!widget.active || !_playing) return;
+    await sub?.cancel();
+    await controller?.dispose();
 
-    await _player.stop();
-
-    if (!mounted || !widget.active) return;
+    if (!mounted) return;
 
     setState(() {
-      _playing = false;
-      _status = 'Your turn.';
+      _starting = false;
+      _snapshot = const VoiceSessionSnapshot(
+        state: VoiceSessionState.idle,
+      );
     });
+  }
 
-    await _startListening();
+  Future<void> _restartVoice() async {
+    await _deactivate();
+
+    if (mounted && widget.active) {
+      await _activate();
+    }
   }
 
   Future<void> _newThread() async {
-    if (!widget.active) return;
-
-    _generation += 1;
-    _submittedThisListen = true;
-
-    await _speech.cancel();
-    await _player.stop();
-
     final userId = Supabase.instance.client.auth.currentUser?.id;
 
-    if (userId != null) {
-      await ArborSession.instance.startNewThread(
-        userId: userId,
-        projectId: _projectId,
-      );
+    if (userId == null) return;
+
+    final projectId = _projectId ??
+        (await ArborSession.instance.contextFor(userId))?.projectId;
+
+    await ArborSession.instance.startNewThread(
+      userId: userId,
+      projectId: projectId,
+    );
+
+    _conversationId = null;
+
+    if (mounted) {
+      setState(() {
+        _snapshot = const VoiceSessionSnapshot(
+          state: VoiceSessionState.idle,
+        );
+      });
     }
 
-    if (!mounted || !widget.active) return;
+    await _restartVoice();
+  }
 
-    final shared =
-        userId == null ? null : ArborSession.instance.peek(userId);
-
-    setState(() {
-      _projectId = shared?.projectId ?? _projectId;
-      _conversationId = null;
-      _transcript = '';
-      _assistantText = '';
-      _listening = false;
-      _sending = false;
-      _playing = false;
-      _submittedThisListen = false;
-      _soundLevel = 0;
-      _status = 'New thread. Tap the mic when you’re ready.';
-    });
+  Future<void> _interrupt() async {
+    await _controller?.interrupt();
   }
 
   @override
   void dispose() {
-    _generation += 1;
-    _playerComplete?.cancel();
-    _speech.cancel();
-    _player.dispose();
+    _lifecycleGeneration += 1;
+
+    final sub = _snapshotSub;
+    final controller = _controller;
+
+    _snapshotSub = null;
+    _controller = null;
+
+    unawaited(sub?.cancel() ?? Future<void>.value());
+    unawaited(controller?.dispose() ?? Future<void>.value());
+
     _client.close();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final micScale = _listening
-        ? 1.0 + (_soundLevel.abs().clamp(0, 30) / 180)
-        : 1.0;
+    final partial = _snapshot.partialTranscript.trim();
+    final userText = partial.isNotEmpty
+        ? partial
+        : (_snapshot.lastUserText ?? '');
+    final assistantText = _snapshot.lastAssistantText ?? '';
 
     return Scaffold(
       backgroundColor: const Color(0xFF0E0316),
@@ -452,7 +326,6 @@ class _VoicePageState extends State<VoicePage> {
               opacity: 0.34,
               child: ArborVisual(
                 state: _visualState,
-                soundLevel: _soundLevel,
                 showTitle: false,
               ),
             ),
@@ -481,8 +354,10 @@ class _VoicePageState extends State<VoicePage> {
                                 ),
                                 SizedBox(height: 4),
                                 Text(
-                                  'same conversation, spoken',
-                                  style: TextStyle(color: Colors.white60),
+                                  'same Arbor, spoken',
+                                  style: TextStyle(
+                                    color: Colors.white60,
+                                  ),
                                 ),
                               ],
                             ),
@@ -494,37 +369,39 @@ class _VoicePageState extends State<VoicePage> {
                         ],
                       ),
                       const Spacer(),
-                      AnimatedScale(
-                        scale: micScale,
-                        duration: const Duration(milliseconds: 100),
-                        child: GestureDetector(
-                          onTap: widget.active
-                              ? (_playing ? _interrupt : _toggleMic)
-                              : null,
-                          child: Container(
-                            width: 150,
-                            height: 150,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: _listening
-                                  ? const Color(0xFFF3387A).withOpacity(0.24)
-                                  : Colors.white.withOpacity(0.06),
-                              border: Border.all(
-                                color: _listening
-                                    ? const Color(0xFFF3387A)
-                                    : Colors.white24,
-                                width: 2,
-                              ),
+                      GestureDetector(
+                        onTap: _snapshot.state ==
+                                VoiceSessionState.speaking
+                            ? _interrupt
+                            : null,
+                        child: Container(
+                          width: 150,
+                          height: 150,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: _snapshot.state ==
+                                    VoiceSessionState.listening
+                                ? const Color(0xFFF3387A)
+                                    .withOpacity(0.24)
+                                : Colors.white.withOpacity(0.06),
+                            border: Border.all(
+                              color: _snapshot.state ==
+                                      VoiceSessionState.listening
+                                  ? const Color(0xFFF3387A)
+                                  : Colors.white24,
+                              width: 2,
                             ),
-                            child: Icon(
-                              _playing
-                                  ? Icons.hearing_rounded
-                                  : _listening
-                                      ? Icons.mic_rounded
-                                      : Icons.mic_none_rounded,
-                              size: 58,
-                              color: Colors.white,
-                            ),
+                          ),
+                          child: Icon(
+                            _snapshot.state ==
+                                    VoiceSessionState.speaking
+                                ? Icons.hearing_rounded
+                                : _snapshot.state ==
+                                        VoiceSessionState.listening
+                                    ? Icons.mic_rounded
+                                    : Icons.mic_none_rounded,
+                            size: 58,
+                            color: Colors.white,
                           ),
                         ),
                       ),
@@ -537,7 +414,8 @@ class _VoicePageState extends State<VoicePage> {
                           fontSize: 15,
                         ),
                       ),
-                      if (_playing && widget.active) ...[
+                      if (_snapshot.state ==
+                          VoiceSessionState.speaking) ...[
                         const SizedBox(height: 10),
                         TextButton.icon(
                           onPressed: _interrupt,
@@ -545,33 +423,37 @@ class _VoicePageState extends State<VoicePage> {
                           label: const Text('Interrupt'),
                         ),
                       ],
+                      if (_snapshot.state ==
+                          VoiceSessionState.error) ...[
+                        const SizedBox(height: 10),
+                        TextButton.icon(
+                          onPressed: _restartVoice,
+                          icon: const Icon(Icons.refresh_rounded),
+                          label: const Text('Restart Voice'),
+                        ),
+                      ],
                       const SizedBox(height: 28),
                       _VoiceTextCard(
                         label: 'YOU',
-                        text: _transcript,
-                        emptyText: _listening
+                        text: userText,
+                        emptyText: _snapshot.state ==
+                                VoiceSessionState.listening
                             ? 'Listening…'
                             : 'Nothing spoken yet.',
                       ),
                       const SizedBox(height: 12),
                       _VoiceTextCard(
                         label: 'ARBOR',
-                        text: _assistantText,
+                        text: assistantText,
                         emptyText: 'No reply yet.',
                       ),
                       const Spacer(),
-                      SwitchListTile(
-                        contentPadding: EdgeInsets.zero,
-                        value: _handsFree,
-                        onChanged: widget.active
-                            ? (value) {
-                                setState(() => _handsFree = value);
-                              }
-                            : null,
-                        title: const Text('Hands-free next turn'),
-                        subtitle: const Text(
-                          'Reopen the mic after Arbor finishes speaking.',
-                          style: TextStyle(color: Colors.white54),
+                      const Text(
+                        'Hands-free • speak naturally • interrupt by speaking',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.white38,
+                          fontSize: 12,
                         ),
                       ),
                     ],
