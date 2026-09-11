@@ -2,11 +2,6 @@ import type {
   ArborBehaviorProof,
   ArborInteractionMode,
 } from "../behavior/behaviorProjection";
-import {
-  buildVoiceHostAcousticBlock,
-  type VoiceAcousticProjection,
-  projectVoiceAcoustics,
-} from "../voice/acousticProjection";
 
 export type ArborAuthority = "arbor" | "annabelle";
 export type ArborHostSurface = "text" | "voice";
@@ -46,8 +41,6 @@ export type HostStartupProjection = {
   promptBlock: string;
   acousticCorrections: string[];
   behavioralCorrections: string[];
-  voiceAcoustics: VoiceAcousticProjection | null;
-  voiceAcousticBlock: string | null;
 };
 
 function unique(values: string[]): string[] {
@@ -90,21 +83,11 @@ export function projectHostStartup(
   const behavior = behavioralCorrections.length
     ? behavioralCorrections.map((correction) => `- ${correction}`).join("\n")
     : "- none";
-  const persona = state.authority === "annabelle" ? "annabelle" : "arbor";
-  const voiceAcoustics =
-    state.surface === "voice"
-      ? projectVoiceAcoustics(persona, acousticCorrections)
-      : null;
 
   return {
     interactionMode: resolveInteractionMode(state),
     behavioralCorrections,
     acousticCorrections,
-    voiceAcoustics,
-    voiceAcousticBlock:
-      state.surface === "voice"
-        ? buildVoiceHostAcousticBlock(persona, acousticCorrections)
-        : null,
     promptBlock: [
       "ONE ARBOR HOST CONTINUITY",
       `Surface: ${state.surface}`,
