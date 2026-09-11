@@ -111,6 +111,90 @@ describe(
     );
 
     it(
+      "keeps acoustic corrections out of text host prompting",
+      () => {
+        const corrected =
+          applyHostCorrection(
+            base,
+            {
+              id: "c1",
+              kind: "acoustic",
+              text:
+                "General American, not British",
+              createdAt:
+                "2026-09-10T20:03:00.000Z",
+            },
+          );
+
+        const projection =
+          projectHostStartup(
+            corrected,
+          );
+
+        expect(
+          projection
+            .acousticCorrections,
+        ).toEqual([
+          "General American, not British",
+        ]);
+
+        expect(
+          projection.promptBlock,
+        ).not.toContain(
+          "General American, not British",
+        );
+      },
+    );
+
+    it(
+      "projects acoustic corrections into Voice host prompting only",
+      () => {
+        const voice =
+          switchHostSurface(
+            base,
+            "voice",
+            "2026-09-10T20:03:00.000Z",
+          );
+
+        const corrected =
+          applyHostCorrection(
+            voice,
+            {
+              id: "c1",
+              kind: "acoustic",
+              text:
+                "General American, not British",
+              createdAt:
+                "2026-09-10T20:04:00.000Z",
+            },
+          );
+
+        const projection =
+          projectHostStartup(
+            corrected,
+          );
+
+        expect(
+          projection.promptBlock,
+        ).toContain(
+          "VOICE RENDERING TARGET:",
+        );
+
+        expect(
+          projection.promptBlock,
+        ).toContain(
+          "General American, not British",
+        );
+
+        expect(
+          projection.promptBlock,
+        ).toContain(
+          "These instructions affect spoken rendering only.",
+        );
+      },
+    );
+
+    it(
       "separates acoustic corrections from behavioral corrections",
       () => {
         const acoustic =
