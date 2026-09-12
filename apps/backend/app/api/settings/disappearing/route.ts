@@ -1,24 +1,37 @@
-import { NextRequest, NextResponse } from "next/server";
-import { supabaseFromAuthHeader } from "@/lib/supabase/bearer";
+import { NextResponse } from "next/server";
+import { requireUser } from "@/lib/auth/requireUser";
+import { routeErrorResponse } from "@/lib/auth/routeAuthorization";
 
-// For now: stub. Later you can store/retrieve from DB table `user_settings`.
-export async function GET(req: NextRequest) {
-  const supabase = supabaseFromAuthHeader(req);
-  const { data, error } = await supabase.auth.getUser();
-  if (error || !data?.user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+export const runtime = "nodejs";
 
-  return NextResponse.json({ enabled: true, ttl_hours: 24 });
+const unsupportedResponse = () =>
+  NextResponse.json(
+    {
+      ok: false,
+      error: "disappearing_settings_not_available",
+    },
+    { status: 501 },
+  );
+
+/**
+ * Closed beta does not yet have a durable user-settings store for this
+ * feature. Do not claim a value is enabled or persisted when no backing
+ * contract exists.
+ */
+export async function GET(req: Request) {
+  try {
+    await requireUser(req);
+    return unsupportedResponse();
+  } catch (error) {
+    return routeErrorResponse(error);
+  }
 }
 
-export async function POST(req: NextRequest) {
-  const supabase = supabaseFromAuthHeader(req);
-  const { data, error } = await supabase.auth.getUser();
-  if (error || !data?.user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-
-  const body = await req.json();
-  const enabled = !!body.enabled;
-  const ttl_hours = Number(body.ttl_hours ?? 24);
-
-  // TODO: persist (DB). For now return accepted values.
-  return NextResponse.json({ ok: true, enabled, ttl_hours });
+export async function POST(req: Request) {
+  try {
+    await requireUser(req);
+    return unsupportedResponse();
+  } catch (error) {
+    return routeErrorResponse(error);
+  }
 }
