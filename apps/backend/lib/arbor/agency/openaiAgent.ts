@@ -97,9 +97,9 @@ type FunctionCall = {
   arguments: string;
 };
 
-const AGENCY_MODEL_MAX_ATTEMPTS = 3;
-const AGENCY_MODEL_RETRY_BASE_MS = 1_000;
-const AGENCY_MODEL_RETRY_MAX_MS = 10_000;
+const AGENCY_MODEL_MAX_ATTEMPTS = 5;
+const AGENCY_MODEL_RETRY_BASE_MS = 2_000;
+const AGENCY_MODEL_RETRY_MAX_MS = 15_000;
 
 function providerStatus(error: unknown): number | null {
   if (!error || typeof error !== "object") return null;
@@ -129,21 +129,56 @@ function isRetryableProviderFailure(error: unknown): boolean {
   );
 }
 
-function retryAfterMs(error: unknown, attempt: number): number {
-  let retryAfter: string | null = null;
+function providerHeader(error: unknown, name: string): string | null {
   if (error && typeof error === "object") {
     const headers = (error as { headers?: unknown }).headers;
     if (headers && typeof headers === "object" && "get" in headers) {
       const get = (headers as { get?: unknown }).get;
       if (typeof get === "function") {
-        retryAfter = get.call(headers, "retry-after");
+        const value = get.call(headers, name);
+        return typeof value === "string" ? value : null;
       }
     }
   }
-  const seconds = Number(retryAfter);
-  if (Number.isFinite(seconds) && seconds > 0) {
-    return Math.min(Math.ceil(seconds * 1_000), AGENCY_MODEL_RETRY_MAX_MS);
+  return null;
+}
+
+function boundedDelayMs(value: number): number | null {
+  if (!Number.isFinite(value) || value <= 0) return null;
+  return Math.min(Math.ceil(value), AGENCY_MODEL_RETRY_MAX_MS);
+}
+
+function resetDurationMs(value: string | null): number | null {
+  if (!value) return null;
+  const matches = [...value.matchAll(/(\d+(?:\.\d+)?)(ms|s|m)/g)];
+  if (!matches.length || matches.map((match) => match[0]).join("") !== value) {
+    return null;
   }
+  const milliseconds = matches.reduce((total, match) => {
+    const amount = Number(match[1]);
+    const unit = match[2];
+    return total + amount * (unit === "m" ? 60_000 : unit === "s" ? 1_000 : 1);
+  }, 0);
+  return boundedDelayMs(milliseconds + 250);
+}
+
+function retryAfterMs(error: unknown, attempt: number): number {
+  const seconds = Number(providerHeader(error, "retry-after"));
+  if (Number.isFinite(seconds) && seconds > 0) {
+    return boundedDelayMs(seconds * 1_000) ?? AGENCY_MODEL_RETRY_BASE_MS;
+  }
+
+  const explicitMilliseconds = boundedDelayMs(
+    Number(providerHeader(error, "retry-after-ms")),
+  );
+  if (explicitMilliseconds !== null) return explicitMilliseconds;
+
+  const resetDelays = [
+    resetDurationMs(providerHeader(error, "x-ratelimit-reset-requests")),
+    resetDurationMs(providerHeader(error, "x-ratelimit-reset-tokens")),
+  ].filter((delay): delay is number => delay !== null);
+  if (resetDelays.length) return Math.max(...resetDelays);
+
   return Math.min(
     AGENCY_MODEL_RETRY_BASE_MS * 2 ** (attempt - 1),
     AGENCY_MODEL_RETRY_MAX_MS,

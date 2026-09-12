@@ -69,8 +69,8 @@ describe("OpenAI agency request retry", () => {
       operation: "model_agency",
       code: "provider_rate_limited",
       attempt: 1,
-      maxAttempts: 3,
-      nextDelayMs: 1_000,
+      maxAttempts: 5,
+      nextDelayMs: 2_000,
     });
     expect(JSON.stringify(warn.mock.calls)).not.toContain("SENTINEL_PRIVATE");
     warn.mockRestore();
@@ -94,8 +94,39 @@ describe("OpenAI agency request retry", () => {
     await vi.runAllTimersAsync();
     await rejection;
 
-    expect(mocks.create).toHaveBeenCalledTimes(3);
-    expect(warn).toHaveBeenCalledTimes(2);
+    expect(mocks.create).toHaveBeenCalledTimes(5);
+    expect(warn).toHaveBeenCalledTimes(4);
+    warn.mockRestore();
+  });
+
+  it("honors bounded provider reset guidance without logging header values", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const headers = new Headers({
+      "x-ratelimit-reset-requests": "4s",
+      "x-ratelimit-reset-tokens": "SENTINEL_PRIVATE_RESET",
+    });
+    mocks.create
+      .mockRejectedValueOnce(
+        Object.assign(new Error("rate limited"), { status: 429, headers }),
+      )
+      .mockResolvedValueOnce({
+        id: "response-reset",
+        output: [],
+        output_text: "Synthetic answer.",
+      });
+
+    const pending = runOpenAIAgencyAgent(input);
+    await vi.runAllTimersAsync();
+    await expect(pending).resolves.toMatchObject({
+      status: "complete",
+      responseId: "response-reset",
+    });
+
+    expect(warn).toHaveBeenCalledWith(
+      "[agency] model request retrying",
+      expect.objectContaining({ nextDelayMs: 4_250 }),
+    );
+    expect(JSON.stringify(warn.mock.calls)).not.toContain("SENTINEL_PRIVATE");
     warn.mockRestore();
   });
 });
