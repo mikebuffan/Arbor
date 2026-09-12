@@ -778,13 +778,6 @@ export async function POST(req: Request) {
               supabase,
             );
           }
-
-          await writeDurableChatCompletedEvent({
-            supabase,
-            userId,
-            projectId,
-            conversationId: convoId,
-          });
         },
 
         conversation_update: async () => {
@@ -810,6 +803,15 @@ export async function POST(req: Request) {
               process.env.OPENAI_MODEL ??
               "gpt-5",
             postcheckApproved: !finalAssistant.flagged,
+          });
+        },
+
+        chat_completed: async () => {
+          await writeDurableChatCompletedEvent({
+            supabase,
+            userId,
+            projectId,
+            conversationId: convoId,
           });
         },
       },
