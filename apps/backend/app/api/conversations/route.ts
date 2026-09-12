@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { supabaseFromAuthHeader } from "@/lib/supabaseFromAuthHeader";
+import { requireUser } from "@/lib/auth/requireUser";
+import {
+  RouteAccessError,
+  routeErrorResponse,
+} from "@/lib/auth/routeAuthorization";
 
 export const runtime = "nodejs";
 
@@ -9,16 +13,9 @@ const BodySchema = z.object({
   conversationId: z.string().uuid().optional(),
 });
 
-async function requireUser(req: Request) {
-  const supa = supabaseFromAuthHeader(req);
-  const { data, error } = await supa.auth.getUser();
-  if (error || !data?.user) throw new Error("Unauthorized");
-  return { supa, userId: data.user.id };
-}
-
 export async function POST(req: Request) {
   try {
-    const { supa, userId } = await requireUser(req);
+    const { supabase: supa, userId } = await requireUser(req);
 
     const parsed = BodySchema.safeParse(await req.json().catch(() => ({})));
     if (!parsed.success) {
@@ -27,21 +24,21 @@ export async function POST(req: Request) {
 
     const { projectId, conversationId } = parsed.data;
 
-    // 1) Verify project belongs to user (RLS should already enforce, but we want explicit)
-    const { data: project, error: pErr } = await supa
+    // RLS is authoritative. The explicit owner constraint keeps this route's
+    // failure mode deterministic even if a future query shape changes.
+    const { data: project, error: projectError } = await supa
       .from("projects")
       .select("id, persona_id, framework_version")
       .eq("id", projectId)
       .eq("user_id", userId)
       .single();
 
-    if (pErr) {
-      return NextResponse.json({ error: "Project not found" }, { status: 404 });
+    if (projectError || !project) {
+      throw new RouteAccessError(404, "project_not_found");
     }
 
-    // 2) If a conversationId was provided, verify it belongs to user + project
     if (conversationId) {
-      const { data: convo, error: cErr } = await supa
+      const { data: conversation, error: conversationError } = await supa
         .from("conversations")
         .select("id, project_id, user_id, created_at")
         .eq("id", conversationId)
@@ -49,19 +46,18 @@ export async function POST(req: Request) {
         .eq("project_id", projectId)
         .single();
 
-      if (cErr) {
-        return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
+      if (conversationError || !conversation) {
+        throw new RouteAccessError(404, "conversation_not_found");
       }
 
       return NextResponse.json({
         project,
-        conversation: convo,
+        conversation,
         created: false,
       });
     }
 
-    // 3) Otherwise create a new conversation under this project
-    const { data: created, error: insErr } = await supa
+    const { data: created, error: insertError } = await supa
       .from("conversations")
       .insert({
         user_id: userId,
@@ -70,8 +66,8 @@ export async function POST(req: Request) {
       .select("id, project_id, user_id, created_at")
       .single();
 
-    if (insErr) {
-      return NextResponse.json({ error: insErr.message }, { status: 500 });
+    if (insertError || !created) {
+      throw new RouteAccessError(500, "conversation_create_failed");
     }
 
     return NextResponse.json({
@@ -79,7 +75,7 @@ export async function POST(req: Request) {
       conversation: created,
       created: true,
     });
-  } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  } catch (error) {
+    return routeErrorResponse(error);
   }
 }
