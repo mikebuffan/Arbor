@@ -172,3 +172,9 @@ this explicit-correction durability change. It is deliberately deferred as
 unrelated Milestone 1B technical debt. Verification reports it as the one known
 full-suite failure; this audit does not represent that assertion as passing and
 this correction pass does not modify it.
+
+That paragraph preserves the historical run faithfully. It is not a standing
+waiver: current closeout verification classifies the exact candidate from a
+fresh run. The 2026-09-11 closure-base and closeout-candidate runs no longer
+reproduce the Michael/Mike failure, so current evidence must report the suite
+as green rather than carrying the historical failure forward.

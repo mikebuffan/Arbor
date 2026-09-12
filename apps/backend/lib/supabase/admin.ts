@@ -6,6 +6,40 @@ import { SpanStatusCode } from "@opentelemetry/api";
 
 let _adminClient: SupabaseClient | null = null;
 
+const SAFE_QUERY_LABELS = new Set(["database_query"]);
+
+function safeQueryLabel(label: string): string {
+  return SAFE_QUERY_LABELS.has(label) ? label : "database_query";
+}
+
+function safeQueryFailureCode(error: unknown): string {
+  if (typeof error !== "object" || error === null) return "query_failed";
+
+  const candidate = error as {
+    code?: unknown;
+    status?: unknown;
+    message?: unknown;
+  };
+  if (candidate.status === 429) return "rate_limited";
+  if (
+    candidate.status === 500 ||
+    candidate.status === 502 ||
+    candidate.status === 503 ||
+    candidate.status === 504
+  ) {
+    return "service_unavailable";
+  }
+  if (candidate.code === "PGRST000") return "connection_error";
+
+  const message =
+    typeof candidate.message === "string" ? candidate.message.toLowerCase() : "";
+  if (message.includes("timeout")) return "timeout";
+  if (message.includes("fetch") || message.includes("network")) {
+    return "network_error";
+  }
+  return "query_failed";
+}
+
 export function supabaseAdmin(): SupabaseClient {
   if (_adminClient) return _adminClient;
 
@@ -33,11 +67,12 @@ export async function safeQuery<T>(
   retries = 2
 ): Promise<T> {
   const client = supabaseAdmin();
+  const operation = safeQueryLabel(label);
 
   return Sentry.startSpan(
     {
       op: "db.supabase",
-      name: label,
+      name: operation,
     },
     async (span) => {
       for (let attempt = 0; attempt <= retries; attempt++) {
@@ -48,6 +83,7 @@ export async function safeQuery<T>(
           return result;
         } catch (err: any) {
           const isLastAttempt = attempt === retries;
+          const code = safeQueryFailureCode(err);
           const shouldRetry =
             !isLastAttempt &&
             (err?.status === 500 ||
@@ -55,24 +91,42 @@ export async function safeQuery<T>(
               err?.message?.includes("fetch") ||
               err?.message?.includes("timeout"));
 
-          console.warn(`[safeQuery:${label}] attempt ${attempt + 1} failed`, err);
+          console.warn("[supabase] query failed", {
+            subsystem: "supabase",
+            operation,
+            code,
+            resourceType: "database_query",
+            attempt: attempt + 1,
+            maxAttempts: retries + 1,
+            willRetry: shouldRetry,
+          });
 
           if (attempt === 0 || isLastAttempt) {
-            Sentry.captureException(err, {
-              tags: { query_label: label, retry_attempt: attempt },
-              extra: { message: err?.message, stack: err?.stack },
+            Sentry.captureMessage("supabase_query_failed", {
+              level: isLastAttempt ? "error" : "warning",
+              tags: {
+                subsystem: "supabase",
+                operation,
+                error_code: code,
+                retry_attempt: String(attempt + 1),
+              },
             });
           }
 
-          span.setAttribute("error_message", err?.message ?? "unknown");
-          span.setAttribute("retry_attempt", attempt);
+          span.setAttribute("error_code", code);
+          span.setAttribute("retry_attempt", attempt + 1);
+          span.setAttribute("max_attempts", retries + 1);
+          span.setAttribute("retry_scheduled", shouldRetry);
 
           if (shouldRetry) {
             await new Promise((r) => setTimeout(r, 200 * (attempt + 1)));
             continue;
           }
 
-          span.setStatus({ code: SpanStatusCode.ERROR, message: err?.message });
+          span.setStatus({
+            code: SpanStatusCode.ERROR,
+            message: "supabase_query_failed",
+          });
           throw err;
         }
       }
@@ -82,7 +136,7 @@ export async function safeQuery<T>(
         message: "exceeded retries",
       });
 
-      throw new Error(`safeQuery:${label} failed after ${retries + 1} attempts`);
+      throw new Error("safe_query_failed_after_retries");
     }
   );
 }

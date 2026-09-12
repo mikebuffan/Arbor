@@ -207,11 +207,12 @@ export async function promoteIdentityAnchors(params: {
             projectId,
             conversationId: null,
             });
-        } catch (err) {
+        } catch {
             console.warn("[ANCHOR CACHE INVALIDATION FAILED]", {
-            authedUserId,
-            projectId,
-            error: err instanceof Error ? err.message : err,
+                subsystem: "memory",
+                operation: "invalidate_prompt_cache",
+                code: "prompt_cache_invalidation_failed",
+                resourceType: "prompt_cache",
             });
         }
     }

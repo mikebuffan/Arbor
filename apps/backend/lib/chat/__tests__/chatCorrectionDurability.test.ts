@@ -448,6 +448,8 @@ describe("explicit correction request-path durability", () => {
     expect(capturedOperations).not.toBeNull();
 
     await capturedOperations!.memory_pipeline();
+    expect(mocks.writeDurableChatCompletedEvent).not.toHaveBeenCalled();
+    await capturedOperations!.chat_completed();
     expect(mocks.persistClassifiedMemoryTurn).toHaveBeenCalledTimes(1);
     expect(mocks.writeDurableChatCompletedEvent).toHaveBeenCalledTimes(1);
 

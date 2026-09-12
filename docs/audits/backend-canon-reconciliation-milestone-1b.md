@@ -1,9 +1,14 @@
 # Arbor Backend Canon Reconciliation — Milestone 1B
 
-Status: PR 1B-A implementation and live-catalog reconciliation
-Baseline: `ea909b7e968798c41a1e7e9c50719230e248c232`
-Prepared on: 2026-07-27
+Status: Historical canon reconciliation with current closeout specification
+Original baseline: `ea909b7e968798c41a1e7e9c50719230e248c232`
+Frozen closeout base: `01a9c95108bd6b30bde7f1eaad7b247d8ca45187`
+Prepared on: 2026-07-27; reconciled on 2026-09-11
 Scope: backend canon, Supabase authorization boundaries, heartbeat/live-schema alignment
+
+Section 16 is the current Milestone 1B closeout specification and supersedes
+older status or future-work wording where this point-in-time audit differs. The
+older sections remain intact as historical decision evidence.
 
 ## 1. Authority and evidence rules
 
@@ -421,3 +426,58 @@ Proceed independently from a clean intended base with:
 - unchanged machine-auth and external heartbeat success contract.
 
 Do not invent persistent decay semantics or an atomic-lock constraint.
+
+## 16. Current Milestone 1B closeout specification
+
+### Chat contract and durable truth
+
+- `POST /api/chat` requires one UUID `turnId` per logical user send. A retry or
+  reconnect reuses that ID. `interactionMode` is `text | voice` and defaults to
+  `text`.
+- The current chat orchestration includes Arbor runtime and agency
+  participation. An agency boundary that cannot be completed safely returns
+  bounded `409 agency_boundary`.
+- Explicit corrections cross the durable memory boundary before a successful
+  assistant acknowledgement. An unresolved correction returns bounded
+  `409 correction_unresolved`; an unexpected internal failure returns bounded,
+  redacted `500 server_error`.
+- The canonical assistant message is persisted only after final guards,
+  safety replacement, and fallback handling. The API returns the exact durable
+  assistant content, including on idempotent retry.
+- `chat_completed`, telemetry, and decision outcomes are observational records,
+  not sources of conversation truth. Their failure cannot rewrite or reapply an
+  acknowledged correction.
+- Ordinary extraction and reinforcement are enrichment. Assistant speech can
+  help interpret the user's statement, but is not independent evidence for a
+  durable user fact. Recall-only assistant restatements therefore cannot create
+  a second authoritative memory alias.
+
+### Heartbeat and maintenance
+
+- The operative backend Vercel configuration contains the daily heartbeat
+  schedule.
+- A valid heartbeat execution remains fail-closed and inactive because machine
+  authentication is not configured. No machine secret is created or enabled by
+  this closeout.
+- Normal conversation does not depend on heartbeat, decay, or reflection.
+  Persistent decay and reflection remain quarantined.
+- Enabling machine authentication is separately approved future work.
+
+### Closeout boundaries
+
+- Request-reachable fallback and retry diagnostics export only bounded
+  subsystem, operation, safe code/category, resource type, and retry metadata.
+  Raw exception messages, stacks, database/provider payloads, credentials,
+  prompts, transcript content, memory content, auth headers, SQL internals, and
+  signed URLs are forbidden in console, Sentry, and tracing output.
+- PR #3 is superseded by merged PR #34/current code and is closed unmerged. Its
+  historical branch and live-verification evidence remain part of the record.
+- The canonical repository and linked Firefly ledger contain eight migrations,
+  ending in `20260911174750_backend_closeout_hardening.sql`. Migration history
+  repair, schema changes, policy/grant changes, and synthetic live data are not
+  part of this logging closeout.
+- No new foundational ADR is needed: these changes enforce existing privacy,
+  durability, and authorization decisions rather than changing architecture.
+
+Current closeout-candidate verification and publication evidence is recorded
+in `docs/audits/milestone-1b-backend-closeout.md`.
