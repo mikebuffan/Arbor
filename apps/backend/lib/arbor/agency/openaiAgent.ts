@@ -1,5 +1,9 @@
 import { openai } from "@/lib/providers/openai";
 import type {
+  Response,
+  ResponseCreateParamsNonStreaming,
+} from "openai/resources/responses/responses";
+import type {
   AgencyToolContext,
 } from "./tools";
 
@@ -92,6 +96,122 @@ type FunctionCall = {
   name: string;
   arguments: string;
 };
+
+const AGENCY_MODEL_MAX_ATTEMPTS = 5;
+const AGENCY_MODEL_RETRY_BASE_MS = 2_000;
+const AGENCY_MODEL_RETRY_MAX_MS = 15_000;
+
+function providerStatus(error: unknown): number | null {
+  if (!error || typeof error !== "object") return null;
+  const status = (error as { status?: unknown }).status;
+  return typeof status === "number" ? status : null;
+}
+
+function providerFailureCode(error: unknown): string {
+  const status = providerStatus(error);
+  if (status === 429) return "provider_rate_limited";
+  if (status === 408) return "provider_timeout";
+  if (status !== null && status >= 500) return "provider_unavailable";
+  return "provider_network_error";
+}
+
+function isRetryableProviderFailure(error: unknown): boolean {
+  const status = providerStatus(error);
+  if (status === 408 || status === 429 || (status !== null && status >= 500)) {
+    return true;
+  }
+  if (!error || typeof error !== "object") return false;
+  const name = (error as { name?: unknown }).name;
+  return (
+    name === "APIConnectionError" ||
+    name === "APIConnectionTimeoutError" ||
+    name === "APITimeoutError"
+  );
+}
+
+function providerHeader(error: unknown, name: string): string | null {
+  if (error && typeof error === "object") {
+    const headers = (error as { headers?: unknown }).headers;
+    if (headers && typeof headers === "object" && "get" in headers) {
+      const get = (headers as { get?: unknown }).get;
+      if (typeof get === "function") {
+        const value = get.call(headers, name);
+        return typeof value === "string" ? value : null;
+      }
+    }
+  }
+  return null;
+}
+
+function boundedDelayMs(value: number): number | null {
+  if (!Number.isFinite(value) || value <= 0) return null;
+  return Math.min(Math.ceil(value), AGENCY_MODEL_RETRY_MAX_MS);
+}
+
+function resetDurationMs(value: string | null): number | null {
+  if (!value) return null;
+  const matches = [...value.matchAll(/(\d+(?:\.\d+)?)(ms|s|m)/g)];
+  if (!matches.length || matches.map((match) => match[0]).join("") !== value) {
+    return null;
+  }
+  const milliseconds = matches.reduce((total, match) => {
+    const amount = Number(match[1]);
+    const unit = match[2];
+    return total + amount * (unit === "m" ? 60_000 : unit === "s" ? 1_000 : 1);
+  }, 0);
+  return boundedDelayMs(milliseconds + 250);
+}
+
+function retryAfterMs(error: unknown, attempt: number): number {
+  const seconds = Number(providerHeader(error, "retry-after"));
+  if (Number.isFinite(seconds) && seconds > 0) {
+    return boundedDelayMs(seconds * 1_000) ?? AGENCY_MODEL_RETRY_BASE_MS;
+  }
+
+  const explicitMilliseconds = boundedDelayMs(
+    Number(providerHeader(error, "retry-after-ms")),
+  );
+  if (explicitMilliseconds !== null) return explicitMilliseconds;
+
+  const resetDelays = [
+    resetDurationMs(providerHeader(error, "x-ratelimit-reset-requests")),
+    resetDurationMs(providerHeader(error, "x-ratelimit-reset-tokens")),
+  ].filter((delay): delay is number => delay !== null);
+  if (resetDelays.length) return Math.max(...resetDelays);
+
+  return Math.min(
+    AGENCY_MODEL_RETRY_BASE_MS * 2 ** (attempt - 1),
+    AGENCY_MODEL_RETRY_MAX_MS,
+  );
+}
+
+async function createAgencyModelResponse(
+  request: ResponseCreateParamsNonStreaming,
+): Promise<Response> {
+  for (let attempt = 1; attempt <= AGENCY_MODEL_MAX_ATTEMPTS; attempt += 1) {
+    try {
+      return await openai.responses.create(request);
+    } catch (error) {
+      const willRetry =
+        attempt < AGENCY_MODEL_MAX_ATTEMPTS &&
+        isRetryableProviderFailure(error);
+      if (!willRetry) throw error;
+
+      const delayMs = retryAfterMs(error, attempt);
+      console.warn("[agency] model request retrying", {
+        subsystem: "chat",
+        operation: "model_agency",
+        code: providerFailureCode(error),
+        attempt,
+        maxAttempts: AGENCY_MODEL_MAX_ATTEMPTS,
+        nextDelayMs: delayMs,
+      });
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+
+  throw new Error("agency_model_attempts_exhausted");
+}
 
 export type AgentResult =
   | {
@@ -283,7 +403,7 @@ export async function runOpenAIAgencyAgent(
     requestTools(tools);
 
   let response =
-    await openai.responses.create({
+    await createAgencyModelResponse({
       model:
         process.env
           .OPENAI_AGENCY_MODEL ??
@@ -374,7 +494,7 @@ export async function runOpenAIAgencyAgent(
       }
 
       response =
-        await openai.responses.create(
+        await createAgencyModelResponse(
           {
             model:
               process.env
@@ -575,7 +695,7 @@ export async function runOpenAIAgencyAgent(
     }
 
     response =
-      await openai.responses.create(
+      await createAgencyModelResponse(
         {
           model:
             process.env

@@ -9,11 +9,17 @@ const BodySchema = z.object({
   conversationId: z.string().uuid().optional(),
 });
 
+class UnauthorizedError extends Error {}
+
 async function requireUser(req: Request) {
   const supa = supabaseFromAuthHeader(req);
   const { data, error } = await supa.auth.getUser();
-  if (error || !data?.user) throw new Error("Unauthorized");
+  if (error || !data?.user) throw new UnauthorizedError();
   return { supa, userId: data.user.id };
+}
+
+function serverError() {
+  return NextResponse.json({ error: "server_error" }, { status: 500 });
 }
 
 export async function POST(req: Request) {
@@ -22,12 +28,11 @@ export async function POST(req: Request) {
 
     const parsed = BodySchema.safeParse(await req.json().catch(() => ({})));
     if (!parsed.success) {
-      return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+      return NextResponse.json({ error: "bad_request" }, { status: 400 });
     }
 
     const { projectId, conversationId } = parsed.data;
 
-    // 1) Verify project belongs to user (RLS should already enforce, but we want explicit)
     const { data: project, error: pErr } = await supa
       .from("projects")
       .select("id, persona_id, framework_version")
@@ -35,11 +40,10 @@ export async function POST(req: Request) {
       .eq("user_id", userId)
       .single();
 
-    if (pErr) {
-      return NextResponse.json({ error: "Project not found" }, { status: 404 });
+    if (pErr || !project) {
+      return NextResponse.json({ error: "not_found" }, { status: 404 });
     }
 
-    // 2) If a conversationId was provided, verify it belongs to user + project
     if (conversationId) {
       const { data: convo, error: cErr } = await supa
         .from("conversations")
@@ -49,8 +53,8 @@ export async function POST(req: Request) {
         .eq("project_id", projectId)
         .single();
 
-      if (cErr) {
-        return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
+      if (cErr || !convo) {
+        return NextResponse.json({ error: "not_found" }, { status: 404 });
       }
 
       return NextResponse.json({
@@ -60,7 +64,6 @@ export async function POST(req: Request) {
       });
     }
 
-    // 3) Otherwise create a new conversation under this project
     const { data: created, error: insErr } = await supa
       .from("conversations")
       .insert({
@@ -70,16 +73,17 @@ export async function POST(req: Request) {
       .select("id, project_id, user_id, created_at")
       .single();
 
-    if (insErr) {
-      return NextResponse.json({ error: insErr.message }, { status: 500 });
-    }
+    if (insErr || !created) return serverError();
 
     return NextResponse.json({
       project,
       conversation: created,
       created: true,
     });
-  } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  } catch (error) {
+    if (error instanceof UnauthorizedError) {
+      return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    }
+    return serverError();
   }
 }

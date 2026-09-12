@@ -9,11 +9,17 @@ const QuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(200).default(50),
 });
 
+class UnauthorizedError extends Error {}
+
 async function requireUser(req: Request) {
   const supa = supabaseFromAuthHeader(req);
   const { data, error } = await supa.auth.getUser();
-  if (error || !data?.user) throw new Error("Unauthorized");
+  if (error || !data?.user) throw new UnauthorizedError();
   return { supa, userId: data.user.id };
+}
+
+function serverError() {
+  return NextResponse.json({ error: "server_error" }, { status: 500 });
 }
 
 export async function GET(req: Request) {
@@ -27,12 +33,11 @@ export async function GET(req: Request) {
     });
 
     if (!parsed.success) {
-      return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+      return NextResponse.json({ error: "bad_request" }, { status: 400 });
     }
 
     const { projectId, limit } = parsed.data;
 
-    // RLS + explicit constraints
     const { data, error } = await supa
       .from("conversations")
       .select("id, project_id, created_at")
@@ -41,10 +46,13 @@ export async function GET(req: Request) {
       .order("created_at", { ascending: false })
       .limit(limit);
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) return serverError();
 
     return NextResponse.json({ conversations: data ?? [] });
-  } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  } catch (error) {
+    if (error instanceof UnauthorizedError) {
+      return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    }
+    return serverError();
   }
 }
