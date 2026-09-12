@@ -10,6 +10,9 @@ const files = [
   "app/api/chat/attachments/access/route.ts",
   "app/api/chat/attachments/delete/route.ts",
   "app/api/chat/route.ts",
+  "app/api/conversations/route.ts",
+  "app/api/conversations/list/route.ts",
+  "app/api/conversations/last/route.ts",
   "app/api/memory/reset/route.ts",
   "app/api/debug/chat/route.ts",
   "app/api/debug/openai/route.ts",
@@ -72,6 +75,21 @@ describe("Milestone 1B sensitive logging", () => {
       expect(entry.source, entry.file).not.toMatch(
         /console\.(?:log|debug|error|warn)\([\s\S]{0,240}?,\s*(?:releaseError|error|err|e|payload)(?:\.[a-zA-Z_$][\w$]*)?\s*,?\s*\)/i,
       );
+    }
+  });
+
+  it("does not expose raw exception text from conversation routes", () => {
+    const conversationRoutes = [
+      "app/api/conversations/route.ts",
+      "app/api/conversations/list/route.ts",
+      "app/api/conversations/last/route.ts",
+    ];
+
+    for (const file of conversationRoutes) {
+      const source = fs.readFileSync(path.resolve(process.cwd(), file), "utf8");
+      expect(source, file).not.toMatch(/NextResponse\.json\([\s\S]{0,220}\.message\b/);
+      expect(source, file).not.toMatch(/NextResponse\.json\([\s\S]{0,220}String\s*\(\s*(?:e|err|error)/);
+      expect(source, file).toContain('{ error: "server_error" }');
     }
   });
 
