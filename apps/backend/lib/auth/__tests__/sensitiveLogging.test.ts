@@ -19,6 +19,7 @@ const files = [
   "lib/attachments/http.ts",
   "lib/arbor/continuity/store.ts",
   "lib/arbor/episodes/getOrCreateOpenEpisode.ts",
+  "lib/arbor/agency/openaiAgent.ts",
   "lib/arbor/telemetry/buildTelemetry.ts",
   "lib/chat/postResponseScheduler.ts",
   "lib/chat/synchronousDiagnostics.ts",
