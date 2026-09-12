@@ -31,8 +31,13 @@ export async function getOrCreateOpenEpisode(params: {
 
     if (e2) throw e2;
     return created.id as string;
-  } catch (err) {
-    console.error("[episodes] getOrCreateOpenEpisode failed", err);
+  } catch {
+    console.error("[episodes] getOrCreateOpenEpisode failed", {
+      subsystem: "episodes",
+      operation: "get_or_create_open_episode",
+      code: "episode_open_failed",
+      resourceType: "episode",
+    });
     return null; 
   }
 }

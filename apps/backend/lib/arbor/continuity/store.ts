@@ -113,11 +113,13 @@ export async function loadContinuityStateSafe(
 ): Promise<ArborContinuityState> {
   try {
     return await loadContinuityState(input);
-  } catch (error) {
-    console.warn(
-      "[arbor:continuity] fallback",
-      error,
-    );
+  } catch {
+    console.warn("[arbor:continuity] fallback", {
+      subsystem: "continuity",
+      operation: "load_state",
+      code: "continuity_load_failed",
+      resourceType: "conversation_state",
+    });
 
     return buildContinuityState({
       activeSubsystem: "arbor",
