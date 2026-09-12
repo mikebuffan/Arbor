@@ -62,7 +62,7 @@ const canonAudit = readFileSync(
 );
 
 for (const requiredCanon of [
-  "Ordinary conversation does not depend on heartbeat, decay, or reflection.",
+  "Normal conversation does not depend on heartbeat, decay, or reflection.",
   "Persistent decay and reflection remain quarantined.",
   "eight migrations",
 ]) {
