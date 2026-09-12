@@ -60,6 +60,10 @@ import {
 import { buildTelemetry } from "@/lib/arbor/telemetry/buildTelemetry";
 import { getOrCreateOpenEpisode } from "@/lib/arbor/episodes/getOrCreateOpenEpisode";
 import { scheduleChatPostResponseWork } from "@/lib/chat/postResponseScheduler";
+import {
+  reportChatSynchronousFailure,
+  type ChatSynchronousStage,
+} from "@/lib/chat/synchronousDiagnostics";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -183,9 +187,11 @@ async function cleanupExpiredMessagesBestEffort(
 
 export async function POST(req: Request) {
   const t0 = performance.now();
+  let stage: ChatSynchronousStage = "auth";
 
   try {
     const { supabase, userId } = await requireUser(req);
+    stage = "request_parse";
     const parsed = Body.safeParse(await req.json().catch(() => ({})));
     if (!parsed.success) {
       return NextResponse.json(
@@ -202,6 +208,7 @@ export async function POST(req: Request) {
       interactionMode,
     } = parsed.data;
 
+    stage = "project_scope";
     await cleanupExpiredMessagesBestEffort(supabase, userId);
     if (maybeProjectId) {
       await assertProjectOwnedByUser(supabase, userId, maybeProjectId);
@@ -209,6 +216,7 @@ export async function POST(req: Request) {
     const projectId =
       maybeProjectId ?? (await getOrCreateDefaultProjectId(supabase, userId));
 
+    stage = "turn_resolution";
     const turnStore = createSupabaseChatTurnStore(supabase);
     const resolvedTurn = await resolveConversationForTurn({
       store: turnStore,
@@ -228,6 +236,7 @@ export async function POST(req: Request) {
     });
     const convoId = resolvedTurn.conversationId;
 
+    stage = "user_persistence";
     const episodeId = await getOrCreateOpenEpisode({
       supabase,
       userId,
@@ -263,6 +272,7 @@ export async function POST(req: Request) {
       );
     }
 
+    stage = "agency_begin";
     let agencyState = await beginAgencySession({
       supabase,
       userId,
@@ -274,6 +284,7 @@ export async function POST(req: Request) {
     const decisionContext = evaluateDecisionContext({ userText });
     const safety = realWorldSafetyAddendum(decisionContext);
 
+    stage = "prompt_context";
     const historyPromise = loadRecentMessages(supabase, userId, convoId, 20);
     const promptContextPromise = buildPromptContext({
       supabase,
@@ -300,6 +311,7 @@ export async function POST(req: Request) {
       behaviorGuardRequirements,
     } = promptContext;
 
+    stage = "runtime_begin";
     const runtimeSession = await beginRuntimeSession({
       supabase,
       userId,
@@ -326,6 +338,7 @@ export async function POST(req: Request) {
           correction.value,
         );
 
+    stage = "timeline_begin";
     const timeline = await ArborTimeline.create(
       new SupabaseTimelineStore(supabase),
       {
@@ -365,6 +378,7 @@ export async function POST(req: Request) {
 
     const agencyTools = buildArborAgencyTools({ supabase });
 
+    stage = "model_agency";
     const agentResult = await runOpenAIAgencyAgent({
       instructions: systemPrompt,
       goal: agencyState.goal,
@@ -605,6 +619,7 @@ export async function POST(req: Request) {
       },
     });
 
+    stage = "assistant_persistence";
     const agentText =
       agentResult.status === "blocked"
         ? agentResult.reason === "irreversible_action"
@@ -669,6 +684,7 @@ export async function POST(req: Request) {
           : undefined,
     });
 
+    stage = "agency_finalize";
     if (agentResult.status === "complete") {
       agencyState = await completeAgencySession({
         supabase,
@@ -696,6 +712,7 @@ export async function POST(req: Request) {
 
     const assistantText = finalAssistant.assistantText;
 
+    stage = "runtime_persistence";
     await updateRuntimeSession({
       supabase,
       state: runtimeSession,
@@ -723,6 +740,7 @@ export async function POST(req: Request) {
 
     const retrievalLatencyMs = Math.round(performance.now() - t0);
 
+    stage = "post_response_schedule";
     scheduleChatPostResponseWork({
       newlyCreated: finalAssistant.created,
       operations: {
@@ -845,6 +863,9 @@ export async function POST(req: Request) {
       headers: getCorsHeaders(req),
     });
   } catch (error: unknown) {
+    if (!(error instanceof RouteAccessError) || error.status === 500) {
+      reportChatSynchronousFailure({ stage, error });
+    }
     const response = routeErrorResponse(error);
     for (const [name, value] of Object.entries(getCorsHeaders(req))) {
       response.headers.set(name, value);

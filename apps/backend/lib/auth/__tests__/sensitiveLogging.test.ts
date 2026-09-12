@@ -21,6 +21,7 @@ const files = [
   "lib/arbor/episodes/getOrCreateOpenEpisode.ts",
   "lib/arbor/telemetry/buildTelemetry.ts",
   "lib/chat/postResponseScheduler.ts",
+  "lib/chat/synchronousDiagnostics.ts",
   "lib/memory/correctionResolution.ts",
   "lib/memory/durableEvents.ts",
   "lib/memory/extractor.ts",
