@@ -1,5 +1,7 @@
 const CAPABILITY_STAGE = /^(?:execute|recover) capability: (.+)$/;
 const CAPABILITY_VERIFICATION = /^verify capability result: (.+)$/;
+const GOAL_OWNERSHIP = /^(?:complete|continue) goal: (.+)$/;
+const FINALIZE_VERIFIED_GOAL = /^finalize verified goal$/;
 
 function uniqueWork(items: string[]): string[] {
   return Array.from(
@@ -15,6 +17,14 @@ function capabilityOf(item: string): string | null {
   return verification?.[1]?.trim() || null;
 }
 
+function isGoalOwnership(item: string): boolean {
+  return GOAL_OWNERSHIP.test(item) || FINALIZE_VERIFIED_GOAL.test(item);
+}
+
+function durableGoalOwnership(current: string[]): string[] {
+  return uniqueWork(current).filter(isGoalOwnership);
+}
+
 export function mergeAgencyUnresolvedWork(
   current: string[],
   incoming: string[],
@@ -22,10 +32,14 @@ export function mergeAgencyUnresolvedWork(
   const next = uniqueWork(incoming);
   if (!next.length) return [];
 
-  // Verifier output is authoritative for the next graph frontier. Capability
-  // markers are transient observations and must never collapse sibling work.
+  // A verifier may replace the detailed frontier, but it must not accidentally
+  // erase ownership of the still-active goal. Goal ownership disappears only
+  // when completion is explicitly committed with an empty frontier.
   if (next.some((item) => capabilityOf(item) === null)) {
-    return next;
+    const incomingOwnsGoal = next.some(isGoalOwnership);
+    return incomingOwnsGoal
+      ? next
+      : uniqueWork([...durableGoalOwnership(current), ...next]);
   }
 
   const capabilities = new Set(
