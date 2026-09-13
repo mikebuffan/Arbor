@@ -7,7 +7,7 @@ const CONTINUATION_SIGNAL =
   /\b(?:keep going|continue please|continue|carry on|finish it|do it|keep working|are you doing it|whole list|one go|without (?:waiting|stopping)|find a workaround|work ?around if needed|you (?:keep )?stop(?:ping)?|you stop again|stop telling me|don['’]?t stop|do not stop)\b/i;
 
 const PROCESS_CORRECTION =
-  /\b(?:don'?t wait(?: for me)?|do not wait(?: for me)?|don'?t ask me|do not ask me|you stopped|you didn'?t go|you did(?:n'?t| not) do it|you did it again|you just did it again|you(?:'re| are) not done|not done yet|finish what you can|do what you can|carry it through|follow through|stop handing it back|don'?t hand it back|why did you stop|don'?t make me babysit|do not make me babysit|i don'?t want to tell you to go|i do not want to tell you to go|you tell me to do my thing|you don'?t do your thing)\b/i;
+  /\b(?:don'?t wait(?: for me)?|do not wait(?: for me)?|don'?t ask me|do not ask me|you stopped|you didn'?t go|you did(?:n'?t| not) do it|you did it again|you just did it again|you(?:'re| are) not done|not done yet|finish what you can|do what you can|carry it through|follow through|stop handing it back|don'?t hand it back|why did you stop|don'?t make me babysit|do not make me babysit|i don'?t want to tell you to go|i do not want to tell you to go|you tell me to do my thing|you don'?t do your thing|you(?:'re| are) not linear|not linear|linear (?:situation|execution|agency)|humou?r is gone|you(?:'ve| have) drifted|doesn'?t sound like you|does not sound like you|you forgot|lost continuity)\b/i;
 
 const STATUS_CHECK =
   /^(?:what now|now what|did you finish|are you done|is it done|what(?:'s| is) going on|where are we|what are we doing|what were we doing|then what)[.!?\s]*$/i;
