@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 
 import { NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -107,6 +107,7 @@ function stableUuid(run: string, label: string) {
 function fixture(run: string) {
   return {
     email: `arbor.acceptance.${compact(run)}@example.com`,
+    password: `ArborBeta-${compact(run)}-aA1!`,
     projectA: `ARBOR ACCEPTANCE ${run} A`,
     projectB: `ARBOR ACCEPTANCE ${run} B`,
     otherProject: `ARBOR ACCEPTANCE ${run} OTHER`,
@@ -127,7 +128,148 @@ function parseRun(value: string | null) {
   return value;
 }
 
-async function syntheticUserId(run: string) {
+function safeDatabaseCode(error: unknown) {
+  if (!error || typeof error !== "object") return "unknown";
+  const code = (error as { code?: unknown }).code;
+  return typeof code === "string" && /^[A-Z0-9_]{1,24}$/i.test(code)
+    ? code
+    : "unknown";
+}
+
+async function deleteExactFixtureProjects(
+  admin: SupabaseClient,
+  run: string,
+  projectUserId: string | null,
+) {
+  const f = fixture(run);
+
+  if (projectUserId) {
+    for (const name of [f.projectA, f.projectB]) {
+      const deleted = await admin
+        .from("projects")
+        .delete()
+        .eq("name", name)
+        .eq("user_id", projectUserId);
+
+      if (deleted.error) {
+        throw new CleanupFailure(
+          "cleanup_fixture_project_failed",
+          safeDatabaseCode(deleted.error),
+        );
+      }
+    }
+  }
+
+  const other = await admin
+    .from("projects")
+    .delete()
+    .eq("name", f.otherProject)
+    .eq("user_id", f.otherOwnerId);
+
+  if (other.error) {
+    throw new CleanupFailure(
+      "cleanup_other_project_failed",
+      safeDatabaseCode(other.error),
+    );
+  }
+}
+
+async function verifyExactFixtureProjectsGone(
+  admin: SupabaseClient,
+  run: string,
+) {
+  const f = fixture(run);
+  const lookup = await admin
+    .from("projects")
+    .select("id", { count: "exact", head: true })
+    .in("name", [f.projectA, f.projectB, f.otherProject]);
+
+  if (lookup.error) {
+    throw new CleanupFailure(
+      "cleanup_fixture_verify_failed",
+      safeDatabaseCode(lookup.error),
+    );
+  }
+
+  if ((lookup.count ?? 0) !== 0) {
+    throw new CleanupFailure(
+      "cleanup_fixture_project_residue",
+      `row_count:${lookup.count ?? 0}`,
+    );
+  }
+}
+
+async function setup(run: string) {
+  const f = fixture(run);
+  const admin = supabaseAdmin();
+
+  const created = await admin.auth.admin.createUser({
+    email: f.email,
+    password: f.password,
+    email_confirm: true,
+    user_metadata: {
+      arbor_acceptance_run: run,
+    },
+  });
+
+  const userId = created.data.user?.id;
+  if (created.error || !userId) {
+    throw new CleanupFailure("synthetic_user_create_failed");
+  }
+
+  const inserted = await admin
+    .from("projects")
+    .insert([
+      {
+        user_id: userId,
+        name: f.projectA,
+        persona_id: "arbor",
+        framework_version: "v1",
+      },
+      {
+        user_id: userId,
+        name: f.projectB,
+        persona_id: "arbor",
+        framework_version: "v1",
+      },
+      {
+        user_id: f.otherOwnerId,
+        name: f.otherProject,
+        persona_id: "arbor",
+        framework_version: "v1",
+      },
+    ])
+    .select("id");
+
+  if (inserted.error) {
+    const dbCode = safeDatabaseCode(inserted.error);
+    await deleteExactFixtureProjects(admin, run, userId).catch(() => undefined);
+    await admin.auth.admin.deleteUser(userId);
+    throw new CleanupFailure(
+      "fixture_project_insert_failed",
+      dbCode,
+    );
+  }
+
+  if (inserted.data?.length !== 3) {
+    const rowCount = inserted.data?.length ?? 0;
+    await deleteExactFixtureProjects(admin, run, userId).catch(() => undefined);
+    await admin.auth.admin.deleteUser(userId);
+    throw new CleanupFailure(
+      "fixture_project_verify_failed",
+      `row_count:${rowCount}`,
+    );
+  }
+
+  return {
+    ok: true,
+    step: "setup",
+    run,
+    next: "a1",
+  };
+}
+
+async function resolveSyntheticIdentity(run: string) {
   const f = fixture(run);
   const admin = supabaseAdmin();
 
@@ -139,6 +281,7 @@ async function syntheticUserId(run: string) {
   if (projectLookup.error) {
     throw new CleanupFailure(
       "synthetic_project_lookup_failed",
+      safeDatabaseCode(projectLookup.error),
     );
   }
 
@@ -159,9 +302,21 @@ async function syntheticUserId(run: string) {
     );
   }
 
-  let userId = projectUserIds[0];
+  const projectUserId = projectUserIds[0] ?? null;
+  let authUser: {
+    id: string;
+    email?: string;
+    user_metadata?: Record<string, unknown>;
+  } | null = null;
 
-  if (!userId) {
+  if (projectUserId) {
+    const lookup = await admin.auth.admin.getUserById(projectUserId);
+    if (!lookup.error && lookup.data.user) {
+      authUser = lookup.data.user;
+    }
+  }
+
+  if (!authUser) {
     for (let page = 1; page <= 50; page += 1) {
       const listed = await admin.auth.admin.listUsers({
         page,
@@ -179,7 +334,7 @@ async function syntheticUserId(run: string) {
       );
 
       if (match) {
-        userId = match.id;
+        authUser = match;
         break;
       }
 
@@ -187,32 +342,23 @@ async function syntheticUserId(run: string) {
     }
   }
 
-  if (!userId) {
-    throw new CleanupFailure(
-      "synthetic_user_identity_mismatch",
-    );
+  if (authUser) {
+    if (
+      authUser.email !== f.email ||
+      authUser.user_metadata?.arbor_acceptance_run !== run ||
+      (projectUserId && authUser.id !== projectUserId)
+    ) {
+      throw new CleanupFailure(
+        "synthetic_user_identity_mismatch",
+      );
+    }
   }
 
-  const authLookup =
-    await admin.auth.admin.getUserById(userId);
-  const user = authLookup.data.user;
-
-  if (authLookup.error || !user) {
-    throw new CleanupFailure(
-      "synthetic_user_lookup_failed",
-    );
-  }
-
-  if (
-    user.email !== f.email ||
-    user.user_metadata?.arbor_acceptance_run !== run
-  ) {
-    throw new CleanupFailure(
-      "synthetic_user_identity_mismatch",
-    );
-  }
-
-  return userId;
+  return {
+    projectUserId,
+    authUserId: authUser?.id ?? null,
+    validatedUserId: authUser?.id ?? null,
+  };
 }
 
 async function countUserRows(
@@ -274,18 +420,7 @@ async function deleteSyntheticRows(
     }
   }
 
-  const f = fixture(run);
-  const other = await admin
-    .from("projects")
-    .delete()
-    .eq("name", f.otherProject)
-    .eq("user_id", f.otherOwnerId);
-
-  if (other.error) {
-    throw new CleanupFailure(
-      "cleanup_other_project_failed",
-    );
-  }
+  await deleteExactFixtureProjects(admin, run, userId);
 }
 
 async function verifyZeroResidue(
@@ -308,56 +443,88 @@ async function verifyZeroResidue(
     }
   }
 
-  const f = fixture(run);
-  const other = await admin
-    .from("projects")
-    .select("id", {
-      count: "exact",
-      head: true,
-    })
-    .eq("name", f.otherProject)
-    .eq("user_id", f.otherOwnerId);
+  await verifyExactFixtureProjectsGone(admin, run);
+}
 
-  if (other.error || (other.count ?? 0) !== 0) {
-    throw new CleanupFailure(
-      "cleanup_other_project_residue",
-    );
+async function verifyNoOrphanUserRows(
+  admin: SupabaseClient,
+  userId: string,
+) {
+  for (const table of USER_TABLES) {
+    if (table === "projects") continue;
+    const count = await countUserRows(admin, table, userId);
+    if (count !== 0) {
+      throw new CleanupFailure(
+        "orphan_cleanup_user_rows_remaining",
+        `${table}:${count}`,
+      );
+    }
   }
 }
 
 async function cleanup(run: string) {
   const admin = supabaseAdmin();
-  const userId = await syntheticUserId(run);
+  const identity = await resolveSyntheticIdentity(run);
 
   await new Promise((resolve) =>
     setTimeout(resolve, 2_000),
   );
 
-  await deleteSyntheticRows(admin, userId, run);
-
-  const deleted =
-    await admin.auth.admin.deleteUser(userId);
-
-  if (deleted.error) {
-    throw new CleanupFailure(
-      "synthetic_auth_delete_failed",
+  if (identity.validatedUserId) {
+    await deleteSyntheticRows(
+      admin,
+      identity.validatedUserId,
+      run,
     );
-  }
 
-  await new Promise((resolve) =>
-    setTimeout(resolve, 1_000),
-  );
-
-  await deleteSyntheticRows(admin, userId, run);
-  await verifyZeroResidue(admin, userId, run);
-
-  const authLookup =
-    await admin.auth.admin.getUserById(userId);
-
-  if (!authLookup.error && authLookup.data.user) {
-    throw new CleanupFailure(
-      "synthetic_auth_residue_remaining",
+    const deleted = await admin.auth.admin.deleteUser(
+      identity.authUserId!,
     );
+
+    if (deleted.error) {
+      throw new CleanupFailure(
+        "synthetic_auth_delete_failed",
+      );
+    }
+
+    await new Promise((resolve) =>
+      setTimeout(resolve, 1_000),
+    );
+
+    await deleteSyntheticRows(
+      admin,
+      identity.validatedUserId,
+      run,
+    );
+    await verifyZeroResidue(
+      admin,
+      identity.validatedUserId,
+      run,
+    );
+
+    const authLookup = await admin.auth.admin.getUserById(
+      identity.authUserId!,
+    );
+
+    if (!authLookup.error && authLookup.data.user) {
+      throw new CleanupFailure(
+        "synthetic_auth_residue_remaining",
+      );
+    }
+  } else {
+    if (identity.projectUserId) {
+      await verifyNoOrphanUserRows(
+        admin,
+        identity.projectUserId,
+      );
+    }
+
+    await deleteExactFixtureProjects(
+      admin,
+      run,
+      identity.projectUserId,
+    );
+    await verifyExactFixtureProjectsGone(admin, run);
   }
 
   return {
@@ -375,21 +542,27 @@ export async function GET(request: Request) {
   }
 
   const url = new URL(request.url);
-
-  if (url.searchParams.get("step") !== "cleanup") {
-    return legacyGET(request);
-  }
+  const step = url.searchParams.get("step");
 
   let run: string | undefined;
 
   try {
+    if (step === "setup") {
+      run = randomUUID();
+      return response(await setup(run));
+    }
+
+    if (step !== "cleanup") {
+      return legacyGET(request);
+    }
+
     run = parseRun(url.searchParams.get("run"));
     return response(await cleanup(run));
   } catch (error) {
     const code =
       error instanceof CleanupFailure
         ? error.code
-        : "cleanup_internal_failure";
+        : "acceptance_wrapper_failure";
     const detail =
       error instanceof CleanupFailure
         ? error.detail
@@ -397,14 +570,14 @@ export async function GET(request: Request) {
 
     console.error("ARBOR_BETA_ACCEPTANCE_FAILURE", {
       subsystem: "beta_acceptance",
-      step: "cleanup",
+      step: step ?? "unknown",
       code,
     });
 
     return response(
       {
         ok: false,
-        step: "cleanup",
+        step: step ?? "unknown",
         ...(run ? { run } : {}),
         error: code,
         ...(detail ? { detail } : {}),
