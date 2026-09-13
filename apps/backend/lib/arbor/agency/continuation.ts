@@ -9,6 +9,12 @@ const CONTINUATION_SIGNAL =
 const PROCESS_CORRECTION =
   /\b(?:don'?t wait(?: for me)?|do not wait(?: for me)?|don'?t ask me|do not ask me|you stopped|you didn'?t go|you did(?:n'?t| not) do it|you did it again|you just did it again|you(?:'re| are) not done|not done yet|finish what you can|do what you can|carry it through|follow through|stop handing it back|don'?t hand it back|why did you stop|don'?t make me babysit|do not make me babysit|i don'?t want to tell you to go|i do not want to tell you to go|you tell me to do my thing|you don'?t do your thing)\b/i;
 
+const RELATED_PROCESS_FEEDBACK =
+  /^(?:it['’]?s|its|that['’]?s|thats|also|and)\b/i;
+
+const AGENCY_PROCESS_FEEDBACK =
+  /\b(?:agency|non[- ]?linear|unresolved work|continuation)\b/i;
+
 const STATUS_CHECK =
   /^(?:what now|now what|did you finish|are you done|is it done|what(?:'s| is) going on|where are we|what are we doing|what were we doing|then what)[.!?\s]*$/i;
 
@@ -52,7 +58,9 @@ export function shouldResumeAgencyGoal(
   return (
     CONTINUATION_SIGNAL.test(text) ||
     PROCESS_CORRECTION.test(text) ||
-    STATUS_CHECK.test(text)
+    STATUS_CHECK.test(text) ||
+    AGENCY_PROCESS_FEEDBACK.test(text) ||
+    (prior.status === "active" && RELATED_PROCESS_FEEDBACK.test(text))
   );
 }
 
