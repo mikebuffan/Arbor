@@ -10,12 +10,8 @@ function first(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
 }
 
-function acceptanceAllowed(params: Awaited<HomeSearchParams>) {
+function acceptanceAllowed() {
   return (
-    Boolean(
-      first(params._vercel_share) ||
-      first(params.arbor_acceptance) === "1",
-    ) &&
     process.env.VERCEL_ENV === "preview" &&
     process.env.VERCEL_GIT_COMMIT_REF ===
       "arbor/backend-beta-finish"
@@ -64,7 +60,7 @@ export default async function Home({
 }) {
   const params = await searchParams;
 
-  if (acceptanceAllowed(params)) {
+  if (acceptanceAllowed()) {
     if (first(params.arbor_acceptance) === "1") {
       await new Promise((resolve) =>
         setTimeout(resolve, 2_000),
