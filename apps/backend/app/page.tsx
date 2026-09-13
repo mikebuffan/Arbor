@@ -1,108 +1,6 @@
 import Image from "next/image";
-import { redirect } from "next/navigation";
 
-type HomeSearchParams = Promise<{
-  _vercel_share?: string | string[];
-  arbor_acceptance?: string | string[];
-}>;
-
-function first(value: string | string[] | undefined) {
-  return Array.isArray(value) ? value[0] : value;
-}
-
-function acceptanceAllowed() {
-  return (
-    process.env.VERCEL_ENV === "preview" &&
-    process.env.VERCEL_GIT_COMMIT_REF ===
-      "arbor/backend-beta-finish"
-  );
-}
-
-async function runAcceptance() {
-  try {
-    const { advanceBetaAcceptance } = await import(
-      "@/lib/arbor/betaAcceptanceOrchestrator"
-    );
-    return await advanceBetaAcceptance();
-  } catch {
-    return {
-      ok: false,
-      error: "acceptance_orchestrator_failure",
-    };
-  }
-}
-
-function acceptanceTerminal(
-  result: Record<string, unknown>,
-) {
-  const orchestrator =
-    typeof result.orchestrator === "string"
-      ? result.orchestrator
-      : "";
-
-  if (
-    orchestrator === "cleanup" ||
-    orchestrator === "cleanup_after_failure"
-  ) {
-    return true;
-  }
-
-  return (
-    result.ok === false &&
-    result.next !== "cleanup"
-  );
-}
-
-export default async function Home({
-  searchParams,
-}: {
-  searchParams: HomeSearchParams;
-}) {
-  const params = await searchParams;
-
-  if (acceptanceAllowed()) {
-    if (first(params.arbor_acceptance) === "1") {
-      await new Promise((resolve) =>
-        setTimeout(resolve, 2_000),
-      );
-    }
-
-    const result = await runAcceptance();
-    const resultRecord = result as Record<string, unknown>;
-    const terminal = acceptanceTerminal(resultRecord);
-
-    console.info("ARBOR_BETA_ACCEPTANCE_ORCHESTRATOR", {
-      orchestrator:
-        typeof resultRecord.orchestrator === "string"
-          ? resultRecord.orchestrator
-          : "unknown",
-      ok: resultRecord.ok === true,
-      step:
-        typeof resultRecord.step === "string"
-          ? resultRecord.step
-          : undefined,
-      verdict:
-        typeof resultRecord.verdict === "string"
-          ? resultRecord.verdict
-          : undefined,
-      error:
-        typeof resultRecord.error === "string"
-          ? resultRecord.error
-          : undefined,
-      terminal,
-    });
-
-    if (!terminal) {
-      redirect("/?arbor_acceptance=1");
-    }
-
-    return (
-      <pre id="arbor-beta-acceptance">
-        {JSON.stringify(result)}
-      </pre>
-    );
-  }
-
+export default function Home() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
       <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
@@ -131,9 +29,9 @@ export default async function Home({
               href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
               className="font-medium text-zinc-950 dark:text-zinc-50"
             >
-              Learning
-            </a>{" "}
-            center.
+              Learning center
+            </a>
+            .
           </p>
         </div>
         <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
