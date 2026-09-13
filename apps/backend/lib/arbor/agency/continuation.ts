@@ -1,23 +1,27 @@
 import type { AgencyState } from "./engine";
+import {
+  explicitlyContinues,
+  explicitlySupersedes,
+  shouldCarryGoal,
+} from "../continuity/longitudinalPolicy";
 
-const CONTINUATION =
-  /^(?:go|okay|ok|continue|keep going|do it|finish it|yes|yep|yeah|please do|carry on)[.!?\s]*$/i;
-
-export function compactAgencyGoal(userText: string): string {
-  return userText.trim().replace(/\s+/g, " ").slice(0, 500);
+export function compactAgencyGoal(
+  userText: string,
+): string {
+  return userText
+    .trim()
+    .replace(/\s+/g, " ")
+    .slice(0, 500);
 }
 
 export function shouldResumeAgencyGoal(
   userText: string,
   prior: AgencyState | null,
 ): boolean {
-  if (!prior) return false;
-
-  if (prior.status !== "active" && prior.status !== "blocked") {
-    return false;
-  }
-
-  return CONTINUATION.test(userText.trim());
+  return shouldCarryGoal(
+    userText,
+    prior,
+  );
 }
 
 export function resolveAgencyGoal(
@@ -26,11 +30,38 @@ export function resolveAgencyGoal(
 ): {
   goal: string;
   resume: boolean;
+  superseded: boolean;
 } {
-  const resume = shouldResumeAgencyGoal(userText, prior);
+  const superseded =
+    explicitlySupersedes(userText);
+
+  const resume =
+    !superseded &&
+    shouldCarryGoal(
+      userText,
+      prior,
+    );
+
+  if (resume && prior) {
+    return {
+      goal: prior.goal,
+      resume: true,
+      superseded: false,
+    };
+  }
 
   return {
-    goal: resume && prior ? prior.goal : compactAgencyGoal(userText),
-    resume,
+    goal:
+      compactAgencyGoal(userText),
+    resume: false,
+    superseded,
   };
+}
+
+export function isExplicitContinuation(
+  userText: string,
+): boolean {
+  return explicitlyContinues(
+    userText,
+  );
 }
