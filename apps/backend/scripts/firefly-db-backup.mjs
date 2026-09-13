@@ -14,10 +14,40 @@ function fail(message) {
   process.exit(1);
 }
 
-function run(command, args) {
+function connectionEnv(databaseUrl) {
+  let parsed;
+  try {
+    parsed = new URL(databaseUrl);
+  } catch {
+    fail("FIREFLY_DATABASE_URL must be a valid PostgreSQL connection URL");
+  }
+
+  if (!['postgres:', 'postgresql:'].includes(parsed.protocol)) {
+    fail("FIREFLY_DATABASE_URL must use postgres:// or postgresql://");
+  }
+
+  const { FIREFLY_DATABASE_URL: _secret, ...baseEnv } = process.env;
+  const databaseName = decodeURIComponent(parsed.pathname.replace(/^\//, ""));
+
+  if (!parsed.hostname || !parsed.username || !databaseName) {
+    fail("FIREFLY_DATABASE_URL is missing host, user, or database name");
+  }
+
+  return {
+    ...baseEnv,
+    PGHOST: parsed.hostname,
+    PGPORT: parsed.port || "5432",
+    PGUSER: decodeURIComponent(parsed.username),
+    PGPASSWORD: decodeURIComponent(parsed.password),
+    PGDATABASE: databaseName,
+    PGSSLMODE: parsed.searchParams.get("sslmode") || "require",
+  };
+}
+
+function run(command, args, env = process.env) {
   const result = spawnSync(command, args, {
     stdio: "inherit",
-    env: process.env,
+    env,
     shell: process.platform === "win32",
   });
 
@@ -39,17 +69,21 @@ if (action === "dump") {
 
   mkdirSync(backupDir, { recursive: true });
   const output = resolve(backupDir, `firefly-${timestamp()}.dump`);
+  const pgEnv = connectionEnv(databaseUrl);
 
-  run("pg_dump", [
-    "--format=custom",
-    "--no-owner",
-    "--no-privileges",
-    "--file",
-    output,
-    databaseUrl,
-  ]);
+  run(
+    "pg_dump",
+    [
+      "--format=custom",
+      "--no-owner",
+      "--no-privileges",
+      "--file",
+      output,
+    ],
+    pgEnv,
+  );
 
-  run("pg_restore", ["--list", output]);
+  run("pg_restore", ["--list", output], pgEnv);
   console.log(`[firefly-backup] verified dump: ${output}`);
   process.exit(0);
 }
