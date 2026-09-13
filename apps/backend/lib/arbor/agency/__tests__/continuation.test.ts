@@ -58,6 +58,9 @@ describe("agency continuation", () => {
     "this needs to be non-linear",
     "its also not linawr",
     "and it should preserve the other branches",
+    "the agency isn't right im getting angry at this point. fix yourself",
+    "I'm getting frustrated. Fix the agency",
+    "you're all messed up still",
   ])("resumes unresolved work for corrective/status turn: %s", (text) => {
     expect(shouldResumeAgencyGoal(text, prior)).toBe(true);
     expect(resolveAgencyGoal(text, prior)).toEqual({
