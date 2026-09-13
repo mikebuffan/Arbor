@@ -32,6 +32,13 @@ const SAFE_PROVIDER_CODES = new Set([
   "server_error",
 ]);
 
+const SAFE_DATABASE_CODES: Record<string, string> = {
+  "23503": "foreign_key_violation",
+  "23505": "unique_violation",
+  "23514": "check_violation",
+  "42501": "insufficient_privilege",
+};
+
 type SafeChatFailure = {
   subsystem: "chat";
   stage: ChatSynchronousStage;
@@ -54,6 +61,23 @@ function safeProviderCode(error: unknown): string | null {
   return typeof code === "string" && SAFE_PROVIDER_CODES.has(code)
     ? code
     : null;
+}
+
+function safeDatabaseCode(error: unknown): string | null {
+  if (!error || typeof error !== "object") return null;
+
+  const code = (error as { code?: unknown }).code;
+  if (typeof code !== "string") return null;
+
+  if (SAFE_DATABASE_CODES[code]) {
+    return SAFE_DATABASE_CODES[code];
+  }
+
+  if (/^PGRST\d{3}$/.test(code)) {
+    return `postgrest_${code.toLowerCase()}`;
+  }
+
+  return null;
 }
 
 function isProviderStage(stage: ChatSynchronousStage): boolean {
@@ -81,13 +105,16 @@ export function classifyChatSynchronousFailure(
 ): SafeChatFailure {
   const status = safeStatus(error);
   const providerCode = safeProviderCode(error);
+  const databaseCode = isDatabaseStage(stage)
+    ? safeDatabaseCode(error)
+    : null;
   const category = isProviderStage(stage)
     ? "provider"
     : isDatabaseStage(stage)
       ? "database"
       : "application";
 
-  let code = providerCode ?? "unexpected_failure";
+  let code = providerCode ?? databaseCode ?? "unexpected_failure";
   if (!providerCode && isProviderStage(stage)) {
     if (status === 400) code = "provider_request_rejected";
     else if (status === 401 || status === 403) {
