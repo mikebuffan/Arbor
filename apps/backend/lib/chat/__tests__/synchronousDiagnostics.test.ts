@@ -47,6 +47,21 @@ describe("chat synchronous diagnostics", () => {
     });
   });
 
+  it("classifies safe database failures without exporting raw payloads", () => {
+    expect(
+      classifyChatSynchronousFailure("agency_finalize", {
+        code: "23514",
+        message: "SENTINEL_PRIVATE_DATABASE_DETAIL",
+      }),
+    ).toEqual({
+      subsystem: "chat",
+      stage: "agency_finalize",
+      category: "database",
+      code: "check_violation",
+      status: null,
+    });
+  });
+
   it("keeps sentinel exception data out of console, Sentry, and span metadata", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     const sentinel = "SENTINEL_SECRET_AUTH_PROMPT_CONTENT";
