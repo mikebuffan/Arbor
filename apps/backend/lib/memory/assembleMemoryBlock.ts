@@ -46,6 +46,11 @@ export function assembleMemoryBlock(args: {
     if (i.deleted_at || i.status !== "active") return false;
     if (i.pinned || i.locked || i.tier === "core") return true;
 
+    // Global and project memory are longitudinal by definition. Recency may
+    // influence ranking, but it must not make a still-valid durable fact vanish
+    // merely because it has not been mentioned for 30 days.
+    if (i.scope === "global" || i.scope === "project") return true;
+
     const stamp = i.last_reinforced_at ?? i.last_seen_at ?? i.updated_at;
     if (!stamp) return true;
 
