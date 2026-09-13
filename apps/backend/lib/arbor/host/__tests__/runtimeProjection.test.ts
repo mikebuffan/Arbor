@@ -48,8 +48,9 @@ describe(
                 [],
               retainedStrategies:
                 [],
-              activeCorrections:
-                [],
+              activeCorrections: [
+                "Do not require repeated go prompts",
+              ],
               activeSubsystem:
                 "arbor",
               channel:
@@ -69,6 +70,13 @@ describe(
             .promptBlock,
         ).not.toContain(
           "General American, not British",
+        );
+
+        expect(
+          result.startup
+            .promptBlock,
+        ).toContain(
+          "Do not require repeated go prompts",
         );
 
         expect(
