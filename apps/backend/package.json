@@ -9,7 +9,9 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:beta-gate": "node scripts/backend-beta-gate.mjs"
+    "test:beta-gate": "node scripts/backend-beta-gate.mjs",
+    "backup:firefly": "node scripts/firefly-db-backup.mjs dump",
+    "backup:firefly:verify": "node scripts/firefly-db-backup.mjs verify"
   },
   "dependencies": {
     "@opentelemetry/api": "^1.9.0",
