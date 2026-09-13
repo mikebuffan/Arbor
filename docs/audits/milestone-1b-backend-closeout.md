@@ -71,3 +71,24 @@ is classified from the fresh run.
 
 Publication is Draft-only. Synthetic live data and comprehensive live
 acceptance remain behind Mike's next explicit approval gate.
+
+## 2026-09-13 beta-finish addendum
+
+The beta-finish branch now includes a protected synthetic acceptance harness.
+A live run reached the real auth, project, conversation, persistence, agency,
+and provider path, then failed closed on provider HTTP 429 after bounded
+retries.
+
+That run exposed two cleanup-harness defects which were corrected without
+weakening database privileges: `chat_attachments` is verified empty rather
+than granted service-role DELETE, and synthetic Auth cleanup resolves the exact
+fixture identity instead of relying on a broad user listing request.
+
+Cleanup for acceptance run `503ba34e-6d38-45b0-aa76-c8c7f4a7de26` then returned
+`zeroResidue: true` / `CLEANUP_PASS`, and an independent Firefly query confirmed
+no synthetic rows remained.
+
+The provider configuration used by the preview was subsequently found to be
+stale relative to the current Arbor OpenAI project credential. The owner
+updated the Vercel provider secret. A fresh beta-finish preview deployment is
+required before repeating the provider-dependent acceptance matrix.
