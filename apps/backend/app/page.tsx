@@ -1,6 +1,71 @@
 import Image from "next/image";
 
-export default function Home() {
+type HomeSearchParams = Promise<{
+  beta_acceptance?: string | string[];
+  step?: string | string[];
+  run?: string | string[];
+}>;
+
+function first(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function acceptanceAllowed(params: Awaited<HomeSearchParams>) {
+  return (
+    first(params.beta_acceptance) === "1" &&
+    process.env.VERCEL_ENV === "preview" &&
+    process.env.VERCEL_GIT_COMMIT_REF ===
+      "arbor/backend-beta-finish"
+  );
+}
+
+async function runAcceptance(
+  params: Awaited<HomeSearchParams>,
+) {
+  const { GET } = await import(
+    "@/app/api/admin/beta-acceptance/route"
+  );
+
+  const url = new URL(
+    "https://acceptance.preview.invalid/api/admin/beta-acceptance",
+  );
+
+  const step = first(params.step);
+  const run = first(params.run);
+
+  if (step) url.searchParams.set("step", step);
+  if (run) url.searchParams.set("run", run);
+
+  const result = await GET(new Request(url));
+
+  try {
+    return await result.json();
+  } catch {
+    return {
+      ok: false,
+      error: "acceptance_adapter_invalid_response",
+      status: result.status,
+    };
+  }
+}
+
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: HomeSearchParams;
+}) {
+  const params = await searchParams;
+
+  if (acceptanceAllowed(params)) {
+    const result = await runAcceptance(params);
+
+    return (
+      <pre id="arbor-beta-acceptance">
+        {JSON.stringify(result)}
+      </pre>
+    );
+  }
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
       <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
