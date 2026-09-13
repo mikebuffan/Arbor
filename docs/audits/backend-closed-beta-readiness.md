@@ -15,9 +15,11 @@ The Milestone 1B acceptance source is PR #54 candidate `2819a0b1ff0bb20b6e327423
 No known unfinished foundational backend architecture remains on the accepted closed-beta product surface. The remaining hold items are operational acceptance conditions:
 
 1. Complete the focused PR #54 exact-preview live acceptance after usable OpenAI quota/model capacity is available.
-2. Confirm a published Vercel Firewall rate-limit rule protects the expensive closed-beta API surface.
-3. Record the Firefly backup tier and recovery method appropriate to the beta environment before admitting external beta data.
+2. Publish and verify the Firefly Vercel Firewall rate-limit rule using the checked-in `ops:firewall:apply` automation with an authorized `VERCEL_TOKEN`.
+3. Take and retain a verified external Firefly logical database dump using the checked-in `backup:firefly` automation before admitting external beta data. Firefly is confirmed to be on the Supabase Free plan, which does not supply automatic database backups.
 4. Require integration CI, build, migration reconciliation, beta gate, and preview deployment success for the final beta-finish PR head.
+
+The concrete backup, recovery, firewall, and live-acceptance procedures are maintained in `docs/ops/backend-beta-release-operations.md` and are enforced as required files/procedures by the beta gate.
 
 If those checks are green and no new correctness/security/privacy defect is found, the conclusion becomes **BACKEND READY FOR CLOSED BETA** without additional architecture work.
 
@@ -101,11 +103,13 @@ Operators can distinguish bounded stages/failure families without reading privat
 
 Observed historical evidence: one `/api/chat` platform timeout occurred on 2026-09-11 before the current provider retry/reset-window candidate. It is recorded as historical evidence, not a reproduced current-candidate defect.
 
-### Rate limiting / abuse protection — release check
+### Rate limiting / abuse protection — release check with applied automation
 
 Do not add process-local serverless counters and call them durable rate limiting.
 
-Closed beta uses Vercel Firewall as the edge abuse boundary. Before beta admission, publish and verify a rate-limit rule covering expensive API paths, with `/api/chat` and Voice included. The exact threshold is an operational beta parameter, not an application architecture contract.
+Closed beta uses Vercel Firewall as the edge abuse boundary. Arbor now includes `apps/backend/scripts/vercel-beta-firewall.mjs` plus package commands `ops:firewall:plan` and `ops:firewall:apply`. The default beta policy covers `/api/chat` and `/api/arbor/voice*` at 60 requests per 60 seconds per source IP, stages the rule through Vercel's firewall API, activates the draft, and re-reads the active configuration to verify the expected rule.
+
+Live publication still requires an authorized `VERCEL_TOKEN`; credentials are not stored in the repository or passed in command arguments.
 
 Authentication and ownership checks remain mandatory even when the firewall is active.
 
@@ -138,16 +142,15 @@ The beta gate fails on unexpected migration-ledger drift. Accepted historical mi
 
 No schema change is required by the beta-finish branch described here. The deferred multi-project memory uniqueness correction must be a later reviewed migration when multi-project UX becomes a product dependency.
 
-### Backup / recovery / rollback — release check plus documented procedure
+### Backup / recovery / rollback — release check with applied automation
 
 Application rollback uses an immutable prior Vercel deployment / Instant Rollback rather than pretending a source revert is instantaneous production recovery.
 
 Database schema rollback is not assumed to be reversible. Migrations must be forward-compatible; a schema/data incident uses the configured Firefly recovery mechanism rather than an automatic down migration.
 
-Before external beta data is admitted, record which Supabase tier Firefly is on and one of:
+Firefly is confirmed on the Supabase Free plan. Arbor now includes `apps/backend/scripts/firefly-db-backup.mjs`, package commands `backup:firefly` and `backup:firefly:verify`, `.local/backups/` gitignore protection, and a documented scratch-database restore procedure. The backup script keeps the PostgreSQL connection URL out of process arguments, writes a custom-format dump, and immediately verifies it with `pg_restore --list`.
 
-- paid tier: confirm the applicable automatic backup retention (and PITR only if separately enabled/required); or
-- free tier: take and retain an external logical database dump according to the beta backup procedure.
+A retained dump still requires an owner-controlled PostgreSQL connection credential; that credential is intentionally unavailable through the connected Supabase management tools and is not stored in the repository.
 
 A release is unhealthy when required CI/gates fail, the preview cannot complete a bounded authenticated turn, auth/tenant isolation fails, persistence diverges from returned output, or runtime error evidence shows a new reproducible correctness/security/privacy defect.
 
@@ -168,7 +171,9 @@ Every beta backend candidate must satisfy:
 11. provider connectivity on the exact candidate;
 12. bounded synthetic live acceptance and verified cleanup;
 13. published edge rate-limit rule verified for expensive endpoints;
-14. backup/recovery method recorded for the beta database tier.
+14. backup/recovery method recorded for the beta database tier and a verified retained pre-beta dump.
+
+The beta gate also requires the checked-in backup script, firewall script, and operational release runbook so these procedures cannot silently disappear from a future candidate.
 
 Do not invent a different release ritual for each candidate.
 
