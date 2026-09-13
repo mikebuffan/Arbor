@@ -12,6 +12,8 @@ import {
   type ArborCorrection,
   type ArborRuntimeState,
 } from "./runtimeState";
+import { createCorrection } from "./corrections";
+import { detectRuntimeCorrectionKind } from "./correctionDetection";
 
 import type {
   ArborBehaviorProof,
@@ -88,6 +90,24 @@ export async function beginRuntimeSession(input: {
     prior?.currentGoal ??
     null;
 
+  const detectedKind = input.lastMeaningfulUserTurn
+    ? detectRuntimeCorrectionKind(input.lastMeaningfulUserTurn)
+    : null;
+
+  const detectedCorrections = detectedKind && input.lastMeaningfulUserTurn
+    ? [
+        createCorrection({
+          value: input.lastMeaningfulUserTurn,
+          source:
+            input.activeSubsystem === "annabelle"
+              ? "annabelle"
+              : input.channel,
+          observedAt: input.now,
+          kind: detectedKind,
+        }),
+      ]
+    : [];
+
   const state: ArborRuntimeState = {
     schemaVersion: 1,
 
@@ -121,7 +141,10 @@ export async function beginRuntimeSession(input: {
 
     corrections: mergeCorrections(
       prior?.corrections ?? [],
-      input.corrections ?? [],
+      [
+        ...detectedCorrections,
+        ...(input.corrections ?? []),
+      ],
     ),
 
     behaviorProof:
