@@ -1,9 +1,7 @@
 import Image from "next/image";
 
 type HomeSearchParams = Promise<{
-  beta_acceptance?: string | string[];
-  step?: string | string[];
-  run?: string | string[];
+  _vercel_share?: string | string[];
 }>;
 
 function first(value: string | string[] | undefined) {
@@ -12,39 +10,23 @@ function first(value: string | string[] | undefined) {
 
 function acceptanceAllowed(params: Awaited<HomeSearchParams>) {
   return (
-    first(params.beta_acceptance) === "1" &&
+    Boolean(first(params._vercel_share)) &&
     process.env.VERCEL_ENV === "preview" &&
     process.env.VERCEL_GIT_COMMIT_REF ===
       "arbor/backend-beta-finish"
   );
 }
 
-async function runAcceptance(
-  params: Awaited<HomeSearchParams>,
-) {
-  const { GET } = await import(
-    "@/app/api/admin/beta-acceptance/route"
-  );
-
-  const url = new URL(
-    "https://acceptance.preview.invalid/api/admin/beta-acceptance",
-  );
-
-  const step = first(params.step);
-  const run = first(params.run);
-
-  if (step) url.searchParams.set("step", step);
-  if (run) url.searchParams.set("run", run);
-
-  const result = await GET(new Request(url));
-
+async function runAcceptance() {
   try {
-    return await result.json();
+    const { advanceBetaAcceptance } = await import(
+      "@/lib/arbor/betaAcceptanceOrchestrator"
+    );
+    return await advanceBetaAcceptance();
   } catch {
     return {
       ok: false,
-      error: "acceptance_adapter_invalid_response",
-      status: result.status,
+      error: "acceptance_orchestrator_failure",
     };
   }
 }
@@ -57,7 +39,7 @@ export default async function Home({
   const params = await searchParams;
 
   if (acceptanceAllowed(params)) {
-    const result = await runAcceptance(params);
+    const result = await runAcceptance();
 
     return (
       <pre id="arbor-beta-acceptance">
