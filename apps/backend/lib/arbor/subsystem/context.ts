@@ -13,6 +13,7 @@ import type { AgencyState } from "@/lib/arbor/agency/engine";
 import type { ArborSubsystem } from "@/lib/arbor/runtime/arborRuntime";
 import { strategyContext } from "@/lib/arbor/agency/strategyRetention";
 import { promptDataBlock } from "@/lib/arbor/promptData";
+import { loadLatestRuntimeState } from "@/lib/arbor/runtime/runtimeStateStore";
 
 const CORE_RULES = `
 ONE ARBOR.
@@ -106,8 +107,43 @@ export async function buildArborInjectedContext(input: {
     });
   }
 
-  const agency = await loadAgencyState(input);
+  const [agency, runtime] = await Promise.all([
+    loadAgencyState(input),
+    loadLatestRuntimeState({
+      supabase: input.supabase,
+      userId: input.userId,
+      projectId: input.projectId,
+    }),
+  ]);
+
   const agencyBlock = agencyToPromptBlock(agency);
+
+  const runtimeBlock = runtime
+    ? promptDataBlock("LONGITUDINAL RUNTIME STATE", {
+        currentGoal: runtime.currentGoal,
+        lastMeaningfulUserTurn:
+          runtime.lastMeaningfulUserTurn,
+        lastMeaningfulArborTurn:
+          runtime.lastMeaningfulArborTurn,
+        unresolvedWork:
+          runtime.agency?.unresolvedWork ?? [],
+        recurringWeaknesses:
+          runtime.agency?.recurringWeaknesses ?? [],
+        retainedStrategies:
+          runtime.agency?.strategyNotes ?? [],
+        corrections:
+          runtime.corrections.map((item) => ({
+            kind: item.kind,
+            value: item.value,
+            observedAt: item.observedAt,
+            confidence: item.confidence,
+            protected: item.protected,
+          })),
+        pendingSelfUpdate:
+          runtime.pendingSelfUpdate,
+        updatedAt: runtime.updatedAt,
+      })
+    : "";
 
   const annabelleWorkspaceBlock =
     activeSubsystem === "annabelle"
@@ -127,6 +163,7 @@ export async function buildArborInjectedContext(input: {
     systemInjection: [
       CORE_RULES,
       activeSubsystem === "annabelle" ? ANNABELLE_RULES : ARBOR_RULES,
+      runtimeBlock,
       annabelleWorkspaceBlock,
       agencyBlock,
     ]
