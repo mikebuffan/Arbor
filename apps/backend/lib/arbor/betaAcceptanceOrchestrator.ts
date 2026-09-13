@@ -97,6 +97,34 @@ async function invoke(
   };
 }
 
+async function cleanupWithRetry(run: string) {
+  let last = await invoke("cleanup", run);
+
+  for (let attempt = 1; attempt < 4; attempt += 1) {
+    if (
+      last.status === 200 &&
+      last.body.ok === true
+    ) {
+      return last;
+    }
+
+    if (
+      last.body.error !==
+      "synthetic_auth_residue_remaining"
+    ) {
+      return last;
+    }
+
+    await new Promise((resolve) =>
+      setTimeout(resolve, 1_500 * attempt),
+    );
+
+    last = await invoke("cleanup", run);
+  }
+
+  return last;
+}
+
 async function markFailed(
   user: Awaited<ReturnType<typeof acceptanceUsers>>[number],
   step: AcceptanceStep,
@@ -186,7 +214,7 @@ export async function advanceBetaAcceptance() {
   }
 
   if (user.user_metadata?.arbor_acceptance_failed === true) {
-    const cleanup = await invoke("cleanup", run);
+    const cleanup = await cleanupWithRetry(run);
     return {
       orchestrator: "cleanup_after_failure",
       ...cleanup.body,
@@ -277,7 +305,7 @@ export async function advanceBetaAcceptance() {
   }
 
   if (count === 10) {
-    const cleanup = await invoke("cleanup", run);
+    const cleanup = await cleanupWithRetry(run);
     return {
       orchestrator: "cleanup",
       ...cleanup.body,
