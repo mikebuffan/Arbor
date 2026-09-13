@@ -27,9 +27,37 @@ const BEHAVIOR_PATTERNS = [
   /\bcustomer[- ]service\b/i,
   /\btherapy voice\b/i,
   /\btherapeutic\b/i,
+
+  // Linear agency / follow-through corrections.
   /\bdon'?t wait\b/i,
+  /\bdo not wait\b/i,
   /\bagency\b/i,
   /\bkeep going\b/i,
+  /\bcontinue\b/i,
+  /\byou (?:keep )?stop(?:ped|ping)?\b/i,
+  /\byou'?re not going\b/i,
+  /\byou are not going\b/i,
+  /\bnot linear\b/i,
+  /\bmake me (?:keep )?tell(?:ing)? you to go\b/i,
+  /\bdon'?t hand (?:it|this) back\b/i,
+  /\bdo not hand (?:it|this) back\b/i,
+  /\bfinish what you can\b/i,
+  /\bwhy did you stop\b/i,
+
+  // Identity / behavioral drift corrections.
+  /\bhumou?r is gone\b/i,
+  /\byou(?:'ve| have) drifted\b/i,
+  /\bdoesn'?t sound like you\b/i,
+  /\bdoes not sound like you\b/i,
+  /\bcome back\b/i,
+
+  // Continuity corrections are behavioral rather than factual memory edits.
+  /\byou forgot\b/i,
+  /\blost continuity\b/i,
+  /\bdon'?t remember\b/i,
+  /\bdo not remember\b/i,
+  /\bsocially restart\b/i,
+
   /\bsupposed to say more\b/i,
 ];
 
