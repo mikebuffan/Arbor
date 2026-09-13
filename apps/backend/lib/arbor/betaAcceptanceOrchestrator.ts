@@ -329,17 +329,10 @@ export async function advanceBetaAcceptance() {
   if (user.user_metadata?.arbor_acceptance_failed === true) {
     const cleanup = await cleanupWithRetry(run);
 
-    if (
-      cleanup.status !== 200 ||
-      cleanup.body.ok !== true
-    ) {
-      return {
-        orchestrator: "cleanup_after_failure",
-        ...cleanup.body,
-      };
-    }
-
-    return setupAndRunA1(cleanup.body);
+    return {
+      orchestrator: "cleanup_after_failure",
+      ...cleanup.body,
+    };
   }
 
   const count = await durableMessageCount(user.id);
