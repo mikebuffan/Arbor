@@ -35,9 +35,13 @@ export async function loadRuntimeState(input: {
     throw error;
   }
 
-  return rowState(
+  const exact = rowState(
     (data as RuntimeRow | null) ?? null,
   );
+
+  if (exact) return exact;
+
+  return loadLatestRuntimeState(input);
 }
 
 export async function loadLatestRuntimeState(input: {
