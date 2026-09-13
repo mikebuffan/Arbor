@@ -46,18 +46,20 @@ export function parseAgencyVerification(
             .filter(Boolean)
         : [];
 
+    const unresolvedWork = strings(parsed.unresolvedWork);
+    const complete = parsed.complete && unresolvedWork.length === 0;
     const score =
       typeof parsed.score === "number" &&
       Number.isFinite(parsed.score)
         ? Math.max(0, Math.min(1, parsed.score))
-        : parsed.complete
+        : complete
           ? 1
           : 0;
 
     return {
-      complete: parsed.complete,
+      complete,
       score,
-      unresolvedWork: strings(parsed.unresolvedWork),
+      unresolvedWork,
       evidence: strings(parsed.evidence),
       strategyCorrection:
         typeof parsed.strategyCorrection === "string" &&
@@ -107,6 +109,7 @@ export async function verifyAgencyCompletion(input: {
       "Do not require the candidate text to narrate or restate an action when supplied action evidence already proves it happened.",
       "If the goal requires tool/action evidence and neither the candidate nor supplied action evidence supports it, mark complete=false.",
       "Do not invent missing evidence.",
+      "Never mark complete=true while unresolvedWork contains any item.",
       "When behavior requirements are provided, report only violations directly observable in the candidate text.",
       "Do not flag a requirement merely because it is not demonstrated.",
       "Do not infer hidden tool state, internal reasoning, memory state, or acoustic qualities from text.",
