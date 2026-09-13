@@ -34,22 +34,13 @@ class ChatApi {
   }) async {
     final userId = Supabase.instance.client.auth.currentUser?.id;
 
-    final explicitNewThread =
-        projectId != null && conversationId == null;
-
-    if (userId != null && explicitNewThread) {
-      await _session.startNewThread(
-        userId: userId,
-        projectId: projectId,
-      );
-    }
-
     final shared =
         userId == null ? null : await _session.contextFor(userId);
 
     // Once Arbor has an established session for this signed-in user,
-    // it is canonical across Text and Voice. A stored null conversationId
-    // deliberately means "start a new thread in this project."
+    // it is canonical across Text and Voice. Starting a new thread is an
+    // explicit ArborSession operation; absence of a caller conversationId
+    // must never implicitly discard persisted continuity.
     final resolvedProjectId = shared?.projectId ?? projectId;
     final resolvedConversationId =
         shared != null ? shared.conversationId : conversationId;
