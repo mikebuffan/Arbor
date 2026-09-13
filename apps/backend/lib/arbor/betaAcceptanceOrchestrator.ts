@@ -34,23 +34,37 @@ function runFromUser(user: {
 
 async function acceptanceUsers() {
   const admin = supabaseAdmin();
-  const listed = await admin.auth.admin.listUsers({
-    page: 1,
-    perPage: 1000,
-  });
+  const users: Array<{
+    id: string;
+    email?: string;
+    user_metadata?: Record<string, unknown>;
+  }> = [];
 
-  if (listed.error) {
-    throw new Error("acceptance_user_lookup_failed");
+  for (let page = 1; page <= 50; page += 1) {
+    const listed = await admin.auth.admin.listUsers({
+      page,
+      perPage: 100,
+    });
+
+    if (listed.error) {
+      throw new Error("acceptance_user_lookup_failed");
+    }
+
+    users.push(
+      ...listed.data.users.filter((user) => {
+        const email = user.email ?? "";
+        return (
+          email.startsWith("arbor.acceptance.") &&
+          email.endsWith("@example.com") &&
+          Boolean(runFromUser(user))
+        );
+      }),
+    );
+
+    if (listed.data.users.length < 100) break;
   }
 
-  return listed.data.users.filter((user) => {
-    const email = user.email ?? "";
-    return (
-      email.startsWith("arbor.acceptance.") &&
-      email.endsWith("@example.com") &&
-      Boolean(runFromUser(user))
-    );
-  });
+  return users;
 }
 
 async function invoke(
