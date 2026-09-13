@@ -32,6 +32,25 @@ const SAFE_PROVIDER_CODES = new Set([
   "server_error",
 ]);
 
+const SAFE_PROVIDER_ERROR_NAMES: Record<string, string> = {
+  APIConnectionError: "provider_connection_failed",
+  APIConnectionTimeoutError: "provider_timeout",
+  APITimeoutError: "provider_timeout",
+  AuthenticationError: "provider_authentication_failed",
+  PermissionDeniedError: "provider_permission_denied",
+  NotFoundError: "provider_model_unavailable",
+  BadRequestError: "provider_request_rejected",
+  RateLimitError: "provider_rate_limited",
+  InternalServerError: "provider_unavailable",
+};
+
+const SAFE_AGENCY_ERROR_MESSAGES: Record<string, string> = {
+  agency_input_required: "agency_input_required",
+  agency_goal_required: "agency_goal_required",
+  agency_tool_arguments_invalid: "agency_tool_arguments_invalid",
+  agency_model_attempts_exhausted: "agency_model_attempts_exhausted",
+};
+
 const SAFE_DATABASE_CODES: Record<string, string> = {
   "23503": "foreign_key_violation",
   "23505": "unique_violation",
@@ -60,6 +79,22 @@ function safeProviderCode(error: unknown): string | null {
   const code = (error as { code?: unknown }).code;
   return typeof code === "string" && SAFE_PROVIDER_CODES.has(code)
     ? code
+    : null;
+}
+
+function safeProviderNameCode(error: unknown): string | null {
+  if (!error || typeof error !== "object") return null;
+  const name = (error as { name?: unknown }).name;
+  return typeof name === "string"
+    ? SAFE_PROVIDER_ERROR_NAMES[name] ?? null
+    : null;
+}
+
+function safeAgencyCode(error: unknown): string | null {
+  if (!error || typeof error !== "object") return null;
+  const message = (error as { message?: unknown }).message;
+  return typeof message === "string"
+    ? SAFE_AGENCY_ERROR_MESSAGES[message] ?? null
     : null;
 }
 
@@ -105,21 +140,39 @@ export function classifyChatSynchronousFailure(
 ): SafeChatFailure {
   const status = safeStatus(error);
   const providerCode = safeProviderCode(error);
+  const providerNameCode = safeProviderNameCode(error);
+  const agencyCode = isProviderStage(stage)
+    ? safeAgencyCode(error)
+    : null;
   const databaseCode = isDatabaseStage(stage)
     ? safeDatabaseCode(error)
     : null;
-  const category = isProviderStage(stage)
-    ? "provider"
-    : isDatabaseStage(stage)
-      ? "database"
-      : "application";
 
-  let code = providerCode ?? databaseCode ?? "unexpected_failure";
-  if (!providerCode && isProviderStage(stage)) {
+  const category = agencyCode
+    ? "application"
+    : isProviderStage(stage)
+      ? "provider"
+      : isDatabaseStage(stage)
+        ? "database"
+        : "application";
+
+  let code =
+    agencyCode ??
+    providerCode ??
+    providerNameCode ??
+    databaseCode ??
+    "unexpected_failure";
+
+  if (
+    !agencyCode &&
+    !providerCode &&
+    !providerNameCode &&
+    isProviderStage(stage)
+  ) {
     if (status === 400) code = "provider_request_rejected";
-    else if (status === 401 || status === 403) {
-      code = "provider_authentication_failed";
-    } else if (status === 404) code = "provider_model_unavailable";
+    else if (status === 401) code = "provider_authentication_failed";
+    else if (status === 403) code = "provider_permission_denied";
+    else if (status === 404) code = "provider_model_unavailable";
     else if (status === 408) code = "provider_timeout";
     else if (status === 429) code = "provider_rate_limited";
     else if (status !== null && status >= 500) {
