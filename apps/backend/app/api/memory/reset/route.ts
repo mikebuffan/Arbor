@@ -20,9 +20,13 @@ export async function POST(req: Request) {
     if (c.error) throw c.error;
 
     return NextResponse.json({ ok: true }, { status: 200 });
-  } catch (e) {
-    console.error("MEMORY_RESET_ERROR", e);
+  } catch {
+    console.error("MEMORY_RESET_ERROR", {
+      subsystem: "memory",
+      operation: "reset",
+      code: "memory_reset_failed",
+      resourceType: "user_memory",
+    });
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }
-    

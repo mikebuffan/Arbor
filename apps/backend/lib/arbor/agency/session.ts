@@ -4,9 +4,9 @@ import {
   loadAgencyState,
   persistAgencyState,
 } from "./state";
-import { loadRuntimeState } from "../runtime/runtimeStateStore";
 import { resolveAgencyGoal } from "./continuation";
 import { recordStrategyCandidate } from "./strategyRetention";
+import { mergeAgencyUnresolvedWork } from "./unresolvedWork";
 
 function resumableAgency(
   value: AgencyState | null | undefined,
@@ -24,25 +24,11 @@ export async function beginAgencySession(input: {
   conversationId?: string | null;
   userText: string;
 }): Promise<AgencyState> {
-  const [projectAgency, conversationRuntime] = await Promise.all([
-    loadAgencyState(input),
-    input.conversationId
-      ? loadRuntimeState({
-          supabase: input.supabase,
-          userId: input.userId,
-          projectId: input.projectId,
-          conversationId: input.conversationId,
-        })
-      : Promise.resolve(null),
-  ]);
-
-  // Prefer unfinished work already owned by this conversation. Falling back to
-  // project-level state preserves cross-thread continuation, while revisiting an
-  // older thread can still recover the unfinished goal that thread owned.
-  const prior =
-    resumableAgency(conversationRuntime?.agency) ??
-    resumableAgency(projectAgency) ??
-    projectAgency;
+  // arbor_runtime_state is the canonical owner of project-level agency.
+  // Conversation runtime is a projection used for continuity/rendering; it
+  // must never compete with or override the canonical unresolved work graph.
+  const projectAgency = await loadAgencyState(input);
+  const prior = resumableAgency(projectAgency) ?? projectAgency;
 
   const { goal, resume } = resolveAgencyGoal(input.userText, prior);
 
@@ -50,9 +36,6 @@ export async function beginAgencySession(input: {
     goal,
     status: "active",
     currentStep: resume && prior ? prior.currentStep : 0,
-    // A newly accepted goal is unfinished until verified otherwise. Persist a
-    // concrete ownership marker immediately so a crash/interruption before the
-    // first tool call cannot turn active work into an empty state.
     unresolvedWork:
       resume && prior
         ? prior.unresolvedWork.length
@@ -94,7 +77,12 @@ export async function recordAgencyProgress(input: {
     status: "active",
     currentStep: input.step,
     unresolvedWork:
-      input.unresolvedWork ?? input.agency.unresolvedWork,
+      input.unresolvedWork === undefined
+        ? input.agency.unresolvedWork
+        : mergeAgencyUnresolvedWork(
+            input.agency.unresolvedWork,
+            input.unresolvedWork,
+          ),
     recurringWeaknesses: input.recurringWeakness
       ? [
           ...input.agency.recurringWeaknesses,
@@ -129,7 +117,10 @@ export async function blockAgencySession(input: {
     ...input.agency,
     status: "blocked",
     blocker: input.blocker,
-    unresolvedWork: input.unresolvedWork,
+    unresolvedWork: mergeAgencyUnresolvedWork(
+      input.agency.unresolvedWork,
+      input.unresolvedWork,
+    ),
   };
 
   await persistAgencyState({

@@ -6,7 +6,7 @@ import {
 } from "../continuation";
 
 const prior: AgencyState = {
-  goal: "finish the Arbor linear runtime",
+  goal: "finish the Arbor agency runtime",
   status: "active",
   currentStep: 7,
   unresolvedWork: ["wire Voice"],
@@ -34,7 +34,6 @@ describe("agency continuation", () => {
     "find a workaround if needed",
   ])("resumes unresolved work for %s", (text) => {
     expect(shouldResumeAgencyGoal(text, prior)).toBe(true);
-
     expect(resolveAgencyGoal(text, prior)).toEqual({
       goal: prior.goal,
       resume: true,
@@ -54,9 +53,16 @@ describe("agency continuation", () => {
     "what now",
     "did you finish",
     "what are we doing",
+    "your agency is wrong",
+    "the continuation is broken",
+    "this needs to be non-linear",
+    "its also not linawr",
+    "and it should preserve the other branches",
+    "the agency isn't right im getting angry at this point. fix yourself",
+    "I'm getting frustrated. Fix the agency",
+    "you're all messed up still",
   ])("resumes unresolved work for corrective/status turn: %s", (text) => {
     expect(shouldResumeAgencyGoal(text, prior)).toBe(true);
-
     expect(resolveAgencyGoal(text, prior)).toEqual({
       goal: prior.goal,
       resume: true,
@@ -102,9 +108,7 @@ describe("agency continuation", () => {
       unresolvedWork: [],
     };
 
-    expect(
-      shouldResumeAgencyGoal("what now", empty),
-    ).toBe(false);
+    expect(shouldResumeAgencyGoal("what now", empty)).toBe(false);
   });
 
   it("allows an explicit goal switch", () => {

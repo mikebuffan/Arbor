@@ -36,14 +36,14 @@ function supabaseWithInsert(
 }
 
 function operations(
-  memoryPipeline: ChatPostResponseOperations["memory_pipeline"],
   overrides: Partial<ChatPostResponseOperations> = {},
 ): ChatPostResponseOperations {
   return {
     telemetry: vi.fn().mockResolvedValue(undefined),
-    memory_pipeline: memoryPipeline,
+    memory_pipeline: vi.fn().mockResolvedValue(undefined),
     conversation_update: vi.fn().mockResolvedValue(undefined),
     decision_outcome: vi.fn().mockResolvedValue(undefined),
+    chat_completed: vi.fn().mockResolvedValue(undefined),
     ...overrides,
   };
 }
@@ -142,14 +142,16 @@ describe("durable chat_completed events", () => {
       error: { message: "private database failure" },
     });
     const supabase = supabaseWithInsert(insert);
-    const work = operations(() =>
-      writeDurableChatCompletedEvent({
-        supabase,
-        userId: USER_ID,
-        projectId: PROJECT_ID,
-        conversationId: CONVERSATION_ID,
-      }),
-    );
+    const work = operations({
+      chat_completed: vi.fn(() =>
+        writeDurableChatCompletedEvent({
+          supabase,
+          userId: USER_ID,
+          projectId: PROJECT_ID,
+          conversationId: CONVERSATION_ID,
+        }),
+      ),
+    });
     let continuation: (() => Promise<void>) | null = null;
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
 
@@ -166,9 +168,10 @@ describe("durable chat_completed events", () => {
     expect(work.telemetry).toHaveBeenCalledTimes(1);
     expect(work.conversation_update).toHaveBeenCalledTimes(1);
     expect(work.decision_outcome).toHaveBeenCalledTimes(1);
+    expect(work.memory_pipeline).toHaveBeenCalledTimes(1);
     expect(warn).toHaveBeenCalledWith("[post-response] operation failed", {
       subsystem: "chat",
-      operation: "memory_pipeline",
+      operation: "chat_completed",
       code: CHAT_COMPLETED_PERSISTENCE_ERROR_CODE,
     });
     expect(JSON.stringify(warn.mock.calls)).not.toContain(
@@ -186,14 +189,16 @@ describe("durable chat_completed events", () => {
     };
 
     for (let index = 0; index < 5; index += 1) {
-      const work = operations(() =>
-        writeDurableChatCompletedEvent({
-          supabase,
-          userId: USER_ID,
-          projectId: PROJECT_ID,
-          conversationId: `${CONVERSATION_ID.slice(0, -1)}${index}`,
-        }),
-      );
+      const work = operations({
+        chat_completed: vi.fn(() =>
+          writeDurableChatCompletedEvent({
+            supabase,
+            userId: USER_ID,
+            projectId: PROJECT_ID,
+            conversationId: `${CONVERSATION_ID.slice(0, -1)}${index}`,
+          }),
+        ),
+      });
       expect(
         scheduleChatPostResponseWork({
           newlyCreated: true,
@@ -203,7 +208,7 @@ describe("durable chat_completed events", () => {
       ).toBe(true);
     }
 
-    const retryMemoryPipeline = vi.fn(() =>
+    const retryChatCompleted = vi.fn(() =>
       writeDurableChatCompletedEvent({
         supabase,
         userId: USER_ID,
@@ -211,7 +216,7 @@ describe("durable chat_completed events", () => {
         conversationId: CONVERSATION_ID,
       }),
     );
-    const retryWork = operations(retryMemoryPipeline);
+    const retryWork = operations({ chat_completed: retryChatCompleted });
     expect(
       scheduleChatPostResponseWork({
         newlyCreated: false,
@@ -224,7 +229,7 @@ describe("durable chat_completed events", () => {
 
     expect(continuations).toHaveLength(5);
     expect(insert).toHaveBeenCalledTimes(5);
-    expect(retryMemoryPipeline).not.toHaveBeenCalled();
+    expect(retryChatCompleted).not.toHaveBeenCalled();
     expect(vi.getTimerCount()).toBe(0);
   });
 
@@ -239,6 +244,17 @@ describe("durable chat_completed events", () => {
     );
 
     expect(route).toContain("await writeDurableChatCompletedEvent({");
+    const memoryPipelineBlock = route.slice(
+      route.indexOf("memory_pipeline: async"),
+      route.indexOf("conversation_update: async"),
+    );
+    expect(memoryPipelineBlock).not.toContain("writeDurableChatCompletedEvent");
+    expect(route).toContain(
+      "chat_completed: async () => {\n          await writeDurableChatCompletedEvent({",
+    );
+    expect(route.match(/await writeDurableChatCompletedEvent\(\{/g)).toHaveLength(
+      1,
+    );
     expect(route).toContain("supabase,");
     expect(route).not.toContain("@/lib/supabase/admin");
     expect(route).not.toMatch(/SUPABASE_SERVICE_ROLE/);

@@ -8,18 +8,25 @@ const QuerySchema = z.object({
   projectId: z.string().uuid(),
 });
 
+class UnauthorizedError extends Error {}
+
 async function requireUser(req: Request) {
   const supa = supabaseFromAuthHeader(req);
   const { data, error } = await supa.auth.getUser();
-  if (error || !data?.user) throw new Error("Unauthorized");
+  if (error || !data?.user) throw new UnauthorizedError();
   return { supa, userId: data.user.id };
+}
+
+function serverError() {
+  return NextResponse.json({ error: "server_error" }, { status: 500 });
 }
 
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
-    const projectId = url.searchParams.get("projectId");
-    const parsed = QuerySchema.safeParse({ projectId });
+    const parsed = QuerySchema.safeParse({
+      projectId: url.searchParams.get("projectId"),
+    });
     if (!parsed.success) {
       return NextResponse.json({ error: "bad_request" }, { status: 400 });
     }
@@ -35,17 +42,17 @@ export async function GET(req: Request) {
       .limit(1)
       .maybeSingle();
 
-    if (error) throw error;
+    if (error) return serverError();
 
     if (!data?.id) {
       return new NextResponse(null, { status: 204 });
     }
 
     return NextResponse.json({ conversationId: data.id });
-  } catch (e: any) {
-    return NextResponse.json(
-      { error: "server_error", message: String(e?.message ?? e) },
-      { status: 500 }
-    );
+  } catch (error) {
+    if (error instanceof UnauthorizedError) {
+      return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    }
+    return serverError();
   }
 }

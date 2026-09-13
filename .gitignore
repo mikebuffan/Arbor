@@ -33,6 +33,9 @@ out/
 .env*
 !.env.example
 
+# local operational artifacts
+.local/backups/
+
 # misc
 .DS_Store
 Thumbs.db

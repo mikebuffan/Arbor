@@ -36,6 +36,9 @@ jobs:
           OPENAI_API_KEY: ci-placeholder-not-a-real-key
         run: pnpm --filter firefly-backend test
 
+      - name: Run backend beta gate
+        run: pnpm --filter firefly-backend test:beta-gate
+
       - name: Build backend
         env:
           OPENAI_API_KEY: ci-placeholder-not-a-real-key

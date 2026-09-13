@@ -1,0 +1,444 @@
+import { GET as runAcceptanceStep } from "@/app/api/admin/beta-acceptance/route";
+import { supabaseAdmin } from "@/lib/supabase/admin";
+
+type JsonObject = Record<string, unknown>;
+
+type AcceptanceUser = {
+  id: string;
+  email?: string;
+  user_metadata?: Record<string, unknown>;
+};
+
+type AcceptanceStep =
+  | "setup"
+  | "a1"
+  | "retry"
+  | "recall"
+  | "isolation"
+  | "ownership"
+  | "correction"
+  | "verify"
+  | "cleanup";
+
+const RUN_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function object(value: unknown): JsonObject | null {
+  return value && typeof value === "object"
+    ? (value as JsonObject)
+    : null;
+}
+
+function runFromUser(user: {
+  user_metadata?: Record<string, unknown>;
+}) {
+  const value = user.user_metadata?.arbor_acceptance_run;
+  return typeof value === "string" && RUN_PATTERN.test(value)
+    ? value
+    : null;
+}
+
+function compactRun(run: string) {
+  return run.replaceAll("-", "");
+}
+
+function fixtureForRun(run: string) {
+  return {
+    email: `arbor.acceptance.${compactRun(run)}@example.com`,
+    projectA: `ARBOR ACCEPTANCE ${run} A`,
+    projectB: `ARBOR ACCEPTANCE ${run} B`,
+  };
+}
+
+async function acceptanceUsers(): Promise<AcceptanceUser[]> {
+  const admin = supabaseAdmin();
+  const users: AcceptanceUser[] = [];
+
+  for (let page = 1; page <= 50; page += 1) {
+    const listed = await admin.auth.admin.listUsers({
+      page,
+      perPage: 100,
+    });
+
+    if (listed.error) {
+      throw new Error("acceptance_user_lookup_failed");
+    }
+
+    users.push(
+      ...listed.data.users.filter((user) => {
+        const email = user.email ?? "";
+        return (
+          email.startsWith("arbor.acceptance.") &&
+          email.endsWith("@example.com") &&
+          Boolean(runFromUser(user))
+        );
+      }),
+    );
+
+    if (listed.data.users.length < 100) break;
+  }
+
+  return users;
+}
+
+async function acceptanceUserForRun(
+  run: string,
+): Promise<AcceptanceUser | null> {
+  const admin = supabaseAdmin();
+  const fixture = fixtureForRun(run);
+
+  const projects = await admin
+    .from("projects")
+    .select("user_id,name")
+    .in("name", [fixture.projectA, fixture.projectB]);
+
+  if (projects.error) {
+    throw new Error("acceptance_project_identity_lookup_failed");
+  }
+
+  const userIds = [
+    ...new Set(
+      (projects.data ?? [])
+        .map((row) => row.user_id)
+        .filter(
+          (value): value is string =>
+            typeof value === "string",
+        ),
+    ),
+  ];
+
+  if (userIds.length > 1) {
+    throw new Error("acceptance_project_identity_mismatch");
+  }
+
+  const userId = userIds[0];
+  if (!userId) return null;
+
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const lookup =
+      await admin.auth.admin.getUserById(userId);
+    const user = lookup.data.user;
+
+    if (!lookup.error && user) {
+      if (
+        user.id !== userId ||
+        user.email !== fixture.email ||
+        user.user_metadata?.arbor_acceptance_run !== run
+      ) {
+        throw new Error("acceptance_user_identity_mismatch");
+      }
+
+      return user;
+    }
+
+    if (attempt < 3) {
+      await new Promise((resolve) =>
+        setTimeout(resolve, 300 * (attempt + 1)),
+      );
+    }
+  }
+
+  return null;
+}
+
+async function invoke(
+  step: AcceptanceStep,
+  run?: string,
+) {
+  const url = new URL(
+    "https://acceptance.preview.invalid/api/admin/beta-acceptance",
+  );
+  url.searchParams.set("step", step);
+  if (run) url.searchParams.set("run", run);
+
+  const result = await runAcceptanceStep(new Request(url));
+
+  let body: JsonObject | null = null;
+  try {
+    body = object(await result.json());
+  } catch {
+    body = null;
+  }
+
+  return {
+    status: result.status,
+    body:
+      body ??
+      ({
+        ok: false,
+        error: "acceptance_invalid_response",
+      } satisfies JsonObject),
+  };
+}
+
+async function cleanupWithRetry(run: string) {
+  let last = await invoke("cleanup", run);
+
+  for (let attempt = 1; attempt < 5; attempt += 1) {
+    if (
+      last.status === 200 &&
+      last.body.ok === true
+    ) {
+      return last;
+    }
+
+    if (
+      last.body.error !== "synthetic_auth_residue_remaining" &&
+      last.body.error !== "synthetic_auth_delete_failed"
+    ) {
+      return last;
+    }
+
+    await new Promise((resolve) =>
+      setTimeout(resolve, 1_500 * attempt),
+    );
+
+    last = await invoke("cleanup", run);
+  }
+
+  return last;
+}
+
+async function markFailed(
+  user: AcceptanceUser,
+  step: AcceptanceStep,
+  body: JsonObject,
+) {
+  const admin = supabaseAdmin();
+
+  await admin.auth.admin.updateUserById(user.id, {
+    user_metadata: {
+      ...user.user_metadata,
+      arbor_acceptance_failed: true,
+      arbor_acceptance_failure_step: step,
+      arbor_acceptance_failure_code:
+        typeof body.error === "string"
+          ? body.error
+          : "unknown",
+    },
+  });
+}
+
+async function invokeChecked(
+  step: AcceptanceStep,
+  run: string,
+  user: AcceptanceUser,
+) {
+  const result = await invoke(step, run);
+
+  if (
+    result.status !== 200 ||
+    result.body.ok !== true
+  ) {
+    await markFailed(user, step, result.body);
+
+    return {
+      ok: false,
+      run,
+      attemptedStep: step,
+      result: result.body,
+      next: "cleanup",
+    };
+  }
+
+  return result.body;
+}
+
+async function setupAndRunA1(
+  priorCleanup?: JsonObject,
+) {
+  const setup = await invoke("setup");
+
+  if (
+    setup.status !== 200 ||
+    setup.body.ok !== true ||
+    typeof setup.body.run !== "string"
+  ) {
+    return {
+      orchestrator: "setup",
+      ...(priorCleanup ? { priorCleanup } : {}),
+      ...setup.body,
+    };
+  }
+
+  const run = setup.body.run;
+  const user = await acceptanceUserForRun(run);
+
+  if (!user) {
+    return {
+      orchestrator: "setup_a1",
+      ok: false,
+      run,
+      error: "acceptance_setup_identity_missing",
+      ...(priorCleanup ? { priorCleanup } : {}),
+    };
+  }
+
+  const a1 = await invokeChecked("a1", run, user);
+
+  return {
+    orchestrator: "setup_a1",
+    run,
+    setup: setup.body,
+    a1,
+    ok: a1.ok === true,
+    next: a1.ok === true ? "retry" : "cleanup",
+    ...(priorCleanup ? { priorCleanup } : {}),
+  };
+}
+
+async function durableMessageCount(userId: string) {
+  const admin = supabaseAdmin();
+  const counted = await admin
+    .from("messages")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId);
+
+  if (counted.error) {
+    throw new Error("acceptance_message_count_failed");
+  }
+
+  return counted.count ?? 0;
+}
+
+export async function advanceBetaAcceptance() {
+  const users = await acceptanceUsers();
+
+  if (users.length > 1) {
+    return {
+      ok: false,
+      error: "multiple_acceptance_fixtures",
+      fixtureCount: users.length,
+    };
+  }
+
+  if (users.length === 0) {
+    return setupAndRunA1();
+  }
+
+  const user = users[0];
+  const run = runFromUser(user);
+
+  if (!run) {
+    return {
+      ok: false,
+      error: "acceptance_run_missing",
+    };
+  }
+
+  if (user.user_metadata?.arbor_acceptance_failed === true) {
+    const cleanup = await cleanupWithRetry(run);
+
+    return {
+      orchestrator: "cleanup_after_failure",
+      ...cleanup.body,
+    };
+  }
+
+  const count = await durableMessageCount(user.id);
+
+  if (count === 0) {
+    return {
+      orchestrator: "a1",
+      ...(await invokeChecked("a1", run, user)),
+    };
+  }
+
+  if (count === 2) {
+    const retry = await invokeChecked(
+      "retry",
+      run,
+      user,
+    );
+    if (retry.ok !== true) return retry;
+
+    const recall = await invokeChecked(
+      "recall",
+      run,
+      user,
+    );
+    return {
+      orchestrator: "retry_recall",
+      run,
+      retry,
+      recall,
+      ok: recall.ok === true,
+      next:
+        recall.ok === true
+          ? "isolation"
+          : "cleanup",
+    };
+  }
+
+  if (count === 4) {
+    const isolation = await invokeChecked(
+      "isolation",
+      run,
+      user,
+    );
+    if (isolation.ok !== true) return isolation;
+
+    const ownership = await invokeChecked(
+      "ownership",
+      run,
+      user,
+    );
+    return {
+      orchestrator: "isolation_ownership",
+      run,
+      isolation,
+      ownership,
+      ok: ownership.ok === true,
+      next:
+        ownership.ok === true
+          ? "correction"
+          : "cleanup",
+    };
+  }
+
+  if (count === 6) {
+    return {
+      orchestrator: "correction",
+      ...(await invokeChecked(
+        "correction",
+        run,
+        user,
+      )),
+    };
+  }
+
+  if (count === 8) {
+    return {
+      orchestrator: "verify",
+      ...(await invokeChecked(
+        "verify",
+        run,
+        user,
+      )),
+    };
+  }
+
+  if (count === 10) {
+    const cleanup = await cleanupWithRetry(run);
+    return {
+      orchestrator: "cleanup",
+      ...cleanup.body,
+    };
+  }
+
+  await markFailed(
+    user,
+    "cleanup",
+    {
+      error: "unexpected_durable_message_count",
+    },
+  );
+
+  return {
+    ok: false,
+    run,
+    error: "unexpected_durable_message_count",
+    durableMessages: count,
+    next: "cleanup",
+  };
+}
