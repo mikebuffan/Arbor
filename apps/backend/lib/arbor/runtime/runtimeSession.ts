@@ -43,13 +43,6 @@ export function carryPendingSelfUpdate(input: {
     return input.incomingPending;
   }
 
-  if (
-    input.priorGoal !==
-    input.nextGoal
-  ) {
-    return null;
-  }
-
   return input.priorPending;
 }
 
