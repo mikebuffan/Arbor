@@ -47,6 +47,36 @@ describe("chat synchronous diagnostics", () => {
     });
   });
 
+  it("classifies provider SDK connection failures without raw provider text", () => {
+    expect(
+      classifyChatSynchronousFailure("model_agency", {
+        name: "APIConnectionError",
+        message: "SENTINEL_PRIVATE_PROVIDER_DETAIL",
+      }),
+    ).toEqual({
+      subsystem: "chat",
+      stage: "model_agency",
+      category: "provider",
+      code: "provider_connection_failed",
+      status: null,
+    });
+  });
+
+  it("classifies known local agency failures as application failures", () => {
+    expect(
+      classifyChatSynchronousFailure(
+        "model_agency",
+        new Error("agency_tool_arguments_invalid"),
+      ),
+    ).toEqual({
+      subsystem: "chat",
+      stage: "model_agency",
+      category: "application",
+      code: "agency_tool_arguments_invalid",
+      status: null,
+    });
+  });
+
   it("classifies safe database failures without exporting raw payloads", () => {
     expect(
       classifyChatSynchronousFailure("agency_finalize", {
