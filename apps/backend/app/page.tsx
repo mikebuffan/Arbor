@@ -72,25 +72,26 @@ export default async function Home({
     }
 
     const result = await runAcceptance();
-    const terminal = acceptanceTerminal(result);
+    const resultRecord = result as Record<string, unknown>;
+    const terminal = acceptanceTerminal(resultRecord);
 
     console.info("ARBOR_BETA_ACCEPTANCE_ORCHESTRATOR", {
       orchestrator:
-        typeof result.orchestrator === "string"
-          ? result.orchestrator
+        typeof resultRecord.orchestrator === "string"
+          ? resultRecord.orchestrator
           : "unknown",
-      ok: result.ok === true,
+      ok: resultRecord.ok === true,
       step:
-        typeof result.step === "string"
-          ? result.step
+        typeof resultRecord.step === "string"
+          ? resultRecord.step
           : undefined,
       verdict:
-        typeof result.verdict === "string"
-          ? result.verdict
+        typeof resultRecord.verdict === "string"
+          ? resultRecord.verdict
           : undefined,
       error:
-        typeof result.error === "string"
-          ? result.error
+        typeof resultRecord.error === "string"
+          ? resultRecord.error
           : undefined,
       terminal,
     });
