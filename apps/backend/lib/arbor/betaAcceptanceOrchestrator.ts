@@ -3,6 +3,12 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 
 type JsonObject = Record<string, unknown>;
 
+type AcceptanceUser = {
+  id: string;
+  email?: string;
+  user_metadata?: Record<string, unknown>;
+};
+
 type AcceptanceStep =
   | "setup"
   | "a1"
@@ -32,13 +38,21 @@ function runFromUser(user: {
     : null;
 }
 
-async function acceptanceUsers() {
+function compactRun(run: string) {
+  return run.replaceAll("-", "");
+}
+
+function fixtureForRun(run: string) {
+  return {
+    email: `arbor.acceptance.${compactRun(run)}@example.com`,
+    projectA: `ARBOR ACCEPTANCE ${run} A`,
+    projectB: `ARBOR ACCEPTANCE ${run} B`,
+  };
+}
+
+async function acceptanceUsers(): Promise<AcceptanceUser[]> {
   const admin = supabaseAdmin();
-  const users: Array<{
-    id: string;
-    email?: string;
-    user_metadata?: Record<string, unknown>;
-  }> = [];
+  const users: AcceptanceUser[] = [];
 
   for (let page = 1; page <= 50; page += 1) {
     const listed = await admin.auth.admin.listUsers({
@@ -65,6 +79,66 @@ async function acceptanceUsers() {
   }
 
   return users;
+}
+
+async function acceptanceUserForRun(
+  run: string,
+): Promise<AcceptanceUser | null> {
+  const admin = supabaseAdmin();
+  const fixture = fixtureForRun(run);
+
+  const projects = await admin
+    .from("projects")
+    .select("user_id,name")
+    .in("name", [fixture.projectA, fixture.projectB]);
+
+  if (projects.error) {
+    throw new Error("acceptance_project_identity_lookup_failed");
+  }
+
+  const userIds = [
+    ...new Set(
+      (projects.data ?? [])
+        .map((row) => row.user_id)
+        .filter(
+          (value): value is string =>
+            typeof value === "string",
+        ),
+    ),
+  ];
+
+  if (userIds.length > 1) {
+    throw new Error("acceptance_project_identity_mismatch");
+  }
+
+  const userId = userIds[0];
+  if (!userId) return null;
+
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const lookup =
+      await admin.auth.admin.getUserById(userId);
+    const user = lookup.data.user;
+
+    if (!lookup.error && user) {
+      if (
+        user.id !== userId ||
+        user.email !== fixture.email ||
+        user.user_metadata?.arbor_acceptance_run !== run
+      ) {
+        throw new Error("acceptance_user_identity_mismatch");
+      }
+
+      return user;
+    }
+
+    if (attempt < 3) {
+      await new Promise((resolve) =>
+        setTimeout(resolve, 300 * (attempt + 1)),
+      );
+    }
+  }
+
+  return null;
 }
 
 async function invoke(
@@ -100,7 +174,7 @@ async function invoke(
 async function cleanupWithRetry(run: string) {
   let last = await invoke("cleanup", run);
 
-  for (let attempt = 1; attempt < 4; attempt += 1) {
+  for (let attempt = 1; attempt < 5; attempt += 1) {
     if (
       last.status === 200 &&
       last.body.ok === true
@@ -109,8 +183,8 @@ async function cleanupWithRetry(run: string) {
     }
 
     if (
-      last.body.error !==
-      "synthetic_auth_residue_remaining"
+      last.body.error !== "synthetic_auth_residue_remaining" &&
+      last.body.error !== "synthetic_auth_delete_failed"
     ) {
       return last;
     }
@@ -126,7 +200,7 @@ async function cleanupWithRetry(run: string) {
 }
 
 async function markFailed(
-  user: Awaited<ReturnType<typeof acceptanceUsers>>[number],
+  user: AcceptanceUser,
   step: AcceptanceStep,
   body: JsonObject,
 ) {
@@ -148,7 +222,7 @@ async function markFailed(
 async function invokeChecked(
   step: AcceptanceStep,
   run: string,
-  user: Awaited<ReturnType<typeof acceptanceUsers>>[number],
+  user: AcceptanceUser,
 ) {
   const result = await invoke(step, run);
 
@@ -188,10 +262,7 @@ async function setupAndRunA1(
   }
 
   const run = setup.body.run;
-  const users = await acceptanceUsers();
-  const user = users.find(
-    (candidate) => runFromUser(candidate) === run,
-  );
+  const user = await acceptanceUserForRun(run);
 
   if (!user) {
     return {
