@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mergeAgencyUnresolvedWork } from "../session";
+import { mergeAgencyUnresolvedWork } from "../unresolvedWork";
 
 describe("agency unresolved-work graph", () => {
   it("preserves sibling work while one capability advances", () => {
