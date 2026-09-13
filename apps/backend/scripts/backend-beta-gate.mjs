@@ -34,11 +34,17 @@ const requiredRoutes = [
   "apps/backend/app/api/arbor/voice/realtime/route.ts",
 ];
 
+const requiredOperationalFiles = [
+  "apps/backend/scripts/firefly-db-backup.mjs",
+  "apps/backend/scripts/vercel-beta-firewall.mjs",
+  "docs/ops/backend-beta-release-operations.md",
+];
+
 const failures = [];
 
-for (const relativePath of requiredRoutes) {
+for (const relativePath of [...requiredRoutes, ...requiredOperationalFiles]) {
   if (!existsSync(join(repoRoot, relativePath))) {
-    failures.push(`missing required backend route: ${relativePath}`);
+    failures.push(`missing required backend file: ${relativePath}`);
   }
 }
 
@@ -71,6 +77,21 @@ for (const requiredCanon of [
   }
 }
 
+const releaseOps = readFileSync(
+  join(repoRoot, "docs/ops/backend-beta-release-operations.md"),
+  "utf8",
+);
+
+for (const requiredOpsText of [
+  "pnpm --filter firefly-backend backup:firefly",
+  "pnpm --filter firefly-backend ops:firewall:apply",
+  "Do not manufacture an Auth user directly in `auth.users` with SQL",
+]) {
+  if (!releaseOps.includes(requiredOpsText)) {
+    failures.push(`backend release operations lost required procedure: ${requiredOpsText}`);
+  }
+}
+
 if (failures.length > 0) {
   console.error("BACKEND BETA GATE: FAIL");
   for (const failure of failures) console.error(`- ${failure}`);
@@ -79,5 +100,7 @@ if (failures.length > 0) {
 
 console.log("BACKEND BETA GATE: PASS");
 console.log(`- ${requiredRoutes.length} required routes present`);
+console.log(`- ${requiredOperationalFiles.length} required operational files present`);
 console.log(`- ${actualMigrations.length} canonical migrations present`);
 console.log("- maintenance quarantine invariants present");
+console.log("- backup/firewall/live-acceptance procedures present");
