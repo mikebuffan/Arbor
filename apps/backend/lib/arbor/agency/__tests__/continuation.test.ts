@@ -25,23 +25,72 @@ describe("agency continuation", () => {
     "finish it",
     "yep",
   ])("resumes unresolved work for %s", (text) => {
-    expect(shouldResumeAgencyGoal(text, prior)).toBe(true);
+    expect(
+      shouldResumeAgencyGoal(text, prior),
+    ).toBe(true);
 
-    expect(resolveAgencyGoal(text, prior)).toEqual({
+    expect(
+      resolveAgencyGoal(text, prior),
+    ).toEqual({
       goal: prior.goal,
       resume: true,
+      superseded: false,
     });
   });
 
-  it("does not hijack a new explicit goal", () => {
-    const resolved = resolveAgencyGoal(
-      "Explain the deployment failure instead",
-      prior,
-    );
+  it(
+    "keeps a live goal through an ordinary follow-up",
+    () => {
+      expect(
+        resolveAgencyGoal(
+          "Make sure you run the code in here please",
+          prior,
+        ),
+      ).toEqual({
+        goal: prior.goal,
+        resume: true,
+        superseded: false,
+      });
+    },
+  );
 
-    expect(resolved.resume).toBe(false);
-    expect(resolved.goal).toBe(
-      "Explain the deployment failure instead",
+  it(
+    "keeps a blocked unresolved goal through an ordinary follow-up",
+    () => {
+      const blocked: AgencyState = {
+        ...prior,
+        status: "blocked",
+        blocker: "external_authority",
+      };
+
+      expect(
+        shouldResumeAgencyGoal(
+          "I handled the permission problem",
+          blocked,
+        ),
+      ).toBe(true);
+    },
+  );
+
+  it("allows an explicit task switch", () => {
+    const resolved =
+      resolveAgencyGoal(
+        "Switch to a new task: explain the deployment failure",
+        prior,
+      );
+
+    expect(
+      resolved.resume,
+    ).toBe(false);
+
+    expect(
+      resolved.superseded,
+    ).toBe(true);
+
+    expect(
+      resolved.goal,
+    ).toBe(
+      "Switch to a new task: explain the deployment failure",
     );
   });
 
@@ -52,7 +101,10 @@ describe("agency continuation", () => {
     };
 
     expect(
-      shouldResumeAgencyGoal("go", completed),
+      shouldResumeAgencyGoal(
+        "go",
+        completed,
+      ),
     ).toBe(false);
   });
 });
