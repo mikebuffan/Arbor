@@ -15,6 +15,9 @@ const RELATED_PROCESS_FEEDBACK =
 const AGENCY_PROCESS_FEEDBACK =
   /\b(?:agency|non[- ]?linear|unresolved work|continuation|autonom(?:y|ous)|follow[- ]?through)\b/i;
 
+const STRUCTURAL_CONTINUATION_SIGNAL =
+  /(?:\b(?:research|inspect|check|verify|test|fix|replan|retry|trace|audit|review|compare)\b.*\b(?:next|failure|implementation|architecture|evidence|branch|recovery|regression)\b|\b(?:still|remaining|unresolved)\b.*\b(?:work|branch|failure|issue|step|part|path)\b|\bevidence\b.*\b(?:changed|new|different)\b.*\b(?:replan|retry|recheck|re-evaluate)\b)/i;
+
 const STATUS_CHECK =
   /^(?:what now|now what|did you finish|are you done|is it done|what(?:'s| is) going on|where are we|what are we doing|what were we doing|then what)[.!?\s]*$/i;
 
@@ -60,6 +63,7 @@ export function shouldResumeAgencyGoal(
     PROCESS_CORRECTION.test(text) ||
     STATUS_CHECK.test(text) ||
     AGENCY_PROCESS_FEEDBACK.test(text) ||
+    STRUCTURAL_CONTINUATION_SIGNAL.test(text) ||
     (prior.status === "active" && RELATED_PROCESS_FEEDBACK.test(text))
   );
 }
