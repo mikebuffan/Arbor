@@ -50,6 +50,10 @@ function blockerFor(action: AgencyAction): AgencyBlocker | null {
   return null;
 }
 
+function hasUnresolvedWork(items: string[]): boolean {
+  return items.some((item) => item.trim().length > 0);
+}
+
 export async function runAgency<SharedState>(input: {
   goal: string;
   runtime: AgencyRuntime<SharedState>;
@@ -77,7 +81,10 @@ export async function runAgency<SharedState>(input: {
       unresolvedWork: assessment.unresolvedWork,
     };
 
-    if (assessment.complete) {
+    // Completion is a verified empty graph frontier, not merely a completion
+    // signal. A renderer, adapter, or stale assessor must not be able to end
+    // an agency run while resolvable work is still explicitly outstanding.
+    if (assessment.complete && !hasUnresolvedWork(assessment.unresolvedWork)) {
       agency = { ...agency, status: "complete", unresolvedWork: [] };
       await input.runtime.persist({ agency, shared });
       return { agency, shared };
