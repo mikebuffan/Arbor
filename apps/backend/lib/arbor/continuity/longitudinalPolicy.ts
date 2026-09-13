@@ -4,7 +4,7 @@ const EXPLICIT_CONTINUATION =
   /^(?:go|okay|ok|continue|keep going|do it|finish it|yes|yep|yeah|please do|carry on)[.!?\s]*$/i;
 
 const EXPLICIT_SWITCH =
-  /(?:^|\b)(?:new task|different task|separate task|separate question|switch(?:ing)? to|instead|forget that|drop that|stop that|leave that|now i need|now i want|actually i need|actually i want)\b/i;
+  /(?:^|\b)(?:new task|different task|separate task|separate question|switch(?:ing)? to|forget that|drop that|stop that|leave that)\b/i;
 
 const COMPLETION_LANGUAGE =
   /(?:^|\b)(?:done|finished|complete|completed|resolved|fixed|solved)\b/i;
