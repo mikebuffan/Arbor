@@ -55,6 +55,22 @@ describe("agency continuation", () => {
   );
 
   it(
+    "does not mistake now-I-want phrasing for a new task",
+    () => {
+      expect(
+        resolveAgencyGoal(
+          "Now I want you to run the tests in here",
+          prior,
+        ),
+      ).toEqual({
+        goal: prior.goal,
+        resume: true,
+        superseded: false,
+      });
+    },
+  );
+
+  it(
     "keeps a blocked unresolved goal through an ordinary follow-up",
     () => {
       const blocked: AgencyState = {
