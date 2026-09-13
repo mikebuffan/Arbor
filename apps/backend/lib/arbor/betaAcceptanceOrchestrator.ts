@@ -170,6 +170,52 @@ async function invokeChecked(
   return result.body;
 }
 
+async function setupAndRunA1(
+  priorCleanup?: JsonObject,
+) {
+  const setup = await invoke("setup");
+
+  if (
+    setup.status !== 200 ||
+    setup.body.ok !== true ||
+    typeof setup.body.run !== "string"
+  ) {
+    return {
+      orchestrator: "setup",
+      ...(priorCleanup ? { priorCleanup } : {}),
+      ...setup.body,
+    };
+  }
+
+  const run = setup.body.run;
+  const users = await acceptanceUsers();
+  const user = users.find(
+    (candidate) => runFromUser(candidate) === run,
+  );
+
+  if (!user) {
+    return {
+      orchestrator: "setup_a1",
+      ok: false,
+      run,
+      error: "acceptance_setup_identity_missing",
+      ...(priorCleanup ? { priorCleanup } : {}),
+    };
+  }
+
+  const a1 = await invokeChecked("a1", run, user);
+
+  return {
+    orchestrator: "setup_a1",
+    run,
+    setup: setup.body,
+    a1,
+    ok: a1.ok === true,
+    next: a1.ok === true ? "retry" : "cleanup",
+    ...(priorCleanup ? { priorCleanup } : {}),
+  };
+}
+
 async function durableMessageCount(userId: string) {
   const admin = supabaseAdmin();
   const counted = await admin
@@ -196,11 +242,7 @@ export async function advanceBetaAcceptance() {
   }
 
   if (users.length === 0) {
-    const setup = await invoke("setup");
-    return {
-      orchestrator: "setup",
-      ...setup.body,
-    };
+    return setupAndRunA1();
   }
 
   const user = users[0];
@@ -215,10 +257,18 @@ export async function advanceBetaAcceptance() {
 
   if (user.user_metadata?.arbor_acceptance_failed === true) {
     const cleanup = await cleanupWithRetry(run);
-    return {
-      orchestrator: "cleanup_after_failure",
-      ...cleanup.body,
-    };
+
+    if (
+      cleanup.status !== 200 ||
+      cleanup.body.ok !== true
+    ) {
+      return {
+        orchestrator: "cleanup_after_failure",
+        ...cleanup.body,
+      };
+    }
+
+    return setupAndRunA1(cleanup.body);
   }
 
   const count = await durableMessageCount(user.id);
