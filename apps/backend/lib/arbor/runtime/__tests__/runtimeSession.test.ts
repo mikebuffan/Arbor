@@ -59,8 +59,11 @@ describe(
     );
 
     it(
-      "drops a pending update when the agency goal changes",
+      "carries a pending behavioral update across task changes",
       () => {
+        const candidate =
+          pending("cross-goal");
+
         expect(
           carryPendingSelfUpdate({
             priorGoal:
@@ -68,9 +71,9 @@ describe(
             nextGoal:
               "write a refund email",
             priorPending:
-              pending("old-goal"),
+              candidate,
           }),
-        ).toBeNull();
+        ).toBe(candidate);
       },
     );
 
