@@ -19,7 +19,7 @@ describe("agency unresolved-work graph", () => {
     ]);
   });
 
-  it("lets verifier output replace transient capability markers", () => {
+  it("lets verifier replace detailed work without surrendering the active goal", () => {
     expect(
       mergeAgencyUnresolvedWork(
         [
@@ -28,13 +28,29 @@ describe("agency unresolved-work graph", () => {
         ],
         ["fix persistence", "rerun acceptance"],
       ),
-    ).toEqual(["fix persistence", "rerun acceptance"]);
+    ).toEqual([
+      "complete goal: finish Arbor",
+      "fix persistence",
+      "rerun acceptance",
+    ]);
+  });
+
+  it("accepts an explicit replacement ownership marker from the verifier", () => {
+    expect(
+      mergeAgencyUnresolvedWork(
+        ["complete goal: finish Arbor", "fix persistence"],
+        ["continue goal: finish Arbor", "rerun acceptance"],
+      ),
+    ).toEqual([
+      "continue goal: finish Arbor",
+      "rerun acceptance",
+    ]);
   });
 
   it("does not turn an empty verified snapshot into stale work", () => {
     expect(
       mergeAgencyUnresolvedWork(
-        ["verify capability result: inspect_repo"],
+        ["complete goal: finish Arbor"],
         [],
       ),
     ).toEqual([]);
