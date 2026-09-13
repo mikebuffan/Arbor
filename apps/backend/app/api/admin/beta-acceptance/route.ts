@@ -107,6 +107,8 @@ function stableUuid(run: string, label: string) {
 function fixture(run: string) {
   return {
     email: `arbor.acceptance.${compact(run)}@example.com`,
+    projectA: `ARBOR ACCEPTANCE ${run} A`,
+    projectB: `ARBOR ACCEPTANCE ${run} B`,
     otherProject: `ARBOR ACCEPTANCE ${run} OTHER`,
     otherOwnerId: stableUuid(run, "other-owner"),
   };
@@ -128,23 +130,81 @@ function parseRun(value: string | null) {
 async function syntheticUserId(run: string) {
   const f = fixture(run);
   const admin = supabaseAdmin();
-  const listed = await admin.auth.admin.listUsers({
-    page: 1,
-    perPage: 1000,
-  });
 
-  if (listed.error) {
+  const projectLookup = await admin
+    .from("projects")
+    .select("user_id,name")
+    .in("name", [f.projectA, f.projectB]);
+
+  if (projectLookup.error) {
+    throw new CleanupFailure(
+      "synthetic_project_lookup_failed",
+    );
+  }
+
+  const projectUserIds = [
+    ...new Set(
+      (projectLookup.data ?? [])
+        .map((row) => row.user_id)
+        .filter(
+          (value): value is string =>
+            typeof value === "string",
+        ),
+    ),
+  ];
+
+  if (projectUserIds.length > 1) {
+    throw new CleanupFailure(
+      "synthetic_user_identity_mismatch",
+    );
+  }
+
+  let userId = projectUserIds[0];
+
+  if (!userId) {
+    for (let page = 1; page <= 50; page += 1) {
+      const listed = await admin.auth.admin.listUsers({
+        page,
+        perPage: 100,
+      });
+
+      if (listed.error) {
+        throw new CleanupFailure(
+          "synthetic_user_lookup_failed",
+        );
+      }
+
+      const match = listed.data.users.find(
+        (candidate) => candidate.email === f.email,
+      );
+
+      if (match) {
+        userId = match.id;
+        break;
+      }
+
+      if (listed.data.users.length < 100) break;
+    }
+  }
+
+  if (!userId) {
+    throw new CleanupFailure(
+      "synthetic_user_identity_mismatch",
+    );
+  }
+
+  const authLookup =
+    await admin.auth.admin.getUserById(userId);
+  const user = authLookup.data.user;
+
+  if (authLookup.error || !user) {
     throw new CleanupFailure(
       "synthetic_user_lookup_failed",
     );
   }
 
-  const user = listed.data.users.find(
-    (candidate) => candidate.email === f.email,
-  );
-
   if (
-    !user ||
+    user.email !== f.email ||
     user.user_metadata?.arbor_acceptance_run !== run
   ) {
     throw new CleanupFailure(
@@ -152,7 +212,7 @@ async function syntheticUserId(run: string) {
     );
   }
 
-  return user.id;
+  return userId;
 }
 
 async function countUserRows(
