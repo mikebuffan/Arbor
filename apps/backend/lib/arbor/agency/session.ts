@@ -4,7 +4,6 @@ import {
   loadAgencyState,
   persistAgencyState,
 } from "./state";
-import { loadRuntimeState } from "../runtime/runtimeStateStore";
 import { resolveAgencyGoal } from "./continuation";
 import { recordStrategyCandidate } from "./strategyRetention";
 import { mergeAgencyUnresolvedWork } from "./unresolvedWork";
@@ -25,22 +24,11 @@ export async function beginAgencySession(input: {
   conversationId?: string | null;
   userText: string;
 }): Promise<AgencyState> {
-  const [projectAgency, conversationRuntime] = await Promise.all([
-    loadAgencyState(input),
-    input.conversationId
-      ? loadRuntimeState({
-          supabase: input.supabase,
-          userId: input.userId,
-          projectId: input.projectId,
-          conversationId: input.conversationId,
-        })
-      : Promise.resolve(null),
-  ]);
-
-  const prior =
-    resumableAgency(conversationRuntime?.agency) ??
-    resumableAgency(projectAgency) ??
-    projectAgency;
+  // arbor_runtime_state is the canonical owner of project-level agency.
+  // Conversation runtime is a projection used for continuity/rendering; it
+  // must never compete with or override the canonical unresolved work graph.
+  const projectAgency = await loadAgencyState(input);
+  const prior = resumableAgency(projectAgency) ?? projectAgency;
 
   const { goal, resume } = resolveAgencyGoal(input.userText, prior);
 
@@ -129,7 +117,10 @@ export async function blockAgencySession(input: {
     ...input.agency,
     status: "blocked",
     blocker: input.blocker,
-    unresolvedWork: input.unresolvedWork,
+    unresolvedWork: mergeAgencyUnresolvedWork(
+      input.agency.unresolvedWork,
+      input.unresolvedWork,
+    ),
   };
 
   await persistAgencyState({
