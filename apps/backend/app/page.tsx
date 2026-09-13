@@ -1,7 +1,9 @@
 import Image from "next/image";
+import { redirect } from "next/navigation";
 
 type HomeSearchParams = Promise<{
   _vercel_share?: string | string[];
+  arbor_acceptance?: string | string[];
 }>;
 
 function first(value: string | string[] | undefined) {
@@ -10,7 +12,10 @@ function first(value: string | string[] | undefined) {
 
 function acceptanceAllowed(params: Awaited<HomeSearchParams>) {
   return (
-    Boolean(first(params._vercel_share)) &&
+    Boolean(
+      first(params._vercel_share) ||
+      first(params.arbor_acceptance) === "1",
+    ) &&
     process.env.VERCEL_ENV === "preview" &&
     process.env.VERCEL_GIT_COMMIT_REF ===
       "arbor/backend-beta-finish"
@@ -31,6 +36,27 @@ async function runAcceptance() {
   }
 }
 
+function acceptanceTerminal(
+  result: Record<string, unknown>,
+) {
+  const orchestrator =
+    typeof result.orchestrator === "string"
+      ? result.orchestrator
+      : "";
+
+  if (
+    orchestrator === "cleanup" ||
+    orchestrator === "cleanup_after_failure"
+  ) {
+    return true;
+  }
+
+  return (
+    result.ok === false &&
+    result.next !== "cleanup"
+  );
+}
+
 export default async function Home({
   searchParams,
 }: {
@@ -39,7 +65,39 @@ export default async function Home({
   const params = await searchParams;
 
   if (acceptanceAllowed(params)) {
+    if (first(params.arbor_acceptance) === "1") {
+      await new Promise((resolve) =>
+        setTimeout(resolve, 2_000),
+      );
+    }
+
     const result = await runAcceptance();
+    const terminal = acceptanceTerminal(result);
+
+    console.info("ARBOR_BETA_ACCEPTANCE_ORCHESTRATOR", {
+      orchestrator:
+        typeof result.orchestrator === "string"
+          ? result.orchestrator
+          : "unknown",
+      ok: result.ok === true,
+      step:
+        typeof result.step === "string"
+          ? result.step
+          : undefined,
+      verdict:
+        typeof result.verdict === "string"
+          ? result.verdict
+          : undefined,
+      error:
+        typeof result.error === "string"
+          ? result.error
+          : undefined,
+      terminal,
+    });
+
+    if (!terminal) {
+      redirect("/?arbor_acceptance=1");
+    }
 
     return (
       <pre id="arbor-beta-acceptance">
