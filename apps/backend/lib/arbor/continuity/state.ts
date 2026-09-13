@@ -6,6 +6,9 @@ export type ArborContinuityState = {
   currentGoal: string | null;
   lastMeaningfulUserTurn: string | null;
   lastMeaningfulArborTurn: string | null;
+  previousSessionUserTurn: string | null;
+  previousSessionArborTurn: string | null;
+  previousSessionConversationId: string | null;
   unresolvedWork: string[];
   recurringWeaknesses: string[];
   retainedStrategies: string[];
@@ -20,12 +23,19 @@ export function buildContinuityState(input: {
   channel: "text" | "voice";
   lastMeaningfulUserTurn?: string | null;
   lastMeaningfulArborTurn?: string | null;
+  previousSessionUserTurn?: string | null;
+  previousSessionArborTurn?: string | null;
+  previousSessionConversationId?: string | null;
   activeCorrections?: string[];
 }): ArborContinuityState {
   return {
     currentGoal: input.agency?.goal?.trim() || null,
     lastMeaningfulUserTurn: input.lastMeaningfulUserTurn?.trim() || null,
     lastMeaningfulArborTurn: input.lastMeaningfulArborTurn?.trim() || null,
+    previousSessionUserTurn: input.previousSessionUserTurn?.trim() || null,
+    previousSessionArborTurn: input.previousSessionArborTurn?.trim() || null,
+    previousSessionConversationId:
+      input.previousSessionConversationId?.trim() || null,
     unresolvedWork: input.agency?.unresolvedWork ?? [],
     recurringWeaknesses: input.agency?.recurringWeaknesses ?? [],
     retainedStrategies: input.agency?.strategyNotes ?? [],
