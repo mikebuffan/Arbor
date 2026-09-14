@@ -799,6 +799,14 @@ export class ArborControlRuntime {
           },
         });
 
+      // Provider/model output may propose task/runtime state, but Arbor's
+      // durable identity anchor remains authoritative at the host boundary.
+      // Re-validate before any canonical response or state commit.
+      agency.state =
+        ensureSelfModelIdentity(
+          agency.state,
+        );
+
       const response =
         this.buildCanonicalResponse(
           request,
