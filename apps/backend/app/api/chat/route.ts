@@ -60,6 +60,7 @@ import {
 import { buildTelemetry } from "@/lib/arbor/telemetry/buildTelemetry";
 import { getOrCreateOpenEpisode } from "@/lib/arbor/episodes/getOrCreateOpenEpisode";
 import { scheduleChatPostResponseWork } from "@/lib/chat/postResponseScheduler";
+import { summarizePriorOpenEpisodes } from "@/lib/arbor/episodes/maintainEpisodes";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -603,6 +604,16 @@ export async function POST(req: Request) {
             },
             name,
           );
+        },
+
+        episode_maintenance: async () => {
+          await summarizePriorOpenEpisodes({
+            supabase,
+            userId,
+            projectId,
+            currentEpisodeId: episodeId,
+            maxEpisodes: 2,
+          });
         },
       },
     });
