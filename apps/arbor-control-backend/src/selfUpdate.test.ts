@@ -39,7 +39,7 @@ describe("agency self-update candidates", () => {
   );
 
   it(
-    "retains a legacy strategy after two successful verifications when provenance is unavailable",
+    "does not durably retain anonymous legacy confirmations",
     () => {
       const first = observeStrategy(
         baseState(),
@@ -52,11 +52,11 @@ describe("agency self-update candidates", () => {
         true,
       );
 
-      expect(second.strategyNotes).toContain(
+      expect(second.strategyNotes).not.toContain(
         "inspect before claiming done",
       );
       expect(second.strategyCandidates?.at(-1)?.status).toBe(
-        "retained",
+        "candidate",
       );
     },
   );
