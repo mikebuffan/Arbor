@@ -12,7 +12,7 @@ import {
   it,
 } from "vitest";
 
-import { JsonFileArborStateStore } from "./stateStore.js";
+import { JsonFileArborStateStore, stateScope } from "./stateStore.js";
 import type {
   ArborState,
   StoredArborTurn,
@@ -69,6 +69,30 @@ function turn(input: {
 }
 
 describe("standalone control state", () => {
+  it(
+    "uses conversation scope as the local overlay while preserving project-only carrier scope",
+    () => {
+      expect(
+        stateScope({
+          projectId: "project-a",
+          conversationId: "conversation-a",
+        }),
+      ).toBe("conversation:conversation-a");
+
+      expect(
+        stateScope({
+          projectId: "project-a",
+        }),
+      ).toBe("project:project-a");
+
+      expect(
+        stateScope({
+          conversationId: "conversation-a",
+        }),
+      ).toBe("conversation:conversation-a");
+    },
+  );
+
   it(
     "persists state, canonical turns, and conversation history independently of Mike backend",
     async () => {

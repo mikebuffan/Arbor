@@ -44,10 +44,12 @@ describe("memory correction storage semantics", () => {
     const find = {
       select: vi.fn(),
       eq: vi.fn(),
+      is: vi.fn(),
       maybeSingle: vi.fn().mockResolvedValue({ data: existing, error: null }),
     };
     find.select.mockReturnValue(find);
     find.eq.mockReturnValue(find);
+    find.is.mockReturnValue(find);
     const update = {
       update: vi.fn(),
       eq: vi.fn(),

@@ -220,6 +220,7 @@ export async function buildPromptContext({
     supabase,
     authedUserId,
     projectId,
+    conversationId,
     latestUserText,
     useVectorSearch: true,
   });

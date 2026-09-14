@@ -25,19 +25,37 @@ async function findExisting(params: {
   supabase: SupabaseClient;
   authedUserId: string;
   projectId: string | null;
+  conversationId?: string | null;
+  scope?: "global" | "project" | "conversation";
   key: string;
 }) {
-  const { supabase, authedUserId, projectId, key } = params;
+  const {
+    supabase,
+    authedUserId,
+    projectId,
+    conversationId = null,
+    scope = projectId ? "project" : "global",
+    key,
+  } = params;
 
   let query = supabase
     .from(ITEMS_TABLE)
     .select("*")
     .eq("user_id", authedUserId)
-    .eq("key", key);
+    .eq("key", key)
+    .eq("scope", scope);
 
-  query = projectId
-    ? query.eq("project_id", projectId)
-    : query.is("project_id", null);
+  if (scope === "global") {
+    query = query.is("project_id", null).is("conversation_id", null);
+  } else if (scope === "project") {
+    if (!projectId) return null;
+    query = query.eq("project_id", projectId).is("conversation_id", null);
+  } else {
+    if (!projectId || !conversationId) return null;
+    query = query
+      .eq("project_id", projectId)
+      .eq("conversation_id", conversationId);
+  }
 
   const { data, error } = await query.maybeSingle();
 
@@ -92,6 +110,7 @@ export async function upsertMemoryItems(
   items: MemoryItem[],
   projectId: string | null,
   supabase: SupabaseClient,
+  conversationId: string | null = null,
 ): Promise<MemoryUpsertResult> {
   const start = Date.now();
   const res: MemoryUpsertResult = {
@@ -139,6 +158,16 @@ export async function upsertMemoryItems(
     const importance = Number(item.importance ?? 5);
     const confidence = Number(item.confidence ?? 0.75);
     const pinned = tier === "core";
+    const scope = item.scope ?? "conversation";
+    const scopedConversationId =
+      scope === "conversation" ? conversationId : null;
+
+    // A conversation-scoped memory without a conversation id cannot be
+    // safely retrieved later. Do not create more ambiguous legacy rows.
+    if (scope === "conversation" && !scopedConversationId) {
+      res.ignored.push(key);
+      continue;
+    }
 
     const rawEmbedding =
       batched?.[i] ?? (await embedText(memoryToEmbedString(key, item.value)));
@@ -148,17 +177,20 @@ export async function upsertMemoryItems(
       supabase,
       authedUserId,
       projectId,
+      conversationId: scopedConversationId,
+      scope,
       key,
     });
 
     if (!existing) {
       const { error } = await supabase.from(ITEMS_TABLE).insert({
         user_id: authedUserId,
-        project_id: projectId,
+        project_id: scope === "global" ? null : projectId,
+        conversation_id: scopedConversationId,
         key,
         value,
         tier,
-        scope: item.scope ?? "conversation",
+        scope,
         user_trigger_only,
         importance,
         confidence,
@@ -218,10 +250,11 @@ export async function upsertMemoryItems(
     const { error } = await supabase
       .from(ITEMS_TABLE)
       .update({
-        project_id: projectId ?? existing.project_id ?? null,
+        project_id: scope === "global" ? null : (projectId ?? existing.project_id ?? null),
+        conversation_id: scopedConversationId,
         value,
         tier: tier ?? existing.tier ?? "normal",
-        scope: item.scope ?? existing.scope ?? "conversation",
+        scope,
         user_trigger_only,
         importance: Math.max(Number(existing.importance ?? 5), importance),
         confidence,
@@ -283,6 +316,8 @@ export async function correctMemoryItem(params: {
     supabase,
     authedUserId,
     projectId,
+    conversationId: null,
+    scope: projectId ? "project" : "global",
     key: cleanKey,
   });
 
@@ -467,6 +502,7 @@ export async function reinforceMemoryUse(
   keysUsed: string[],
   projectId: string | null,
   supabase: SupabaseClient,
+  conversationId: string | null = null,
 ) {
   if (!keysUsed.length) return;
 
@@ -476,12 +512,44 @@ export async function reinforceMemoryUse(
     const cleanKey = key.trim();
     if (!cleanKey) continue;
 
-    const existing = await findExisting({
-      supabase,
-      authedUserId,
-      projectId,
-      key: cleanKey,
-    });
+    const conversationExisting =
+      projectId && conversationId
+        ? await findExisting({
+            supabase,
+            authedUserId,
+            projectId,
+            conversationId,
+            scope: "conversation",
+            key: cleanKey,
+          })
+        : null;
+
+    const projectExisting =
+      !conversationExisting && projectId
+        ? await findExisting({
+            supabase,
+            authedUserId,
+            projectId,
+            conversationId: null,
+            scope: "project",
+            key: cleanKey,
+          })
+        : null;
+
+    const globalExisting =
+      !conversationExisting && !projectExisting
+        ? await findExisting({
+            supabase,
+            authedUserId,
+            projectId: null,
+            conversationId: null,
+            scope: "global",
+            key: cleanKey,
+          })
+        : null;
+
+    const existing =
+      conversationExisting ?? projectExisting ?? globalExisting;
     if (!existing || existing.locked) continue;
 
     const nextCount = Number(existing.mention_count ?? 0) + 1;

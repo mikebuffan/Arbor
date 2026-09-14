@@ -28,6 +28,11 @@ import {
   detectRuntimeCorrectionKind,
 } from "./correctionDetection.js";
 import {
+  buildCarrierInjection,
+  mergeCarrierState,
+  uniqueNewest,
+} from "./carrierPolicy.js";
+import {
   ARBOR_CORE_INJECTION,
 } from "./identity.js";
 import {
