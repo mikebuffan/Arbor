@@ -151,18 +151,17 @@ export function shouldCarryGoal(
     return false;
   }
 
-  if (explicitlySupersedes(userText)) {
+  if (
+    explicitlySupersedes(userText) ||
+    explicitlyClosesGoal(userText)
+  ) {
     return false;
   }
 
-  if (explicitlyContinues(userText)) {
-    return true;
-  }
-
-  return looksLikeContinuationFollowup(
-    userText,
-    prior,
-  );
+  // A verified live goal owns the workflow until completion or an explicit
+  // task switch. Do not require lexical overlap or a magic continuation
+  // phrase on every turn; ordinary follow-ups inherit the active objective.
+  return true;
 }
 
 export function mergeUnresolvedWork(
