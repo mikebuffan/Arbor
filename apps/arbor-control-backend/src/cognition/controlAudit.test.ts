@@ -79,16 +79,42 @@ describe(
           "false_completion_with_unresolved_work",
         );
 
-        expect(
+        const revision =
           reviseControlStateOnce({
             state:
               current,
             agency,
             audit,
-          }).unresolvedWork,
+          });
+
+        expect(
+          revision.state.unresolvedWork,
         ).toEqual([
           "verify integration",
         ]);
+
+        expect(
+          revision.agency.status,
+        ).toBe(
+          "blocked",
+        );
+
+        expect(
+          revision.agency.blocker,
+        ).toBe(
+          "unresolved_work_remaining",
+        );
+
+        expect(
+          auditControlState({
+            state:
+              revision.state,
+            agency:
+              revision.agency,
+          }).approved,
+        ).toBe(
+          true,
+        );
       },
     );
 
