@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { openAIEmbed } from "@/lib/providers/openai";
 
 export type RetrievedMemoryItem = {
   id: string;
@@ -36,7 +37,12 @@ function toPlainObject(value: any): Record<string, any> {
 
 function contentTextForRow(row: { key?: string | null; value?: any }) {
   const value = toPlainObject(row.value);
-  const explicit = typeof value.text === "string" ? value.text.trim() : "";
+  const explicit =
+    typeof value.text === "string"
+      ? value.text.trim()
+      : typeof value.value === "string"
+        ? value.value.trim()
+        : "";
   if (explicit) return explicit;
 
   const serialized = Object.keys(value).length ? JSON.stringify(value) : "{}";
@@ -79,6 +85,72 @@ export function isMemoryInProjectScope(
   return item.project_id == null;
 }
 
+function hoursSince(value: string | null | undefined): number {
+  if (!value) return Number.POSITIVE_INFINITY;
+  const time = Date.parse(value);
+  if (!Number.isFinite(time)) return Number.POSITIVE_INFINITY;
+  return (Date.now() - time) / 3_600_000;
+}
+
+function clamp01(value: number): number {
+  return Math.max(0, Math.min(1, value));
+}
+
+export function memoryStabilityScore(item: RetrievedMemoryItem): number {
+  const similarity = clamp01(item.similarity ?? 0);
+  const importance = clamp01((item.importance - 1) / 9);
+  const hours = Math.min(
+    hoursSince(item.last_reinforced_at ?? item.last_seen_at ?? item.updated_at),
+    24 * 30,
+  );
+  const recency = Number.isFinite(hours)
+    ? Math.exp(-hours / (24 * 7))
+    : 0;
+
+  return (
+    similarity * 0.60 +
+    importance * 0.20 +
+    recency * 0.10 +
+    (item.pinned ? 0.20 : 0) +
+    (item.locked ? 0.10 : 0)
+  );
+}
+
+async function directMemoryFallback(input: {
+  supabase: SupabaseClient;
+  authedUserId: string;
+  projectId: string | null;
+}): Promise<RetrievedMemoryItem[]> {
+  let query = input.supabase
+    .from("memory_items")
+    .select(
+      "id, user_id, project_id, conversation_id, key, value, tier, scope, user_trigger_only, importance, confidence, locked, pinned, status, deleted_at, last_seen_at, last_reinforced_at, updated_at",
+    )
+    .eq("user_id", input.authedUserId)
+    .is("deleted_at", null)
+    .eq("status", "active")
+    .order("pinned", { ascending: false })
+    .order("importance", { ascending: false })
+    .order("last_reinforced_at", { ascending: false })
+    .limit(50);
+
+  if (input.projectId) {
+    query = query.or(
+      `project_id.eq.${input.projectId},scope.eq.global`,
+    );
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+
+  return (data ?? [])
+    .filter(isLiveRow)
+    .map(normalizeRow)
+    .filter((item) =>
+      isMemoryInProjectScope(item, input.projectId),
+    );
+}
+
 export async function getMemoryContext(params: {
   supabase: SupabaseClient;
   authedUserId: string;
@@ -90,52 +162,84 @@ export async function getMemoryContext(params: {
   const {
     supabase,
     authedUserId,
-    projectId,
+    projectId = null,
     latestUserText,
     useVectorSearch = false,
   } = params;
 
-  // Compatibility input only. Retrieval caching is disabled until correction,
-  // upsert, deletion, and cross-instance invalidation are all proven safe.
+  // Retrieval caching stays disabled until mutation invalidation is proven.
   void params.useCache;
-  // The live match_memory_items RPC accepts a user ID but neither accepts a
-  // project ID nor returns project_id. Until that contract is corrected under
-  // an approved migration, vector results cannot be safely project-filtered.
-  void latestUserText;
-  void useVectorSearch;
 
   let items: RetrievedMemoryItem[] = [];
 
-  let q = supabase
-    .from("memory_items")
-    .select(
-      "id, user_id, project_id, conversation_id, key, value, tier, scope, user_trigger_only, importance, confidence, locked, pinned, status, deleted_at, last_seen_at, last_reinforced_at, updated_at"
-    )
-    .eq("user_id", authedUserId)
-    .is("deleted_at", null)
-    .eq("status", "active")
-    .order("pinned", { ascending: false })
-    .order("importance", { ascending: false })
-    .order("last_reinforced_at", { ascending: false })
-    .limit(50);
+  if (
+    useVectorSearch &&
+    projectId &&
+    latestUserText.trim().length >= 3
+  ) {
+    try {
+      const queryEmbedding =
+        await openAIEmbed(latestUserText.trim());
 
-  if (projectId) {
-    q = q.or(`project_id.eq.${projectId},scope.eq.global`);
+      const { data, error } =
+        await supabase.rpc(
+          "match_memories_v3",
+          {
+            p_user_id: authedUserId,
+            p_project_id: projectId,
+            p_query_embedding: queryEmbedding,
+            p_match_count: 40,
+          },
+        );
+
+      if (error) throw error;
+
+      items = (data ?? [])
+        .filter(isLiveRow)
+        .map(normalizeRow)
+        .filter((item) =>
+          isMemoryInProjectScope(item, projectId),
+        )
+        .sort(
+          (a, b) =>
+            memoryStabilityScore(b) -
+            memoryStabilityScore(a),
+        )
+        .slice(0, 30);
+    } catch {
+      // Retrieval fallback is expected recovery behavior. Do not leak raw
+      // provider/database errors into logs; continue with the scoped direct
+      // fallback instead.
+      items = await directMemoryFallback({
+        supabase,
+        authedUserId,
+        projectId,
+      });
+    }
+  } else {
+    items = await directMemoryFallback({
+      supabase,
+      authedUserId,
+      projectId,
+    });
   }
-
-  const { data, error } = await q;
-  if (error) throw error;
-
-  items = (data ?? [])
-    .filter(isLiveRow)
-    .map(normalizeRow)
-    .filter((item) => isMemoryInProjectScope(item, projectId ?? null));
 
   const result: MemoryContextResult = {
     core: items.filter((i) => i.tier === "core" || i.pinned),
-    normal: items.filter((i) => i.tier === "normal" && !i.user_trigger_only && !i.pinned),
-    sensitive: items.filter((i) => i.tier === "sensitive" || i.user_trigger_only),
-    keysUsed: items.map((i) => i.key).filter(Boolean),
+    normal: items.filter(
+      (i) =>
+        i.tier === "normal" &&
+        !i.user_trigger_only &&
+        !i.pinned,
+    ),
+    sensitive: items.filter(
+      (i) =>
+        i.tier === "sensitive" ||
+        i.user_trigger_only,
+    ),
+    keysUsed: items
+      .map((i) => i.key)
+      .filter(Boolean),
   };
 
   return result;
