@@ -467,10 +467,21 @@ export class ArborControlRuntime {
         },
       );
 
-      const prior =
+      const localPrior =
         await this.getState(
           request,
         );
+
+      // Project scope is the durable cross-thread carrier. Conversation state
+      // is only an overlay; a blank/new thread may not erase active work.
+      const projectPrior = request.projectId
+        ? await this.getState({ projectId: request.projectId })
+        : localPrior;
+
+      const prior = mergeCarrierState(
+        projectPrior,
+        localPrior,
+      );
 
       const history =
         await this.store
@@ -626,6 +637,8 @@ export class ArborControlRuntime {
 
       const instructions = [
         ARBOR_CORE_INJECTION,
+
+        buildCarrierInjection(state),
 
         renderSelfModelIdentityAnchor(
           state,
