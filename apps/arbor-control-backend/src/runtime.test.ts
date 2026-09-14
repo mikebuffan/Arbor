@@ -627,4 +627,105 @@ describe("Arbor control runtime pass", () => {
       );
     },
   );
+  it(
+    "places behavioral corrections ahead of temporary subsystem conditioning",
+    async () => {
+      let capturedInstructions = "";
+
+      const runner: AgencyRunner = async (input) => {
+        capturedInstructions = input.instructions;
+
+        return {
+          status: "complete",
+          text: "ok",
+          state: {
+            ...input.state,
+            unresolvedWork: [],
+          },
+          rounds: 1,
+          toolCalls: 0,
+          researchCalls: 0,
+        };
+      };
+
+      const { runtime } = await fixture(runner);
+
+      await runtime.runTurn({
+        projectId: "project-order",
+        turnId: "turn-order",
+        userText: "Stop making me tell you to go. Continue the work.",
+      });
+
+      const correctionIndex =
+        capturedInstructions.indexOf("BEHAVIORAL CORRECTIONS:");
+      const subsystemIndex =
+        capturedInstructions.indexOf("SUBSYSTEM");
+
+      expect(correctionIndex).toBeGreaterThanOrEqual(0);
+      if (subsystemIndex >= 0) {
+        expect(correctionIndex).toBeLessThan(subsystemIndex);
+      }
+    },
+  );
+
+  it(
+    "ranks recovered open-loop work before unrelated unresolved notes",
+    async () => {
+      let capturedInstructions = "";
+
+      const runner: AgencyRunner = async (input) => {
+        capturedInstructions = input.instructions;
+
+        return {
+          status: "complete",
+          text: "ok",
+          state: {
+            ...input.state,
+            unresolvedWork: input.state.unresolvedWork,
+          },
+          rounds: 1,
+          toolCalls: 0,
+          researchCalls: 0,
+        };
+      };
+
+      const { store, runtime } = await fixture(runner);
+
+      await store.save(
+        "project:project-open-loop",
+        {
+          activeSubsystem: "arbor",
+          goal: "finish recovery",
+          unresolvedWork: [
+            "ordinary background note",
+            "current priority: finish cognition integration",
+          ],
+          strategyNotes: [],
+          behavioralCorrections: [],
+          acousticCorrections: [],
+          voiceId: "cedar",
+        },
+      );
+
+      await runtime.runTurn({
+        projectId: "project-open-loop",
+        turnId: "turn-open-loop",
+        userText: "continue",
+      });
+
+      const priorityIndex =
+        capturedInstructions.indexOf(
+          "- current priority: finish cognition integration",
+        );
+      const backgroundIndex =
+        capturedInstructions.indexOf(
+          "- ordinary background note",
+        );
+
+      expect(priorityIndex).toBeGreaterThanOrEqual(0);
+      expect(backgroundIndex).toBeGreaterThanOrEqual(0);
+      expect(priorityIndex).toBeLessThan(backgroundIndex);
+    },
+  );
+
 });
