@@ -28,6 +28,10 @@ import {
   detectRuntimeCorrectionKind,
 } from "./correctionDetection.js";
 import {
+  auditControlState,
+  reviseControlStateOnce,
+} from "./cognition/controlAudit.js";
+import {
   buildContinuityCheckpoint,
   checkpointProjection,
 } from "./continuityCheckpoint.js";
@@ -904,6 +908,46 @@ export class ArborControlRuntime {
                 .acousticCorrections,
             ]),
         });
+
+      let controlAudit =
+        auditControlState({
+          state:
+            agency.state,
+          agency,
+        });
+
+      if (
+        !controlAudit.approved
+      ) {
+        agency.state =
+          reviseControlStateOnce({
+            state:
+              agency.state,
+            agency,
+            audit:
+              controlAudit,
+          });
+
+        controlAudit =
+          auditControlState({
+            state:
+              agency.state,
+            agency,
+          });
+      }
+
+      await this.record(
+        turnId,
+        request,
+        "verify",
+        "pre_response_control_audit",
+        {
+          approved:
+            controlAudit.approved,
+          issues:
+            controlAudit.issues,
+        },
+      );
 
       const checkpoint =
         buildContinuityCheckpoint({
