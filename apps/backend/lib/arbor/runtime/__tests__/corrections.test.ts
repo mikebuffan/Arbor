@@ -8,6 +8,7 @@ import {
   acousticCorrections,
   behaviorCorrections,
   classifyCorrection,
+  correctionFamily,
   createCorrection,
 } from "../corrections";
 
@@ -50,6 +51,43 @@ describe("Arbor correction routing", () => {
       expect(classifyCorrection(text)).toBe("acoustic");
     },
   );
+
+  it("converges agency wording variants onto one correction family", () => {
+    expect(correctionFamily("behavior", "Don't stop. Keep going.")).toBe(
+      "agency-followthrough",
+    );
+    expect(
+      correctionFamily(
+        "behavior",
+        "Why did you stop? I should not have to tell you to go again.",
+      ),
+    ).toBe("agency-followthrough");
+
+    const first = createCorrection({
+      value: "Don't stop. Keep going.",
+      source: "text",
+      observedAt: "2026-09-14T20:00:00.000Z",
+      kind: "behavior",
+    });
+    const second = createCorrection({
+      value: "Why did you stop? Keep going.",
+      source: "text",
+      observedAt: "2026-09-14T20:01:00.000Z",
+      kind: "behavior",
+    });
+
+    expect(first.id).toBe("behavior:agency-followthrough");
+    expect(second.id).toBe(first.id);
+  });
+
+  it("keeps identity drift separate from agency corrections", () => {
+    expect(
+      correctionFamily("behavior", "You've drifted. Come back."),
+    ).toBe("identity-drift");
+    expect(
+      correctionFamily("behavior", "Keep going and don't stop."),
+    ).toBe("agency-followthrough");
+  });
 
   it("does not let acoustic corrections rewrite behavior rules", () => {
     const corrections = [
