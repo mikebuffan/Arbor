@@ -1,3 +1,7 @@
+import type {
+  ArborRecoveryRouteStats,
+} from "./agencyRecovery/routeLearning.js";
+
 export type ArborSubsystem = "arbor" | "annabelle";
 export type ArborChannel = "text" | "voice";
 
@@ -80,6 +84,7 @@ export type ArborState = {
   unresolvedWork: string[];
   strategyNotes: string[];
   strategyCandidates?: StrategyCandidate[];
+  recoveryRouteStats?: ArborRecoveryRouteStats[];
   behavioralCorrections?: string[];
   acousticCorrections: string[];
   voiceId: string;
