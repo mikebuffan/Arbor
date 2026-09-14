@@ -627,4 +627,47 @@ describe("Arbor control runtime pass", () => {
       );
     },
   );
+  it(
+    "carries project unresolved work into a fresh conversation scope",
+    async () => {
+      const calls: Array<{
+        userText: string;
+        goal: string | null;
+        subsystem: string;
+        history: string[];
+      }> = [];
+
+      const { runtime, store } = await fixture(createRunner(calls));
+
+      const projectState: ArborState = {
+        activeSubsystem: "arbor",
+        goal: "restore Arbor carrier",
+        unresolvedWork: ["wire carrier into wake-up path"],
+        strategyNotes: [],
+        behavioralCorrections: ["Do not wait for repeated go."],
+        acousticCorrections: [],
+        voiceId: "cedar",
+      };
+
+      await store.save("project:project-1", projectState);
+
+      // Simulate a fresh thread whose conversation-local state is blank.
+      await store.save("conversation:fresh-thread", {
+        ...projectState,
+        goal: null,
+        unresolvedWork: [],
+        behavioralCorrections: [],
+      });
+
+      await runtime.runTurn({
+        projectId: "project-1",
+        conversationId: "fresh-thread",
+        turnId: "fresh-thread-turn",
+        userText: "okay",
+      });
+
+      expect(calls[0]?.goal).toBe("restore Arbor carrier");
+    },
+  );
+
 });
