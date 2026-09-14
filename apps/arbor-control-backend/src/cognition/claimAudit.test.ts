@@ -21,6 +21,20 @@ describe("cognition claim audit", () => {
     expect(result.issues).toContain("proposal_presented_as_actual");
   });
 
+  it("rejects proposal material presented as actual even when no current state exists", () => {
+    const result = auditClaim(
+      {
+        subject: "arbor",
+        attribute: "new_capability",
+        assertedClass: "designed",
+        assertedActual: true,
+      },
+      null,
+    );
+
+    expect(result.issues).toContain("proposal_presented_as_actual");
+  });
+
   it("rejects demoting actual behavior back to a proposal", () => {
     const result = auditClaim(
       {
@@ -33,6 +47,32 @@ describe("cognition claim audit", () => {
     );
 
     expect(result.issues).toContain("actual_demoted_to_proposal");
+  });
+
+  it("rejects forgetting a supported actual state as unknown or not recovered", () => {
+    expect(
+      auditClaim(
+        {
+          subject: "arbor",
+          attribute: "continuity",
+          assertedClass: "unknown",
+          assertedActual: false,
+        },
+        "implemented",
+      ).issues,
+    ).toContain("temporal_state_regression");
+
+    expect(
+      auditClaim(
+        {
+          subject: "arbor",
+          attribute: "continuity",
+          assertedClass: "not_recovered",
+          assertedActual: false,
+        },
+        "observed",
+      ).issues,
+    ).toContain("temporal_state_regression");
   });
 
   it("rejects unsupported historical backfill", () => {
