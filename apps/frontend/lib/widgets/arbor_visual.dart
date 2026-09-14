@@ -81,7 +81,7 @@ class _ArborVisualState extends State<ArborVisual>
               ),
               Center(
                 child: Transform.translate(
-                  offset: const Offset(0, -54),
+                  offset: const Offset(0, -78),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -92,10 +92,10 @@ class _ArborVisualState extends State<ArborVisual>
                         child: const Text(
                           'ARBOR',
                           style: TextStyle(
-                            color: Color(0xFFDADADF),
-                            fontSize: 24,
-                            letterSpacing: 5.4,
-                            fontWeight: FontWeight.w200,
+                            color: Color(0xFFD8C7D2),
+                            fontSize: 22,
+                            letterSpacing: 4.8,
+                            fontWeight: FontWeight.w300,
                           ),
                         ),
                       ),
@@ -131,7 +131,7 @@ class _CenterPulse extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final width = switch (state) {
-      ArborVisualState.idle => 118.0,
+      ArborVisualState.idle => 170.0,
       ArborVisualState.listening => 142.0,
       ArborVisualState.thinking => 158.0,
       ArborVisualState.speaking => 176.0,
@@ -177,7 +177,7 @@ class _PulsePainter extends CustomPainter {
           Colors.transparent,
         ],
       ).createShader(Offset.zero & size)
-      ..strokeWidth = 1.6
+      ..strokeWidth = 2.0
       ..style = PaintingStyle.stroke
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5);
 
@@ -191,7 +191,7 @@ class _PulsePainter extends CustomPainter {
           Colors.transparent,
         ],
       ).createShader(Offset.zero & size)
-      ..strokeWidth = 0.9
+      ..strokeWidth = 0.8
       ..style = PaintingStyle.stroke;
 
     Path makePath() {
@@ -242,7 +242,7 @@ class _PulsePainter extends CustomPainter {
 
     canvas.drawCircle(
       Offset(size.width / 2, centerY),
-      1.5 + activity * 1.8,
+      1.2 + activity * 1.45,
       flare,
     );
   }
@@ -268,25 +268,31 @@ class _ArborGlowPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final shortest = math.min(size.width, size.height);
-    final baseRadius = shortest * 0.52;
+    final baseRadius = shortest * 0.255;
     final breathing =
         1 + math.sin(phase * math.pi * 2) *
             (state == ArborVisualState.idle ? 0.006 : 0.014);
     final radius = baseRadius * breathing;
 
+    // The reference uses four independent quarter-orbs tucked into the
+    // corners. Their centers sit just outside the canvas; using the literal
+    // screen corners makes the circles meet in the middle on tall phones.
+    final insetX = shortest * 0.045;
+    final insetY = shortest * 0.035;
     final corners = <Offset>[
-      const Offset(0, 0),
-      Offset(size.width, 0),
-      Offset(0, size.height),
-      Offset(size.width, size.height),
+      Offset(-insetX, -insetY),
+      Offset(size.width + insetX, -insetY),
+      Offset(-insetX, size.height + insetY),
+      Offset(size.width + insetX, size.height + insetY),
     ];
 
-    for (final corner in corners) {
+    for (var i = 0; i < corners.length; i++) {
       _paintLayeredArch(
         canvas,
-        corner: corner,
+        corner: corners[i],
         radius: radius,
         activity: activity,
+        intensity: i < 2 ? 0.64 : 1.0,
       );
     }
   }
@@ -296,6 +302,7 @@ class _ArborGlowPainter extends CustomPainter {
     required Offset corner,
     required double radius,
     required double activity,
+    required double intensity,
   }) {
     final rect = Rect.fromCircle(
       center: corner,
@@ -307,7 +314,7 @@ class _ArborGlowPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 76 + activity * 18
       ..color = const Color(0xFFF3387A)
-          .withOpacity(0.014 + activity * 0.018)
+          .withOpacity((0.014 + activity * 0.018) * intensity)
       ..maskFilter = const MaskFilter.blur(
         BlurStyle.normal,
         46,
@@ -318,7 +325,7 @@ class _ArborGlowPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 48 + activity * 12
       ..color = const Color(0xFFE31B78)
-          .withOpacity(0.03 + activity * 0.025)
+          .withOpacity((0.03 + activity * 0.025) * intensity)
       ..maskFilter = const MaskFilter.blur(
         BlurStyle.normal,
         30,
@@ -329,7 +336,7 @@ class _ArborGlowPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 28 + activity * 9
       ..color = const Color(0xFFFF2F92)
-          .withOpacity(0.065 + activity * 0.05)
+          .withOpacity((0.065 + activity * 0.05) * intensity)
       ..maskFilter = const MaskFilter.blur(
         BlurStyle.normal,
         19,
@@ -340,7 +347,7 @@ class _ArborGlowPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 14 + activity * 4
       ..color = const Color(0xFFFF4D9C)
-          .withOpacity(0.15 + activity * 0.08)
+          .withOpacity((0.15 + activity * 0.08) * intensity)
       ..maskFilter = const MaskFilter.blur(
         BlurStyle.normal,
         9,
@@ -351,7 +358,7 @@ class _ArborGlowPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 6 + activity * 2
       ..color = const Color(0xFFFF6BAA)
-          .withOpacity(0.27 + activity * 0.10)
+          .withOpacity((0.27 + activity * 0.10) * intensity)
       ..maskFilter = const MaskFilter.blur(
         BlurStyle.normal,
         4,
@@ -384,7 +391,7 @@ class _ArborGlowPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 0.75
       ..color = const Color(0xFFFFEAF2)
-          .withOpacity(0.56 + activity * 0.16);
+          .withOpacity((0.56 + activity * 0.16) * intensity);
 
     canvas.drawCircle(corner, radius, atmosphere);
     canvas.drawCircle(corner, radius, outerFog);
