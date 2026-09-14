@@ -35,6 +35,7 @@ import type {
   HostStartupProjection,
   OneArborHostState,
 } from "@/lib/arbor/host/oneArborHostBridge";
+import type { ArborCorrection } from "@/lib/arbor/runtime/runtimeState";
 
 export function invalidatePromptCache(params: {
   authedUserId: string;
@@ -54,6 +55,7 @@ type BuildPromptParams = {
   interactionMode?: "text" | "voice";
   hostSessionId?: string | null;
   currentGoal?: string | null;
+  incomingCorrections?: ArborCorrection[];
 };
 
 export type BuiltPromptContext = {
@@ -151,6 +153,7 @@ export async function buildPromptContext({
   interactionMode = "text",
   hostSessionId = null,
   currentGoal = null,
+  incomingCorrections = [],
 }: BuildPromptParams): Promise<BuiltPromptContext> {
   const { data: project, error: projectError } = await supabase
     .from("projects")
@@ -214,6 +217,7 @@ export async function buildPromptContext({
     supabase,
     authedUserId,
     projectId,
+    conversationId,
     latestUserText,
     useVectorSearch: true,
   });
@@ -263,16 +267,34 @@ export async function buildPromptContext({
         )
       : null;
 
-  const runtimeBehavioralCorrections =
-    runtimeHost?.behaviorCorrections ?? [];
+  const incomingBehavioralCorrections =
+    incomingCorrections
+      .filter((item) => item.kind !== "acoustic")
+      .map((item) => item.value);
+
+  const incomingAcousticCorrections =
+    incomingCorrections
+      .filter((item) => item.kind === "acoustic")
+      .map((item) => item.value);
+
+  const runtimeBehavioralCorrections = Array.from(
+    new Set([
+      ...(runtimeHost?.behaviorCorrections ?? []),
+      ...incomingBehavioralCorrections,
+    ]),
+  );
 
   const pendingStrategyUnderVerification =
     conversationRuntime?.currentGoal === currentGoal
       ? conversationRuntime?.pendingSelfUpdate?.strategy?.trim() || null
       : null;
 
-  const runtimeAcousticCorrections =
-    runtimeHost?.acousticCorrections ?? [];
+  const runtimeAcousticCorrections = Array.from(
+    new Set([
+      ...(runtimeHost?.acousticCorrections ?? []),
+      ...incomingAcousticCorrections,
+    ]),
+  );
 
   const continuityState =
     projectId && conversationId

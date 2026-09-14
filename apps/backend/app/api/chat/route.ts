@@ -50,6 +50,9 @@ import {
   createCorrection,
 } from "@/lib/arbor/runtime/corrections";
 import {
+  detectRuntimeCorrectionKind,
+} from "@/lib/arbor/runtime/correctionDetection";
+import {
   beginSelfUpdate,
   decideSelfUpdate,
   recordSelfUpdateVerification,
@@ -155,7 +158,7 @@ export async function loadRecentMessages(
     .eq("conversation_id", conversationId)
     .is("deleted_at", null)
     .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
-    .order("created_at", { ascending: true })
+    .order("created_at", { ascending: false })
     .limit(limit);
 
   if (error) throw error;
@@ -163,10 +166,12 @@ export async function loadRecentMessages(
     role: Msg["role"];
     content: string;
   }>;
-  return messages.map((message) => ({
-    role: message.role,
-    content: message.content,
-  }));
+  return messages
+    .reverse()
+    .map((message) => ({
+      role: message.role,
+      content: message.content,
+    }));
 }
 
 async function cleanupExpiredMessagesBestEffort(
@@ -263,6 +268,21 @@ export async function POST(req: Request) {
       );
     }
 
+    const correctionObservedAt = new Date().toISOString();
+    const incomingCorrectionKind =
+      detectRuntimeCorrectionKind(userText);
+    const incomingRuntimeCorrections =
+      incomingCorrectionKind
+        ? [
+            createCorrection({
+              value: userText,
+              source: interactionMode,
+              observedAt: correctionObservedAt,
+              kind: incomingCorrectionKind,
+            }),
+          ]
+        : [];
+
     let agencyState = await beginAgencySession({
       supabase,
       userId,
@@ -285,6 +305,7 @@ export async function POST(req: Request) {
       interactionMode,
       hostSessionId: turnId,
       currentGoal: agencyState.goal,
+      incomingCorrections: incomingRuntimeCorrections,
     });
 
     const [history, promptContext] = await Promise.all([
@@ -310,6 +331,7 @@ export async function POST(req: Request) {
       currentGoal: agencyState.goal,
       lastMeaningfulUserTurn: userText,
       agency: agencyState,
+      corrections: incomingRuntimeCorrections,
       behaviorProof,
       now: new Date().toISOString(),
     });
@@ -617,7 +639,7 @@ export async function POST(req: Request) {
       extractedItems: [],
     });
 
-    const runtimeCorrections =
+    const memoryRuntimeCorrections =
       deterministicMemoryTurn.kind === "correction"
         ? [
             createCorrection({
@@ -654,6 +676,7 @@ export async function POST(req: Request) {
                 supabase,
                 userId,
                 projectId,
+                conversationId: convoId,
                 classified: deterministicMemoryTurn,
                 injectedMemoryIds: selectedMemoryItems.map((item) => item.id),
               });
@@ -704,7 +727,7 @@ export async function POST(req: Request) {
       currentGoal: agencyState.goal,
       lastMeaningfulArborTurn: assistantText,
       agency: agencyState,
-      corrections: runtimeCorrections,
+      corrections: memoryRuntimeCorrections,
       behaviorProof,
       pendingSelfUpdate,
       now: new Date().toISOString(),
@@ -765,6 +788,7 @@ export async function POST(req: Request) {
               supabase,
               userId,
               projectId,
+              conversationId: convoId,
               classified,
               injectedMemoryIds: selectedMemoryItems.map((item) => item.id),
             });
