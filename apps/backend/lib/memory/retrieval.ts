@@ -79,7 +79,8 @@ function isLiveRow(row: any) {
 }
 
 export function isMemoryInProjectScope(
-  item: Pick<RetrievedMemoryItem, "project_id" | "conversation_id" | "scope">,
+  item: Pick<RetrievedMemoryItem, "project_id" | "scope"> &
+    Partial<Pick<RetrievedMemoryItem, "conversation_id">>,
   projectId: string | null,
   conversationId: string | null = null,
 ) {
@@ -262,6 +263,7 @@ export async function getMemoryContext(params: {
       supabase,
       authedUserId,
       projectId,
+      conversationId,
     });
   }
 
