@@ -19,7 +19,6 @@ describe("agency continuation regression", () => {
       expect(resolveAgencyGoal(text, active)).toEqual({
         goal: active.goal,
         resume: true,
-        superseded: false,
       });
     },
   );

@@ -267,6 +267,7 @@ export async function POST(req: Request) {
       supabase,
       userId,
       projectId,
+      conversationId: convoId,
       userText,
     });
 
@@ -283,6 +284,7 @@ export async function POST(req: Request) {
       safety,
       interactionMode,
       hostSessionId: turnId,
+      currentGoal: agencyState.goal,
     });
 
     const [history, promptContext] = await Promise.all([
@@ -295,6 +297,7 @@ export async function POST(req: Request) {
       injectedMemoryItems: selectedMemoryItems,
       activeSubsystem,
       behaviorProof,
+      behaviorGuardRequirements,
     } = promptContext;
 
     const runtimeSession = await beginRuntimeSession({
@@ -384,6 +387,12 @@ export async function POST(req: Request) {
         turnId,
       },
       allowWebResearch: process.env.ARBOR_ENABLE_WEB_RESEARCH !== "false",
+      behaviorRequirements: behaviorGuardRequirements,
+      priorActionEvidence: agencyState.unresolvedWork
+        .filter((item) => item.startsWith("verify capability result: "))
+        .map((item) =>
+          `capability ${item.slice("verify capability result: ".length)} completed successfully`,
+        ),
       hooks: {
         async onRoundStart(round) {
           agencyState = await recordAgencyProgress({
@@ -431,7 +440,11 @@ export async function POST(req: Request) {
             projectId,
             agency: agencyState,
             step: agencyState.currentStep,
-            unresolvedWork: [],
+            // A successful tool call is not the same thing as a completed goal.
+            // Keep durable unfinished work alive until the verifier explicitly
+            // proves completion. This also makes a process interruption between
+            // action and verification resumable on the next turn.
+            unresolvedWork: [`verify capability result: ${name}`],
           });
 
           await timeline.record(
@@ -472,6 +485,7 @@ export async function POST(req: Request) {
           unresolvedWork,
           evidence,
           strategyCorrection,
+          behaviorViolations,
         }) {
           let resolvedStrategy: string | null = null;
 
@@ -483,6 +497,8 @@ export async function POST(req: Request) {
                   score,
                   behavior: behaviorProof,
                   protectedCorrections,
+                  newFailureIntroduced:
+                    behaviorViolations.length > 0,
                   now: new Date().toISOString(),
                 },
               );
@@ -541,7 +557,14 @@ export async function POST(req: Request) {
             projectId,
             agency: agencyState,
             step: agencyState.currentStep,
-            unresolvedWork,
+            // Even a passing verifier has one durable step left: persist the
+            // canonical assistant turn and commit the agency session complete.
+            // Keep that ownership marker until completeAgencySession clears it.
+            unresolvedWork: complete
+              ? ["finalize verified goal"]
+              : unresolvedWork.length
+                ? unresolvedWork
+                : [`continue goal: ${agencyState.goal}`],
           });
 
           await timeline.record(
@@ -552,6 +575,7 @@ export async function POST(req: Request) {
               evidence,
               unresolvedWork,
               strategyCorrection,
+              behaviorViolations,
               pendingSelfUpdate:
                 pendingSelfUpdate?.strategy ?? null,
             },
@@ -581,9 +605,12 @@ export async function POST(req: Request) {
       },
     });
 
-    if (agentResult.status === "blocked") {
-      throw new RouteAccessError(409, "agency_boundary");
-    }
+    const agentText =
+      agentResult.status === "blocked"
+        ? agentResult.reason === "irreversible_action"
+          ? `I need your approval before I do ${agentResult.toolName.replaceAll("_", " ")} because that action cannot be safely undone.`
+          : `I need your choice before I do ${agentResult.toolName.replaceAll("_", " ")} because this is a high-consequence fork.`
+        : agentResult.text;
 
     const deterministicMemoryTurn = classifyMemoryTurn({
       userText,
@@ -612,7 +639,7 @@ export async function POST(req: Request) {
       projectId,
       conversationId: convoId,
       episodeId,
-      rawAssistantText: agentResult.text,
+      rawAssistantText: agentText,
       assistantPreface: safety?.assistantPreface ?? undefined,
       postcheck: (assistantText) =>
         postcheckResponse({
@@ -642,13 +669,15 @@ export async function POST(req: Request) {
           : undefined,
     });
 
-    agencyState = await completeAgencySession({
-      supabase,
-      userId,
-      projectId,
-      agency: agencyState,
-      verified: !finalAssistant.flagged,
-    });
+    if (agentResult.status === "complete") {
+      agencyState = await completeAgencySession({
+        supabase,
+        userId,
+        projectId,
+        agency: agencyState,
+        verified: !finalAssistant.flagged,
+      });
+    }
 
     await timeline.record(
       "generate",
