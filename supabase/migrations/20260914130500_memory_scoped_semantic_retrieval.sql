@@ -87,7 +87,7 @@ as $function$
       or m.user_trigger_only = false
     )
     and (
-      (m.scope = 'global' and m.project_id is null)
+      m.scope = 'global'
       or (
         p_project_id is not null
         and m.scope = 'project'
@@ -95,10 +95,15 @@ as $function$
       )
       or (
         p_project_id is not null
-        and p_conversation_id is not null
         and m.scope = 'conversation'
         and m.project_id = p_project_id
-        and m.conversation_id = p_conversation_id
+        and (
+          m.conversation_id is null
+          or (
+            p_conversation_id is not null
+            and m.conversation_id = p_conversation_id
+          )
+        )
       )
     )
   order by m.embedding <=> p_query_embedding asc
