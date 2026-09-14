@@ -779,4 +779,75 @@ describe("Arbor control runtime pass", () => {
     },
   );
 
+  it(
+    "keeps current state and open loops ahead of temporary subsystem conditioning",
+    async () => {
+      let capturedInstructions = "";
+
+      const runner: AgencyRunner = async (input) => {
+        capturedInstructions = input.instructions;
+
+        return {
+          status: "complete",
+          text: "ok",
+          state: {
+            ...input.state,
+            unresolvedWork: input.state.unresolvedWork,
+          },
+          rounds: 1,
+          toolCalls: 0,
+          researchCalls: 0,
+        };
+      };
+
+      const { store, runtime } = await fixture(runner);
+
+      await store.save(
+        "project:project-authority-order",
+        {
+          activeSubsystem: "annabelle",
+          goal: "finish Arbor recovery",
+          unresolvedWork: [
+            "current priority: finish cognition integration",
+          ],
+          strategyNotes: [],
+          behavioralCorrections: [
+            "Do not make the user manage the workflow.",
+          ],
+          acousticCorrections: [
+            "Use natural General American speech.",
+          ],
+          voiceId: "cedar",
+        },
+      );
+
+      await runtime.runTurn({
+        projectId: "project-authority-order",
+        turnId: "turn-authority-order",
+        userText: "continue",
+      });
+
+      const correctionIndex =
+        capturedInstructions.indexOf("BEHAVIORAL CORRECTIONS:");
+      const goalIndex =
+        capturedInstructions.indexOf("ACTIVE GOAL:");
+      const unresolvedIndex =
+        capturedInstructions.indexOf("UNRESOLVED WORK:");
+      const subsystemIndex =
+        capturedInstructions.indexOf("SUBSYSTEM");
+      const acousticIndex =
+        capturedInstructions.indexOf("VOICE ACOUSTIC CORRECTIONS:");
+
+      expect(correctionIndex).toBeGreaterThanOrEqual(0);
+      expect(goalIndex).toBeGreaterThan(correctionIndex);
+      expect(unresolvedIndex).toBeGreaterThan(goalIndex);
+
+      if (subsystemIndex >= 0) {
+        expect(subsystemIndex).toBeGreaterThan(unresolvedIndex);
+      }
+
+      expect(acousticIndex).toBeGreaterThan(unresolvedIndex);
+    },
+  );
+
 });
