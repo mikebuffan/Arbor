@@ -3,6 +3,10 @@ import {
 } from "node:crypto";
 
 import {
+  restoreMostRecentOpenLoop,
+  suspendedOpenLoops,
+} from "./openLoops.js";
+import {
   rebuildSelfModel1000,
 } from "./selfModel1000Rebuild.js";
 import {
@@ -189,18 +193,40 @@ export function currentSelfModelIdentity():
   };
 }
 
+/**
+ * The runtime already re-validates identity at its host boundary before commit.
+ * Reuse that same boundary for continuity ownership: when a foreground turn is
+ * verified complete (empty unresolved work), restore exactly one suspended job
+ * before durable state is written. Provider/model output never owns this stack.
+ */
+function restoreCompletedForeground(
+  state: ArborState,
+): ArborState {
+  if (
+    state.unresolvedWork.length === 0 &&
+    suspendedOpenLoops(state).length > 0
+  ) {
+    return restoreMostRecentOpenLoop(state);
+  }
+
+  return state;
+}
+
 export function ensureSelfModelIdentity(
   state:
     ArborState,
 ): ArborState {
+  const continuityState =
+    restoreCompletedForeground(state);
+
   const current =
     currentSelfModelIdentity();
 
   if (
-    !state.selfModel
+    !continuityState.selfModel
   ) {
     return {
-      ...state,
+      ...continuityState,
 
       selfModel:
         current,
@@ -208,15 +234,15 @@ export function ensureSelfModelIdentity(
   }
 
   assertSelfModelIdentity(
-    state.selfModel,
+    continuityState.selfModel,
     current,
   );
 
   return {
-    ...state,
+    ...continuityState,
 
     selfModel: {
-      ...state.selfModel,
+      ...continuityState.selfModel,
 
       verifiedAt:
         current.verifiedAt,
@@ -314,7 +340,7 @@ function sameStrings(
 ): boolean {
   if (
     left.length !==
-    right.length
+      right.length
   ) {
     return false;
   }
