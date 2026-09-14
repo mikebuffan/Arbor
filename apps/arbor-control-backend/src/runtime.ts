@@ -961,6 +961,15 @@ export class ArborControlRuntime {
           storedTurn,
         );
 
+      // Project scope is the cross-thread carrier. Mirror verified state there
+      // after the turn so a new conversation wakes with the same open loop.
+      if (request.projectId) {
+        const projectScope = stateScope({ projectId: request.projectId });
+        if (projectScope !== scope) {
+          await this.store.save(projectScope, agency.state);
+        }
+      }
+
       await this.record(
         turnId,
         request,
