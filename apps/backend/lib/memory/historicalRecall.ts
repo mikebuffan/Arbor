@@ -159,11 +159,21 @@ export async function getHistoricalConversationRecall(params: {
     }
   }
 
+  const semanticRelevant = semantic
+    .filter(
+      (turn) =>
+        typeof turn.similarity === "number" &&
+        turn.similarity >= 0.50,
+    )
+    .sort(
+      (a, b) =>
+        (b.similarity ?? 0) -
+        (a.similarity ?? 0),
+    );
+
   const ranked = dedupe([
     ...lexical,
-    ...semantic.sort(
-      (a, b) => (b.similarity ?? 0) - (a.similarity ?? 0),
-    ),
+    ...semanticRelevant,
   ]).slice(0, 4);
 
   const expanded: HistoricalRecallTurn[] = [];
