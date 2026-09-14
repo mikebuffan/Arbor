@@ -654,6 +654,7 @@ export async function POST(req: Request) {
                 supabase,
                 userId,
                 projectId,
+                conversationId: convoId,
                 classified: deterministicMemoryTurn,
                 injectedMemoryIds: selectedMemoryItems.map((item) => item.id),
               });
@@ -765,6 +766,7 @@ export async function POST(req: Request) {
               supabase,
               userId,
               projectId,
+              conversationId: convoId,
               classified,
               injectedMemoryIds: selectedMemoryItems.map((item) => item.id),
             });
