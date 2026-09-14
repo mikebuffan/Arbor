@@ -85,7 +85,9 @@ export function reviseControlStateOnce(input: {
       },
       agency: {
         ...input.agency,
-        status: "blocked",
+        // Unresolved work means the turn is still active, not externally
+        // blocked. Preserve the work and remove only the false completion.
+        status: "stopped",
         blocker: "unresolved_work_remaining",
       },
     };
