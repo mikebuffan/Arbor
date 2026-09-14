@@ -4,6 +4,7 @@ import {
   ArborCapabilityRegistry,
   requiresUserBoundary,
   type CapabilityContext,
+  type CapabilityExecution,
   type CapabilityRisk,
 } from "./capabilities.js";
 import { observeStrategy } from "./selfUpdate.js";
@@ -87,7 +88,8 @@ export type AgencyResult =
       researchCalls: number;
       blocker:
         | "irreversible_action"
-        | "high_consequence_fork";
+        | "high_consequence_fork"
+        | "authorization_required";
       capability: string;
       requiredUserInput?: string;
     };
@@ -239,7 +241,7 @@ export async function runAgency(input: {
 
         try {
           const execution =
-            await executeToolWithArborAgency({
+            await executeToolWithArborAgency<CapabilityExecution>({
               id:
                 `control-capability:${capability.name}`,
               goal,
