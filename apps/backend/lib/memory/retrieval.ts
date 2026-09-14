@@ -197,7 +197,7 @@ export async function getMemoryContext(params: {
       items = (data ?? [])
         .filter(isLiveRow)
         .map(normalizeRow)
-        .filter((item) =>
+        .filter((item: RetrievedMemoryItem) =>
           isMemoryInProjectScope(item, projectId),
         )
         .sort(
