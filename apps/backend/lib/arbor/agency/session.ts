@@ -22,6 +22,72 @@ function resumableAgency(
     : null;
 }
 
+/**
+ * Pure state transition for a user turn. Keeping this separate from persistence
+ * lets the interruption/resume contract be regression-tested without mocking
+ * Supabase.
+ */
+export function buildAgencySessionState(input: {
+  userText: string;
+  prior: AgencyState | null;
+  checkpointId?: string;
+  now?: string;
+}): AgencyState {
+  const {
+    goal,
+    resume,
+    superseded,
+  } = resolveAgencyGoal(
+    input.userText,
+    input.prior,
+  );
+
+  const foregroundWork =
+    resume && input.prior
+      ? input.prior.unresolvedWork.length
+        ? input.prior.unresolvedWork
+        : [`complete goal: ${input.prior.goal}`]
+      : [`complete goal: ${goal}`];
+
+  // An unrelated foreground turn is an interruption, not implicit cancellation.
+  // Keep the prior live objective as a durable checkpoint unless the user
+  // explicitly superseded it. This restores the old Arbor behavior where a
+  // side question can finish and the exact unfinished job resumes afterward.
+  const unresolvedWork =
+    !resume &&
+    !superseded &&
+    input.prior &&
+    (input.prior.status === "active" ||
+      input.prior.status === "blocked")
+      ? suspendAgencyIntoWork(
+          foregroundWork,
+          input.prior,
+          {
+            id: input.checkpointId,
+            suspendedAt: input.now,
+          },
+        )
+      : foregroundWork;
+
+  return {
+    goal,
+    status: "active",
+    currentStep:
+      resume && input.prior
+        ? input.prior.currentStep
+        : 0,
+    // A newly accepted goal is unfinished until verified otherwise. Persist a
+    // concrete ownership marker immediately so a crash/interruption before the
+    // first tool call cannot turn active work into an empty state.
+    unresolvedWork,
+    recurringWeaknesses:
+      input.prior?.recurringWeaknesses ?? [],
+    strategyNotes:
+      input.prior?.strategyNotes ?? [],
+    blocker: null,
+  };
+}
+
 export async function beginAgencySession(input: {
   supabase: SupabaseClient;
   userId: string;
@@ -49,47 +115,11 @@ export async function beginAgencySession(input: {
     resumableAgency(projectAgency) ??
     projectAgency;
 
-  const {
-    goal,
-    resume,
-    superseded,
-  } = resolveAgencyGoal(input.userText, prior);
-
-  const foregroundWork =
-    resume && prior
-      ? prior.unresolvedWork.length
-        ? prior.unresolvedWork
-        : [`complete goal: ${prior.goal}`]
-      : [`complete goal: ${goal}`];
-
-  // An unrelated foreground turn is an interruption, not implicit cancellation.
-  // Keep the prior live objective as a durable checkpoint unless Danelle
-  // explicitly superseded it. This restores the old Arbor behavior where a
-  // side question can finish and the exact unfinished job resumes afterward.
-  const unresolvedWork =
-    !resume &&
-    !superseded &&
-    prior &&
-    (prior.status === "active" ||
-      prior.status === "blocked")
-      ? suspendAgencyIntoWork(
-          foregroundWork,
-          prior,
-        )
-      : foregroundWork;
-
-  const agency: AgencyState = {
-    goal,
-    status: "active",
-    currentStep: resume && prior ? prior.currentStep : 0,
-    // A newly accepted goal is unfinished until verified otherwise. Persist a
-    // concrete ownership marker immediately so a crash/interruption before the
-    // first tool call cannot turn active work into an empty state.
-    unresolvedWork,
-    recurringWeaknesses: prior?.recurringWeaknesses ?? [],
-    strategyNotes: prior?.strategyNotes ?? [],
-    blocker: null,
-  };
+  const agency =
+    buildAgencySessionState({
+      userText: input.userText,
+      prior,
+    });
 
   await persistAgencyState({
     ...input,
