@@ -1,4 +1,7 @@
 import type { AgencyState } from "../agency/engine";
+import {
+  projectAgencyWorkForPrompt,
+} from "../agency/openLoops";
 import { promptDataBlock } from "../promptData";
 import type { ArborSubsystem } from "../runtime/arborRuntime";
 
@@ -26,7 +29,14 @@ export function buildContinuityState(input: {
     currentGoal: input.agency?.goal?.trim() || null,
     lastMeaningfulUserTurn: input.lastMeaningfulUserTurn?.trim() || null,
     lastMeaningfulArborTurn: input.lastMeaningfulArborTurn?.trim() || null,
-    unresolvedWork: input.agency?.unresolvedWork ?? [],
+    // Checkpoint payloads are storage metadata, not prompt material. Project
+    // suspended objectives as readable background open loops so Arbor can keep
+    // continuity without leaking opaque serialized state into the model input.
+    unresolvedWork: input.agency
+      ? projectAgencyWorkForPrompt(
+          input.agency.unresolvedWork,
+        )
+      : [],
     recurringWeaknesses: input.agency?.recurringWeaknesses ?? [],
     retainedStrategies: input.agency?.strategyNotes ?? [],
     activeCorrections: Array.from(
