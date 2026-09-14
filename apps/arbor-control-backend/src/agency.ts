@@ -4,22 +4,9 @@ import {
   ArborCapabilityRegistry,
   requiresUserBoundary,
   type CapabilityContext,
-  type CapabilityExecution,
   type CapabilityRisk,
 } from "./capabilities.js";
 import { observeStrategy } from "./selfUpdate.js";
-import {
-  ArborToolExecutionBlockedError,
-  executeToolWithArborAgency,
-} from "./agencyRecovery/toolExecution.js";
-import {
-  authorizationRequiredRoute,
-  transientToolRetryRoute,
-} from "./agencyRecovery/toolPolicies.js";
-import {
-  InMemoryArborRecoveryRouteLearningStore,
-  normalizeArborRecoveryRouteStats,
-} from "./agencyRecovery/routeLearning.js";
 import type {
   ArborConversationMessage,
   ArborState,
@@ -57,8 +44,7 @@ export type AgencyHooks = {
     risk: CapabilityRisk;
     blocker:
       | "irreversible_action"
-      | "high_consequence_fork"
-      | "authorization_required";
+      | "high_consequence_fork";
   }) => Promise<void>;
   onVerification?: (input: {
     round: number;
@@ -88,10 +74,8 @@ export type AgencyResult =
       researchCalls: number;
       blocker:
         | "irreversible_action"
-        | "high_consequence_fork"
-        | "authorization_required";
+        | "high_consequence_fork";
       capability: string;
-      requiredUserInput?: string;
     };
 
 type CompletionVerification = {
@@ -122,16 +106,6 @@ export async function runAgency(input: {
     input.capabilities ?? new ArborCapabilityRegistry();
 
   let state = input.state;
-
-  const capabilityRecoveryLearning =
-    new InMemoryArborRecoveryRouteLearningStore();
-
-  await capabilityRecoveryLearning.replaceAll(
-    normalizeArborRecoveryRouteStats(
-      state.recoveryRouteStats,
-    ),
-  );
-
   let pendingStrategy: string | null = null;
   let strategyAppliesFromRound: number | null = null;
   let toolCalls = 0;
@@ -229,196 +203,37 @@ export async function runAgency(input: {
           };
         }
 
-        const executeCapability =
-          () =>
-            capability.execute(
-              args,
-              {
-                ...input.context,
-                state,
-              },
-            );
+        const execution = await capability.execute(
+          args,
+          {
+            ...input.context,
+            state,
+          },
+        );
 
-        try {
-          const execution =
-            await executeToolWithArborAgency<CapabilityExecution>({
-              id:
-                `control-capability:${capability.name}`,
-              goal,
-              primaryAction:
-                capability.name,
-              primary:
-                executeCapability,
-              verify:
-                (value) =>
-                  Boolean(
-                    value &&
-                    typeof value ===
-                      "object" &&
-                    "result" in value,
-                  ),
-              learningStore:
-                capabilityRecoveryLearning,
-              recoveryRoutes: [
-                transientToolRetryRoute({
-                  id:
-                    `transient-retry:${capability.name}`,
-                  description:
-                    `Retry ${capability.name} after a transient execution failure.`,
-                  execute:
-                    executeCapability,
-                }),
-                authorizationRequiredRoute({
-                  id:
-                    `authorize:${capability.name}`,
-                  description:
-                    `Resume ${capability.name} after the required authorization is available.`,
-                  requiredUserInput:
-                    `Authorize or reconnect the capability required for ${capability.name}.`,
-                }),
-              ],
-            });
-
+        if (execution.statePatch) {
           state = {
             ...state,
-            ...(
-              execution
-                .value
-                .statePatch ??
-              {}
-            ),
-            recoveryRouteStats:
-              await capabilityRecoveryLearning
-                .snapshot(),
+            ...execution.statePatch,
           };
-
-          toolCalls +=
-            1 +
-            execution
-              .attemptedRouteIds
-              .length;
-
-          await input.hooks?.onCapabilityResult?.({
-            round,
-            capability:
-              capability.name,
-            risk:
-              capability.risk,
-          });
-
-          outputs.push({
-            type:
-              "function_call_output",
-            call_id:
-              call.call_id,
-            output:
-              JSON.stringify({
-                ok: true,
-                result:
-                  execution
-                    .value
-                    .result,
-                recovered:
-                  execution
-                    .recovered,
-                recoveryRoute:
-                  execution
-                    .selectedRouteId ??
-                  null,
-                recoveryEvidence:
-                  execution
-                    .decision
-                    .evidence,
-              }),
-          });
-        } catch (error) {
-          if (
-            error instanceof
-              ArborToolExecutionBlockedError
-          ) {
-            state = {
-              ...state,
-              recoveryRouteStats:
-                await capabilityRecoveryLearning
-                  .snapshot(),
-            };
-
-            if (
-              error.decision.status ===
-                "needs_user"
-            ) {
-              const requiredUserInput =
-                error.decision
-                  .requiredUserInput ??
-                "Provide the required authorization.";
-
-              state = {
-                ...state,
-                unresolvedWork: [
-                  `requires user input: ${requiredUserInput}`,
-                  `resume goal: ${goal}`,
-                ],
-              };
-
-              await input.hooks?.onBoundary?.({
-                round,
-                capability:
-                  capability.name,
-                risk:
-                  capability.risk,
-                blocker:
-                  "authorization_required",
-              });
-
-              return {
-                status:
-                  "blocked",
-                text:
-                  requiredUserInput,
-                state,
-                rounds:
-                  round + 1,
-                toolCalls,
-                researchCalls,
-                blocker:
-                  "authorization_required",
-                capability:
-                  capability.name,
-                requiredUserInput,
-              };
-            }
-
-            outputs.push({
-              type:
-                "function_call_output",
-              call_id:
-                call.call_id,
-              output:
-                JSON.stringify({
-                  ok: false,
-                  blocker:
-                    error
-                      .decision
-                      .blocker ??
-                    null,
-                  attemptedRoutes:
-                    error
-                      .decision
-                      .attemptedOptionIds,
-                  evidence:
-                    error
-                      .decision
-                      .evidence,
-                  instruction:
-                    "Continue autonomously with another safe reversible capability if one can preserve the goal. Do not ask the user merely because this route failed.",
-                }),
-            });
-
-            continue;
-          }
-
-          throw error;
         }
+
+        toolCalls += 1;
+
+        await input.hooks?.onCapabilityResult?.({
+          round,
+          capability: capability.name,
+          risk: capability.risk,
+        });
+
+        outputs.push({
+          type: "function_call_output",
+          call_id: call.call_id,
+          output: JSON.stringify({
+            ok: true,
+            result: execution.result,
+          }),
+        });
       }
 
       response = await getOpenAI().responses.create({
