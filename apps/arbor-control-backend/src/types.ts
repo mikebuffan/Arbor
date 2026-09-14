@@ -82,6 +82,17 @@ export type SelfModelMigrationRecord = {
   appliedAt: string;
 };
 
+export type ContinuityCheckpoint = {
+  goal: string | null;
+  status: "active" | "blocked" | "complete";
+  exactNextWork: string | null;
+  blockerReason: string | null;
+  continueWithoutPrompt: boolean;
+  unresolvedWork: string[];
+  behavioralCorrections: string[];
+  createdAt: string;
+};
+
 export type ArborState = {
   activeSubsystem: ArborSubsystem;
   goal: string | null;
@@ -97,6 +108,7 @@ export type ArborState = {
   selfModelMigrations?: SelfModelMigrationRecord[];
   annabelle?: AnnabelleWorkspaceState;
   annabelleRevisions?: AnnabelleWorkspaceRevisionState[];
+  continuityCheckpoint?: ContinuityCheckpoint;
 };
 
 export type CanonicalArborResponse = {
