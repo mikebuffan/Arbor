@@ -533,7 +533,7 @@ export class ArborControlRuntime {
       const behavioralCorrections =
         correctionKind ===
         "behavior"
-          ? uniqueRecent([
+          ? uniqueNewest([
               ...(
                 prior
                   .behavioralCorrections ??
@@ -550,7 +550,7 @@ export class ArborControlRuntime {
       const acousticCorrections =
         correctionKind ===
         "acoustic"
-          ? uniqueRecent([
+          ? uniqueNewest([
               ...prior
                 .acousticCorrections,
               request.userText,
