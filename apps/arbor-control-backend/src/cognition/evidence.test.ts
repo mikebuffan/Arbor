@@ -4,7 +4,7 @@ import {
   dedupeEvidenceByOrigin,
   evaluateIndependentSupport,
   type CognitionEvidenceEvent,
-} from "./evidence";
+} from "./evidence.js";
 
 function event(
   overrides: Partial<CognitionEvidenceEvent> = {},
