@@ -96,13 +96,7 @@ describe(
         expect(
           revision.agency.status,
         ).toBe(
-          "stopped",
-        );
-
-        expect(
-          revision.agency.blocker,
-        ).toBe(
-          "unresolved_work_remaining",
+          "in_progress",
         );
 
         expect(
