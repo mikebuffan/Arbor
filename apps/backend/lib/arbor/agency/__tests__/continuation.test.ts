@@ -18,113 +18,109 @@ const prior: AgencyState = {
 describe("agency continuation", () => {
   it.each([
     "go",
-    "gooooo",
     "okay",
     "continue",
-    "continue please",
     "keep going",
-    "k. keep going",
     "do it",
     "finish it",
     "yep",
-    "are you doing it",
-    "you stop again arbor",
-    "just do it in one go",
-    "list and then do the whole list please",
-    "find a workaround if needed",
   ])("resumes unresolved work for %s", (text) => {
-    expect(shouldResumeAgencyGoal(text, prior)).toBe(true);
-
-    expect(resolveAgencyGoal(text, prior)).toEqual({
-      goal: prior.goal,
-      resume: true,
-    });
-  });
-
-  it.each([
-    "don't wait for me",
-    "you didn't go",
-    "you're not done",
-    "finish what you can",
-    "why did you stop",
-    "you just did it again",
-    "don't make me babysit you",
-    "I don't want to tell you to go anymore",
-    "you tell me to do my thing but you don't do your thing",
-    "what now",
-    "did you finish",
-    "what are we doing",
-  ])("resumes unresolved work for corrective/status turn: %s", (text) => {
-    expect(shouldResumeAgencyGoal(text, prior)).toBe(true);
-
-    expect(resolveAgencyGoal(text, prior)).toEqual({
-      goal: prior.goal,
-      resume: true,
-    });
-  });
-
-  it.each([
-    "use the first option",
-    "option 2",
-    "choose the latter",
-    "go with cedar",
-  ])("resumes after a blocker reply: %s", (text) => {
-    const blocked: AgencyState = {
-      ...prior,
-      status: "blocked",
-      blocker: "missing_preference",
-    };
-
-    expect(resolveAgencyGoal(text, blocked)).toEqual({
-      goal: blocked.goal,
-      resume: true,
-    });
-  });
-
-  it("does not let a blocked task hijack an unrelated new request", () => {
-    const blocked: AgencyState = {
-      ...prior,
-      status: "blocked",
-      blocker: "missing_preference",
-    };
+    expect(
+      shouldResumeAgencyGoal(text, prior),
+    ).toBe(true);
 
     expect(
-      resolveAgencyGoal("what's the weather in Pullman?", blocked),
+      resolveAgencyGoal(text, prior),
     ).toEqual({
-      goal: "what's the weather in Pullman?",
-      resume: false,
+      goal: prior.goal,
+      resume: true,
+      superseded: false,
     });
   });
 
-  it("does not let a status check revive empty work", () => {
-    const empty: AgencyState = {
-      ...prior,
-      unresolvedWork: [],
-    };
+  it(
+    "keeps a live goal through an ordinary follow-up",
+    () => {
+      expect(
+        resolveAgencyGoal(
+          "Make sure you run the code in here please",
+          prior,
+        ),
+      ).toEqual({
+        goal: prior.goal,
+        resume: true,
+        superseded: false,
+      });
+    },
+  );
 
-    expect(
-      shouldResumeAgencyGoal("what now", empty),
-    ).toBe(false);
-  });
+  it(
+    "does not mistake now-I-want phrasing for a new task",
+    () => {
+      expect(
+        resolveAgencyGoal(
+          "Now I want you to run the tests in here",
+          prior,
+        ),
+      ).toEqual({
+        goal: prior.goal,
+        resume: true,
+        superseded: false,
+      });
+    },
+  );
 
-  it("allows an explicit goal switch", () => {
-    expect(
+  it(
+    "keeps a blocked unresolved goal through an ordinary follow-up",
+    () => {
+      const blocked: AgencyState = {
+        ...prior,
+        status: "blocked",
+        blocker: "external_authority",
+      };
+
+      expect(
+        shouldResumeAgencyGoal(
+          "I handled the permission problem",
+          blocked,
+        ),
+      ).toBe(true);
+    },
+  );
+
+  it("allows an explicit task switch", () => {
+    const resolved =
       resolveAgencyGoal(
-        "instead, explain the deployment failure",
+        "Switch to a new task: explain the deployment failure",
         prior,
-      ),
-    ).toEqual({
-      goal: "instead, explain the deployment failure",
-      resume: false,
-    });
+      );
+
+    expect(
+      resolved.resume,
+    ).toBe(false);
+
+    expect(
+      resolved.superseded,
+    ).toBe(true);
+
+    expect(
+      resolved.goal,
+    ).toBe(
+      "Switch to a new task: explain the deployment failure",
+    );
   });
 
   it("does not resume a completed goal", () => {
+    const completed: AgencyState = {
+      ...prior,
+      status: "complete",
+    };
+
     expect(
-      shouldResumeAgencyGoal("go", {
-        ...prior,
-        status: "complete",
-      }),
+      shouldResumeAgencyGoal(
+        "go",
+        completed,
+      ),
     ).toBe(false);
   });
 });

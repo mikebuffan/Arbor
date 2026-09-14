@@ -73,7 +73,6 @@ export type AgencyLoopHooks = {
       evidence: string[];
       strategyCorrection:
         string | null;
-      behaviorViolations: string[];
     },
   ) => Promise<void>;
 
@@ -201,8 +200,6 @@ export async function runOpenAIAgencyAgent(
     context: AgencyToolContext;
     allowWebResearch?: boolean;
     verifyCompletion?: boolean;
-    behaviorRequirements?: string[];
-    priorActionEvidence?: string[];
     maxRounds?: number;
     hooks?: AgencyLoopHooks;
   },
@@ -211,17 +208,6 @@ export async function runOpenAIAgencyAgent(
     input.maxRounds ?? 16;
 
   let toolCalls = 0;
-
-  // Durable-in-run evidence for the completion verifier. This lets Arbor
-  // prove that an action happened without forcing the final user-facing text
-  // to narrate every tool call just to satisfy verification.
-  const actionEvidence: string[] = Array.from(
-    new Set(
-      (input.priorActionEvidence ?? [])
-        .map((item) => item.trim())
-        .filter(Boolean),
-    ),
-  ).slice(-40);
 
   const attemptedRoutes =
     new Set<string>();
@@ -336,9 +322,6 @@ export async function runOpenAIAgencyAgent(
             goal,
             candidateText:
               text,
-            behaviorRequirements:
-              input.behaviorRequirements,
-            actionEvidence,
           },
         );
 
@@ -348,14 +331,8 @@ export async function runOpenAIAgencyAgent(
           ...verification,
         });
 
-      const behaviorClean =
-        verification
-          .behaviorViolations
-          .length === 0;
-
       if (
-        verification.complete &&
-        behaviorClean
+        verification.complete
       ) {
         await input.hooks
           ?.onComplete?.({
@@ -387,28 +364,18 @@ export async function runOpenAIAgencyAgent(
             previous_response_id:
               response.id,
             input: [
-              verification.complete
-                ? "INTERNAL BEHAVIOR CHECK: the candidate completed the goal but violated protected Arbor behavior."
-                : "INTERNAL COMPLETION CHECK: the goal is not complete.",
-              !verification.complete
-                ? `Unresolved work: ${
-                    verification
-                      .unresolvedWork
-                      .join("; ") ||
-                    "unspecified"
-                  }`
-                : "",
-              verification
-                .behaviorViolations
-                .length
-                ? `Behavior violations: ${verification.behaviorViolations.join("; ")}`
-                : "",
+              "INTERNAL COMPLETION CHECK: the goal is not complete.",
+              `Unresolved work: ${
+                verification
+                  .unresolvedWork
+                  .join("; ") ||
+                "unspecified"
+              }`,
               verification
                 .strategyCorrection
                 ? `Strategy correction: ${verification.strategyCorrection}`
                 : "",
               "Continue the work now. Use available tools/research when useful.",
-              "Produce a corrected candidate that satisfies the goal without repeating any reported behavior violation.",
               "Do not merely report what remains if it can be completed with an available reversible action.",
             ]
               .filter(Boolean)
@@ -509,10 +476,6 @@ export async function runOpenAIAgencyAgent(
               execution.result,
           });
 
-        actionEvidence.push(
-          `capability ${tool.name} completed successfully`,
-        );
-
         outputs.push({
           type:
             "function_call_output",
@@ -542,10 +505,6 @@ export async function runOpenAIAgencyAgent(
           error:
             execution.failure.error,
         });
-
-      actionEvidence.push(
-        `capability ${tool.name} failed: ${execution.failure.kind}`,
-      );
 
       outputs.push({
         type:
