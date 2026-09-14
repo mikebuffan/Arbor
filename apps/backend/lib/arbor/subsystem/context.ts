@@ -15,6 +15,7 @@ import { strategyContext } from "@/lib/arbor/agency/strategyRetention";
 import { promptDataBlock } from "@/lib/arbor/promptData";
 import { loadLatestRuntimeState } from "@/lib/arbor/runtime/runtimeStateStore";
 import { projectRuntimeMemory } from "@/lib/arbor/continuity/runtimeMemoryProjection";
+import { renderCanonicalIdentityAnchor } from "@/lib/arbor/selfModel/canonicalIdentityAnchor";
 
 const CORE_RULES = `
 ONE ARBOR.
@@ -79,6 +80,27 @@ export type ArborInjectedContext = {
   acousticCorrections: string[];
   systemInjection: string;
 };
+
+export function composeArborSystemInjection(input: {
+  activeSubsystem: ArborSubsystem;
+  canonicalSelfModelBlock: string;
+  runtimeBlock?: string;
+  annabelleWorkspaceBlock?: string;
+  agencyBlock?: string;
+}): string {
+  return [
+    CORE_RULES,
+    input.canonicalSelfModelBlock,
+    input.activeSubsystem === "annabelle"
+      ? ANNABELLE_RULES
+      : ARBOR_RULES,
+    input.runtimeBlock ?? "",
+    input.annabelleWorkspaceBlock ?? "",
+    input.agencyBlock ?? "",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
 
 export function agencyToPromptBlock(
   agency: AgencyState | null,
@@ -176,6 +198,9 @@ export async function buildArborInjectedContext(input: {
         )
       : "";
 
+  const canonicalSelfModelBlock =
+    renderCanonicalIdentityAnchor();
+
   const annabelleWorkspaceBlock =
     activeSubsystem ===
     "annabelle"
@@ -198,17 +223,13 @@ export async function buildArborInjectedContext(input: {
     acousticCorrections:
       state
         .acousticCorrections,
-    systemInjection: [
-      CORE_RULES,
-      activeSubsystem ===
-      "annabelle"
-        ? ANNABELLE_RULES
-        : ARBOR_RULES,
-      runtimeBlock,
-      annabelleWorkspaceBlock,
-      agencyBlock,
-    ]
-      .filter(Boolean)
-      .join("\n\n"),
+    systemInjection:
+      composeArborSystemInjection({
+        activeSubsystem,
+        canonicalSelfModelBlock,
+        runtimeBlock,
+        annabelleWorkspaceBlock,
+        agencyBlock,
+      }),
   };
 }
