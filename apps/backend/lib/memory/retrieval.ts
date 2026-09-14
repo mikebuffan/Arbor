@@ -4,6 +4,7 @@ import { openAIEmbed } from "@/lib/providers/openai";
 export type RetrievedMemoryItem = {
   id: string;
   project_id: string | null;
+  conversation_id: string | null;
   key: string;
   value: Record<string, any>;
   tier: "core" | "normal" | "sensitive";
@@ -53,6 +54,7 @@ function normalizeRow(row: any): RetrievedMemoryItem {
   return {
     id: String(row.id),
     project_id: row.project_id ? String(row.project_id) : null,
+    conversation_id: row.conversation_id ? String(row.conversation_id) : null,
     key: String(row.key ?? "").trim(),
     value: toPlainObject(row.value),
     tier: (row.tier ?? (row.pinned ? "core" : "normal")) as RetrievedMemoryItem["tier"],
@@ -77,12 +79,28 @@ function isLiveRow(row: any) {
 }
 
 export function isMemoryInProjectScope(
-  item: Pick<RetrievedMemoryItem, "project_id" | "scope">,
+  item: Pick<RetrievedMemoryItem, "project_id" | "conversation_id" | "scope">,
   projectId: string | null,
+  conversationId: string | null = null,
 ) {
   if (item.scope === "global") return true;
-  if (projectId) return item.project_id === projectId;
-  return item.project_id == null;
+
+  if (item.scope === "project") {
+    return projectId
+      ? item.project_id === projectId
+      : item.project_id == null;
+  }
+
+  if (item.scope === "conversation") {
+    return Boolean(
+      projectId &&
+      conversationId &&
+      item.project_id === projectId &&
+      item.conversation_id === conversationId,
+    );
+  }
+
+  return false;
 }
 
 function hoursSince(value: string | null | undefined): number {
@@ -120,6 +138,7 @@ async function directMemoryFallback(input: {
   supabase: SupabaseClient;
   authedUserId: string;
   projectId: string | null;
+  conversationId: string | null;
 }): Promise<RetrievedMemoryItem[]> {
   let query = input.supabase
     .from("memory_items")
@@ -135,9 +154,17 @@ async function directMemoryFallback(input: {
     .limit(50);
 
   if (input.projectId) {
-    query = query.or(
-      `project_id.eq.${input.projectId},scope.eq.global`,
-    );
+    const scoped = [
+      "scope.eq.global",
+      `and(scope.eq.project,project_id.eq.${input.projectId})`,
+      input.conversationId
+        ? `and(scope.eq.conversation,project_id.eq.${input.projectId},conversation_id.eq.${input.conversationId})`
+        : null,
+    ].filter(Boolean).join(",");
+
+    query = query.or(scoped);
+  } else {
+    query = query.eq("scope", "global");
   }
 
   const { data, error } = await query;
@@ -147,7 +174,11 @@ async function directMemoryFallback(input: {
     .filter(isLiveRow)
     .map(normalizeRow)
     .filter((item: RetrievedMemoryItem) =>
-      isMemoryInProjectScope(item, input.projectId),
+      isMemoryInProjectScope(
+        item,
+        input.projectId,
+        input.conversationId,
+      ),
     );
 }
 
@@ -155,6 +186,7 @@ export async function getMemoryContext(params: {
   supabase: SupabaseClient;
   authedUserId: string;
   projectId?: string | null;
+  conversationId?: string | null;
   latestUserText: string;
   useVectorSearch?: boolean;
   useCache?: boolean;
@@ -163,6 +195,7 @@ export async function getMemoryContext(params: {
     supabase,
     authedUserId,
     projectId = null,
+    conversationId = null,
     latestUserText,
     useVectorSearch = false,
   } = params;
@@ -187,6 +220,7 @@ export async function getMemoryContext(params: {
           {
             p_user_id: authedUserId,
             p_project_id: projectId,
+            p_conversation_id: conversationId,
             p_query_embedding: queryEmbedding,
             p_match_count: 40,
           },
@@ -198,7 +232,11 @@ export async function getMemoryContext(params: {
         .filter(isLiveRow)
         .map(normalizeRow)
         .filter((item: RetrievedMemoryItem) =>
-          isMemoryInProjectScope(item, projectId),
+          isMemoryInProjectScope(
+            item,
+            projectId,
+            conversationId,
+          ),
         )
         .sort(
           (a: RetrievedMemoryItem, b: RetrievedMemoryItem) =>
@@ -216,6 +254,7 @@ export async function getMemoryContext(params: {
         supabase,
         authedUserId,
         projectId,
+        conversationId,
       });
     }
   } else {
