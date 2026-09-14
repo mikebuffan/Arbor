@@ -28,6 +28,10 @@ import {
   detectRuntimeCorrectionKind,
 } from "./correctionDetection.js";
 import {
+  buildContinuityCheckpoint,
+  checkpointProjection,
+} from "./continuityCheckpoint.js";
+import {
   ARBOR_CORE_INJECTION,
 } from "./identity.js";
 import {
@@ -681,6 +685,10 @@ export class ArborControlRuntime {
               )}`
           : "",
 
+        checkpointProjection(
+          state.continuityCheckpoint,
+        ),
+
         state.goal
           ? `ACTIVE GOAL:\n- ${state.goal}\n\nOPEN-LOOP CONTINUITY:\n- Continue the highest-priority unresolved work without requiring another continuation prompt.\n- A short resume cue resolves to the last confirmed active object.\n- Ask only when multiple materially different branches fit or a real user boundary is reached.`
           : "",
@@ -896,6 +904,39 @@ export class ArborControlRuntime {
                 .acousticCorrections,
             ]),
         });
+
+      const checkpoint =
+        buildContinuityCheckpoint({
+          state:
+            agency.state,
+          agency,
+          createdAt:
+            new Date()
+              .toISOString(),
+        });
+
+      agency.state = {
+        ...agency.state,
+        continuityCheckpoint:
+          checkpoint,
+      };
+
+      await this.record(
+        turnId,
+        request,
+        "update",
+        "continuity_checkpoint_created",
+        {
+          status:
+            checkpoint.status,
+          exactNextWork:
+            checkpoint.exactNextWork,
+          blockerReason:
+            checkpoint.blockerReason,
+          continueWithoutPrompt:
+            checkpoint.continueWithoutPrompt,
+        },
+      );
 
       const response =
         this.buildCanonicalResponse(
