@@ -2,6 +2,7 @@ import type {
   ArborCorrection,
   ArborRuntimeState,
 } from "../runtime/runtimeState";
+import { correctionFamily } from "../runtime/corrections";
 
 function normalized(
   value: string,
@@ -81,8 +82,16 @@ export function prioritizeCorrections(
 
     if (!value) continue;
 
+    const family =
+      correctionFamily(
+        correction.kind,
+        value,
+      );
+
     const key =
-      `${correction.kind}:${value.toLowerCase()}`;
+      `${correction.kind}:${(
+        family ?? value
+      ).toLowerCase()}`;
 
     if (
       bySemanticValue.has(key)
