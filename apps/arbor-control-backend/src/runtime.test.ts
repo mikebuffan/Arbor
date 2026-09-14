@@ -999,4 +999,145 @@ describe("Arbor control runtime pass", () => {
     },
   );
 
+  it(
+    "preserves canonical goal, checkpoint, and corrections across Text Voice and Annabelle surfaces",
+    async () => {
+      const runner: AgencyRunner = async (input) => ({
+        status: "complete",
+        text: "ok",
+        state: {
+          ...input.state,
+          unresolvedWork:
+            input.state.unresolvedWork.length
+              ? input.state.unresolvedWork
+              : [
+                  "current priority: finish recovery",
+                ],
+        },
+        rounds: 1,
+        toolCalls: 0,
+        researchCalls: 0,
+      });
+
+      const { store, runtime } =
+        await fixture(runner);
+
+      await store.save(
+        "project:project-surfaces",
+        {
+          activeSubsystem: "arbor",
+          goal: "restore Arbor",
+          unresolvedWork: [
+            "current priority: finish recovery",
+          ],
+          strategyNotes: [],
+          behavioralCorrections: [
+            "Do not make the user manage the workflow.",
+          ],
+          acousticCorrections: [],
+          voiceId: "cedar",
+        },
+      );
+
+      const textResponse =
+        await runtime.runTurn({
+          projectId:
+            "project-surfaces",
+          turnId:
+            "surface-text",
+          userText:
+            "continue",
+          channel:
+            "text",
+        });
+
+      const afterText =
+        await store.load(
+          "project:project-surfaces",
+        );
+
+      const voiceResponse =
+        await runtime.runTurn({
+          projectId:
+            "project-surfaces",
+          turnId:
+            "surface-voice",
+          userText:
+            "continue",
+          channel:
+            "voice",
+        });
+
+      const afterVoice =
+        await store.load(
+          "project:project-surfaces",
+        );
+
+      await runtime.runTurn({
+        projectId:
+          "project-surfaces",
+        turnId:
+          "surface-annabelle",
+        userText:
+          "Annabelle, kitchen's yours",
+        channel:
+          "text",
+      });
+
+      const afterAnnabelle =
+        await store.load(
+          "project:project-surfaces",
+        );
+
+      expect(
+        textResponse.channel,
+      ).toBe(
+        "text",
+      );
+
+      expect(
+        voiceResponse.channel,
+      ).toBe(
+        "voice",
+      );
+
+      for (
+        const current
+        of [
+          afterText,
+          afterVoice,
+          afterAnnabelle,
+        ]
+      ) {
+        expect(
+          current?.goal,
+        ).toBe(
+          "restore Arbor",
+        );
+
+        expect(
+          current
+            ?.continuityCheckpoint
+            ?.exactNextWork,
+        ).toBe(
+          "current priority: finish recovery",
+        );
+
+        expect(
+          current
+            ?.behavioralCorrections,
+        ).toContain(
+          "Do not make the user manage the workflow.",
+        );
+      }
+
+      expect(
+        afterAnnabelle
+          ?.activeSubsystem,
+      ).toBe(
+        "annabelle",
+      );
+    },
+  );
+
 });
