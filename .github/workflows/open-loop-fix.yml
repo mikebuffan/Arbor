@@ -1,0 +1,40 @@
+name: Open Loop Ownership Fix
+
+on:
+  push:
+    branches:
+      - arbor/open-loop-ownership-fix
+  workflow_dispatch:
+
+jobs:
+  targeted-backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - run: corepack enable
+      - run: corepack prepare pnpm@10.30.3 --activate
+      - run: pnpm install --frozen-lockfile
+
+      - name: Run open-loop ownership regression tests
+        run: >
+          pnpm --filter firefly-backend exec vitest run
+          lib/arbor/agency/__tests__/openLoops.test.ts
+          lib/arbor/agency/__tests__/sessionTransition.test.ts
+          lib/arbor/agency/__tests__/continuation.test.ts
+
+      - name: Build backend
+        env:
+          OPENAI_API_KEY: ci-placeholder-not-a-real-key
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder
+          SUPABASE_URL: https://example.supabase.co
+          SUPABASE_ANON_KEY: ci-placeholder
+          SUPABASE_SERVICE_ROLE_KEY: ci-placeholder
+        run: pnpm --filter firefly-backend build
