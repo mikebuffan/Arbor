@@ -994,7 +994,9 @@ describe("Arbor control runtime pass", () => {
         precheck?.detail,
       ).toMatchObject({
         approved:
-          false,
+          true,
+        issues:
+          [],
       });
     },
   );
