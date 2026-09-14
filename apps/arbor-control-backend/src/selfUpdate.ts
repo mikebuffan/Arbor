@@ -98,15 +98,9 @@ export function observeStrategy(
     next.status = "retained";
   }
 
-  // Backward-compatible fallback for legacy callers with no provenance.
-  if (
-    !evidence &&
-    next.successes >= 2 &&
-    next.failures === 0
-  ) {
-    next.status = "retained";
-  }
-
+  // No provenance, no durable promotion. Legacy anonymous verification may
+  // update candidate counters for compatibility, but cannot establish a
+  // durable retained strategy.
   if (next.failures >= 2) {
     next.status = "reverted";
   }
