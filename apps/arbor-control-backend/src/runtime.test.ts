@@ -728,4 +728,55 @@ describe("Arbor control runtime pass", () => {
     },
   );
 
+  it(
+    "projects the recovered active-goal continuation contract into generation",
+    async () => {
+      let capturedInstructions = "";
+
+      const runner: AgencyRunner = async (input) => {
+        capturedInstructions = input.instructions;
+
+        return {
+          status: "complete",
+          text: "ok",
+          state: {
+            ...input.state,
+            unresolvedWork: input.state.unresolvedWork,
+          },
+          rounds: 1,
+          toolCalls: 0,
+          researchCalls: 0,
+        };
+      };
+
+      const { store, runtime } = await fixture(runner);
+
+      await store.save(
+        "project:project-active-goal",
+        {
+          activeSubsystem: "arbor",
+          goal: "finish the cognition recovery",
+          unresolvedWork: ["run integration verification"],
+          strategyNotes: [],
+          behavioralCorrections: [],
+          acousticCorrections: [],
+          voiceId: "cedar",
+        },
+      );
+
+      await runtime.runTurn({
+        projectId: "project-active-goal",
+        turnId: "turn-active-goal",
+        userText: "continue",
+      });
+
+      expect(capturedInstructions).toContain(
+        "ACTIVE GOAL:\n- finish the cognition recovery",
+      );
+      expect(capturedInstructions).toContain(
+        "Continue the highest-priority unresolved work without requiring another continuation prompt.",
+      );
+    },
+  );
+
 });
