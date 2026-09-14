@@ -127,13 +127,17 @@ After pattern + consolidation work:
 - one CI run exposed two integration failures:
   1. stale 4-arg memory upsert test expectation
   2. agency continuation logic failed a legitimate unresolved-work follow-up
-- Both failures were fixed on the canonical branch.
+- Both failures were fixed on the canonical branch:
+  - memory persistence test now expects the conversation-id argument
+  - agency follow-up matching now considers unresolved work as well as the goal
+- PR #71 and PR #72 are closed as superseded by #69.
+- Recovery branch history has been joined to current main; it is no longer behind PR #70.
 - Latest combined CI must pass before merge/deployment is considered complete.
 
 ## Remaining work in priority order
 
 1. Get the consolidated PR fully green.
-2. Close superseded PR #71 and PR #72 after confirming their changes exist in #69.
+2. Superseded PR #71 and PR #72 are closed; their changes live in #69.
 3. Add / recover pattern hopping across semantically related pattern candidates, not only exact-key recurrence.
 4. Restore the Continuity Anchor Retriever:
    - recurring people
