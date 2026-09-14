@@ -183,7 +183,7 @@ async function renderPcm(input: {
   throw new Error("tts_failed");
 }
 
-function voiceInstructions(
+export function voiceInstructions(
   subsystem: "arbor" | "annabelle",
   corrections: string[],
 ): string {
