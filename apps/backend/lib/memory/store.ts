@@ -92,6 +92,7 @@ export async function upsertMemoryItems(
   items: MemoryItem[],
   projectId: string | null,
   supabase: SupabaseClient,
+  conversationId: string | null = null,
 ): Promise<MemoryUpsertResult> {
   const start = Date.now();
   const res: MemoryUpsertResult = {
@@ -139,6 +140,10 @@ export async function upsertMemoryItems(
     const importance = Number(item.importance ?? 5);
     const confidence = Number(item.confidence ?? 0.75);
     const pinned = tier === "core";
+    const scope = item.scope ?? "conversation";
+    const storageProjectId = scope === "global" ? null : projectId;
+    const storageConversationId =
+      scope === "conversation" ? conversationId : null;
 
     const rawEmbedding =
       batched?.[i] ?? (await embedText(memoryToEmbedString(key, item.value)));
@@ -147,18 +152,19 @@ export async function upsertMemoryItems(
     const existing = await findExisting({
       supabase,
       authedUserId,
-      projectId,
+      projectId: storageProjectId,
       key,
     });
 
     if (!existing) {
       const { error } = await supabase.from(ITEMS_TABLE).insert({
         user_id: authedUserId,
-        project_id: projectId,
+        project_id: storageProjectId,
+        conversation_id: storageConversationId,
         key,
         value,
         tier,
-        scope: item.scope ?? "conversation",
+        scope,
         user_trigger_only,
         importance,
         confidence,
@@ -178,7 +184,7 @@ export async function upsertMemoryItems(
       await logEvent({
         supabase,
         authedUserId,
-        projectId,
+        projectId: storageProjectId,
         key,
         event_type: "create",
         payload: { key, tier, user_trigger_only, importance, confidence },
@@ -204,7 +210,7 @@ export async function upsertMemoryItems(
       await logEvent({
         supabase,
         authedUserId,
-        projectId,
+        projectId: storageProjectId,
         key,
         event_type: "locked_ignore",
         payload: { reason: "locked" },
@@ -218,10 +224,11 @@ export async function upsertMemoryItems(
     const { error } = await supabase
       .from(ITEMS_TABLE)
       .update({
-        project_id: projectId ?? existing.project_id ?? null,
+        project_id: storageProjectId,
+        conversation_id: storageConversationId,
         value,
         tier: tier ?? existing.tier ?? "normal",
-        scope: item.scope ?? existing.scope ?? "conversation",
+        scope,
         user_trigger_only,
         importance: Math.max(Number(existing.importance ?? 5), importance),
         confidence,
