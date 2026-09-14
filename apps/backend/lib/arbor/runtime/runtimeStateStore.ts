@@ -51,6 +51,7 @@ export async function loadRuntimeState(input: {
     supabase: input.supabase,
     userId: input.userId,
     projectId: input.projectId,
+    excludeConversationId: exact.conversationId,
   });
 
   if (!fallback || fallback.conversationId === exact.conversationId) {
@@ -64,12 +65,22 @@ export async function loadLatestRuntimeState(input: {
   supabase: SupabaseClient;
   userId: string;
   projectId: string;
+  excludeConversationId?: string;
 }): Promise<ArborRuntimeState | null> {
-  const { data, error } = await input.supabase
+  let query = input.supabase
     .from("arbor_conversation_state")
     .select("user_id,project_id,conversation_id,state,updated_at")
     .eq("user_id", input.userId)
-    .eq("project_id", input.projectId)
+    .eq("project_id", input.projectId);
+
+  if (input.excludeConversationId) {
+    query = query.neq(
+      "conversation_id",
+      input.excludeConversationId,
+    );
+  }
+
+  const { data, error } = await query
     .order("updated_at", {
       ascending: false,
     })
