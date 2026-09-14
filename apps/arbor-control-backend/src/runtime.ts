@@ -748,7 +748,7 @@ export class ArborControlRuntime {
           "\n\n",
         );
 
-      const agency =
+      let agency =
         await this.agencyRunner({
           instructions,
 
