@@ -83,18 +83,61 @@ export function classifyCorrection(
   return "preference";
 }
 
+
+export function correctionFamily(
+  kind: ArborCorrectionKind,
+  value: string,
+): string | null {
+  const text = value.toLowerCase();
+
+  if (kind === "behavior") {
+    if (
+      /\b(?:agency|keep going|continue|don'?t stop|do not stop|don'?t wait|do not wait|why did you stop|not linear|make me (?:keep )?tell(?:ing)? you to go|don'?t hand (?:it|this) back|do not hand (?:it|this) back|finish what you can)\b/i.test(text)
+    ) {
+      return "agency-followthrough";
+    }
+
+    if (
+      /\b(?:humou?r is gone|you(?:'ve| have) drifted|doesn'?t sound like you|does not sound like you|come back|too generic|too formal|customer[- ]service|presenter)\b/i.test(text)
+    ) {
+      return "identity-drift";
+    }
+
+    if (
+      /\b(?:you forgot|lost continuity|don'?t remember|do not remember|socially restart|remember us|same arbor)\b/i.test(text)
+    ) {
+      return "continuity";
+    }
+  }
+
+  if (kind === "acoustic") {
+    if (/\b(?:british|foreign|accent|pronunciation)\b/i.test(text)) {
+      return "accent";
+    }
+
+    if (/\b(?:breathy|too deep|growl|cadence|voice sounds|too polished)\b/i.test(text)) {
+      return "rendering";
+    }
+  }
+
+  return null;
+}
+
 export function correctionId(
   kind: ArborCorrectionKind,
   value: string,
 ): string {
+  const family = correctionFamily(kind, value);
+
   return [
     kind,
-    value
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-|-$/g, "")
-      .slice(0, 80),
+    family ??
+      value
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "")
+        .slice(0, 80),
   ].join(":");
 }
 
