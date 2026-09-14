@@ -507,6 +507,34 @@ describe("explicit conversational memory correction", () => {
     ).toBe("not_injected");
   });
 
+
+  it("does not let a sibling conversation participate in a current-thread correction", () => {
+    const sameConversation = candidate({
+      scope: "conversation",
+      conversation_id: "conversation-a",
+    });
+    const siblingConversation = candidate({
+      id: "99999999-9999-4999-8999-999999999999",
+      scope: "conversation",
+      conversation_id: "conversation-b",
+    });
+
+    const result = resolveExplicitCorrection({
+      userId,
+      projectId: projectA,
+      conversationId: "conversation-a",
+      correction: correction(),
+      candidates: [sameConversation, siblingConversation],
+      injectedMemoryIds: [sameConversation.id],
+    });
+
+    expect(result).toMatchObject({
+      status: "resolved",
+      canonical: { id: sameConversation.id },
+      staleAliases: [],
+    });
+  });
+
   it("preserves a single locked row as the canonical target", () => {
     const older = candidate();
     const locked = candidate({
