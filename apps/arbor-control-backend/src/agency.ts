@@ -16,6 +16,7 @@ import {
 } from "./agencyRecovery/toolPolicies.js";
 import {
   InMemoryArborRecoveryRouteLearningStore,
+  normalizeArborRecoveryRouteStats,
 } from "./agencyRecovery/routeLearning.js";
 import type {
   ArborConversationMessage,
@@ -23,9 +24,6 @@ import type {
 } from "./types.js";
 
 let openaiClient: OpenAI | null = null;
-
-const capabilityRecoveryLearning =
-  new InMemoryArborRecoveryRouteLearningStore();
 
 function getOpenAI(): OpenAI {
   if (!openaiClient) {
@@ -119,6 +117,16 @@ export async function runAgency(input: {
     input.capabilities ?? new ArborCapabilityRegistry();
 
   let state = input.state;
+
+  const capabilityRecoveryLearning =
+    new InMemoryArborRecoveryRouteLearningStore();
+
+  await capabilityRecoveryLearning.replaceAll(
+    normalizeArborRecoveryRouteStats(
+      state.recoveryRouteStats,
+    ),
+  );
+
   let pendingStrategy: string | null = null;
   let strategyAppliesFromRound: number | null = null;
   let toolCalls = 0;
@@ -258,16 +266,18 @@ export async function runAgency(input: {
               ],
             });
 
-          if (
-            execution.value.statePatch
-          ) {
-            state = {
-              ...state,
-              ...execution
+          state = {
+            ...state,
+            ...(
+              execution
                 .value
-                .statePatch,
-            };
-          }
+                .statePatch ??
+              {}
+            ),
+            recoveryRouteStats:
+              await capabilityRecoveryLearning
+                .snapshot(),
+          };
 
           toolCalls +=
             1 +
@@ -313,6 +323,13 @@ export async function runAgency(input: {
             error instanceof
               ArborToolExecutionBlockedError
           ) {
+            state = {
+              ...state,
+              recoveryRouteStats:
+                await capabilityRecoveryLearning
+                  .snapshot(),
+            };
+
             outputs.push({
               type:
                 "function_call_output",
