@@ -158,10 +158,28 @@ export function shouldCarryGoal(
     return false;
   }
 
-  // A verified live goal owns the workflow until completion or an explicit
-  // task switch. Do not require lexical overlap or a magic continuation
-  // phrase on every turn; ordinary follow-ups inherit the active objective.
-  return true;
+  if (explicitlyContinues(userText)) {
+    return true;
+  }
+
+  if (
+    looksLikeContinuationFollowup(
+      userText,
+      prior,
+    )
+  ) {
+    return true;
+  }
+
+  const text = userText.trim();
+  const standaloneQuestion =
+    /\?$/.test(text) ||
+    /^(?:what|why|who|where|when|how|which|do|does|did|is|are|was|were|can|could|would|will|have|has|had)\b/i.test(text);
+
+  // Ordinary declarative/imperative follow-ups inherit an active goal without
+  // a magic "go" phrase. A clearly standalone question does not get kidnapped
+  // by stale work unless it actually references the live objective.
+  return !standaloneQuestion;
 }
 
 export function mergeUnresolvedWork(
