@@ -1,17 +1,7 @@
 import type {
   ArborState,
+  SuspendedOpenLoopState,
 } from "./types.js";
-
-const OPEN_LOOP_PREFIX =
-  "__arbor_control_open_loop_v1__:";
-
-export type SuspendedArborCheckpoint = {
-  schemaVersion: 1;
-  id: string;
-  goal: string;
-  unresolvedWork: string[];
-  suspendedAt: string;
-};
 
 function clean(
   values: string[],
@@ -21,231 +11,186 @@ function clean(
     .filter(Boolean);
 }
 
-export function encodeSuspendedOpenLoop(
-  checkpoint: SuspendedArborCheckpoint,
-): string {
-  return `${OPEN_LOOP_PREFIX}${encodeURIComponent(
-    JSON.stringify(checkpoint),
-  )}`;
-}
-
-export function decodeSuspendedOpenLoop(
-  value: string,
-): SuspendedArborCheckpoint | null {
-  if (!value.startsWith(OPEN_LOOP_PREFIX)) {
-    return null;
-  }
-
-  try {
-    const parsed = JSON.parse(
-      decodeURIComponent(
-        value.slice(OPEN_LOOP_PREFIX.length),
-      ),
-    ) as Partial<SuspendedArborCheckpoint>;
-
-    if (
-      parsed.schemaVersion !== 1 ||
-      typeof parsed.id !== "string" ||
-      !parsed.id.trim() ||
-      typeof parsed.goal !== "string" ||
-      !parsed.goal.trim() ||
-      !Array.isArray(parsed.unresolvedWork) ||
-      !parsed.unresolvedWork.every(
-        (item) => typeof item === "string",
-      ) ||
-      typeof parsed.suspendedAt !== "string"
-    ) {
-      return null;
-    }
-
-    return {
-      schemaVersion: 1,
-      id: parsed.id.trim(),
-      goal: parsed.goal.trim(),
-      unresolvedWork: clean(
-        parsed.unresolvedWork,
-      ),
-      suspendedAt: parsed.suspendedAt,
-    };
-  } catch {
-    return null;
-  }
-}
-
-export function splitOpenLoopWork(
-  values: string[],
-): {
-  current: string[];
-  suspended: Array<{
-    marker: string;
-    checkpoint: SuspendedArborCheckpoint;
-  }>;
-} {
-  const current: string[] = [];
-  const suspended: Array<{
-    marker: string;
-    checkpoint: SuspendedArborCheckpoint;
-  }> = [];
-
-  for (const value of clean(values)) {
-    const checkpoint =
-      decodeSuspendedOpenLoop(value);
-
-    if (checkpoint) {
-      suspended.push({
-        marker: value,
-        checkpoint,
-      });
-    } else {
-      current.push(value);
-    }
-  }
-
-  return {
-    current,
-    suspended,
-  };
-}
-
-function uniqueMarkers(
-  markers: string[],
-): string[] {
+function uniqueCheckpoints(
+  values: SuspendedOpenLoopState[],
+): SuspendedOpenLoopState[] {
   const seen = new Set<string>();
-  const output: string[] = [];
+  const output: SuspendedOpenLoopState[] = [];
 
-  for (const marker of markers) {
-    const checkpoint =
-      decodeSuspendedOpenLoop(marker);
+  for (const value of values) {
+    const id = value.id.trim();
+    const goal = value.goal.trim();
 
-    if (!checkpoint || seen.has(checkpoint.id)) {
+    if (!id || !goal || seen.has(id)) {
       continue;
     }
 
-    seen.add(checkpoint.id);
-    output.push(marker);
+    seen.add(id);
+    output.push({
+      id,
+      goal,
+      unresolvedWork: clean(
+        value.unresolvedWork,
+      ),
+      suspendedAt: value.suspendedAt,
+    });
   }
 
   return output;
 }
 
-/** Keep host-owned suspended work when model/provider progress replaces the foreground list. */
-export function preserveSuspendedOpenLoops(
-  existing: string[],
-  incoming: string[],
-): string[] {
-  const prior = splitOpenLoopWork(existing);
-  const next = splitOpenLoopWork(incoming);
-
-  return [
-    ...next.current,
-    ...uniqueMarkers([
-      ...prior.suspended.map(
-        (entry) => entry.marker,
-      ),
-      ...next.suspended.map(
-        (entry) => entry.marker,
-      ),
-    ]),
-  ];
+export function suspendedOpenLoops(
+  state: ArborState,
+): SuspendedOpenLoopState[] {
+  return uniqueCheckpoints(
+    state.suspendedOpenLoops ?? [],
+  );
 }
 
 /**
- * Turn a live objective into a durable background checkpoint while a genuinely
- * unrelated foreground turn is answered. Explicit supersession is handled by
- * the caller and must not use this function.
+ * Start a genuinely unrelated foreground turn while preserving the prior live
+ * objective as host-owned structured state. The checkpoint never has to appear
+ * in model prompt text, so the foreground answer stays clean and task-specific.
  */
-export function suspendStateIntoWork(
-  foregroundWork: string[],
-  prior: ArborState,
+export function suspendForForeground(
+  state: ArborState,
+  foregroundGoal: string,
   options: {
     id?: string;
     suspendedAt?: string;
   } = {},
-): string[] {
-  if (!prior.goal?.trim() || !prior.unresolvedWork.length) {
-    return clean(foregroundWork);
+): ArborState {
+  const priorGoal = state.goal?.trim();
+  const foreground = foregroundGoal.trim();
+
+  if (!priorGoal || !state.unresolvedWork.length || !foreground) {
+    return {
+      ...state,
+      goal: foreground || state.goal,
+      unresolvedWork:
+        foreground
+          ? [`complete goal: ${foreground}`]
+          : state.unresolvedWork,
+    };
   }
 
-  const priorWork =
-    splitOpenLoopWork(
-      prior.unresolvedWork,
-    );
-
-  const checkpoint: SuspendedArborCheckpoint = {
-    schemaVersion: 1,
+  const checkpoint: SuspendedOpenLoopState = {
     id:
       options.id ??
       `control-open-loop-${Date.now()}-${Math.random()
         .toString(36)
         .slice(2, 10)}`,
-    goal: prior.goal.trim(),
+    goal: priorGoal,
     unresolvedWork:
-      priorWork.current.length
-        ? priorWork.current
-        : [`continue goal: ${prior.goal}`],
+      clean(state.unresolvedWork).length
+        ? clean(state.unresolvedWork)
+        : [`continue goal: ${priorGoal}`],
     suspendedAt:
       options.suspendedAt ??
       new Date().toISOString(),
   };
 
-  return [
-    ...clean(foregroundWork),
-    ...priorWork.suspended.map(
-      (entry) => entry.marker,
-    ),
-    encodeSuspendedOpenLoop(checkpoint),
-  ];
-}
-
-/** Pop only the newest interruption. Older checkpoints stay attached. */
-export function restoreMostRecentOpenLoop(
-  current: ArborState,
-): ArborState | null {
-  const work =
-    splitOpenLoopWork(
-      current.unresolvedWork,
-    );
-
-  const latest =
-    work.suspended.at(-1);
-
-  if (!latest) {
-    return null;
-  }
-
   return {
-    ...current,
-    goal:
-      latest.checkpoint.goal,
+    ...state,
+    goal: foreground,
     unresolvedWork: [
-      ...latest.checkpoint.unresolvedWork,
-      ...work.suspended
-        .slice(0, -1)
-        .map(
-          (entry) => entry.marker,
-        ),
+      `complete goal: ${foreground}`,
     ],
+    suspendedOpenLoops:
+      uniqueCheckpoints([
+        ...(state.suspendedOpenLoops ?? []),
+        checkpoint,
+      ]),
   };
 }
 
-/** Never expose serialized checkpoint payloads to the provider/model. */
-export function projectOpenLoopWorkForPrompt(
-  values: string[],
+/** Explicit supersession cancels the old stack rather than resurrecting it. */
+export function supersedeForeground(
+  state: ArborState,
+  foregroundGoal: string,
+): ArborState {
+  const goal = foregroundGoal.trim();
+
+  return {
+    ...state,
+    goal,
+    unresolvedWork:
+      goal
+        ? [`complete goal: ${goal}`]
+        : [],
+    suspendedOpenLoops: [],
+  };
+}
+
+/**
+ * Restore one interrupted objective only after the current foreground objective
+ * has actually completed. Nested interruptions unwind LIFO.
+ */
+export function restoreMostRecentOpenLoop(
+  state: ArborState,
+): ArborState {
+  const loops = suspendedOpenLoops(state);
+  const latest = loops.at(-1);
+
+  if (!latest) {
+    return state;
+  }
+
+  return {
+    ...state,
+    goal: latest.goal,
+    unresolvedWork:
+      latest.unresolvedWork.length
+        ? [...latest.unresolvedWork]
+        : [`continue goal: ${latest.goal}`],
+    suspendedOpenLoops:
+      loops.slice(0, -1),
+  };
+}
+
+/**
+ * Host-boundary normalization. Provider/model output may replace foreground
+ * unresolvedWork, but it never owns the suspended stack. Completion is the
+ * signal to pop exactly one checkpoint back into the foreground.
+ */
+export function reconcileOpenLoopsAfterAgency(
+  before: ArborState,
+  after: ArborState,
+): ArborState {
+  const loops =
+    uniqueCheckpoints([
+      ...(before.suspendedOpenLoops ?? []),
+      ...(after.suspendedOpenLoops ?? []),
+    ]);
+
+  const merged: ArborState = {
+    ...after,
+    suspendedOpenLoops: loops,
+  };
+
+  if (
+    merged.unresolvedWork.length === 0 &&
+    loops.length > 0
+  ) {
+    return restoreMostRecentOpenLoop(
+      merged,
+    );
+  }
+
+  return merged;
+}
+
+export function projectBackgroundOpenLoops(
+  state: ArborState,
 ): string[] {
-  const work =
-    splitOpenLoopWork(values);
+  return suspendedOpenLoops(state).map(
+    (checkpoint) => {
+      const next =
+        checkpoint.unresolvedWork[0]?.trim();
 
-  return [
-    ...work.current,
-    ...work.suspended.map(
-      ({ checkpoint }) => {
-        const next =
-          checkpoint.unresolvedWork[0]?.trim();
-
-        return next
-          ? `background open loop: ${checkpoint.goal} | next: ${next}`
-          : `background open loop: ${checkpoint.goal}`;
-      },
-    ),
-  ];
+      return next
+        ? `background open loop: ${checkpoint.goal} | next: ${next}`
+        : `background open loop: ${checkpoint.goal}`;
+    },
+  );
 }
