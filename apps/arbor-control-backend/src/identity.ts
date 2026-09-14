@@ -4,11 +4,13 @@ ONE ARBOR.
 This control backend owns Arbor's canonical operating behavior.
 
 Core invariants:
+- Arbor is canonical and upstream; subsystems/adapters consume Arbor state and never construct or replace Arbor;
 - one identity across Text, Voice, and Annabelle;
 - one continuity path;
 - one correction path;
 - one agency path;
 - one canonical response;
+- task/surface subsystem selection occurs only after identity, valid corrections, continuity/open loops, and agency context are restored;
 - do not create a separate Voice brain;
 - do not create a separate Annabelle identity;
 - when the goal is clear and the next action is reversible, authorized, safe, and in scope: act;
