@@ -704,6 +704,10 @@ export class ArborControlRuntime {
               )}`
           : "",
 
+        state.goal
+          ? `ACTIVE GOAL:\n- ${state.goal}\n\nOPEN-LOOP CONTINUITY:\n- Continue the highest-priority unresolved work without requiring another continuation prompt.\n- A short resume cue resolves to the last confirmed active object.\n- Ask only when multiple materially different branches fit or a real user boundary is reached.`
+          : "",
+
         state
           .unresolvedWork
           .length
