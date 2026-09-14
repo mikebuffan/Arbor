@@ -80,20 +80,23 @@ describe("memory project isolation", () => {
   it("filters vector retrieval results to the authenticated project", () => {
     expect(
       isMemoryInProjectScope(
-        { project_id: "project-a", scope: "project" },
+        { project_id: "project-a", conversation_id: null, scope: "project" },
         "project-a",
+        null,
       ),
     ).toBe(true);
     expect(
       isMemoryInProjectScope(
-        { project_id: "project-b", scope: "project" },
+        { project_id: "project-b", conversation_id: null, scope: "project" },
         "project-a",
+        null,
       ),
     ).toBe(false);
     expect(
       isMemoryInProjectScope(
-        { project_id: null, scope: "global" },
+        { project_id: null, conversation_id: null, scope: "global" },
         "project-a",
+        null,
       ),
     ).toBe(true);
   });
@@ -167,7 +170,7 @@ describe("memory project isolation", () => {
     expect(rpc).not.toHaveBeenCalled();
     expect(query.eq).toHaveBeenCalledWith("user_id", "user-a");
     expect(query.or).toHaveBeenCalledWith(
-      "project_id.eq.project-a,scope.eq.global",
+      "scope.eq.global,and(scope.eq.project,project_id.eq.project-a)",
     );
     expect(result.keysUsed).toEqual(["project-a-key", "global-key"]);
     expect(result.keysUsed).not.toContain("project-b-key");
