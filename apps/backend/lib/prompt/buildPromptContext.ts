@@ -4,6 +4,12 @@ import {
   type RetrievedMemoryItem,
 } from "@/lib/memory/retrieval";
 import { assembleMemoryBlock } from "@/lib/memory/assembleMemoryBlock";
+import { selectItemsForPrompt } from "@/lib/memory/selectForPrompt";
+import { selectContinuityAnchors } from "@/lib/memory/continuityAnchorRetriever";
+import {
+  getHistoricalConversationRecall,
+  historicalRecallToPromptBlock,
+} from "@/lib/memory/historicalRecall";
 import { logMemoryEvent } from "@/lib/memory/logger";
 import {
   getProjectAnchors,
@@ -219,10 +225,19 @@ export async function buildPromptContext({
   });
 
   const allItems = [...memContext.core, ...memContext.normal, ...memContext.sensitive];
+  const promptEligibleItems = selectItemsForPrompt(
+    allItems,
+    latestUserText,
+  );
+  const continuityItems = selectContinuityAnchors(
+    promptEligibleItems,
+    latestUserText,
+    14,
+  );
   const decayMs = 1000 * 60 * 60 * 24 * 30;
 
   const { context, selectedItems, fallbackPrompt } = assembleMemoryBlock({
-    allItems,
+    allItems: continuityItems,
     userText: latestUserText,
     decayMs,
   });
@@ -231,6 +246,21 @@ export async function buildPromptContext({
     .filter(([, arr]) => arr.length)
     .map(([cat, arr]) => `${cat.toUpperCase()}:\n${arr.map((x) => `- ${x}`).join("\n")}`)
     .join("\n\n");
+  const historicalRecall =
+    projectId
+      ? await getHistoricalConversationRecall({
+          supabase,
+          userId: authedUserId,
+          projectId,
+          query: latestUserText,
+        })
+      : [];
+
+  const historicalRecallBlock =
+    historicalRecallToPromptBlock(
+      historicalRecall,
+    );
+
 
   const arbor = projectId
     ? await buildArborInjectedContext({
@@ -347,6 +377,7 @@ export async function buildPromptContext({
     ].filter(Boolean),
     continuityMaterial: [
       memoryText,
+      historicalRecallBlock,
       arbor.systemInjection,
       continuityBlock,
       host.startup.promptBlock,
@@ -385,6 +416,8 @@ export async function buildPromptContext({
 
     Relevant context:
     ${memoryText || "(none)"}
+
+    ${historicalRecallBlock ? "\n" + historicalRecallBlock + "\n" : ""}
 
     ${continuityBlock}
 
