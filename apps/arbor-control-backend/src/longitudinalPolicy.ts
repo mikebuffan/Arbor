@@ -8,8 +8,14 @@ const EXPLICIT_CONTINUATION =
 const EXPLICIT_SWITCH =
   /(?:^|\b)(?:new task|different task|separate task|separate question|switch(?:ing)? to|forget that|drop that|stop that|leave that)\b/i;
 
-const COMPLETION_LANGUAGE =
-  /(?:^|\b)(?:done|finished|complete|completed|resolved|fixed|solved)\b/i;
+const EXPLICIT_COMPLETION =
+  /^(?:done|finished|complete|completed|resolved|fixed|solved|that's done|that is done|we're done|we are done)[.!?\s]*$/i;
+
+const HIGH_PRIORITY_OPEN_LOOP_SIGNALS = [
+  "current priority",
+  "do this first",
+  "next step",
+] as const;
 
 const OPEN_LOOP_SIGNALS = [
   "need to",
@@ -23,7 +29,6 @@ const OPEN_LOOP_SIGNALS = [
   "still needs",
   "not done",
   "after this",
-  "current priority",
 ] as const;
 
 function normalizeText(
@@ -76,6 +81,15 @@ export function scoreOpenLoopRelevance({
   if (
     includesAny(
       text,
+      HIGH_PRIORITY_OPEN_LOOP_SIGNALS,
+    )
+  ) {
+    return 1;
+  }
+
+  if (
+    includesAny(
+      text,
       OPEN_LOOP_SIGNALS,
     )
   ) {
@@ -117,7 +131,7 @@ export function explicitlyClosesGoal(
   userText:
     string,
 ): boolean {
-  return COMPLETION_LANGUAGE.test(
+  return EXPLICIT_COMPLETION.test(
     userText.trim(),
   );
 }
@@ -145,6 +159,9 @@ export function shouldCarryGoal(
 
   if (
     explicitlySupersedes(
+      userText,
+    ) ||
+    explicitlyClosesGoal(
       userText,
     )
   ) {
