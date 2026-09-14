@@ -36,14 +36,10 @@ function promptClient() {
   const query = {
     select: vi.fn(),
     eq: vi.fn(),
-    order: vi.fn(),
-    limit: vi.fn(),
     maybeSingle: mocks.maybeSingle,
   };
   query.select.mockReturnValue(query);
   query.eq.mockReturnValue(query);
-  query.order.mockReturnValue(query);
-  query.limit.mockReturnValue(query);
   return {
     from: vi.fn(() => query),
   } as unknown as SupabaseClient;
