@@ -15,6 +15,7 @@ import { strategyContext } from "@/lib/arbor/agency/strategyRetention";
 import { promptDataBlock } from "@/lib/arbor/promptData";
 import { loadLatestRuntimeState } from "@/lib/arbor/runtime/runtimeStateStore";
 import { projectRuntimeMemory } from "@/lib/arbor/continuity/runtimeMemoryProjection";
+import { renderCanonicalIdentityAnchor } from "@/lib/arbor/selfModel/canonicalIdentityAnchor";
 
 const CORE_RULES = `
 ONE ARBOR.
@@ -176,6 +177,9 @@ export async function buildArborInjectedContext(input: {
         )
       : "";
 
+  const canonicalSelfModelBlock =
+    renderCanonicalIdentityAnchor();
+
   const annabelleWorkspaceBlock =
     activeSubsystem ===
     "annabelle"
@@ -200,6 +204,7 @@ export async function buildArborInjectedContext(input: {
         .acousticCorrections,
     systemInjection: [
       CORE_RULES,
+      canonicalSelfModelBlock,
       activeSubsystem ===
       "annabelle"
         ? ANNABELLE_RULES
