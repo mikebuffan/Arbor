@@ -6,6 +6,7 @@ import { consolidateMemoryItems } from "@/lib/memory/consolidate";
 import { streamConversationsFile, parseConversationObject, NormalizedTurn } from "./parseChatGPT";
 import { extractMemoryFromText } from "@/lib/memory/extractor";
 import { upsertMemoryItems } from "@/lib/memory/store";
+import { upsertHistoricalConversationTurns } from "@/lib/memory/historicalIngest";
 
 type AnyObj = Record<string, any>;
 
@@ -184,6 +185,27 @@ export async function runImport(params: {
 
       const turns = parseConversationObject(convoObj);
       if (!turns.length) return;
+
+      if (!dryRun && projectId) {
+        await withTimeout(
+          upsertHistoricalConversationTurns({
+            supabase,
+            userId,
+            projectId,
+            turns: turns.map((turn, index) => ({
+              source: turn.source,
+              sourceThreadId: turn.sourceConversationId,
+              sourceMessageId: turn.sourceMessageId,
+              sourceMessageIndex: index,
+              role: turn.role,
+              content: turn.content,
+              occurredAt: turn.createdAt,
+            })),
+          }),
+          300000,
+          "upsertHistoricalConversationTurns"
+        );
+      }
 
       const chunks = chunkTurnsByCount(turns, turnsPerChunk);
 
