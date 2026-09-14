@@ -12,6 +12,7 @@ import {
   executeToolWithArborAgency,
 } from "./agencyRecovery/toolExecution.js";
 import {
+  authorizationRequiredRoute,
   transientToolRetryRoute,
 } from "./agencyRecovery/toolPolicies.js";
 import {
@@ -55,7 +56,8 @@ export type AgencyHooks = {
     risk: CapabilityRisk;
     blocker:
       | "irreversible_action"
-      | "high_consequence_fork";
+      | "high_consequence_fork"
+      | "authorization_required";
   }) => Promise<void>;
   onVerification?: (input: {
     round: number;
@@ -87,6 +89,7 @@ export type AgencyResult =
         | "irreversible_action"
         | "high_consequence_fork";
       capability: string;
+      requiredUserInput?: string;
     };
 
 type CompletionVerification = {
@@ -263,6 +266,14 @@ export async function runAgency(input: {
                   execute:
                     executeCapability,
                 }),
+                authorizationRequiredRoute({
+                  id:
+                    `authorize:${capability.name}`,
+                  description:
+                    `Resume ${capability.name} after the required authorization is available.`,
+                  requiredUserInput:
+                    `Authorize or reconnect the capability required for ${capability.name}.`,
+                }),
               ],
             });
 
@@ -329,6 +340,51 @@ export async function runAgency(input: {
                 await capabilityRecoveryLearning
                   .snapshot(),
             };
+
+            if (
+              error.decision.status ===
+                "needs_user"
+            ) {
+              const requiredUserInput =
+                error.decision
+                  .requiredUserInput ??
+                "Provide the required authorization.";
+
+              state = {
+                ...state,
+                unresolvedWork: [
+                  `requires user input: ${requiredUserInput}`,
+                  `resume goal: ${goal}`,
+                ],
+              };
+
+              await input.hooks?.onBoundary?.({
+                round,
+                capability:
+                  capability.name,
+                risk:
+                  capability.risk,
+                blocker:
+                  "authorization_required",
+              });
+
+              return {
+                status:
+                  "blocked",
+                text:
+                  requiredUserInput,
+                state,
+                rounds:
+                  round + 1,
+                toolCalls,
+                researchCalls,
+                blocker:
+                  "authorization_required",
+                capability:
+                  capability.name,
+                requiredUserInput,
+              };
+            }
 
             outputs.push({
               type:
