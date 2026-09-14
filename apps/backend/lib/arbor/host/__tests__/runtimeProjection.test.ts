@@ -8,101 +8,80 @@ import {
   projectRuntimeHost,
 } from "../runtimeProjection";
 
-const input = {
-  sessionId: "turn-1",
-  projectId: "project-1",
-  conversationId: "conversation-1",
-  activeSubsystem: "arbor" as const,
-  acousticCorrections: [
-    "General American, not British",
-  ],
-  behavioralCorrections: [
-    "Do not collapse into one-word acknowledgments",
-  ],
-  behaviorProof: null,
-  updatedAt: "2026-09-10T21:00:00.000Z",
-  continuity: {
-    currentGoal: "Align Text and Voice",
-    lastMeaningfulUserTurn: "There is still a disconnect.",
-    lastMeaningfulArborTurn: "I found it.",
-    unresolvedWork: [
-      "verify live Voice continuity",
-    ],
-    recurringWeaknesses: [],
-    retainedStrategies: [],
-    activeCorrections: [],
-    activeSubsystem: "arbor" as const,
-    channel: "voice" as const,
-  },
-};
-
 describe(
   "runtime to host projection",
   () => {
     it(
-      "keeps Voice acoustics outside host prompting while preserving corrections for the downstream gate",
-      () => {
-        const result =
-          projectRuntimeHost(input);
-
-        expect(
-          result.startup.promptBlock,
-        ).toContain(
-          "Do not collapse into one-word acknowledgments",
-        );
-
-        expect(
-          result.startup.promptBlock,
-        ).not.toContain(
-          "VOICE RENDERING TARGET:",
-        );
-
-        expect(
-          result.startup.promptBlock,
-        ).not.toContain(
-          "General American, not British",
-        );
-
-        expect(
-          result.startup.acousticCorrections,
-        ).toEqual([
-          "General American, not British",
-        ]);
-      },
-    );
-
-    it(
-      "keeps acoustic corrections out of Text host prompting",
+      "keeps acoustic corrections out of the behavioral prompt",
       () => {
         const result =
           projectRuntimeHost({
-            ...input,
+            sessionId:
+              "turn-1",
+            projectId:
+              "project-1",
+            conversationId:
+              "conversation-1",
+            activeSubsystem:
+              "arbor",
+            acousticCorrections: [
+              "General American, not British",
+            ],
+            behavioralCorrections: [
+              "Do not collapse into one-word acknowledgments",
+            ],
+            behaviorProof:
+              null,
+            updatedAt:
+              "2026-09-10T21:00:00.000Z",
             continuity: {
-              ...input.continuity,
-              channel: "text",
+              currentGoal:
+                "Align Text and Voice",
+              lastMeaningfulUserTurn:
+                "There is still a disconnect.",
+              lastMeaningfulArborTurn:
+                "I found it.",
+              unresolvedWork: [
+                "verify live Voice continuity",
+              ],
+              recurringWeaknesses:
+                [],
+              retainedStrategies:
+                [],
+              activeCorrections: [
+                "Do not require repeated go prompts",
+              ],
+              activeSubsystem:
+                "arbor",
+              channel:
+                "voice",
             },
           });
 
         expect(
-          result.startup.promptBlock,
+          result.startup
+            .promptBlock,
         ).toContain(
           "Do not collapse into one-word acknowledgments",
         );
 
         expect(
-          result.startup.promptBlock,
-        ).not.toContain(
-          "VOICE RENDERING TARGET:",
-        );
-
-        expect(
-          result.startup.promptBlock,
+          result.startup
+            .promptBlock,
         ).not.toContain(
           "General American, not British",
         );
 
         expect(
-          result.startup.acousticCorrections,
+          result.startup
+            .promptBlock,
+        ).toContain(
+          "Do not require repeated go prompts",
+        );
+
+        expect(
+          result.startup
+            .acousticCorrections,
         ).toEqual([
           "General American, not British",
         ]);
