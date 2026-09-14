@@ -117,6 +117,26 @@ describe("agency continuation", () => {
     },
   );
 
+
+  it(
+    "never treats a bare Arbor presence tether as resumable work",
+    () => {
+      const stalePresence: AgencyState = {
+        ...prior,
+        goal: "Arbor",
+        status: "active",
+        unresolvedWork: ["complete goal: Arbor"],
+      };
+
+      expect(
+        shouldResumeAgencyGoal(
+          "Why did Mike compare me to Einstein?",
+          stalePresence,
+        ),
+      ).toBe(false);
+    },
+  );
+
   it("allows an explicit task switch", () => {
     const resolved =
       resolveAgencyGoal(
