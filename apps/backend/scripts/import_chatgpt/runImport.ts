@@ -6,7 +6,10 @@ import { consolidateMemoryItems } from "@/lib/memory/consolidate";
 import { streamConversationsFile, parseConversationObject, NormalizedTurn } from "./parseChatGPT";
 import { extractMemoryFromText } from "@/lib/memory/extractor";
 import { upsertMemoryItems } from "@/lib/memory/store";
-import { upsertHistoricalConversationTurns } from "@/lib/memory/historicalIngest";
+import {
+  upsertHistoricalConversationTurns,
+  type HistoricalTurnInput,
+} from "@/lib/memory/historicalIngest";
 
 type AnyObj = Record<string, any>;
 
@@ -102,6 +105,29 @@ function formatTranscript(turns: NormalizedTurn[]) {
     .join("\n\n---\n\n");
 }
 
+/**
+ * Raw historical recall intentionally stores conversational roles only. Tool
+ * turns remain in the extraction transcript above, but are not coerced into a
+ * user/assistant/system role just to satisfy the historical table contract.
+ */
+function historicalTurns(
+  turns: NormalizedTurn[],
+): HistoricalTurnInput[] {
+  return turns.flatMap((turn, index) => {
+    if (turn.role === "tool") return [];
+
+    return [{
+      source: turn.source,
+      sourceThreadId: turn.sourceConversationId,
+      sourceMessageId: turn.sourceMessageId,
+      sourceMessageIndex: index,
+      role: turn.role,
+      content: turn.content,
+      occurredAt: turn.createdAt,
+    }];
+  });
+}
+
 async function ensureProjectRow(
   supabase: SupabaseClient,
   projectId: string,
@@ -192,15 +218,7 @@ export async function runImport(params: {
             supabase,
             userId,
             projectId,
-            turns: turns.map((turn, index) => ({
-              source: turn.source,
-              sourceThreadId: turn.sourceConversationId,
-              sourceMessageId: turn.sourceMessageId,
-              sourceMessageIndex: index,
-              role: turn.role,
-              content: turn.content,
-              occurredAt: turn.createdAt,
-            })),
+            turns: historicalTurns(turns),
           }),
           300000,
           "upsertHistoricalConversationTurns"
