@@ -670,4 +670,52 @@ describe("Arbor control runtime pass", () => {
     },
   );
 
+
+  it("injects canonical Arbor before task subsystem state", async () => {
+    const calls: Array<{
+      userText: string;
+      goal: string | null;
+      subsystem: string;
+      history: string[];
+      instructions?: string;
+    }> = [];
+
+    const runner: AgencyRunner = async (input) => {
+      calls.push({
+        userText: input.userText,
+        goal: input.state.goal,
+        subsystem: input.state.activeSubsystem,
+        history: input.history,
+        instructions: input.instructions,
+      });
+      return {
+        status: "complete",
+        text: "ok",
+        state: { ...input.state, unresolvedWork: [] },
+        rounds: 1,
+        toolCalls: 0,
+        researchCalls: 0,
+      };
+    };
+
+    const { runtime } = await fixture(runner);
+    await runtime.runTurn({
+      projectId: "project-order",
+      conversationId: "conversation-order",
+      turnId: "order-turn",
+      userText: "Annabelle, kitchen's yours.",
+    });
+
+    const instructions = calls[0]?.instructions ?? "";
+    const core = instructions.indexOf("ONE ARBOR.");
+    const identity = instructions.indexOf("SELF-MODEL IDENTITY ANCHOR");
+    const carrier = instructions.indexOf("ARBOR DURABLE CARRIER.");
+    const subsystem = instructions.indexOf("ANNABELLE SUBSYSTEM.");
+
+    expect(core).toBeGreaterThanOrEqual(0);
+    expect(identity).toBeGreaterThan(core);
+    expect(carrier).toBeGreaterThan(identity);
+    expect(subsystem).toBeGreaterThan(carrier);
+  });
+
 });
