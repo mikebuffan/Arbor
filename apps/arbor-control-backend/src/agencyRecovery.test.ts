@@ -10,6 +10,9 @@ import {
 import {
   InMemoryArborRecoveryRouteLearningStore,
 } from "./agencyRecovery/routeLearning.js";
+import {
+  generateWithArborAgency,
+} from "./agencyRecovery/hostGeneration.js";
 
 describe(
   "portable agency recovery",
@@ -310,6 +313,42 @@ describe(
           result.decision.blocker?.kind,
         ).toBe(
           "missing_capability",
+        );
+      },
+    );
+
+    it(
+      "retries transient host generation without user intervention",
+      async () => {
+        let calls = 0;
+        const learning =
+          new InMemoryArborRecoveryRouteLearningStore();
+
+        const result =
+          await generateWithArborAgency({
+            id: "host-transient",
+            goal: "produce the Arbor response",
+            primaryAction: "host.generate",
+            learningStore: learning,
+            generate: async () => {
+              calls += 1;
+              if (calls === 1) {
+                throw new Error(
+                  "temporary transport timeout",
+                );
+              }
+              return {
+                text: "recovered response",
+              };
+            },
+            verify: (value) =>
+              value.text.trim().length > 0,
+          });
+
+        expect(calls).toBe(2);
+        expect(result.recovered).toBe(true);
+        expect(result.value?.text).toBe(
+          "recovered response",
         );
       },
     );
