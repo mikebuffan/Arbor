@@ -9,6 +9,9 @@ const EXPLICIT_SWITCH =
 const COMPLETION_LANGUAGE =
   /(?:^|\b)(?:done|finished|complete|completed|resolved|fixed|solved)\b/i;
 
+const PRESENCE_TETHER =
+  /^(?:hey\s+)?arbor[.!?\s]*$/i;
+
 const FOLLOWUP_SIGNAL =
   /\b(?:it|that|this|those|them|again|still|next|then|same|continue|resume|proceed|tests?|code|permission|permissions|access|authorization|connected|reconnected|handled)\b/i;
 
@@ -54,6 +57,7 @@ export function hasLiveAgencyGoal(
 ): prior is AgencyState {
   return Boolean(
     prior &&
+      !PRESENCE_TETHER.test(prior.goal.trim()) &&
       (prior.status === "active" ||
         prior.status === "blocked"),
   );
