@@ -220,6 +220,7 @@ export async function buildPromptContext({
     supabase,
     authedUserId,
     projectId,
+    conversationId,
     latestUserText,
     useVectorSearch: true,
   });
@@ -246,7 +247,6 @@ export async function buildPromptContext({
     .filter(([, arr]) => arr.length)
     .map(([cat, arr]) => `${cat.toUpperCase()}:\n${arr.map((x) => `- ${x}`).join("\n")}`)
     .join("\n\n");
-
   const historicalRecall =
     projectId
       ? await getHistoricalConversationRecall({
@@ -261,6 +261,7 @@ export async function buildPromptContext({
     historicalRecallToPromptBlock(
       historicalRecall,
     );
+
 
   const arbor = projectId
     ? await buildArborInjectedContext({

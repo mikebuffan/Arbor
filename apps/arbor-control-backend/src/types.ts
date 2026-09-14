@@ -1,6 +1,9 @@
 import type {
   ArborRecoveryRouteStats,
 } from "./agencyRecovery/routeLearning.js";
+import type {
+  CognitionEvidenceEvent,
+} from "./cognition/evidence.js";
 
 export type ArborSubsystem = "arbor" | "annabelle";
 export type ArborChannel = "text" | "voice";
@@ -18,6 +21,7 @@ export type StrategyCandidate = {
   successes: number;
   failures: number;
   status: "candidate" | "retained" | "reverted";
+  evidenceEvents?: CognitionEvidenceEvent[];
 };
 
 export type AnnabelleWorkspaceState = {
@@ -78,6 +82,17 @@ export type SelfModelMigrationRecord = {
   appliedAt: string;
 };
 
+export type ContinuityCheckpoint = {
+  goal: string | null;
+  status: "active" | "blocked" | "complete";
+  exactNextWork: string | null;
+  blockerReason: string | null;
+  continueWithoutPrompt: boolean;
+  unresolvedWork: string[];
+  behavioralCorrections: string[];
+  createdAt: string;
+};
+
 export type ArborState = {
   activeSubsystem: ArborSubsystem;
   goal: string | null;
@@ -93,6 +108,7 @@ export type ArborState = {
   selfModelMigrations?: SelfModelMigrationRecord[];
   annabelle?: AnnabelleWorkspaceState;
   annabelleRevisions?: AnnabelleWorkspaceRevisionState[];
+  continuityCheckpoint?: ContinuityCheckpoint;
 };
 
 export type CanonicalArborResponse = {

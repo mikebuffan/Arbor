@@ -81,6 +81,57 @@ describe("control audit timeline", () => {
     expect(raw).not.toContain("private conversation text");
   });
 
+  it("preserves approved cognition and continuity verification fields", async () => {
+    const dir = await mkdtemp(
+      join(tmpdir(), "arbor-audit-"),
+    );
+    cleanup.push(dir);
+
+    const audit = new JsonlArborAuditSink(
+      join(dir, "audit.jsonl"),
+    );
+
+    await audit.record({
+      turnId: "turn-cognition",
+      projectId: "project-1",
+      phase: "verify",
+      event: "pre_response_control_audit",
+      detail: {
+        approved: false,
+        issues: ["false_completion_with_unresolved_work"],
+        authorization: "secret",
+      },
+    });
+
+    await audit.record({
+      turnId: "turn-cognition",
+      projectId: "project-1",
+      phase: "update",
+      event: "continuity_checkpoint_created",
+      detail: {
+        status: "in_progress",
+        exactNextWork: "finish cognition integration",
+        blockerReason: null,
+        continueWithoutPrompt: true,
+        rawUserText: "private",
+      },
+    });
+
+    const events = await audit.recent(10);
+
+    expect(events[0]?.detail).toEqual({
+      approved: false,
+      issues: ["false_completion_with_unresolved_work"],
+    });
+
+    expect(events[1]?.detail).toEqual({
+      status: "in_progress",
+      exactNextWork: "finish cognition integration",
+      blockerReason: null,
+      continueWithoutPrompt: true,
+    });
+  });
+
   it("returns only the requested recent tail", async () => {
     const dir = await mkdtemp(
       join(tmpdir(), "arbor-audit-"),

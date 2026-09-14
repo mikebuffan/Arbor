@@ -1,3 +1,8 @@
+import {
+  dedupeEvidenceByOrigin,
+  evaluateIndependentSupport,
+  type CognitionEvidenceEvent,
+} from "./cognition/evidence.js";
 import type {
   ArborState,
   StrategyCandidate,
@@ -7,10 +12,17 @@ function clean(value: string): string {
   return value.trim().replace(/\s+/g, " ");
 }
 
+export type StrategyObservationEvidence = {
+  sourceId: string;
+  originId: string;
+  occurredAt: string;
+};
+
 export function observeStrategy(
   state: ArborState,
   strategy: string,
   verificationPassed: boolean,
+  evidence?: StrategyObservationEvidence,
 ): ArborState {
   const normalized = clean(strategy);
 
@@ -32,29 +44,63 @@ export function observeStrategy(
           successes: 0,
           failures: 0,
           status: "candidate",
+          evidenceEvents: [],
         };
 
   if (current.status !== "candidate") {
     return state;
   }
 
+  const event: CognitionEvidenceEvent | null =
+    evidence
+      ? {
+          subject: "arbor",
+          attribute: `strategy:${normalized}`,
+          evidenceClass: "observed",
+          sourceId: evidence.sourceId,
+          originId: evidence.originId,
+          occurredAt: evidence.occurredAt,
+          supports: verificationPassed,
+          independentlyObserved: true,
+        }
+      : null;
+
+  const evidenceEvents = event
+    ? dedupeEvidenceByOrigin([
+        ...(current.evidenceEvents ?? []),
+        event,
+      ])
+    : (current.evidenceEvents ?? []);
+
+  const successes =
+    evidenceEvents.filter((item) => item.supports).length;
+  const failures =
+    evidenceEvents.filter((item) => !item.supports).length;
+
   const next: StrategyCandidate = {
     ...current,
     successes:
-      current.successes +
-      (verificationPassed ? 1 : 0),
+      evidence ? successes : current.successes + (verificationPassed ? 1 : 0),
     failures:
-      current.failures +
-      (verificationPassed ? 0 : 1),
+      evidence ? failures : current.failures + (verificationPassed ? 0 : 1),
+    evidenceEvents,
   };
 
+  const independentSupport =
+    evidenceEvents.length
+      ? evaluateIndependentSupport(evidenceEvents)
+      : null;
+
   if (
-    next.successes >= 2 &&
+    independentSupport?.qualifies &&
     next.failures === 0
   ) {
     next.status = "retained";
   }
 
+  // No provenance, no durable promotion. Legacy anonymous verification may
+  // update candidate counters for compatibility, but cannot establish a
+  // durable retained strategy.
   if (next.failures >= 2) {
     next.status = "reverted";
   }

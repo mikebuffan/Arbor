@@ -13,7 +13,7 @@ const PRESENCE_TETHER =
   /^(?:hey\s+)?arbor[.!?\s]*$/i;
 
 const FOLLOWUP_SIGNAL =
-  /\b(?:it|that|this|those|them|again|still|next|then|same|continue|resume|proceed|tests?|code|permission|permissions|access|authorization|connected|reconnected|handled)\b/i;
+  /\b(?:it|that|this|those|them|again|still|next|then|same|continue|resume|proceed|tests?|code|permission|permissions|access|authorization|connected|reconnected|handled|correction|corrections|carry|voice|text|memory|goal|work)\b/i;
 
 const STOPWORDS = new Set([
   "about",

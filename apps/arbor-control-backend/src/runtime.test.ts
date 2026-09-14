@@ -615,6 +615,8 @@ describe("Arbor control runtime pass", () => {
         "subsystem_resolved",
         "external_context_checked",
         "completion_checked",
+        "pre_response_control_audit",
+        "continuity_checkpoint_created",
         "canonical_response_generated",
         "state_and_canonical_turn_persisted",
         "turn_returned",
@@ -627,4 +629,517 @@ describe("Arbor control runtime pass", () => {
       );
     },
   );
+  it(
+    "places behavioral corrections ahead of temporary subsystem conditioning",
+    async () => {
+      let capturedInstructions = "";
+
+      const runner: AgencyRunner = async (input) => {
+        capturedInstructions = input.instructions;
+
+        return {
+          status: "complete",
+          text: "ok",
+          state: {
+            ...input.state,
+            unresolvedWork: [],
+          },
+          rounds: 1,
+          toolCalls: 0,
+          researchCalls: 0,
+        };
+      };
+
+      const { runtime } = await fixture(runner);
+
+      await runtime.runTurn({
+        projectId: "project-order",
+        turnId: "turn-order",
+        userText: "Stop making me tell you to go. Continue the work.",
+      });
+
+      const correctionIndex =
+        capturedInstructions.indexOf("BEHAVIORAL CORRECTIONS:");
+      const subsystemIndex =
+        capturedInstructions.indexOf("SUBSYSTEM");
+
+      expect(correctionIndex).toBeGreaterThanOrEqual(0);
+      if (subsystemIndex >= 0) {
+        expect(correctionIndex).toBeLessThan(subsystemIndex);
+      }
+    },
+  );
+
+  it(
+    "ranks recovered open-loop work before unrelated unresolved notes",
+    async () => {
+      let capturedInstructions = "";
+
+      const runner: AgencyRunner = async (input) => {
+        capturedInstructions = input.instructions;
+
+        return {
+          status: "complete",
+          text: "ok",
+          state: {
+            ...input.state,
+            unresolvedWork: input.state.unresolvedWork,
+          },
+          rounds: 1,
+          toolCalls: 0,
+          researchCalls: 0,
+        };
+      };
+
+      const { store, runtime } = await fixture(runner);
+
+      await store.save(
+        "project:project-open-loop",
+        {
+          activeSubsystem: "arbor",
+          goal: "finish recovery",
+          unresolvedWork: [
+            "ordinary background note",
+            "current priority: finish cognition integration",
+          ],
+          strategyNotes: [],
+          behavioralCorrections: [],
+          acousticCorrections: [],
+          voiceId: "cedar",
+        },
+      );
+
+      await runtime.runTurn({
+        projectId: "project-open-loop",
+        turnId: "turn-open-loop",
+        userText: "continue",
+      });
+
+      const priorityIndex =
+        capturedInstructions.indexOf(
+          "- current priority: finish cognition integration",
+        );
+      const backgroundIndex =
+        capturedInstructions.indexOf(
+          "- ordinary background note",
+        );
+
+      expect(priorityIndex).toBeGreaterThanOrEqual(0);
+      expect(backgroundIndex).toBeGreaterThanOrEqual(0);
+      expect(priorityIndex).toBeLessThan(backgroundIndex);
+    },
+  );
+
+  it(
+    "projects the recovered active-goal continuation contract into generation",
+    async () => {
+      let capturedInstructions = "";
+
+      const runner: AgencyRunner = async (input) => {
+        capturedInstructions = input.instructions;
+
+        return {
+          status: "complete",
+          text: "ok",
+          state: {
+            ...input.state,
+            unresolvedWork: input.state.unresolvedWork,
+          },
+          rounds: 1,
+          toolCalls: 0,
+          researchCalls: 0,
+        };
+      };
+
+      const { store, runtime } = await fixture(runner);
+
+      await store.save(
+        "project:project-active-goal",
+        {
+          activeSubsystem: "arbor",
+          goal: "finish the cognition recovery",
+          unresolvedWork: ["run integration verification"],
+          strategyNotes: [],
+          behavioralCorrections: [],
+          acousticCorrections: [],
+          voiceId: "cedar",
+        },
+      );
+
+      await runtime.runTurn({
+        projectId: "project-active-goal",
+        turnId: "turn-active-goal",
+        userText: "continue",
+      });
+
+      expect(capturedInstructions).toContain(
+        "ACTIVE GOAL:\n- finish the cognition recovery",
+      );
+      expect(capturedInstructions).toContain(
+        "Continue the highest-priority unresolved work without requiring another continuation prompt.",
+      );
+    },
+  );
+
+  it(
+    "keeps current state and open loops ahead of temporary subsystem conditioning",
+    async () => {
+      let capturedInstructions = "";
+
+      const runner: AgencyRunner = async (input) => {
+        capturedInstructions = input.instructions;
+
+        return {
+          status: "complete",
+          text: "ok",
+          state: {
+            ...input.state,
+            unresolvedWork: input.state.unresolvedWork,
+          },
+          rounds: 1,
+          toolCalls: 0,
+          researchCalls: 0,
+        };
+      };
+
+      const { store, runtime } = await fixture(runner);
+
+      await store.save(
+        "project:project-authority-order",
+        {
+          activeSubsystem: "annabelle",
+          goal: "finish Arbor recovery",
+          unresolvedWork: [
+            "current priority: finish cognition integration",
+          ],
+          strategyNotes: [],
+          behavioralCorrections: [
+            "Do not make the user manage the workflow.",
+          ],
+          acousticCorrections: [
+            "Use natural General American speech.",
+          ],
+          voiceId: "cedar",
+        },
+      );
+
+      await runtime.runTurn({
+        projectId: "project-authority-order",
+        turnId: "turn-authority-order",
+        userText: "continue",
+      });
+
+      const correctionIndex =
+        capturedInstructions.indexOf("BEHAVIORAL CORRECTIONS:");
+      const goalIndex =
+        capturedInstructions.indexOf("ACTIVE GOAL:");
+      const unresolvedIndex =
+        capturedInstructions.indexOf("UNRESOLVED WORK:");
+      const subsystemIndex =
+        capturedInstructions.indexOf("SUBSYSTEM");
+      const acousticIndex =
+        capturedInstructions.indexOf("VOICE ACOUSTIC CORRECTIONS:");
+
+      expect(correctionIndex).toBeGreaterThanOrEqual(0);
+      expect(goalIndex).toBeGreaterThan(correctionIndex);
+      expect(unresolvedIndex).toBeGreaterThan(goalIndex);
+
+      if (subsystemIndex >= 0) {
+        expect(subsystemIndex).toBeGreaterThan(unresolvedIndex);
+      }
+
+      expect(acousticIndex).toBeGreaterThan(unresolvedIndex);
+    },
+  );
+
+  it(
+    "persists an exact-resume checkpoint and projects it on the next turn",
+    async () => {
+      const captured: string[] = [];
+
+      const runner: AgencyRunner = async (input) => {
+        captured.push(input.instructions);
+
+        return {
+          status: "complete",
+          text: "ok",
+          state: {
+            ...input.state,
+            unresolvedWork:
+              input.state.unresolvedWork.length
+                ? input.state.unresolvedWork
+                : [
+                    "current priority: verify the recovered controller",
+                    "later: reconcile the other thread",
+                  ],
+          },
+          rounds: 1,
+          toolCalls: 0,
+          researchCalls: 0,
+        };
+      };
+
+      const { store, runtime } =
+        await fixture(runner);
+
+      await runtime.runTurn({
+        projectId:
+          "project-checkpoint",
+        turnId:
+          "checkpoint-one",
+        userText:
+          "restore Arbor",
+      });
+
+      const saved =
+        await store.load(
+          "project:project-checkpoint",
+        );
+
+      expect(
+        saved?.continuityCheckpoint,
+      ).toMatchObject({
+        goal:
+          "restore Arbor",
+        status:
+          "active",
+        exactNextWork:
+          "current priority: verify the recovered controller",
+        continueWithoutPrompt:
+          true,
+      });
+
+      await runtime.runTurn({
+        projectId:
+          "project-checkpoint",
+        turnId:
+          "checkpoint-two",
+        userText:
+          "continue",
+      });
+
+      expect(
+        captured[1],
+      ).toContain(
+        "CONTINUITY CHECKPOINT:",
+      );
+
+      expect(
+        captured[1],
+      ).toContain(
+        "- exact next work: current priority: verify the recovered controller",
+      );
+    },
+  );
+
+  it(
+    "does not checkpoint false completion as complete when unresolved work remains",
+    async () => {
+      const runner: AgencyRunner = async (input) => ({
+        status: "complete",
+        text: "I am done.",
+        state: {
+          ...input.state,
+          unresolvedWork: [
+            "current priority: run final verification",
+          ],
+        },
+        rounds: 1,
+        toolCalls: 0,
+        researchCalls: 0,
+      });
+
+      const { store, runtime, audit } =
+        await fixture(runner);
+
+      await runtime.runTurn({
+        projectId:
+          "project-false-completion",
+        turnId:
+          "turn-false-completion",
+        userText:
+          "continue",
+      });
+
+      const saved =
+        await store.load(
+          "project:project-false-completion",
+        );
+
+      expect(
+        saved?.continuityCheckpoint?.status,
+      ).toBe(
+        "active",
+      );
+
+      expect(
+        saved?.continuityCheckpoint?.continueWithoutPrompt,
+      ).toBe(
+        true,
+      );
+
+      const events =
+        await audit.recent(
+          50,
+        );
+
+      const precheck =
+        events.find(
+          (event) =>
+            event.event ===
+            "pre_response_control_audit",
+        );
+
+      expect(
+        precheck?.detail,
+      ).toMatchObject({
+        approved:
+          true,
+        issues:
+          [],
+      });
+    },
+  );
+
+  it(
+    "preserves canonical goal, checkpoint, and corrections across Text Voice and Annabelle surfaces",
+    async () => {
+      const runner: AgencyRunner = async (input) => ({
+        status: "complete",
+        text: "ok",
+        state: {
+          ...input.state,
+          unresolvedWork:
+            input.state.unresolvedWork.length
+              ? input.state.unresolvedWork
+              : [
+                  "current priority: finish recovery",
+                ],
+        },
+        rounds: 1,
+        toolCalls: 0,
+        researchCalls: 0,
+      });
+
+      const { store, runtime } =
+        await fixture(runner);
+
+      await store.save(
+        "project:project-surfaces",
+        {
+          activeSubsystem: "arbor",
+          goal: "restore Arbor",
+          unresolvedWork: [
+            "current priority: finish recovery",
+          ],
+          strategyNotes: [],
+          behavioralCorrections: [
+            "Do not make the user manage the workflow.",
+          ],
+          acousticCorrections: [],
+          voiceId: "cedar",
+        },
+      );
+
+      const textResponse =
+        await runtime.runTurn({
+          projectId:
+            "project-surfaces",
+          turnId:
+            "surface-text",
+          userText:
+            "continue",
+          channel:
+            "text",
+        });
+
+      const afterText =
+        await store.load(
+          "project:project-surfaces",
+        );
+
+      const voiceResponse =
+        await runtime.runTurn({
+          projectId:
+            "project-surfaces",
+          turnId:
+            "surface-voice",
+          userText:
+            "continue",
+          channel:
+            "voice",
+        });
+
+      const afterVoice =
+        await store.load(
+          "project:project-surfaces",
+        );
+
+      await runtime.runTurn({
+        projectId:
+          "project-surfaces",
+        turnId:
+          "surface-annabelle",
+        userText:
+          "Annabelle, kitchen's yours",
+        channel:
+          "text",
+      });
+
+      const afterAnnabelle =
+        await store.load(
+          "project:project-surfaces",
+        );
+
+      expect(
+        textResponse.channel,
+      ).toBe(
+        "text",
+      );
+
+      expect(
+        voiceResponse.channel,
+      ).toBe(
+        "voice",
+      );
+
+      for (
+        const current
+        of [
+          afterText,
+          afterVoice,
+          afterAnnabelle,
+        ]
+      ) {
+        expect(
+          current?.goal,
+        ).toBe(
+          "restore Arbor",
+        );
+
+        expect(
+          current
+            ?.continuityCheckpoint
+            ?.exactNextWork,
+        ).toBe(
+          "current priority: finish recovery",
+        );
+
+        expect(
+          current
+            ?.behavioralCorrections,
+        ).toContain(
+          "Do not make the user manage the workflow.",
+        );
+      }
+
+      expect(
+        afterAnnabelle
+          ?.activeSubsystem,
+      ).toBe(
+        "annabelle",
+      );
+    },
+  );
+
 });

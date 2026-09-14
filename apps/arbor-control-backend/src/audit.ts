@@ -131,6 +131,12 @@ function sanitizeDetail(
     "historyMessages",
     "externalContextAvailable",
     "replayed",
+    "approved",
+    "issues",
+    "status",
+    "exactNextWork",
+    "blockerReason",
+    "continueWithoutPrompt",
   ]);
 
   return Object.fromEntries(

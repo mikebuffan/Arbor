@@ -446,6 +446,7 @@ export async function persistClassifiedMemoryTurn(
     supabase: SupabaseClient;
     userId: string;
     projectId: string | null;
+    conversationId?: string | null;
     classified: ClassifiedMemoryTurn;
     injectedMemoryIds: string[];
   },
@@ -460,6 +461,7 @@ export async function persistClassifiedMemoryTurn(
         params.classified.items,
         params.projectId,
         params.supabase,
+        params.conversationId ?? null,
       ),
     };
   }

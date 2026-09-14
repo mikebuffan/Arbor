@@ -28,9 +28,18 @@ import {
   detectRuntimeCorrectionKind,
 } from "./correctionDetection.js";
 import {
+  auditControlState,
+  reviseControlStateOnce,
+} from "./cognition/controlAudit.js";
+import {
+  buildContinuityCheckpoint,
+  checkpointProjection,
+} from "./continuityCheckpoint.js";
+import {
   ARBOR_CORE_INJECTION,
 } from "./identity.js";
 import {
+  rankUnresolvedWork,
   shouldCarryGoal,
 } from "./longitudinalPolicy.js";
 import {
@@ -625,6 +634,9 @@ export class ArborControlRuntime {
       );
 
       const instructions = [
+        // Authority order recovered from the old linear controller:
+        // baseline identity -> newest corrections -> current state/open loops
+        // -> task/subsystem conditioning -> surface/acoustic presentation.
         ARBOR_CORE_INJECTION,
 
         renderSelfModelIdentityAnchor(
@@ -632,17 +644,6 @@ export class ArborControlRuntime {
         ),
 
         renderSelfModelProjection(),
-
-        subsystemInjection(
-          state,
-        ),
-
-        activeSubsystem ===
-        "annabelle"
-          ? renderAnnabelleWorkspace(
-              state,
-            )
-          : "",
 
         (
           state
@@ -665,25 +666,10 @@ export class ArborControlRuntime {
               )}`
           : "",
 
-        state
-          .acousticCorrections
-          .length
-          ? `VOICE ACOUSTIC CORRECTIONS:\n${state.acousticCorrections
-              .map(
-                (
-                  item,
-                ) =>
-                  `- ${item}`,
-              )
-              .join(
-                "\n",
-              )}`
-          : "",
-
         Object.keys(
           externalState,
         ).length
-          ? `EXTERNAL BACKEND CONTEXT:\n${JSON.stringify(
+          ? `CURRENT / EXTERNAL BACKEND STATE:\n${JSON.stringify(
               externalState,
             )}`
           : "",
@@ -703,10 +689,47 @@ export class ArborControlRuntime {
               )}`
           : "",
 
+        checkpointProjection(
+          state.continuityCheckpoint,
+        ),
+
+        state.goal
+          ? `ACTIVE GOAL:\n- ${state.goal}\n\nOPEN-LOOP CONTINUITY:\n- Continue the highest-priority unresolved work without requiring another continuation prompt.\n- A short resume cue resolves to the last confirmed active object.\n- Ask only when multiple materially different branches fit or a real user boundary is reached.`
+          : "",
+
         state
           .unresolvedWork
           .length
-          ? `UNRESOLVED WORK:\n${state.unresolvedWork
+          ? `UNRESOLVED WORK:\n${rankUnresolvedWork(
+              state.unresolvedWork,
+              request.userText,
+            )
+              .map(
+                (
+                  item,
+                ) =>
+                  `- ${item}`,
+              )
+              .join(
+                "\n",
+              )}`
+          : "",
+
+        subsystemInjection(
+          state,
+        ),
+
+        activeSubsystem ===
+        "annabelle"
+          ? renderAnnabelleWorkspace(
+              state,
+            )
+          : "",
+
+        state
+          .acousticCorrections
+          .length
+          ? `VOICE ACOUSTIC CORRECTIONS:\n${state.acousticCorrections
               .map(
                 (
                   item,
@@ -725,7 +748,7 @@ export class ArborControlRuntime {
           "\n\n",
         );
 
-      const agency =
+      let agency =
         await this.agencyRunner({
           instructions,
 
@@ -885,6 +908,85 @@ export class ArborControlRuntime {
                 .acousticCorrections,
             ]),
         });
+
+      let controlAudit =
+        auditControlState({
+          state:
+            agency.state,
+          agency,
+        });
+
+      if (
+        !controlAudit.approved
+      ) {
+        const revision =
+          reviseControlStateOnce({
+            state:
+              agency.state,
+            agency,
+            audit:
+              controlAudit,
+          });
+
+        agency = {
+          ...revision.agency,
+          state:
+            revision.state,
+        };
+
+        controlAudit =
+          auditControlState({
+            state:
+              agency.state,
+            agency,
+          });
+      }
+
+      await this.record(
+        turnId,
+        request,
+        "verify",
+        "pre_response_control_audit",
+        {
+          approved:
+            controlAudit.approved,
+          issues:
+            controlAudit.issues,
+        },
+      );
+
+      const checkpoint =
+        buildContinuityCheckpoint({
+          state:
+            agency.state,
+          agency,
+          createdAt:
+            new Date()
+              .toISOString(),
+        });
+
+      agency.state = {
+        ...agency.state,
+        continuityCheckpoint:
+          checkpoint,
+      };
+
+      await this.record(
+        turnId,
+        request,
+        "update",
+        "continuity_checkpoint_created",
+        {
+          status:
+            checkpoint.status,
+          exactNextWork:
+            checkpoint.exactNextWork,
+          blockerReason:
+            checkpoint.blockerReason,
+          continueWithoutPrompt:
+            checkpoint.continueWithoutPrompt,
+        },
+      );
 
       const response =
         this.buildCanonicalResponse(

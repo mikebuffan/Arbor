@@ -71,6 +71,28 @@ describe("agency continuation", () => {
   );
 
   it(
+    "keeps correction and cross-modality follow-ups on the active goal",
+    () => {
+      for (const text of [
+        "Make sure the corrections carry into voice too",
+        "Keep the memory work going",
+        "Does that carry into text too?",
+      ]) {
+        expect(
+          resolveAgencyGoal(
+            text,
+            prior,
+          ),
+        ).toEqual({
+          goal: prior.goal,
+          resume: true,
+          superseded: false,
+        });
+      }
+    },
+  );
+
+  it(
     "keeps a blocked unresolved goal through an ordinary follow-up",
     () => {
       const blocked: AgencyState = {
