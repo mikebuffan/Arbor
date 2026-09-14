@@ -17,6 +17,9 @@ import {
   transientToolRetryRoute,
 } from "./agencyRecovery/toolPolicies.js";
 import {
+  generateWithArborAgency,
+} from "./agencyRecovery/hostGeneration.js";
+import {
   InMemoryArborRecoveryRouteLearningStore,
   normalizeArborRecoveryRouteStats,
 } from "./agencyRecovery/routeLearning.js";
@@ -154,6 +157,46 @@ export async function runAgency(input: {
 
   const model = process.env.ARBOR_MODEL ?? "gpt-5.6";
   const goal = state.goal ?? input.userText;
+
+  const generateResponse = async (
+    phase: string,
+    generate: () => Promise<any>,
+  ) => {
+    const execution =
+      await generateWithArborAgency({
+        id: `control-host:${phase}`,
+        goal,
+        primaryAction: `host.generate:${phase}`,
+        generate,
+        verify: (value) =>
+          Boolean(
+            value &&
+            typeof value === "object" &&
+            ("output" in value || "output_text" in value),
+          ),
+        learningStore: capabilityRecoveryLearning,
+      });
+
+    state = {
+      ...state,
+      recoveryRouteStats:
+        await capabilityRecoveryLearning.snapshot(),
+    };
+
+    if (execution.value === undefined) {
+      throw new Error(
+        [
+          "agency_host_generation_blocked",
+          execution.decision.status,
+          execution.decision.requiredUserInput ??
+            "no-user-input-requested",
+        ].join(":"),
+      );
+    }
+
+    return execution.value;
+  };
+
   const firstInput = [
     ...(input.history ?? []),
     {
@@ -162,17 +205,20 @@ export async function runAgency(input: {
     },
   ];
 
-  let response = await getOpenAI().responses.create({
-    model,
-    instructions: input.instructions,
-    input: firstInput as any,
-    ...(tools.length
-      ? {
-          tools: tools as any,
-          tool_choice: "auto" as const,
-        }
-      : {}),
-  });
+  let response = await generateResponse(
+    "primary",
+    () => getOpenAI().responses.create({
+      model,
+      instructions: input.instructions,
+      input: firstInput as any,
+      ...(tools.length
+        ? {
+            tools: tools as any,
+            tool_choice: "auto" as const,
+          }
+        : {}),
+    }),
+  );
 
   for (let round = 0; round < maxRounds; round += 1) {
     await input.hooks?.onRoundStart?.({ round });
@@ -429,18 +475,21 @@ export async function runAgency(input: {
         }
       }
 
-      response = await getOpenAI().responses.create({
-        model,
-        instructions: input.instructions,
-        previous_response_id: response.id,
-        input: outputs as any,
-        ...(tools.length
-          ? {
-              tools: tools as any,
-              tool_choice: "auto" as const,
-            }
-          : {}),
-      });
+      response = await generateResponse(
+        `tool-round-${round}`,
+        () => getOpenAI().responses.create({
+          model,
+          instructions: input.instructions,
+          previous_response_id: response.id,
+          input: outputs as any,
+          ...(tools.length
+            ? {
+                tools: tools as any,
+                tool_choice: "auto" as const,
+              }
+            : {}),
+        }),
+      );
 
       continue;
     }
@@ -530,6 +579,11 @@ export async function runAgency(input: {
             tools,
             verification: confirmation,
             pendingStrategy,
+            generate: (create) =>
+              generateResponse(
+                `repair-round-${round}`,
+                create,
+              ),
           });
 
           continue;
@@ -556,6 +610,11 @@ export async function runAgency(input: {
       tools,
       verification,
       pendingStrategy,
+      generate: (create) =>
+        generateResponse(
+          `continue-round-${round}`,
+          create,
+        ),
     });
   }
 
@@ -616,8 +675,12 @@ async function continueResponse(input: {
   tools: Array<Record<string, unknown>>;
   verification: CompletionVerification;
   pendingStrategy: string | null;
+  generate?: (
+    create: () => Promise<any>,
+  ) => Promise<any>;
 }) {
-  return getOpenAI().responses.create({
+  const create =
+    () => getOpenAI().responses.create({
     model: input.model,
     instructions: input.instructions,
     previous_response_id: input.previousResponseId,
@@ -644,6 +707,10 @@ async function continueResponse(input: {
         }
       : {}),
   });
+
+  return input.generate
+    ? input.generate(create)
+    : create();
 }
 
 async function verifyCompletion(input: {
