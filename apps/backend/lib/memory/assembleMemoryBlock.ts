@@ -1,5 +1,6 @@
 import type { RetrievedMemoryItem } from "@/lib/memory/retrieval";
 import { selectItemsForPrompt } from "@/lib/memory/selectForPrompt";
+import { selectContinuityAnchors } from "@/lib/memory/continuityAnchorRetriever";
 
 function inferCategory(item: RetrievedMemoryItem) {
   const key = item.key.toLowerCase();
@@ -55,7 +56,8 @@ export function assembleMemoryBlock(args: {
     return now - t <= decayMs;
   });
 
-  const allowed = selectItemsForPrompt(decayed, userText);
+  const policyAllowed = selectItemsForPrompt(decayed, userText);
+  const allowed = selectContinuityAnchors(policyAllowed, userText, 14);
 
   const by = (cat: string) => allowed.filter((i) => inferCategory(i) === cat);
 
