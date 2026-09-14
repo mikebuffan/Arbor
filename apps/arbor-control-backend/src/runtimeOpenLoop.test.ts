@@ -89,12 +89,16 @@ function priorState(): ArborState {
 
 describe("control runtime interrupted open-loop integration", () => {
   it("answers an unrelated foreground turn and restores the exact prior objective before commit", async () => {
-    let capturedState: ArborState | null = null;
-    let capturedInstructions = "";
+    const capturedStates: ArborState[] = [];
+    const capturedInstructions: string[] = [];
 
     const runner: AgencyRunner = async (input) => {
-      capturedState = structuredClone(input.state);
-      capturedInstructions = input.instructions;
+      capturedStates.push(
+        structuredClone(input.state),
+      );
+      capturedInstructions.push(
+        input.instructions,
+      );
 
       return {
         status: "complete",
@@ -121,23 +125,25 @@ describe("control runtime interrupted open-loop integration", () => {
       userText: "Am I bossy?",
     });
 
+    const captured = capturedStates[0];
+    const instructions = capturedInstructions[0] ?? "";
+
     expect(response.text).toBe(
       "You are a little bossy. 😂",
     );
-    expect(capturedState?.goal).toBe("Am I bossy?");
-    expect(capturedState?.unresolvedWork).toEqual([
+    expect(captured?.goal).toBe("Am I bossy?");
+    expect(captured?.unresolvedWork).toEqual([
       "complete goal: Am I bossy?",
     ]);
-    expect(capturedState?.suspendedOpenLoops).toHaveLength(1);
+    expect(captured?.suspendedOpenLoops).toHaveLength(1);
     expect(
-      capturedState?.suspendedOpenLoops?.[0]?.goal,
+      captured?.suspendedOpenLoops?.[0]?.goal,
     ).toBe("unzip and inspect Arbor export");
 
-    // Structured host checkpoints are not dumped into provider instructions.
-    expect(capturedInstructions).not.toContain(
+    expect(instructions).not.toContain(
       "suspendedOpenLoops",
     );
-    expect(capturedInstructions).not.toContain(
+    expect(instructions).not.toContain(
       "control-open-loop",
     );
 
@@ -199,10 +205,12 @@ describe("control runtime interrupted open-loop integration", () => {
   });
 
   it("explicit task replacement does not resurrect the prior objective", async () => {
-    let capturedState: ArborState | null = null;
+    const capturedStates: ArborState[] = [];
 
     const runner: AgencyRunner = async (input) => {
-      capturedState = structuredClone(input.state);
+      capturedStates.push(
+        structuredClone(input.state),
+      );
       return {
         status: "complete",
         text: "New task complete.",
@@ -231,8 +239,9 @@ describe("control runtime interrupted open-loop integration", () => {
       userText: newTask,
     });
 
-    expect(capturedState?.goal).toBe(newTask);
-    expect(capturedState?.suspendedOpenLoops ?? []).toEqual([]);
+    const captured = capturedStates[0];
+    expect(captured?.goal).toBe(newTask);
+    expect(captured?.suspendedOpenLoops ?? []).toEqual([]);
 
     const saved = await store.load(
       "project:project-3",
