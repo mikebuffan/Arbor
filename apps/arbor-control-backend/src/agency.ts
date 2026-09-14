@@ -7,12 +7,25 @@ import {
   type CapabilityRisk,
 } from "./capabilities.js";
 import { observeStrategy } from "./selfUpdate.js";
+import {
+  ArborToolExecutionBlockedError,
+  executeToolWithArborAgency,
+} from "./agencyRecovery/toolExecution.js";
+import {
+  transientToolRetryRoute,
+} from "./agencyRecovery/toolPolicies.js";
+import {
+  InMemoryArborRecoveryRouteLearningStore,
+} from "./agencyRecovery/routeLearning.js";
 import type {
   ArborConversationMessage,
   ArborState,
 } from "./types.js";
 
 let openaiClient: OpenAI | null = null;
+
+const capabilityRecoveryLearning =
+  new InMemoryArborRecoveryRouteLearningStore();
 
 function getOpenAI(): OpenAI {
   if (!openaiClient) {
@@ -203,37 +216,134 @@ export async function runAgency(input: {
           };
         }
 
-        const execution = await capability.execute(
-          args,
-          {
-            ...input.context,
-            state,
-          },
-        );
+        const executeCapability =
+          () =>
+            capability.execute(
+              args,
+              {
+                ...input.context,
+                state,
+              },
+            );
 
-        if (execution.statePatch) {
-          state = {
-            ...state,
-            ...execution.statePatch,
-          };
+        try {
+          const execution =
+            await executeToolWithArborAgency({
+              id:
+                `control-capability:${capability.name}`,
+              goal,
+              primaryAction:
+                capability.name,
+              primary:
+                executeCapability,
+              verify:
+                (value) =>
+                  Boolean(
+                    value &&
+                    typeof value ===
+                      "object" &&
+                    "result" in value,
+                  ),
+              learningStore:
+                capabilityRecoveryLearning,
+              recoveryRoutes: [
+                transientToolRetryRoute({
+                  id:
+                    `transient-retry:${capability.name}`,
+                  description:
+                    `Retry ${capability.name} after a transient execution failure.`,
+                  execute:
+                    executeCapability,
+                }),
+              ],
+            });
+
+          if (
+            execution.value.statePatch
+          ) {
+            state = {
+              ...state,
+              ...execution
+                .value
+                .statePatch,
+            };
+          }
+
+          toolCalls +=
+            1 +
+            execution
+              .attemptedRouteIds
+              .length;
+
+          await input.hooks?.onCapabilityResult?.({
+            round,
+            capability:
+              capability.name,
+            risk:
+              capability.risk,
+          });
+
+          outputs.push({
+            type:
+              "function_call_output",
+            call_id:
+              call.call_id,
+            output:
+              JSON.stringify({
+                ok: true,
+                result:
+                  execution
+                    .value
+                    .result,
+                recovered:
+                  execution
+                    .recovered,
+                recoveryRoute:
+                  execution
+                    .selectedRouteId ??
+                  null,
+                recoveryEvidence:
+                  execution
+                    .decision
+                    .evidence,
+              }),
+          });
+        } catch (error) {
+          if (
+            error instanceof
+              ArborToolExecutionBlockedError
+          ) {
+            outputs.push({
+              type:
+                "function_call_output",
+              call_id:
+                call.call_id,
+              output:
+                JSON.stringify({
+                  ok: false,
+                  blocker:
+                    error
+                      .decision
+                      .blocker ??
+                    null,
+                  attemptedRoutes:
+                    error
+                      .decision
+                      .attemptedOptionIds,
+                  evidence:
+                    error
+                      .decision
+                      .evidence,
+                  instruction:
+                    "Continue autonomously with another safe reversible capability if one can preserve the goal. Do not ask the user merely because this route failed.",
+                }),
+            });
+
+            continue;
+          }
+
+          throw error;
         }
-
-        toolCalls += 1;
-
-        await input.hooks?.onCapabilityResult?.({
-          round,
-          capability: capability.name,
-          risk: capability.risk,
-        });
-
-        outputs.push({
-          type: "function_call_output",
-          call_id: call.call_id,
-          output: JSON.stringify({
-            ok: true,
-            result: execution.result,
-          }),
-        });
       }
 
       response = await getOpenAI().responses.create({
