@@ -10,12 +10,6 @@ type RuntimeRow = {
   updated_at: string;
 };
 
-function rowState(
-  row: RuntimeRow | null,
-): ArborRuntimeState | null {
-  return row?.state ?? null;
-}
-
 export async function loadRuntimeState(input: {
   supabase: SupabaseClient;
   userId: string;
@@ -35,39 +29,9 @@ export async function loadRuntimeState(input: {
     throw error;
   }
 
-  const exact = rowState(
-    (data as RuntimeRow | null) ?? null,
-  );
+  if (!data) return null;
 
-  if (exact) return exact;
-
-  return loadLatestRuntimeState(input);
-}
-
-export async function loadLatestRuntimeState(input: {
-  supabase: SupabaseClient;
-  userId: string;
-  projectId: string;
-}): Promise<ArborRuntimeState | null> {
-  const { data, error } = await input.supabase
-    .from("arbor_conversation_state")
-    .select("user_id,project_id,conversation_id,state,updated_at")
-    .eq("user_id", input.userId)
-    .eq("project_id", input.projectId)
-    .order("updated_at", {
-      ascending: false,
-    })
-    .limit(1)
-    .maybeSingle();
-
-  if (error) {
-    if (isMissingRuntimeTable(error)) return null;
-    throw error;
-  }
-
-  return rowState(
-    (data as RuntimeRow | null) ?? null,
-  );
+  return (data as RuntimeRow).state;
 }
 
 export async function saveRuntimeState(input: {
