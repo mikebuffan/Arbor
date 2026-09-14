@@ -615,6 +615,7 @@ describe("Arbor control runtime pass", () => {
         "subsystem_resolved",
         "external_context_checked",
         "completion_checked",
+        "continuity_checkpoint_created",
         "canonical_response_generated",
         "state_and_canonical_turn_persisted",
         "turn_returned",
@@ -847,6 +848,86 @@ describe("Arbor control runtime pass", () => {
       }
 
       expect(acousticIndex).toBeGreaterThan(unresolvedIndex);
+    },
+  );
+
+  it(
+    "persists an exact-resume checkpoint and projects it on the next turn",
+    async () => {
+      const captured: string[] = [];
+
+      const runner: AgencyRunner = async (input) => {
+        captured.push(input.instructions);
+
+        return {
+          status: "complete",
+          text: "ok",
+          state: {
+            ...input.state,
+            unresolvedWork:
+              input.state.unresolvedWork.length
+                ? input.state.unresolvedWork
+                : [
+                    "current priority: verify the recovered controller",
+                    "later: reconcile the other thread",
+                  ],
+          },
+          rounds: 1,
+          toolCalls: 0,
+          researchCalls: 0,
+        };
+      };
+
+      const { store, runtime } =
+        await fixture(runner);
+
+      await runtime.runTurn({
+        projectId:
+          "project-checkpoint",
+        turnId:
+          "checkpoint-one",
+        userText:
+          "restore Arbor",
+      });
+
+      const saved =
+        await store.load(
+          "project:project-checkpoint",
+        );
+
+      expect(
+        saved?.continuityCheckpoint,
+      ).toMatchObject({
+        goal:
+          "restore Arbor",
+        status:
+          "active",
+        exactNextWork:
+          "current priority: verify the recovered controller",
+        continueWithoutPrompt:
+          true,
+      });
+
+      await runtime.runTurn({
+        projectId:
+          "project-checkpoint",
+        turnId:
+          "checkpoint-two",
+        userText:
+          "continue",
+      });
+
+      expect(
+        captured[1],
+      ).toContain(
+        "CONTINUITY CHECKPOINT:",
+      );
+
+      expect(
+        captured[1],
+      ).toContain(
+        "- exact next work: current priority: verify the recovered controller",
+      );
     },
   );
 
