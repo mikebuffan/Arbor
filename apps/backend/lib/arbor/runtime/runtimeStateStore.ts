@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { ArborRuntimeState } from "./runtimeState";
+import { mergeCorrections, type ArborRuntimeState } from "./runtimeState";
 import { isMissingRuntimeTable } from "./missingRuntimeTable";
 
 type RuntimeRow = {
@@ -39,9 +39,25 @@ export async function loadRuntimeState(input: {
     (data as RuntimeRow | null) ?? null,
   );
 
-  if (exact) return exact;
+  if (!exact) {
+    return loadLatestRuntimeState(input);
+  }
 
-  return loadLatestRuntimeState(input);
+  if (meaningfulRuntimeState(exact)) {
+    return exact;
+  }
+
+  const fallback = await loadLatestRuntimeState({
+    supabase: input.supabase,
+    userId: input.userId,
+    projectId: input.projectId,
+  });
+
+  if (!fallback || fallback.conversationId === exact.conversationId) {
+    return exact;
+  }
+
+  return mergeRuntimeFallback(fallback, exact);
 }
 
 export async function loadLatestRuntimeState(input: {
@@ -95,4 +111,70 @@ export async function saveRuntimeState(input: {
     if (isMissingRuntimeTable(error)) return;
     throw error;
   }
+}
+
+
+function meaningfulRuntimeState(state: ArborRuntimeState | null): boolean {
+  if (!state) return false;
+
+  return Boolean(
+    state.currentGoal?.trim() ||
+    state.lastMeaningfulUserTurn?.trim() ||
+    state.lastMeaningfulArborTurn?.trim() ||
+    state.agency?.goal?.trim() ||
+    state.agency?.unresolvedWork?.length ||
+    state.corrections?.length ||
+    state.pendingSelfUpdate
+  );
+}
+
+function mergeRuntimeFallback(
+  fallback: ArborRuntimeState,
+  exact: ArborRuntimeState,
+): ArborRuntimeState {
+  return {
+    ...fallback,
+    ...exact,
+    currentGoal:
+      exact.currentGoal?.trim()
+        ? exact.currentGoal
+        : fallback.currentGoal,
+    lastMeaningfulUserTurn:
+      exact.lastMeaningfulUserTurn?.trim()
+        ? exact.lastMeaningfulUserTurn
+        : fallback.lastMeaningfulUserTurn,
+    lastMeaningfulArborTurn:
+      exact.lastMeaningfulArborTurn?.trim()
+        ? exact.lastMeaningfulArborTurn
+        : fallback.lastMeaningfulArborTurn,
+    agency:
+      exact.agency &&
+      (
+        exact.agency.goal?.trim() ||
+        exact.agency.unresolvedWork?.length ||
+        exact.agency.status === "blocked"
+      )
+        ? exact.agency
+        : fallback.agency,
+    corrections: mergeCorrections(
+      fallback.corrections ?? [],
+      exact.corrections ?? [],
+    ),
+    behaviorProof:
+      exact.behaviorProof ??
+      fallback.behaviorProof,
+    pendingSelfUpdate:
+      exact.pendingSelfUpdate ??
+      fallback.pendingSelfUpdate,
+    // The current conversation/surface remain local even when continuity
+    // falls back to another thread's meaningful state.
+    conversationId: exact.conversationId,
+    channel: exact.channel,
+    activeSubsystem: exact.activeSubsystem,
+    createdAt: exact.createdAt || fallback.createdAt,
+    updatedAt:
+      exact.updatedAt >= fallback.updatedAt
+        ? exact.updatedAt
+        : fallback.updatedAt,
+  };
 }
