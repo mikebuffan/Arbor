@@ -203,7 +203,7 @@ describe("memory project isolation", () => {
     ]);
   });
 
-  it("rejects memories from the wrong project or conversation scope", () => {
+  it("preserves cross-thread continuity inside the project and rejects other projects", () => {
     expect(
       isMemoryInRuntimeScope(
         {
@@ -238,7 +238,7 @@ describe("memory project isolation", () => {
         "project-a",
         "conversation-a",
       ),
-    ).toBe(false);
+    ).toBe(true);
 
     expect(
       isMemoryInRuntimeScope(
@@ -248,9 +248,21 @@ describe("memory project isolation", () => {
           scope: "conversation",
         },
         "project-a",
-        "conversation-a",
+        "conversation-new",
       ),
     ).toBe(true);
+
+    expect(
+      isMemoryInRuntimeScope(
+        {
+          project_id: "project-b",
+          conversation_id: "conversation-b",
+          scope: "conversation",
+        },
+        "project-a",
+        "conversation-new",
+      ),
+    ).toBe(false);
   });
 
   it("requires controlled imports to create projects with the supplied user_id", () => {
