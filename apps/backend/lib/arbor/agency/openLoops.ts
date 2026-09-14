@@ -108,7 +108,11 @@ export function splitAgencyWork(
         marker: value,
         checkpoint,
       });
-    } else {
+    } else if (
+      !value.startsWith(OPEN_LOOP_PREFIX)
+    ) {
+      // A corrupt internal checkpoint must never be promoted into prompt-visible
+      // work. Ignore it and allow the surrounding valid state to continue.
       current.push(value);
     }
   }
@@ -221,7 +225,11 @@ export function restoreMostRecentOpenLoop(
     splitAgencyWork(current.unresolvedWork);
 
   const latest =
-    work.suspended.at(-1);
+    work.suspended.length
+      ? work.suspended[
+          work.suspended.length - 1
+        ]
+      : null;
 
   if (!latest) {
     return null;
