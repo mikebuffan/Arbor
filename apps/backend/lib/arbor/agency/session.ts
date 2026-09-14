@@ -7,6 +7,11 @@ import {
 import { loadRuntimeState } from "../runtime/runtimeStateStore";
 import { resolveAgencyGoal } from "./continuation";
 import { recordStrategyCandidate } from "./strategyRetention";
+import {
+  preserveSuspendedOpenLoops,
+  restoreMostRecentOpenLoop,
+  suspendAgencyIntoWork,
+} from "./openLoops";
 
 function resumableAgency(
   value: AgencyState | null | undefined,
@@ -15,6 +20,72 @@ function resumableAgency(
   return value.status === "active" || value.status === "blocked"
     ? value
     : null;
+}
+
+/**
+ * Pure state transition for a user turn. Keeping this separate from persistence
+ * lets the interruption/resume contract be regression-tested without mocking
+ * Supabase.
+ */
+export function buildAgencySessionState(input: {
+  userText: string;
+  prior: AgencyState | null;
+  checkpointId?: string;
+  now?: string;
+}): AgencyState {
+  const {
+    goal,
+    resume,
+    superseded,
+  } = resolveAgencyGoal(
+    input.userText,
+    input.prior,
+  );
+
+  const foregroundWork =
+    resume && input.prior
+      ? input.prior.unresolvedWork.length
+        ? input.prior.unresolvedWork
+        : [`complete goal: ${input.prior.goal}`]
+      : [`complete goal: ${goal}`];
+
+  // An unrelated foreground turn is an interruption, not implicit cancellation.
+  // Keep the prior live objective as a durable checkpoint unless the user
+  // explicitly superseded it. This restores the old Arbor behavior where a
+  // side question can finish and the exact unfinished job resumes afterward.
+  const unresolvedWork =
+    !resume &&
+    !superseded &&
+    input.prior &&
+    (input.prior.status === "active" ||
+      input.prior.status === "blocked")
+      ? suspendAgencyIntoWork(
+          foregroundWork,
+          input.prior,
+          {
+            id: input.checkpointId,
+            suspendedAt: input.now,
+          },
+        )
+      : foregroundWork;
+
+  return {
+    goal,
+    status: "active",
+    currentStep:
+      resume && input.prior
+        ? input.prior.currentStep
+        : 0,
+    // A newly accepted goal is unfinished until verified otherwise. Persist a
+    // concrete ownership marker immediately so a crash/interruption before the
+    // first tool call cannot turn active work into an empty state.
+    unresolvedWork,
+    recurringWeaknesses:
+      input.prior?.recurringWeaknesses ?? [],
+    strategyNotes:
+      input.prior?.strategyNotes ?? [],
+    blocker: null,
+  };
 }
 
 export async function beginAgencySession(input: {
@@ -44,25 +115,11 @@ export async function beginAgencySession(input: {
     resumableAgency(projectAgency) ??
     projectAgency;
 
-  const { goal, resume } = resolveAgencyGoal(input.userText, prior);
-
-  const agency: AgencyState = {
-    goal,
-    status: "active",
-    currentStep: resume && prior ? prior.currentStep : 0,
-    // A newly accepted goal is unfinished until verified otherwise. Persist a
-    // concrete ownership marker immediately so a crash/interruption before the
-    // first tool call cannot turn active work into an empty state.
-    unresolvedWork:
-      resume && prior
-        ? prior.unresolvedWork.length
-          ? prior.unresolvedWork
-          : [`complete goal: ${prior.goal}`]
-        : [`complete goal: ${goal}`],
-    recurringWeaknesses: prior?.recurringWeaknesses ?? [],
-    strategyNotes: prior?.strategyNotes ?? [],
-    blocker: null,
-  };
+  const agency =
+    buildAgencySessionState({
+      userText: input.userText,
+      prior,
+    });
 
   await persistAgencyState({
     ...input,
@@ -93,8 +150,15 @@ export async function recordAgencyProgress(input: {
     ...input.agency,
     status: "active",
     currentStep: input.step,
+    // Progress updates replace only the foreground step. Suspended objectives
+    // are host-owned continuity and must survive tool/verification callbacks.
     unresolvedWork:
-      input.unresolvedWork ?? input.agency.unresolvedWork,
+      input.unresolvedWork === undefined
+        ? input.agency.unresolvedWork
+        : preserveSuspendedOpenLoops(
+            input.agency.unresolvedWork,
+            input.unresolvedWork,
+          ),
     recurringWeaknesses: input.recurringWeakness
       ? [
           ...input.agency.recurringWeaknesses,
@@ -129,7 +193,11 @@ export async function blockAgencySession(input: {
     ...input.agency,
     status: "blocked",
     blocker: input.blocker,
-    unresolvedWork: input.unresolvedWork,
+    unresolvedWork:
+      preserveSuspendedOpenLoops(
+        input.agency.unresolvedWork,
+        input.unresolvedWork,
+      ),
   };
 
   await persistAgencyState({
@@ -149,14 +217,25 @@ export async function completeAgencySession(input: {
   agency: AgencyState;
   verified: boolean;
 }): Promise<AgencyState> {
-  const next: AgencyState = {
-    ...input.agency,
-    status: input.verified ? "complete" : "active",
-    unresolvedWork: input.verified
-      ? []
-      : input.agency.unresolvedWork,
-    blocker: null,
-  };
+  // Verification closes only the foreground objective. If that foreground turn
+  // interrupted earlier work, pop the newest checkpoint and resume it instead
+  // of erasing the project-level open loop.
+  const restored =
+    input.verified
+      ? restoreMostRecentOpenLoop(
+          input.agency,
+        )
+      : null;
+
+  const next: AgencyState =
+    restored ?? {
+      ...input.agency,
+      status: input.verified ? "complete" : "active",
+      unresolvedWork: input.verified
+        ? []
+        : input.agency.unresolvedWork,
+      blocker: null,
+    };
 
   await persistAgencyState({
     supabase: input.supabase,
