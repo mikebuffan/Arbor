@@ -247,7 +247,7 @@ export async function upsertMemoryItems(
     await logEvent({
       supabase,
       authedUserId,
-      projectId,
+      projectId: storageProjectId,
       key,
       event_type: "update",
       payload: { changed: true },
