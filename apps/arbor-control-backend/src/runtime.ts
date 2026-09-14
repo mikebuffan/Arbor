@@ -28,6 +28,11 @@ import {
   detectRuntimeCorrectionKind,
 } from "./correctionDetection.js";
 import {
+  buildCarrierInjection,
+  mergeCarrierState,
+  uniqueNewest,
+} from "./carrierPolicy.js";
+import {
   ARBOR_CORE_INJECTION,
 } from "./identity.js";
 import {
@@ -1237,90 +1242,6 @@ export class ArborControlRuntime {
         detail,
       });
   }
-}
-
-function mergeCarrierState(
-  projectState: ArborState,
-  localState: ArborState,
-): ArborState {
-  const localGoal = localState.goal?.trim() || null;
-  const projectGoal = projectState.goal?.trim() || null;
-  const sameGoal =
-    Boolean(localGoal) &&
-    Boolean(projectGoal) &&
-    localGoal === projectGoal;
-
-  const goal = localGoal ?? projectGoal;
-
-  const unresolvedWork =
-    localGoal && !sameGoal
-      ? uniqueRecent(localState.unresolvedWork)
-      : uniqueRecent([
-          ...projectState.unresolvedWork,
-          ...localState.unresolvedWork,
-        ]);
-
-  const mergeById = <T extends { id: string }>(
-    projectValues: T[] | undefined,
-    localValues: T[] | undefined,
-  ): T[] | undefined => {
-    const values = [
-      ...(projectValues ?? []),
-      ...(localValues ?? []),
-    ];
-    if (!values.length) return undefined;
-
-    const byId = new Map<string, T>();
-    for (const value of values) {
-      byId.set(value.id, value);
-    }
-    return [...byId.values()];
-  };
-
-  return ensureSelfModelIdentity({
-    ...projectState,
-    ...localState,
-    goal,
-    unresolvedWork,
-    strategyNotes: uniqueRecent([
-      ...projectState.strategyNotes,
-      ...localState.strategyNotes,
-    ]),
-    strategyCandidates:
-      localState.strategyCandidates?.length
-        ? localState.strategyCandidates
-        : projectState.strategyCandidates,
-    recoveryRouteStats:
-      localState.recoveryRouteStats?.length
-        ? localState.recoveryRouteStats
-        : projectState.recoveryRouteStats,
-    behavioralCorrections: uniqueRecent([
-      ...(projectState.behavioralCorrections ?? []),
-      ...(localState.behavioralCorrections ?? []),
-    ]),
-    acousticCorrections: uniqueRecent([
-      ...projectState.acousticCorrections,
-      ...localState.acousticCorrections,
-    ]),
-    selfModel:
-      localState.selfModel ??
-      projectState.selfModel,
-    selfModelObservations: mergeById(
-      projectState.selfModelObservations,
-      localState.selfModelObservations,
-    ),
-    selfModelMigrations: mergeById(
-      projectState.selfModelMigrations,
-      localState.selfModelMigrations,
-    ),
-    annabelle:
-      localState.annabelle ??
-      projectState.annabelle,
-    annabelleRevisions: mergeById(
-      projectState.annabelleRevisions,
-      localState.annabelleRevisions,
-    ),
-  });
 }
 
 function requestFingerprint(
