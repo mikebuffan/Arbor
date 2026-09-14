@@ -1,6 +1,9 @@
 import type {
   ArborRecoveryRouteStats,
 } from "./agencyRecovery/routeLearning.js";
+import type {
+  CognitionEvidenceEvent,
+} from "./cognition/evidence.js";
 
 export type ArborSubsystem = "arbor" | "annabelle";
 export type ArborChannel = "text" | "voice";
@@ -18,6 +21,7 @@ export type StrategyCandidate = {
   successes: number;
   failures: number;
   status: "candidate" | "retained" | "reverted";
+  evidenceEvents?: CognitionEvidenceEvent[];
 };
 
 export type AnnabelleWorkspaceState = {
