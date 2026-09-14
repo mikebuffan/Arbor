@@ -1,3 +1,7 @@
+import {
+  suspendForForeground,
+  supersedeForeground,
+} from "./openLoops.js";
 import type {
   ArborState,
 } from "./types.js";
@@ -15,45 +19,15 @@ const FOLLOWUP_SIGNAL =
   /\b(?:it|that|this|those|them|again|still|next|then|same|continue|resume|proceed|tests?|code|permission|permissions|access|authorization|connected|reconnected|handled)\b/i;
 
 const STOPWORDS = new Set([
-  "about",
-  "after",
-  "again",
-  "also",
-  "been",
-  "being",
-  "could",
-  "does",
-  "doing",
-  "from",
-  "have",
-  "into",
-  "just",
-  "make",
-  "more",
-  "need",
-  "please",
-  "should",
-  "that",
-  "their",
-  "there",
-  "these",
-  "they",
-  "this",
-  "those",
-  "through",
-  "want",
-  "what",
-  "when",
-  "where",
-  "which",
-  "with",
-  "would",
-  "your",
+  "about", "after", "again", "also", "been", "being", "could", "does",
+  "doing", "from", "have", "into", "just", "make", "more", "need",
+  "please", "should", "that", "their", "there", "these", "they", "this",
+  "those", "through", "want", "what", "when", "where", "which", "with",
+  "would", "your",
 ]);
 
 export function hasLiveArborGoal(
-  prior:
-    ArborState | null,
+  prior: ArborState | null,
 ): prior is ArborState {
   return Boolean(
     prior?.goal?.trim() &&
@@ -62,8 +36,7 @@ export function hasLiveArborGoal(
 }
 
 export function explicitlyContinues(
-  userText:
-    string,
+  userText: string,
 ): boolean {
   return EXPLICIT_CONTINUATION.test(
     userText.trim(),
@@ -71,8 +44,7 @@ export function explicitlyContinues(
 }
 
 export function explicitlySupersedes(
-  userText:
-    string,
+  userText: string,
 ): boolean {
   return EXPLICIT_SWITCH.test(
     userText.trim(),
@@ -80,8 +52,7 @@ export function explicitlySupersedes(
 }
 
 export function explicitlyClosesGoal(
-  userText:
-    string,
+  userText: string,
 ): boolean {
   return COMPLETION_LANGUAGE.test(
     userText.trim(),
@@ -107,15 +78,11 @@ function sharesGoalContext(
   userText: string,
   goal: string,
 ): boolean {
-  const userWords =
-    significantWords(userText);
-  const goalWords =
-    significantWords(goal);
+  const userWords = significantWords(userText);
+  const goalWords = significantWords(goal);
 
   for (const word of userWords) {
-    if (goalWords.has(word)) {
-      return true;
-    }
+    if (goalWords.has(word)) return true;
   }
 
   return false;
@@ -125,12 +92,9 @@ function looksLikeContinuationFollowup(
   userText: string,
   prior: ArborState,
 ): boolean {
-  const text =
-    userText.trim();
+  const text = userText.trim();
 
-  if (FOLLOWUP_SIGNAL.test(text)) {
-    return true;
-  }
+  if (FOLLOWUP_SIGNAL.test(text)) return true;
 
   return sharesGoalContext(
     text,
@@ -138,85 +102,80 @@ function looksLikeContinuationFollowup(
   );
 }
 
+function replaceStateInPlace(
+  target: ArborState,
+  next: ArborState,
+): void {
+  for (const key of Object.keys(target) as Array<keyof ArborState>) {
+    delete (target as any)[key];
+  }
+  Object.assign(target, next);
+}
+
+/**
+ * Compatibility note: the existing runtime asks this function only for a
+ * boolean. To avoid a risky runtime rewrite, this policy also prepares the
+ * host-owned transition on the freshly-loaded mutable state object. Related
+ * follow-ups leave it untouched; unrelated turns suspend the old objective;
+ * explicit switches clear the old stack.
+ */
 export function shouldCarryGoal(
-  userText:
-    string,
-  prior:
-    ArborState | null,
+  userText: string,
+  prior: ArborState | null,
 ): boolean {
-  if (
-    !hasLiveArborGoal(
+  if (!hasLiveArborGoal(prior)) {
+    return false;
+  }
+
+  if (explicitlySupersedes(userText)) {
+    replaceStateInPlace(
       prior,
-    )
-  ) {
+      supersedeForeground(
+        prior,
+        userText,
+      ),
+    );
     return false;
   }
 
-  if (
-    explicitlySupersedes(
-      userText,
-    )
-  ) {
-    return false;
-  }
-
-  if (
-    explicitlyContinues(
-      userText,
-    )
-  ) {
+  if (explicitlyContinues(userText)) {
     return true;
   }
 
-  return looksLikeContinuationFollowup(
-    userText,
+  if (looksLikeContinuationFollowup(userText, prior)) {
+    return true;
+  }
+
+  replaceStateInPlace(
     prior,
+    suspendForForeground(
+      prior,
+      userText,
+    ),
   );
+
+  return false;
 }
 
 export function mergeUnresolvedWork(
-  existing:
-    string[],
-  incoming:
-    string[],
+  existing: string[],
+  incoming: string[],
 ): string[] {
   return Array.from(
     new Set(
-      [
-        ...existing,
-        ...incoming,
-      ]
-        .map(
-          (item) =>
-            item.trim(),
-        )
-        .filter(
-          Boolean,
-        ),
+      [...existing, ...incoming]
+        .map((item) => item.trim())
+        .filter(Boolean),
     ),
   );
 }
 
 export function newestNonEmpty(
-  ...values:
-    Array<
-      string |
-      null |
-      undefined
-    >
+  ...values: Array<string | null | undefined>
 ): string | null {
-  for (
-    const value
-    of values
-  ) {
-    const trimmed =
-      value?.trim();
-
-    if (
-      trimmed
-    ) {
-      return trimmed;
-    }
+  for (const value of values) {
+    const trimmed = value?.trim();
+    if (trimmed) return trimmed;
   }
 
   return null;
