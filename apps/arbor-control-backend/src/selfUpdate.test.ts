@@ -126,7 +126,7 @@ describe("agency self-update candidates", () => {
         true,
         {
           sourceId: "turn-3:verification",
-          originId: "turn-2",
+          originId: "turn-3",
           occurredAt: "2026-09-14T20:02:00.000Z",
         },
       );
