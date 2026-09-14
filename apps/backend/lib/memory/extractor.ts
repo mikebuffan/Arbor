@@ -261,9 +261,11 @@ export async function extractMemoryFromText(params: {
       - Extract durable facts, preferences, projects, constraints, and instructions that will remain useful later.
 
       SCOPING:
-      - scope="conversation": personal facts, preferences, ongoing projects, boundaries.
-      - scope="global": instructions/rules about how the assistant should behave (persona, tone, safety rules, style constraints).
-      - scope="project": facts that are about a shared project (e.g. Arbor app architecture), not the user's private life.
+      - scope="global": stable personal facts, durable preferences, relationship context, names/address preferences, recurring routines, boundaries, and user-level instructions that should survive a new thread.
+      - scope="project": facts, decisions, open loops, canon, implementation state, or priorities that belong to the current shared project/artifact/world.
+      - scope="conversation": only genuinely thread-local or temporary context that should not follow the user into another conversation.
+      - Sensitive content may still be global/project when genuinely durable, but it MUST remain tier="sensitive" and user_trigger_only=true so scope never bypasses reveal gating.
+      - Do not make ordinary personal facts project-scoped merely because this conversation belongs to a project.
 
       STRICT RULES:
       - Do not invent.
