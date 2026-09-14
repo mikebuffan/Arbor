@@ -155,7 +155,7 @@ export async function loadRecentMessages(
     .eq("conversation_id", conversationId)
     .is("deleted_at", null)
     .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
-    .order("created_at", { ascending: true })
+    .order("created_at", { ascending: false })
     .limit(limit);
 
   if (error) throw error;
@@ -163,10 +163,12 @@ export async function loadRecentMessages(
     role: Msg["role"];
     content: string;
   }>;
-  return messages.map((message) => ({
-    role: message.role,
-    content: message.content,
-  }));
+  return messages
+    .reverse()
+    .map((message) => ({
+      role: message.role,
+      content: message.content,
+    }));
 }
 
 async function cleanupExpiredMessagesBestEffort(
