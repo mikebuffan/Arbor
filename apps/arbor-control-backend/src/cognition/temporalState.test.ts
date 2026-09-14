@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import type { CognitionEvidenceEvent } from "./evidence";
-import { resolveTemporalState } from "./temporalState";
+import type { CognitionEvidenceEvent } from "./evidence.js";
+import { resolveTemporalState } from "./temporalState.js";
 
 function evidence(
   evidenceClass: CognitionEvidenceEvent["evidenceClass"],
