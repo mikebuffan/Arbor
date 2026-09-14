@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { buildCarrierInjection, mergeCarrierState } from "./carrierPolicy.js";
+import { buildCarrierInjection, mergeCarrierState, uniqueNewest } from "./carrierPolicy.js";
 import type { ArborState } from "./types.js";
 
 const project: ArborState = {
@@ -46,3 +46,6 @@ assert.match(injection, /UNRESOLVED WORK/);
 assert.match(injection, /Identity -> valid corrections -> active goal\/open loops -> agency -> task\/subsystem/);
 
 console.log("PASS carrier policy");
+
+assert.deepEqual(uniqueNewest(["Keep going", "keep   going", "Newest correction"]), ["keep going", "Newest correction"]);
+console.log("PASS newest-valid correction precedence");
