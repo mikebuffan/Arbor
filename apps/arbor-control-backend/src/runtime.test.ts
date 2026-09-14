@@ -249,6 +249,98 @@ describe("Arbor control runtime pass", () => {
   );
 
   it(
+    "carries an unfinished goal through an ordinary follow-up without a magic continuation phrase",
+    async () => {
+      const calls: Array<{
+        userText: string;
+        goal: string | null;
+        subsystem: string;
+        history: string[];
+      }> = [];
+
+      const { store, runtime } = await fixture(
+        createRunner(calls),
+      );
+
+      const state: ArborState = {
+        activeSubsystem: "arbor",
+        goal: "repair longitudinal memory",
+        unresolvedWork: [
+          "verify Text to Voice continuity",
+        ],
+        strategyNotes: [],
+        acousticCorrections: [],
+        voiceId: "cedar",
+      };
+
+      await store.save(
+        "project:project-1",
+        state,
+      );
+
+      await runtime.runTurn({
+        projectId: "project-1",
+        turnId: "turn-follow-up",
+        userText:
+          "Make sure the corrections carry into voice too",
+      });
+
+      expect(
+        calls[0]?.goal,
+      ).toBe(
+        "repair longitudinal memory",
+      );
+    },
+  );
+
+  it(
+    "allows an explicit task switch to supersede unfinished work",
+    async () => {
+      const calls: Array<{
+        userText: string;
+        goal: string | null;
+        subsystem: string;
+        history: string[];
+      }> = [];
+
+      const { store, runtime } = await fixture(
+        createRunner(calls),
+      );
+
+      const state: ArborState = {
+        activeSubsystem: "arbor",
+        goal: "repair longitudinal memory",
+        unresolvedWork: [
+          "verify Text to Voice continuity",
+        ],
+        strategyNotes: [],
+        acousticCorrections: [],
+        voiceId: "cedar",
+      };
+
+      await store.save(
+        "project:project-1",
+        state,
+      );
+
+      const newTask =
+        "Switch to a new task: explain the deployment failure";
+
+      await runtime.runTurn({
+        projectId: "project-1",
+        turnId: "turn-switch",
+        userText: newTask,
+      });
+
+      expect(
+        calls[0]?.goal,
+      ).toBe(
+        newTask,
+      );
+    },
+  );
+
+  it(
     "continues when the Mike/Nox read-only bridge is unavailable",
     async () => {
       const brokenBridge: ArborBackendBridge = {
