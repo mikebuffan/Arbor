@@ -17,6 +17,23 @@ const ScopeSchema = z
   .optional()
   .default("conversation");
 
+const MemoryKindSchema = z
+  .enum([
+    "fact",
+    "preference",
+    "anchor",
+    "project_fact",
+    "relationship",
+    "obligation",
+    "stressor",
+    "state",
+    "correction",
+    "pattern_candidate",
+    "pattern",
+  ])
+  .optional()
+  .default("fact");
+
 const MemoryItemSchema = z.object({
   key: z.string().min(3),
   value: ValueSchema,
@@ -25,6 +42,8 @@ const MemoryItemSchema = z.object({
   user_trigger_only: z.boolean().optional().default(false),
   importance: z.number().int().min(1).max(10).optional().default(5),
   confidence: z.number().min(0).max(1).optional().default(0.85),
+  memory_kind: MemoryKindSchema,
+  salience: z.number().min(0).max(1).optional().default(0.5),
 });
 
 const ExtractionSchema = z.object({
@@ -272,6 +291,11 @@ export async function extractMemoryFromText(params: {
       - Ignore "Processing image", system boilerplate, and raw tool-call JSON unless the user explicitly endorsed it as a preference or instruction.
       - Prefer fewer, higher-signal items.
       - Avoid duplicates.
+      - Use memory_kind="pattern_candidate" only for a behavior, correction tendency, recurring response preference, recurring friction pattern, or repeated user strategy that could matter across future turns.
+      - A single ordinary fact is NOT a pattern candidate.
+      - If the user explicitly describes a stable recurring tendency ("I always...", "you keep...", "every time..."), a pattern_candidate may be emitted on first capture; recurrence is verified later by storage logic.
+      - Never emit memory_kind="pattern" directly. Promotion is owned by deterministic storage code.
+      - salience means how much the item should matter to future behavior, not how certain it is.
       - If one large complex idea appears, split it into multiple smaller items instead of nesting deeply.
 
       VALUE RULES:
@@ -300,14 +324,16 @@ export async function extractMemoryFromText(params: {
             "scope": "conversation",
             "user_trigger_only": false,
             "importance": 6,
-            "confidence": 0.9
+            "confidence": 0.9,
+            "memory_kind": "preference",
+            "salience": 0.7
           }
         ]
       }
 
       ADDITIONAL OUTPUT CONSTRAINTS:
-      - Every item must contain all 7 fields exactly:
-        key, value, tier, scope, user_trigger_only, importance, confidence
+      - Every item must contain all 9 fields exactly:
+        key, value, tier, scope, user_trigger_only, importance, confidence, memory_kind, salience
       - No comments
       - No markdown
       - No code fences
