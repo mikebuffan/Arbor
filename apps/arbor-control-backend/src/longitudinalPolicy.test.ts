@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  explicitlyClosesGoal,
   explicitlyContinues,
   rankUnresolvedWork,
   scoreOpenLoopRelevance,
@@ -53,6 +54,19 @@ describe("recovered longitudinal open-loop policy", () => {
     ).toBe(true);
   });
 
+  it("closes the active goal only on explicit completion language", () => {
+    expect(explicitlyClosesGoal("done")).toBe(true);
+    expect(explicitlyClosesGoal("that is done")).toBe(true);
+    expect(explicitlyClosesGoal("I fixed the import and still need to run CI")).toBe(false);
+
+    expect(
+      shouldCarryGoal(
+        "done",
+        state(),
+      ),
+    ).toBe(false);
+  });
+
   it("allows an explicit branch switch to supersede unfinished work", () => {
     expect(
       shouldCarryGoal(
@@ -76,14 +90,16 @@ describe("recovered longitudinal open-loop policy", () => {
     ).toBe(0);
   });
 
-  it("ranks unfinished/open-loop work ahead of unrelated work", () => {
+  it("ranks explicit current priority above ordinary open loops and unrelated work", () => {
     expect(
       rankUnresolvedWork([
         "ordinary background note",
+        "still needs final verification",
         "current priority: finish cognition integration",
       ]),
     ).toEqual([
       "current priority: finish cognition integration",
+      "still needs final verification",
       "ordinary background note",
     ]);
   });
