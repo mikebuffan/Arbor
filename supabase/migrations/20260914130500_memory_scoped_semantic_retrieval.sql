@@ -1,5 +1,5 @@
--- Restore query-aware memory retrieval while preserving strict runtime scope.
--- Replaces the legacy user-only vector RPC with project/conversation-aware semantics.
+-- Restore query-aware memory retrieval while preserving project isolation and cross-thread continuity.
+-- Replaces the legacy user-only vector RPC with project-aware semantics; conversation_id remains provenance/priority metadata under the current user+key uniqueness contract.
 
 drop function if exists public.match_memory_items(
   boolean,
@@ -97,13 +97,6 @@ as $function$
         p_project_id is not null
         and m.scope = 'conversation'
         and m.project_id = p_project_id
-        and (
-          m.conversation_id is null
-          or (
-            p_conversation_id is not null
-            and m.conversation_id = p_conversation_id
-          )
-        )
       )
     )
   order by m.embedding <=> p_query_embedding asc
