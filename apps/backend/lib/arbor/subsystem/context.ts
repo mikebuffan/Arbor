@@ -81,6 +81,27 @@ export type ArborInjectedContext = {
   systemInjection: string;
 };
 
+export function composeArborSystemInjection(input: {
+  activeSubsystem: ArborSubsystem;
+  canonicalSelfModelBlock: string;
+  runtimeBlock?: string;
+  annabelleWorkspaceBlock?: string;
+  agencyBlock?: string;
+}): string {
+  return [
+    CORE_RULES,
+    input.canonicalSelfModelBlock,
+    input.activeSubsystem === "annabelle"
+      ? ANNABELLE_RULES
+      : ARBOR_RULES,
+    input.runtimeBlock ?? "",
+    input.annabelleWorkspaceBlock ?? "",
+    input.agencyBlock ?? "",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
 export function agencyToPromptBlock(
   agency: AgencyState | null,
 ): string {
@@ -202,18 +223,13 @@ export async function buildArborInjectedContext(input: {
     acousticCorrections:
       state
         .acousticCorrections,
-    systemInjection: [
-      CORE_RULES,
-      canonicalSelfModelBlock,
-      activeSubsystem ===
-      "annabelle"
-        ? ANNABELLE_RULES
-        : ARBOR_RULES,
-      runtimeBlock,
-      annabelleWorkspaceBlock,
-      agencyBlock,
-    ]
-      .filter(Boolean)
-      .join("\n\n"),
+    systemInjection:
+      composeArborSystemInjection({
+        activeSubsystem,
+        canonicalSelfModelBlock,
+        runtimeBlock,
+        annabelleWorkspaceBlock,
+        agencyBlock,
+      }),
   };
 }
