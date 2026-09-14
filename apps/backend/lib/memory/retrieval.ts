@@ -146,7 +146,7 @@ async function directMemoryFallback(input: {
   return (data ?? [])
     .filter(isLiveRow)
     .map(normalizeRow)
-    .filter((item) =>
+    .filter((item: RetrievedMemoryItem) =>
       isMemoryInProjectScope(item, input.projectId),
     );
 }
@@ -197,11 +197,11 @@ export async function getMemoryContext(params: {
       items = (data ?? [])
         .filter(isLiveRow)
         .map(normalizeRow)
-        .filter((item) =>
+        .filter((item: RetrievedMemoryItem) =>
           isMemoryInProjectScope(item, projectId),
         )
         .sort(
-          (a, b) =>
+          (a: RetrievedMemoryItem, b: RetrievedMemoryItem) =>
             memoryStabilityScore(b) -
             memoryStabilityScore(a),
         )
