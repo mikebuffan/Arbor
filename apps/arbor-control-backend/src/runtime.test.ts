@@ -615,6 +615,7 @@ describe("Arbor control runtime pass", () => {
         "subsystem_resolved",
         "external_context_checked",
         "completion_checked",
+        "pre_response_control_audit",
         "continuity_checkpoint_created",
         "canonical_response_generated",
         "state_and_canonical_turn_persisted",
@@ -928,6 +929,73 @@ describe("Arbor control runtime pass", () => {
       ).toContain(
         "- exact next work: current priority: verify the recovered controller",
       );
+    },
+  );
+
+  it(
+    "does not checkpoint false completion as complete when unresolved work remains",
+    async () => {
+      const runner: AgencyRunner = async (input) => ({
+        status: "complete",
+        text: "I am done.",
+        state: {
+          ...input.state,
+          unresolvedWork: [
+            "current priority: run final verification",
+          ],
+        },
+        rounds: 1,
+        toolCalls: 0,
+        researchCalls: 0,
+      });
+
+      const { store, runtime, audit } =
+        await fixture(runner);
+
+      await runtime.runTurn({
+        projectId:
+          "project-false-completion",
+        turnId:
+          "turn-false-completion",
+        userText:
+          "continue",
+      });
+
+      const saved =
+        await store.load(
+          "project:project-false-completion",
+        );
+
+      expect(
+        saved?.continuityCheckpoint?.status,
+      ).toBe(
+        "active",
+      );
+
+      expect(
+        saved?.continuityCheckpoint?.continueWithoutPrompt,
+      ).toBe(
+        true,
+      );
+
+      const events =
+        await audit.recent(
+          50,
+        );
+
+      const precheck =
+        events.find(
+          (event) =>
+            event.event ===
+            "pre_response_control_audit",
+        );
+
+      expect(
+        precheck?.detail,
+      ).toMatchObject({
+        approved:
+          false,
+      });
     },
   );
 
