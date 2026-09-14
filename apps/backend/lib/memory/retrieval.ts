@@ -240,9 +240,9 @@ export async function getMemoryContext(params: {
         )
         .slice(0, 30);
     } catch (error) {
+      void error;
       console.warn(
         "[memory:retrieval] vector fallback",
-        error,
       );
 
       items = await directMemoryFallback({
