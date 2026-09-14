@@ -45,7 +45,7 @@ export async function processConversationImportBatch(params?: {
   const { data: pendingJob, error: jobReadError } =
     await admin
       .from("system_jobs")
-      .select("id,type,status,payload,created_at")
+      .select("id,type,status,payload,created_at,retry_count")
       .eq("type", "import_conversations")
       .in("status", ["pending", "running"])
       .order("created_at", { ascending: true })
