@@ -780,6 +780,7 @@ export async function POST(req: Request) {
               injectedMemoryKeys,
               projectId,
               supabase,
+              convoId,
             );
           }
 
