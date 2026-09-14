@@ -1,8 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { embedText } from "@/lib/memory/embeddings";
 
 export type RetrievedMemoryItem = {
   id: string;
   project_id: string | null;
+  conversation_id?: string | null;
   key: string;
   value: Record<string, any>;
   tier: "core" | "normal" | "sensitive";
@@ -34,7 +36,10 @@ function toPlainObject(value: any): Record<string, any> {
   return {};
 }
 
-function contentTextForRow(row: { key?: string | null; value?: any }) {
+function contentTextForRow(row: { key?: string | null; value?: any; content_text?: string | null }) {
+  const provided = typeof row.content_text === "string" ? row.content_text.trim() : "";
+  if (provided) return provided;
+
   const value = toPlainObject(row.value);
   const explicit = typeof value.text === "string" ? value.text.trim() : "";
   if (explicit) return explicit;
@@ -47,6 +52,7 @@ function normalizeRow(row: any): RetrievedMemoryItem {
   return {
     id: String(row.id),
     project_id: row.project_id ? String(row.project_id) : null,
+    conversation_id: row.conversation_id ? String(row.conversation_id) : null,
     key: String(row.key ?? "").trim(),
     value: toPlainObject(row.value),
     tier: (row.tier ?? (row.pinned ? "core" : "normal")) as RetrievedMemoryItem["tier"],
@@ -70,6 +76,27 @@ function isLiveRow(row: any) {
   return row && row.status === "active" && row.deleted_at == null;
 }
 
+export function isMemoryInRuntimeScope(
+  item: Pick<RetrievedMemoryItem, "project_id" | "conversation_id" | "scope">,
+  projectId: string | null,
+  conversationId: string | null,
+) {
+  if (item.scope === "global") {
+    return item.project_id == null;
+  }
+
+  if (item.scope === "project") {
+    return projectId !== null && item.project_id === projectId;
+  }
+
+  return (
+    projectId !== null &&
+    conversationId !== null &&
+    item.project_id === projectId &&
+    item.conversation_id === conversationId
+  );
+}
+
 export function isMemoryInProjectScope(
   item: Pick<RetrievedMemoryItem, "project_id" | "scope">,
   projectId: string | null,
@@ -79,10 +106,20 @@ export function isMemoryInProjectScope(
   return item.project_id == null;
 }
 
+function dedupeById(items: RetrievedMemoryItem[]) {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    if (seen.has(item.id)) return false;
+    seen.add(item.id);
+    return true;
+  });
+}
+
 export async function getMemoryContext(params: {
   supabase: SupabaseClient;
   authedUserId: string;
   projectId?: string | null;
+  conversationId?: string | null;
   latestUserText: string;
   useVectorSearch?: boolean;
   useCache?: boolean;
@@ -90,7 +127,8 @@ export async function getMemoryContext(params: {
   const {
     supabase,
     authedUserId,
-    projectId,
+    projectId = null,
+    conversationId = null,
     latestUserText,
     useVectorSearch = false,
   } = params;
@@ -98,15 +136,8 @@ export async function getMemoryContext(params: {
   // Compatibility input only. Retrieval caching is disabled until correction,
   // upsert, deletion, and cross-instance invalidation are all proven safe.
   void params.useCache;
-  // The live match_memory_items RPC accepts a user ID but neither accepts a
-  // project ID nor returns project_id. Until that contract is corrected under
-  // an approved migration, vector results cannot be safely project-filtered.
-  void latestUserText;
-  void useVectorSearch;
 
-  let items: RetrievedMemoryItem[] = [];
-
-  let q = supabase
+  let fallbackQuery = supabase
     .from("memory_items")
     .select(
       "id, user_id, project_id, conversation_id, key, value, tier, scope, user_trigger_only, importance, confidence, locked, pinned, status, deleted_at, last_seen_at, last_reinforced_at, updated_at"
@@ -114,22 +145,52 @@ export async function getMemoryContext(params: {
     .eq("user_id", authedUserId)
     .is("deleted_at", null)
     .eq("status", "active")
+    .or("pinned.eq.true,locked.eq.true,tier.eq.core")
     .order("pinned", { ascending: false })
     .order("importance", { ascending: false })
     .order("last_reinforced_at", { ascending: false })
-    .limit(50);
+    .limit(32);
 
   if (projectId) {
-    q = q.or(`project_id.eq.${projectId},scope.eq.global`);
+    fallbackQuery = fallbackQuery.or(`project_id.eq.${projectId},scope.eq.global`);
+  } else {
+    fallbackQuery = fallbackQuery.is("project_id", null);
   }
 
-  const { data, error } = await q;
-  if (error) throw error;
+  const { data: fallbackData, error: fallbackError } = await fallbackQuery;
+  if (fallbackError) throw fallbackError;
 
-  items = (data ?? [])
+  let vectorRows: any[] = [];
+
+  const canVectorSearch =
+    useVectorSearch &&
+    latestUserText.trim().length >= 8;
+
+  if (canVectorSearch) {
+    const queryEmbedding = await embedText(latestUserText);
+
+    const { data, error } = await supabase.rpc("match_memory_items", {
+      p_include_user_trigger_only: false,
+      p_match_count: 40,
+      p_project_id: projectId,
+      p_conversation_id: conversationId,
+      p_query_embedding: queryEmbedding,
+      p_tiers: ["core", "normal", "sensitive"],
+      p_user_id: authedUserId,
+    });
+
+    if (error) throw error;
+    vectorRows = data ?? [];
+  }
+
+  const items = dedupeById([
+    ...(fallbackData ?? []).map(normalizeRow),
+    ...vectorRows.map(normalizeRow),
+  ])
     .filter(isLiveRow)
-    .map(normalizeRow)
-    .filter((item) => isMemoryInProjectScope(item, projectId ?? null));
+    .filter((item) =>
+      isMemoryInRuntimeScope(item, projectId, conversationId),
+    );
 
   const result: MemoryContextResult = {
     core: items.filter((i) => i.tier === "core" || i.pinned),
