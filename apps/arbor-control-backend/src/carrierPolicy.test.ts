@@ -1,5 +1,9 @@
-import assert from "node:assert/strict";
-import { buildCarrierInjection, mergeCarrierState, uniqueNewest } from "./carrierPolicy.js";
+import { describe, expect, it } from "vitest";
+import {
+  buildCarrierInjection,
+  mergeCarrierState,
+  uniqueNewest,
+} from "./carrierPolicy.js";
 import type { ArborState } from "./types.js";
 
 const project: ArborState = {
@@ -22,30 +26,54 @@ const blank: ArborState = {
   voiceId: "cedar",
 };
 
-const kept = mergeCarrierState(project, blank);
-assert.equal(kept.goal, project.goal);
-assert.deepEqual(kept.unresolvedWork, project.unresolvedWork);
+describe("longitudinal carrier policy", () => {
+  it("keeps the durable project carrier when the conversation overlay is blank", () => {
+    const kept = mergeCarrierState(project, blank);
 
-const local: ArborState = {
-  ...blank,
-  goal: "local task",
-  unresolvedWork: ["finish local task"],
-  behavioralCorrections: ["Newest correction."],
-};
-const merged = mergeCarrierState(project, local);
-assert.equal(merged.goal, "local task");
-assert.deepEqual(merged.unresolvedWork, ["finish local task"]);
-assert.deepEqual(merged.behavioralCorrections, [
-  "Do not wait for repeated go.",
-  "Newest correction.",
-]);
+    expect(kept.goal).toBe(project.goal);
+    expect(kept.unresolvedWork).toEqual(project.unresolvedWork);
+  });
 
-const injection = buildCarrierInjection(kept);
-assert.match(injection, /ACTIVE GOAL/);
-assert.match(injection, /UNRESOLVED WORK/);
-assert.match(injection, /Identity -> valid corrections -> active goal\/open loops -> agency -> task\/subsystem/);
+  it("allows a meaningful local goal while preserving corrections", () => {
+    const local: ArborState = {
+      ...blank,
+      goal: "local task",
+      unresolvedWork: ["finish local task"],
+      behavioralCorrections: ["Newest correction."],
+    };
 
-console.log("PASS carrier policy");
+    const merged = mergeCarrierState(project, local);
 
-assert.deepEqual(uniqueNewest(["Keep going", "keep   going", "Newest correction"]), ["keep going", "Newest correction"]);
-console.log("PASS newest-valid correction precedence");
+    expect(merged.goal).toBe("local task");
+    expect(merged.unresolvedWork).toEqual(["finish local task"]);
+    expect(merged.behavioralCorrections).toEqual([
+      "Do not wait for repeated go.",
+      "Newest correction.",
+    ]);
+  });
+
+  it("renders active goal, open loops, and precedence into the carrier injection", () => {
+    const injection = buildCarrierInjection(
+      mergeCarrierState(project, blank),
+    );
+
+    expect(injection).toMatch(/ACTIVE GOAL/);
+    expect(injection).toMatch(/UNRESOLVED WORK/);
+    expect(injection).toMatch(
+      /Identity -> valid corrections -> active goal\/open loops -> agency -> task\/subsystem/,
+    );
+  });
+
+  it("uses newest normalized correction when duplicates differ only by casing or whitespace", () => {
+    expect(
+      uniqueNewest([
+        "Keep going",
+        "keep   going",
+        "Newest correction",
+      ]),
+    ).toEqual([
+      "keep going",
+      "Newest correction",
+    ]);
+  });
+});
