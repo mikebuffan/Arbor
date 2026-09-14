@@ -31,6 +31,7 @@ export type CorrectionCandidate = {
   id: string;
   user_id: string;
   project_id: string | null;
+  conversation_id?: string | null;
   key: string;
   value: unknown;
   tier: string | null;
@@ -197,9 +198,16 @@ function candidateIsInScope(params: {
   candidate: CorrectionCandidate;
   userId: string;
   projectId: string | null;
+  conversationId?: string | null;
   correction: ExplicitMemoryCorrection;
 }) {
-  const { candidate, userId, projectId, correction } = params;
+  const {
+    candidate,
+    userId,
+    projectId,
+    conversationId = null,
+    correction,
+  } = params;
   if (
     candidate.user_id !== userId ||
     candidate.status !== "active" ||
@@ -212,11 +220,25 @@ function candidateIsInScope(params: {
     return candidate.scope === "global" && candidate.project_id === null;
   }
 
-  return (
-    projectId !== null &&
-    candidate.scope !== "global" &&
-    candidate.project_id === projectId
-  );
+  if (
+    projectId === null ||
+    candidate.project_id !== projectId
+  ) {
+    return false;
+  }
+
+  if (candidate.scope === "project") {
+    return true;
+  }
+
+  if (candidate.scope === "conversation") {
+    return (
+      Boolean(conversationId) &&
+      candidate.conversation_id === conversationId
+    );
+  }
+
+  return false;
 }
 
 function rankCanonical(
@@ -315,6 +337,7 @@ export function resolveExplicitCorrection(params: {
       candidate,
       userId: params.userId,
       projectId: params.projectId,
+      conversationId: params.conversationId ?? null,
       correction: params.correction,
     }),
   );
@@ -398,12 +421,13 @@ export async function loadActiveCorrectionCandidates(params: {
   supabase: SupabaseClient;
   userId: string;
   projectId: string | null;
+  conversationId?: string | null;
   scopeHint: ExplicitMemoryCorrection["scopeHint"];
 }) {
   let query = params.supabase
     .from("memory_items")
     .select(
-      "id,user_id,project_id,key,value,tier,scope,importance,confidence,pinned,locked,correction_count,status,deleted_at,created_at",
+      "id,user_id,project_id,conversation_id,key,value,tier,scope,importance,confidence,pinned,locked,correction_count,status,deleted_at,created_at",
     )
     .eq("user_id", params.userId)
     .eq("status", "active")
@@ -411,8 +435,19 @@ export async function loadActiveCorrectionCandidates(params: {
 
   if (params.scopeHint === "global" || params.projectId === null) {
     query = query.is("project_id", null).eq("scope", "global");
+  } else if (params.conversationId) {
+    query = query
+      .eq("project_id", params.projectId)
+      .or(
+        [
+          "scope.eq.project",
+          `and(scope.eq.conversation,conversation_id.eq.${params.conversationId})`,
+        ].join(","),
+      );
   } else {
-    query = query.eq("project_id", params.projectId).neq("scope", "global");
+    query = query
+      .eq("project_id", params.projectId)
+      .eq("scope", "project");
   }
 
   const { data, error } = await query;
@@ -470,11 +505,13 @@ export async function persistClassifiedMemoryTurn(
     supabase: params.supabase,
     userId: params.userId,
     projectId: params.projectId,
+    conversationId: params.conversationId ?? null,
     scopeHint: params.classified.correction.scopeHint,
   });
   const resolution = resolveExplicitCorrection({
     userId: params.userId,
     projectId: params.projectId,
+    conversationId: params.conversationId ?? null,
     correction: params.classified.correction,
     candidates,
     injectedMemoryIds: params.injectedMemoryIds,
