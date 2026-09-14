@@ -78,10 +78,23 @@ export type SelfModelMigrationRecord = {
   appliedAt: string;
 };
 
+/**
+ * Host-owned background objective. It is deliberately structured state rather
+ * than prompt text so a foreground interruption cannot overwrite or expose the
+ * checkpoint payload.
+ */
+export type SuspendedOpenLoopState = {
+  id: string;
+  goal: string;
+  unresolvedWork: string[];
+  suspendedAt: string;
+};
+
 export type ArborState = {
   activeSubsystem: ArborSubsystem;
   goal: string | null;
   unresolvedWork: string[];
+  suspendedOpenLoops?: SuspendedOpenLoopState[];
   strategyNotes: string[];
   strategyCandidates?: StrategyCandidate[];
   recoveryRouteStats?: ArborRecoveryRouteStats[];
