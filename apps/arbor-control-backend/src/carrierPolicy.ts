@@ -84,7 +84,7 @@ export function buildCarrierInjection(state: ArborState): string {
   return blocks.filter(Boolean).join("\n\n");
 }
 
-function uniqueNewest(values: string[], max = 50): string[] {
+export function uniqueNewest(values: string[], max = 50): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
 
