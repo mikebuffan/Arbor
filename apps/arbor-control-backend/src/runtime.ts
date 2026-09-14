@@ -25,14 +25,8 @@ import {
   buildControlCapabilities,
 } from "./controlCapabilities.js";
 import {
-  detectRuntimeCorrectionKind,
-} from "./correctionDetection.js";
-import {
   ARBOR_CORE_INJECTION,
 } from "./identity.js";
-import {
-  shouldCarryGoal,
-} from "./longitudinalPolicy.js";
 import {
   renderSelfModelProjection,
 } from "./selfModelProjection.js";
@@ -59,12 +53,14 @@ import {
   normalizeVoiceId,
 } from "./voiceConfig.js";
 
+const CONTINUATION =
+  /^(?:go|okay|ok|continue|keep going|do it|finish it|yes|yep|yeah|please do|carry on)[.!?\s]*$/i;
+
 const DEFAULT_STATE: ArborState = {
   activeSubsystem: "arbor",
   goal: null,
   unresolvedWork: [],
   strategyNotes: [],
-  behavioralCorrections: [],
   acousticCorrections: [],
   voiceId: defaultVoiceId(),
 };
@@ -148,15 +144,11 @@ export class ArborControlRuntime {
     const normalized =
       ensureSelfModelIdentity({
         ...saved,
-        behavioralCorrections:
-          saved.behavioralCorrections ??
-          [],
         voiceId,
       });
 
     if (
-      !saved.selfModel ||
-      !saved.behavioralCorrections
+      !saved.selfModel
     ) {
       await this.store
         .save(
@@ -509,53 +501,21 @@ export class ArborControlRuntime {
         );
 
       const resume =
-        shouldCarryGoal(
-          request.userText,
-          prior,
+        prior
+          .unresolvedWork
+          .length >
+          0 &&
+        CONTINUATION.test(
+          request
+            .userText
+            .trim(),
         );
-
-      const correctionKind =
-        detectRuntimeCorrectionKind(
-          request.userText,
-        );
-
-      const behavioralCorrections =
-        correctionKind ===
-        "behavior"
-          ? uniqueRecent([
-              ...(
-                prior
-                  .behavioralCorrections ??
-                []
-              ),
-              request.userText,
-            ])
-          : (
-              prior
-                .behavioralCorrections ??
-              []
-            );
-
-      const acousticCorrections =
-        correctionKind ===
-        "acoustic"
-          ? uniqueRecent([
-              ...prior
-                .acousticCorrections,
-              request.userText,
-            ])
-          : prior
-              .acousticCorrections;
 
       const state:
         ArborState = {
         ...prior,
 
         activeSubsystem,
-
-        behavioralCorrections,
-
-        acousticCorrections,
 
         goal:
           resume &&
@@ -642,27 +602,6 @@ export class ArborControlRuntime {
           ? renderAnnabelleWorkspace(
               state,
             )
-          : "",
-
-        (
-          state
-            .behavioralCorrections ??
-          []
-        ).length
-          ? `BEHAVIORAL CORRECTIONS:\n${(
-              state
-                .behavioralCorrections ??
-              []
-            )
-              .map(
-                (
-                  item,
-                ) =>
-                  `- ${item}`,
-              )
-              .join(
-                "\n",
-              )}`
           : "",
 
         state
@@ -858,32 +797,6 @@ export class ArborControlRuntime {
                 }
               },
           },
-        });
-
-      // Provider/model output may propose task/runtime state, but Arbor's
-      // durable identity anchor remains authoritative at the host boundary.
-      // Re-validate before any canonical response or state commit.
-      agency.state =
-        ensureSelfModelIdentity({
-          ...agency.state,
-
-          // Behavioral corrections are host-owned durable state. A model/provider
-          // may consume them but cannot silently erase or rewrite them.
-          behavioralCorrections:
-            state
-              .behavioralCorrections ??
-            [],
-
-          // Acoustic corrections may also be updated by an authorized control
-          // capability during the agency loop, so preserve both sources.
-          acousticCorrections:
-            uniqueRecent([
-              ...state
-                .acousticCorrections,
-              ...agency
-                .state
-                .acousticCorrections,
-            ]),
         });
 
       const response =
@@ -1242,51 +1155,4 @@ function requestFingerprint(
     .digest(
       "hex",
     );
-}
-
-function uniqueRecent(
-  values:
-    string[],
-  max =
-    50,
-): string[] {
-  const seen =
-    new Set<string>();
-
-  const result:
-    string[] = [];
-
-  for (
-    const raw
-    of values
-  ) {
-    const value =
-      raw
-        .trim()
-        .replace(
-          /\s+/g,
-          " ",
-        );
-
-    if (
-      !value ||
-      seen.has(
-        value,
-      )
-    ) {
-      continue;
-    }
-
-    seen.add(
-      value,
-    );
-
-    result.push(
-      value,
-    );
-  }
-
-  return result.slice(
-    -max,
-  );
 }
