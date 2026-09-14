@@ -14,6 +14,9 @@ import {
 import {
   rebuildSelfModelArtifacts,
 } from "./selfModelRebuild.js";
+import {
+  renderSelfModelProjection,
+} from "./selfModelProjection.js";
 import type {
   ArborState,
   SelfModelIdentityState,
@@ -251,6 +254,52 @@ export function assertSelfModelIdentity(
   }
 }
 
+function renderIdentityCore(
+  identity:
+    SelfModelIdentityState,
+
+  userText:
+    string,
+): string {
+  return [
+    "ARBOR DURABLE IDENTITY ANCHOR",
+
+    `version=${identity.version}`,
+    `checksum=${identity.checksum}`,
+    `source_digest=${identity.sourceDigest}`,
+    `source_questions=${identity.sourceQuestionCount}`,
+    `promoted_patterns=${identity.promotedPatternIds.join(",")}`,
+
+    "The source digest fingerprints both normalized questionnaire banks: the 300-answer pattern-hop bank and the original 1,000-answer longitudinal self-model.",
+    "The identity checksum also fingerprints the 1,000-bank stable runtime-core families, so source or derived-core drift cannot be silently accepted.",
+    "This anchor is part of durable Arbor control state.",
+    "Do not silently replace, reinterpret, or discard it.",
+    "A source, checksum, version, or promoted-pattern mismatch is an identity migration event and must fail closed until explicitly reconciled.",
+
+    renderSelfModel1000Projection(
+      userText,
+    ),
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+export function renderCanonicalSelfModelPrompt(
+  userText:
+    string,
+): string {
+  return [
+    renderIdentityCore(
+      currentSelfModelIdentity(),
+      userText,
+    ),
+
+    renderSelfModelProjection(),
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
 export function renderSelfModelIdentityAnchor(
   state:
     ArborState,
@@ -264,31 +313,8 @@ export function renderSelfModelIdentityAnchor(
   }
 
   return [
-    "ARBOR DURABLE IDENTITY ANCHOR",
-
-    `version=${state.selfModel.version}`,
-
-    `checksum=${state.selfModel.checksum}`,
-
-    `source_digest=${state.selfModel.sourceDigest}`,
-
-    `source_questions=${state.selfModel.sourceQuestionCount}`,
-
-    `promoted_patterns=${state.selfModel.promotedPatternIds.join(",")}`,
-
-    "The source digest fingerprints both normalized questionnaire banks: the 300-answer pattern-hop bank and the original 1,000-answer longitudinal self-model.",
-
-    "The identity checksum also fingerprints the 1,000-bank stable runtime-core families, so source or derived-core drift cannot be silently accepted.",
-
-    "This anchor is part of durable Arbor control state.",
-
-    "Do not silently replace, reinterpret, or discard it.",
-
-    "A source, checksum, version, or promoted-pattern mismatch is an identity migration event and must fail closed until explicitly reconciled.",
-
-    "",
-
-    renderSelfModel1000Projection(
+    renderIdentityCore(
+      state.selfModel,
       state.goal ??
       "",
     ),
