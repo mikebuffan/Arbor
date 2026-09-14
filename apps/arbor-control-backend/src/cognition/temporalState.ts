@@ -1,4 +1,4 @@
-import type { CognitionEvidenceEvent, EvidenceClass } from "./evidence";
+import type { CognitionEvidenceEvent, EvidenceClass } from "./evidence.js";
 
 export type TemporalStateResolution = {
   subject: string;
