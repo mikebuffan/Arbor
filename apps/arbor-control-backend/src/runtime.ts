@@ -919,7 +919,7 @@ export class ArborControlRuntime {
       if (
         !controlAudit.approved
       ) {
-        agency.state =
+        const revision =
           reviseControlStateOnce({
             state:
               agency.state,
@@ -927,6 +927,12 @@ export class ArborControlRuntime {
             audit:
               controlAudit,
           });
+
+        agency = {
+          ...revision.agency,
+          state:
+            revision.state,
+        };
 
         controlAudit =
           auditControlState({
