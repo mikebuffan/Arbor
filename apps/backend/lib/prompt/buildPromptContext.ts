@@ -10,6 +10,10 @@ import {
   getHistoricalConversationRecall,
   historicalRecallToPromptBlock,
 } from "@/lib/memory/historicalRecall";
+import {
+  getEpisodeRecall,
+  episodeRecallToPromptBlock,
+} from "@/lib/arbor/episodes/episodeRecall";
 import { logMemoryEvent } from "@/lib/memory/logger";
 import {
   getProjectAnchors,
@@ -247,6 +251,23 @@ export async function buildPromptContext({
     .map(([cat, arr]) => `${cat.toUpperCase()}:\n${arr.map((x) => `- ${x}`).join("\n")}`)
     .join("\n\n");
 
+  const episodeRecall =
+    projectId
+      ? await getEpisodeRecall({
+          supabase,
+          userId: authedUserId,
+          projectId,
+          userText: latestUserText,
+          currentThreadId: conversationId,
+          limit: 4,
+        })
+      : [];
+
+  const episodeRecallBlock =
+    episodeRecallToPromptBlock(
+      episodeRecall,
+    );
+
   const historicalRecall =
     projectId
       ? await getHistoricalConversationRecall({
@@ -377,6 +398,7 @@ export async function buildPromptContext({
     ].filter(Boolean),
     continuityMaterial: [
       memoryText,
+      episodeRecallBlock,
       historicalRecallBlock,
       arbor.systemInjection,
       continuityBlock,
@@ -416,6 +438,8 @@ export async function buildPromptContext({
 
     Relevant context:
     ${memoryText || "(none)"}
+
+    ${episodeRecallBlock ? "\n" + episodeRecallBlock + "\n" : ""}
 
     ${historicalRecallBlock ? "\n" + historicalRecallBlock + "\n" : ""}
 
