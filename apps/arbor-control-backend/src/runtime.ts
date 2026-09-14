@@ -31,6 +31,7 @@ import {
   ARBOR_CORE_INJECTION,
 } from "./identity.js";
 import {
+  rankUnresolvedWork,
   shouldCarryGoal,
 } from "./longitudinalPolicy.js";
 import {
@@ -633,17 +634,6 @@ export class ArborControlRuntime {
 
         renderSelfModelProjection(),
 
-        subsystemInjection(
-          state,
-        ),
-
-        activeSubsystem ===
-        "annabelle"
-          ? renderAnnabelleWorkspace(
-              state,
-            )
-          : "",
-
         (
           state
             .behavioralCorrections ??
@@ -663,6 +653,17 @@ export class ArborControlRuntime {
               .join(
                 "\n",
               )}`
+          : "",
+
+        subsystemInjection(
+          state,
+        ),
+
+        activeSubsystem ===
+        "annabelle"
+          ? renderAnnabelleWorkspace(
+              state,
+            )
           : "",
 
         state
@@ -706,7 +707,10 @@ export class ArborControlRuntime {
         state
           .unresolvedWork
           .length
-          ? `UNRESOLVED WORK:\n${state.unresolvedWork
+          ? `UNRESOLVED WORK:\n${rankUnresolvedWork(
+              state.unresolvedWork,
+              request.userText,
+            )
               .map(
                 (
                   item,
