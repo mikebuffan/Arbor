@@ -93,12 +93,14 @@ export function isMemoryInRuntimeScope(
 
   if (projectId === null || item.project_id !== projectId) return false;
 
-  // Legacy conversation-scoped rows were written before conversation_id was
-  // threaded through persistence. Treat those as project-level continuity
-  // until they can be safely backfilled from provenance.
-  if (item.conversation_id == null) return true;
-
-  return conversationId !== null && item.conversation_id === conversationId;
+  // Current v2 memory keys are unique per user, not per conversation.
+  // conversation_id is provenance/priority metadata, not a visibility wall.
+  // Hiding a same-project memory because another thread last wrote the same key
+  // would break cross-thread continuity and make a durable memory "move" between
+  // conversations. True per-thread isolation requires a different key/index
+  // contract and must not be simulated here.
+  void conversationId;
+  return true;
 }
 
 export function isMemoryInProjectScope(
