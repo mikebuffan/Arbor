@@ -96,9 +96,24 @@ function looksLikeContinuationFollowup(
 
   if (FOLLOWUP_SIGNAL.test(text)) return true;
 
-  return sharesGoalContext(
-    text,
-    prior.goal ?? "",
+  if (
+    sharesGoalContext(
+      text,
+      prior.goal ?? "",
+    )
+  ) {
+    return true;
+  }
+
+  // The current goal is deliberately compact. A natural follow-up often names
+  // the concrete unfinished step rather than repeating the goal wording, so
+  // unresolved work is part of continuation context too.
+  return prior.unresolvedWork.some(
+    (work) =>
+      sharesGoalContext(
+        text,
+        work,
+      ),
   );
 }
 
