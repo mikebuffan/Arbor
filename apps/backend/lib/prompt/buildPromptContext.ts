@@ -4,6 +4,8 @@ import {
   type RetrievedMemoryItem,
 } from "@/lib/memory/retrieval";
 import { assembleMemoryBlock } from "@/lib/memory/assembleMemoryBlock";
+import { selectItemsForPrompt } from "@/lib/memory/selectForPrompt";
+import { selectContinuityAnchors } from "@/lib/memory/continuityAnchorRetriever";
 import {
   getHistoricalConversationRecall,
   historicalRecallToPromptBlock,
@@ -223,10 +225,19 @@ export async function buildPromptContext({
   });
 
   const allItems = [...memContext.core, ...memContext.normal, ...memContext.sensitive];
+  const promptEligibleItems = selectItemsForPrompt(
+    allItems,
+    latestUserText,
+  );
+  const continuityItems = selectContinuityAnchors(
+    promptEligibleItems,
+    latestUserText,
+    14,
+  );
   const decayMs = 1000 * 60 * 60 * 24 * 30;
 
   const { context, selectedItems, fallbackPrompt } = assembleMemoryBlock({
-    allItems,
+    allItems: continuityItems,
     userText: latestUserText,
     decayMs,
   });
