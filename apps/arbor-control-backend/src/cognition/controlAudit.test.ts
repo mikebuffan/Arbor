@@ -96,7 +96,7 @@ describe(
         expect(
           revision.agency.status,
         ).toBe(
-          "blocked",
+          "stopped",
         );
 
         expect(
