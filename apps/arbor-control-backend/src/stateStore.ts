@@ -338,9 +338,11 @@ export function stateScope(input: {
   projectId?: string;
   conversationId?: string;
 }): string {
-  return input.projectId?.trim()
-    ? `project:${input.projectId.trim()}`
-    : input.conversationId?.trim()
-      ? `conversation:${input.conversationId.trim()}`
+  // Conversation scope is the local overlay when a conversation exists.
+  // Project-only scope remains the durable cross-thread carrier.
+  return input.conversationId?.trim()
+    ? `conversation:${input.conversationId.trim()}`
+    : input.projectId?.trim()
+      ? `project:${input.projectId.trim()}`
       : "default";
 }
