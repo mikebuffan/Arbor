@@ -48,9 +48,8 @@ export function auditClaim(
   }
 
   if (
-    currentClass &&
-    NON_ACTUAL.has(currentClass) &&
-    claim.assertedActual
+    claim.assertedActual &&
+    NON_ACTUAL.has(claim.assertedClass)
   ) {
     issues.push("proposal_presented_as_actual");
   }
@@ -58,7 +57,10 @@ export function auditClaim(
   if (
     currentClass &&
     ACTUAL.has(currentClass) &&
-    claim.assertedClass === "unknown"
+    (
+      claim.assertedClass === "unknown" ||
+      claim.assertedClass === "not_recovered"
+    )
   ) {
     issues.push("temporal_state_regression");
   }
