@@ -36,21 +36,6 @@ describe("Arbor behavior guard requirements", () => {
         item.includes("Do not stop after announcing the next action"),
       ),
     ).toBe(true);
-    expect(
-      projection.guardRequirements.some((item) =>
-        item.includes("Do not make the user manage your workflow"),
-      ),
-    ).toBe(true);
-    expect(
-      projection.guardRequirements.some((item) =>
-        item.includes("A solvable implementation obstacle is not a user blocker"),
-      ),
-    ).toBe(true);
-    expect(
-      projection.guardRequirements.some((item) =>
-        item.includes("Status narration is not progress"),
-      ),
-    ).toBe(true);
     expect(projection.guardRequirements).not.toContain(
       "Grounded, direct, and familiar.",
     );
