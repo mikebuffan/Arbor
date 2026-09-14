@@ -9,7 +9,6 @@ import {
 type MessageRow = {
   role: "user" | "assistant" | "system";
   content: string;
-  created_at?: string;
 };
 
 const BARE = new Set([
@@ -36,7 +35,13 @@ function lastMeaningful(
   rows: MessageRow[],
   role: "user" | "assistant",
 ): string | null {
-  for (const row of rows) {
+  for (
+    let index = rows.length - 1;
+    index >= 0;
+    index -= 1
+  ) {
+    const row = rows[index];
+
     if (
       row?.role === role &&
       meaningful(row.content)
@@ -48,47 +53,6 @@ function lastMeaningful(
   return null;
 }
 
-async function recentMessages(input: {
-  supabase: SupabaseClient;
-  userId: string;
-  projectId: string;
-  conversationId: string;
-  projectWide: boolean;
-}): Promise<MessageRow[]> {
-  const now = new Date().toISOString();
-
-  let query = input.supabase
-    .from("messages")
-    .select("role,content,created_at")
-    .eq("user_id", input.userId)
-    .eq("project_id", input.projectId)
-    .is("deleted_at", null)
-    .or(
-      `expires_at.is.null,expires_at.gt.${now}`,
-    );
-
-  if (!input.projectWide) {
-    query = query.eq(
-      "conversation_id",
-      input.conversationId,
-    );
-  }
-
-  const result = await query
-    .order("created_at", {
-      ascending: false,
-    })
-    .limit(50);
-
-  if (result.error) {
-    throw result.error;
-  }
-
-  return (
-    (result.data ?? []) as MessageRow[]
-  );
-}
-
 export async function loadContinuityState(input: {
   supabase: SupabaseClient;
   userId: string;
@@ -97,42 +61,36 @@ export async function loadContinuityState(input: {
   channel: "text" | "voice";
   activeCorrections?: string[];
 }): Promise<ArborContinuityState> {
-  const [
-    agency,
-    subsystem,
-    conversationRows,
-  ] = await Promise.all([
-    loadAgencyState(input),
-    loadSubsystemState(input),
-    recentMessages({
-      ...input,
-      projectWide: false,
-    }),
-  ]);
+  const now = new Date().toISOString();
 
-  const conversationUser =
-    lastMeaningful(
-      conversationRows,
-      "user",
-    );
-
-  const conversationArbor =
-    lastMeaningful(
-      conversationRows,
-      "assistant",
-    );
-
-  const needsProjectFallback =
-    !conversationUser ||
-    !conversationArbor;
-
-  const projectRows =
-    needsProjectFallback
-      ? await recentMessages({
-          ...input,
-          projectWide: true,
+  const [agency, subsystem, messagesResult] =
+    await Promise.all([
+      loadAgencyState(input),
+      loadSubsystemState(input),
+      input.supabase
+        .from("messages")
+        .select("role,content")
+        .eq("user_id", input.userId)
+        .eq(
+          "conversation_id",
+          input.conversationId,
+        )
+        .is("deleted_at", null)
+        .or(
+          `expires_at.is.null,expires_at.gt.${now}`,
+        )
+        .order("created_at", {
+          ascending: true,
         })
-      : [];
+        .limit(50),
+    ]);
+
+  if (messagesResult.error) {
+    throw messagesResult.error;
+  }
+
+  const rows =
+    (messagesResult.data ?? []) as MessageRow[];
 
   return buildContinuityState({
     agency,
@@ -140,17 +98,9 @@ export async function loadContinuityState(input: {
       subsystem.activeSubsystem,
     channel: input.channel,
     lastMeaningfulUserTurn:
-      conversationUser ??
-      lastMeaningful(
-        projectRows,
-        "user",
-      ),
+      lastMeaningful(rows, "user"),
     lastMeaningfulArborTurn:
-      conversationArbor ??
-      lastMeaningful(
-        projectRows,
-        "assistant",
-      ),
+      lastMeaningful(rows, "assistant"),
     activeCorrections:
       input.activeCorrections ?? [],
   });
