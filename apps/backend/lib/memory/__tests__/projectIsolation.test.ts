@@ -96,6 +96,30 @@ describe("memory project isolation", () => {
         "project-a",
       ),
     ).toBe(true);
+
+    expect(
+      isMemoryInProjectScope(
+        {
+          project_id: "project-a",
+          conversation_id: "conversation-a",
+          scope: "conversation",
+        },
+        "project-a",
+        "conversation-a",
+      ),
+    ).toBe(true);
+
+    expect(
+      isMemoryInProjectScope(
+        {
+          project_id: "project-a",
+          conversation_id: "conversation-b",
+          scope: "conversation",
+        },
+        "project-a",
+        "conversation-a",
+      ),
+    ).toBe(false);
   });
 
   it("disables vector RPC use and filters direct retrieval to the authenticated project", async () => {
