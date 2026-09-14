@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { embedText } from "@/lib/memory/embeddings";
+import { rerankMemoryItems } from "@/lib/memory/scoring";
 
 export type RetrievedMemoryItem = {
   id: string;
@@ -180,12 +181,12 @@ export async function getMemoryContext(params: {
     });
 
     if (error) throw error;
-    vectorRows = data ?? [];
+    vectorRows = rerankMemoryItems((data ?? []).map(normalizeRow), 24);
   }
 
   const items = dedupeById([
     ...(fallbackData ?? []).map(normalizeRow),
-    ...vectorRows.map(normalizeRow),
+    ...vectorRows,
   ])
     .filter(isLiveRow)
     .filter((item) =>
