@@ -22,6 +22,11 @@ import {
 import { ArborTimeline } from "@/lib/arbor/timeline/runTimeline";
 import { SupabaseTimelineStore } from "@/lib/arbor/timeline/supabaseStore";
 import { extractMemoryFromText } from "@/lib/memory/extractor";
+import {
+  applyMemoryPromotion,
+  loadRelatedMemoryCounts,
+  scoreMemoryPromotionBatch,
+} from "@/lib/memory/memoryPromotion";
 import { reinforceMemoryUse } from "@/lib/memory/store";
 import {
   classifyMemoryTurn,
@@ -748,10 +753,35 @@ export async function POST(req: Request) {
             userText,
             assistantText,
           });
-          const classified = classifyMemoryTurn({
+
+          const initiallyClassified = classifyMemoryTurn({
             userText,
             extractedItems: extracted,
           });
+
+          let classified = initiallyClassified;
+
+          if (initiallyClassified.kind === "assertion") {
+            const relatedMemoryCountByKey =
+              await loadRelatedMemoryCounts({
+                supabase,
+                userId,
+                projectId,
+                keys: initiallyClassified.items.map((item) => item.key),
+              });
+
+            const promotionResults = scoreMemoryPromotionBatch({
+              items: initiallyClassified.items,
+              relatedMemoryCountByKey,
+              userMessage: userText,
+              assistantMessage: assistantText,
+            });
+
+            classified = {
+              kind: "assertion" as const,
+              items: applyMemoryPromotion(promotionResults),
+            };
+          }
 
           await promoteIdentityAnchors({
             supabase,
