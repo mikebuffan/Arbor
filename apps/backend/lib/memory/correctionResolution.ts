@@ -328,6 +328,7 @@ export function classifyMemoryTurn(params: {
 export function resolveExplicitCorrection(params: {
   userId: string;
   projectId: string | null;
+  conversationId?: string | null;
   correction: ExplicitMemoryCorrection;
   candidates: CorrectionCandidate[];
   injectedMemoryIds: string[];
