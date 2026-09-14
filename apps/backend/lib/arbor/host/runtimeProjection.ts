@@ -74,12 +74,8 @@ export function buildHostStateFromRuntime(
           }),
         ),
     corrections: [
-      ...Array.from(
-        new Set([
-          ...input.behavioralCorrections,
-          ...input.continuity.activeCorrections,
-        ]),
-      )
+      ...input
+        .behavioralCorrections
         .map(
           (text, index) => ({
             id:
