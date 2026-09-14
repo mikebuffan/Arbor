@@ -80,6 +80,14 @@ export type AgencyResult =
       researchCalls: number;
     }
   | {
+      status: "in_progress";
+      text: string;
+      state: ArborState;
+      rounds: number;
+      toolCalls: number;
+      researchCalls: number;
+    }
+  | {
       status: "blocked";
       text: string;
       state: ArborState;
