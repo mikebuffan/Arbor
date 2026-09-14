@@ -5,6 +5,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 const mocks = vi.hoisted(() => ({
   logMemoryEvent: vi.fn(),
+  embedText: vi.fn(),
 }));
 
 vi.mock("@/lib/memory/logger", () => ({
@@ -12,7 +13,7 @@ vi.mock("@/lib/memory/logger", () => ({
 }));
 
 vi.mock("@/lib/memory/embeddings", () => ({
-  embedText: vi.fn(),
+  embedText: mocks.embedText,
   embedTexts: vi.fn(),
   memoryToEmbedString: vi.fn(),
 }));
@@ -25,6 +26,7 @@ import { reinforceMemoryUse } from "@/lib/memory/store";
 import {
   getMemoryContext,
   isMemoryInProjectScope,
+  isMemoryInRuntimeScope,
 } from "@/lib/memory/retrieval";
 
 describe("memory project isolation", () => {
@@ -98,42 +100,27 @@ describe("memory project isolation", () => {
     ).toBe(true);
   });
 
-  it("disables vector RPC use and filters direct retrieval to the authenticated project", async () => {
-    const response = {
+  it("uses scoped semantic retrieval for the authenticated project and conversation", async () => {
+    mocks.embedText.mockResolvedValue([0.1, 0.2, 0.3]);
+
+    const fallbackResponse = {
       data: [
-        {
-          id: "memory-a",
-          project_id: "project-a",
-          key: "project-a-key",
-          value: { text: "project A" },
-          tier: "normal",
-          scope: "project",
-          status: "active",
-          deleted_at: null,
-        },
-        {
-          id: "memory-b",
-          project_id: "project-b",
-          key: "project-b-key",
-          value: { text: "project B" },
-          tier: "normal",
-          scope: "project",
-          status: "active",
-          deleted_at: null,
-        },
         {
           id: "memory-global",
           project_id: null,
+          conversation_id: null,
           key: "global-key",
           value: { text: "global" },
           tier: "core",
           scope: "global",
           status: "active",
           deleted_at: null,
+          pinned: true,
         },
       ],
       error: null,
     };
+
     const query = {
       select: vi.fn(),
       eq: vi.fn(),
@@ -141,8 +128,8 @@ describe("memory project isolation", () => {
       order: vi.fn(),
       or: vi.fn(),
       limit: vi.fn(),
-      then: (resolve: (value: typeof response) => unknown) =>
-        Promise.resolve(response).then(resolve),
+      then: (resolve: (value: typeof fallbackResponse) => unknown) =>
+        Promise.resolve(fallbackResponse).then(resolve),
     };
     query.select.mockReturnValue(query);
     query.eq.mockReturnValue(query);
@@ -150,7 +137,39 @@ describe("memory project isolation", () => {
     query.order.mockReturnValue(query);
     query.or.mockReturnValue(query);
     query.limit.mockReturnValue(query);
-    const rpc = vi.fn();
+
+    const rpc = vi.fn().mockResolvedValue({
+      data: [
+        {
+          id: "semantic-project",
+          project_id: "project-a",
+          conversation_id: null,
+          key: "project-a-key",
+          value: { text: "project A relevant memory" },
+          tier: "normal",
+          scope: "project",
+          user_trigger_only: false,
+          status: "active",
+          deleted_at: null,
+          similarity: 0.91,
+        },
+        {
+          id: "semantic-conversation",
+          project_id: "project-a",
+          conversation_id: "conversation-a",
+          key: "conversation-a-key",
+          value: { text: "conversation A relevant memory" },
+          tier: "normal",
+          scope: "conversation",
+          user_trigger_only: false,
+          status: "active",
+          deleted_at: null,
+          similarity: 0.88,
+        },
+      ],
+      error: null,
+    });
+
     const supabase = {
       from: vi.fn().mockReturnValue(query),
       rpc,
@@ -160,17 +179,90 @@ describe("memory project isolation", () => {
       supabase,
       authedUserId: "user-a",
       projectId: "project-a",
-      latestUserText: "This query is long enough for vector retrieval.",
+      conversationId: "conversation-a",
+      latestUserText: "What did we decide about the relevant memory?",
       useVectorSearch: true,
     });
 
-    expect(rpc).not.toHaveBeenCalled();
-    expect(query.eq).toHaveBeenCalledWith("user_id", "user-a");
-    expect(query.or).toHaveBeenCalledWith(
-      "project_id.eq.project-a,scope.eq.global",
+    expect(mocks.embedText).toHaveBeenCalledWith(
+      "What did we decide about the relevant memory?",
     );
-    expect(result.keysUsed).toEqual(["project-a-key", "global-key"]);
-    expect(result.keysUsed).not.toContain("project-b-key");
+    expect(rpc).toHaveBeenCalledWith("match_memory_items", {
+      p_include_user_trigger_only: false,
+      p_match_count: 40,
+      p_project_id: "project-a",
+      p_conversation_id: "conversation-a",
+      p_query_embedding: [0.1, 0.2, 0.3],
+      p_tiers: ["core", "normal", "sensitive"],
+      p_user_id: "user-a",
+    });
+    expect(result.keysUsed).toEqual([
+      "global-key",
+      "project-a-key",
+      "conversation-a-key",
+    ]);
+  });
+
+  it("preserves cross-thread continuity inside the project and rejects other projects", () => {
+    expect(
+      isMemoryInRuntimeScope(
+        {
+          project_id: "project-a",
+          conversation_id: null,
+          scope: "project",
+        },
+        "project-a",
+        "conversation-a",
+      ),
+    ).toBe(true);
+
+    expect(
+      isMemoryInRuntimeScope(
+        {
+          project_id: "project-b",
+          conversation_id: null,
+          scope: "project",
+        },
+        "project-a",
+        "conversation-a",
+      ),
+    ).toBe(false);
+
+    expect(
+      isMemoryInRuntimeScope(
+        {
+          project_id: "project-a",
+          conversation_id: "conversation-b",
+          scope: "conversation",
+        },
+        "project-a",
+        "conversation-a",
+      ),
+    ).toBe(true);
+
+    expect(
+      isMemoryInRuntimeScope(
+        {
+          project_id: "project-a",
+          conversation_id: "conversation-a",
+          scope: "conversation",
+        },
+        "project-a",
+        "conversation-new",
+      ),
+    ).toBe(true);
+
+    expect(
+      isMemoryInRuntimeScope(
+        {
+          project_id: "project-b",
+          conversation_id: "conversation-b",
+          scope: "conversation",
+        },
+        "project-a",
+        "conversation-new",
+      ),
+    ).toBe(false);
   });
 
   it("requires controlled imports to create projects with the supplied user_id", () => {
