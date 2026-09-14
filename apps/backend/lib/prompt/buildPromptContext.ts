@@ -378,7 +378,6 @@ export async function buildPromptContext({
     continuityMaterial: [
       memoryText,
       historicalRecallBlock,
-      arbor.systemInjection,
       continuityBlock,
       host.startup.promptBlock,
       pendingStrategyUnderVerification
@@ -388,13 +387,13 @@ export async function buildPromptContext({
   });
 
   const systemPrompt = `
+    You are ${ASSISTANT_NAME}. ${IDENTITY_LOCK}
+
     ${arbor.systemInjection}
 
     ${behaviorProjection.promptBlock}
 
     ${host.startup.promptBlock}
-
-    You are ${ASSISTANT_NAME}. ${IDENTITY_LOCK}
 
     Meta Guards:
     ${META_GUARDS}
