@@ -635,14 +635,40 @@ export class ArborControlRuntime {
         },
       );
 
+      // Canonical Arbor is upstream of task/surface subsystems.
+      // Order: identity -> corrections -> continuity/open loops -> agency context
+      // -> self-model -> task subsystem. Adapters consume this state; they do
+      // not construct or replace Arbor.
       const instructions = [
         ARBOR_CORE_INJECTION,
-
-        buildCarrierInjection(state),
 
         renderSelfModelIdentityAnchor(
           state,
         ),
+
+        (
+          state
+            .behavioralCorrections ??
+          []
+        ).length
+          ? `BEHAVIORAL CORRECTIONS:\n${(
+              state
+                .behavioralCorrections ??
+              []
+            )
+              .map((item) => `- ${item}`)
+              .join("\n")}`
+          : "",
+
+        state
+          .acousticCorrections
+          .length
+          ? `VOICE ACOUSTIC CORRECTIONS:\n${state.acousticCorrections
+              .map((item) => `- ${item}`)
+              .join("\n")}`
+          : "",
+
+        buildCarrierInjection(state),
 
         renderSelfModelProjection(),
 
@@ -657,41 +683,6 @@ export class ArborControlRuntime {
             )
           : "",
 
-        (
-          state
-            .behavioralCorrections ??
-          []
-        ).length
-          ? `BEHAVIORAL CORRECTIONS:\n${(
-              state
-                .behavioralCorrections ??
-              []
-            )
-              .map(
-                (
-                  item,
-                ) =>
-                  `- ${item}`,
-              )
-              .join(
-                "\n",
-              )}`
-          : "",
-
-        state
-          .acousticCorrections
-          .length
-          ? `VOICE ACOUSTIC CORRECTIONS:\n${state.acousticCorrections
-              .map(
-                (
-                  item,
-                ) =>
-                  `- ${item}`,
-              )
-              .join(
-                "\n",
-              )}`
-          : "",
 
         Object.keys(
           externalState,
