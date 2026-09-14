@@ -1,7 +1,8 @@
 # Milestone 1B correction-pass record
 
-Status: implementation in local correction worktree; Milestone acceptance and
-remote publication remain withheld.
+Status: historical correction record reconciled to the 2026-09-11 closeout
+candidate. Later accepted broker, migration, and durability work supersedes the
+future-work language retained in older Git history.
 
 ## Approved external contract amendment
 
@@ -30,18 +31,14 @@ row cannot become user intent or hide an older eligible candidate.
 
 ## Attachment boundary
 
-The codebase has no active attachment upload/download route. A reusable
-application guard now validates authenticated project ownership, conversation
-ownership within that project, attachment metadata scope, and the canonical
-bucket/path shape. The exact policy proposal and rollback are under
-`docs/migrations/` and were not applied.
-
-The live catalog still has permissive user-prefix Storage policies that
-OR-bypass stricter policies. A Storage JWT has user identity but no current
-project context. The proposal therefore requires a future bounded server
-broker for signed reads/deletes and removes direct authenticated object reads.
-That broker is a separate runtime/API approval and must exist before applying
-the proposal.
+The active broker routes are `POST /api/chat/attachments/access` and
+`POST /api/chat/attachments/delete`. They derive authenticated identity
+server-side, verify project/conversation/metadata/canonical-path scope, and use
+privileged Storage authority only after request-scoped authorization succeeds.
+Signed URLs are transient and are never logged or persisted. Direct
+authenticated attachment Storage access and metadata writes are denied by the
+applied migration set; authenticated metadata access is scoped SELECT only.
+Attachment upload remains outside Milestone 1B.
 
 ## Telemetry boundary
 
@@ -62,23 +59,23 @@ No RPC signature, security mode, policy, or implementation was changed.
 
 ## Heartbeat and maintenance
 
-Heartbeat and Vercel Cron remain disabled. No `CRON_SECRET` was created,
-configured, read, or rotated. No authenticated heartbeat, successful global
-decay, reflection, sync, or unrestricted maintenance invocation is authorized
-or performed by this correction pass.
+The daily heartbeat schedule exists in operative backend Vercel configuration.
+A valid heartbeat remains fail-closed/inactive because machine authentication
+is not configured. No machine secret was created, configured, read, or rotated
+by this correction pass. Ordinary conversation does not depend on heartbeat,
+decay, or reflection; decay and reflection remain quarantined. Enabling
+machine authentication is separately approved future work.
 
-## Governance updates required before acceptance
+## Current governance boundaries
 
-- Record `turnId` as the required logical-send idempotency key in the API and
-  mobile networking specifications.
-- Define mobile retention/lifecycle rules for an in-flight `turnId` across
-  retry, reconnect, app suspension, success, explicit cancel, and a new send.
-- Approve the attachment broker contract before approving the proposed RLS and
-  Storage migration.
+- Preserve `turnId` as the required logical-send idempotency key across retry
+  and reconnect; a genuinely new send receives a new ID.
+- Preserve the current scoped attachment broker and applied authorization
+  boundary. Attachment upload is a separate product contract.
 - Assign telemetry retention and operator alerting ownership before launch.
 - Keep vector RPC reactivation behind proof of project-scoped authorization.
-- Keep heartbeat activation, Cron, maintenance breadth, and secret management
-  as a separate milestone.
+- Keep machine-authenticated heartbeat activation, maintenance breadth, and
+  secret management as a separate milestone.
 
 No persona, Danelle-profile, behavioral pipeline, or unrelated frontend/UI
 governance is changed here.

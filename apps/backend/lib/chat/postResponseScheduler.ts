@@ -7,6 +7,7 @@ export const CHAT_POST_RESPONSE_TASKS = [
   "memory_pipeline",
   "conversation_update",
   "decision_outcome",
+  "chat_completed",
 ] as const;
 
 export type ChatPostResponseTaskName =

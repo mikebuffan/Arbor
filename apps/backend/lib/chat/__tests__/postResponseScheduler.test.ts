@@ -14,14 +14,26 @@ function operations(overrides: Partial<ChatPostResponseOperations> = {}) {
     memory_pipeline: vi.fn().mockResolvedValue(undefined),
     conversation_update: vi.fn().mockResolvedValue(undefined),
     decision_outcome: vi.fn().mockResolvedValue(undefined),
+    chat_completed: vi.fn().mockResolvedValue(undefined),
     ...overrides,
   };
 }
 
 describe("chat post-response lifecycle scheduler", () => {
-  it("registers all operations without waiting for them before returning", async () => {
+  it("defines chat_completed as its own final sibling operation", () => {
+    expect(CHAT_POST_RESPONSE_TASKS).toEqual([
+      "telemetry",
+      "memory_pipeline",
+      "conversation_update",
+      "decision_outcome",
+      "chat_completed",
+    ]);
+  });
+
+  it("invokes chat_completed independently while the memory pipeline remains unresolved", async () => {
     let continuation: (() => Promise<void>) | null = null;
     let releaseMemory: (() => void) | null = null;
+    let lifecycleSettled = false;
     const memoryPending = new Promise<void>((resolve) => {
       releaseMemory = resolve;
     });
@@ -44,18 +56,22 @@ describe("chat post-response lifecycle scheduler", () => {
       expect(work[name]).not.toHaveBeenCalled();
     }
 
-    const lifecycle = continuation!();
+    const lifecycle = continuation!().finally(() => {
+      lifecycleSettled = true;
+    });
     await vi.waitFor(() => {
-      expect(work.memory_pipeline).toHaveBeenCalledTimes(1);
+      expect(work.chat_completed).toHaveBeenCalledTimes(1);
     });
     for (const name of CHAT_POST_RESPONSE_TASKS) {
       expect(work[name]).toHaveBeenCalledTimes(1);
     }
+    expect(lifecycleSettled).toBe(false);
     releaseMemory!();
     await lifecycle;
+    expect(lifecycleSettled).toBe(true);
   });
 
-  it("attempts every operation when one fails and redacts the failure", async () => {
+  it("runs chat_completed when memory_pipeline fails and redacts the failure", async () => {
     const privateError = Object.assign(
       new Error("private prompt and bearer token"),
       { code: "42501", details: { content: "private message" } },
@@ -78,6 +94,7 @@ describe("chat post-response lifecycle scheduler", () => {
     for (const name of CHAT_POST_RESPONSE_TASKS) {
       expect(work[name]).toHaveBeenCalledTimes(1);
     }
+    expect(work.chat_completed).toHaveBeenCalledTimes(1);
     expect(warn).toHaveBeenCalledWith("[post-response] operation failed", {
       subsystem: "chat",
       operation: "memory_pipeline",
@@ -90,7 +107,7 @@ describe("chat post-response lifecycle scheduler", () => {
     warn.mockRestore();
   });
 
-  it("schedules telemetry and decision work exactly once only for a new turn", async () => {
+  it("schedules every sibling exactly once only for a new turn", async () => {
     const work = operations();
     const continuations: Array<() => Promise<void>> = [];
     const register: ContinuationRegistrar = (callback) => {
@@ -118,6 +135,7 @@ describe("chat post-response lifecycle scheduler", () => {
     expect(work.decision_outcome).toHaveBeenCalledTimes(1);
     expect(work.memory_pipeline).toHaveBeenCalledTimes(1);
     expect(work.conversation_update).toHaveBeenCalledTimes(1);
+    expect(work.chat_completed).toHaveBeenCalledTimes(1);
   });
 
   it("routes chat work through Next.js lifecycle continuation, not runBg", () => {
