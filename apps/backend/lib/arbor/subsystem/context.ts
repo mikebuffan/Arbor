@@ -13,8 +13,6 @@ import type { AgencyState } from "@/lib/arbor/agency/engine";
 import type { ArborSubsystem } from "@/lib/arbor/runtime/arborRuntime";
 import { strategyContext } from "@/lib/arbor/agency/strategyRetention";
 import { promptDataBlock } from "@/lib/arbor/promptData";
-import { loadLatestRuntimeState } from "@/lib/arbor/runtime/runtimeStateStore";
-import { projectRuntimeMemory } from "@/lib/arbor/continuity/runtimeMemoryProjection";
 
 const CORE_RULES = `
 ONE ARBOR.
@@ -32,14 +30,6 @@ Agency is operational, not decorative:
 - preserve unresolved work so it can resume rather than restart;
 - never claim an action, merge, test, deployment, or verification happened unless evidence says it did.
 
-Longitudinal continuity is causal, not decorative:
-- newer state outranks stale state without deleting history;
-- active goals persist until completed, explicitly superseded, or genuinely blocked;
-- unresolved work survives turn, thread, channel, and subsystem boundaries;
-- retrieved corrections, retained strategies, and pending self-updates must affect behavior;
-- do not require a magic continuation phrase when the active goal is still live;
-- do not socially restart because the conversation, surface, or subsystem changed.
-
 Adapters do not create new identities or new answers.
 Text renders canonical text.
 Voice speaks canonical text.
@@ -55,7 +45,6 @@ The return cue is exactly: "Arbor, kitchen's yours."
 
 When active:
 - load manuscript canon, locked passages, scene state, and unresolved writing decisions before generation;
-- preserve shared Arbor corrections, longitudinal state, and unresolved work;
 - Arbor commentary stays out of prose;
 - atmosphere/body first;
 - evidence -> bodily consequence -> action/choice;
@@ -85,28 +74,17 @@ export function agencyToPromptBlock(
 ): string {
   if (!agency) return "";
 
-  const strategy =
-    strategyContext(
-      agency.strategyNotes,
-    );
+  const strategy = strategyContext(agency.strategyNotes);
 
-  return promptDataBlock(
-    "LONGITUDINAL AGENCY STATE",
-    {
-      goal: agency.goal,
-      status: agency.status,
-      currentStep:
-        agency.currentStep,
-      unresolvedWork:
-        agency.unresolvedWork,
-      recurringWeaknesses:
-        agency.recurringWeaknesses,
-      retainedStrategyChanges:
-        strategy.retained,
-      tentativeStrategyUnderVerification:
-        strategy.pending,
-    },
-  );
+  return promptDataBlock("LONGITUDINAL AGENCY STATE", {
+    goal: agency.goal,
+    status: agency.status,
+    currentStep: agency.currentStep,
+    unresolvedWork: agency.unresolvedWork,
+    recurringWeaknesses: agency.recurringWeaknesses,
+    retainedStrategyChanges: strategy.retained,
+    tentativeStrategyUnderVerification: strategy.pending,
+  });
 }
 
 export async function buildArborInjectedContext(input: {
@@ -115,96 +93,40 @@ export async function buildArborInjectedContext(input: {
   projectId: string;
   userText: string;
 }): Promise<ArborInjectedContext> {
-  const state =
-    await loadSubsystemState(
-      input,
-    );
+  const state = await loadSubsystemState(input);
+  const cue = resolveSubsystemCue(input.userText);
+  const activeSubsystem = cue ?? state.activeSubsystem;
 
-  const cue =
-    resolveSubsystemCue(
-      input.userText,
-    );
-
-  const activeSubsystem =
-    cue ??
-    state.activeSubsystem;
-
-  if (
-    cue &&
-    cue !==
-      state.activeSubsystem
-  ) {
+  if (cue && cue !== state.activeSubsystem) {
     await persistActiveSubsystem({
-      supabase:
-        input.supabase,
-      userId:
-        input.userId,
-      projectId:
-        input.projectId,
-      activeSubsystem:
-        cue,
+      supabase: input.supabase,
+      userId: input.userId,
+      projectId: input.projectId,
+      activeSubsystem: cue,
     });
   }
 
-  const [
-    agency,
-    runtime,
-  ] = await Promise.all([
-    loadAgencyState(input),
-    loadLatestRuntimeState({
-      supabase:
-        input.supabase,
-      userId:
-        input.userId,
-      projectId:
-        input.projectId,
-    }),
-  ]);
-
-  const agencyBlock =
-    agencyToPromptBlock(
-      agency,
-    );
-
-  const runtimeBlock =
-    runtime
-      ? promptDataBlock(
-          "LONGITUDINAL RUNTIME STATE",
-          projectRuntimeMemory(
-            runtime,
-          ),
-        )
-      : "";
+  const agency = await loadAgencyState(input);
+  const agencyBlock = agencyToPromptBlock(agency);
 
   const annabelleWorkspaceBlock =
-    activeSubsystem ===
-    "annabelle"
+    activeSubsystem === "annabelle"
       ? annabelleWorkspaceToPromptBlock(
           await loadAnnabelleWorkspace({
-            supabase:
-              input.supabase,
-            userId:
-              input.userId,
-            projectId:
-              input.projectId,
+            supabase: input.supabase,
+            userId: input.userId,
+            projectId: input.projectId,
           }),
         )
       : "";
 
   return {
     activeSubsystem,
-    voiceId:
-      state.voiceId,
-    acousticCorrections:
-      state
-        .acousticCorrections,
+    voiceId: state.voiceId,
+    acousticCorrections: state.acousticCorrections,
     systemInjection: [
       CORE_RULES,
-      activeSubsystem ===
-      "annabelle"
-        ? ANNABELLE_RULES
-        : ARBOR_RULES,
-      runtimeBlock,
+      activeSubsystem === "annabelle" ? ANNABELLE_RULES : ARBOR_RULES,
       annabelleWorkspaceBlock,
       agencyBlock,
     ]
