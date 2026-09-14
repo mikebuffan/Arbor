@@ -459,6 +459,11 @@ export async function runAgency(input: {
         state,
         pendingStrategy,
         verification.complete,
+        {
+          sourceId: `turn:${input.context.turnId}:round:${round}:verification`,
+          originId: `turn:${input.context.turnId}`,
+          occurredAt: new Date().toISOString(),
+        },
       );
     }
 
@@ -488,6 +493,11 @@ export async function runAgency(input: {
           state,
           pendingStrategy,
           confirmation.complete,
+          {
+            sourceId: `turn:${input.context.turnId}:round:${round}:confirmation`,
+            originId: `turn:${input.context.turnId}`,
+            occurredAt: new Date().toISOString(),
+          },
         );
 
         await input.hooks?.onVerification?.({
