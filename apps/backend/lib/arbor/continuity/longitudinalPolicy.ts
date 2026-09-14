@@ -137,9 +137,12 @@ function looksLikeContinuationFollowup(
     return true;
   }
 
-  return sharesGoalContext(
-    text,
-    prior.goal,
+  if (sharesGoalContext(text, prior.goal)) {
+    return true;
+  }
+
+  return prior.unresolvedWork.some((item) =>
+    sharesGoalContext(text, item),
   );
 }
 
