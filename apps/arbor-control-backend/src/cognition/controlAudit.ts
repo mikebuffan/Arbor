@@ -67,19 +67,32 @@ export function reviseControlStateOnce(input: {
   state: ArborState;
   agency: AgencyResult;
   audit: ControlAuditResult;
-}): ArborState {
+}): {
+  state: ArborState;
+  agency: AgencyResult;
+} {
   if (
     input.audit.issues.includes(
       "false_completion_with_unresolved_work",
     )
   ) {
     return {
-      ...input.state,
-      unresolvedWork: [
-        ...input.state.unresolvedWork,
-      ],
+      state: {
+        ...input.state,
+        unresolvedWork: [
+          ...input.state.unresolvedWork,
+        ],
+      },
+      agency: {
+        ...input.agency,
+        status: "blocked",
+        blocker: "unresolved_work_remaining",
+      },
     };
   }
 
-  return input.state;
+  return {
+    state: input.state,
+    agency: input.agency,
+  };
 }
