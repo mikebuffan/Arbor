@@ -83,19 +83,22 @@ export function isMemoryInRuntimeScope(
   conversationId: string | null,
 ) {
   if (item.scope === "global") {
-    return item.project_id == null;
+    // Historical global rows may still carry a project_id. Scope is authoritative.
+    return true;
   }
 
   if (item.scope === "project") {
     return projectId !== null && item.project_id === projectId;
   }
 
-  return (
-    projectId !== null &&
-    conversationId !== null &&
-    item.project_id === projectId &&
-    item.conversation_id === conversationId
-  );
+  if (projectId === null || item.project_id !== projectId) return false;
+
+  // Legacy conversation-scoped rows were written before conversation_id was
+  // threaded through persistence. Treat those as project-level continuity
+  // until they can be safely backfilled from provenance.
+  if (item.conversation_id == null) return true;
+
+  return conversationId !== null && item.conversation_id === conversationId;
 }
 
 export function isMemoryInProjectScope(
