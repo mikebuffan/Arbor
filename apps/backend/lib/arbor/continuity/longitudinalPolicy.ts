@@ -9,6 +9,46 @@ const EXPLICIT_SWITCH =
 const COMPLETION_LANGUAGE =
   /(?:^|\b)(?:done|finished|complete|completed|resolved|fixed|solved)\b/i;
 
+const FOLLOWUP_SIGNAL =
+  /\b(?:it|that|this|those|them|again|still|next|then|same|continue|resume|proceed|tests?|code|permission|permissions|access|authorization|connected|reconnected|handled)\b/i;
+
+const STOPWORDS = new Set([
+  "about",
+  "after",
+  "again",
+  "also",
+  "been",
+  "being",
+  "could",
+  "does",
+  "doing",
+  "from",
+  "have",
+  "into",
+  "just",
+  "make",
+  "more",
+  "need",
+  "please",
+  "should",
+  "that",
+  "their",
+  "there",
+  "these",
+  "they",
+  "this",
+  "those",
+  "through",
+  "want",
+  "what",
+  "when",
+  "where",
+  "which",
+  "with",
+  "would",
+  "your",
+]);
+
 export function hasLiveAgencyGoal(
   prior: AgencyState | null,
 ): prior is AgencyState {
@@ -43,6 +83,62 @@ export function explicitlyClosesGoal(
   );
 }
 
+function significantWords(
+  value: string,
+): Set<string> {
+  return new Set(
+    value
+      .toLowerCase()
+      .match(/[a-z0-9]+/g)
+      ?.filter(
+        (word) =>
+          word.length >= 4 &&
+          !STOPWORDS.has(word),
+      ) ?? [],
+  );
+}
+
+function sharesGoalContext(
+  userText: string,
+  goal: string,
+): boolean {
+  const userWords =
+    significantWords(userText);
+  const goalWords =
+    significantWords(goal);
+
+  for (const word of userWords) {
+    if (goalWords.has(word)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function looksLikeContinuationFollowup(
+  userText: string,
+  prior: AgencyState,
+): boolean {
+  const text = userText.trim();
+
+  if (FOLLOWUP_SIGNAL.test(text)) {
+    return true;
+  }
+
+  if (
+    prior.status === "blocked" &&
+    /\b(?:fixed|handled|resolved|cleared|granted|enabled|authorized)\b/i.test(text)
+  ) {
+    return true;
+  }
+
+  return sharesGoalContext(
+    text,
+    prior.goal,
+  );
+}
+
 export function shouldCarryGoal(
   userText: string,
   prior: AgencyState | null,
@@ -55,7 +151,14 @@ export function shouldCarryGoal(
     return false;
   }
 
-  return true;
+  if (explicitlyContinues(userText)) {
+    return true;
+  }
+
+  return looksLikeContinuationFollowup(
+    userText,
+    prior,
+  );
 }
 
 export function mergeUnresolvedWork(

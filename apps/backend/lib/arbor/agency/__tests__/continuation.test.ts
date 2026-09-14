@@ -88,6 +88,35 @@ describe("agency continuation", () => {
     },
   );
 
+  it(
+    "does not let an unrelated substantive turn inherit a stale active goal",
+    () => {
+      const resolved =
+        resolveAgencyGoal(
+          "Why did Mike compare me to Einstein?",
+          prior,
+        );
+
+      expect(resolved).toEqual({
+        goal: "Why did Mike compare me to Einstein?",
+        resume: false,
+        superseded: false,
+      });
+    },
+  );
+
+  it(
+    "does not require magic switch language for a clearly unrelated question",
+    () => {
+      expect(
+        shouldResumeAgencyGoal(
+          "What did I eat yesterday?",
+          prior,
+        ),
+      ).toBe(false);
+    },
+  );
+
   it("allows an explicit task switch", () => {
     const resolved =
       resolveAgencyGoal(
