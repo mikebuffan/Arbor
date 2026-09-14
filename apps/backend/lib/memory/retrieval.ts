@@ -201,7 +201,7 @@ export async function getMemoryContext(params: {
           isMemoryInProjectScope(item, projectId),
         )
         .sort(
-          (a, b) =>
+          (a: RetrievedMemoryItem, b: RetrievedMemoryItem) =>
             memoryStabilityScore(b) -
             memoryStabilityScore(a),
         )
