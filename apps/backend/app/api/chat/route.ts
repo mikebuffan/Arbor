@@ -825,6 +825,16 @@ export async function POST(req: Request) {
             postcheckApproved: !finalAssistant.flagged,
           });
         },
+
+        episode_maintenance: async () => {
+          await summarizePriorOpenEpisodes({
+            supabase,
+            userId,
+            projectId,
+            currentEpisodeId: episodeId,
+            maxEpisodes: 2,
+          });
+        },
       },
     });
 
