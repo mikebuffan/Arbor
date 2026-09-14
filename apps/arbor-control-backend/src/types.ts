@@ -80,6 +80,7 @@ export type ArborState = {
   unresolvedWork: string[];
   strategyNotes: string[];
   strategyCandidates?: StrategyCandidate[];
+  behavioralCorrections?: string[];
   acousticCorrections: string[];
   voiceId: string;
   selfModel?: SelfModelIdentityState;
