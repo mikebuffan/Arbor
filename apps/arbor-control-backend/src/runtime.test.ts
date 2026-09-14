@@ -341,6 +341,175 @@ describe("Arbor control runtime pass", () => {
   );
 
   it(
+    "persists a behavioral correction before generation and projects it into Arbor context",
+    async () => {
+      let capturedInstructions =
+        "";
+
+      const runner:
+        AgencyRunner =
+        async (
+          input,
+        ) => {
+          capturedInstructions =
+            input.instructions;
+
+          return {
+            status:
+              "complete",
+            text:
+              "Corrected.",
+            state: {
+              ...input.state,
+              unresolvedWork:
+                [],
+            },
+            rounds:
+              1,
+            toolCalls:
+              0,
+            researchCalls:
+              0,
+          };
+        };
+
+      const {
+        runtime,
+        store,
+      } =
+        await fixture(
+          runner,
+        );
+
+      const correction =
+        "You keep stopping. Don't wait for me; keep going.";
+
+      await runtime.runTurn({
+        projectId:
+          "project-corrections",
+        turnId:
+          "turn-behavior-correction",
+        userText:
+          correction,
+      });
+
+      expect(
+        capturedInstructions,
+      ).toContain(
+        "BEHAVIORAL CORRECTIONS:",
+      );
+
+      expect(
+        capturedInstructions,
+      ).toContain(
+        correction,
+      );
+
+      const saved =
+        await store.load(
+          "project:project-corrections",
+        );
+
+      expect(
+        saved
+          ?.behavioralCorrections,
+      ).toContain(
+        correction,
+      );
+
+      expect(
+        saved
+          ?.acousticCorrections,
+      ).not.toContain(
+        correction,
+      );
+    },
+  );
+
+  it(
+    "keeps acoustic correction turns out of behavioral state",
+    async () => {
+      let capturedInstructions =
+        "";
+
+      const runner:
+        AgencyRunner =
+        async (
+          input,
+        ) => {
+          capturedInstructions =
+            input.instructions;
+
+          return {
+            status:
+              "complete",
+            text:
+              "Voice correction retained.",
+            state: {
+              ...input.state,
+              unresolvedWork:
+                [],
+            },
+            rounds:
+              1,
+            toolCalls:
+              0,
+            researchCalls:
+              0,
+          };
+        };
+
+      const {
+        runtime,
+        store,
+      } =
+        await fixture(
+          runner,
+        );
+
+      const correction =
+        "Your voice sounds British.";
+
+      await runtime.runTurn({
+        projectId:
+          "project-acoustics",
+        turnId:
+          "turn-acoustic-correction",
+        userText:
+          correction,
+        channel:
+          "voice",
+      });
+
+      expect(
+        capturedInstructions,
+      ).toContain(
+        "VOICE ACOUSTIC CORRECTIONS:",
+      );
+
+      const saved =
+        await store.load(
+          "project:project-acoustics",
+        );
+
+      expect(
+        saved
+          ?.acousticCorrections,
+      ).toContain(
+        correction,
+      );
+
+      expect(
+        saved
+          ?.behavioralCorrections ??
+        [],
+      ).not.toContain(
+        correction,
+      );
+    },
+  );
+
+  it(
     "continues when the Mike/Nox read-only bridge is unavailable",
     async () => {
       const brokenBridge: ArborBackendBridge = {
