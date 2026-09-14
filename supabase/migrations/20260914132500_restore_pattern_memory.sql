@@ -34,3 +34,13 @@ create index if not exists memory_items_pattern_candidates_idx
   on public.memory_items(user_id, project_id, memory_kind, status, recurrence_count desc)
   where deleted_at is null
     and memory_kind in ('pattern_candidate', 'pattern');
+
+
+-- Historical global memories were stored with a project_id even though their
+-- scope is global. Normalize those rows so storage and retrieval semantics agree.
+update public.memory_items
+set project_id = null,
+    conversation_id = null,
+    updated_at = now()
+where scope = 'global'
+  and project_id is not null;
