@@ -502,6 +502,7 @@ export async function reinforceMemoryUse(
   keysUsed: string[],
   projectId: string | null,
   supabase: SupabaseClient,
+  conversationId: string | null = null,
 ) {
   if (!keysUsed.length) return;
 
@@ -511,14 +512,44 @@ export async function reinforceMemoryUse(
     const cleanKey = key.trim();
     if (!cleanKey) continue;
 
-    const existing = await findExisting({
-      supabase,
-      authedUserId,
-      projectId,
-      conversationId: null,
-      scope: projectId ? "project" : "global",
-      key: cleanKey,
-    });
+    const conversationExisting =
+      projectId && conversationId
+        ? await findExisting({
+            supabase,
+            authedUserId,
+            projectId,
+            conversationId,
+            scope: "conversation",
+            key: cleanKey,
+          })
+        : null;
+
+    const projectExisting =
+      !conversationExisting && projectId
+        ? await findExisting({
+            supabase,
+            authedUserId,
+            projectId,
+            conversationId: null,
+            scope: "project",
+            key: cleanKey,
+          })
+        : null;
+
+    const globalExisting =
+      !conversationExisting && !projectExisting
+        ? await findExisting({
+            supabase,
+            authedUserId,
+            projectId: null,
+            conversationId: null,
+            scope: "global",
+            key: cleanKey,
+          })
+        : null;
+
+    const existing =
+      conversationExisting ?? projectExisting ?? globalExisting;
     if (!existing || existing.locked) continue;
 
     const nextCount = Number(existing.mention_count ?? 0) + 1;
