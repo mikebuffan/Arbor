@@ -25,13 +25,28 @@
 
   export type MemoryTier = "core" | "normal" | "sensitive";
 
+  export type MemoryKind =
+    | "fact"
+    | "preference"
+    | "anchor"
+    | "project_fact"
+    | "relationship"
+    | "obligation"
+    | "stressor"
+    | "state"
+    | "correction"
+    | "pattern_candidate"
+    | "pattern";
+
   export type MemoryItem = {
     key: string;
     value: Record<string, any> | string;
     tier: MemoryTier;
     user_trigger_only: boolean;
     importance: number; 
-    confidence: number; 
+    confidence: number;
+    memory_kind?: MemoryKind;
+    salience?: number;
     scope?: "global" | "project" | "conversation";
     folder_slug?: string | null;
     pinned?: boolean;
