@@ -9,6 +9,7 @@ import {
   assertSelfModelIdentity,
   currentSelfModelIdentity,
   ensureSelfModelIdentity,
+  renderCanonicalSelfModelPrompt,
   renderSelfModelIdentityAnchor,
 } from "./selfModelState.js";
 import type {
@@ -197,6 +198,46 @@ describe(
             }),
         ).toThrow(
           "self_model_identity_drift",
+        );
+      },
+    );
+
+    it(
+      "renders the canonical self-model prompt for shared app runtimes",
+      () => {
+        const rendered =
+          renderCanonicalSelfModelPrompt(
+            "continue the active agency work",
+          );
+
+        expect(
+          rendered,
+        ).toContain(
+          "ARBOR DURABLE IDENTITY ANCHOR",
+        );
+
+        expect(
+          rendered,
+        ).toContain(
+          ARBOR_SELF_MODEL_VERSION,
+        );
+
+        expect(
+          rendered,
+        ).toContain(
+          "source_questions=1300",
+        );
+
+        expect(
+          rendered,
+        ).toContain(
+          "ARBOR SELF-MODEL — VERIFIED CROSS-DOMAIN PATTERNS",
+        );
+
+        expect(
+          rendered,
+        ).toContain(
+          "1,000-QUESTION SELF-MODEL",
         );
       },
     );
