@@ -626,6 +626,9 @@ export class ArborControlRuntime {
       );
 
       const instructions = [
+        // Authority order recovered from the old linear controller:
+        // baseline identity -> newest corrections -> current state/open loops
+        // -> task/subsystem conditioning -> surface/acoustic presentation.
         ARBOR_CORE_INJECTION,
 
         renderSelfModelIdentityAnchor(
@@ -655,36 +658,10 @@ export class ArborControlRuntime {
               )}`
           : "",
 
-        subsystemInjection(
-          state,
-        ),
-
-        activeSubsystem ===
-        "annabelle"
-          ? renderAnnabelleWorkspace(
-              state,
-            )
-          : "",
-
-        state
-          .acousticCorrections
-          .length
-          ? `VOICE ACOUSTIC CORRECTIONS:\n${state.acousticCorrections
-              .map(
-                (
-                  item,
-                ) =>
-                  `- ${item}`,
-              )
-              .join(
-                "\n",
-              )}`
-          : "",
-
         Object.keys(
           externalState,
         ).length
-          ? `EXTERNAL BACKEND CONTEXT:\n${JSON.stringify(
+          ? `CURRENT / EXTERNAL BACKEND STATE:\n${JSON.stringify(
               externalState,
             )}`
           : "",
@@ -715,6 +692,32 @@ export class ArborControlRuntime {
               state.unresolvedWork,
               request.userText,
             )
+              .map(
+                (
+                  item,
+                ) =>
+                  `- ${item}`,
+              )
+              .join(
+                "\n",
+              )}`
+          : "",
+
+        subsystemInjection(
+          state,
+        ),
+
+        activeSubsystem ===
+        "annabelle"
+          ? renderAnnabelleWorkspace(
+              state,
+            )
+          : "",
+
+        state
+          .acousticCorrections
+          .length
+          ? `VOICE ACOUSTIC CORRECTIONS:\n${state.acousticCorrections
               .map(
                 (
                   item,
