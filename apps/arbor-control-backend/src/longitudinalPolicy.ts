@@ -65,6 +65,9 @@ export function shouldCarryGoal(
   if (
     explicitlySupersedes(
       userText,
+    ) ||
+    explicitlyClosesGoal(
+      userText,
     )
   ) {
     return false;
