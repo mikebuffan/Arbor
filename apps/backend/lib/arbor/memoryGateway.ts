@@ -135,6 +135,89 @@ export type ArborMemoryGatewaySnapshot = {
   };
 };
 
+export function assembleArborMemoryGatewaySnapshot(input: {
+  projectId: string;
+  conversationId: string | null;
+  agency: Awaited<ReturnType<typeof loadAgencyState>>;
+  exactConversation: ArborRuntimeState | null;
+  projectCorrections: ArborCorrection[];
+  memory: Awaited<ReturnType<typeof getMemoryContext>>;
+}): ArborMemoryGatewaySnapshot {
+  const corrections = prioritizeCorrections(
+    [
+      ...input.projectCorrections,
+      ...(input.exactConversation?.corrections ?? []),
+    ],
+    20,
+  );
+
+  const openLoops = uniqueStrings([
+    ...(input.agency?.unresolvedWork ?? []),
+    ...(input.exactConversation?.agency?.unresolvedWork ?? []),
+  ]);
+
+  const identityAnchors = input.memory.core
+    .slice(0, 12)
+    .map(compactMemory);
+
+  const identityIds = new Set(
+    identityAnchors.map((item) => item.id),
+  );
+
+  const relevantMemories = [
+    ...input.memory.core,
+    ...input.memory.normal,
+  ]
+    .filter((item) => !identityIds.has(item.id))
+    .slice(0, 18)
+    .map(compactMemory);
+
+  return {
+    schemaVersion: 1,
+    projectId: input.projectId,
+    conversationId: input.conversationId,
+    activeObjective:
+      input.agency && (
+        input.agency.status === "active" ||
+        input.agency.status === "blocked"
+      )
+        ? {
+            goal: input.agency.goal,
+            status: input.agency.status,
+            currentStep: input.agency.currentStep,
+            blocker: input.agency.blocker ?? null,
+          }
+        : null,
+    openLoops,
+    corrections: corrections.map((item) => ({
+      id: item.id,
+      kind: item.kind,
+      value: item.value,
+      source: item.source,
+      observedAt: item.observedAt,
+      confidence: item.confidence,
+      protected: item.protected,
+    })),
+    exactConversation: input.exactConversation
+      ? {
+          currentGoal: input.exactConversation.currentGoal,
+          activeSubsystem: input.exactConversation.activeSubsystem,
+          channel: input.exactConversation.channel,
+          updatedAt: input.exactConversation.updatedAt,
+        }
+      : null,
+    identityAnchors,
+    relevantMemories,
+    sensitiveAvailableCount: input.memory.sensitive.length,
+    diagnostics: {
+      memoryKeysUsed: input.memory.keysUsed,
+      exactConversationFound: Boolean(input.exactConversation),
+      projectCorrectionCount: input.projectCorrections.length,
+      projectAgencyFound: Boolean(input.agency),
+    },
+  };
+}
+
 export async function buildArborMemoryGatewaySnapshot(input: {
   supabase: SupabaseClient;
   userId: string;
@@ -177,83 +260,12 @@ export async function buildArborMemoryGatewaySnapshot(input: {
     }),
   ]);
 
-  const exactCorrections =
-    exactConversation?.corrections ?? [];
-
-  const corrections = prioritizeCorrections(
-    [
-      ...projectCorrections,
-      ...exactCorrections,
-    ],
-    20,
-  );
-
-  const openLoops = uniqueStrings([
-    ...(agency?.unresolvedWork ?? []),
-    ...(exactConversation?.agency?.unresolvedWork ?? []),
-  ]);
-
-  // Core identity memories are deterministic context. Normal memory remains
-  // relevance-ranked. Sensitive/user-trigger-only content is intentionally
-  // withheld from this read-only gateway v1.
-  const identityAnchors = memory.core
-    .slice(0, 12)
-    .map(compactMemory);
-
-  const identityIds = new Set(
-    identityAnchors.map((item) => item.id),
-  );
-
-  const relevantMemories = [
-    ...memory.core,
-    ...memory.normal,
-  ]
-    .filter((item) => !identityIds.has(item.id))
-    .slice(0, 18)
-    .map(compactMemory);
-
-  return {
-    schemaVersion: 1,
+  return assembleArborMemoryGatewaySnapshot({
     projectId: input.projectId,
     conversationId,
-    activeObjective:
-      agency && (
-        agency.status === "active" ||
-        agency.status === "blocked"
-      )
-        ? {
-            goal: agency.goal,
-            status: agency.status,
-            currentStep: agency.currentStep,
-            blocker: agency.blocker ?? null,
-          }
-        : null,
-    openLoops,
-    corrections: corrections.map((item) => ({
-      id: item.id,
-      kind: item.kind,
-      value: item.value,
-      source: item.source,
-      observedAt: item.observedAt,
-      confidence: item.confidence,
-      protected: item.protected,
-    })),
-    exactConversation: exactConversation
-      ? {
-          currentGoal: exactConversation.currentGoal,
-          activeSubsystem: exactConversation.activeSubsystem,
-          channel: exactConversation.channel,
-          updatedAt: exactConversation.updatedAt,
-        }
-      : null,
-    identityAnchors,
-    relevantMemories,
-    sensitiveAvailableCount: memory.sensitive.length,
-    diagnostics: {
-      memoryKeysUsed: memory.keysUsed,
-      exactConversationFound: Boolean(exactConversation),
-      projectCorrectionCount: projectCorrections.length,
-      projectAgencyFound: Boolean(agency),
-    },
-  };
+    agency,
+    exactConversation,
+    projectCorrections,
+    memory,
+  });
 }
