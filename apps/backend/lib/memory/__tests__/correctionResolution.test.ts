@@ -161,6 +161,7 @@ describe("explicit conversational memory correction", () => {
       [],
       projectA,
       emptySupabase,
+      null,
     );
     expect(activeItems).toHaveLength(1);
     expect(activeItems[0].key).toBe(
