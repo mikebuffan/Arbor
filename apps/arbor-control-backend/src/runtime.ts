@@ -28,6 +28,9 @@ import {
   ARBOR_CORE_INJECTION,
 } from "./identity.js";
 import {
+  shouldCarryGoal,
+} from "./longitudinalPolicy.js";
+import {
   renderSelfModelProjection,
 } from "./selfModelProjection.js";
 import {
@@ -52,9 +55,6 @@ import {
   defaultVoiceId,
   normalizeVoiceId,
 } from "./voiceConfig.js";
-
-const CONTINUATION =
-  /^(?:go|okay|ok|continue|keep going|do it|finish it|yes|yep|yeah|please do|carry on)[.!?\s]*$/i;
 
 const DEFAULT_STATE: ArborState = {
   activeSubsystem: "arbor",
@@ -501,14 +501,9 @@ export class ArborControlRuntime {
         );
 
       const resume =
-        prior
-          .unresolvedWork
-          .length >
-          0 &&
-        CONTINUATION.test(
-          request
-            .userText
-            .trim(),
+        shouldCarryGoal(
+          request.userText,
+          prior,
         );
 
       const state:
