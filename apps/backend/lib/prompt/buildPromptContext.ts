@@ -4,6 +4,10 @@ import {
   type RetrievedMemoryItem,
 } from "@/lib/memory/retrieval";
 import { assembleMemoryBlock } from "@/lib/memory/assembleMemoryBlock";
+import {
+  getHistoricalConversationRecall,
+  historicalRecallToPromptBlock,
+} from "@/lib/memory/historicalRecall";
 import { logMemoryEvent } from "@/lib/memory/logger";
 import {
   getProjectAnchors,
@@ -232,6 +236,21 @@ export async function buildPromptContext({
     .map(([cat, arr]) => `${cat.toUpperCase()}:\n${arr.map((x) => `- ${x}`).join("\n")}`)
     .join("\n\n");
 
+  const historicalRecall =
+    projectId
+      ? await getHistoricalConversationRecall({
+          supabase,
+          userId: authedUserId,
+          projectId,
+          query: latestUserText,
+        })
+      : [];
+
+  const historicalRecallBlock =
+    historicalRecallToPromptBlock(
+      historicalRecall,
+    );
+
   const arbor = projectId
     ? await buildArborInjectedContext({
         supabase,
@@ -347,6 +366,7 @@ export async function buildPromptContext({
     ].filter(Boolean),
     continuityMaterial: [
       memoryText,
+      historicalRecallBlock,
       arbor.systemInjection,
       continuityBlock,
       host.startup.promptBlock,
@@ -385,6 +405,8 @@ export async function buildPromptContext({
 
     Relevant context:
     ${memoryText || "(none)"}
+
+    ${historicalRecallBlock ? "\n" + historicalRecallBlock + "\n" : ""}
 
     ${continuityBlock}
 

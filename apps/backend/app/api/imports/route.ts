@@ -69,6 +69,11 @@ export async function POST(req: Request) {
           project_id: projectId ?? null,
           thread_index: ti,
           message_index: mi,
+          source_thread_id:
+            t.externalThreadId ??
+            `${importId}:${ti}`,
+          source_message_id:
+            `${importId}:${ti}:${mi}`,
           role: m.role,
           content: m.content,
           created_at: m.createdAt ?? null,
