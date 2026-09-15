@@ -45,6 +45,10 @@ describe("Voice renderer primitives", () => {
     expect(instructions).toContain("same underlying Arbor speaker identity");
     expect(instructions).toContain("General American");
     expect(instructions).toContain("User-confirmed acoustic corrections");
+    expect(instructions).toContain("warm, relaxed, casual, natural");
+    expect(instructions).toContain(
+      "Do not manufacture depth, rasp, roughness, intimacy, or sexiness",
+    );
     expect(instructions).not.toContain("different identity");
   });
 
