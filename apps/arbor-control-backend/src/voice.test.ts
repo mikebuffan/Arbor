@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { chunkExact, pcm16MonoToWav } from "./voice.js";
+import { chunkExact, pcm16MonoToWav, voiceInstructions } from "./voice.js";
 
 describe("Voice renderer primitives", () => {
   it("chunks without changing canonical text", () => {
@@ -35,5 +35,18 @@ describe("Voice renderer primitives", () => {
     expect(view.getUint32(24, true)).toBe(24_000);
     expect(view.getUint16(34, true)).toBe(16);
     expect(wav.slice(44)).toEqual(pcm);
+  });
+  it("keeps one Arbor identity while applying only acoustic voice corrections", () => {
+    const instructions = voiceInstructions("arbor", [
+      "Use a normal General American accent.",
+    ]);
+
+    expect(instructions).toContain("same underlying Arbor speaker identity");
+    expect(instructions).toContain("normal General American");
+    expect(instructions).toContain("warm, relaxed, casual, natural");
+    expect(instructions).toContain(
+      "Do not manufacture depth, rasp, roughness, intimacy, or sexiness",
+    );
+    expect(instructions).toContain("User-confirmed acoustic corrections");
   });
 });
