@@ -12,6 +12,8 @@ export type RetrievedMemoryItem = {
   user_trigger_only: boolean;
   importance: number;
   confidence: number;
+  mention_count: number;
+  correction_count: number;
   pinned: boolean;
   locked: boolean;
   status: string;
@@ -62,6 +64,8 @@ function normalizeRow(row: any): RetrievedMemoryItem {
     user_trigger_only: !!row.user_trigger_only,
     importance: Number(row.importance ?? 5),
     confidence: Number(row.confidence ?? 0.75),
+    mention_count: Number(row.mention_count ?? 0),
+    correction_count: Number(row.correction_count ?? 0),
     pinned: !!row.pinned,
     locked: !!row.locked,
     status: String(row.status ?? "active"),
@@ -118,6 +122,13 @@ function clamp01(value: number): number {
 export function memoryStabilityScore(item: RetrievedMemoryItem): number {
   const similarity = clamp01(item.similarity ?? 0);
   const importance = clamp01((item.importance - 1) / 9);
+  const reinforcement = clamp01(
+    Math.log1p(Math.max(0, item.mention_count ?? 0)) /
+      Math.log(11),
+  );
+  const correctionAuthority = clamp01(
+    Math.max(0, item.correction_count ?? 0) / 3,
+  );
   const hours = Math.min(
     hoursSince(item.last_reinforced_at ?? item.last_seen_at ?? item.updated_at),
     24 * 30,
@@ -127,12 +138,54 @@ export function memoryStabilityScore(item: RetrievedMemoryItem): number {
     : 0;
 
   return (
-    similarity * 0.60 +
-    importance * 0.20 +
+    similarity * 0.50 +
+    importance * 0.18 +
+    reinforcement * 0.12 +
+    correctionAuthority * 0.10 +
     recency * 0.10 +
     (item.pinned ? 0.20 : 0) +
     (item.locked ? 0.10 : 0)
   );
+}
+
+
+async function enrichMemoryStrength(
+  supabase: SupabaseClient,
+  items: RetrievedMemoryItem[],
+): Promise<RetrievedMemoryItem[]> {
+  if (!items.length) return items;
+
+  const ids = Array.from(
+    new Set(items.map((item) => item.id).filter(Boolean)),
+  );
+
+  const { data, error } = await supabase
+    .from("memory_items")
+    .select("id,mention_count,correction_count")
+    .in("id", ids);
+
+  if (error) {
+    console.warn("[memory:retrieval] strength enrichment failed", {
+      subsystem: "memory",
+      operation: "strength_enrichment",
+    });
+    return items;
+  }
+
+  const byId = new Map(
+    (data ?? []).map((row: any) => [
+      String(row.id),
+      {
+        mention_count: Number(row.mention_count ?? 0),
+        correction_count: Number(row.correction_count ?? 0),
+      },
+    ]),
+  );
+
+  return items.map((item) => ({
+    ...item,
+    ...(byId.get(item.id) ?? {}),
+  }));
 }
 
 async function directMemoryFallback(input: {
@@ -144,7 +197,7 @@ async function directMemoryFallback(input: {
   let query = input.supabase
     .from("memory_items")
     .select(
-      "id, user_id, project_id, conversation_id, key, value, tier, scope, user_trigger_only, importance, confidence, locked, pinned, status, deleted_at, last_seen_at, last_reinforced_at, updated_at",
+      "id, user_id, project_id, conversation_id, key, value, tier, scope, user_trigger_only, importance, confidence, mention_count, correction_count, locked, pinned, status, deleted_at, last_seen_at, last_reinforced_at, updated_at",
     )
     .eq("user_id", input.authedUserId)
     .is("deleted_at", null)
@@ -238,7 +291,14 @@ export async function getMemoryContext(params: {
             projectId,
             conversationId,
           ),
-        )
+        );
+
+      items = await enrichMemoryStrength(
+        supabase,
+        items,
+      );
+
+      items = items
         .sort(
           (a: RetrievedMemoryItem, b: RetrievedMemoryItem) =>
             memoryStabilityScore(b) -
