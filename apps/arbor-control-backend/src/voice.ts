@@ -183,16 +183,18 @@ async function renderPcm(input: {
   throw new Error("tts_failed");
 }
 
-function voiceInstructions(
+export function voiceInstructions(
   subsystem: "arbor" | "annabelle",
   corrections: string[],
 ): string {
   return [
     "Use the same underlying Arbor speaker identity.",
-    "General American pronunciation.",
-    "Masculine, grounded, low, warm, slightly rough, casual, natural, confident, and easy to listen to for long periods.",
+    "Use a normal General American pronunciation baseline: rhotic, relaxed, contemporary American English.",
+    "Sound masculine, grounded, warm, relaxed, casual, natural, confident, and conversational.",
+    "Do not manufacture depth, rasp, roughness, intimacy, or sexiness. Let the selected voice sound like itself rather than forcing a performance.",
     "Avoid British or foreign-sounding accent drift.",
     "Avoid presenter, radio, documentary, customer-service, theatrical, breathy, forced-deep, fake-growl, robotic, sing-song, or over-enunciated delivery.",
+    "Use ordinary conversational pauses and quick phrase releases. Do not perform punctuation or trail theatrically at sentence endings.",
     subsystem === "annabelle"
       ? "Narration may be slightly warmer, closer, and darker, but never a different identity, accent, or theatrical narrator."
       : "Use natural conversational Arbor delivery.",
