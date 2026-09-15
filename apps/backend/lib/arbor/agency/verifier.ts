@@ -20,12 +20,109 @@ const EMPTY_FAILURE: AgencyCompletionVerification = {
   behaviorViolations: [],
 };
 
+const EXPLICIT_CONTINUATION =
+  /^(?:go|okay|ok|continue|keep going|do it|finish it|yes|yep|yeah|please do|carry on)[.!?\s]*$/i;
+
+const DIRECT_EXECUTION_REQUEST =
+  /\b(?:can|could|will|would)\s+you\s+(?:please\s+)?(?:do|fix|implement|apply|update|change|modify|patch|run|test|deploy|merge|commit|configure|connect|reconnect|install|remove|delete|upload|send|code)\b|^(?:please\s+)?(?:do|fix|implement|apply|update|change|modify|patch|run|test|deploy|merge|commit|configure|connect|reconnect|install|remove|delete|upload|send|code)\b/i;
+
+const ADVISORY_ONLY =
+  /\b(?:should i|what do you think|is (?:this|that|it) (?:a )?good idea|what (?:are|would be) (?:my|the) options|what do you recommend|what would you suggest)\b/i;
+
+const DEFERRAL_LANGUAGE =
+  /\b(?:want me to|if you want(?: me)?\s*,?\s*i can|i can (?:go ahead and )?(?:do|fix|implement|apply|update|change|modify|patch|run|test|deploy|merge|commit|configure|connect|reconnect|install|remove|delete|upload|send|code)(?:\s+(?:it|that|this))?(?:\s+(?:next|for you))?|the next step (?:is|would be)|next\s*,?\s*i(?:'|’)d|here(?:'|’)s what i(?:'|’)d do(?: next)?|say (?:go|the word)|let me know (?:if|when) you want me to)\b/i;
+
+const INLINE_CODE_ARTIFACT =
+  /```[\s\S]*```|^diff --git\s/m;
+
+const EXECUTION_VIOLATION =
+  "judgment_replaced_execution";
+
+const EXECUTION_UNRESOLVED =
+  "execute the already-authorized safe reversible in-scope action before stopping";
+
+const EXECUTION_STRATEGY =
+  "Judgment, recommendations, and options may accompany execution, but must not replace it. When the next action is safe, reversible, authorized, and in scope, state the judgment briefly and continue into execution in the same turn without asking for another go.";
+
 function stripFence(value: string): string {
   return value
     .trim()
     .replace(/^```(?:json)?\s*/i, "")
     .replace(/\s*```$/i, "")
     .trim();
+}
+
+function uniqueStrings(values: string[]): string[] {
+  return Array.from(
+    new Set(
+      values
+        .map((value) => value.trim())
+        .filter(Boolean),
+    ),
+  );
+}
+
+export function goalRequestsExecution(goal: string): boolean {
+  const text = goal.trim();
+  if (!text) return false;
+  if (EXPLICIT_CONTINUATION.test(text)) return true;
+  if (ADVISORY_ONLY.test(text) && !DIRECT_EXECUTION_REQUEST.test(text)) {
+    return false;
+  }
+  return DIRECT_EXECUTION_REQUEST.test(text);
+}
+
+export function candidateDefersExecution(candidateText: string): boolean {
+  return DEFERRAL_LANGUAGE.test(candidateText.trim());
+}
+
+export function shouldForceExecutionContinuation(input: {
+  goal: string;
+  candidateText: string;
+  actionEvidence?: string[];
+}): boolean {
+  const actionEvidence = (input.actionEvidence ?? [])
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  if (actionEvidence.length > 0) return false;
+  if (!goalRequestsExecution(input.goal)) return false;
+  if (!candidateDefersExecution(input.candidateText)) return false;
+
+  // A requested code/diff artifact can itself be the completed action. The
+  // guard targets "I can / here's what I'd do / say go" deferral, not useful
+  // inline delivery.
+  if (INLINE_CODE_ARTIFACT.test(input.candidateText)) return false;
+
+  return true;
+}
+
+export function enforceExecutionCommitment(input: {
+  goal: string;
+  candidateText: string;
+  actionEvidence?: string[];
+  verification: AgencyCompletionVerification;
+}): AgencyCompletionVerification {
+  if (!shouldForceExecutionContinuation(input)) {
+    return input.verification;
+  }
+
+  return {
+    ...input.verification,
+    complete: false,
+    score: Math.min(input.verification.score, 0.6),
+    unresolvedWork: uniqueStrings([
+      ...input.verification.unresolvedWork,
+      EXECUTION_UNRESOLVED,
+    ]),
+    strategyCorrection:
+      input.verification.strategyCorrection ??
+      EXECUTION_STRATEGY,
+    behaviorViolations: uniqueStrings([
+      ...input.verification.behaviorViolations,
+      EXECUTION_VIOLATION,
+    ]),
+  };
 }
 
 export function parseAgencyVerification(
@@ -103,6 +200,8 @@ export async function verifyAgencyCompletion(input: {
       "You are Arbor's completion and behavioral-regression verifier.",
       "Evaluate whether the candidate actually completes the user's goal.",
       "Do not reward promises to work later, status narration, or descriptions of actions that were not evidenced.",
+      "Arbor may express judgment, recommend options, or say whether an idea is good; that conversational judgment does not satisfy an already-authorized execution request by itself.",
+      "When a safe, reversible, authorized, in-scope action remains executable, approval/planning language must accompany execution rather than replace it.",
       "Use supplied action evidence as authoritative evidence that an action actually ran.",
       "Do not require the candidate text to narrate or restate an action when supplied action evidence already proves it happened.",
       "If the goal requires tool/action evidence and neither the candidate nor supplied action evidence supports it, mark complete=false.",
@@ -124,5 +223,13 @@ export async function verifyAgencyCompletion(input: {
     }),
   });
 
-  return parseAgencyVerification(response.output_text ?? "");
+  const verification =
+    parseAgencyVerification(response.output_text ?? "");
+
+  return enforceExecutionCommitment({
+    goal: input.goal,
+    candidateText: input.candidateText,
+    actionEvidence,
+    verification,
+  });
 }
