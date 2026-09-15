@@ -117,4 +117,37 @@ describe("automatic memory promotion", () => {
     expect(applyMemoryPromotion([result])).toEqual([]);
   });
 
+
+  it("promotes an explicitly affirmed interaction preference instead of discarding it", () => {
+    const result = scoreMemoryPromotion({
+      item: item({
+        key: "interaction.preference.mkay",
+        value: "User enjoys Arbor using 'mkay' as a familiar callback.",
+        importance: 6,
+        confidence: 0.9,
+        scope: "global",
+      }),
+      userMessage: "I enjoy it.",
+    });
+
+    expect(["promote", "anchor"]).toContain(result.classification);
+    expect(result.signals.identityRelevance).toBeGreaterThanOrEqual(0.85);
+  });
+
+  it("does not auto-promote an ungrounded low-confidence interaction guess", () => {
+    const result = scoreMemoryPromotion({
+      item: item({
+        key: "interaction.preference.guess",
+        value: "Maybe the user likes this.",
+        importance: 3,
+        confidence: 0.4,
+        scope: "conversation",
+      }),
+      userMessage: "okay",
+    });
+
+    expect(result.classification).not.toBe("anchor");
+    expect(result.classification).not.toBe("promote");
+  });
+
 });
