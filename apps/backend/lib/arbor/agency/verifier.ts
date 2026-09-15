@@ -24,7 +24,7 @@ const EXPLICIT_CONTINUATION =
   /^(?:go|okay|ok|continue|keep going|do it|finish it|yes|yep|yeah|please do|carry on)[.!?\s]*$/i;
 
 const DIRECT_EXECUTION_REQUEST =
-  /\b(?:can|could|will|would)\s+you\s+(?:please\s+)?(?:do|fix|implement|apply|update|change|modify|patch|run|test|deploy|merge|commit|configure|connect|reconnect|install|remove|delete|upload|send|code)\b|^(?:please\s+)?(?:do|fix|implement|apply|update|change|modify|patch|run|test|deploy|merge|commit|configure|connect|reconnect|install|remove|delete|upload|send|code)\b/i;
+  /\b(?:can|could|will|would)\s+you\s+(?:please\s+)?(?:do|fix|implement|apply|update|change|modify|patch|run|test|deploy|merge|commit|configure|connect|reconnect|install|remove|delete|upload|send|code)\b|^(?:please\s+)?(?:fix|implement|apply|update|change|modify|patch|run|test|deploy|merge|commit|configure|connect|reconnect|install|remove|delete|upload|send|code)\b/i;
 
 const ADVISORY_ONLY =
   /\b(?:should i|do you think|what do you think|is (?:this|that|it) (?:a )?good idea|what (?:are|would be) (?:my|the) options|what do you recommend|what would you suggest)\b/i;
