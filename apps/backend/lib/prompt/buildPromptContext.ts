@@ -12,6 +12,10 @@ import {
   getHistoricalConversationRecall,
   historicalRecallToPromptBlock,
 } from "@/lib/memory/historicalRecall";
+import {
+  getEpisodeRecall,
+  episodeRecallToPromptBlock,
+} from "@/lib/arbor/episodes/episodeRecall";
 import { logMemoryEvent } from "@/lib/memory/logger";
 import { getProvisionalMemoryCandidateContext } from "@/lib/memory/candidateContext";
 import {
@@ -292,6 +296,21 @@ export async function buildPromptContext({
           selected: [],
         };
 
+  const episodeRecall =
+    projectId
+      ? await getEpisodeRecall({
+          supabase,
+          userId: authedUserId,
+          projectId,
+          userText: latestUserText,
+          currentThreadId: conversationId,
+          limit: 4,
+        })
+      : [];
+
+  const episodeRecallBlock =
+    episodeRecallToPromptBlock(episodeRecall);
+
   const historicalRecall =
     projectId
       ? await getHistoricalConversationRecall({
@@ -422,6 +441,7 @@ export async function buildPromptContext({
     ].filter(Boolean),
     continuityMaterial: [
       memoryText,
+      episodeRecallBlock,
       historicalRecallBlock,
       continuityBlock,
       host.startup.promptBlock,
@@ -464,6 +484,8 @@ export async function buildPromptContext({
     ${provisionalCandidates.promptBlock
       ? "\n" + provisionalCandidates.promptBlock + "\n"
       : ""}
+
+    ${episodeRecallBlock ? "\n" + episodeRecallBlock + "\n" : ""}
 
     ${historicalRecallBlock ? "\n" + historicalRecallBlock + "\n" : ""}
 
