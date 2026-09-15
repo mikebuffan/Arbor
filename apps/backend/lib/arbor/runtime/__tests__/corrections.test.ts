@@ -9,10 +9,32 @@ import {
   behaviorCorrections,
   classifyCorrection,
   correctionFamily,
+  detectCorrectionKind,
   createCorrection,
 } from "../corrections";
 
 describe("Arbor correction routing", () => {
+
+  it("does not mistake ordinary continuation commands for correction feedback", () => {
+    expect(detectCorrectionKind("Continue please.")).toBeNull();
+    expect(detectCorrectionKind("Keep going.")).toBeNull();
+  });
+
+  it("detects direct behavioral correction feedback", () => {
+    expect(
+      detectCorrectionKind(
+        "Why did you stop? I should not have to tell you to go again.",
+      ),
+    ).toBe("behavior");
+  });
+
+  it("detects acoustic feedback only with feedback context", () => {
+    expect(
+      detectCorrectionKind("Your voice sounds British again."),
+    ).toBe("acoustic");
+    expect(detectCorrectionKind("voice")).toBeNull();
+  });
+
   it("routes British-accent feedback acoustically", () => {
     expect(
       classifyCorrection(
