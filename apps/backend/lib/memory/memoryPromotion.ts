@@ -30,6 +30,7 @@ export type MemoryPromotionInput = {
   relatedMemoryCount?: number;
   userMessage?: string | null;
   assistantMessage?: string | null;
+  isTestData?: boolean;
 };
 
 function clamp01(value: number): number {
@@ -276,6 +277,18 @@ export function scoreMemoryPromotion(
     };
   }
 
+  if (input.isTestData) {
+    return {
+      item,
+      score: 0,
+      classification: "discard",
+      signals: zeroSignals,
+      reasons: [
+        "Input detected as test/probe data; do not persist it into durable memory.",
+      ],
+    };
+  }
+
   const signals: MemoryPromotionSignals = {
     repetition: scoreRepetition(item, relatedMemoryCount),
     emotionalWeight: scoreEmotionalWeight(item, userMessage),
@@ -345,6 +358,7 @@ export function scoreMemoryPromotionBatch(input: {
   relatedMemoryCountByKey?: Record<string, number>;
   userMessage?: string | null;
   assistantMessage?: string | null;
+  isTestData?: boolean;
 }): MemoryPromotionResult[] {
   const related = input.relatedMemoryCountByKey ?? {};
 
@@ -354,6 +368,7 @@ export function scoreMemoryPromotionBatch(input: {
       relatedMemoryCount: related[item.key] ?? 0,
       userMessage: input.userMessage,
       assistantMessage: input.assistantMessage,
+      isTestData: input.isTestData,
     }),
   );
 }
