@@ -192,15 +192,22 @@ export async function runImport(params: {
             supabase,
             userId,
             projectId,
-            turns: turns.map((turn, index) => ({
-              source: turn.source,
-              sourceThreadId: turn.sourceConversationId,
-              sourceMessageId: turn.sourceMessageId,
-              sourceMessageIndex: index,
-              role: turn.role,
-              content: turn.content,
-              occurredAt: turn.createdAt,
-            })),
+            turns: turns
+              .filter(
+                (turn) =>
+                  turn.role === "user" ||
+                  turn.role === "assistant" ||
+                  turn.role === "system",
+              )
+              .map((turn, index) => ({
+                source: turn.source,
+                sourceThreadId: turn.sourceConversationId,
+                sourceMessageId: turn.sourceMessageId,
+                sourceMessageIndex: index,
+                role: turn.role as "user" | "assistant" | "system",
+                content: turn.content,
+                occurredAt: turn.createdAt,
+              })),
           }),
           300000,
           "upsertHistoricalConversationTurns"
