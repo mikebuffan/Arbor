@@ -65,6 +65,7 @@ import {
 import { buildTelemetry } from "@/lib/arbor/telemetry/buildTelemetry";
 import { getOrCreateOpenEpisode } from "@/lib/arbor/episodes/getOrCreateOpenEpisode";
 import { scheduleChatPostResponseWork } from "@/lib/chat/postResponseScheduler";
+import { detectTestMode } from "@/lib/runtime/testModeDetection";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -208,6 +209,8 @@ export async function POST(req: Request) {
       userText,
       interactionMode,
     } = parsed.data;
+
+    const memoryTestMode = detectTestMode(userText);
 
     await cleanupExpiredMessagesBestEffort(supabase, userId);
     if (maybeProjectId) {
@@ -776,6 +779,7 @@ export async function POST(req: Request) {
               relatedMemoryCountByKey,
               userMessage: userText,
               assistantMessage: assistantText,
+              isTestData: memoryTestMode.shouldPreventLongTermPromotion,
             });
 
             classified = {
