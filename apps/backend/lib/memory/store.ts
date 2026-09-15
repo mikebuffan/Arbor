@@ -5,6 +5,7 @@ import { embedText, embedTexts, memoryToEmbedString } from "@/lib/memory/embeddi
 import { logMemoryEvent } from "@/lib/memory/logger";
 import { getServerSupabase } from "@/lib/supabase/server";
 import { computePatternPromotion } from "@/lib/memory/patternPromotion";
+import { findPatternHopTarget } from "@/lib/memory/patternMerge";
 
 const ITEMS_TABLE = "memory_items";
 const EVENTS_TABLE = "memory_pending";
@@ -62,6 +63,62 @@ async function findExisting(params: {
 
   if (error) throw error;
   return data;
+}
+
+async function findPatternHopExisting(params: {
+  supabase: SupabaseClient;
+  authedUserId: string;
+  projectId: string | null;
+  conversationId: string | null;
+  scope: "global" | "project" | "conversation";
+  key: string;
+  value: unknown;
+}) {
+  let query = params.supabase
+    .from(ITEMS_TABLE)
+    .select("*")
+    .eq("user_id", params.authedUserId)
+    .eq("scope", params.scope)
+    .in("memory_kind", ["pattern_candidate", "pattern"])
+    .in("status", ["pending", "active"])
+    .is("deleted_at", null);
+
+  if (params.scope === "global") {
+    query = query
+      .is("project_id", null)
+      .is("conversation_id", null);
+  } else if (params.scope === "project") {
+    if (!params.projectId) return null;
+    query = query
+      .eq("project_id", params.projectId)
+      .is("conversation_id", null);
+  } else {
+    if (!params.projectId || !params.conversationId) return null;
+    query = query
+      .eq("project_id", params.projectId)
+      .eq("conversation_id", params.conversationId);
+  }
+
+  const { data, error } = await query
+    .order("updated_at", { ascending: false })
+    .limit(40);
+
+  if (error) throw error;
+
+  return findPatternHopTarget({
+    incomingKey: params.key,
+    incomingValue: params.value,
+    rows: (data ?? []).map((row: any) => ({
+      id: String(row.id),
+      key: String(row.key ?? ""),
+      value: row.value,
+      memory_kind: row.memory_kind ?? null,
+      confidence: row.confidence ?? null,
+      salience: row.salience ?? null,
+      recurrence_count: row.recurrence_count ?? null,
+      status: row.status ?? null,
+    })),
+  });
 }
 
 async function logEvent(params: {
@@ -180,7 +237,7 @@ export async function upsertMemoryItems(
       batched?.[i] ?? (await embedText(memoryToEmbedString(key, item.value)));
     const embedding = normalizeEmbedding(rawEmbedding);
 
-    const existing = await findExisting({
+    let existing = await findExisting({
       supabase,
       authedUserId,
       projectId,
@@ -188,6 +245,18 @@ export async function upsertMemoryItems(
       scope,
       key,
     });
+
+    if (!existing && requestedKind === "pattern_candidate") {
+      existing = await findPatternHopExisting({
+        supabase,
+        authedUserId,
+        projectId,
+        conversationId: scopedConversationId,
+        scope,
+        key,
+        value,
+      });
+    }
 
     if (!existing) {
       if (requestedKind === "pattern_candidate") {
@@ -232,7 +301,7 @@ export async function upsertMemoryItems(
         last_seen_at: nowIso,
         last_reinforced_at: nowIso,
         updated_at: nowIso,
-        embedding,
+        embedding: mergedEmbedding,
       });
       if (error) throw error;
 
@@ -307,6 +376,16 @@ export async function upsertMemoryItems(
           : String(existing.status ?? "active");
     }
 
+    const canonicalKey = String(existing.key ?? key);
+    const hoppedPattern = canonicalKey !== key && isPatternSignal;
+    const replacePatternValue =
+      !isPatternSignal ||
+      confidence >= Number(existing.confidence ?? 0);
+    const mergedValue =
+      replacePatternValue ? value : existing.value;
+    const mergedEmbedding =
+      replacePatternValue ? embedding : existing.embedding;
+
     if (existing.locked) {
       const { error } = await supabase
         .from(ITEMS_TABLE)
@@ -342,7 +421,7 @@ export async function upsertMemoryItems(
             ? null
             : projectId ?? existing.project_id ?? null,
         conversation_id: scopedConversationId,
-        value,
+        value: mergedValue,
         tier: tier ?? existing.tier ?? "normal",
         scope,
         user_trigger_only,
@@ -370,13 +449,18 @@ export async function upsertMemoryItems(
       supabase,
       authedUserId,
       projectId: scope === "global" ? null : projectId,
-      key,
+      key: canonicalKey,
       event_type:
         memoryKind === "pattern" && existingKind !== "pattern"
           ? "pattern_promoted"
-          : "update",
+          : hoppedPattern
+            ? "pattern_hop_merge"
+            : "update",
       payload: {
         changed: true,
+        incoming_key: key,
+        canonical_key: canonicalKey,
+        pattern_hop: hoppedPattern,
         memory_kind: memoryKind,
         recurrence_count: recurrenceCount,
         promotion_score: promotionScore,
@@ -384,7 +468,7 @@ export async function upsertMemoryItems(
       },
     });
 
-    res.updated.push(key);
+    res.updated.push(canonicalKey);
   }
 
   const duration = Date.now() - start;
