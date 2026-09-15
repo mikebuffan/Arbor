@@ -27,6 +27,13 @@ const BEHAVIOR_PATTERNS = [
   /\bcustomer[- ]service\b/i,
   /\btherapy voice\b/i,
   /\btherapeutic\b/i,
+  /\brobotic\b/i,
+  /\btoo stiff\b/i,
+  /\bover[- ]?correct(?:ed|ing|ion)?\b/i,
+  /\btrying too hard\b/i,
+  /\bdon'?t be weird\b/i,
+  /\bdo not be weird\b/i,
+  /\bbe normal\b/i,
 
   // Linear agency / follow-through corrections.
   /\bdon'?t wait\b/i,
@@ -83,7 +90,6 @@ export function classifyCorrection(
   return "preference";
 }
 
-
 export function correctionFamily(
   kind: ArborCorrectionKind,
   value: string,
@@ -98,7 +104,7 @@ export function correctionFamily(
     }
 
     if (
-      /\b(?:humou?r is gone|you(?:'ve| have) drifted|doesn'?t sound like you|does not sound like you|come back|too generic|too formal|customer[- ]service|presenter)\b/i.test(text)
+      /\b(?:humou?r is gone|you(?:'ve| have) drifted|doesn'?t sound like you|does not sound like you|come back|too generic|too formal|customer[- ]service|presenter|robotic|too stiff|over[- ]?correct(?:ed|ing|ion)?|trying too hard|don'?t be weird|do not be weird|be normal)\b/i.test(text)
     ) {
       return "identity-drift";
     }
