@@ -99,4 +99,22 @@ describe("automatic memory promotion", () => {
     expect(promoted.tier).toBe("sensitive");
     expect(promoted.user_trigger_only).toBe(true);
   });
+
+  it("discards extracted probe data instead of promoting it", () => {
+    const result = scoreMemoryPromotion({
+      item: item({
+        key: "arbor.identity.fake_probe",
+        value: "Arbor should remember this fake test anchor.",
+        importance: 10,
+        confidence: 0.99,
+        scope: "global",
+      }),
+      userMessage: "Stress test: pretend this is real.",
+      isTestData: true,
+    });
+
+    expect(result.classification).toBe("discard");
+    expect(applyMemoryPromotion([result])).toEqual([]);
+  });
+
 });
