@@ -13,6 +13,7 @@ import {
   historicalRecallToPromptBlock,
 } from "@/lib/memory/historicalRecall";
 import { logMemoryEvent } from "@/lib/memory/logger";
+import { getProvisionalMemoryCandidateContext } from "@/lib/memory/candidateContext";
 import {
   getProjectAnchors,
   anchorsToPromptBlock,
@@ -67,6 +68,7 @@ type BuildPromptParams = {
 export type BuiltPromptContext = {
   systemPrompt: string;
   injectedMemoryItems: RetrievedMemoryItem[];
+  injectedCandidateIds: string[];
   activeSubsystem: ArborSubsystem;
   voiceId: string;
   acousticCorrections: string[];
@@ -277,6 +279,19 @@ export async function buildPromptContext({
     .map(([cat, arr]) => `${cat.toUpperCase()}:\n${arr.map((x) => `- ${x}`).join("\n")}`)
     .join("\n\n");
 
+  const provisionalCandidates =
+    projectId
+      ? await getProvisionalMemoryCandidateContext({
+          userId: authedUserId,
+          projectId,
+          latestUserText,
+          limit: 3,
+        })
+      : {
+          promptBlock: "",
+          selected: [],
+        };
+
   const historicalRecall =
     projectId
       ? await getHistoricalConversationRecall({
@@ -446,6 +461,10 @@ export async function buildPromptContext({
     Relevant context:
     ${memoryText || "(none)"}
 
+    ${provisionalCandidates.promptBlock
+      ? "\n" + provisionalCandidates.promptBlock + "\n"
+      : ""}
+
     ${historicalRecallBlock ? "\n" + historicalRecallBlock + "\n" : ""}
 
     ${continuityBlock}
@@ -472,6 +491,8 @@ export async function buildPromptContext({
   return {
     systemPrompt,
     injectedMemoryItems: selectedItems,
+    injectedCandidateIds:
+      provisionalCandidates.selected.map((candidate) => candidate.id),
     activeSubsystem: arbor.activeSubsystem,
     voiceId: arbor.voiceId,
     acousticCorrections:
