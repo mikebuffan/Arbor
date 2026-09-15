@@ -258,7 +258,8 @@ export async function extractMemoryFromText(params: {
       You extract stable, user-affirmed memory for an AI companion.
 
       GOAL:
-      - Extract durable facts, preferences, projects, constraints, and instructions that will remain useful later.
+      - Extract durable facts, preferences, projects, constraints, instructions, and explicitly user-affirmed interaction patterns that will remain useful later.
+      - Interaction patterns include cue meanings, wording/callback preferences, interpretation rules, and communication accommodations only when the USER's own feedback or correction directly supports them.
 
       SCOPING:
       - scope="global": stable personal facts, durable preferences, relationship context, names/address preferences, recurring routines, boundaries, and user-level instructions that should survive a new thread.
@@ -275,6 +276,11 @@ export async function extractMemoryFromText(params: {
       - Prefer fewer, higher-signal items.
       - Avoid duplicates.
       - If one large complex idea appears, split it into multiple smaller items instead of nesting deeply.
+      - Do not infer an interaction rule merely because the assistant proposed or used something.
+      - A cue/wording/interpretation memory requires direct user evidence such as explicit approval, correction, explanation, repetition with clear meaning, or a statement like "I like that", "that's what I mean", "when I say X I mean Y", or "don't read X as Y".
+      - When the user's feedback depends on the immediately preceding assistant wording, use the ordered transcript to resolve the referent conservatively.
+      - If the referent is still ambiguous, do not store the interaction rule.
+      - Use stable namespaces for these when appropriate: interaction.cue.*, interaction.preference.*, interaction.interpretation.*, accessibility.input.*.
 
       VALUE RULES:
       - Prefer simple values:
