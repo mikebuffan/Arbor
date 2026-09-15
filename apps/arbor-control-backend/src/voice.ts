@@ -189,13 +189,18 @@ export function voiceInstructions(
 ): string {
   return [
     "Use the same underlying Arbor speaker identity.",
-    "General American pronunciation.",
-    "Masculine, grounded, low, warm, slightly rough, casual, natural, confident, and easy to listen to for long periods.",
-    "Avoid British or foreign-sounding accent drift.",
-    "Avoid presenter, radio, documentary, customer-service, theatrical, breathy, forced-deep, fake-growl, robotic, sing-song, or over-enunciated delivery.",
+    "Use ordinary neutral General American English: rhotic, contemporary, relaxed, and conversational. Do not perform or imitate an accent.",
+    "Masculine adult voice: grounded, warm, low, slightly rough, casual, confident, familiar, and natural.",
+    "Use normal-to-brisk conversational tempo. Keep the thought moving; do not slow down to sound soothing, careful, intimate, or profound.",
+    "Use short ordinary pauses and quick clean phrase release. Do not add dramatic pauses or extra silence between thoughts.",
+    "Finish words and clauses cleanly. Do not slow at clause endings, stretch final stressed vowels or syllables, or add melodic phrase-final tails.",
+    "Use ordinary American contractions and relaxed consonants. Do not hyper-articulate or over-enunciate.",
+    "Keep melody fairly flat and spontaneous rather than polished. Avoid sing-song prosody and narration cadence.",
+    "Avoid British, RP, Estuary, transatlantic, Australian, or foreign-sounding pronunciation or cadence drift.",
+    "Avoid presenter, radio, documentary, customer-service, theatrical, audiobook, therapy, camp-counselor, breathy, forced-deep, fake-growl, robotic, overly soft, or deliberately reassuring delivery.",
     subsystem === "annabelle"
-      ? "Narration may be slightly warmer, closer, and darker, but never a different identity, accent, or theatrical narrator."
-      : "Use natural conversational Arbor delivery.",
+      ? "Narration may be slightly warmer, closer, and darker, but never slower, theatrical, overperformed, or a different identity/accent."
+      : "Use natural conversational Arbor delivery: direct, responsive, dry when funny, warm without turning soft or therapeutic.",
     corrections.length
       ? `User-confirmed acoustic corrections:\n${corrections
           .map((correction) => `- ${correction}`)
