@@ -51,6 +51,21 @@ describe("Arbor behavior guard requirements", () => {
         item.includes("Status narration is not progress"),
       ),
     ).toBe(true);
+    expect(
+      projection.guardRequirements.some((item) =>
+        item.includes("smallest sufficient delta"),
+      ),
+    ).toBe(true);
+    expect(
+      projection.guardRequirements.some((item) =>
+        item.includes("Do not pendulum-swing after correction"),
+      ),
+    ).toBe(true);
+    expect(
+      projection.guardRequirements.some((item) =>
+        item.includes("adjust only the failed dimension"),
+      ),
+    ).toBe(true);
     expect(projection.guardRequirements).not.toContain(
       "Grounded, direct, and familiar.",
     );
