@@ -24,6 +24,7 @@ import { SupabaseTimelineStore } from "@/lib/arbor/timeline/supabaseStore";
 import { extractMemoryFromText } from "@/lib/memory/extractor";
 import { ingestMemorySignals } from "@/lib/memory/ingestSignals";
 import { consolidateMemoryCandidates } from "@/lib/memory/consolidateCandidates";
+import { reinforceMemoryCandidate } from "@/lib/memory/reinforceCandidate";
 import {
   applyMemoryPromotion,
   loadRelatedMemoryCounts,
@@ -326,6 +327,7 @@ export async function POST(req: Request) {
     const {
       systemPrompt,
       injectedMemoryItems: selectedMemoryItems,
+      injectedCandidateIds,
       activeSubsystem,
       behaviorProof,
       behaviorGuardRequirements,
@@ -774,6 +776,18 @@ export async function POST(req: Request) {
         },
 
         memory_pipeline: async () => {
+          await Promise.all(
+            injectedCandidateIds.map((candidateId) =>
+              reinforceMemoryCandidate({
+                candidateId,
+                projectId,
+                userId,
+                threadId: convoId,
+                event: "injected",
+              }),
+            ),
+          );
+
           const extracted = await extractMemoryFromText({
             userText,
             assistantText,
