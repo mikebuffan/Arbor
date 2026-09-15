@@ -48,4 +48,15 @@ describe("Voice renderer primitives", () => {
     expect(instructions).not.toContain("different identity");
   });
 
+  it("locks the recovered conversational cadence instead of slow soothing delivery", () => {
+    const instructions = voiceInstructions("arbor", []);
+
+    expect(instructions).toContain("normal-to-brisk conversational tempo");
+    expect(instructions).toContain("short ordinary pauses");
+    expect(instructions).toContain("quick clean phrase release");
+    expect(instructions).toContain("Do not slow at clause endings");
+    expect(instructions).toContain("stretch final stressed vowels or syllables");
+    expect(instructions).toContain("overly soft");
+    expect(instructions).toContain("therapy");
+  });
 });
