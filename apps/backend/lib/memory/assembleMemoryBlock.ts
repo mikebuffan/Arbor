@@ -44,7 +44,23 @@ export function assembleMemoryBlock(args: {
 
   const decayed = allItems.filter((i) => {
     if (i.deleted_at || i.status !== "active") return false;
-    if (i.pinned || i.locked || i.tier === "core") return true;
+
+    // Stable memory should weaken by rank, not disappear because a calendar
+    // threshold elapsed. Preserve durable/reinforced/corrected memories even
+    // when they are old; the retriever already applies recency as a score.
+    if (
+      i.pinned ||
+      i.locked ||
+      i.tier === "core" ||
+      Number(i.mention_count ?? 0) >= 3 ||
+      Number(i.correction_count ?? 0) > 0 ||
+      (
+        Number(i.importance ?? 0) >= 8 &&
+        Number(i.confidence ?? 0) >= 0.8
+      )
+    ) {
+      return true;
+    }
 
     const stamp = i.last_reinforced_at ?? i.last_seen_at ?? i.updated_at;
     if (!stamp) return true;
