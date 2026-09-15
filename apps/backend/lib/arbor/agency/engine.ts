@@ -31,6 +31,27 @@ export type AgencyState = {
   blocker?: AgencyBlocker | null;
 };
 
+export type AgencyYieldDecision =
+  | { yield: true; reason: "complete" | "blocked" }
+  | { yield: false; reason: "continue" };
+
+/**
+ * A successful intermediate action is never a reason to yield control.
+ * The agency loop may return to the caller only when the objective is
+ * complete or a genuine blocker requires external/user input.
+ */
+export function agencyYieldDecision(agency: AgencyState): AgencyYieldDecision {
+  if (agency.status === "complete" && agency.unresolvedWork.length === 0) {
+    return { yield: true, reason: "complete" };
+  }
+
+  if (agency.status === "blocked" && agency.blocker) {
+    return { yield: true, reason: "blocked" };
+  }
+
+  return { yield: false, reason: "continue" };
+}
+
 export interface AgencyRuntime<SharedState> {
   loadSharedState(): Promise<SharedState>;
   assess(input: { agency: AgencyState; shared: SharedState }): Promise<{ complete: boolean; unresolvedWork: string[]; evidence?: unknown }>;
@@ -117,6 +138,8 @@ export async function runAgency<SharedState>(input: {
 
     agency = {
       ...agency,
+      status: "active",
+      blocker: null,
       recurringWeaknesses: audit.recurringWeakness
         ? [...agency.recurringWeaknesses, audit.recurringWeakness].slice(-20)
         : agency.recurringWeaknesses,
@@ -126,6 +149,12 @@ export async function runAgency<SharedState>(input: {
     };
 
     await input.runtime.persist({ agency, shared });
+
+    // Mandatory continuation gate. Persisting or successfully verifying one
+    // action is progress, not completion. Do not return a progress result here.
+    if (agencyYieldDecision(agency).yield) {
+      return { agency, shared };
+    }
   }
 
   throw new Error(`agency_step_budget_exhausted:${maxSteps}`);
