@@ -188,6 +188,56 @@ async function enrichMemoryStrength(
   }));
 }
 
+export async function getAlwaysIncludedMemoryAnchors(input: {
+  supabase: SupabaseClient;
+  authedUserId: string;
+  projectId: string | null;
+  conversationId: string | null;
+  limit?: number;
+}): Promise<RetrievedMemoryItem[]> {
+  let query = input.supabase
+    .from("memory_items")
+    .select(
+      "id, user_id, project_id, conversation_id, key, value, tier, scope, user_trigger_only, importance, confidence, mention_count, correction_count, locked, pinned, status, deleted_at, last_seen_at, last_reinforced_at, updated_at",
+    )
+    .eq("user_id", input.authedUserId)
+    .eq("status", "active")
+    .is("deleted_at", null)
+    .or("tier.eq.core,pinned.eq.true,locked.eq.true");
+
+  if (input.projectId) {
+    const scoped = [
+      "scope.eq.global",
+      `and(scope.eq.project,project_id.eq.${input.projectId})`,
+      input.conversationId
+        ? `and(scope.eq.conversation,project_id.eq.${input.projectId},conversation_id.eq.${input.conversationId})`
+        : null,
+    ].filter(Boolean).join(",");
+
+    query = query.or(scoped);
+  } else {
+    query = query.eq("scope", "global");
+  }
+
+  const { data, error } = await query
+    .order("importance", { ascending: false })
+    .order("updated_at", { ascending: false })
+    .limit(Math.max(1, Math.min(input.limit ?? 24, 60)));
+
+  if (error) throw error;
+
+  return (data ?? [])
+    .filter(isLiveRow)
+    .map(normalizeRow)
+    .filter((item: RetrievedMemoryItem) =>
+      isMemoryInProjectScope(
+        item,
+        input.projectId,
+        input.conversationId,
+      ),
+    );
+}
+
 async function directMemoryFallback(input: {
   supabase: SupabaseClient;
   authedUserId: string;
