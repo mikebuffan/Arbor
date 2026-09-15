@@ -301,7 +301,7 @@ export async function upsertMemoryItems(
         last_seen_at: nowIso,
         last_reinforced_at: nowIso,
         updated_at: nowIso,
-        embedding: mergedEmbedding,
+        embedding,
       });
       if (error) throw error;
 
@@ -438,7 +438,7 @@ export async function upsertMemoryItems(
         last_seen_at: nowIso,
         last_reinforced_at: nowIso,
         updated_at: nowIso,
-        embedding,
+        embedding: mergedEmbedding,
       })
       .eq("id", existing.id)
       .eq("user_id", authedUserId);
