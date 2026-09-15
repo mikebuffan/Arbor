@@ -605,16 +605,6 @@ export async function POST(req: Request) {
             name,
           );
         },
-
-        episode_maintenance: async () => {
-          await summarizePriorOpenEpisodes({
-            supabase,
-            userId,
-            projectId,
-            currentEpisodeId: episodeId,
-            maxEpisodes: 2,
-          });
-        },
       },
     });
 
