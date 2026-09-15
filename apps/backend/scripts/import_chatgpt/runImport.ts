@@ -197,7 +197,10 @@ export async function runImport(params: {
               sourceThreadId: turn.sourceConversationId,
               sourceMessageId: turn.sourceMessageId,
               sourceMessageIndex: index,
-              role: turn.role,
+              // Historical memory stores conversational turns only; tool
+              // output is preserved as system context rather than widening
+              // the durable role contract.
+              role: turn.role === "tool" ? "system" : turn.role,
               content: turn.content,
               occurredAt: turn.createdAt,
             })),
