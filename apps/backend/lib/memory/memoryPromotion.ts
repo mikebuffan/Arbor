@@ -422,16 +422,25 @@ export async function loadRelatedMemoryCounts(input: {
     .in("key", keys);
 
   query = input.projectId
-    ? query.eq("project_id", input.projectId)
+    ? query.or(
+        `project_id.eq.${input.projectId},project_id.is.null`,
+      )
     : query.is("project_id", null);
 
   const { data, error } = await query;
   if (error) throw error;
 
-  return Object.fromEntries(
-    (data ?? []).map((row: any) => [
-      String(row.key),
-      Math.max(0, Number(row.mention_count ?? 0)),
-    ]),
-  );
+  const counts: Record<string, number> = {};
+
+  for (const row of data ?? []) {
+    const key = String((row as any).key ?? "").trim();
+    if (!key) continue;
+
+    counts[key] = Math.max(
+      counts[key] ?? 0,
+      Math.max(0, Number((row as any).mention_count ?? 0)),
+    );
+  }
+
+  return counts;
 }
