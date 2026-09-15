@@ -12,6 +12,7 @@ type CandidateJson = {
   score?: number;
   confidence?: number;
   confirm_count?: number;
+  contradiction_count?: number;
   observed_threads?: string[];
   sensitive?: boolean;
 };
@@ -45,7 +46,13 @@ function eligible(json: CandidateJson): boolean {
   const score = Number(json.score ?? 0);
   const confidence = Number(json.confidence ?? 0);
   const confirmations = Number(json.confirm_count ?? 0);
+  const contradictions = Number(json.contradiction_count ?? 0);
   const threadBreadth = json.observed_threads?.length ?? 0;
+
+  // A contradicted provisional hypothesis remains available for later
+  // evaluation but cannot silently become durable truth. Explicit correction
+  // must outrank recurrence and confidence until later evidence resolves it.
+  if (contradictions > 0) return false;
 
   // Cross-thread recurrence is mandatory. This is the recovered
   // mentions/sessions principle: repetition in one thread is not enough.
