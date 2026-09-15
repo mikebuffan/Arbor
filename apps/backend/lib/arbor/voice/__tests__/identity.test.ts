@@ -9,7 +9,7 @@ describe("Arbor voice identity", () => {
     const instructions = buildVoiceInstructions("arbor");
 
     expect(instructions).toContain(
-      "Pacific Northwest / General American",
+      "normal General American",
     );
     expect(instructions).toContain("rhotic");
     expect(instructions).toContain("Avoid British");
@@ -17,10 +17,16 @@ describe("Arbor voice identity", () => {
       "Release phrase endings promptly",
     );
     expect(instructions).toContain(
-      "Keep vowels compact and clean",
+      "Keep vowels ordinary and American",
     );
     expect(instructions).toContain(
       "short, ordinary conversational pauses",
+    );
+    expect(instructions).toContain(
+      "Do not manufacture depth, rasp, roughness, intimacy, or sexiness",
+    );
+    expect(instructions).toContain(
+      "like talking to someone you know well",
     );
   });
 
