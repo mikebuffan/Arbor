@@ -13,6 +13,7 @@ export type RetrievalRerouteState = {
 const REJECTION_PATTERNS = [
   /\b(no|nope)\b/i,
   /\bwrong\s+(thread|thing|one|context|conversation)\b/i,
+  /\b(?:not|isn['’]?t|wasn['’]?t|can['’]?t)\s+(?:be\s+)?(?:the\s+)?(?:right\s+)?(?:thread|thing|one|context|conversation)\b/i,
   /\bnot\s+(that|what i mean|what i meant|it)\b/i,
   /\bcome on\b/i,
   /\byou(?:'re| are)\s+(off|wrong)\b/i,
@@ -96,6 +97,7 @@ export function buildRerouteInstruction(state?: RetrievalRerouteState | null): s
     "The user explicitly rejected the previous interpretation.",
     "Do not reinterpret the user's next cue through the rejected retrieval neighborhood.",
     "Treat the correction as evidence that the current hypothesis is wrong, suppress that neighborhood temporarily, broaden associative retrieval, and pattern-hop to materially different context clusters.",
+    "A rejection is retrieval-control evidence only: do not delete or rewrite otherwise valid durable memories merely because this interpretation was rejected.",
     "Prefer a new hypothesis that explains all current cues. If evidence remains ambiguous, say what is uncertain rather than fabricating continuity.",
   ].join("\n");
 }
