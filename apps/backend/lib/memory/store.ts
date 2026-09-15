@@ -4,6 +4,7 @@ import type { MemoryItem, MemoryUpsertResult } from "@/lib/memory/types";
 import { embedText, embedTexts, memoryToEmbedString } from "@/lib/memory/embeddings";
 import { logMemoryEvent } from "@/lib/memory/logger";
 import { getServerSupabase } from "@/lib/supabase/server";
+import { computePatternPromotion } from "@/lib/memory/patternPromotion";
 
 const ITEMS_TABLE = "memory_items";
 const EVENTS_TABLE = "memory_pending";
@@ -155,15 +156,21 @@ export async function upsertMemoryItems(
     const value = toJsonValue(item.value);
     const tier = item.tier ?? "normal";
     const user_trigger_only = !!item.user_trigger_only;
-    const importance = Number(item.importance ?? 5);
-    const confidence = Number(item.confidence ?? 0.75);
+    let importance = Number(item.importance ?? 5);
+    let confidence = Number(item.confidence ?? 0.75);
+    const requestedKind = item.memory_kind ?? "fact";
+    let memoryKind = requestedKind;
+    let salience = Number(item.salience ?? 0.5);
+    let recurrenceCount = 1;
+    let promotionScore = 0;
+    let promotedAt: string | null = null;
+    let status = "active";
     const pinned = tier === "core";
     const scope = item.scope ?? "conversation";
     const scopedConversationId =
       scope === "conversation" ? conversationId : null;
 
-    // A conversation-scoped memory without a conversation id cannot be
-    // safely retrieved later. Do not create more ambiguous legacy rows.
+    // Do not create ambiguous conversation-scoped rows.
     if (scope === "conversation" && !scopedConversationId) {
       res.ignored.push(key);
       continue;
@@ -183,6 +190,23 @@ export async function upsertMemoryItems(
     });
 
     if (!existing) {
+      if (requestedKind === "pattern_candidate") {
+        const promotion = computePatternPromotion({
+          currentRecurrenceCount: 0,
+          confidence,
+          salience,
+          importance,
+        });
+        memoryKind = promotion.nextKind;
+        recurrenceCount = promotion.nextRecurrenceCount;
+        promotionScore = promotion.promotionScore;
+        status = promotion.nextStatus;
+        importance = promotion.nextImportance;
+        confidence = promotion.nextConfidence;
+        salience = promotion.nextSalience;
+        promotedAt = promotion.promote ? nowIso : null;
+      }
+
       const { error } = await supabase.from(ITEMS_TABLE).insert({
         user_id: authedUserId,
         project_id: scope === "global" ? null : projectId,
@@ -194,9 +218,14 @@ export async function upsertMemoryItems(
         user_trigger_only,
         importance,
         confidence,
+        memory_kind: memoryKind,
+        recurrence_count: recurrenceCount,
+        salience,
+        promotion_score: promotionScore,
+        promoted_at: promotedAt,
         locked: false,
         pinned,
-        status: "active",
+        status,
         deleted_at: null,
         mention_count: 0,
         correction_count: 0,
@@ -210,14 +239,72 @@ export async function upsertMemoryItems(
       await logEvent({
         supabase,
         authedUserId,
-        projectId,
+        projectId: scope === "global" ? null : projectId,
         key,
         event_type: "create",
-        payload: { key, tier, user_trigger_only, importance, confidence },
+        payload: {
+          key,
+          tier,
+          user_trigger_only,
+          importance,
+          confidence,
+          memory_kind: memoryKind,
+          recurrence_count: recurrenceCount,
+          promotion_score: promotionScore,
+          status,
+        },
       });
 
       res.created.push(key);
       continue;
+    }
+
+    const existingKind = String(existing.memory_kind ?? "fact");
+    const isPatternSignal =
+      requestedKind === "pattern_candidate" ||
+      existingKind === "pattern_candidate" ||
+      existingKind === "pattern";
+
+    if (isPatternSignal) {
+      if (existingKind === "pattern") {
+        memoryKind = "pattern";
+        recurrenceCount = Number(existing.recurrence_count ?? 1) + 1;
+        promotionScore = Math.max(
+          Number(existing.promotion_score ?? 0.72),
+          0.72,
+        );
+        status = "active";
+        importance = Math.max(Number(existing.importance ?? 8), importance, 8);
+        confidence = Math.max(Number(existing.confidence ?? 0.82), confidence, 0.82);
+        salience = Math.max(Number(existing.salience ?? 0.75), salience, 0.75);
+        promotedAt = existing.promoted_at ?? nowIso;
+      } else {
+        const promotion = computePatternPromotion({
+          currentRecurrenceCount: Number(existing.recurrence_count ?? 1),
+          confidence: Math.max(Number(existing.confidence ?? 0.7), confidence),
+          salience: Math.max(Number(existing.salience ?? 0.5), salience),
+          importance: Math.max(Number(existing.importance ?? 6), importance),
+        });
+        memoryKind = promotion.nextKind;
+        recurrenceCount = promotion.nextRecurrenceCount;
+        promotionScore = promotion.promotionScore;
+        status = promotion.nextStatus;
+        importance = promotion.nextImportance;
+        confidence = promotion.nextConfidence;
+        salience = promotion.nextSalience;
+        promotedAt = promotion.promote
+          ? nowIso
+          : existing.promoted_at ?? null;
+      }
+    } else {
+      memoryKind = requestedKind;
+      recurrenceCount = Number(existing.recurrence_count ?? 1);
+      promotionScore = Number(existing.promotion_score ?? 0);
+      promotedAt = existing.promoted_at ?? null;
+      status =
+        existing.status === "tombstoned"
+          ? "active"
+          : String(existing.status ?? "active");
     }
 
     if (existing.locked) {
@@ -236,7 +323,7 @@ export async function upsertMemoryItems(
       await logEvent({
         supabase,
         authedUserId,
-        projectId,
+        projectId: scope === "global" ? null : projectId,
         key,
         event_type: "locked_ignore",
         payload: { reason: "locked" },
@@ -250,7 +337,10 @@ export async function upsertMemoryItems(
     const { error } = await supabase
       .from(ITEMS_TABLE)
       .update({
-        project_id: scope === "global" ? null : (projectId ?? existing.project_id ?? null),
+        project_id:
+          scope === "global"
+            ? null
+            : projectId ?? existing.project_id ?? null,
         conversation_id: scopedConversationId,
         value,
         tier: tier ?? existing.tier ?? "normal",
@@ -258,6 +348,12 @@ export async function upsertMemoryItems(
         user_trigger_only,
         importance: Math.max(Number(existing.importance ?? 5), importance),
         confidence,
+        memory_kind: memoryKind,
+        recurrence_count: recurrenceCount,
+        salience,
+        promotion_score: promotionScore,
+        promoted_at: promotedAt,
+        status,
         pinned: pinned || !!existing.pinned,
         mention_count: Number(existing.mention_count ?? 0) + 1,
         last_seen_at: nowIso,
@@ -273,10 +369,19 @@ export async function upsertMemoryItems(
     await logEvent({
       supabase,
       authedUserId,
-      projectId,
+      projectId: scope === "global" ? null : projectId,
       key,
-      event_type: "update",
-      payload: { changed: true },
+      event_type:
+        memoryKind === "pattern" && existingKind !== "pattern"
+          ? "pattern_promoted"
+          : "update",
+      payload: {
+        changed: true,
+        memory_kind: memoryKind,
+        recurrence_count: recurrenceCount,
+        promotion_score: promotionScore,
+        status,
+      },
     });
 
     res.updated.push(key);
