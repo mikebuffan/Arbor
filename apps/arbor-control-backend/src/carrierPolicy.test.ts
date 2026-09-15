@@ -1,18 +1,8 @@
-import assert from "node:assert/strict";
+import { describe, expect, it } from "vitest";
 import { buildCarrierInjection, mergeCarrierState, uniqueNewest } from "./carrierPolicy.js";
 import type { ArborState } from "./types.js";
 
-const project: ArborState = {
-  activeSubsystem: "arbor",
-  goal: "restore Arbor carrier",
-  unresolvedWork: ["wire carrier into wake-up path"],
-  strategyNotes: [],
-  behavioralCorrections: ["Do not wait for repeated go."],
-  acousticCorrections: [],
-  voiceId: "cedar",
-};
-
-const blank: ArborState = {
+const blank = (): ArborState => ({
   activeSubsystem: "arbor",
   goal: null,
   unresolvedWork: [],
@@ -20,32 +10,49 @@ const blank: ArborState = {
   behavioralCorrections: [],
   acousticCorrections: [],
   voiceId: "cedar",
-};
+});
 
-const kept = mergeCarrierState(project, blank);
-assert.equal(kept.goal, project.goal);
-assert.deepEqual(kept.unresolvedWork, project.unresolvedWork);
+describe("carrier policy", () => {
+  it("keeps durable project work when a conversation is blank", () => {
+    const project: ArborState = {
+      ...blank(),
+      goal: "restore Arbor carrier",
+      unresolvedWork: ["wire carrier into wake-up path"],
+      behavioralCorrections: ["Do not wait for repeated go."],
+    };
+    const kept = mergeCarrierState(project, blank());
+    expect(kept.goal).toBe(project.goal);
+    expect(kept.unresolvedWork).toEqual(project.unresolvedWork);
+    expect(buildCarrierInjection(kept)).toMatch(/ACTIVE GOAL/);
+    expect(buildCarrierInjection(kept)).toMatch(/UNRESOLVED WORK/);
+  });
 
-const local: ArborState = {
-  ...blank,
-  goal: "local task",
-  unresolvedWork: ["finish local task"],
-  behavioralCorrections: ["Newest correction."],
-};
-const merged = mergeCarrierState(project, local);
-assert.equal(merged.goal, "local task");
-assert.deepEqual(merged.unresolvedWork, ["finish local task"]);
-assert.deepEqual(merged.behavioralCorrections, [
-  "Do not wait for repeated go.",
-  "Newest correction.",
-]);
+  it("lets meaningful local work refine project state without replacing corrections", () => {
+    const project: ArborState = {
+      ...blank(),
+      goal: "restore Arbor carrier",
+      unresolvedWork: ["wire carrier into wake-up path"],
+      behavioralCorrections: ["Do not wait for repeated go."],
+    };
+    const local: ArborState = {
+      ...blank(),
+      goal: "local task",
+      unresolvedWork: ["finish local task"],
+      behavioralCorrections: ["Newest correction."],
+    };
+    const merged = mergeCarrierState(project, local);
+    expect(merged.goal).toBe("local task");
+    expect(merged.unresolvedWork).toEqual(["finish local task"]);
+    expect(merged.behavioralCorrections).toEqual([
+      "Do not wait for repeated go.",
+      "Newest correction.",
+    ]);
+  });
 
-const injection = buildCarrierInjection(kept);
-assert.match(injection, /ACTIVE GOAL/);
-assert.match(injection, /UNRESOLVED WORK/);
-assert.match(injection, /Identity -> valid corrections -> active goal\/open loops -> agency -> task\/subsystem/);
-
-console.log("PASS carrier policy");
-
-assert.deepEqual(uniqueNewest(["Keep going", "keep   going", "Newest correction"]), ["keep going", "Newest correction"]);
-console.log("PASS newest-valid correction precedence");
+  it("deduplicates corrections with newest precedence", () => {
+    expect(uniqueNewest(["Keep going", "keep   going", "Newest correction"])).toEqual([
+      "keep going",
+      "Newest correction",
+    ]);
+  });
+});
