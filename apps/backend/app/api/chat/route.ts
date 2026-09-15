@@ -790,11 +790,23 @@ export async function POST(req: Request) {
         },
 
         memory_pipeline: async () => {
+          const correctionIdsObservedThisTurn =
+            new Set(
+              runtimeCorrections.map(
+                (correction) => correction.id,
+              ),
+            );
+
           await promoteRepeatedBehaviorCorrections({
             supabase,
             userId,
             corrections:
-              updatedRuntimeSession.corrections,
+              updatedRuntimeSession.corrections.filter(
+                (correction) =>
+                  correctionIdsObservedThisTurn.has(
+                    correction.id,
+                  ),
+              ),
           });
 
           await Promise.all(
