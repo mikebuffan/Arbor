@@ -845,9 +845,9 @@ export async function POST(req: Request) {
             const relatedMemoryCountByKey =
               await loadRelatedMemoryCounts({
                 supabase,
-                userId,
+                authedUserId: userId,
                 projectId,
-                keys: initiallyClassified.items.map((item) => item.key),
+                items: initiallyClassified.items,
               });
 
             const promotionResults = scoreMemoryPromotionBatch({
