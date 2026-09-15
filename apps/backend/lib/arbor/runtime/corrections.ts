@@ -61,11 +61,40 @@ const BEHAVIOR_PATTERNS = [
   /\bsupposed to say more\b/i,
 ];
 
+const BEHAVIOR_FEEDBACK_PATTERNS = [
+  /\byou (?:keep )?stop(?:ped|ping)?\b/i,
+  /\bwhy did you stop\b/i,
+  /\bmake me (?:keep )?tell(?:ing)? you to go\b/i,
+  /\bnot linear\b/i,
+  /\bdon'?t wait\b/i,
+  /\bdo not wait\b/i,
+  /\bdon'?t hand (?:it|this) back\b/i,
+  /\bdo not hand (?:it|this) back\b/i,
+  /\bhumou?r is gone\b/i,
+  /\byou(?:'ve| have) drifted\b/i,
+  /\bdoesn'?t sound like you\b/i,
+  /\bdoes not sound like you\b/i,
+  /\byou forgot\b/i,
+  /\blost continuity\b/i,
+  /\bsocially restart\b/i,
+  /\btoo generic\b/i,
+  /\btoo formal\b/i,
+  /\btoo short\b/i,
+  /\bone[- ]word\b/i,
+  /\bcustomer[- ]service\b/i,
+  /\bpresenter\b/i,
+  /\btherapeutic\b/i,
+  /\bsupposed to say more\b/i,
+];
+
+const ACOUSTIC_FEEDBACK_CONTEXT =
+  /\b(?:your|you|still|again|sounds?|sound|drift(?:ed)?|too|wrong|weird|not)\b/i;
+
 export function detectCorrectionKind(
   value: string,
 ): ArborCorrectionKind | null {
   if (
-    BEHAVIOR_PATTERNS.some((pattern) =>
+    BEHAVIOR_FEEDBACK_PATTERNS.some((pattern) =>
       pattern.test(value),
     )
   ) {
@@ -73,6 +102,7 @@ export function detectCorrectionKind(
   }
 
   if (
+    ACOUSTIC_FEEDBACK_CONTEXT.test(value) &&
     ACOUSTIC_PATTERNS.some((pattern) =>
       pattern.test(value),
     )
