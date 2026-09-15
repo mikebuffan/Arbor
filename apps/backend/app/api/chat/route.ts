@@ -23,6 +23,7 @@ import { ArborTimeline } from "@/lib/arbor/timeline/runTimeline";
 import { SupabaseTimelineStore } from "@/lib/arbor/timeline/supabaseStore";
 import { extractMemoryFromText } from "@/lib/memory/extractor";
 import { ingestMemorySignals } from "@/lib/memory/ingestSignals";
+import { consolidateMemoryCandidates } from "@/lib/memory/consolidateCandidates";
 import {
   applyMemoryPromotion,
   loadRelatedMemoryCounts,
@@ -837,6 +838,12 @@ export async function POST(req: Request) {
               convoId,
             );
           }
+
+          await consolidateMemoryCandidates({
+            projectId,
+            userId,
+            threadId: convoId,
+          });
 
           await writeDurableChatCompletedEvent({
             supabase,
