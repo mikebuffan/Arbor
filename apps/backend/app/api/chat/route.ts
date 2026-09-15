@@ -25,6 +25,7 @@ import { extractMemoryFromText } from "@/lib/memory/extractor";
 import { ingestMemorySignals } from "@/lib/memory/ingestSignals";
 import { consolidateMemoryCandidates } from "@/lib/memory/consolidateCandidates";
 import { reinforceMemoryCandidate } from "@/lib/memory/reinforceCandidate";
+import { promoteEligibleMemoryCandidates } from "@/lib/memory/promoteCandidates";
 import {
   applyMemoryPromotion,
   loadRelatedMemoryCounts,
@@ -865,6 +866,13 @@ export async function POST(req: Request) {
             projectId,
             userId,
             threadId: convoId,
+          });
+
+          await promoteEligibleMemoryCandidates({
+            userId,
+            projectId,
+            conversationId: convoId,
+            supabase,
           });
 
           await writeDurableChatCompletedEvent({
