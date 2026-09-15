@@ -215,7 +215,19 @@ function scoreIdentityRelevance(item: MemoryItem): number {
     return 0.85;
   }
 
-  if (/preference|preferred|boundary|correction/.test(item.key.toLowerCase())) {
+  const key = item.key.toLowerCase();
+
+  if (
+    /^(interaction\.(cue|preference|interpretation)|accessibility\.input)\./.test(
+      key,
+    )
+  ) {
+    // These namespaces are only emitted by the extractor when direct user
+    // feedback/correction supports the interaction rule.
+    return 0.85;
+  }
+
+  if (/preference|preferred|boundary|correction/.test(key)) {
     return 0.55;
   }
 
@@ -337,7 +349,11 @@ export function scoreMemoryPromotion(
     score >= 0.62 ||
     signals.decisionImpact >= 0.75 ||
     signals.openLoopRelevance >= 0.7 ||
-    signals.emotionalWeight >= 0.75
+    signals.emotionalWeight >= 0.75 ||
+    (
+      signals.identityRelevance >= 0.85 &&
+      Number(item.confidence ?? 0) >= 0.8
+    )
   ) {
     classification = "promote";
   } else if (score >= 0.35) {
