@@ -27,7 +27,7 @@ const DIRECT_EXECUTION_REQUEST =
   /\b(?:can|could|will|would)\s+you\s+(?:please\s+)?(?:do|fix|implement|apply|update|change|modify|patch|run|test|deploy|merge|commit|configure|connect|reconnect|install|remove|delete|upload|send|code)\b|^(?:please\s+)?(?:do|fix|implement|apply|update|change|modify|patch|run|test|deploy|merge|commit|configure|connect|reconnect|install|remove|delete|upload|send|code)\b/i;
 
 const ADVISORY_ONLY =
-  /\b(?:should i|what do you think|is (?:this|that|it) (?:a )?good idea|what (?:are|would be) (?:my|the) options|what do you recommend|what would you suggest)\b/i;
+  /\b(?:should i|do you think|what do you think|is (?:this|that|it) (?:a )?good idea|what (?:are|would be) (?:my|the) options|what do you recommend|what would you suggest)\b/i;
 
 const DEFERRAL_LANGUAGE =
   /\b(?:want me to|if you want(?: me)?\s*,?\s*i can|i can (?:go ahead and )?(?:do|fix|implement|apply|update|change|modify|patch|run|test|deploy|merge|commit|configure|connect|reconnect|install|remove|delete|upload|send|code)(?:\s+(?:it|that|this))?(?:\s+(?:next|for you))?|the next step (?:is|would be)|next\s*,?\s*i(?:'|’)d|here(?:'|’)s what i(?:'|’)d do(?: next)?|say (?:go|the word)|let me know (?:if|when) you want me to)\b/i;
