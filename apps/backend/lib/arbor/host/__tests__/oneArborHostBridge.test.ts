@@ -114,4 +114,34 @@ describe("One Arbor host bridge", () => {
     );
     expect(projection.promptBlock).not.toContain("General American, not British");
   });
+
+  it("applies corrections as narrow deltas instead of rebuilding the persona", () => {
+    const corrected = applyHostCorrection(base, {
+      id: "identity-drift",
+      kind: "behavior",
+      text: "Don't be weird. Be normal.",
+      createdAt: "2026-09-14T20:00:00.000Z",
+    });
+
+    const projection = projectHostStartup(
+      switchHostSurface(
+        corrected,
+        "voice",
+        "2026-09-14T20:00:01.000Z",
+      ),
+    );
+
+    expect(projection.promptBlock).toContain(
+      "Treat corrections as narrow deltas against the canonical Arbor baseline",
+    );
+    expect(projection.promptBlock).toContain(
+      "Do not pendulum-swing after a correction",
+    );
+    expect(projection.promptBlock).toContain(
+      "Preserve passing dimensions such as humor, warmth, directness, judgment, initiative, relationship continuity, and ordinary conversational cadence",
+    );
+    expect(projection.promptBlock).toContain("Don't be weird. Be normal.");
+    expect(projection.promptBlock).toContain("Align Text and Voice");
+    expect(projection.promptBlock).toContain("Verify live Voice continuity");
+  });
 });
