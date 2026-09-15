@@ -51,18 +51,37 @@ export async function reinforceMemoryCandidate(input: {
     ),
   );
 
+  // Use is relevance evidence, not truth confirmation. Only an explicit
+  // confirmation may advance confirm_count. Likewise, contradiction records
+  // negative evidence without deleting the candidate or durable memories.
   const confirmCount =
     Number(json.confirm_count ?? 0) +
-    (input.event === "confirmed" || input.event === "used" ? 1 : 0);
+    (input.event === "confirmed" ? 1 : 0);
+  const contradictionCount =
+    Number(json.contradiction_count ?? 0) +
+    (input.event === "contradicted" ? 1 : 0);
+  const useCount =
+    Number(json.use_count ?? 0) +
+    (input.event === "used" ? 1 : 0);
 
   const next = {
     ...json,
     confidence,
     confirm_count: confirmCount,
+    contradiction_count: contradictionCount,
+    use_count: useCount,
     last_confirmed_at:
-      input.event === "confirmed" || input.event === "used"
+      input.event === "confirmed"
         ? new Date().toISOString()
         : json.last_confirmed_at ?? null,
+    last_contradicted_at:
+      input.event === "contradicted"
+        ? new Date().toISOString()
+        : json.last_contradicted_at ?? null,
+    last_used_at:
+      input.event === "used"
+        ? new Date().toISOString()
+        : json.last_used_at ?? null,
   };
 
   const { error: logError } = await admin
@@ -96,5 +115,7 @@ export async function reinforceMemoryCandidate(input: {
     updated: true,
     confidence,
     confirmCount,
+    contradictionCount,
+    useCount,
   };
 }
