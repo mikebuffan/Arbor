@@ -52,6 +52,19 @@ describe("Arbor correction routing", () => {
     },
   );
 
+  it.each([
+    "Don't be weird. Be normal.",
+    "You're getting robotic",
+    "You overcorrected and got too stiff",
+    "You're trying too hard now",
+  ])(
+    "routes Voice correction-overshoot feedback as identity drift: %s",
+    (text) => {
+      expect(classifyCorrection(text)).toBe("behavior");
+      expect(correctionFamily("behavior", text)).toBe("identity-drift");
+    },
+  );
+
   it("converges agency wording variants onto one correction family", () => {
     expect(correctionFamily("behavior", "Don't stop. Keep going.")).toBe(
       "agency-followthrough",
@@ -87,6 +100,22 @@ describe("Arbor correction routing", () => {
     expect(
       correctionFamily("behavior", "Keep going and don't stop."),
     ).toBe("agency-followthrough");
+  });
+
+  it("converges Voice overcorrection variants onto identity drift", () => {
+    const first = createCorrection({
+      value: "Don't be weird. Be normal.",
+      source: "voice",
+      observedAt: "2026-09-14T20:10:00.000Z",
+    });
+    const second = createCorrection({
+      value: "You're overcorrecting and sounding robotic.",
+      source: "voice",
+      observedAt: "2026-09-14T20:11:00.000Z",
+    });
+
+    expect(first.id).toBe("behavior:identity-drift");
+    expect(second.id).toBe(first.id);
   });
 
   it("does not let acoustic corrections rewrite behavior rules", () => {
