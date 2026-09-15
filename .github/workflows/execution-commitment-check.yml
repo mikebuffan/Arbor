@@ -21,6 +21,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - name: Run execution commitment and continuity regressions
+        env:
+          OPENAI_API_KEY: ci-placeholder-not-a-real-key
         run: >
           pnpm --filter firefly-backend exec vitest run
           lib/arbor/agency/__tests__/executionCommitment.test.ts
