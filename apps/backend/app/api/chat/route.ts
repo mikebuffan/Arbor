@@ -788,9 +788,17 @@ export async function POST(req: Request) {
             ),
           );
 
+          const recentExtractionTranscript = [
+            ...history
+              .slice(-6)
+              .map((message) =>
+                `${message.role.toUpperCase()}:\n${message.content}`,
+              ),
+            `ASSISTANT:\n${assistantText}`,
+          ].join("\n\n");
+
           const extracted = await extractMemoryFromText({
-            userText,
-            assistantText,
+            transcript: recentExtractionTranscript,
           });
 
           const initiallyClassified = classifyMemoryTurn({
