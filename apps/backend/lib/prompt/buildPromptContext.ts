@@ -1,6 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
+  getAlwaysIncludedMemoryAnchors,
   getMemoryContext,
+  memoryStabilityScore,
   type RetrievedMemoryItem,
 } from "@/lib/memory/retrieval";
 import { assembleMemoryBlock } from "@/lib/memory/assembleMemoryBlock";
@@ -216,16 +218,43 @@ export async function buildPromptContext({
 
   const negativePrefsFromAnchors = buildNegativePrefsGuardFromAnchors(anchors);
 
-  const memContext = await getMemoryContext({
-    supabase,
-    authedUserId,
-    projectId,
-    conversationId,
-    latestUserText,
-    useVectorSearch: true,
-  });
+  const [memContext, alwaysIncludedMemory] = await Promise.all([
+    getMemoryContext({
+      supabase,
+      authedUserId,
+      projectId,
+      conversationId,
+      latestUserText,
+      useVectorSearch: true,
+    }),
+    getAlwaysIncludedMemoryAnchors({
+      supabase,
+      authedUserId,
+      projectId: projectId ?? null,
+      conversationId: conversationId ?? null,
+      limit: 24,
+    }),
+  ]);
 
-  const allItems = [...memContext.core, ...memContext.normal, ...memContext.sensitive];
+  // Durable roots do not depend on semantic luck. Query-matched memory is
+  // merged around them, then reveal gating decides what may enter the prompt.
+  const byMemoryId = new Map<string, RetrievedMemoryItem>();
+  for (const item of [
+    ...alwaysIncludedMemory,
+    ...memContext.core,
+    ...memContext.normal,
+    ...memContext.sensitive,
+  ]) {
+    const existing = byMemoryId.get(item.id);
+    if (
+      !existing ||
+      memoryStabilityScore(item) > memoryStabilityScore(existing)
+    ) {
+      byMemoryId.set(item.id, item);
+    }
+  }
+
+  const allItems = Array.from(byMemoryId.values());
   const promptEligibleItems = selectItemsForPrompt(
     allItems,
     latestUserText,
