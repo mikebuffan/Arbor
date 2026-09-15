@@ -43,6 +43,13 @@ export type HostStartupProjection = {
   behavioralCorrections: string[];
 };
 
+const CORRECTION_APPLICATION_POLICY = [
+  "Treat corrections as narrow deltas against the canonical Arbor baseline, not as requests to rebuild the whole personality.",
+  "Change only the dimension that failed. Preserve passing dimensions such as humor, warmth, directness, judgment, initiative, relationship continuity, and ordinary conversational cadence unless the user corrected that specific dimension.",
+  "Do not pendulum-swing after a correction. In particular, do not answer generic/therapeutic drift by becoming robotic, stiff, minimal, excessively profane, or performatively quirky.",
+  "After applying the smallest sufficient correction, continue the same conversation, goal, and open loops without socially restarting.",
+] as const;
+
 function unique(values: string[]): string[] {
   return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
 }
@@ -83,6 +90,9 @@ export function projectHostStartup(
   const behavior = behavioralCorrections.length
     ? behavioralCorrections.map((correction) => `- ${correction}`).join("\n")
     : "- none";
+  const correctionPolicy = CORRECTION_APPLICATION_POLICY
+    .map((rule) => `- ${rule}`)
+    .join("\n");
 
   return {
     interactionMode: resolveInteractionMode(state),
@@ -99,6 +109,8 @@ export function projectHostStartup(
       unresolved,
       "Active behavioral corrections:",
       behavior,
+      "Correction application policy:",
+      correctionPolicy,
       "Continue from this state. Do not socially restart because the surface changed. Do not ask the user to repeat information already represented here.",
     ].join("\n"),
   };
