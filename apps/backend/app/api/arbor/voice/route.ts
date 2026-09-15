@@ -6,18 +6,16 @@ import { assertProjectOwnedByUser } from "@/lib/auth/ownership";
 import { routeErrorResponse } from "@/lib/auth/routeAuthorization";
 
 import { VoiceAdapter } from "@/lib/arbor/adapters/voice";
-import type { CanonicalArborOutput } from "@/lib/arbor/runtime/arborRuntime";
 import { loadSubsystemState } from "@/lib/arbor/subsystem/state";
 import {
-  renderArborThroughVoiceGate,
-} from "@/lib/arbor/voice/acousticProjection";
+  buildVoiceContinuityProjection,
+} from "@/lib/arbor/voice/continuityAdapter";
 import {
   synthesizeArborSpeech,
   type ArborSpeechResult,
 } from "@/lib/arbor/voice/speechPipeline";
 import { loadCanonicalAssistantTurnForTurn } from "@/lib/arbor/voice/canonicalTurn";
 import { loadRuntimeState } from "@/lib/arbor/runtime/runtimeStateStore";
-import { acousticCorrections } from "@/lib/arbor/runtime/corrections";
 import { ArborTimeline } from "@/lib/arbor/timeline/runTimeline";
 import { SupabaseTimelineStore } from "@/lib/arbor/timeline/supabaseStore";
 
@@ -85,29 +83,20 @@ export async function POST(req: Request) {
       conversationId: canonicalTurn.conversationId,
     });
 
-    const runtimeAcousticCorrections = conversationRuntime
-      ? acousticCorrections(conversationRuntime.corrections)
-      : [];
-
-    const voiceCorrections = Array.from(
-      new Set([
-        ...voiceState.acousticCorrections,
-        ...runtimeAcousticCorrections,
-      ]),
-    );
-
-    const acousticGate = renderArborThroughVoiceGate(
-      canonicalTurn.text,
-      voiceState.activeSubsystem,
-      voiceCorrections,
-    );
-
-    const canonical: CanonicalArborOutput = {
-      text: acousticGate.text,
-      activeSubsystem: voiceState.activeSubsystem,
-      channel: "voice",
+    // Voice is a surface adapter around canonical Arbor state. It receives the
+    // exact canonical text plus continuity/behavior state, while acoustic
+    // calibration remains renderer-only. Replacing the speech provider must
+    // never create a second Arbor personality.
+    const voiceProjection = buildVoiceContinuityProjection({
+      text: canonicalTurn.text,
       turnId,
-    };
+      activeSubsystem: voiceState.activeSubsystem,
+      runtimeState: conversationRuntime,
+      subsystemAcousticCorrections: voiceState.acousticCorrections,
+    });
+
+    const acousticGate = voiceProjection.acousticGate;
+    const canonical = voiceProjection.canonical;
 
     const voiceAdapter = new VoiceAdapter<ArborSpeechResult>(
       {
@@ -142,6 +131,9 @@ export async function POST(req: Request) {
       {
         adapter: "voice",
         canonical: true,
+        continuityAttached: voiceProjection.continuityAttached,
+        interactionMode:
+          voiceProjection.startup?.interactionMode ?? "voice",
         voiceId: voiceState.voiceId,
         speechSpeed: acousticGate.speed,
       },
@@ -155,6 +147,7 @@ export async function POST(req: Request) {
       {
         adapter: "voice",
         canonical: true,
+        continuityAttached: voiceProjection.continuityAttached,
         providerRequestIds: result.requestIds,
         chunks: result.chunks,
         bytes: result.audio.byteLength,
@@ -179,6 +172,8 @@ export async function POST(req: Request) {
         "x-arbor-voice-chunks": String(result.chunks),
         "x-arbor-voice-speed": String(acousticGate.speed),
         "x-arbor-canonical-adapter": "voice",
+        "x-arbor-continuity-adapter":
+          voiceProjection.continuityAttached ? "attached" : "fallback",
         ...(result.requestIds.length
           ? { "x-provider-request-id": result.requestIds.join(",") }
           : {}),
