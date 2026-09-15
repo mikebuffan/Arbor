@@ -61,9 +61,9 @@ const BEHAVIOR_PATTERNS = [
   /\bsupposed to say more\b/i,
 ];
 
-export function classifyCorrection(
+export function detectCorrectionKind(
   value: string,
-): ArborCorrectionKind {
+): ArborCorrectionKind | null {
   if (
     BEHAVIOR_PATTERNS.some((pattern) =>
       pattern.test(value),
@@ -80,7 +80,13 @@ export function classifyCorrection(
     return "acoustic";
   }
 
-  return "preference";
+  return null;
+}
+
+export function classifyCorrection(
+  value: string,
+): ArborCorrectionKind {
+  return detectCorrectionKind(value) ?? "preference";
 }
 
 
@@ -166,6 +172,7 @@ export function createCorrection(input: {
       input.confidence ?? 1,
     protected:
       input.protected ?? true,
+    occurrences: 1,
   };
 }
 
