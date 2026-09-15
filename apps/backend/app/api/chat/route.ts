@@ -22,6 +22,7 @@ import {
 import { ArborTimeline } from "@/lib/arbor/timeline/runTimeline";
 import { SupabaseTimelineStore } from "@/lib/arbor/timeline/supabaseStore";
 import { extractMemoryFromText } from "@/lib/memory/extractor";
+import { ingestMemorySignals } from "@/lib/memory/ingestSignals";
 import {
   applyMemoryPromotion,
   loadRelatedMemoryCounts,
@@ -253,6 +254,25 @@ export async function POST(req: Request) {
       conversationId: convoId,
       episodeId,
       userText,
+    });
+
+    // Arbor v1 automatic-learning signal ingest. This is deliberately
+    // best-effort: memory learning may fail without taking chat down.
+    await ingestMemorySignals({
+      projectId,
+      userId,
+      threadId: convoId,
+      messageId: resolvedTurn.ids.userMessageId,
+      text: userText,
+    }).catch((error) => {
+      console.warn("[memory:signals] ingest failed", {
+        projectId,
+        conversationId: convoId,
+        error:
+          error instanceof Error
+            ? error.message
+            : "unknown",
+      });
     });
 
     const completedTurn = await getCompletedAssistantTurn({
