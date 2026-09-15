@@ -57,7 +57,11 @@ import {
 } from "@/lib/arbor/runtime/runtimeSession";
 import {
   createCorrection,
+  detectCorrectionKind,
 } from "@/lib/arbor/runtime/corrections";
+import {
+  promoteRepeatedBehaviorCorrections,
+} from "@/lib/arbor/runtime/correctionPromotion";
 import {
   beginSelfUpdate,
   decideSelfUpdate,
@@ -652,7 +656,11 @@ export async function POST(req: Request) {
       extractedItems: [],
     });
 
+    const detectedRuntimeCorrectionKind =
+      detectCorrectionKind(userText);
+
     const runtimeCorrections =
+      detectedRuntimeCorrectionKind ||
       deterministicMemoryTurn.kind === "correction"
         ? [
             createCorrection({
@@ -662,6 +670,9 @@ export async function POST(req: Request) {
                   ? "annabelle"
                   : interactionMode,
               observedAt: new Date().toISOString(),
+              kind:
+                detectedRuntimeCorrectionKind ??
+                undefined,
             }),
           ]
         : [];
@@ -732,7 +743,8 @@ export async function POST(req: Request) {
 
     const assistantText = finalAssistant.assistantText;
 
-    await updateRuntimeSession({
+    const updatedRuntimeSession =
+      await updateRuntimeSession({
       supabase,
       state: runtimeSession,
       activeSubsystem,
@@ -778,6 +790,25 @@ export async function POST(req: Request) {
         },
 
         memory_pipeline: async () => {
+          const correctionIdsObservedThisTurn =
+            new Set(
+              runtimeCorrections.map(
+                (correction) => correction.id,
+              ),
+            );
+
+          await promoteRepeatedBehaviorCorrections({
+            supabase,
+            userId,
+            corrections:
+              updatedRuntimeSession.corrections.filter(
+                (correction) =>
+                  correctionIdsObservedThisTurn.has(
+                    correction.id,
+                  ),
+              ),
+          });
+
           await Promise.all(
             injectedCandidateIds.map((candidateId) =>
               reinforceMemoryCandidate({

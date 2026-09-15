@@ -58,6 +58,43 @@ describe("shared Arbor runtime state", () => {
     expect(annabelle.activeSubsystem).toBe("annabelle");
   });
 
+
+  it("counts repeated correction families without duplicating them", () => {
+    const corrections = mergeCorrections(
+      [
+        {
+          id: "behavior:agency-followthrough",
+          kind: "behavior",
+          value: "Keep going without waiting for another prompt.",
+          source: "text",
+          observedAt: "2026-09-10T20:00:00.000Z",
+          confidence: 1,
+          protected: true,
+          occurrences: 1,
+        },
+      ],
+      [
+        {
+          id: "behavior:agency-followthrough",
+          kind: "behavior",
+          value: "Why did you stop? Keep going.",
+          source: "text",
+          observedAt: "2026-09-10T20:01:00.000Z",
+          confidence: 1,
+          protected: true,
+          occurrences: 1,
+        },
+      ],
+    );
+
+    expect(corrections).toHaveLength(1);
+    expect(corrections[0]).toMatchObject({
+      id: "behavior:agency-followthrough",
+      value: "Why did you stop? Keep going.",
+      occurrences: 2,
+    });
+  });
+
   it("merges corrections without losing protected ones", () => {
     const corrections = mergeCorrections(
       [

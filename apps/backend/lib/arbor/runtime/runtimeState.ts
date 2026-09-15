@@ -19,6 +19,7 @@ export type ArborCorrection = {
   observedAt: string;
   confidence: number;
   protected: boolean;
+  occurrences?: number;
 };
 
 export type ArborRuntimeState = {
@@ -60,6 +61,7 @@ export function normalizeCorrection(
     ...correction,
     value: correction.value.trim(),
     confidence: clampConfidence(correction.confidence),
+    occurrences: Math.max(1, Number(correction.occurrences ?? 1)),
   };
 }
 
@@ -76,9 +78,22 @@ export function mergeCorrections(
 
     const prior = byId.get(normalized.id);
 
-    if (!prior || normalized.observedAt >= prior.observedAt) {
+    if (!prior) {
       byId.set(normalized.id, normalized);
+      continue;
     }
+
+    const latest =
+      normalized.observedAt >= prior.observedAt
+        ? normalized
+        : prior;
+
+    byId.set(normalized.id, {
+      ...latest,
+      occurrences:
+        Math.max(1, Number(prior.occurrences ?? 1)) +
+        Math.max(1, Number(normalized.occurrences ?? 1)),
+    });
   }
 
   return Array.from(byId.values()).sort((a, b) =>
