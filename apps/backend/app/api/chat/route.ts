@@ -69,6 +69,7 @@ import {
 import { buildTelemetry } from "@/lib/arbor/telemetry/buildTelemetry";
 import { getOrCreateOpenEpisode } from "@/lib/arbor/episodes/getOrCreateOpenEpisode";
 import { scheduleChatPostResponseWork } from "@/lib/chat/postResponseScheduler";
+import { summarizePriorOpenEpisodes } from "@/lib/arbor/episodes/maintainEpisodes";
 import { detectTestMode } from "@/lib/runtime/testModeDetection";
 
 export const runtime = "nodejs";
@@ -906,6 +907,16 @@ export async function POST(req: Request) {
               process.env.OPENAI_MODEL ??
               "gpt-5",
             postcheckApproved: !finalAssistant.flagged,
+          });
+        },
+
+        episode_maintenance: async () => {
+          await summarizePriorOpenEpisodes({
+            supabase,
+            userId,
+            projectId,
+            currentEpisodeId: episodeId,
+            maxEpisodes: 2,
           });
         },
       },

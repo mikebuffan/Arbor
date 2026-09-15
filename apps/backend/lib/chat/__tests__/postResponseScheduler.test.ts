@@ -14,6 +14,7 @@ function operations(overrides: Partial<ChatPostResponseOperations> = {}) {
     memory_pipeline: vi.fn().mockResolvedValue(undefined),
     conversation_update: vi.fn().mockResolvedValue(undefined),
     decision_outcome: vi.fn().mockResolvedValue(undefined),
+    episode_maintenance: vi.fn().mockResolvedValue(undefined),
     ...overrides,
   };
 }
@@ -118,6 +119,7 @@ describe("chat post-response lifecycle scheduler", () => {
     expect(work.decision_outcome).toHaveBeenCalledTimes(1);
     expect(work.memory_pipeline).toHaveBeenCalledTimes(1);
     expect(work.conversation_update).toHaveBeenCalledTimes(1);
+    expect(work.episode_maintenance).toHaveBeenCalledTimes(1);
   });
 
   it("routes chat work through Next.js lifecycle continuation, not runBg", () => {
