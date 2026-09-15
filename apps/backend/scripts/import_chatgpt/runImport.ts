@@ -197,7 +197,7 @@ export async function runImport(params: {
               sourceThreadId: turn.sourceConversationId,
               sourceMessageId: turn.sourceMessageId,
               sourceMessageIndex: index,
-              role: turn.role,
+              role: turn.role === "tool" ? "system" : turn.role,
               content: turn.content,
               occurredAt: turn.createdAt,
             })),
