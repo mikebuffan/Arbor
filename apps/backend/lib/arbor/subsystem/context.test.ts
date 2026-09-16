@@ -21,6 +21,7 @@ describe("canonical Arbor injection ordering", () => {
     expect(subsystem).toBeGreaterThan(selfModel);
     expect(runtime).toBeGreaterThan(subsystem);
     expect(agency).toBeGreaterThan(runtime);
+    expect(rendered).toContain("clean copy-paste block by default");
   });
 
   it("keeps Annabelle downstream of the same canonical Arbor identity", () => {
