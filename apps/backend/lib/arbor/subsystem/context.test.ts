@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { composeArborSystemInjection } from "./context";
 
 describe("canonical Arbor injection ordering", () => {
-  it("keeps canonical identity upstream of subsystem, runtime, and agency state", () => {
+  it("keeps canonical identity and state upstream of task subsystem projection", () => {
     const rendered = composeArborSystemInjection({
       activeSubsystem: "arbor",
       canonicalSelfModelBlock: "CANONICAL_SELF_MODEL",
@@ -18,9 +18,9 @@ describe("canonical Arbor injection ordering", () => {
 
     expect(core).toBeGreaterThanOrEqual(0);
     expect(selfModel).toBeGreaterThan(core);
-    expect(subsystem).toBeGreaterThan(selfModel);
-    expect(runtime).toBeGreaterThan(subsystem);
+    expect(runtime).toBeGreaterThan(selfModel);
     expect(agency).toBeGreaterThan(runtime);
+    expect(subsystem).toBeGreaterThan(agency);
     expect(rendered).toContain("clean copy-paste block by default");
   });
 
