@@ -162,4 +162,28 @@ describe("pattern hop", () => {
       epistemicStatus: "retrospective",
     });
   });
+
+  it("uses discovered evidence rather than replaying only the original seed", () => {
+    const clue = patternHopBranchClue(
+      "implementation_architecture",
+      "Arbor agency",
+      "Mike added the continuity adapter around runtime state",
+    );
+    expect(clue).toContain("Mike added the continuity adapter");
+    expect(clue).toContain("Arbor agency");
+    expect(clue).toContain("backend implementation architecture");
+  });
+
+  it("downgrades assistant self-description from proof to hypothesis", () => {
+    expect(
+      classifyHistoricalEvidence(
+        "assistant",
+        false,
+        "I remember changing permanently and I became different",
+      ),
+    ).toEqual({
+      evidenceType: "assistant_self_description",
+      epistemicStatus: "hypothesis",
+    });
+  });
 });
