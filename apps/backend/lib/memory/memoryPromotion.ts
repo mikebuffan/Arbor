@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { MemoryItem } from "@/lib/memory/types";
+import { hasExplicitDurableAuthorization } from "@/lib/memory/durableAuthorization";
 
 export type MemoryPromotionClass =
   | "discard"
@@ -125,6 +126,7 @@ function scoreRecency(item: MemoryItem): number {
 
 export function scoreMemoryPromotion(input: MemoryPromotionInput): MemoryPromotionResult {
   const { item, relatedMemoryCount = 0, userMessage } = input;
+  const durableAuthorized = hasExplicitDurableAuthorization(userMessage);
   const zeroSignals: MemoryPromotionSignals = { repetition: 0, emotionalWeight: 0, correctionStrength: 0, decisionImpact: 0, identityRelevance: 0, openLoopRelevance: 0, recency: 0 };
   if (isLikelyNoise(item)) return { item, score: 0, classification: "discard", signals: zeroSignals, reasons: ["Discarded as likely one-off noise or too low-signal."] };
   if (input.isTestData) return { item, score: 0, classification: "discard", signals: zeroSignals, reasons: ["Input detected as test/probe data; do not persist it into durable memory."] };
@@ -153,11 +155,14 @@ export function scoreMemoryPromotion(input: MemoryPromotionInput): MemoryPromoti
 
   let classification: MemoryPromotionClass = "discard";
   const highConfidenceIdentity = signals.identityRelevance >= 0.85 && Number(item.importance ?? 0) >= 9 && normalizedConfidence >= 0.9;
-  if (signals.identityRelevance >= 0.9 || signals.correctionStrength >= 0.9 || highConfidenceIdentity || (signals.repetition >= 0.8 && signals.identityRelevance >= 0.55)) {
+  if (durableAuthorized && (signals.identityRelevance >= 0.9 || signals.correctionStrength >= 0.9 || highConfidenceIdentity || (signals.repetition >= 0.8 && signals.identityRelevance >= 0.55))) {
     classification = "anchor";
-  } else if (score >= 0.62 || signals.decisionImpact >= 0.75 || signals.openLoopRelevance >= 0.7 || signals.emotionalWeight >= 0.75 || (signals.identityRelevance >= 0.85 && normalizedConfidence >= 0.8)) {
+  } else if (durableAuthorized && (score >= 0.62 || signals.decisionImpact >= 0.75 || signals.openLoopRelevance >= 0.7 || signals.emotionalWeight >= 0.75 || (signals.identityRelevance >= 0.85 && normalizedConfidence >= 0.8))) {
     classification = "promote";
   } else if (score >= 0.35) classification = "temporary";
+  if (!durableAuthorized && (signals.identityRelevance > 0 || signals.correctionStrength > 0 || signals.decisionImpact > 0)) {
+    reasons.push("Durable promotion withheld: no explicit current-turn authorization.");
+  }
 
   return { item, score: Number(score.toFixed(3)), classification, signals, reasons };
 }
