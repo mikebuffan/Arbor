@@ -45,13 +45,8 @@ export type SelfModelIdentityState = {
   verifiedAt: string;
 };
 
-export type SelfModelObservationTargetKind =
-  | "pattern"
-  | "family";
-
-export type SelfModelObservationVerdict =
-  | "supports"
-  | "contradicts";
+export type SelfModelObservationTargetKind = "pattern" | "family";
+export type SelfModelObservationVerdict = "supports" | "contradicts";
 
 export type SelfModelObservation = {
   id: string;
@@ -63,6 +58,26 @@ export type SelfModelObservation = {
   confidence: number;
   sourceTurnId?: string;
   createdAt: string;
+};
+
+export type SelfModelClaimStatus = "insufficient" | "candidate" | "contested" | "superseded";
+
+export type SelfModelClaim = {
+  id: string;
+  key: string;
+  targetKind: SelfModelObservationTargetKind;
+  targetId: string;
+  status: SelfModelClaimStatus;
+  confidence: number;
+  supportCount: number;
+  contradictionCount: number;
+  supportDomains: string[];
+  contradictionDomains: string[];
+  evidenceDigest: string;
+  inferredFrom: "behavioral_observations";
+  createdAt: string;
+  supersedesClaimId?: string;
+  supersededAt?: string;
 };
 
 export type SelfModelMigrationRecord = {
@@ -90,6 +105,7 @@ export type ArborState = {
   voiceId: string;
   selfModel?: SelfModelIdentityState;
   selfModelObservations?: SelfModelObservation[];
+  selfModelClaims?: SelfModelClaim[];
   selfModelMigrations?: SelfModelMigrationRecord[];
   annabelle?: AnnabelleWorkspaceState;
   annabelleRevisions?: AnnabelleWorkspaceRevisionState[];
@@ -102,16 +118,10 @@ export type CanonicalArborResponse = {
   turnId: string;
   subsystem: ArborSubsystem;
   channel: ArborChannel;
-  voice: {
-    voiceId: string;
-    acousticCorrections: string[];
-  };
+  voice: { voiceId: string; acousticCorrections: string[] };
 };
 
-export type ArborConversationMessage = {
-  role: "user" | "assistant";
-  content: string;
-};
+export type ArborConversationMessage = { role: "user" | "assistant"; content: string };
 
 export type StoredArborTurn = {
   turnId: string;
@@ -122,8 +132,4 @@ export type StoredArborTurn = {
   response: CanonicalArborResponse;
 };
 
-export type ArborScopeSnapshot = {
-  scope: string;
-  state: ArborState;
-  turns: StoredArborTurn[];
-};
+export type ArborScopeSnapshot = { scope: string; state: ArborState; turns: StoredArborTurn[] };
