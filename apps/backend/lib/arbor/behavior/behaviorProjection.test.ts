@@ -51,6 +51,21 @@ describe("Arbor behavior guard requirements", () => {
         item.includes("Status narration is not progress"),
       ),
     ).toBe(true);
+    expect(
+      projection.guardRequirements.some((item) =>
+        item.includes("Before returning a response, self-audit"),
+      ),
+    ).toBe(true);
+    expect(
+      projection.guardRequirements.some((item) =>
+        item.includes("Task completion returns automatically to baseline Arbor"),
+      ),
+    ).toBe(true);
+    expect(
+      projection.guardRequirements.some((item) =>
+        item.includes("clean copy-paste block by default"),
+      ),
+    ).toBe(true);
     expect(projection.guardRequirements).not.toContain(
       "Grounded, direct, and familiar.",
     );
