@@ -162,9 +162,25 @@ export async function persistPatternHopEvidence(params: {
       metadata: { client_evidence_id: item.id },
     };
 
+    const { data: existing, error: existingError } = await params.supabase
+      .from("arbor_pattern_hop_evidence")
+      .select("id")
+      .eq("run_id", params.runId)
+      .eq("source", item.source)
+      .eq("source_message_id", item.sourceMessageId ?? "")
+      .eq("content", item.content)
+      .maybeSingle();
+
+    if (existingError) throw existingError;
+
+    if (existing?.id) {
+      ids.set(item.id, String(existing.id));
+      continue;
+    }
+
     const { data, error } = await params.supabase
       .from("arbor_pattern_hop_evidence")
-      .upsert(row)
+      .insert(row)
       .select("id")
       .single();
 
@@ -197,9 +213,23 @@ export async function persistPatternHopEdges(params: {
     rationale: edge.rationale,
   }));
 
-  const { error } = await params.supabase
-    .from("arbor_pattern_hop_edges")
-    .insert(rows);
+  for (const row of rows) {
+    const { data: existing, error: existingError } = await params.supabase
+      .from("arbor_pattern_hop_edges")
+      .select("id")
+      .eq("run_id", row.run_id)
+      .eq("to_evidence_id", row.to_evidence_id)
+      .eq("relationship", row.relationship)
+      .eq("hop_depth", row.hop_depth)
+      .maybeSingle();
 
-  if (error) throw error;
+    if (existingError) throw existingError;
+    if (existing?.id) continue;
+
+    const { error } = await params.supabase
+      .from("arbor_pattern_hop_edges")
+      .insert(row);
+
+    if (error) throw error;
+  }
 }
