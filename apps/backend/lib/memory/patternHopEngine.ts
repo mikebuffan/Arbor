@@ -68,12 +68,12 @@ export function detectHopRelationship(parent: PatternHopEvidence | null, candida
   const c = candidate.content.toLowerCase();
   const shared = overlap(p, c);
 
+  if (hasAny(c, [/\bimplement/, /\bcode\b/, /\bschema\b/, /\bmigration\b/, /\bbackend\b/, /\bruntime\b/]) && shared >= 0.12)
+    return { relationship: "implementation_of", reason: "Candidate connects shared subject matter to implementation/architecture evidence." };
   if (hasAny(c, [/\bcorrection\b/, /\bactually\b/, /\bsupersed/, /\bno longer\b/, /\binstead\b/]) && shared >= 0.12)
     return { relationship: "correction_supersession", reason: "Candidate shares subject matter and contains correction/supersession language." };
   if (hasAny(c, [/\bcontradict/, /\bwrong\b/, /\bnot true\b/, /\bdidn['’]?t\b/, /\bnever\b/]) && shared >= 0.12)
     return { relationship: "contradiction", reason: "Candidate shares subject matter and contains contradiction language." };
-  if (hasAny(c, [/\bimplement/, /\bcode\b/, /\bschema\b/, /\bmigration\b/, /\bbackend\b/, /\bruntime\b/]) && shared >= 0.12)
-    return { relationship: "implementation_of", reason: "Candidate connects shared subject matter to implementation/architecture evidence." };
   if (hasAny(c, [/\bbecause\b/, /\bcaused\b/, /\broot cause\b/, /\bled to\b/, /\bresulted\b/]) && shared >= 0.16)
     return { relationship: "causal_candidate", reason: "Candidate contains causal language, but causation remains a candidate rather than established fact." };
   if (parent.occurredAt && candidate.occurredAt && shared >= 0.18) {
