@@ -17,6 +17,9 @@ import {
   transientToolRetryRoute,
 } from "./agencyRecovery/toolPolicies.js";
 import {
+  ArborRecoveryCapabilityCatalog,
+} from "./agencyRecovery/recoveryCatalog.js";
+import {
   InMemoryArborRecoveryRouteLearningStore,
   normalizeArborRecoveryRouteStats,
 } from "./agencyRecovery/routeLearning.js";
@@ -239,6 +242,48 @@ export async function runAgency(input: {
               },
             );
 
+        // Build recovery from the live capability registry rather than a
+        // hard-coded retry-only list. Recovery routes are goal-preserving,
+        // reversible capabilities; user-boundary capabilities remain excluded.
+        const recoveryCatalog =
+          new ArborRecoveryCapabilityCatalog<CapabilityExecution>();
+
+        for (const candidate of capabilities.list()) {
+          if (
+            candidate.name === capability.name ||
+            requiresUserBoundary(candidate)
+          ) {
+            continue;
+          }
+
+          recoveryCatalog.register({
+            id: `capability-fallback:${candidate.name}`,
+            description:
+              `Use ${candidate.name} as a compatible recovery route while preserving the active goal.`,
+            confidence: 0.7,
+            capabilities: [candidate.name],
+            requiresUserInput: false,
+            preservesGoal: true,
+            supports: ({ blocker }) =>
+              blocker.recoverable &&
+              (
+                blocker.kind === "missing_capability" ||
+                blocker.kind === "tool_failure" ||
+                blocker.kind === "host_failure" ||
+                blocker.kind === "validation_failure" ||
+                blocker.kind === "unknown"
+              ),
+            execute: () =>
+              candidate.execute(
+                args,
+                {
+                  ...input.context,
+                  state,
+                },
+              ),
+          });
+        }
+
         try {
           const execution =
             await executeToolWithArborAgency<CapabilityExecution>({
@@ -259,6 +304,7 @@ export async function runAgency(input: {
                   ),
               learningStore:
                 capabilityRecoveryLearning,
+              routeProvider: recoveryCatalog,
               recoveryRoutes: [
                 transientToolRetryRoute({
                   id:
