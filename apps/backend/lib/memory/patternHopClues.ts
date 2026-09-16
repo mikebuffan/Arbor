@@ -11,36 +11,45 @@ export function patternHopClueTerms(text: string): string[] {
   ).slice(0, 10);
 }
 
+function hopBase(seed: string, evidenceContent?: string | null): string {
+  const seedAnchor = patternHopClueTerms(seed).slice(0, 3).join(" ");
+  const evidence = (evidenceContent ?? seed).replace(/\s+/g, " ").trim().slice(0, 700);
+  return [evidence, seedAnchor].filter(Boolean).join(" ");
+}
+
 export function patternHopBranchClue(
   branch: string,
   seed: string,
   evidenceContent?: string | null,
 ): string {
-  const body = evidenceContent ?? seed;
-  const terms = patternHopClueTerms(body);
+  const base = hopBase(seed, evidenceContent);
+  const terms = patternHopClueTerms(base);
 
   switch (branch) {
     case "people_entities":
-      return terms.filter((term) => /^[A-Z]/.test(term)).slice(0, 4).join(" ") || seed;
+      return (
+        terms.filter((term) => /^[A-Z]/.test(term)).slice(0, 4).join(" ") ||
+        base
+      );
     case "causal_predecessors":
-      return seed + " before earlier cause origin first";
+      return base + " before earlier cause origin first predecessor";
     case "consequences":
-      return seed + " after result consequence later";
+      return base + " after result consequence later outcome";
     case "retrospective_references":
-      return seed + " remember later said told you";
+      return base + " remember later said told you retrospective";
     case "chronology_anchors":
-      return seed + " date first earliest timeline";
+      return base + " date first earliest timeline before after";
     case "implementation_architecture":
-      return seed + " code schema backend implementation architecture";
+      return base + " code schema backend implementation architecture migration runtime";
     case "behavioral_results":
-      return seed + " behavior worked failed regression recovery";
+      return base + " behavior worked failed regression recovery demonstration result";
     case "terminology_changes":
-      return seed + " called named term renamed";
+      return base + " called named term renamed earlier wording";
     case "contradictions":
-      return seed + " wrong correction contradiction not true";
+      return base + " wrong correction contradiction not true superseded";
     case "neighboring_concepts":
-      return terms.slice(0, 6).join(" ") || seed;
+      return terms.slice(0, 8).join(" ") || base;
     default:
-      return seed;
+      return base;
   }
 }
