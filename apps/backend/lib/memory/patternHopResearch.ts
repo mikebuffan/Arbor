@@ -35,7 +35,7 @@ export const DEFAULT_PATTERN_HOP_BRANCHES = [
   "contradictions",
 ] as const;
 
-function clueTerms(text: string): string[] {
+export function patternHopClueTerms(text: string): string[] {
   const words = text.match(/[A-Za-z][A-Za-z0-9_-]{2,}/g) ?? [];
   const stop = new Set([
     "the", "and", "that", "this", "with", "from", "have", "were",
@@ -47,13 +47,13 @@ function clueTerms(text: string): string[] {
   ).slice(0, 10);
 }
 
-function branchClue(
+export function patternHopBranchClue(
   branch: string,
   seed: string,
   evidence?: PatternHopEvidence,
 ): string {
   const body = evidence?.content ?? seed;
-  const terms = clueTerms(body);
+  const terms = patternHopClueTerms(body);
 
   switch (branch) {
     case "people_entities":
@@ -135,7 +135,7 @@ export async function runPatternHopResearch(params: {
     for (const branch of DEFAULT_PATTERN_HOP_BRANCHES) {
       run.state = enqueueHop(run.state, {
         evidenceId: "seed",
-        clue: branchClue(branch, params.seed),
+        clue: patternHopBranchClue(branch, params.seed),
         depth: 0,
         branch,
       });
@@ -223,7 +223,7 @@ export async function runPatternHopResearch(params: {
           ]) {
             state = enqueueHop(state, {
               evidenceId: evidence.id,
-              clue: branchClue(branch, params.seed, evidence),
+              clue: patternHopBranchClue(branch, params.seed, evidence),
               depth: next.depth + 1,
               branch: next.branch + ">" + branch,
             });
