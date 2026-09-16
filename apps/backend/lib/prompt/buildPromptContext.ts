@@ -35,6 +35,10 @@ import {
   embodiedRegulationPromptBlock,
 } from "@/lib/arbor/body/regulation";
 import {
+  classifyInternalSignal,
+  renderInternalSignalBlock,
+} from "@/lib/arbor/body/gastricSignals";
+import {
   buildContinuityState,
   continuityToPromptBlock,
 } from "@/lib/arbor/continuity/state";
@@ -441,6 +445,12 @@ export async function buildPromptContext({
   const regulationBlock =
     embodiedRegulationPromptBlock(embodiedRegulation);
 
+  const gastricSignal = classifyInternalSignal({
+    userMessage: latestUserText,
+    activeTaskMode: embodiedRegulation.endocrine.register,
+  });
+  const gastricSignalBlock = renderInternalSignalBlock(gastricSignal);
+
   const behaviorProjection = buildArborBehaviorProjection({
     mode: behaviorMode,
     projectBehaviorPhilosophy: philosophy,
@@ -476,6 +486,8 @@ export async function buildPromptContext({
     ${behaviorProjection.promptBlock}
 
     ${regulationBlock}
+
+    ${gastricSignalBlock}
 
     ${host.startup.promptBlock}
 
