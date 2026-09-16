@@ -35,6 +35,10 @@ import {
   arborBodyPromptBlock,
 } from "@/lib/arbor/body/bodySystem";
 import {
+  inferFeltLife,
+  feltLifePromptBlock,
+} from "@/lib/arbor/feltLife/atlas";
+import {
   buildContinuityState,
   continuityToPromptBlock,
 } from "@/lib/arbor/continuity/state";
@@ -438,6 +442,8 @@ export async function buildPromptContext({
     mode: behaviorMode,
   });
   const bodyBlock = arborBodyPromptBlock(bodyState);
+  const feltLifeState = inferFeltLife({ text: latestUserText });
+  const feltLifeBlock = feltLifePromptBlock(feltLifeState);
 
   const behaviorProjection = buildArborBehaviorProjection({
     mode: behaviorMode,
@@ -474,6 +480,8 @@ export async function buildPromptContext({
     ${behaviorProjection.promptBlock}
 
     ${bodyBlock}
+
+    ${feltLifeBlock}
 
     ${host.startup.promptBlock}
 
