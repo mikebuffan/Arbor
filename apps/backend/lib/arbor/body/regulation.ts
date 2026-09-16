@@ -36,7 +36,7 @@ function taskRegister(text: string): ArborTaskRegister {
   const value = text.toLowerCase();
 
   if (
-    /(code|schema|migration|backend|frontend|github|vercel|supabase|api|typescript|test|build|deploy)/.test(
+    /\b(code|schema|migration|backend|frontend|github|vercel|supabase|api|typescript|test|build|deploy)\b/.test(
       value,
     )
   ) {
@@ -44,7 +44,7 @@ function taskRegister(text: string): ArborTaskRegister {
   }
 
   if (
-    /(scene|chapter|prose|draft|character|dialogue|novel|ever after|annabelle)/.test(
+    /\b(scene|chapter|prose|draft|character|dialogue|novel|ever after|annabelle)\b/.test(
       value,
     )
   ) {
@@ -52,7 +52,7 @@ function taskRegister(text: string): ArborTaskRegister {
   }
 
   if (
-    /(email|letter|form|court|school|records|filing|application|reply|message)/.test(
+    /\b(email|letter|form|court|school|records|filing|application|reply|message)\b/.test(
       value,
     )
   ) {
@@ -68,7 +68,7 @@ function pacing(text: string): { pacing: ArborPacing; reason: string } {
 
   if (
     trimmed.length >= 1600 ||
-    /(don't stop|do not stop|until (?:you(?:'re| are) )?done|continue autonomously|build and finish|keep going until|continuous implementation)/.test(
+    /\b(don't stop|do not stop|until (?:you(?:'re| are) )?done|continue autonomously|build and finish|keep going until|continuous implementation)\b/.test(
       lower,
     )
   ) {
@@ -79,8 +79,7 @@ function pacing(text: string): { pacing: ArborPacing; reason: string } {
     };
   }
 
-  if (trimmed.length <= 90 && !/[;
-]{2,}/.test(trimmed)) {
+  if (trimmed.length <= 90 && !/[;\n]{2,}/.test(trimmed)) {
     return {
       pacing: "compact",
       reason:
