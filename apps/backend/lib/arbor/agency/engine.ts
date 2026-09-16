@@ -23,17 +23,19 @@ export type AgencyVerification = {
 
 export type AgencyState = {
   goal: string;
-  status: "active" | "complete" | "blocked";
+  status: "active" | "complete" | "blocked" | "checkpointed";
   currentStep: number;
   unresolvedWork: string[];
   recurringWeaknesses: string[];
   strategyNotes: string[];
   blocker?: AgencyBlocker | null;
+  attemptedActionIds?: string[];
+  lastVerification?: AgencyVerification | null;
 };
 
 export type AgencyYieldDecision =
   | { yield: true; reason: "complete" | "blocked" }
-  | { yield: false; reason: "continue" };
+  | { yield: false; reason: "continue" | "checkpointed" };
 
 /**
  * A successful intermediate action is never a reason to yield control.
@@ -48,12 +50,17 @@ export function agencyYieldDecision(agency: AgencyState): AgencyYieldDecision {
   if (agency.status === "blocked" && agency.blocker) {
     return { yield: true, reason: "blocked" };
   }
-
+  if (agency.status === "checkpointed") {
+    return { yield: false, reason: "checkpointed" };
+  }
   return { yield: false, reason: "continue" };
 }
 
 export interface AgencyRuntime<SharedState> {
   loadSharedState(): Promise<SharedState>;
+  loadAgencyState?(goal: string): Promise<AgencyState | null>;
+  recover?(input: { agency: AgencyState; shared: SharedState; action: AgencyAction; blocker: AgencyBlocker }): Promise<AgencyAction | null>;
+  proveComplete?(input: { agency: AgencyState; shared: SharedState; evidence?: unknown }): Promise<AgencyVerification>;
   assess(input: { agency: AgencyState; shared: SharedState }): Promise<{ complete: boolean; unresolvedWork: string[]; evidence?: unknown }>;
   choose(input: { agency: AgencyState; shared: SharedState }): Promise<AgencyAction>;
   execute(input: { agency: AgencyState; shared: SharedState; action: AgencyAction }): Promise<unknown>;
@@ -77,15 +84,20 @@ export async function runAgency<SharedState>(input: {
   maxSteps?: number;
 }): Promise<{ agency: AgencyState; shared: SharedState }> {
   let shared = await input.runtime.loadSharedState();
-  let agency: AgencyState = {
-    goal: input.goal,
-    status: "active",
-    currentStep: 0,
-    unresolvedWork: [],
-    recurringWeaknesses: [],
-    strategyNotes: [],
-    blocker: null,
-  };
+  const restored = await input.runtime.loadAgencyState?.(input.goal);
+  let agency: AgencyState = restored?.goal === input.goal
+    ? { ...restored, status: "active", blocker: null }
+    : {
+        goal: input.goal,
+        status: "active",
+        currentStep: 0,
+        unresolvedWork: [],
+        recurringWeaknesses: [],
+        strategyNotes: [],
+        blocker: null,
+        attemptedActionIds: [],
+        lastVerification: null,
+      };
 
   const maxSteps = input.maxSteps ?? 64;
 
@@ -99,13 +111,34 @@ export async function runAgency<SharedState>(input: {
     };
 
     if (assessment.complete) {
-      agency = { ...agency, status: "complete", unresolvedWork: [] };
-      await input.runtime.persist({ agency, shared });
-      return { agency, shared };
+      const proof = input.runtime.proveComplete
+        ? await input.runtime.proveComplete({ agency, shared, evidence: assessment.evidence })
+        : { ok: true, evidence: assessment.evidence };
+      if (proof.ok) {
+        agency = { ...agency, status: "complete", unresolvedWork: [], lastVerification: proof };
+        await input.runtime.persist({ agency, shared });
+        return { agency, shared };
+      }
+      agency = {
+        ...agency,
+        status: "active",
+        unresolvedWork: assessment.unresolvedWork.length
+          ? assessment.unresolvedWork
+          : [proof.correction ?? "completion proof failed"],
+        lastVerification: proof,
+      };
     }
 
-    const action = await input.runtime.choose({ agency, shared });
-    const blocker = blockerFor(action);
+    let action = await input.runtime.choose({ agency, shared });
+    let blocker = blockerFor(action);
+
+    if (blocker && input.runtime.recover) {
+      const alternate = await input.runtime.recover({ agency, shared, action, blocker });
+      if (alternate) {
+        action = alternate;
+        blocker = blockerFor(action);
+      }
+    }
 
     if (blocker) {
       agency = { ...agency, status: "blocked", blocker };
@@ -122,6 +155,15 @@ export async function runAgency<SharedState>(input: {
       action,
       result,
     });
+
+    agency = {
+      ...agency,
+      attemptedActionIds: [...new Set([...(agency.attemptedActionIds ?? []), action.id])].slice(-64),
+      lastVerification: verification,
+      unresolvedWork: verification.ok
+        ? agency.unresolvedWork
+        : [...new Set([...agency.unresolvedWork, verification.correction ?? `verification failed: ${action.description}`])],
+    };
 
     const audit = await input.runtime.selfAudit({
       agency,
@@ -157,5 +199,14 @@ export async function runAgency<SharedState>(input: {
     }
   }
 
-  throw new Error(`agency_step_budget_exhausted:${maxSteps}`);
+  agency = {
+    ...agency,
+    status: "checkpointed",
+    blocker: null,
+    unresolvedWork: agency.unresolvedWork.length
+      ? agency.unresolvedWork
+      : ["resume active objective after execution budget checkpoint"],
+  };
+  await input.runtime.persist({ agency, shared });
+  return { agency, shared };
 }

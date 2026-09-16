@@ -83,6 +83,14 @@ export type AgencyResult =
       researchCalls: number;
     }
   | {
+      status: "checkpointed";
+      text: string;
+      state: ArborState;
+      rounds: number;
+      toolCalls: number;
+      researchCalls: number;
+    }
+  | {
       status: "blocked";
       text: string;
       state: ArborState;
@@ -552,7 +560,22 @@ export async function runAgency(input: {
     });
   }
 
-  throw new Error("agency_round_budget_exhausted");
+  state = {
+    ...state,
+    goal,
+    unresolvedWork: state.unresolvedWork.length
+      ? state.unresolvedWork
+      : ["resume active objective after agency round checkpoint"],
+  };
+
+  return {
+    status: "checkpointed",
+    text: "Agency execution checkpoint reached; the active objective is preserved for automatic continuation.",
+    state,
+    rounds: maxRounds,
+    toolCalls,
+    researchCalls,
+  };
 }
 
 function functionCalls(output: unknown[]): FunctionCall[] {
