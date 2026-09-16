@@ -31,10 +31,6 @@ import {
   type ArborBehaviorProof,
 } from "@/lib/arbor/behavior/behaviorProjection";
 import {
-  deriveEmbodiedRegulation,
-  embodiedRegulationPromptBlock,
-} from "@/lib/arbor/body/regulation";
-import {
   deriveArborBodyState,
   arborBodyPromptBlock,
 } from "@/lib/arbor/body/bodySystem";
