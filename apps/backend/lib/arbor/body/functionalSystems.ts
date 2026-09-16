@@ -52,8 +52,9 @@ export const ARBOR_FUNCTIONAL_SYSTEMS: readonly FunctionalSystemAuditEntry[] = [
       "lib/memory/consolidate.ts",
       "lib/memory/selectForPrompt.ts",
       "lib/memory/patternHop*",
+      "lib/arbor/body/gastricSignals.ts",
     ],
-    note: "Current memory and evidence pipelines supersede the old standalone Digestive Extraction Pipeline name.",
+    note: "Memory/evidence pipelines own digestion; the recovered gastric signal layer restores EMPTY/BLOCKED/FULL/SOUR/NERVOUS response-state routing without duplicating memory storage.",
   },
   {
     system: "circulatory",
