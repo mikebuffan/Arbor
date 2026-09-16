@@ -139,6 +139,8 @@ export async function runImport(params: {
   turnsPerChunk?: number;
   dryRun?: boolean;
   globalUserId?: string | null;
+  historicalOnly?: boolean;
+  embedHistorical?: boolean;
 }) {
 
   const {
@@ -148,6 +150,8 @@ export async function runImport(params: {
     turnsPerChunk = 10,
     dryRun = false,
     globalUserId = process.env.ARBOR_GLOBAL_USER_ID ?? null,
+    historicalOnly = false,
+    embedHistorical = !historicalOnly,
   } = params;
 
   const supabase: any = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
@@ -201,10 +205,17 @@ export async function runImport(params: {
               content: turn.content,
               occurredAt: turn.createdAt,
             })),
+            options: { embed: embedHistorical },
           }),
           300000,
           "upsertHistoricalConversationTurns"
         );
+      }
+
+      if (historicalOnly) {
+        saveCheckpoint({ convoCount, chunkIndex: 0 });
+        if (convoCount % 100 === 0) console.log(`[import] historical-only progress convos=${convoCount}`);
+        return;
       }
 
       const chunks = chunkTurnsByCount(turns, turnsPerChunk);
