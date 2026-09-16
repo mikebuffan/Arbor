@@ -86,6 +86,18 @@ describe("embodied regulation", () => {
     );
   });
 
+  it("does not treat voice transport as behavioral orientation drift", () => {
+    const state = deriveEmbodiedRegulation({
+      latestUserText: "Keep going.",
+      continuity: continuity({ channel: "voice" }),
+      activeSubsystem: "arbor",
+      mode: "text",
+    });
+
+    expect(state.vestibular.oriented).toBe(true);
+    expect(state.proprioception.channel).toBe("voice");
+  });
+
   it("detects subsystem-mode mismatch without mutating state", () => {
     const prior = continuity({ activeSubsystem: "arbor" });
     const state = deriveEmbodiedRegulation({
