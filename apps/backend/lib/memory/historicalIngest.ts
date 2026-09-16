@@ -11,6 +11,11 @@ export type HistoricalTurnInput = {
   occurredAt: string | null;
 };
 
+export type HistoricalIngestOptions = {
+  /** Skip embeddings during bulk transport. Lexical recall works immediately; vectors can be backfilled later. */
+  embed?: boolean;
+};
+
 const UPSERT_BATCH = 200;
 
 export async function upsertHistoricalConversationTurns(params: {
@@ -18,6 +23,7 @@ export async function upsertHistoricalConversationTurns(params: {
   userId: string;
   projectId: string;
   turns: HistoricalTurnInput[];
+  options?: HistoricalIngestOptions;
 }) {
   const usable = params.turns
     .map((turn) => ({
@@ -28,17 +34,20 @@ export async function upsertHistoricalConversationTurns(params: {
 
   if (!usable.length) return { inserted: 0 };
 
-  const embeddings = await embedTexts(
-    usable.map((turn) =>
-      [
-        `role:${turn.role}`,
-        turn.occurredAt ? `time:${turn.occurredAt}` : "",
-        turn.content,
-      ]
-        .filter(Boolean)
-        .join("\n"),
-    ),
-  );
+  const shouldEmbed = params.options?.embed !== false;
+  const embeddings = shouldEmbed
+    ? await embedTexts(
+        usable.map((turn) =>
+          [
+            `role:${turn.role}`,
+            turn.occurredAt ? `time:${turn.occurredAt}` : "",
+            turn.content,
+          ]
+            .filter(Boolean)
+            .join("\n"),
+        ),
+      )
+    : usable.map(() => null);
 
   const rows = usable.map((turn, index) => ({
     user_id: params.userId,
@@ -59,7 +68,7 @@ export async function upsertHistoricalConversationTurns(params: {
       .from("historical_conversation_turns")
       .upsert(rows.slice(i, i + UPSERT_BATCH), {
         onConflict:
-          "user_id,project_id,source,source_message_id",
+          "user_id,project_id,source,source_thread_id,source_message_id",
       });
 
     if (error) throw error;
