@@ -11,8 +11,10 @@
 import { createClient } from "@supabase/supabase-js";
 import { createReadStream, existsSync, readdirSync, statSync } from "node:fs";
 import { basename, join } from "node:path";
-import { parser } from "stream-json";
-import { streamArray } from "stream-json/streamers/StreamArray";
+import pkg from "stream-json";
+import streamArrayPkg from "stream-json/streamers/StreamArray";
+const { parser } = pkg;
+const { streamArray } = streamArrayPkg;
 
 type Row = {
   user_id:string; project_id:string; source:string;
