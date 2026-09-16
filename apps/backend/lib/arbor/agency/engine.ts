@@ -35,7 +35,7 @@ export type AgencyState = {
 
 export type AgencyYieldDecision =
   | { yield: true; reason: "complete" | "blocked" }
-  | { yield: false; reason: "continue" };
+  | { yield: false; reason: "continue" | "checkpointed" };
 
 /**
  * A successful intermediate action is never a reason to yield control.
@@ -50,7 +50,9 @@ export function agencyYieldDecision(agency: AgencyState): AgencyYieldDecision {
   if (agency.status === "blocked" && agency.blocker) {
     return { yield: true, reason: "blocked" };
   }
-
+  if (agency.status === "checkpointed") {
+    return { yield: false, reason: "checkpointed" };
+  }
   return { yield: false, reason: "continue" };
 }
 
