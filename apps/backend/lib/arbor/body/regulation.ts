@@ -95,16 +95,22 @@ function pacing(text: string): { pacing: ArborPacing; reason: string } {
 
 export function deriveEmbodiedRegulation(input: {
   latestUserText: string;
-  continuity: ArborContinuityState;
+  continuity?: ArborContinuityState | null;
   activeSubsystem: ArborSubsystem;
   mode: ArborInteractionMode;
 }): ArborEmbodiedRegulation {
   const respiratory = pacing(input.latestUserText);
   const warnings: string[] = [];
+  const continuity = input.continuity ?? {
+    currentGoal: null,
+    unresolvedWork: [],
+    activeCorrections: [],
+    channel: "text" as const,
+  };
 
   if (
-    input.continuity.unresolvedWork.length > 0 &&
-    !input.continuity.currentGoal?.trim()
+    continuity.unresolvedWork.length > 0 &&
+    !continuity.currentGoal?.trim()
   ) {
     warnings.push(
       "unresolved work exists without an explicit current goal; preserve it rather than silently dropping it",
@@ -138,11 +144,11 @@ export function deriveEmbodiedRegulation(input: {
       durable: false,
     },
     proprioception: {
-      currentGoal: input.continuity.currentGoal,
-      unresolvedCount: input.continuity.unresolvedWork.length,
-      correctionCount: input.continuity.activeCorrections.length,
+      currentGoal: continuity.currentGoal,
+      unresolvedCount: continuity.unresolvedWork.length,
+      correctionCount: continuity.activeCorrections.length,
       subsystem: input.activeSubsystem,
-      channel: input.continuity.channel,
+      channel: continuity.channel,
     },
     vestibular: {
       oriented: warnings.length === 0,
