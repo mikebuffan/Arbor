@@ -186,4 +186,49 @@ describe("pattern hop", () => {
       epistemicStatus: "hypothesis",
     });
   });
+
+  it("resumes a serialized interrupted frontier without restarting visited work", () => {
+    let state = enqueueHop(base(), {
+      evidenceId: "first",
+      clue: "first clue",
+      depth: 0,
+      branch: "direct_matches",
+    });
+    state = enqueueHop(state, {
+      evidenceId: "second",
+      clue: "second clue",
+      depth: 1,
+      branch: "direct_matches>implementation_architecture",
+    });
+    const first = takeNextHop(state);
+    const restored = JSON.parse(JSON.stringify(first.state)) as PatternHopState;
+    const resumed = takeNextHop(restored);
+    expect(resumed.next?.evidenceId).toBe("second");
+    expect(resumed.state.visited).toContain(
+      "first::first clue::0::direct_matches",
+    );
+    expect(resumed.state.visited).toContain(
+      "second::second clue::1::direct_matches>implementation_architecture",
+    );
+  });
+
+  it("preserves cross-thread evidence instead of collapsing it", () => {
+    const one: PatternHopEvidence = {
+      id: "one",
+      source: "chatgpt",
+      sourceThreadId: "thread-a",
+      sourceMessageId: "message-a",
+      evidenceType: "direct_user_statement",
+      content: "same concept",
+      confidence: 0.9,
+      epistemicStatus: "direct",
+    };
+    const two: PatternHopEvidence = {
+      ...one,
+      id: "two",
+      sourceThreadId: "thread-b",
+      sourceMessageId: "message-b",
+    };
+    expect(addEvidenceUnique([], [one, two])).toHaveLength(2);
+  });
 });
