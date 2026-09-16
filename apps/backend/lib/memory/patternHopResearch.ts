@@ -1,9 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { enqueueHop, finishBranch, objectiveComplete, rankEvidence, takeNextHop, type PatternHopEdge, type PatternHopEvidence, type PatternHopState } from "@/lib/memory/patternHop";
-import { buildPathStep, projectPatternHopForRuntime, selectNextHopCandidates, type PatternHopCandidate, type PatternHopPathStep } from "@/lib/memory/patternHopEngine";
+import { buildPathStep, projectPatternHopForRuntime, selectNextHopCandidates, type PatternHopCandidate, type PatternHopPathStep, type PatternHopRelationship } from "@/lib/memory/patternHopEngine";
 import { classifyHistoricalEvidence, searchHistoricalHopEvidence, searchMemoryHopEvidence, searchTimelineHopEvidence } from "@/lib/memory/patternHopRetrieval";
 import { patternHopBranchClue } from "@/lib/memory/patternHopClues";
-import { createPatternHopRun, loadPatternHopRun, persistPatternHopEdges, persistPatternHopEvidence, savePatternHopRun } from "@/lib/memory/patternHopStore";
+import { createPatternHopRun, loadPatternHopEdges, loadPatternHopEvidence, loadPatternHopRun, persistPatternHopEdges, persistPatternHopEvidence, savePatternHopRun } from "@/lib/memory/patternHopStore";
 
 export const DEFAULT_PATTERN_HOP_BRANCHES = ["direct_matches","neighboring_concepts","people_entities","terminology_changes","causal_predecessors","consequences","retrospective_references","chronology_anchors","implementation_architecture","behavioral_results","contradictions"] as const;
 
@@ -22,29 +22,83 @@ export async function runPatternHopResearch(params:{supabase:SupabaseClient;user
   }
 
   let state:PatternHopState=run.state;
-  const found:PatternHopEvidence[]=[];
-  const edges:PatternHopEdge[]=[];
-  const path:PatternHopPathStep[]=[];
-  const evidenceById=new Map<string,PatternHopEvidence>();
-  const visitedEvidenceIds=new Set<string>();
+  const found:PatternHopEvidence[]=await loadPatternHopEvidence({
+    supabase:params.supabase,
+    runId:run.id,
+    userId:params.userId,
+    projectId:params.projectId,
+  });
+  const edges:PatternHopEdge[]=await loadPatternHopEdges({
+    supabase:params.supabase,
+    runId:run.id,
+  });
+  const evidenceById=new Map<string,PatternHopEvidence>(
+    found.map(evidence=>[evidence.id,evidence]),
+  );
+  const visitedEvidenceIds=new Set<string>(found.map(evidence=>evidence.id));
+  const path:PatternHopPathStep[]=edges.flatMap(edge=>{
+    const evidence=evidenceById.get(edge.toEvidenceId);
+    if(!evidence) return [];
+    return [{
+      evidenceId:evidence.id,
+      parentEvidenceId:edge.fromEvidenceId ?? null,
+      depth:edge.hopDepth,
+      relationship:edge.relationship as PatternHopRelationship,
+      rationale:edge.rationale,
+      score:edge.confidence,
+      epistemicStatus:evidence.epistemicStatus,
+      retrievalMethod:"persisted",
+    }];
+  });
   const maxHops=Math.max(1,Math.min(params.maxHops ?? 24,100));
 
   for(let i=0;i<maxHops && state.status==="active";i+=1){
     const nextResult=takeNextHop(state); state=nextResult.state; const next=nextResult.next; if(!next) break;
     const parent=next.evidenceId==="seed" ? null : evidenceById.get(next.evidenceId) ?? null;
     let rows:Awaited<ReturnType<typeof searchHistoricalHopEvidence>>=[];
-    try { rows=await searchHistoricalHopEvidence({supabase:params.supabase,userId:params.userId,projectId:params.projectId,clue:next.clue,limit:8}); }
-    catch(error){ state={...state,status:"blocked",blocker:error instanceof Error?error.message:"pattern_hop_retrieval_failed"}; break; }
+    let memory:PatternHopEvidence[]=[];
+    let timeline:PatternHopEvidence[]=[];
+    const sourceFailures:string[]=[];
 
-    const historical=rows.filter(r=>(r.similarity ?? 0)>=0.35).map(r=>toEvidence(r,next.branch));
-    let memory:PatternHopEvidence[]=[]; let timeline:PatternHopEvidence[]=[];
-    try { [memory,timeline]=await Promise.all([
-      searchMemoryHopEvidence({supabase:params.supabase,userId:params.userId,projectId:params.projectId,clue:next.clue,limit:5}),
-      searchTimelineHopEvidence({supabase:params.supabase,userId:params.userId,projectId:params.projectId,clue:next.clue,limit:5}),
-    ]); } catch { memory=[]; timeline=[]; }
+    try {
+      rows=await searchHistoricalHopEvidence({
+        supabase:params.supabase,userId:params.userId,projectId:params.projectId,clue:next.clue,limit:8
+      });
+    } catch(error) {
+      sourceFailures.push("historical:"+(error instanceof Error?error.message:"failed"));
+    }
+
+    try {
+      memory=await searchMemoryHopEvidence({
+        supabase:params.supabase,userId:params.userId,projectId:params.projectId,clue:next.clue,limit:5
+      });
+    } catch(error) {
+      sourceFailures.push("memory:"+(error instanceof Error?error.message:"failed"));
+    }
+
+    try {
+      timeline=await searchTimelineHopEvidence({
+        supabase:params.supabase,userId:params.userId,projectId:params.projectId,clue:next.clue,limit:5
+      });
+    } catch(error) {
+      sourceFailures.push("timeline:"+(error instanceof Error?error.message:"failed"));
+    }
+
+    if(sourceFailures.length===3){
+      state={...state,status:"blocked",blocker:"all_pattern_hop_sources_failed:"+sourceFailures.join("|")};
+      break;
+    }
+
+    const historical=rows
+      .filter(r=>(r.similarity ?? 0)>=0.35)
+      .map(r=>toEvidence(r,next.branch));
 
     const candidates:PatternHopCandidate[]=[
-      ...historical.map(evidence=>({evidence,retrievalScore:evidence.confidence,retrievalMethod:"historical_embedding"})),
+      ...historical.map((evidence,index)=>({
+        evidence,
+        retrievalScore:evidence.confidence,
+        retrievalMethod:rows[index]?.retrievalMethod ?? "historical_hybrid"
+      })),
       ...memory.map(evidence=>({evidence,retrievalScore:evidence.confidence,retrievalMethod:"memory_lexical"})),
       ...timeline.map(evidence=>({evidence,retrievalScore:evidence.confidence,retrievalMethod:"timeline_lexical"})),
     ];
