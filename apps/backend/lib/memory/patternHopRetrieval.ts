@@ -12,6 +12,7 @@ export type HistoricalHopResult = {
   content: string;
   occurredAt: string | null;
   similarity: number;
+  retrievalMethod?: "historical_embedding" | "historical_lexical";
 };
 
 function normalizedTerms(text: string): string[] {
@@ -52,33 +53,96 @@ export async function searchHistoricalHopEvidence(params: {
   clue: string;
   limit?: number;
 }): Promise<HistoricalHopResult[]> {
-  const embedding = await embedText(params.clue);
-  const { data, error } = await params.supabase.rpc(
-    "match_historical_conversation_turns",
-    {
-      p_user_id: params.userId,
-      p_project_id: params.projectId,
-      p_query_embedding: embedding,
-      p_match_count: Math.max(1, Math.min(params.limit ?? 12, 50)),
-    },
-  );
+  const limit = Math.max(1, Math.min(params.limit ?? 12, 50));
+  const byId = new Map<string, HistoricalHopResult>();
 
-  if (error) throw error;
+  try {
+    const embedding = await embedText(params.clue);
+    const { data, error } = await params.supabase.rpc(
+      "match_historical_conversation_turns",
+      {
+        p_user_id: params.userId,
+        p_project_id: params.projectId,
+        p_query_embedding: embedding,
+        p_match_count: limit,
+      },
+    );
 
-  return (data ?? []).map((row: any) => ({
-    id: String(row.id),
-    source: String(row.source),
-    sourceThreadId: String(row.source_thread_id),
-    sourceMessageId: String(row.source_message_id),
-    sourceMessageIndex:
-      row.source_message_index == null
-        ? null
-        : Number(row.source_message_index),
-    role: row.role,
-    content: String(row.content),
-    occurredAt: row.occurred_at ?? null,
-    similarity: Number(row.similarity ?? 0),
-  }));
+    if (error) throw error;
+
+    for (const row of data ?? []) {
+      const result: HistoricalHopResult = {
+        id: String(row.id),
+        source: String(row.source),
+        sourceThreadId: String(row.source_thread_id),
+        sourceMessageId: String(row.source_message_id),
+        sourceMessageIndex:
+          row.source_message_index == null
+            ? null
+            : Number(row.source_message_index),
+        role: row.role,
+        content: String(row.content),
+        occurredAt: row.occurred_at ?? null,
+        similarity: Number(row.similarity ?? 0),
+        retrievalMethod: "historical_embedding",
+      };
+      byId.set(result.id, result);
+    }
+  } catch (error) {
+    console.warn("[pattern-hop] historical semantic retrieval degraded", {
+      error: error instanceof Error ? error.message : "unknown",
+    });
+  }
+
+  const terms = normalizedTerms(params.clue).slice(0, 6);
+  if (terms.length) {
+    const orClause = terms
+      .map((term) => `content.ilike.%${term.replace(/[%_,]/g, "")}%`)
+      .join(",");
+
+    const { data, error } = await params.supabase
+      .from("historical_conversation_turns")
+      .select(
+        "id,source,source_thread_id,source_message_id,source_message_index,role,content,occurred_at",
+      )
+      .eq("user_id", params.userId)
+      .eq("project_id", params.projectId)
+      .or(orClause)
+      .order("occurred_at", { ascending: false, nullsFirst: false })
+      .limit(limit);
+
+    if (!error) {
+      for (const row of data ?? []) {
+        const content = String(row.content);
+        const lexical = lexicalScore(params.clue, content);
+        const result: HistoricalHopResult = {
+          id: String(row.id),
+          source: String(row.source),
+          sourceThreadId: String(row.source_thread_id),
+          sourceMessageId: String(row.source_message_id),
+          sourceMessageIndex:
+            row.source_message_index == null
+              ? null
+              : Number(row.source_message_index),
+          role: row.role,
+          content,
+          occurredAt: row.occurred_at ?? null,
+          similarity: lexical,
+          retrievalMethod: "historical_lexical",
+        };
+        const existing = byId.get(result.id);
+        if (!existing || result.similarity > existing.similarity) {
+          byId.set(result.id, result);
+        }
+      }
+    } else if (!byId.size) {
+      throw error;
+    }
+  }
+
+  return [...byId.values()]
+    .sort((a, b) => b.similarity - a.similarity)
+    .slice(0, limit);
 }
 
 export function classifyHistoricalEvidence(
