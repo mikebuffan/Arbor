@@ -232,3 +232,5 @@ describe("pattern hop", () => {
     expect(addEvidenceUnique([], [one, two])).toHaveLength(2);
   });
 });
+
+// Final verification sync for PR CI.
