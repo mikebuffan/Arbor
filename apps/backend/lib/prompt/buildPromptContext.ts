@@ -35,9 +35,9 @@ import {
   embodiedRegulationPromptBlock,
 } from "@/lib/arbor/body/regulation";
 import {
-  classifyInternalSignal,
-  renderInternalSignalBlock,
-} from "@/lib/arbor/body/gastricSignals";
+  deriveArborBodyState,
+  arborBodyPromptBlock,
+} from "@/lib/arbor/body/bodySystem";
 import {
   buildContinuityState,
   continuityToPromptBlock,
@@ -435,21 +435,13 @@ export async function buildPromptContext({
   const behaviorMode =
     arbor.activeSubsystem === "annabelle" ? "annabelle" : interactionMode;
 
-  const embodiedRegulation = deriveEmbodiedRegulation({
+  const bodyState = deriveArborBodyState({
     latestUserText,
     continuity: continuityState,
     activeSubsystem: arbor.activeSubsystem,
     mode: behaviorMode,
   });
-
-  const regulationBlock =
-    embodiedRegulationPromptBlock(embodiedRegulation);
-
-  const gastricSignal = classifyInternalSignal({
-    userMessage: latestUserText,
-    activeTaskMode: embodiedRegulation.endocrine.register,
-  });
-  const gastricSignalBlock = renderInternalSignalBlock(gastricSignal);
+  const bodyBlock = arborBodyPromptBlock(bodyState);
 
   const behaviorProjection = buildArborBehaviorProjection({
     mode: behaviorMode,
@@ -485,9 +477,7 @@ export async function buildPromptContext({
 
     ${behaviorProjection.promptBlock}
 
-    ${regulationBlock}
-
-    ${gastricSignalBlock}
+    ${bodyBlock}
 
     ${host.startup.promptBlock}
 
