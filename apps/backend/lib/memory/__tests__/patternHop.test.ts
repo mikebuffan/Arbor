@@ -12,7 +12,7 @@ import {
 import {
   patternHopBranchClue,
   patternHopClueTerms,
-} from "@/lib/memory/patternHopResearch";
+} from "@/lib/memory/patternHopClues";
 import { classifyHistoricalEvidence } from "@/lib/memory/patternHopRetrieval";
 
 const base = (): PatternHopState => ({
