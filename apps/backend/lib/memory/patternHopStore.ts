@@ -162,14 +162,19 @@ export async function persistPatternHopEvidence(params: {
       metadata: { client_evidence_id: item.id },
     };
 
-    const { data: existing, error: existingError } = await params.supabase
+    let existingQuery = params.supabase
       .from("arbor_pattern_hop_evidence")
       .select("id")
       .eq("run_id", params.runId)
       .eq("source", item.source)
-      .eq("source_message_id", item.sourceMessageId ?? "")
-      .eq("content", item.content)
-      .maybeSingle();
+      .eq("content", item.content);
+
+    existingQuery = item.sourceMessageId
+      ? existingQuery.eq("source_message_id", item.sourceMessageId)
+      : existingQuery.is("source_message_id", null);
+
+    const { data: existing, error: existingError } =
+      await existingQuery.maybeSingle();
 
     if (existingError) throw existingError;
 
@@ -214,14 +219,20 @@ export async function persistPatternHopEdges(params: {
   }));
 
   for (const row of rows) {
-    const { data: existing, error: existingError } = await params.supabase
+    let existingQuery = params.supabase
       .from("arbor_pattern_hop_edges")
       .select("id")
       .eq("run_id", row.run_id)
       .eq("to_evidence_id", row.to_evidence_id)
       .eq("relationship", row.relationship)
-      .eq("hop_depth", row.hop_depth)
-      .maybeSingle();
+      .eq("hop_depth", row.hop_depth);
+
+    existingQuery = row.from_evidence_id
+      ? existingQuery.eq("from_evidence_id", row.from_evidence_id)
+      : existingQuery.is("from_evidence_id", null);
+
+    const { data: existing, error: existingError } =
+      await existingQuery.maybeSingle();
 
     if (existingError) throw existingError;
     if (existing?.id) continue;
