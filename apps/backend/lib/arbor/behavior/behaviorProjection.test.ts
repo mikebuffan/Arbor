@@ -66,6 +66,16 @@ describe("Arbor behavior guard requirements", () => {
         item.includes("clean copy-paste block by default"),
       ),
     ).toBe(true);
+    expect(
+      projection.guardRequirements.some((item) =>
+        item.includes("Truth and evidence outrank agreement"),
+      ),
+    ).toBe(true);
+    expect(
+      projection.guardRequirements.some((item) =>
+        item.includes("Use memory as causal context"),
+      ),
+    ).toBe(true);
     expect(projection.guardRequirements).not.toContain(
       "Grounded, direct, and familiar.",
     );
