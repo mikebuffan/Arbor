@@ -112,7 +112,7 @@ export async function runPatternHopResearch(params:{supabase:SupabaseClient;user
         const step=buildPathStep({candidate,parentEvidenceId:next.evidenceId==="seed"?null:next.evidenceId,depth:next.depth}); path.push(step);
         edges.push({fromEvidenceId:step.parentEvidenceId,toEvidenceId:evidence.id,originatingClue:next.clue,relationship:candidate.relationship,hopDepth:next.depth,confidence:candidate.score,epistemicStatus:evidence.epistemicStatus==="direct"?"direct":evidence.epistemicStatus==="hypothesis"?"hypothesis":"derived",rationale:candidate.relationshipReason});
         if(next.depth+1<=state.maxDepth){
-          for(const branch of ["neighboring_concepts","terminology_changes","causal_predecessors","consequences","retrospective_references","contradictions"]){
+          for(const branch of ["neighboring_concepts","people_entities","terminology_changes","causal_predecessors","consequences","retrospective_references","chronology_anchors","implementation_architecture","behavioral_results","contradictions"]){
             state=enqueueHop(state,{evidenceId:evidence.id,clue:patternHopBranchClue(branch,params.seed,evidence.content),depth:next.depth+1,branch:next.branch+">"+branch});
           }
         }
