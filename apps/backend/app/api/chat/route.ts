@@ -75,6 +75,7 @@ import { getOrCreateOpenEpisode } from "@/lib/arbor/episodes/getOrCreateOpenEpis
 import { scheduleChatPostResponseWork } from "@/lib/chat/postResponseScheduler";
 import { summarizePriorOpenEpisodes } from "@/lib/arbor/episodes/maintainEpisodes";
 import { detectTestMode } from "@/lib/runtime/testModeDetection";
+import { hasExplicitDurableAuthorization } from "@/lib/memory/durableAuthorization";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -220,6 +221,7 @@ export async function POST(req: Request) {
     } = parsed.data;
 
     const memoryTestMode = detectTestMode(userText);
+    const durableLearningAuthorized = hasExplicitDurableAuthorization(userText);
 
     await cleanupExpiredMessagesBestEffort(supabase, userId);
     if (maybeProjectId) {
@@ -575,6 +577,7 @@ export async function POST(req: Request) {
           }
 
           if (
+            durableLearningAuthorized &&
             strategyCorrection &&
             !pendingSelfUpdate &&
             strategyCorrection !== resolvedStrategy
@@ -800,6 +803,7 @@ export async function POST(req: Request) {
           await promoteRepeatedBehaviorCorrections({
             supabase,
             userId,
+            currentUserText: userText,
             corrections:
               updatedRuntimeSession.corrections.filter(
                 (correction) =>
