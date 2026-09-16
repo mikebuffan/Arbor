@@ -31,6 +31,10 @@ import {
   type ArborBehaviorProof,
 } from "@/lib/arbor/behavior/behaviorProjection";
 import {
+  deriveEmbodiedRegulation,
+  embodiedRegulationPromptBlock,
+} from "@/lib/arbor/body/regulation";
+import {
   buildContinuityState,
   continuityToPromptBlock,
 } from "@/lib/arbor/continuity/state";
@@ -427,6 +431,16 @@ export async function buildPromptContext({
   const behaviorMode =
     arbor.activeSubsystem === "annabelle" ? "annabelle" : interactionMode;
 
+  const embodiedRegulation = deriveEmbodiedRegulation({
+    latestUserText,
+    continuity: continuityState,
+    activeSubsystem: arbor.activeSubsystem,
+    mode: behaviorMode,
+  });
+
+  const regulationBlock =
+    embodiedRegulationPromptBlock(embodiedRegulation);
+
   const behaviorProjection = buildArborBehaviorProjection({
     mode: behaviorMode,
     projectBehaviorPhilosophy: philosophy,
@@ -460,6 +474,8 @@ export async function buildPromptContext({
     ${arbor.systemInjection}
 
     ${behaviorProjection.promptBlock}
+
+    ${regulationBlock}
 
     ${host.startup.promptBlock}
 
