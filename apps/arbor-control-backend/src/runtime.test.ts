@@ -19,7 +19,7 @@ import {
   type AgencyRunner,
 } from "./runtime.js";
 import { JsonFileArborStateStore } from "./stateStore.js";
-import type { ArborState } from "./types.js";
+import type { ArborConversationMessage, ArborState } from "./types.js";
 
 const cleanup: string[] = [];
 
@@ -676,7 +676,7 @@ describe("Arbor control runtime pass", () => {
       userText: string;
       goal: string | null;
       subsystem: string;
-      history: string[];
+      history: ArborConversationMessage[] | undefined;
       instructions?: string;
     }> = [];
 
