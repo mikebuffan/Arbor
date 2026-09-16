@@ -92,12 +92,12 @@ export function composeArborSystemInjection(input: {
   return [
     CORE_RULES,
     input.canonicalSelfModelBlock,
-    input.runtimeBlock ?? "",
-    input.agencyBlock ?? "",
     input.activeSubsystem === "annabelle"
       ? ANNABELLE_RULES
       : ARBOR_RULES,
+    input.runtimeBlock ?? "",
     input.annabelleWorkspaceBlock ?? "",
+    input.agencyBlock ?? "",
   ]
     .filter(Boolean)
     .join("\n\n");
