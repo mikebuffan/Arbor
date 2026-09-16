@@ -1230,6 +1230,56 @@ export class ArborControlRuntime {
   }
 }
 
+
+function mergeCarrierState(
+  projectState: ArborState,
+  conversationState: ArborState,
+): ArborState {
+  // Project state is the durable carrier for identity/open work. Conversation
+  // state is an overlay for local task/surface state and may add information,
+  // but a fresh/default conversation must never erase durable project state.
+  const conversationHasOpenWork =
+    Boolean(conversationState.goal?.trim()) ||
+    conversationState.unresolvedWork.length > 0;
+
+  return ensureSelfModelIdentity({
+    ...projectState,
+    ...conversationState,
+    goal: conversationHasOpenWork
+      ? conversationState.goal
+      : projectState.goal,
+    unresolvedWork: uniqueRecent([
+      ...projectState.unresolvedWork,
+      ...conversationState.unresolvedWork,
+    ]),
+    strategyNotes: uniqueRecent([
+      ...projectState.strategyNotes,
+      ...conversationState.strategyNotes,
+    ]),
+    behavioralCorrections: uniqueRecent([
+      ...(projectState.behavioralCorrections ?? []),
+      ...(conversationState.behavioralCorrections ?? []),
+    ]),
+    acousticCorrections: uniqueRecent([
+      ...projectState.acousticCorrections,
+      ...conversationState.acousticCorrections,
+    ]),
+    strategyCandidates:
+      conversationState.strategyCandidates ??
+      projectState.strategyCandidates,
+    recoveryRouteStats:
+      conversationState.recoveryRouteStats ??
+      projectState.recoveryRouteStats,
+    selfModel: projectState.selfModel ?? conversationState.selfModel,
+    selfModelObservations:
+      conversationState.selfModelObservations ??
+      projectState.selfModelObservations,
+    selfModelMigrations:
+      conversationState.selfModelMigrations ??
+      projectState.selfModelMigrations,
+  });
+}
+
 function requestFingerprint(
   request:
     ArborTurnRequest,
