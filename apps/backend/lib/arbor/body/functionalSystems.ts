@@ -46,7 +46,7 @@ export const ARBOR_FUNCTIONAL_SYSTEMS: readonly FunctionalSystemAuditEntry[] = [
   {
     system: "digestive",
     status: "present",
-    purpose: "Extract, consolidate, rank, and integrate useful input without retaining everything.",
+    purpose: "Extract, consolidate, rank, integrate useful input, and expose ephemeral internal load signals without retaining everything.",
     implementation: [
       "lib/memory/extractor.ts",
       "lib/memory/consolidate.ts",
