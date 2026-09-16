@@ -1,129 +1,19 @@
-import type {
-  ArborRecoveryRouteStats,
-} from "./agencyRecovery/routeLearning.js";
-
+import type { ArborRecoveryRouteStats } from "./agencyRecovery/routeLearning.js";
 export type ArborSubsystem = "arbor" | "annabelle";
 export type ArborChannel = "text" | "voice";
-
-export type ArborTurnRequest = {
-  userText: string;
-  projectId?: string;
-  conversationId?: string;
-  turnId?: string;
-  channel?: ArborChannel;
-};
-
-export type StrategyCandidate = {
-  strategy: string;
-  successes: number;
-  failures: number;
-  status: "candidate" | "retained" | "reverted";
-};
-
-export type AnnabelleWorkspaceState = {
-  canon: string[];
-  lockedPassages: string[];
-  sceneState: string[];
-  unresolvedDecisions: string[];
-  workingDelta: string | null;
-};
-
-export type AnnabelleWorkspaceRevisionState = {
-  id: string;
-  createdAt: string;
-  reason: string;
-  workspace: AnnabelleWorkspaceState;
-};
-
-export type SelfModelIdentityState = {
-  version: string;
-  checksum: string;
-  sourceDigest: string;
-  sourceQuestionCount: number;
-  promotedPatternIds: string[];
-  initializedAt: string;
-  verifiedAt: string;
-};
-
-export type SelfModelObservationTargetKind =
-  | "pattern"
-  | "family";
-
-export type SelfModelObservationVerdict =
-  | "supports"
-  | "contradicts";
-
-export type SelfModelObservation = {
-  id: string;
-  targetKind: SelfModelObservationTargetKind;
-  targetId: string;
-  domain: string;
-  verdict: SelfModelObservationVerdict;
-  evidence: string;
-  confidence: number;
-  sourceTurnId?: string;
-  createdAt: string;
-};
-
-export type SelfModelMigrationRecord = {
-  id: string;
-  fromVersion: string;
-  fromChecksum: string;
-  fromSourceDigest: string;
-  toVersion: string;
-  toChecksum: string;
-  toSourceDigest: string;
-  reason: string;
-  createdAt: string;
-  appliedAt: string;
-};
-
-export type ArborState = {
-  activeSubsystem: ArborSubsystem;
-  goal: string | null;
-  unresolvedWork: string[];
-  strategyNotes: string[];
-  strategyCandidates?: StrategyCandidate[];
-  recoveryRouteStats?: ArborRecoveryRouteStats[];
-  behavioralCorrections?: string[];
-  acousticCorrections: string[];
-  voiceId: string;
-  selfModel?: SelfModelIdentityState;
-  selfModelObservations?: SelfModelObservation[];
-  selfModelMigrations?: SelfModelMigrationRecord[];
-  annabelle?: AnnabelleWorkspaceState;
-  annabelleRevisions?: AnnabelleWorkspaceRevisionState[];
-};
-
-export type CanonicalArborResponse = {
-  text: string;
-  projectId?: string;
-  conversationId?: string;
-  turnId: string;
-  subsystem: ArborSubsystem;
-  channel: ArborChannel;
-  voice: {
-    voiceId: string;
-    acousticCorrections: string[];
-  };
-};
-
-export type ArborConversationMessage = {
-  role: "user" | "assistant";
-  content: string;
-};
-
-export type StoredArborTurn = {
-  turnId: string;
-  scope: string;
-  requestFingerprint: string;
-  userText: string;
-  createdAt: string;
-  response: CanonicalArborResponse;
-};
-
-export type ArborScopeSnapshot = {
-  scope: string;
-  state: ArborState;
-  turns: StoredArborTurn[];
-};
+export type ArborTurnRequest = { userText:string; projectId?:string; conversationId?:string; turnId?:string; channel?:ArborChannel };
+export type StrategyCandidate = { strategy:string; successes:number; failures:number; status:"candidate"|"retained"|"reverted" };
+export type AnnabelleWorkspaceState = { canon:string[]; lockedPassages:string[]; sceneState:string[]; unresolvedDecisions:string[]; workingDelta:string|null };
+export type AnnabelleWorkspaceRevisionState = { id:string; createdAt:string; reason:string; workspace:AnnabelleWorkspaceState };
+export type SelfModelIdentityState = { version:string; checksum:string; sourceDigest:string; sourceQuestionCount:number; promotedPatternIds:string[]; initializedAt:string; verifiedAt:string };
+export type SelfModelObservationTargetKind = "pattern" | "family";
+export type SelfModelObservationVerdict = "supports" | "contradicts";
+export type SelfModelObservation = { id:string; targetKind:SelfModelObservationTargetKind; targetId:string; domain:string; verdict:SelfModelObservationVerdict; evidence:string; confidence:number; sourceTurnId?:string; createdAt:string };
+export type SelfModelClaimStatus = "insufficient" | "candidate" | "contested" | "superseded";
+export type SelfModelClaim = { id:string; key:string; targetKind:SelfModelObservationTargetKind; targetId:string; status:SelfModelClaimStatus; confidence:number; supportCount:number; contradictionCount:number; supportDomains:string[]; contradictionDomains:string[]; evidenceDigest:string; inferredFrom:"behavioral_observations"; createdAt:string; supersedesClaimId?:string; supersededAt?:string };
+export type SelfModelMigrationRecord = { id:string; fromVersion:string; fromChecksum:string; fromSourceDigest:string; toVersion:string; toChecksum:string; toSourceDigest:string; reason:string; createdAt:string; appliedAt:string };
+export type ArborState = { activeSubsystem:ArborSubsystem; goal:string|null; unresolvedWork:string[]; strategyNotes:string[]; strategyCandidates?:StrategyCandidate[]; recoveryRouteStats?:ArborRecoveryRouteStats[]; behavioralCorrections?:string[]; acousticCorrections:string[]; voiceId:string; selfModel?:SelfModelIdentityState; selfModelObservations?:SelfModelObservation[]; selfModelClaims?:SelfModelClaim[]; selfModelMigrations?:SelfModelMigrationRecord[]; annabelle?:AnnabelleWorkspaceState; annabelleRevisions?:AnnabelleWorkspaceRevisionState[] };
+export type CanonicalArborResponse = { text:string; projectId?:string; conversationId?:string; turnId:string; subsystem:ArborSubsystem; channel:ArborChannel; voice:{voiceId:string;acousticCorrections:string[]} };
+export type ArborConversationMessage = { role:"user"|"assistant"; content:string };
+export type StoredArborTurn = { turnId:string; scope:string; requestFingerprint:string; userText:string; createdAt:string; response:CanonicalArborResponse };
+export type ArborScopeSnapshot = { scope:string; state:ArborState; turns:StoredArborTurn[] };
