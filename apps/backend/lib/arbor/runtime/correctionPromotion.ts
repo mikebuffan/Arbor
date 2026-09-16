@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { MemoryItem } from "@/lib/memory/types";
 import { upsertMemoryItems } from "@/lib/memory/store";
 import type { ArborCorrection } from "./runtimeState";
+import { hasExplicitDurableAuthorization } from "@/lib/memory/durableAuthorization";
 import { correctionFamily } from "./corrections";
 
 export function promotedCorrectionKey(
@@ -54,7 +55,12 @@ export async function promoteRepeatedBehaviorCorrections(params: {
   supabase: SupabaseClient;
   userId: string;
   corrections: ArborCorrection[];
+  currentUserText?: string | null;
 }) {
+  if (!hasExplicitDurableAuthorization(params.currentUserText)) {
+    return { promoted: [] as string[] };
+  }
+
   const promotable = params.corrections
     .map(correctionPromotionItem)
     .filter((item): item is MemoryItem => item !== null);
