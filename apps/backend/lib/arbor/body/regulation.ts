@@ -129,14 +129,6 @@ export function deriveEmbodiedRegulation(input: {
     );
   }
 
-  if (
-    input.continuity.channel === "voice" &&
-    input.mode === "text"
-  ) {
-    warnings.push(
-      "continuity channel is voice while behavior mode is text",
-    );
-  }
 
   return {
     schemaVersion: 1,
