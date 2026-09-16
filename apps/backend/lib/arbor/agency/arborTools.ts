@@ -11,6 +11,7 @@ import {
   updateAnnabelleWorkspace,
 } from "@/lib/arbor/subsystem/annabelleWorkspace";
 import { allowedArborVoiceIds } from "@/lib/arbor/voice/voiceConfig";
+import { runPatternHopResearch } from "@/lib/memory/patternHopResearch";
 
 function strings(value: unknown): string[] {
   if (!Array.isArray(value)) {
@@ -37,6 +38,45 @@ export function buildArborAgencyTools(input: {
   supabase: SupabaseClient;
 }): AgencyToolRegistry {
   return new AgencyToolRegistry()
+    .register({
+      name: "arbor_pattern_hop_research",
+      description:
+        "Run or resume bounded multi-hop historical evidence research from a clue. Use for tracing concepts, corrections, people, chronology, terminology changes, causes, consequences, contradictions, architecture references, regressions, and related evidence while preserving provenance and resumable state.",
+      risk: "reversible_write",
+      parameters: {
+        type: "object",
+        properties: {
+          seed: { type: "string", minLength: 2, maxLength: 4000 },
+          objective: { type: ["string", "null"], maxLength: 4000 },
+          runId: { type: ["string", "null"] },
+          maxDepth: { type: ["integer", "null"], minimum: 1, maximum: 12 },
+          maxHops: { type: ["integer", "null"], minimum: 1, maximum: 100 },
+        },
+        required: ["seed", "objective", "runId", "maxDepth", "maxHops"],
+        additionalProperties: false,
+      },
+      async execute(args, context) {
+        if (typeof args.seed !== "string") {
+          throw new Error("agency_tool_invalid_pattern_hop_seed");
+        }
+
+        return runPatternHopResearch({
+          supabase: input.supabase,
+          userId: context.userId,
+          projectId: context.projectId,
+          conversationId: context.conversationId ?? null,
+          seed: args.seed,
+          objective:
+            typeof args.objective === "string" ? args.objective : undefined,
+          runId:
+            typeof args.runId === "string" ? args.runId : undefined,
+          maxDepth:
+            typeof args.maxDepth === "number" ? args.maxDepth : undefined,
+          maxHops:
+            typeof args.maxHops === "number" ? args.maxHops : undefined,
+        });
+      },
+    })
     .register({
       name: "arbor_read_runtime_state",
       description:
