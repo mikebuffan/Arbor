@@ -1,0 +1,2 @@
+create unique index if not exists historical_conversation_turns_source_message_unique
+on public.historical_conversation_turns(user_id,project_id,source,source_thread_id,source_message_id);
