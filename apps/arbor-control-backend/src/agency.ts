@@ -83,6 +83,14 @@ export type AgencyResult =
       researchCalls: number;
     }
   | {
+      status: "checkpointed";
+      text: string;
+      state: ArborState;
+      rounds: number;
+      toolCalls: number;
+      researchCalls: number;
+    }
+  | {
       status: "blocked";
       text: string;
       state: ArborState;
@@ -561,15 +569,12 @@ export async function runAgency(input: {
   };
 
   return {
-    status: "blocked",
+    status: "checkpointed",
     text: "Agency execution checkpoint reached; the active objective is preserved for automatic continuation.",
     state,
     rounds: maxRounds,
     toolCalls,
     researchCalls,
-    blocker: "authorization_required",
-    capability: "agency_checkpoint",
-    requiredUserInput: undefined,
   };
 }
 
