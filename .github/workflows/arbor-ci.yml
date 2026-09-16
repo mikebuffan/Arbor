@@ -10,6 +10,8 @@ on:
       - arbor-linear-runtime
   workflow_dispatch:
 
+# CI sentinel: keep this workflow visibly updated when main-push Actions delivery stalls.
+
 concurrency:
   group: arbor-integration-${{ github.ref }}
   cancel-in-progress: true
