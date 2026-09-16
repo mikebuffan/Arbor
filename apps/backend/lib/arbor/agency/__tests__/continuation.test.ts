@@ -24,6 +24,15 @@ describe("agency continuation", () => {
     "do it",
     "finish it",
     "yep",
+    "gooooo",
+    "continue please",
+    "k. keep going",
+    "are you doing it",
+    "you stop again arbor",
+    "just do it in one go",
+    "list and then do the whole list please",
+    "find a workaround if needed",
+    "I don't want to tell you to go",
   ])("resumes unresolved work for %s", (text) => {
     expect(
       shouldResumeAgencyGoal(text, prior),
@@ -87,6 +96,27 @@ describe("agency continuation", () => {
       ).toBe(true);
     },
   );
+
+  it("resumes a blocked goal from a direct blocker answer", () => {
+    const blocked: AgencyState = {
+      ...prior,
+      status: "blocked",
+      blocker: "missing_preference",
+    };
+
+    for (const text of ["use the first option", "option 2", "go with cedar"]) {
+      expect(shouldResumeAgencyGoal(text, blocked)).toBe(true);
+    }
+  });
+
+  it("does not carry a nominally active goal with no unresolved work", () => {
+    const empty: AgencyState = {
+      ...prior,
+      unresolvedWork: [],
+    };
+
+    expect(shouldResumeAgencyGoal("go", empty)).toBe(false);
+  });
 
   it(
     "does not let an unrelated substantive turn inherit a stale active goal",
