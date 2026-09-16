@@ -12,6 +12,8 @@ import {
 import {
   classifyHistoricalEvidence,
   searchHistoricalHopEvidence,
+  searchMemoryHopEvidence,
+  searchTimelineHopEvidence,
 } from "@/lib/memory/patternHopRetrieval";
 import { patternHopBranchClue } from "@/lib/memory/patternHopClues";
 import {
@@ -36,8 +38,16 @@ export const DEFAULT_PATTERN_HOP_BRANCHES = [
   "contradictions",
 ] as const;
 
-function toEvidence(row: Awaited<ReturnType<typeof searchHistoricalHopEvidence>>[number]): PatternHopEvidence {
-  const classification = classifyHistoricalEvidence(row.role);
+function toEvidence(
+  row: Awaited<ReturnType<typeof searchHistoricalHopEvidence>>[number],
+  branch: string,
+): PatternHopEvidence {
+  const retrospective = branch.includes("retrospective_references");
+  const classification = classifyHistoricalEvidence(
+    row.role,
+    retrospective,
+    row.content,
+  );
   return {
     id: row.id,
     source: row.source,
@@ -139,9 +149,37 @@ export async function runPatternHopResearch(params: {
       break;
     }
 
-    const accepted = rows
+    const acceptedHistorical = rows
       .filter((row) => (row.similarity ?? 0) >= 0.45)
-      .map(toEvidence);
+      .map((row) => toEvidence(row, next.branch));
+
+    let acceptedSupplemental: PatternHopEvidence[] = [];
+    try {
+      const [memoryEvidence, timelineEvidence] = await Promise.all([
+        searchMemoryHopEvidence({
+          supabase: params.supabase,
+          userId: params.userId,
+          projectId: params.projectId,
+          clue: next.clue,
+          limit: 5,
+        }),
+        searchTimelineHopEvidence({
+          supabase: params.supabase,
+          userId: params.userId,
+          projectId: params.projectId,
+          clue: next.clue,
+          limit: 5,
+        }),
+      ]);
+      acceptedSupplemental = [...memoryEvidence, ...timelineEvidence];
+    } catch {
+      acceptedSupplemental = [];
+    }
+
+    const accepted = [
+      ...acceptedHistorical,
+      ...acceptedSupplemental,
+    ];
 
     const unique = accepted.filter(
       (evidence) => !found.some((existing) => existing.id === evidence.id),
