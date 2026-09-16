@@ -244,3 +244,96 @@ export async function persistPatternHopEdges(params: {
     if (error) throw error;
   }
 }
+
+
+export async function loadPatternHopEvidence(params: {
+  supabase: SupabaseClient;
+  runId: string;
+  userId: string;
+  projectId: string;
+}): Promise<PatternHopEvidence[]> {
+  const { data, error } = await params.supabase
+    .from("arbor_pattern_hop_evidence")
+    .select(
+      "id,source,source_thread_id,source_message_id,source_artifact_id,speaker,evidence_type,content,occurred_at,chronology_rank,confidence,epistemic_status,metadata",
+    )
+    .eq("run_id", params.runId)
+    .eq("user_id", params.userId)
+    .eq("project_id", params.projectId)
+    .order("occurred_at", { ascending: true, nullsFirst: false });
+
+  if (error) throw error;
+
+  return (data ?? []).map((row: any) => ({
+    id:
+      typeof row.metadata?.client_evidence_id === "string"
+        ? row.metadata.client_evidence_id
+        : String(row.id),
+    source: String(row.source),
+    sourceThreadId: row.source_thread_id
+      ? String(row.source_thread_id)
+      : null,
+    sourceMessageId: row.source_message_id
+      ? String(row.source_message_id)
+      : null,
+    sourceArtifactId: row.source_artifact_id
+      ? String(row.source_artifact_id)
+      : null,
+    speaker: row.speaker ? String(row.speaker) : null,
+    evidenceType: String(row.evidence_type),
+    content: String(row.content),
+    occurredAt: row.occurred_at ?? null,
+    chronologyRank:
+      row.chronology_rank == null ? null : Number(row.chronology_rank),
+    confidence: Number(row.confidence ?? 0.5),
+    epistemicStatus: row.epistemic_status,
+  }));
+}
+
+export async function loadPatternHopEdges(params: {
+  supabase: SupabaseClient;
+  runId: string;
+}): Promise<PatternHopEdge[]> {
+  const { data: evidenceRows, error: evidenceError } = await params.supabase
+    .from("arbor_pattern_hop_evidence")
+    .select("id,metadata")
+    .eq("run_id", params.runId);
+
+  if (evidenceError) throw evidenceError;
+
+  const clientIdByDbId = new Map(
+    (evidenceRows ?? []).map((row: any) => [
+      String(row.id),
+      typeof row.metadata?.client_evidence_id === "string"
+        ? row.metadata.client_evidence_id
+        : String(row.id),
+    ]),
+  );
+
+  const { data, error } = await params.supabase
+    .from("arbor_pattern_hop_edges")
+    .select(
+      "from_evidence_id,to_evidence_id,originating_clue,relationship,hop_depth,confidence,epistemic_status,rationale",
+    )
+    .eq("run_id", params.runId)
+    .order("hop_depth", { ascending: true })
+    .order("created_at", { ascending: true });
+
+  if (error) throw error;
+
+  return (data ?? []).map((row: any) => ({
+    fromEvidenceId: row.from_evidence_id
+      ? clientIdByDbId.get(String(row.from_evidence_id)) ??
+        String(row.from_evidence_id)
+      : null,
+    toEvidenceId:
+      clientIdByDbId.get(String(row.to_evidence_id)) ??
+      String(row.to_evidence_id),
+    originatingClue: String(row.originating_clue),
+    relationship: String(row.relationship),
+    hopDepth: Number(row.hop_depth),
+    confidence: Number(row.confidence ?? 0.5),
+    epistemicStatus: row.epistemic_status,
+    rationale: String(row.rationale),
+  }));
+}
