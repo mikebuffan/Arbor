@@ -89,16 +89,16 @@ export async function runPatternHopResearch(params:{supabase:SupabaseClient;user
       break;
     }
 
-    const historical=rows
+    const historicalCandidates:PatternHopCandidate[]=rows
       .filter(r=>(r.similarity ?? 0)>=0.35)
-      .map(r=>toEvidence(r,next.branch));
+      .map(row=>({
+        evidence:toEvidence(row,next.branch),
+        retrievalScore:Math.max(0,Math.min(1,row.similarity ?? 0.5)),
+        retrievalMethod:row.retrievalMethod ?? "historical_hybrid",
+      }));
 
     const candidates:PatternHopCandidate[]=[
-      ...historical.map((evidence,index)=>({
-        evidence,
-        retrievalScore:evidence.confidence,
-        retrievalMethod:rows[index]?.retrievalMethod ?? "historical_hybrid"
-      })),
+      ...historicalCandidates,
       ...memory.map(evidence=>({evidence,retrievalScore:evidence.confidence,retrievalMethod:"memory_lexical"})),
       ...timeline.map(evidence=>({evidence,retrievalScore:evidence.confidence,retrievalMethod:"timeline_lexical"})),
     ];
@@ -127,7 +127,17 @@ export async function runPatternHopResearch(params:{supabase:SupabaseClient;user
   if(state.status==="active" && objectiveComplete(state,rootBranches)) state={...state,status:"complete"};
   if(state.status==="active" && state.frontier.length===0) state={...state,status:"exhausted"};
   const runtimeProjection=projectPatternHopForRuntime({evidence:found,path,maxItems:8});
-  const verificationState={rootBranches,foundEvidence:found.length,edgeCount:edges.length,pathSteps:path.length,frontierRemaining:state.frontier.length,completedBranches:state.completedBranches.length,exhaustedBranches:state.exhaustedBranches.length,runtimeProjectionCount:runtimeProjection.length};
+  const verificationState={
+    rootBranches,
+    foundEvidence:found.length,
+    edgeCount:edges.length,
+    pathSteps:path.length,
+    frontierRemaining:state.frontier.length,
+    completedBranches:state.completedBranches.length,
+    exhaustedBranches:state.exhaustedBranches.length,
+    runtimeProjectionCount:runtimeProjection.length,
+    absenceSemantics:"An exhausted branch means evidence was not found by the attempted routes; it is not proof that the evidence does not exist.",
+  };
   await savePatternHopRun({supabase:params.supabase,runId:run.id,userId:params.userId,projectId:params.projectId,state,verificationState});
   return {runId:run.id,status:state.status,blocker:state.blocker ?? null,state,evidence:rankEvidence(found),edges,path,runtimeProjection,verificationState};
 }
