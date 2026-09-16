@@ -708,7 +708,7 @@ describe("Arbor control runtime pass", () => {
 
     const instructions = calls[0]?.instructions ?? "";
     const core = instructions.indexOf("ONE ARBOR.");
-    const identity = instructions.indexOf("SELF-MODEL IDENTITY ANCHOR");
+    const identity = instructions.indexOf("ARBOR DURABLE IDENTITY ANCHOR");
     const carrier = instructions.indexOf("ARBOR DURABLE CARRIER.");
     const subsystem = instructions.indexOf("ANNABELLE SUBSYSTEM.");
 
