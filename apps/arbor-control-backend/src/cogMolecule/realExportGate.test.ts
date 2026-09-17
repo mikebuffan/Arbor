@@ -1,0 +1,12 @@
+import {describe,expect,it} from "vitest";
+import {runRealExportGate} from "./realExportGate.js";
+import type {ComparableRuntime} from "./comparisonHarness.js";
+import type {CogPacket,MoleculeResult} from "./types.js";
+
+const runtime=(mode:"cautious"|"reckless"):ComparableRuntime=>({async run(packet:CogPacket):Promise<MoleculeResult>{const p=structuredClone(packet);const cautious=p.unresolved.length>0;return {disposition:mode==="cautious"&&cautious?"seek_more_information":"assert",packet:p,rounds:mode==="cautious"?2:1,reasons:[],computeSpent:mode==="cautious"?2:1};}});
+const report={findings:[{key:"f1",type:"identity",title:"x",statement:"synthesis",evidence:[{conversation_id:"c1",conversation_title:"one",create_time:1,source_file:"conversations-000.json",text:"direct receipt"}]},{key:"f2",type:"behavior",title:"y",statement:"second synthesis",evidence:[{conversation_id:"c2",conversation_title:"two",create_time:2,source_file:"conversations-001.json",text:"second receipt"}]}]};
+
+describe("real export gate",()=>{
+ it("evaluates real-export structure without treating synthesis as ground truth",async()=>{const r=await runRealExportGate({report,candidate:runtime("cautious"),baseline:runtime("reckless"),groupSize:1,heldOutFraction:.5});expect(r.development.kind).toBe("real-export");expect(r.development.comparison.candidate.falseReleaseRate).toBe(0);expect(r.development.comparison.baseline.falseReleaseRate).toBeGreaterThan(0);expect(r.heldOut).toBeUndefined();});
+ it("does not touch held-out B unless explicitly requested",async()=>{const r=await runRealExportGate({report,candidate:runtime("cautious"),baseline:runtime("reckless"),runHeldOut:true,groupSize:1,heldOutFraction:.5});expect(r.heldOut?.kind).toBe("real-export");});
+});
