@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 
 function safeNext(value: string | null) {
@@ -13,9 +13,12 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [destination, setDestination] = useState("/");
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const destination = safeNext(searchParams.get("next"));
+
+  useEffect(() => {
+    setDestination(safeNext(new URLSearchParams(window.location.search).get("next")));
+  }, []);
 
   async function signIn(e: React.FormEvent) {
     e.preventDefault();
