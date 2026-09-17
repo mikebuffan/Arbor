@@ -14,10 +14,12 @@ export function buildSliceManifest(slice:FrozenExportSlice):SliceManifest{
 }
 
 export async function runFrozenExportComparison(args:{slice:FrozenExportSlice;candidate:ComparableRuntime;baseline:ComparableRuntime;oracle:ExportCaseOracle;kind?:"real-export"|"fixture"}):Promise<ExportComparisonReport>{
- const before=JSON.stringify(args.slice); const cases:ComparisonCase[]=args.slice.packets.map(packet=>({id:packet.id,packet:packet as CogPacket,correct:r=>args.oracle(packet as CogPacket,r)}));
- const comparison=await compareRuntimes(args.candidate,args.baseline,cases);
+ const before=JSON.stringify(args.slice); const candidateResults=new Map<string,MoleculeResult>(); const baselineResults=new Map<string,MoleculeResult>();
+ const capture=(runtime:ComparableRuntime,sink:Map<string,MoleculeResult>):ComparableRuntime=>({run:async packet=>{const result=await runtime.run(packet);sink.set(packet.id,result);return result;}});
+ const cases:ComparisonCase[]=args.slice.packets.map(packet=>({id:packet.id,packet:packet as CogPacket,correct:r=>args.oracle(packet as CogPacket,r)}));
+ const comparison=await compareRuntimes(capture(args.candidate,candidateResults),capture(args.baseline,baselineResults),cases);
  if(JSON.stringify(args.slice)!==before) throw new Error("Frozen export slice mutated during comparison");
  const expected=(p:CogPacket)=>[...new Set([...p.provenance,...p.evidence.flatMap(e=>e.provenance),...p.challenges.flatMap(c=>c.provenance)])];
- const retained=(samples:"candidate"|"baseline")=>args.slice.packets.length?args.slice.packets.reduce((sum,p)=>sum+provenanceRetention(p as CogPacket,expected(p as CogPacket)),0)/args.slice.packets.length:1;
- return {kind:args.kind??"fixture",manifest:buildSliceManifest(args.slice),comparison,candidateProvenanceRetention:retained("candidate"),baselineProvenanceRetention:retained("baseline")};
+ const retained=(results:Map<string,MoleculeResult>)=>args.slice.packets.length?args.slice.packets.reduce((sum,p)=>{const result=results.get(p.id);return sum+(result?provenanceRetention(result.packet,expected(p as CogPacket)):0);},0)/args.slice.packets.length:1;
+ return {kind:args.kind??"fixture",manifest:buildSliceManifest(args.slice),comparison,candidateProvenanceRetention:retained(candidateResults),baselineProvenanceRetention:retained(baselineResults)};
 }
