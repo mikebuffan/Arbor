@@ -8,6 +8,7 @@ import { applyMoleculeResultToCarrier, carrierStateToPacket } from "./carrierAda
 import { MoleculeRuntime, type FeedbackPolicy, type MoleculeRunResult } from "./molecule.js";
 import { retrieveMoleculeEvidence } from "./retrievalAdapter.js";
 import { selfModelObservationEvidence } from "./selfModelAdapter.js";
+import { strategyEvidence } from "./strategyAdapter.js";
 
 export type ArborMoleculeRunInput = {
   startNode: string;
@@ -39,6 +40,7 @@ export class ArborMoleculeIntegration {
       ...packet.evidence,
       ...retrieval.evidence,
       ...selfModelObservationEvidence(state),
+      ...strategyEvidence(state),
       ...(this.capabilities ? capabilityRegistryEvidence(this.capabilities) : []),
     ];
     packet.provenance = unique([
@@ -46,6 +48,7 @@ export class ArborMoleculeIntegration {
       ...retrieval.provenance,
       ...(this.capabilities ? ["arbor:capability-registry"] : []),
       ...((state.selfModelObservations?.length ?? 0) ? ["arbor:self-model-observations"] : []),
+      ...((state.strategyCandidates?.length ?? 0) ? ["arbor:strategy-candidates"] : []),
     ]);
     packet.metadata = {
       ...packet.metadata,
