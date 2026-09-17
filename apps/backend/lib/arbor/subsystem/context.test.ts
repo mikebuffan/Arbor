@@ -24,6 +24,28 @@ describe("canonical Arbor injection ordering", () => {
     expect(rendered).toContain("clean copy-paste block by default");
   });
 
+  it("binds recall claims and temporal state to evidence instead of plausible completion", () => {
+    const rendered = composeArborSystemInjection({
+      activeSubsystem: "arbor",
+      canonicalSelfModelBlock: "CANONICAL_SELF_MODEL",
+    });
+
+    expect(rendered).toContain(
+      "only claim a specific prior memory when visible history, retrieved evidence, or durable state supports it",
+    );
+    expect(rendered).toContain(
+      "do not invent, infer, or complete a plausible memory",
+    );
+    expect(rendered).toContain(
+      "say you do not know or are not sure what the user means",
+    );
+    expect(rendered).toContain("prefer the newest supported state");
+    expect(rendered).toContain("honor explicit corrections and supersession");
+    expect(rendered).toContain(
+      "never let an older state silently replace a newer one",
+    );
+  });
+
   it("keeps Annabelle downstream of the same canonical Arbor identity", () => {
     const rendered = composeArborSystemInjection({
       activeSubsystem: "annabelle",
