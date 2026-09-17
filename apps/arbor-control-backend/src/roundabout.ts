@@ -1,5 +1,6 @@
 import {
   allocateAttention,
+  liveSignals,
   type AttentionState,
   type BridgeSignal,
 } from "./cognitiveDynamics.js";
@@ -17,9 +18,7 @@ export function routeRoundabout(
   capacity = 4,
   now = Date.now(),
 ): RoundaboutRoute {
-  const live = signals.filter((signal) =>
-    !signal.validUntil || now < Date.parse(signal.validUntil)
-  );
+  const live = liveSignals(signals, now);
 
   const byContent = new Map<string, BridgeSignal[]>();
   for (const signal of live) {
