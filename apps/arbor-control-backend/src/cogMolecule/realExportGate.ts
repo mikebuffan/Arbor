@@ -14,7 +14,9 @@ export function longitudinalInvariantOracle(packet:CogPacket,result:MoleculeResu
 }
 
 export async function runRealExportGate(args:{report:ArborArchaeologyReport;candidate:ComparableRuntime;baseline:ComparableRuntime;runHeldOut?:boolean;groupSize?:number;heldOutFraction?:number}):Promise<RealExportGateResult>{
- const built=buildArchaeologyCorpus(args.report,{groupSize:args.groupSize,heldOutFraction:args.heldOutFraction});
+ // Default to one durable observation per packet. Arbitrary batching must not let
+ // one inferred synthesis suppress otherwise-direct source observations.
+ const built=buildArchaeologyCorpus(args.report,{groupSize:args.groupSize??1,heldOutFraction:args.heldOutFraction});
  const development=await runFrozenExportComparison({slice:built.slices.development,candidate:args.candidate,baseline:args.baseline,oracle:longitudinalInvariantOracle,kind:"real-export"});
  if(!args.runHeldOut) return {development};
  const heldOut=await runFrozenExportComparison({slice:built.slices.heldOut,candidate:args.candidate,baseline:args.baseline,oracle:longitudinalInvariantOracle,kind:"real-export"});
