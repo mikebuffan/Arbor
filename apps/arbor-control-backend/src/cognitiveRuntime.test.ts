@@ -60,4 +60,27 @@ describe("persistent cognitive runtime", () => {
     });
     expect(state.consolidation.map((x) => x.id)).toEqual(["keep"]);
   });
+  it("renders focused bridge evidence rather than opaque ids", () => {
+    const now = Date.parse("2026-09-18T12:00:00Z");
+    const state = updateCognitiveRuntime({
+      now,
+      signals: [{
+        id: "memory:correction",
+        kind: "memory",
+        content: "Do not flatten Arbor in technical mode",
+        reason: "durable behavioral correction",
+        provenance: ["turn:known-good"],
+        confidence: .95,
+        intensity: 1,
+        assertedAt: "2026-09-18T11:00:00Z",
+      }],
+    });
+
+    const rendered = renderCognitiveRuntime(state);
+    expect(rendered).toContain("content=Do not flatten Arbor in technical mode");
+    expect(rendered).toContain("reason=durable behavioral correction");
+    expect(rendered).toContain("confidence=0.95");
+    expect(rendered).toContain("provenance=turn:known-good");
+    expect(rendered).toContain("do not replace current Arbor identity");
+  });
 });
