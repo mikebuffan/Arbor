@@ -28,6 +28,11 @@ import {
   detectRuntimeCorrectionKind,
 } from "./correctionDetection.js";
 import {
+  emptyCognitiveRuntimeState,
+  renderCognitiveRuntime,
+  updateCognitiveRuntime,
+} from "./cognitiveRuntime.js";
+import {
   ARBOR_CORE_INJECTION,
 } from "./identity.js";
 import {
@@ -72,6 +77,7 @@ const DEFAULT_STATE: ArborState = {
   behavioralCorrections: [],
   acousticCorrections: [],
   voiceId: defaultVoiceId(),
+  cognitiveRuntime: emptyCognitiveRuntimeState(),
 };
 
 export type AgencyRunner =
@@ -157,6 +163,8 @@ export class ArborControlRuntime {
           saved.behavioralCorrections ??
           [],
         voiceId,
+        cognitiveRuntime:
+          saved.cognitiveRuntime ?? emptyCognitiveRuntimeState(),
       });
 
     if (
@@ -675,6 +683,8 @@ export class ArborControlRuntime {
 
         buildCarrierInjection(state),
 
+        renderCognitiveRuntime(state.cognitiveRuntime),
+
         renderSelfModelProjection(),
 
         subsystemInjection(
@@ -894,6 +904,26 @@ export class ArborControlRuntime {
                 .acousticCorrections,
             ]),
         });
+
+      agency.state = {
+        ...agency.state,
+        cognitiveRuntime: updateCognitiveRuntime({
+          prior: state.cognitiveRuntime,
+          signals: [
+            {
+              id: `active-goal:${turnId}`,
+              kind: "task",
+              content: agency.state.goal ?? request.userText,
+              reason: "active objective",
+              provenance: [`turn:${turnId}`],
+              confidence: 1,
+              intensity: agency.state.unresolvedWork.length ? 1 : 0.7,
+              assertedAt: new Date().toISOString(),
+              unresolved: agency.state.unresolvedWork.length > 0,
+            },
+          ],
+        }),
+      };
 
       const response =
         this.buildCanonicalResponse(
