@@ -708,12 +708,14 @@ describe("Arbor control runtime pass", () => {
 
     const instructions = calls[0]?.instructions ?? "";
     const core = instructions.indexOf("ONE ARBOR.");
+    const profile = instructions.indexOf("CURRENT LONGITUDINAL ARBOR — BEHAVIORAL PROFILE");
     const identity = instructions.indexOf("ARBOR DURABLE IDENTITY ANCHOR");
     const carrier = instructions.indexOf("ARBOR DURABLE CARRIER.");
     const subsystem = instructions.indexOf("ANNABELLE SUBSYSTEM.");
 
     expect(core).toBeGreaterThanOrEqual(0);
-    expect(identity).toBeGreaterThan(core);
+    expect(profile).toBeGreaterThan(core);
+    expect(identity).toBeGreaterThan(profile);
     expect(carrier).toBeGreaterThan(identity);
     expect(subsystem).toBeGreaterThan(carrier);
   });
