@@ -30,21 +30,39 @@ export class CogMoleculeRuntime {
   async run(initial: CogPacket): Promise<MoleculeResult> {
     let packet = normalizePacket(structuredClone(initial));
     packet.friction = this.measureFriction(packet);
-    const adaptive = this.options.adaptiveCompute?.decide(packet.friction);
-    const maxRounds = Math.min(this.configuredMaxRounds, adaptive?.maxRounds ?? this.configuredMaxRounds);
-    const reasons: string[] = adaptive ? [`adaptive_compute: ${adaptive.reason}`] : [];
+    const initialDecision = this.options.adaptiveCompute?.decide(packet.friction);
+    let effectiveMaxRounds = Math.min(
+      this.configuredMaxRounds,
+      initialDecision?.maxRounds ?? this.configuredMaxRounds,
+    );
+    const reasons: string[] = initialDecision
+      ? [`adaptive_compute: ${initialDecision.reason}`]
+      : [];
     let previousSignature = packetSignature(packet);
     let computeSpent = 0;
+    let round = 0;
 
-    for (let round = 1; round <= maxRounds; round += 1) {
+    while (round < effectiveMaxRounds) {
+      round += 1;
       for (const cog of this.options.cogs) {
-        const observation = await cog.process(packet, { round, maxRounds });
+        const observation = await cog.process(packet, { round, maxRounds: effectiveMaxRounds });
         packet = normalizePacket(observation.packet);
         packet.circulation = round;
         computeSpent += 1;
         reasons.push(...observation.reasons.map((reason) => `${cog.id}: ${reason}`));
       }
+
       packet.friction = this.measureFriction(packet);
+
+      const nextDecision = this.options.adaptiveCompute?.decide(packet.friction);
+      if (nextDecision) {
+        const proposedMax = Math.min(this.configuredMaxRounds, nextDecision.maxRounds);
+        if (proposedMax > effectiveMaxRounds) {
+          effectiveMaxRounds = proposedMax;
+          reasons.push(`adaptive_compute_escalated: ${nextDecision.reason}`);
+        }
+      }
+
       const signature = packetSignature(packet);
       const converged = signature === previousSignature;
       previousSignature = signature;
@@ -71,13 +89,22 @@ export class CogMoleculeRuntime {
         });
         packet.friction = this.measureFriction(packet);
         previousSignature = "validation_reopened";
+
+        const reopenedDecision = this.options.adaptiveCompute?.decide(packet.friction);
+        if (reopenedDecision) {
+          const proposedMax = Math.min(this.configuredMaxRounds, reopenedDecision.maxRounds);
+          if (proposedMax > effectiveMaxRounds) {
+            effectiveMaxRounds = proposedMax;
+            reasons.push(`adaptive_compute_escalated: ${reopenedDecision.reason}`);
+          }
+        }
       }
     }
 
     return {
       disposition: packet.unresolved.length || unresolvedChallenges(packet) ? "circulate" : "abstain",
       packet,
-      rounds: maxRounds,
+      rounds: round,
       reasons: [...reasons, "compute boundary reached without validated release"],
       computeSpent,
     };
