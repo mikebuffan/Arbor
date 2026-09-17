@@ -13,18 +13,10 @@ vi.mock("@/lib/memory/embeddings", () => ({
   memoryToEmbedString: mocks.memoryToEmbedString,
 }));
 
-vi.mock("@/lib/memory/logger", () => ({
-  logMemoryEvent: mocks.logMemoryEvent,
-}));
+vi.mock("@/lib/memory/logger", () => ({ logMemoryEvent: mocks.logMemoryEvent }));
+vi.mock("@/lib/supabase/server", () => ({ getServerSupabase: vi.fn() }));
 
-vi.mock("@/lib/supabase/server", () => ({
-  getServerSupabase: vi.fn(),
-}));
-
-import {
-  correctMemoryItem,
-  supersedeMemoryAliases,
-} from "@/lib/memory/store";
+import { correctMemoryItem, supersedeMemoryAliases } from "@/lib/memory/store";
 
 describe("memory correction storage semantics", () => {
   beforeEach(() => {
@@ -44,25 +36,22 @@ describe("memory correction storage semantics", () => {
     const find = {
       select: vi.fn(),
       eq: vi.fn(),
+      is: vi.fn(),
       maybeSingle: vi.fn().mockResolvedValue({ data: existing, error: null }),
     };
     find.select.mockReturnValue(find);
     find.eq.mockReturnValue(find);
+    find.is.mockReturnValue(find);
     const update = {
       update: vi.fn(),
       eq: vi.fn(),
       select: vi.fn(),
-      single: vi.fn().mockResolvedValue({
-        data: { id: existing.id },
-        error: null,
-      }),
+      single: vi.fn().mockResolvedValue({ data: { id: existing.id }, error: null }),
     };
     update.update.mockReturnValue(update);
     update.eq.mockReturnValue(update);
     update.select.mockReturnValue(update);
-    const event = {
-      insert: vi.fn().mockResolvedValue({ error: null }),
-    };
+    const event = { insert: vi.fn().mockResolvedValue({ error: null }) };
     let memoryCalls = 0;
     const supabase = {
       from: vi.fn((table: string) => {
@@ -72,36 +61,30 @@ describe("memory correction storage semantics", () => {
       }),
     } as unknown as SupabaseClient;
 
-    await expect(
-      correctMemoryItem({
-        supabase,
-        authedUserId: "user-a",
-        projectId: "project-a",
-        key: "project.observatory.access_phrase",
-        newValue: "Blue Lantern",
-      }),
-    ).resolves.toEqual({ id: "memory-1", locked: true });
+    await expect(correctMemoryItem({
+      supabase,
+      authedUserId: "user-a",
+      projectId: "project-a",
+      key: "project.observatory.access_phrase",
+      newValue: "Blue Lantern",
+    })).resolves.toEqual({ id: "memory-1", locked: true });
 
-    expect(update.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        value: { text: "Blue Lantern" },
-        correction_count: 2,
-        locked: true,
-        pinned: true,
-        importance: 10,
-        confidence: 1,
-        mention_count: 4,
-      }),
-    );
-    expect(event.insert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        user_id: "user-a",
-        project_id: "project-a",
-        memory_key: "project.observatory.access_phrase",
-        event_type: "lock",
-        payload: { correction_count: 2 },
-      }),
-    );
+    expect(update.update).toHaveBeenCalledWith(expect.objectContaining({
+      value: { text: "Blue Lantern" },
+      correction_count: 2,
+      locked: true,
+      pinned: true,
+      importance: 10,
+      confidence: 1,
+      mention_count: 4,
+    }));
+    expect(event.insert).toHaveBeenCalledWith(expect.objectContaining({
+      user_id: "user-a",
+      project_id: "project-a",
+      memory_key: "project.observatory.access_phrase",
+      event_type: "lock",
+      payload: { correction_count: 2 },
+    }));
   });
 
   it("soft-tombstones exact same-project aliases and records auditable events", async () => {
@@ -110,11 +93,7 @@ describe("memory correction storage semantics", () => {
       { id: "alias-2", key: "project.observatory.fictional.access_phrase" },
     ];
     const query = {
-      update: vi.fn(),
-      eq: vi.fn(),
-      is: vi.fn(),
-      in: vi.fn(),
-      neq: vi.fn(),
+      update: vi.fn(), eq: vi.fn(), is: vi.fn(), in: vi.fn(), neq: vi.fn(),
       select: vi.fn().mockResolvedValue({ data: rows, error: null }),
     };
     query.update.mockReturnValue(query);
@@ -122,30 +101,21 @@ describe("memory correction storage semantics", () => {
     query.is.mockReturnValue(query);
     query.in.mockReturnValue(query);
     query.neq.mockReturnValue(query);
-    const event = {
-      insert: vi.fn().mockResolvedValue({ error: null }),
-    };
+    const event = { insert: vi.fn().mockResolvedValue({ error: null }) };
     const supabase = {
-      from: vi.fn((table: string) =>
-        table === "memory_items" ? query : event,
-      ),
+      from: vi.fn((table: string) => table === "memory_items" ? query : event),
     } as unknown as SupabaseClient;
 
-    await expect(
-      supersedeMemoryAliases({
-        supabase,
-        authedUserId: "user-a",
-        projectId: "project-a",
-        canonicalId: "canonical",
-        aliases: rows,
-      }),
-    ).resolves.toEqual(["alias-1", "alias-2"]);
+    await expect(supersedeMemoryAliases({
+      supabase,
+      authedUserId: "user-a",
+      projectId: "project-a",
+      canonicalId: "canonical",
+      aliases: rows,
+    })).resolves.toEqual(["alias-1", "alias-2"]);
 
     const updateShape = query.update.mock.calls[0][0];
-    expect(updateShape).toMatchObject({
-      status: "tombstoned",
-      delete_reason: "superseded_by_correction",
-    });
+    expect(updateShape).toMatchObject({ status: "tombstoned", delete_reason: "superseded_by_correction" });
     expect(updateShape.deleted_at).toEqual(expect.any(String));
     expect(Number.isNaN(Date.parse(updateShape.deleted_at))).toBe(false);
     expect(updateShape.status).not.toBe("superseded_by_correction");
@@ -153,11 +123,8 @@ describe("memory correction storage semantics", () => {
     expect(query.eq).toHaveBeenCalledWith("project_id", "project-a");
     expect(query.in).toHaveBeenCalledWith("id", ["alias-1", "alias-2"]);
     expect(event.insert).toHaveBeenCalledTimes(2);
-    expect(
-      event.insert.mock.calls.map((call) => call[0].event_type),
-    ).toEqual([
-      "superseded_by_correction",
-      "superseded_by_correction",
+    expect(event.insert.mock.calls.map((call) => call[0].event_type)).toEqual([
+      "superseded_by_correction", "superseded_by_correction",
     ]);
   });
 });
