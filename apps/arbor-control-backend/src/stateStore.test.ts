@@ -12,7 +12,7 @@ import {
   it,
 } from "vitest";
 
-import { JsonFileArborStateStore } from "./stateStore.js";
+import { JsonFileArborStateStore, stateScope } from "./stateStore.js";
 import type {
   ArborState,
   StoredArborTurn,
@@ -207,4 +207,14 @@ describe("standalone control state", () => {
       ).rejects.toThrow("turn_id_conflict");
     },
   );
+});
+
+
+describe("state scope hierarchy", () => {
+  it("keeps project root distinct from conversation overlay", () => {
+    expect(stateScope({ projectId: "p" })).toBe("project:p");
+    expect(stateScope({ conversationId: "c" })).toBe("conversation:c");
+    expect(stateScope({ projectId: "p", conversationId: "c" }))
+      .toBe("project:p:conversation:c");
+  });
 });
