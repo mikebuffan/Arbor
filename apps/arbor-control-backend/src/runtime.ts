@@ -172,7 +172,8 @@ export class ArborControlRuntime {
 
     if (
       !saved.selfModel ||
-      !saved.behavioralCorrections
+      !saved.behavioralCorrections ||
+      !saved.cognitiveRuntime
     ) {
       await this.store
         .save(
