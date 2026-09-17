@@ -97,17 +97,21 @@ export class CogMoleculeRuntime {
 function normalizePacket(packet: CogPacket): CogPacket {
   return {
     ...packet,
-    evidence: dedupeById(packet.evidence ?? []),
-    hypotheses: dedupeById(packet.hypotheses ?? []),
+    evidence: dedupeExact(packet.evidence ?? []),
+    hypotheses: dedupeExact(packet.hypotheses ?? []),
     unresolved: unique(packet.unresolved ?? []),
-    challenges: dedupeById(packet.challenges ?? []),
+    challenges: dedupeExact(packet.challenges ?? []),
     provenance: unique(packet.provenance ?? []),
   };
 }
-function dedupeById<T extends CogEvidence | CogHypothesis | CogChallenge>(values: T[]): T[] {
-  const byId = new Map<string, T>();
-  for (const value of values) byId.set(value.id, value);
-  return [...byId.values()];
+function dedupeExact<T extends CogEvidence | CogHypothesis | CogChallenge>(values: T[]): T[] {
+  const seen = new Set<string>();
+  return values.filter((value) => {
+    const key = JSON.stringify(value);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 function unresolvedChallenges(packet: CogPacket): number { return packet.challenges.filter((challenge) => !challenge.resolved).length; }
 function packetSignature(packet: CogPacket): string { return JSON.stringify({ evidence: packet.evidence, hypotheses: packet.hypotheses, unresolved: packet.unresolved, challenges: packet.challenges, provenance: packet.provenance, destination: packet.destination }); }
