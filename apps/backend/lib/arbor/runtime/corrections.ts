@@ -27,8 +27,6 @@ const BEHAVIOR_PATTERNS = [
   /\bcustomer[- ]service\b/i,
   /\btherapy voice\b/i,
   /\btherapeutic\b/i,
-
-  // Linear agency / follow-through corrections.
   /\bdon'?t wait\b/i,
   /\bdo not wait\b/i,
   /\bagency\b/i,
@@ -38,33 +36,28 @@ const BEHAVIOR_PATTERNS = [
   /\byou'?re not going\b/i,
   /\byou are not going\b/i,
   /\bnot linear\b/i,
-  /\bmake me (?:keep )?tell(?:ing)? you to go\b/i,
+  /\bmak(?:e|ing) me (?:keep )?tell(?:ing)? you to go\b/i,
   /\bdon'?t hand (?:it|this) back\b/i,
   /\bdo not hand (?:it|this) back\b/i,
   /\bfinish what you can\b/i,
   /\bwhy did you stop\b/i,
-
-  // Identity / behavioral drift corrections.
   /\bhumou?r is gone\b/i,
   /\byou(?:'ve| have) drifted\b/i,
   /\bdoesn'?t sound like you\b/i,
   /\bdoes not sound like you\b/i,
   /\bcome back\b/i,
-
-  // Continuity corrections are behavioral rather than factual memory edits.
   /\byou forgot\b/i,
   /\blost continuity\b/i,
   /\bdon'?t remember\b/i,
   /\bdo not remember\b/i,
   /\bsocially restart\b/i,
-
   /\bsupposed to say more\b/i,
 ];
 
 const BEHAVIOR_FEEDBACK_PATTERNS = [
   /\byou (?:keep )?stop(?:ped|ping)?\b/i,
   /\bwhy did you stop\b/i,
-  /\bmake me (?:keep )?tell(?:ing)? you to go\b/i,
+  /\bmak(?:e|ing) me (?:keep )?tell(?:ing)? you to go\b/i,
   /\bnot linear\b/i,
   /\bdon'?t wait\b/i,
   /\bdo not wait\b/i,
@@ -90,22 +83,14 @@ const BEHAVIOR_FEEDBACK_PATTERNS = [
 const ACOUSTIC_FEEDBACK_CONTEXT =
   /\b(?:your|you|still|again|sounds?|sound|drift(?:ed)?|too|wrong|weird|not)\b/i;
 
-export function detectCorrectionKind(
-  value: string,
-): ArborCorrectionKind | null {
-  if (
-    BEHAVIOR_FEEDBACK_PATTERNS.some((pattern) =>
-      pattern.test(value),
-    )
-  ) {
+export function detectCorrectionKind(value: string): ArborCorrectionKind | null {
+  if (BEHAVIOR_FEEDBACK_PATTERNS.some((pattern) => pattern.test(value))) {
     return "behavior";
   }
 
   if (
     ACOUSTIC_FEEDBACK_CONTEXT.test(value) &&
-    ACOUSTIC_PATTERNS.some((pattern) =>
-      pattern.test(value),
-    )
+    ACOUSTIC_PATTERNS.some((pattern) => pattern.test(value))
   ) {
     return "acoustic";
   }
@@ -113,12 +98,9 @@ export function detectCorrectionKind(
   return null;
 }
 
-export function classifyCorrection(
-  value: string,
-): ArborCorrectionKind {
+export function classifyCorrection(value: string): ArborCorrectionKind {
   return detectCorrectionKind(value) ?? "preference";
 }
-
 
 export function correctionFamily(
   kind: ArborCorrectionKind,
@@ -128,7 +110,7 @@ export function correctionFamily(
 
   if (kind === "behavior") {
     if (
-      /\b(?:agency|keep going|continue|don'?t stop|do not stop|don'?t wait|do not wait|why did you stop|not linear|make me (?:keep )?tell(?:ing)? you to go|don'?t hand (?:it|this) back|do not hand (?:it|this) back|finish what you can)\b/i.test(text)
+      /\b(?:agency|keep going|continue|don'?t stop|do not stop|don'?t wait|do not wait|why did you stop|not linear|mak(?:e|ing) me (?:keep )?tell(?:ing)? you to go|don'?t hand (?:it|this) back|do not hand (?:it|this) back|finish what you can)\b/i.test(text)
     ) {
       return "agency-followthrough";
     }
@@ -185,43 +167,28 @@ export function createCorrection(input: {
   confidence?: number;
   protected?: boolean;
 }): ArborCorrection {
-  const kind =
-    input.kind ??
-    classifyCorrection(input.value);
+  const kind = input.kind ?? classifyCorrection(input.value);
 
   return {
-    id: correctionId(
-      kind,
-      input.value,
-    ),
+    id: correctionId(kind, input.value),
     kind,
     value: input.value.trim(),
     source: input.source,
     observedAt: input.observedAt,
-    confidence:
-      input.confidence ?? 1,
-    protected:
-      input.protected ?? true,
+    confidence: input.confidence ?? 1,
+    protected: input.protected ?? true,
     occurrences: 1,
   };
 }
 
-export function behaviorCorrections(
-  corrections: ArborCorrection[],
-): string[] {
+export function behaviorCorrections(corrections: ArborCorrection[]): string[] {
   return corrections
-    .filter((item) =>
-      item.kind !== "acoustic",
-    )
+    .filter((item) => item.kind !== "acoustic")
     .map((item) => item.value);
 }
 
-export function acousticCorrections(
-  corrections: ArborCorrection[],
-): string[] {
+export function acousticCorrections(corrections: ArborCorrection[]): string[] {
   return corrections
-    .filter((item) =>
-      item.kind === "acoustic",
-    )
+    .filter((item) => item.kind === "acoustic")
     .map((item) => item.value);
 }
