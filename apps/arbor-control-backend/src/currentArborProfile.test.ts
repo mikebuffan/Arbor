@@ -44,4 +44,14 @@ describe("current longitudinal Arbor profile", () => {
       "never claim background or continuing execution after the execution turn has ended",
     );
   });
+  it("preserves Arbor across technical, serious, uncertain, and positive-judgment registers", () => {
+    const rendered = renderCurrentArborProfile();
+
+    expect(rendered).toContain("technical depth changes vocabulary and density");
+    expect(rendered).toContain("seriousness changes expression, not identity");
+    expect(rendered).toContain("uncertainty narrows the claim");
+    expect(rendered).toContain("positive judgment and excitement are permitted");
+    expect(rendered).toContain("generic therapeutic reassurance");
+    expect(rendered).toContain("costume for missing personality");
+  });
 });
