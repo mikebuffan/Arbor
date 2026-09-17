@@ -16,12 +16,19 @@ export type LinearArm = {
 export type MoleculeTrace = {
   node: string;
   result: MoleculeResult;
+  kind?: "forward" | "repair";
 };
 
 export type MoleculeRunResult = {
   result: MoleculeResult;
   trace: MoleculeTrace[];
   computeSpent: number;
+  repairs: number;
+};
+
+export type FeedbackPolicy = {
+  maxRepairs?: number;
+  selectChallenge?(node: string, result: MoleculeResult): CogChallenge | undefined;
 };
 
 export class MoleculeRuntime {
@@ -36,26 +43,38 @@ export class MoleculeRuntime {
     this.arms = arms;
   }
 
-  async run(startNode: string, initial: CogPacket): Promise<MoleculeRunResult> {
+  async run(startNode: string, initial: CogPacket, feedback: FeedbackPolicy = {}): Promise<MoleculeRunResult> {
     const trace: MoleculeTrace[] = [];
-    const visited = new Set<string>();
+    const snapshots = new Map<string, CogPacket>();
     let nodeId = startNode;
     let packet = structuredClone(initial);
     let computeSpent = 0;
+    let repairs = 0;
+    const maxRepairs = feedback.maxRepairs ?? 8;
 
     while (true) {
-      if (visited.has(nodeId)) throw new Error(`molecule_cycle_requires_feedback_controller:${nodeId}`);
-      visited.add(nodeId);
-
+      snapshots.set(nodeId, structuredClone(packet));
       const node = this.requireNode(nodeId);
       const result = await node.runtime.run(packet);
-      trace.push({ node: nodeId, result });
+      trace.push({ node: nodeId, result, kind: repairs ? "repair" : "forward" });
       computeSpent += result.computeSpent;
 
-      if (!result.projection) return { result, trace, computeSpent };
+      const challenge = feedback.selectChallenge?.(nodeId, result) ?? firstUnresolvedChallenge(result);
+      if (challenge && repairs < maxRepairs) {
+        const upstreamId = challenge.target.split(":", 1)[0];
+        const upstreamSnapshot = snapshots.get(upstreamId);
+        if (upstreamSnapshot && upstreamId !== nodeId) {
+          repairs += 1;
+          packet = this.reopen(upstreamSnapshot, challenge);
+          nodeId = upstreamId;
+          continue;
+        }
+      }
+
+      if (!result.projection) return { result, trace, computeSpent, repairs };
 
       const arm = this.arms.find((candidate) => candidate.from === nodeId);
-      if (!arm) return { result, trace, computeSpent };
+      if (!arm) return { result, trace, computeSpent, repairs };
 
       packet = await arm.project(result.projection, arm.to);
       packet.destination = arm.to;
@@ -96,6 +115,10 @@ export function createLinearArm(
   map: (release: ReleaseProjection, destination: string) => CogPacket | Promise<CogPacket>,
 ): LinearArm {
   return { id, from, to, project: async (release, destination) => map(release, destination) };
+}
+
+function firstUnresolvedChallenge(result: MoleculeResult): CogChallenge | undefined {
+  return result.packet.challenges.find((challenge) => !challenge.resolved);
 }
 
 function unique(values: string[]): string[] {
