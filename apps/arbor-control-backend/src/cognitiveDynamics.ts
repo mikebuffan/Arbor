@@ -9,7 +9,12 @@ export interface BridgeSignal {
   confidence: number;
   intensity: number;
   assertedAt: string;
+  validFrom?: string;
   validUntil?: string;
+  lastVerifiedAt?: string;
+  status?: "active" | "done" | "blocked" | "superseded" | "historical";
+  supersedes?: string[];
+  stakes?: number;
   unresolved?: boolean;
 }
 
@@ -23,8 +28,18 @@ const clamp = (v: number) => Math.max(0, Math.min(1, v));
 const when = (v?: string) => v ? Date.parse(v) : Number.NaN;
 
 export function validSignal(signal: BridgeSignal, now = Date.now()): boolean {
+  if (signal.status === "superseded" || signal.status === "historical") return false;
+  const from = when(signal.validFrom);
   const until = when(signal.validUntil);
-  return !Number.isFinite(until) || now < until;
+  return (!Number.isFinite(from) || from <= now)
+    && (!Number.isFinite(until) || now < until);
+}
+
+export function liveSignals(signals: BridgeSignal[], now = Date.now()): BridgeSignal[] {
+  const superseded = new Set(signals.flatMap((signal) => signal.supersedes ?? []));
+  return signals.filter((signal) =>
+    !superseded.has(signal.id) && validSignal(signal, now)
+  );
 }
 
 export function allocateAttention(
@@ -32,14 +47,14 @@ export function allocateAttention(
   capacity = 4,
   now = Date.now(),
 ): AttentionState {
-  const scored = signals
-    .filter((s) => validSignal(s, now))
+  const scored = liveSignals(signals, now)
     .map((signal) => ({
       signal,
       score: clamp(signal.confidence) * 0.35
         + clamp(signal.intensity) * 0.35
         + (signal.kind === "conflict" ? 0.2 : 0)
-        + (signal.unresolved ? 0.1 : 0),
+        + (signal.unresolved ? 0.1 : 0)
+        + clamp(signal.stakes ?? 0) * 0.1,
     }))
     .sort((a, b) => b.score - a.score || a.signal.id.localeCompare(b.signal.id));
 
