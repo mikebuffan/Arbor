@@ -911,6 +911,19 @@ export class ArborControlRuntime {
             ]),
         });
 
+      // Reassert the same current-Arbor behavioral/epistemic authority after
+      // provider return. The profile is prompt-owned rather than mutable state,
+      // so this boundary guard makes the ordering explicit at generation time:
+      // provider output may change task/runtime state, never who is judging it.
+      const postProviderArborProfile =
+        renderCurrentArborProfile();
+
+      if (!postProviderArborProfile.includes(
+        "Apply this profile to judgment and action before task/surface presentation",
+      )) {
+        throw new Error("current_arbor_profile_boundary_invalid");
+      }
+
       agency.state = {
         ...agency.state,
         cognitiveRuntime: updateCognitiveRuntime({
