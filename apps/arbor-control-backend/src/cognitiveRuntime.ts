@@ -113,3 +113,56 @@ export function renderCognitiveRuntime(state?: CognitiveRuntimeState): string {
 function upsert<T extends { id: string }>(items: T[], item: T): T[] {
   return [...items.filter((x) => x.id !== item.id), item].slice(-100);
 }
+
+
+export function mergeCognitiveRuntimeState(
+  project: CognitiveRuntimeState | undefined,
+  conversation: CognitiveRuntimeState | undefined,
+  now = Date.now(),
+): CognitiveRuntimeState {
+  if (!project && !conversation) return emptyCognitiveRuntimeState(now);
+  if (!project) return structuredClone(conversation!);
+  if (!conversation) return structuredClone(project);
+
+  const signalMap = new Map<string, BridgeSignal>();
+  for (const signal of [...project.signals, ...conversation.signals]) {
+    signalMap.set(signal.id, signal);
+  }
+  const signals = [...signalMap.values()]
+    .filter((signal) => !signal.validUntil || now < Date.parse(signal.validUntil));
+
+  const predictionMap = new Map<string, PredictionRecord>();
+  for (const prediction of [...project.predictions, ...conversation.predictions]) {
+    predictionMap.set(prediction.id, prediction);
+  }
+
+  const counterfactuals = rankCounterfactuals([
+    ...project.counterfactuals,
+    ...conversation.counterfactuals,
+  ].filter((item, index, all) =>
+    all.findIndex((other) => other.id === item.id) === index
+  ));
+
+  const consolidationMap = new Map<string, ConsolidationCandidate>();
+  for (const item of [...project.consolidation, ...conversation.consolidation]) {
+    consolidationMap.set(item.id, item);
+  }
+
+  const traceKey = (trace: CausalTrace) =>
+    `${trace.eventId}\u0000${trace.choiceId ?? ""}\u0000${trace.provenance.join("|")}`;
+  const traceMap = new Map<string, CausalTrace>();
+  for (const trace of [...project.causalTraces, ...conversation.causalTraces]) {
+    traceMap.set(traceKey(trace), trace);
+  }
+
+  return {
+    signals,
+    attention: allocateAttention(signals, 4, now),
+    predictions: [...predictionMap.values()].slice(-100),
+    counterfactuals,
+    exploration: conversation.exploration ?? project.exploration,
+    consolidation: [...consolidationMap.values()].slice(-100),
+    causalTraces: [...traceMap.values()].slice(-100),
+    updatedAt: new Date(now).toISOString(),
+  };
+}
