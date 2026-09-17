@@ -14,13 +14,28 @@ describe("CogMoleculeRuntime", () => {
     expect(result.disposition).toBe("assert"); expect(result.packet.unresolved).toEqual([]); expect(result.rounds).toBeGreaterThanOrEqual(3); expect(result.computeSpent).toBe(result.rounds);
   });
 
-  it("treats repeated observations with the same evidence id as one fact so recurrence can converge", async () => {
+  it("dedupes exact repeated observations so recurrence can converge", async () => {
     const cog: Cog = { id: "reobserver", async process(current, context) { const next = structuredClone(current); if (context.round >= 2) { next.evidence.push({ id: "late-source", value: "same observation", provenance: ["source:late"], confidence: 0.95 }); next.unresolved = []; } return { packet: next, reasons: ["observed"] }; } };
     const runtime = new CogMoleculeRuntime({ cogs: [cog], maxRounds: 8, validate: async () => ({ valid: true, reasons: ["validated"] }), project: projection });
     const result = await runtime.run(packet());
     expect(result.disposition).toBe("assert");
     expect(result.packet.evidence.filter((evidence) => evidence.id === "late-source")).toHaveLength(1);
     expect(result.rounds).toBeLessThan(8);
+  });
+
+  it("does not erase conflicting observations merely because they share an evidence id", async () => {
+    const initial = packet();
+    initial.unresolved = [];
+    initial.evidence = [
+      { id: "document:7", value: "version A", provenance: ["source:a"], confidence: 0.9 },
+      { id: "document:7", value: "version B", provenance: ["source:b"], confidence: 0.9 },
+    ];
+    const cog: Cog = { id: "quiet", async process(current) { return { packet: structuredClone(current), reasons: ["preserve evidence"] }; } };
+    const runtime = new CogMoleculeRuntime({ cogs: [cog], maxRounds: 3, validate: async (current) => ({ valid: current.evidence.length === 2, reasons: [] }), project: projection });
+    const result = await runtime.run(initial);
+    expect(result.disposition).toBe("assert");
+    expect(result.packet.evidence).toHaveLength(2);
+    expect(result.packet.evidence.map((evidence) => evidence.value)).toEqual(["version A", "version B"]);
   });
 
   it("derives friction from unresolved state instead of trusting a cog supplied scalar", async () => {
