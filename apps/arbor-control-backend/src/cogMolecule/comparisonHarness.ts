@@ -49,12 +49,16 @@ async function measure(runtime: ComparableRuntime, testCase: ComparisonCase): Pr
   const result = await runtime.run(structuredClone(testCase.packet));
   const latencyMs = performance.now() - started;
   const correct = testCase.correct(result);
+  const asserted = result.disposition === "assert";
+  const confidence = result.projection?.confidence ?? (asserted ? 1 : 0.5);
 
   return {
     id: testCase.id,
     correct,
-    falseRelease: result.disposition === "assert" && !correct,
+    falseRelease: asserted && !correct,
     computeSpent: result.computeSpent,
     latencyMs,
+    confidence,
+    asserted,
   };
 }
