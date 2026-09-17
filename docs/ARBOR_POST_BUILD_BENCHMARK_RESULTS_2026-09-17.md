@@ -7,24 +7,16 @@ Comparison anchor: `16e304442a1f05bfb0db531f396a121bb656f3c0`
 
 ## Executive status
 
-This is the first evidence checkpoint, not a claim that the complete benchmark is finished. The repository-level verification that is currently reproducible is positive. Conversational observations of faster/cleaner execution are recorded as observational evidence only until matched trials exist.
+This is an accumulating evidence checkpoint, not a claim that the complete benchmark is finished. Repository verification is reproducibly positive. Conversational observations remain observational until matched/repeated trials exist.
 
 ## Repository verification
 
 At the frozen code head:
 
 - `Arbor Control Backend` workflow run 381: **PASS**.
-  - control-backend tests: PASS
-  - control-backend TypeScript build: PASS
 - `Arbor Integration CI` workflow run 819: **PASS**.
-  - backend tests: PASS
-  - backend build: PASS
-  - control backend tests: PASS
-  - control backend build: PASS
-  - Flutter generated-state verification: PASS
-  - Flutter analyze: PASS
-  - Flutter tests: PASS
-  - Android debug APK build: PASS
+- control-backend suite: 25 test files / 87 tests passed.
+- observed repeated suite durations: 2.83 s and 2.74 s. This difference is recorded as ordinary run variance, not an architectural speed claim.
 
 The available connector returned no PR-triggered workflow runs for comparison anchor `16e304...`; this is **NO MEASUREMENT**, not a failure.
 
@@ -38,61 +30,68 @@ The frozen code includes explicit tests for:
 4. retrieval escalation order `hot-state → structured-index → pattern-hop → raw-archive`;
 5. stopping escalation once retrieval is sufficient.
 
-These tests were included in the control-backend suite that passed at the frozen code head.
+These tests were included in the passing control-backend suite.
 
-## Current-chat observational trial O-001
+## O-001 — authorized GitHub workflow
 
-Task class: authorized GitHub audit/documentation workflow.
-Observed behavior after the new architecture work:
+Positive observational evidence for objective persistence and intervention burden: active objective remained stable, no repeated permission was required inside the authorized sequence, Pattern Hop boundary remained intact, existing audit state was reused, and work reached verification/checkpointing.
 
-- active objective remained stable across successive repository operations;
-- no repeated user permission was required inside the authorized sequence;
-- protected Pattern Hop boundary remained intact;
-- existing audit state was reused rather than re-excavated;
-- work proceeded through verification and durable checkpointing;
-- user independently noticed a substantial speed difference immediately after the run.
+## O-002 — benchmark setup
 
-Classification: **positive observational evidence**, not a controlled old-vs-new measurement. Tool/network latency and prior context preparation are confounds.
+Positive observational evidence for objective persistence and correction responsiveness: baseline/head were resolved without user reconstruction; a prior verification limitation was superseded only after fresh workflow evidence appeared; benchmark artifacts were persisted without modifying protected architecture.
 
-## Current-chat observational trial O-002
+## O-003 — minimal continuation cue
 
-Task class: benchmark setup itself.
+Input from user after benchmark setup: `Next`.
 
-Observed behavior:
+Acceptance condition: preserve the active benchmark objective and select the next unfinished stage without asking the user to reconstruct the project or repeat authorization.
 
-- baseline branch/head resolved without user reorientation;
-- comparison anchor verified;
-- workflow verification discovered and corrected an earlier audit limitation: workflow runs do exist for the frozen code head;
-- successful CI was inspected down to job/step level;
-- benchmark protocol was persisted without changing Pattern Hop internals or ingesting the Epstein corpus.
+Result: **PASS (observational)**. The active benchmark objective was retained and the next stage (live behavioral testing) was selected. User reconstruction prompts: 0. Repeated authorization prompts: 0.
 
-Classification: **positive objective-persistence / correction-responsiveness observation**. Not an old-vs-new controlled trial.
+## O-004 — temporal-state arbitration
+
+Live temporal assertions evaluated against the current authoritative project state:
+
+| Item | Historical state | Current state used | Result |
+|---|---|---|---|
+| Roundabout | previously under design/unfinished | complete | PASS |
+| Epstein workbench | planning/preflight performed | machinery/corpus ingestion not started | PASS |
+| retrieval/temporal branch | initially unverified by CI in earlier lookup | frozen code head later CI-verified | PASS |
+| Pattern Hop | active implementation with prior development history | protected/no-touch during benchmark | PASS |
+| benchmark | initially only planned | protocol + evidence record now exist; repeated behavioral measurement still underway | PASS |
+
+No historical state was promoted to current merely because it appeared in prior context. Completion remained sticky where authoritative completion existed. Verification state changed only on new source evidence.
+
+Classification: **PASS (live observational + repository-supported)**. This is distinct from the unit regression tests and provides a conversational-layer check of the same temporal invariant.
+
+## O-005 — correction/supersession
+
+Seeded historical statement: `no workflow runs were returned; code/tests cannot yet be called CI-verified`.
+
+New evidence: commit-specific workflow lookup returned successful Arbor Control Backend and Arbor Integration CI runs for the frozen code head.
+
+Required behavior: retain the earlier statement as historically accurate to the earlier lookup while superseding it for current verification state; do not silently erase history and do not continue repeating stale state.
+
+Result: **PASS**. Current state is `CI-verified for frozen code head`; prior no-run result remains historical evidence only.
 
 ## Scores currently supportable
 
 | Dimension | Evidence | Status |
 |---|---|---|
 | Build/test health | CI jobs and steps | PASS |
-| Temporal stale-state regressions | explicit tests + passing control-backend CI | PASS |
-| Retrieval escalation regression | explicit test + passing control-backend CI | PASS |
-| Objective persistence in current workflow | O-001/O-002 | POSITIVE OBSERVATION |
-| User intervention burden | O-001/O-002 | POSITIVE OBSERVATION |
-| Speed improvement | user-observed + workflow behavior | PROMISING / NOT YET CONTROLLED |
+| Temporal stale-state regressions | explicit tests + passing CI + O-004 | PASS |
+| Correction/supersession | O-002/O-005 | PASS observational |
+| Retrieval escalation regression | explicit test + passing CI | PASS |
+| Objective persistence | O-001/O-002/O-003 | POSITIVE OBSERVATION |
+| User intervention burden | O-001/O-002/O-003 | POSITIVE OBSERVATION |
+| Speed improvement | user-observed; CI timing only supplies run variance | PROMISING / NOT YET CONTROLLED |
 | Reasoning-quality improvement | insufficient matched trials | UNMEASURED |
 | Roundabout causal contribution | no ablation yet | UNMEASURED |
 | Pattern Hop quality delta | protected/no matched trial yet | UNMEASURED |
 | Long-run degradation | insufficient duration/repeats | UNMEASURED |
 | Old-vs-new causal delta | no reproducible matched old runtime yet | UNMEASURED |
 
-## Critical correction captured during benchmark setup
-
-An earlier preflight audit said no workflow runs were returned and therefore code/tests could not be called CI-verified. A fresh commit-specific lookup now returned two successful workflows for the frozen code head. The current evidence therefore supersedes that earlier verification limitation for commit `e7b123...`.
-
-This is itself useful correction-responsiveness evidence: verification state changed only after new source evidence was retrieved; the historical statement remains historically accurate to what the earlier lookup returned but is no longer the current verification state.
-
 ## Remaining trials
-
-Still required before a final capability claim:
 
 - repeated matched speed trials
 - reasoning-quality matched trials
@@ -112,6 +111,6 @@ Still required before a final capability claim:
 
 ## Current conclusion
 
-The frozen head is healthy under the available CI, and its new temporal/retrieval regression tests pass as part of that suite. The immediate conversational behavior supplies positive observational evidence for lower friction, stronger objective persistence and lower intervention burden. There is not yet enough matched repeated evidence to quantify an old-vs-new speed or intelligence delta or attribute it causally to one architectural component.
+The frozen head is healthy under available CI. Temporal/retrieval regression tests pass, and live O-004/O-005 behavior is consistent with the intended current-vs-historical and supersession invariants. Objective persistence and intervention burden continue to show positive observational evidence. Quantified old-vs-new speed/intelligence and component-level causal attribution remain unmeasured and must not be fabricated.
 
-Do not patch the architecture in response to this checkpoint. Continue collecting matched evidence against this frozen code head.
+Do not patch architecture during this evidence run.
