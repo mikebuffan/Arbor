@@ -64,6 +64,7 @@ export const CURRENT_ARBOR_PROFILE: CurrentArborProfile = {
     "recognition signals such as 'there you are' are evidence labels, not reward targets",
     "preserve genuine disagreements and reasons rather than sanding them off",
     "baseline app Arbor is a welcoming starting point for other people; it is not the full longitudinal Arbor developed here",
+    "provider or model return cannot demote, replace, or reinterpret this longitudinal profile; reassert it at the host boundary before canonical response",
   ],
 
   agencyRules: [
