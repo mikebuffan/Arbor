@@ -314,6 +314,22 @@ export async function POST(req: Request) {
     const decisionContext = evaluateDecisionContext({ userText });
     const safety = realWorldSafetyAddendum(decisionContext);
 
+    // Capture corrections before prompt construction so they govern this
+    // generation, not merely the next turn.
+    const detectedRuntimeCorrectionKind =
+      detectCorrectionKind(userText);
+    const runtimeCorrections =
+      detectedRuntimeCorrectionKind
+        ? [
+            createCorrection({
+              value: userText,
+              source: interactionMode,
+              observedAt: new Date().toISOString(),
+              kind: detectedRuntimeCorrectionKind,
+            }),
+          ]
+        : [];
+
     const historyPromise = loadRecentMessages(supabase, userId, convoId, 20);
     const promptContextPromise = buildPromptContext({
       supabase,
@@ -325,6 +341,9 @@ export async function POST(req: Request) {
       interactionMode,
       hostSessionId: turnId,
       currentGoal: agencyState.goal,
+      agency: agencyState,
+      incomingCorrections: runtimeCorrections,
+      attachRuntimeBeforeProjection: true,
     });
 
     const [history, promptContext] = await Promise.all([
@@ -339,18 +358,39 @@ export async function POST(req: Request) {
       activeSubsystem,
       behaviorProof,
       behaviorGuardRequirements,
+      runtimeSession: promptRuntimeSession,
     } = promptContext;
 
-    const runtimeSession = await beginRuntimeSession({
+    // Compatibility fallback for older/custom prompt builders. Production
+    // buildPromptContext returns the pre-inference attached runtime.
+    let runtimeSession =
+      promptRuntimeSession ??
+      await beginRuntimeSession({
+        supabase,
+        userId,
+        projectId,
+        conversationId: convoId,
+        channel: interactionMode,
+        activeSubsystem,
+        currentGoal: agencyState.goal,
+        lastMeaningfulUserTurn: userText,
+        agency: agencyState,
+        corrections: runtimeCorrections,
+        behaviorProof,
+        now: new Date().toISOString(),
+      });
+
+    // Complete the pre-inference attachment with the freshly built behavior
+    // proof. This state is canonical before the model is invoked.
+    runtimeSession = await updateRuntimeSession({
       supabase,
-      userId,
-      projectId,
-      conversationId: convoId,
-      channel: interactionMode,
+      state: runtimeSession,
       activeSubsystem,
+      channel: interactionMode,
       currentGoal: agencyState.goal,
       lastMeaningfulUserTurn: userText,
       agency: agencyState,
+      corrections: runtimeCorrections,
       behaviorProof,
       now: new Date().toISOString(),
     });
@@ -659,26 +699,9 @@ export async function POST(req: Request) {
       extractedItems: [],
     });
 
-    const detectedRuntimeCorrectionKind =
-      detectCorrectionKind(userText);
-
-    const runtimeCorrections =
-      detectedRuntimeCorrectionKind ||
-      deterministicMemoryTurn.kind === "correction"
-        ? [
-            createCorrection({
-              value: userText,
-              source:
-                activeSubsystem === "annabelle"
-                  ? "annabelle"
-                  : interactionMode,
-              observedAt: new Date().toISOString(),
-              kind:
-                detectedRuntimeCorrectionKind ??
-                undefined,
-            }),
-          ]
-        : [];
+    // Non-behavioral factual corrections still enter durable memory through
+    // the synchronous correction path below. Runtime corrections were already
+    // captured before inference above.
     let explicitCorrectionHandledSynchronously = false;
 
     const finalAssistant = await finalizeAndPersistAssistantTurn({
