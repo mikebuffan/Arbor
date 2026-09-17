@@ -28,7 +28,7 @@ export async function retrieveMoleculeEvidence(
       projectId: input.projectId,
       conversationId: input.conversationId,
       authorization: input.authorization,
-    }).catch(() => ({})),
+    }).catch((): Record<string, unknown> => ({})),
   ]);
 
   const evidence: CogEvidence[] = history.map((message, index) => ({
