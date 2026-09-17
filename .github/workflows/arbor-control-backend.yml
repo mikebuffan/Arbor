@@ -5,6 +5,7 @@ on:
     branches:
       - arbor-control-backend
       - main
+      - arbor/runtime-repair-pass
     paths:
       - "apps/arbor-control-backend/**"
       - ".github/workflows/arbor-control-backend.yml"
