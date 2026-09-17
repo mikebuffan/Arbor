@@ -76,3 +76,36 @@ describe("causal traces", () => {
     })).toBe(true);
   });
 });
+
+
+describe("bridge temporal lifecycle", () => {
+  it("keeps completed current state while removing explicitly superseded unfinished state", () => {
+    const signals: BridgeSignal[] = [
+      {
+        id: "roundabout-unfinished", kind: "memory", content: "roundabout unfinished",
+        reason: "historical build state", provenance: ["archive"], confidence: 1,
+        intensity: .8, assertedAt: "2026-09-16T12:00:00Z", status: "active",
+      },
+      {
+        id: "roundabout-complete", kind: "memory", content: "roundabout complete",
+        reason: "verified completion", provenance: ["runtime"], confidence: 1,
+        intensity: .8, assertedAt: "2026-09-17T21:00:00Z", status: "done",
+        supersedes: ["roundabout-unfinished"], lastVerifiedAt: "2026-09-17T21:05:00Z",
+      },
+    ];
+    const state = allocateAttention(signals, 4, Date.parse("2026-09-18T12:00:00Z"));
+    expect(state.focusIds).toContain("roundabout-complete");
+    expect(state.focusIds).not.toContain("roundabout-unfinished");
+  });
+
+  it("does not admit future-valid state before validFrom", () => {
+    const signals: BridgeSignal[] = [{
+      id: "future", kind: "task", content: "later",
+      reason: "scheduled future state", provenance: ["runtime"], confidence: 1,
+      intensity: 1, assertedAt: "2026-09-18T12:00:00Z",
+      validFrom: "2026-09-19T00:00:00Z",
+    }];
+    expect(allocateAttention(signals, 4, Date.parse("2026-09-18T18:00:00Z")).focusIds)
+      .not.toContain("future");
+  });
+});
