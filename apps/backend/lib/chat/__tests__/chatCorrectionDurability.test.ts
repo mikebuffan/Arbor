@@ -118,6 +118,14 @@ function request() {
   });
 }
 
+function requestWithUserText(userText: string, turnId = TURN_ID) {
+  return new Request("https://arbor.test/api/chat", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ projectId: PROJECT_ID, turnId, userText }),
+  });
+}
+
 function resolvedCorrection() {
   return {
     kind: "correction" as const,
@@ -245,6 +253,51 @@ describe("explicit correction request-path durability", () => {
         capturedOperations = operations;
         return true;
       },
+    );
+  });
+
+  it("attaches a behavioral correction before model inference", async () => {
+    const correctionText =
+      "Why did you stop? I should not have to tell you to go again.";
+
+    const response = await POST(
+      requestWithUserText(
+        correctionText,
+        "77777777-7777-4777-8777-777777777777",
+      ),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.buildPromptContext).toHaveBeenCalledWith(
+      expect.objectContaining({
+        latestUserText: correctionText,
+        incomingCorrections: [
+          expect.objectContaining({
+            id: "behavior:agency-followthrough",
+            kind: "behavior",
+            value: correctionText,
+            protected: true,
+          }),
+        ],
+      }),
+    );
+
+    const runtimeWriteOrder = Math.min(
+      mocks.beginRuntimeSession.mock.invocationCallOrder[0],
+      mocks.updateRuntimeSession.mock.invocationCallOrder[0],
+    );
+    const inferenceOrder =
+      mocks.runOpenAIAgencyAgent.mock.invocationCallOrder[0];
+
+    expect(runtimeWriteOrder).toBeLessThan(inferenceOrder);
+    expect(mocks.updateRuntimeSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        corrections: [
+          expect.objectContaining({
+            id: "behavior:agency-followthrough",
+          }),
+        ],
+      }),
     );
   });
 
