@@ -1,6 +1,7 @@
 import type {
   ArborRecoveryRouteStats,
 } from "./agencyRecovery/routeLearning.js";
+import type { CognitiveRuntimeState } from "./cognitiveRuntime.js";
 
 export type ArborSubsystem = "arbor" | "annabelle";
 export type ArborChannel = "text" | "voice";
@@ -93,6 +94,7 @@ export type ArborState = {
   selfModelMigrations?: SelfModelMigrationRecord[];
   annabelle?: AnnabelleWorkspaceState;
   annabelleRevisions?: AnnabelleWorkspaceRevisionState[];
+  cognitiveRuntime?: CognitiveRuntimeState;
 };
 
 export type CanonicalArborResponse = {
