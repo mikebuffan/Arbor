@@ -1,7 +1,7 @@
 import { AdaptiveComputePolicy } from "./adaptiveCompute.js";
 import type { Cog, CogEvidence, CogHypothesis, CogChallenge, CogPacket, MoleculeResult, ReleaseProjection, ValidationResult } from "./types.js";
 
-export type CogMoleculeRuntimeOptions = { cogs: Cog[]; validate(packet: CogPacket): Promise<ValidationResult>; project(packet: CogPacket, reasons: string[]): Promise<ReleaseProjection>; maxRounds?: number; adaptiveCompute?: AdaptiveComputePolicy; convergenceEpsilon?: number; releaseFriction?: number; frictionWeights?: Partial<FrictionWeights>; };
+export type CogMoleculeRuntimeOptions = { cogs: Cog[]; validate(packet: CogPacket): Promise<ValidationResult>; project(packet: CogPacket, reasons: string[]): Promise<ReleaseProjection>; maxRounds?: number; adaptiveCompute?: AdaptiveComputePolicy; convergenceEpsilon?: number; releaseFriction?: number; frictionWeights?: Partial<FrictionWeights>; maxStagnantRounds?:number; };
 type FrictionWeights = { unresolved: number; contradiction: number; challenge: number; uncertainty: number };
 const DEFAULT_WEIGHTS: FrictionWeights = { unresolved: 0.2, contradiction: 0.25, challenge: 0.3, uncertainty: 0.25 };
 
@@ -13,21 +13,24 @@ export class CogMoleculeRuntime {
     const initialDecision = this.options.adaptiveCompute?.decide(packet.friction);
     let effectiveMaxRounds = Math.min(this.configuredMaxRounds, initialDecision?.maxRounds ?? this.configuredMaxRounds);
     const reasons: string[] = initialDecision ? [`adaptive_compute: ${initialDecision.reason}`] : [];
-    let previousSignature = packetSignature(packet); let computeSpent = 0; let round = 0;
+    let previousSignature = packetSignature(packet); let computeSpent = 0; let round = 0; let stagnantRounds=0;
     while (round < effectiveMaxRounds) {
       round += 1;
       for (const cog of this.options.cogs) { const observation = await cog.process(packet, { round, maxRounds: effectiveMaxRounds }); packet = normalizePacket(observation.packet); packet.circulation = round; computeSpent += 1; reasons.push(...observation.reasons.map((reason) => `${cog.id}: ${reason}`)); }
       packet.friction = this.measureFriction(packet);
       const nextDecision = this.options.adaptiveCompute?.decide(packet.friction);
       if (nextDecision) { const proposedMax = Math.min(this.configuredMaxRounds, nextDecision.maxRounds); if (proposedMax > effectiveMaxRounds) { effectiveMaxRounds = proposedMax; reasons.push(`adaptive_compute_escalated: ${nextDecision.reason}`); } }
-      const signature = packetSignature(packet); const converged = signature === previousSignature; previousSignature = signature;
+      const signature = packetSignature(packet); const converged = signature === previousSignature; stagnantRounds=converged?stagnantRounds+1:0; previousSignature = signature;
       if (converged && packet.friction <= this.releaseFriction) {
         const validation = await this.options.validate(packet); reasons.push(...validation.reasons);
         if (validation.seek?.length) { packet.unresolved = canonicalStrings([...packet.unresolved, ...validation.seek]); packet.friction = this.measureFriction(packet); return { disposition: "seek_more_information", packet, rounds: round, reasons, computeSpent }; }
         if (validation.valid && packet.unresolved.length === 0 && unresolvedChallenges(packet) === 0) { const projection = await this.options.project(packet, reasons); return { disposition: projection.disposition, packet, projection, rounds: round, reasons, computeSpent }; }
         packet.challenges.push({ id: `validation:${round}:${packet.challenges.length}`, source: "validator", target: packet.destination ?? packet.id, reason: validation.reasons.join("; ") || "validation failed", provenance: [...packet.provenance], resolved: false });
-        packet = normalizePacket(packet); packet.friction = this.measureFriction(packet); previousSignature = "validation_reopened";
+        packet = normalizePacket(packet); packet.friction = this.measureFriction(packet); previousSignature = "validation_reopened"; stagnantRounds=0;
         const reopenedDecision = this.options.adaptiveCompute?.decide(packet.friction); if (reopenedDecision) { const proposedMax = Math.min(this.configuredMaxRounds, reopenedDecision.maxRounds); if (proposedMax > effectiveMaxRounds) { effectiveMaxRounds = proposedMax; reasons.push(`adaptive_compute_escalated: ${reopenedDecision.reason}`); } }
+      }
+      if(this.options.maxStagnantRounds && stagnantRounds>=this.options.maxStagnantRounds && packet.friction>this.releaseFriction){
+        return {disposition:packet.unresolved.length||unresolvedChallenges(packet)?"circulate":"abstain",packet,rounds:round,reasons:[...reasons,`stagnation boundary reached after ${stagnantRounds} unchanged rounds`],computeSpent};
       }
     }
     return { disposition: packet.unresolved.length || unresolvedChallenges(packet) ? "circulate" : "abstain", packet, rounds: round, reasons: [...reasons, "compute boundary reached without validated release"], computeSpent };
