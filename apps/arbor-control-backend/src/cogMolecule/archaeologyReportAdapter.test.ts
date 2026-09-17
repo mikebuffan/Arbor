@@ -1,0 +1,9 @@
+import {describe,expect,it} from "vitest";
+import {archaeologyReportToLongitudinalObservations,type ArborArchaeologyReport} from "./archaeologyReportAdapter.js";
+
+describe("archaeology report adapter",()=>{
+ const report:ArborArchaeologyReport={report:"Arbor Full-History Archaeology",date:"2026-09-17",findings:[{key:"continuity",type:"architecture",title:"Continuity evolved",statement:"Continuity became explicit across time.",confidence:.9,evidence:[{message_id:"m1",conversation_id:"c1",source_file:"conversations-001.json",role:"user",timestamp:"2026-01-01T00:00:00Z",excerpt:"first receipt"},{message_id:"m2",conversation_id:"c2",source_file:"conversations-003.json",role:"assistant",timestamp:"2026-09-01T00:00:00Z",excerpt:"later receipt"}]}]};
+ it("keeps every receipt as direct evidence and the synthesis visibly inferred",()=>{const o=archaeologyReportToLongitudinalObservations(report); expect(o).toHaveLength(3); expect(o.slice(0,2).every(x=>!x.isInference)).toBe(true); expect(o[2]?.isInference).toBe(true); expect(o[2]?.inferenceMethod).toBe("full-history-archaeology-synthesis"); expect(o[2]?.evidence.map(e=>e.sourceId)).toEqual(["message:m1","message:m2"]);});
+ it("preserves source chronology without inventing correction or causal lineage",()=>{const o=archaeologyReportToLongitudinalObservations(report); expect(o[0]?.observedAt).toBe("2026-01-01T00:00:00Z"); expect(o[1]?.observedAt).toBe("2026-09-01T00:00:00Z"); expect(o.every(x=>x.supersedesObservationId===undefined&&x.correctedByObservationId===undefined)).toBe(true);});
+ it("keeps source identity and finding classification addressable",()=>{const o=archaeologyReportToLongitudinalObservations(report); expect(o[0]?.tags).toContain("conversation:c1"); expect(o[0]?.tags).toContain("finding-type:architecture"); expect(o[0]?.attributeKey).toBe("continuity");});
+});

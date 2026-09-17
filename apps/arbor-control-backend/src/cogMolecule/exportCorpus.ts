@@ -1,0 +1,66 @@
+import { exportRecordToCogPacket, type StructuredExportRecord } from "./exportIngestion.js";
+import { longitudinalObservationsToPacket, type LongitudinalObservationInput } from "./longitudinalExportAdapter.js";
+import type { CogPacket } from "./types.js";
+
+export type ExportCorpus = { records: StructuredExportRecord[]; packets: CogPacket[]; byRecordId: Map<string, CogPacket> };
+export type LongitudinalCorpus = { observations: LongitudinalObservationInput[]; packets: CogPacket[]; byPacketId: Map<string, CogPacket>; duplicateObservationsSkipped:number };
+export type FrozenExportSlice = Readonly<{ id:string; packetIds:readonly string[]; packets:readonly CogPacket[] }>;
+export type ExportSliceSplit = Readonly<{ development:FrozenExportSlice; heldOut:FrozenExportSlice }>;
+
+/** Assemble records independently so chunk boundaries never imply semantic boundaries. */
+export function assembleExportCorpus(chunks: StructuredExportRecord[][]): ExportCorpus {
+  const records = chunks.flat();
+  const packets = records.map(exportRecordToCogPacket);
+  return { records, packets, byRecordId: new Map(packets.map((packet) => [packet.id, packet])) };
+}
+
+function stableJson(value:unknown):string{
+  if(value===null||typeof value!=="object") return JSON.stringify(value);
+  if(Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`;
+  const object=value as Record<string,unknown>;
+  return `{${Object.keys(object).sort().map(key=>`${JSON.stringify(key)}:${stableJson(object[key])}`).join(",")}}`;
+}
+
+/** Collapse exact repeated observations only. Same ID with different content remains conflicting evidence. */
+export function dedupeLongitudinalObservations(observations:LongitudinalObservationInput[]):{observations:LongitudinalObservationInput[];skipped:number}{
+  const seen=new Set<string>(); const out:LongitudinalObservationInput[]=[]; let skipped=0;
+  for(const observation of observations){const signature=stableJson(observation); if(seen.has(signature)){skipped++; continue;} seen.add(signature); out.push(observation);}
+  return {observations:out,skipped};
+}
+
+/** Group durable longitudinal observations without allowing chunk boundaries to become semantic boundaries. */
+export function assembleLongitudinalCorpus(chunks:LongitudinalObservationInput[][], groupSize=64):LongitudinalCorpus {
+  if(groupSize<1) throw new Error("groupSize must be at least 1");
+  const deduped=dedupeLongitudinalObservations(chunks.flat()); const observations=deduped.observations; const packets:CogPacket[]=[];
+  for(let i=0;i<observations.length;i+=groupSize) packets.push(longitudinalObservationsToPacket(observations.slice(i,i+groupSize),`longitudinal:${i/groupSize}`));
+  return {observations,packets,byPacketId:new Map(packets.map(p=>[p.id,p])),duplicateObservationsSkipped:deduped.skipped};
+}
+
+/** Freeze a deterministic untouched evaluation slice. Returned data is cloned and deeply frozen. */
+export function freezeExportSlice(id:string, packets:CogPacket[], start=0, count=packets.length):FrozenExportSlice {
+  const selected=structuredClone(packets.slice(start,start+count));
+  const deepFreeze=(value:any):any=>{if(value&&typeof value==="object"&&!Object.isFrozen(value)){Object.freeze(value);for(const child of Object.values(value))deepFreeze(child);}return value;};
+  deepFreeze(selected);
+  return Object.freeze({id,packetIds:Object.freeze(selected.map(p=>p.id)),packets:selected});
+}
+
+function stableBucket(id:string):number{
+  let h=2166136261;
+  for(let i=0;i<id.length;i++){h^=id.charCodeAt(i); h=Math.imul(h,16777619);}
+  return h>>>0;
+}
+
+/** Stable A/B split independent of arrival order. Same packet IDs always land in the same side. */
+export function splitFrozenExportSlices(packets:CogPacket[],heldOutFraction=.2,developmentId="A",heldOutId="B"):ExportSliceSplit{
+  if(!(heldOutFraction>0&&heldOutFraction<1)) throw new Error("heldOutFraction must be between 0 and 1");
+  const development:CogPacket[]=[]; const heldOut:CogPacket[]=[];
+  const cutoff=Math.floor(heldOutFraction*10000);
+  for(const packet of packets){((stableBucket(packet.id)%10000)<cutoff?heldOut:development).push(packet);}
+  return Object.freeze({development:freezeExportSlice(developmentId,development),heldOut:freezeExportSlice(heldOutId,heldOut)});
+}
+
+export function provenanceRetention(packet: CogPacket, expectedSources: string[]): number {
+  if (!expectedSources.length) return 1;
+  const actual = new Set([...packet.provenance, ...packet.evidence.flatMap((e) => e.provenance), ...packet.challenges.flatMap((c) => c.provenance)]);
+  return expectedSources.filter((source) => actual.has(source)).length / expectedSources.length;
+}

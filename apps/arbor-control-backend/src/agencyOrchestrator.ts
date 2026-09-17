@@ -10,6 +10,10 @@ export async function runAgencyToBoundary<
   initialInput: Input;
   run: AgencyRunner<Input>;
   maxWindows?: number;
+  prepareNextInput?: (
+    input: Input,
+    result: Extract<AgencyResult, { status: "checkpointed" }>,
+  ) => Input | Promise<Input>;
 }): Promise<AgencyResult> {
   const maxWindows = input.maxWindows ?? 32;
   let nextInput = input.initialInput;
@@ -33,10 +37,14 @@ export async function runAgencyToBoundary<
       };
     }
 
-    nextInput = {
+    const stateAdvancedInput = {
       ...nextInput,
       state: result.state,
     };
+
+    nextInput = input.prepareNextInput
+      ? await input.prepareNextInput(stateAdvancedInput, result)
+      : stateAdvancedInput;
   }
 
   return {
