@@ -1,3 +1,4 @@
+import { routeRoundabout, type RoundaboutRoute } from "./roundabout.js";
 import {
   allocateAttention,
   chooseExploration,
@@ -21,6 +22,7 @@ export interface CognitiveRuntimeState {
   exploration: CuriosityCandidate | null;
   consolidation: ConsolidationCandidate[];
   causalTraces: CausalTrace[];
+  roundabout: RoundaboutRoute;
   updatedAt: string;
 }
 
@@ -33,6 +35,7 @@ export function emptyCognitiveRuntimeState(now = Date.now()): CognitiveRuntimeSt
     exploration: null,
     consolidation: [],
     causalTraces: [],
+    roundabout: routeRoundabout([], 4, now),
     updatedAt: new Date(now).toISOString(),
   };
 }
@@ -84,6 +87,7 @@ export function updateCognitiveRuntime(input: {
     causalTraces: input.causalTrace
       ? [...prior.causalTraces, input.causalTrace].slice(-100)
       : [...prior.causalTraces],
+    roundabout: routeRoundabout(signals, input.attentionCapacity ?? 4, now),
     updatedAt: new Date(now).toISOString(),
   };
 }
@@ -97,6 +101,9 @@ export function renderCognitiveRuntime(state?: CognitiveRuntimeState): string {
       : "",
     state.attention.unresolvedIds.length
       ? `UNRESOLVED CONFLICT: ${state.attention.unresolvedIds.join(", ")}`
+      : "",
+    state.roundabout.reprocessIds.length
+      ? `ROUNDABOUT REPROCESS: ${state.roundabout.reprocessIds.join(", ")}`
       : "",
     state.predictions.some((x) => x.material)
       ? `MATERIAL PREDICTION ERRORS: ${state.predictions.filter((x) => x.material).map((x) => x.id).join(", ")}`
@@ -163,6 +170,7 @@ export function mergeCognitiveRuntimeState(
     exploration: conversation.exploration ?? project.exploration,
     consolidation: [...consolidationMap.values()].slice(-100),
     causalTraces: [...traceMap.values()].slice(-100),
+    roundabout: routeRoundabout(signals, 4, now),
     updatedAt: new Date(now).toISOString(),
   };
 }
