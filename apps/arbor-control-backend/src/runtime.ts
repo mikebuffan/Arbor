@@ -36,6 +36,9 @@ import {
   ARBOR_CORE_INJECTION,
 } from "./identity.js";
 import {
+  renderCurrentArborProfile,
+} from "./currentArborProfile.js";
+import {
   shouldCarryGoal,
 } from "./longitudinalPolicy.js";
 import {
@@ -654,6 +657,8 @@ export class ArborControlRuntime {
       // not construct or replace Arbor.
       const instructions = [
         ARBOR_CORE_INJECTION,
+
+        renderCurrentArborProfile(),
 
         renderSelfModelIdentityAnchor(
           state,
