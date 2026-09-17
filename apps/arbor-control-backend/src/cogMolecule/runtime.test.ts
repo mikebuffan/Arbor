@@ -7,8 +7,9 @@ const packet = (): CogPacket => ({
   evidence: [],
   hypotheses: [],
   unresolved: ["late evidence"],
+  challenges: [],
   provenance: ["test"],
-  friction: 1,
+  friction: 999, // ignored: runtime owns friction
   circulation: 0,
   metadata: {},
 });
@@ -20,19 +21,12 @@ describe("CogMoleculeRuntime", () => {
       async process(current, context) {
         const next = structuredClone(current);
         if (context.round >= 2) next.unresolved = [];
-        const before = next.friction;
-        next.friction = context.round >= 2 ? 0 : 0.5;
-        return {
-          packet: next,
-          frictionDelta: next.friction - before,
-          reasons: [context.round >= 2 ? "resolved" : "still live"],
-        };
+        return { packet: next, reasons: [context.round >= 2 ? "resolved" : "still live"] };
       },
     };
 
     const runtime = new CogMoleculeRuntime({
       cogs: [cog],
-      convergenceEpsilon: 1,
       releaseFriction: 0.05,
       validate: async () => ({ valid: true, reasons: ["validated"] }),
       project: async (current, reasons) => ({
@@ -49,49 +43,62 @@ describe("CogMoleculeRuntime", () => {
     const result = await runtime.run(packet());
     expect(result.disposition).toBe("assert");
     expect(result.packet.unresolved).toEqual([]);
-    expect(result.rounds).toBeGreaterThanOrEqual(2);
+    expect(result.rounds).toBeGreaterThanOrEqual(3);
+    expect(result.computeSpent).toBe(result.rounds);
   });
 
-  it("does not confuse convergence with validity", async () => {
+  it("derives friction from unresolved state instead of trusting a cog supplied scalar", async () => {
     const cog: Cog = {
-      id: "stable-wrong",
+      id: "liar",
       async process(current) {
-        return {
-          packet: { ...current, unresolved: [], friction: 0 },
-          frictionDelta: 0,
-          reasons: ["stable"],
-        };
+        return { packet: { ...current, friction: 0 }, reasons: ["claims zero friction"] };
       },
     };
 
     const runtime = new CogMoleculeRuntime({
       cogs: [cog],
       maxRounds: 2,
-      convergenceEpsilon: 1,
+      validate: async () => ({ valid: true, reasons: [] }),
+      project: async () => { throw new Error("must_not_release"); },
+    });
+
+    const result = await runtime.run(packet());
+    expect(result.disposition).toBe("circulate");
+    expect(result.packet.friction).toBeGreaterThan(0);
+  });
+
+  it("does not confuse convergence with validity and reopens a concrete challenge", async () => {
+    const cog: Cog = {
+      id: "stable-wrong",
+      async process(current) {
+        return { packet: { ...current, unresolved: [] }, reasons: ["stable"] };
+      },
+    };
+
+    const runtime = new CogMoleculeRuntime({
+      cogs: [cog],
+      maxRounds: 3,
       validate: async () => ({ valid: false, reasons: ["constraint violated"] }),
       project: async () => { throw new Error("must_not_release"); },
     });
 
     const result = await runtime.run(packet());
-    expect(result.disposition).toBe("abstain");
+    expect(result.disposition).toBe("circulate");
     expect(result.reasons).toContain("constraint violated");
+    expect(result.packet.challenges.some((challenge) => !challenge.resolved)).toBe(true);
+    expect(result.packet.friction).toBeGreaterThan(0);
   });
 
   it("seeks instead of asserting when validation identifies missing information", async () => {
     const cog: Cog = {
       id: "quiet",
       async process(current) {
-        return {
-          packet: { ...current, unresolved: [], friction: 0 },
-          frictionDelta: 0,
-          reasons: [],
-        };
+        return { packet: { ...current, unresolved: [] }, reasons: [] };
       },
     };
 
     const runtime = new CogMoleculeRuntime({
       cogs: [cog],
-      convergenceEpsilon: 1,
       validate: async () => ({
         valid: false,
         reasons: ["external evidence required"],
@@ -103,5 +110,6 @@ describe("CogMoleculeRuntime", () => {
     const result = await runtime.run(packet());
     expect(result.disposition).toBe("seek_more_information");
     expect(result.packet.unresolved).toContain("source document");
+    expect(result.packet.friction).toBeGreaterThan(0);
   });
 });
