@@ -3,7 +3,7 @@ import { longitudinalObservationsToPacket, type LongitudinalObservationInput } f
 import type { CogPacket } from "./types.js";
 
 export type ExportCorpus = { records: StructuredExportRecord[]; packets: CogPacket[]; byRecordId: Map<string, CogPacket> };
-export type LongitudinalCorpus = { observations: LongitudinalObservationInput[]; packets: CogPacket[]; byPacketId: Map<string, CogPacket> };
+export type LongitudinalCorpus = { observations: LongitudinalObservationInput[]; packets: CogPacket[]; byPacketId: Map<string, CogPacket>; duplicateObservationsSkipped:number };
 export type FrozenExportSlice = Readonly<{ id:string; packetIds:readonly string[]; packets:readonly CogPacket[] }>;
 export type ExportSliceSplit = Readonly<{ development:FrozenExportSlice; heldOut:FrozenExportSlice }>;
 
@@ -14,11 +14,26 @@ export function assembleExportCorpus(chunks: StructuredExportRecord[][]): Export
   return { records, packets, byRecordId: new Map(packets.map((packet) => [packet.id, packet])) };
 }
 
+function stableJson(value:unknown):string{
+  if(value===null||typeof value!=="object") return JSON.stringify(value);
+  if(Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`;
+  const object=value as Record<string,unknown>;
+  return `{${Object.keys(object).sort().map(key=>`${JSON.stringify(key)}:${stableJson(object[key])}`).join(",")}}`;
+}
+
+/** Collapse exact repeated observations only. Same ID with different content remains conflicting evidence. */
+export function dedupeLongitudinalObservations(observations:LongitudinalObservationInput[]):{observations:LongitudinalObservationInput[];skipped:number}{
+  const seen=new Set<string>(); const out:LongitudinalObservationInput[]=[]; let skipped=0;
+  for(const observation of observations){const signature=stableJson(observation); if(seen.has(signature)){skipped++; continue;} seen.add(signature); out.push(observation);}
+  return {observations:out,skipped};
+}
+
 /** Group durable longitudinal observations without allowing chunk boundaries to become semantic boundaries. */
 export function assembleLongitudinalCorpus(chunks:LongitudinalObservationInput[][], groupSize=64):LongitudinalCorpus {
-  const observations=chunks.flat(); const packets:CogPacket[]=[];
+  if(groupSize<1) throw new Error("groupSize must be at least 1");
+  const deduped=dedupeLongitudinalObservations(chunks.flat()); const observations=deduped.observations; const packets:CogPacket[]=[];
   for(let i=0;i<observations.length;i+=groupSize) packets.push(longitudinalObservationsToPacket(observations.slice(i,i+groupSize),`longitudinal:${i/groupSize}`));
-  return {observations,packets,byPacketId:new Map(packets.map(p=>[p.id,p]))};
+  return {observations,packets,byPacketId:new Map(packets.map(p=>[p.id,p])),duplicateObservationsSkipped:deduped.skipped};
 }
 
 /** Freeze a deterministic untouched evaluation slice. Returned data is cloned and deeply frozen. */
