@@ -857,7 +857,7 @@ export class ArborControlRuntime {
               round: number;
               complete: boolean;
               unresolvedCount: number;
-              strategyCandidate?: string;
+              strategyCandidate: string | null;
               toolCalls: number;
               researchCalls: number;
             }) => {
