@@ -719,3 +719,48 @@ describe("Arbor control runtime pass", () => {
   });
 
 });
+
+
+describe("cross-thread cognitive continuity", () => {
+  it("carries project cognitive state into a fresh conversation overlay", async () => {
+    const observed: ArborState[] = [];
+    const runner: AgencyRunner = async (input) => {
+      observed.push(structuredClone(input.state));
+      return {
+        status: "complete",
+        text: "ok",
+        state: {
+          ...input.state,
+          unresolvedWork: input.userText === "start"
+            ? ["finish remaining work"]
+            : [],
+        },
+        rounds: 1,
+        toolCalls: 0,
+        researchCalls: 0,
+      };
+    };
+
+    const { runtime } = await fixture(runner);
+
+    await runtime.runTurn({
+      projectId: "project-cognitive",
+      conversationId: "thread-a",
+      turnId: "thread-a-1",
+      userText: "start",
+    });
+
+    await runtime.runTurn({
+      projectId: "project-cognitive",
+      conversationId: "thread-b",
+      turnId: "thread-b-1",
+      userText: "go",
+    });
+
+    expect(observed[1]?.goal).toBe("start");
+    expect(observed[1]?.unresolvedWork).toContain("finish remaining work");
+    expect(observed[1]?.cognitiveRuntime?.signals.some(
+      (signal) => signal.content === "start",
+    )).toBe(true);
+  });
+});
