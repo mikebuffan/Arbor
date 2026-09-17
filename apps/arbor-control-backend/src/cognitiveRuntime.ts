@@ -2,6 +2,7 @@ import { routeRoundabout, type RoundaboutRoute } from "./roundabout.js";
 import {
   allocateAttention,
   chooseExploration,
+  liveSignals,
   consolidate,
   observePrediction,
   rankCounterfactuals,
@@ -58,8 +59,7 @@ export function updateCognitiveRuntime(input: {
     signalMap.set(signal.id, signal);
   }
 
-  const signals = [...signalMap.values()]
-    .filter((signal) => !signal.validUntil || now < Date.parse(signal.validUntil));
+  const signals = liveSignals([...signalMap.values()], now);
 
   const predictions = input.prediction
     ? upsert(prior.predictions, observePrediction(
@@ -135,8 +135,7 @@ export function mergeCognitiveRuntimeState(
   for (const signal of [...project.signals, ...conversation.signals]) {
     signalMap.set(signal.id, signal);
   }
-  const signals = [...signalMap.values()]
-    .filter((signal) => !signal.validUntil || now < Date.parse(signal.validUntil));
+  const signals = liveSignals([...signalMap.values()], now);
 
   const predictionMap = new Map<string, PredictionRecord>();
   for (const prediction of [...project.predictions, ...conversation.predictions]) {
