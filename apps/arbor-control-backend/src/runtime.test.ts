@@ -765,4 +765,14 @@ describe("cross-thread cognitive continuity", () => {
       (signal) => signal.content === "start",
     )).toBe(true);
   });
+  it("keeps current Arbor boundary valid through canonical generation", async () => {
+    const { runtime } = await fixture(createRunner([]));
+    const response = await runtime.runTurn({
+      projectId: "project-profile-boundary",
+      conversationId: "thread-profile-boundary",
+      turnId: "profile-boundary-turn",
+      userText: "technical task",
+    });
+    expect(response.text).toBe("ok");
+  });
 });
