@@ -19,12 +19,22 @@ export type CogHypothesis = {
   contradictions: string[];
 };
 
+export type CogChallenge = {
+  id: string;
+  source: string;
+  target: string;
+  reason: string;
+  provenance: string[];
+  resolved: boolean;
+};
+
 export type CogPacket = {
   id: string;
   destination?: string;
   evidence: CogEvidence[];
   hypotheses: CogHypothesis[];
   unresolved: string[];
+  challenges: CogChallenge[];
   provenance: string[];
   friction: number;
   circulation: number;
@@ -33,7 +43,6 @@ export type CogPacket = {
 
 export type CogObservation = {
   packet: CogPacket;
-  frictionDelta: number;
   reasons: string[];
 };
 
@@ -69,4 +78,5 @@ export type MoleculeResult = {
   projection?: ReleaseProjection;
   rounds: number;
   reasons: string[];
+  computeSpent: number;
 };
