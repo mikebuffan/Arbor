@@ -102,11 +102,18 @@ export async function runAgency<SharedState>(input: {
   const maxSteps = input.maxSteps ?? 64;
 
   for (let i = 0; i < maxSteps; i += 1) {
+    // Advance the durable step before assessment so completion checks see the
+    // work already performed on the previous iteration. Previously assessment
+    // saw the stale step and could checkpoint a goal that was actually done.
+    agency = {
+      ...agency,
+      currentStep: i,
+    };
+
     const assessment = await input.runtime.assess({ agency, shared });
 
     agency = {
       ...agency,
-      currentStep: i,
       unresolvedWork: assessment.unresolvedWork,
     };
 
@@ -149,12 +156,7 @@ export async function runAgency<SharedState>(input: {
     const result = await input.runtime.execute({ agency, shared, action });
     shared = await input.runtime.integrate({ agency, shared, action, result });
 
-    const verification = await input.runtime.verify({
-      agency,
-      shared,
-      action,
-      result,
-    });
+    const verification = await input.runtime.verify({ agency, shared, action, result });
 
     agency = {
       ...agency,
@@ -165,17 +167,10 @@ export async function runAgency<SharedState>(input: {
         : [...new Set([...agency.unresolvedWork, verification.correction ?? `verification failed: ${action.description}`])],
     };
 
-    const audit = await input.runtime.selfAudit({
-      agency,
-      shared,
-      verification,
-    });
+    const audit = await input.runtime.selfAudit({ agency, shared, verification });
 
     const strategyUpdate = audit.strategyChange
-      ? recordStrategyCandidate(
-          agency.strategyNotes,
-          audit.strategyChange,
-        )
+      ? recordStrategyCandidate(agency.strategyNotes, audit.strategyChange)
       : null;
 
     agency = {
@@ -185,15 +180,11 @@ export async function runAgency<SharedState>(input: {
       recurringWeaknesses: audit.recurringWeakness
         ? [...agency.recurringWeaknesses, audit.recurringWeakness].slice(-20)
         : agency.recurringWeaknesses,
-      strategyNotes:
-        strategyUpdate?.notes ??
-        agency.strategyNotes,
+      strategyNotes: strategyUpdate?.notes ?? agency.strategyNotes,
     };
 
     await input.runtime.persist({ agency, shared });
 
-    // Mandatory continuation gate. Persisting or successfully verifying one
-    // action is progress, not completion. Do not return a progress result here.
     if (agencyYieldDecision(agency).yield) {
       return { agency, shared };
     }
