@@ -1,0 +1,38 @@
+name: Repair stale correction test expectation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/repair-stale-correction-test.yml
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Patch stale expectation and remove temporary workflow
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('apps/backend/lib/memory/__tests__/correctionResolution.test.ts')
+          text = path.read_text()
+          old = '''    expect(upsertItems).toHaveBeenCalledWith(\n      userId,\n      [],\n      projectA,\n      emptySupabase,\n    );'''
+          new = '''    expect(upsertItems).toHaveBeenCalledWith(\n      userId,\n      [],\n      projectA,\n      emptySupabase,\n      null,\n    );'''
+          count = text.count(old)
+          if count != 1:
+              raise SystemExit(f'expected exactly one stale assertion, found {count}')
+          path.write_text(text.replace(old, new))
+          PY
+          rm .github/workflows/repair-stale-correction-test.yml
+          git config user.name "Arbor CI Repair"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git commit -m "Align correction resolution test with scoped persistence"
+          git push
