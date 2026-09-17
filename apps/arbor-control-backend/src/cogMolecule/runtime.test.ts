@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { AdaptiveComputePolicy } from "./adaptiveCompute.js";
 import { CogMoleculeRuntime } from "./runtime.js";
 import type { Cog, CogPacket } from "./types.js";
 
@@ -65,6 +66,42 @@ describe("CogMoleculeRuntime", () => {
     const result = await runtime.run(packet());
     expect(result.disposition).toBe("circulate");
     expect(result.packet.friction).toBeGreaterThan(0);
+  });
+
+  it("escalates compute when friction appears after processing begins", async () => {
+    const cog: Cog = {
+      id: "discover-conflict",
+      async process(current, context) {
+        const next = structuredClone(current);
+        if (context.round === 1) {
+          next.hypotheses = [{
+            id: "h1",
+            value: "candidate",
+            confidence: 0,
+            support: [],
+            contradictions: ["c1", "c2", "c3", "c4", "c5"],
+          }];
+        }
+        return { packet: next, reasons: ["processed"] };
+      },
+    };
+
+    const initial = packet();
+    initial.unresolved = [];
+    const runtime = new CogMoleculeRuntime({
+      cogs: [cog],
+      maxRounds: 16,
+      adaptiveCompute: new AdaptiveComputePolicy([
+        { maxRounds: 2, frictionAtLeast: 0 },
+        { maxRounds: 8, frictionAtLeast: 0.4 },
+      ]),
+      validate: async () => ({ valid: false, reasons: [] }),
+      project: async () => { throw new Error("must_not_release"); },
+    });
+
+    const result = await runtime.run(initial);
+    expect(result.rounds).toBe(8);
+    expect(result.reasons.some((reason) => reason.startsWith("adaptive_compute_escalated:"))).toBe(true);
   });
 
   it("does not confuse convergence with validity and reopens a concrete challenge", async () => {
