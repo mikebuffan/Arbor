@@ -50,8 +50,12 @@ export function updateCognitiveRuntime(input: {
 }): CognitiveRuntimeState {
   const now = input.now ?? Date.now();
   const prior = input.prior ?? emptyCognitiveRuntimeState(now);
-  const signals = [...prior.signals, ...(input.signals ?? [])]
-    .filter((signal, index, all) => all.findLastIndex((x) => x.id === signal.id) === index)
+  const signalMap = new Map<string, BridgeSignal>();
+  for (const signal of [...prior.signals, ...(input.signals ?? [])]) {
+    signalMap.set(signal.id, signal);
+  }
+
+  const signals = [...signalMap.values()]
     .filter((signal) => !signal.validUntil || now < Date.parse(signal.validUntil));
 
   const predictions = input.prediction
