@@ -11,6 +11,9 @@ import {
   type AgencyResult,
 } from "./agency.js";
 import {
+  runAgencyToBoundary,
+} from "./agencyOrchestrator.js";
+import {
   MikeBackendBridge,
   type ArborBackendBridge,
 } from "./backendBridge.js";
@@ -644,20 +647,22 @@ export class ArborControlRuntime {
       // Order: identity -> corrections -> continuity/open loops -> agency context
       // -> self-model -> task subsystem. Adapters consume this state; they do
       // not construct or replace Arbor.
-      const instructions = [
+      const buildInstructions = (
+        currentState: ArborState,
+      ): string => [
         ARBOR_CORE_INJECTION,
 
         renderSelfModelIdentityAnchor(
-          state,
+          currentState,
         ),
 
         (
-          state
+          currentState
             .behavioralCorrections ??
           []
         ).length
           ? `BEHAVIORAL CORRECTIONS:\n${(
-              state
+              currentState
                 .behavioralCorrections ??
               []
             )
@@ -665,29 +670,31 @@ export class ArborControlRuntime {
               .join("\n")}`
           : "",
 
-        state
+        currentState
           .acousticCorrections
           .length
-          ? `VOICE ACOUSTIC CORRECTIONS:\n${state.acousticCorrections
+          ? `VOICE ACOUSTIC CORRECTIONS:\n${currentState.acousticCorrections
               .map((item) => `- ${item}`)
               .join("\n")}`
           : "",
 
-        buildCarrierInjection(state),
+        buildCarrierInjection(
+          currentState,
+        ),
 
         renderSelfModelProjection(),
 
         subsystemInjection(
-          state,
+          currentState,
         ),
 
-        activeSubsystem ===
+        currentState
+          .activeSubsystem ===
         "annabelle"
           ? renderAnnabelleWorkspace(
-              state,
+              currentState,
             )
           : "",
-
 
         Object.keys(
           externalState,
@@ -697,10 +704,10 @@ export class ArborControlRuntime {
             )}`
           : "",
 
-        state
+        currentState
           .strategyNotes
           .length
-          ? `RETAINED STRATEGIES:\n${state.strategyNotes
+          ? `RETAINED STRATEGIES:\n${currentState.strategyNotes
               .map(
                 (
                   item,
@@ -712,10 +719,10 @@ export class ArborControlRuntime {
               )}`
           : "",
 
-        state
+        currentState
           .unresolvedWork
           .length
-          ? `UNRESOLVED WORK:\n${state.unresolvedWork
+          ? `UNRESOLVED WORK:\n${currentState.unresolvedWork
               .map(
                 (
                   item,
@@ -734,139 +741,179 @@ export class ArborControlRuntime {
           "\n\n",
         );
 
+      const initialAgencyInput = {
+        instructions:
+          buildInstructions(
+            state,
+          ),
+
+        userText:
+          request.userText,
+
+        history,
+
+        state,
+
+        capabilities:
+          buildControlCapabilities(),
+
+        context: {
+          projectId:
+            request.projectId,
+
+          conversationId:
+            request
+              .conversationId,
+
+          turnId,
+        },
+
+        hooks: {
+          onCapabilityStart:
+            async ({
+              round,
+              capability,
+              risk,
+            }: {
+              round: number;
+              capability: string;
+              risk: string;
+            }) => {
+              await this.record(
+                turnId,
+                request,
+                "act",
+                "capability_started",
+                {
+                  round,
+                  capability,
+                  risk,
+                },
+              );
+            },
+
+          onCapabilityResult:
+            async ({
+              round,
+              capability,
+              risk,
+            }: {
+              round: number;
+              capability: string;
+              risk: string;
+            }) => {
+              await this.record(
+                turnId,
+                request,
+                "observe",
+                "capability_completed",
+                {
+                  round,
+                  capability,
+                  risk,
+                },
+              );
+            },
+
+          onBoundary:
+            async ({
+              round,
+              capability,
+              risk,
+              blocker,
+            }: {
+              round: number;
+              capability?: string;
+              risk?: string;
+              blocker?: string;
+            }) => {
+              await this.record(
+                turnId,
+                request,
+                "blocked",
+                "agency_boundary",
+                {
+                  round,
+
+                  capability,
+
+                  risk,
+
+                  blockedReason:
+                    blocker,
+                },
+              );
+            },
+
+          onVerification:
+            async ({
+              round,
+              complete,
+              unresolvedCount,
+              strategyCandidate,
+              toolCalls,
+              researchCalls,
+            }: {
+              round: number;
+              complete: boolean;
+              unresolvedCount: number;
+              strategyCandidate?: string;
+              toolCalls: number;
+              researchCalls: number;
+            }) => {
+              await this.record(
+                turnId,
+                request,
+                "verify",
+                "completion_checked",
+                {
+                  round,
+
+                  complete,
+
+                  unresolvedCount,
+
+                  toolCalls:
+                    toolCalls +
+                    researchCalls,
+                },
+              );
+
+              if (
+                strategyCandidate
+              ) {
+                await this.record(
+                  turnId,
+                  request,
+                  "update",
+                  "strategy_candidate_observed",
+                  {
+                    round,
+
+                    strategyCandidate,
+                  },
+                );
+              }
+            },
+        },
+      };
+
       const agency =
-        await this.agencyRunner({
-          instructions,
+        await runAgencyToBoundary({
+          initialInput:
+            initialAgencyInput,
 
-          userText:
-            request.userText,
+          run:
+            this.agencyRunner,
 
-          history,
-
-          state,
-
-          capabilities:
-            buildControlCapabilities(),
-
-          context: {
-            projectId:
-              request.projectId,
-
-            conversationId:
-              request
-                .conversationId,
-
-            turnId,
-          },
-
-          hooks: {
-            onCapabilityStart:
-              async ({
-                round,
-                capability,
-                risk,
-              }) => {
-                await this.record(
-                  turnId,
-                  request,
-                  "act",
-                  "capability_started",
-                  {
-                    round,
-                    capability,
-                    risk,
-                  },
-                );
-              },
-
-            onCapabilityResult:
-              async ({
-                round,
-                capability,
-                risk,
-              }) => {
-                await this.record(
-                  turnId,
-                  request,
-                  "observe",
-                  "capability_completed",
-                  {
-                    round,
-                    capability,
-                    risk,
-                  },
-                );
-              },
-
-            onBoundary:
-              async ({
-                round,
-                capability,
-                risk,
-                blocker,
-              }) => {
-                await this.record(
-                  turnId,
-                  request,
-                  "blocked",
-                  "agency_boundary",
-                  {
-                    round,
-
-                    capability,
-
-                    risk,
-
-                    blockedReason:
-                      blocker,
-                  },
-                );
-              },
-
-            onVerification:
-              async ({
-                round,
-                complete,
-                unresolvedCount,
-                strategyCandidate,
-                toolCalls,
-                researchCalls,
-              }) => {
-                await this.record(
-                  turnId,
-                  request,
-                  "verify",
-                  "completion_checked",
-                  {
-                    round,
-
-                    complete,
-
-                    unresolvedCount,
-
-                    toolCalls:
-                      toolCalls +
-                      researchCalls,
-                  },
-                );
-
-                if (
-                  strategyCandidate
-                ) {
-                  await this.record(
-                    turnId,
-                    request,
-                    "update",
-                    "strategy_candidate_observed",
-                    {
-                      round,
-
-                      strategyCandidate,
-                    },
-                  );
-                }
-              },
-          },
+          prepareNextInput:
+            (next) => ({
+              ...next,
+              instructions:
+                buildInstructions(
+                  next.state,
+                ),
+            }),
         });
 
       // Provider/model output may propose task/runtime state, but Arbor's
