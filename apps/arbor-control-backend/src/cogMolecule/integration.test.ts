@@ -8,92 +8,10 @@ import { ArborMoleculeIntegration } from "./integration.js";
 import { MoleculeRuntime } from "./molecule.js";
 import { CogMoleculeRuntime } from "./runtime.js";
 
-function state(): ArborState {
-  return {
-    activeSubsystem: "arbor",
-    goal: null,
-    unresolvedWork: [],
-    strategyNotes: ["preserve provenance"],
-    behavioralCorrections: ["do not invent"],
-    acousticCorrections: [],
-    voiceId: "test",
-    selfModel: {
-      version: "identity-v1",
-      checksum: "checksum",
-      sourceDigest: "digest",
-      sourceQuestionCount: 1,
-      promotedPatternIds: [],
-      initializedAt: "2026-01-01T00:00:00.000Z",
-      verifiedAt: "2026-01-01T00:00:00.000Z",
-    },
-  };
-}
+function state(): ArborState { return { activeSubsystem:"arbor",goal:null,unresolvedWork:[],strategyNotes:["preserve provenance"],behavioralCorrections:["do not invent"],acousticCorrections:[],voiceId:"test",selfModel:{version:"identity-v1",checksum:"checksum",sourceDigest:"digest",sourceQuestionCount:1,promotedPatternIds:[],initializedAt:"2026-01-01T00:00:00.000Z",verifiedAt:"2026-01-01T00:00:00.000Z"} }; }
+function circle(process:(packet:any)=>any=new Function("packet","return packet") as any){return new CogMoleculeRuntime({cogs:[{id:"worker",async process(packet){return {packet:process(structuredClone(packet)),reasons:["observed"]};}}],validate:async(packet)=>({valid:packet.unresolved.length===0,reasons:packet.unresolved.length?["still-open"]:["valid"]}),project:async(packet,reasons)=>({disposition:"assert",packet,ordered:packet.evidence.map((i:any)=>i.id),provenance:packet.provenance,confidence:1,friction:packet.friction,reasons})});}
 
-describe("ArborMoleculeIntegration", () => {
-  it("runs carrier retrieval capabilities persistence and audit without mutating identity", async () => {
-    let saved = state();
-    const originalIdentity = structuredClone(saved.selfModel);
-    const store = {
-      load: async () => structuredClone(saved),
-      save: async (_scope: string, next: ArborState) => { saved = structuredClone(next); },
-      recentMessages: async () => [
-        { role: "user" as const, content: "earlier question" },
-        { role: "assistant" as const, content: "earlier answer" },
-      ],
-    } as unknown as ArborStateStore;
-
-    const bridge: ArborBackendBridge = {
-      async loadState() {
-        return { memory: [{ key: "m1", value: "remembered", confidence: 0.9 }] };
-      },
-      async persistTurn() {},
-    };
-
-    const capabilities = new ArborCapabilityRegistry().register({
-      name: "read_example",
-      description: "read an example",
-      parameters: { type: "object", properties: {}, additionalProperties: false },
-      risk: "read",
-      async execute() { return { result: "ok" }; },
-    });
-
-    const auditEvents: Array<{ event: string }> = [];
-    const audit = {
-      async record(event: { event: string }) { auditEvents.push({ event: event.event }); },
-      async recent() { return []; },
-    } as unknown as ArborAuditSink;
-
-    const circle = new CogMoleculeRuntime({
-      cogs: [{ id: "noop", async process(packet) { return { packet, reasons: ["observed"] }; } }],
-      validate: async () => ({ valid: true, reasons: ["valid"] }),
-      project: async (packet, reasons) => ({
-        disposition: "assert",
-        packet,
-        ordered: packet.evidence.map((item) => item.id),
-        provenance: packet.provenance,
-        confidence: 1,
-        friction: packet.friction,
-        reasons,
-      }),
-    });
-
-    const integration = new ArborMoleculeIntegration(
-      new MoleculeRuntime([{ id: "reason", runtime: circle }], []),
-      store,
-      bridge,
-      capabilities,
-      audit,
-    );
-
-    const run = await integration.run({ startNode: "reason", packetId: "p1", turnId: "t1" });
-    const evidenceIds = run.result.packet.evidence.map((item) => item.id);
-
-    expect(run.result.disposition).toBe("assert");
-    expect(evidenceIds).toContain("memory:m1");
-    expect(evidenceIds).toContain("capability:read_example");
-    expect(evidenceIds.some((id) => id.startsWith("history:"))).toBe(true);
-    expect(saved.selfModel).toEqual(originalIdentity);
-    expect(saved.behavioralCorrections).toEqual(["do not invent"]);
-    expect(auditEvents.some((event) => event.event === "cog_molecule_complete")).toBe(true);
-  });
+describe("ArborMoleculeIntegration",()=>{
+ it("runs carrier retrieval capabilities persistence and audit without mutating identity",async()=>{let saved=state();const originalIdentity=structuredClone(saved.selfModel);const store={load:async()=>structuredClone(saved),save:async(_scope:string,next:ArborState)=>{saved=structuredClone(next);},recentMessages:async()=>[{role:"user" as const,content:"earlier question"},{role:"assistant" as const,content:"earlier answer"}]} as unknown as ArborStateStore;const bridge:ArborBackendBridge={async loadState(){return {memory:[{key:"m1",value:"remembered",confidence:.9}]};},async persistTurn(){}};const capabilities=new ArborCapabilityRegistry().register({name:"read_example",description:"read an example",parameters:{type:"object",properties:{},additionalProperties:false},risk:"read",async execute(){return {result:"ok"};}});const auditEvents:Array<{event:string}>=[];const audit={async record(event:{event:string}){auditEvents.push({event:event.event});},async recent(){return [];}} as unknown as ArborAuditSink;const integration=new ArborMoleculeIntegration(new MoleculeRuntime([{id:"reason",runtime:circle()}],[]),store,bridge,capabilities,audit);const run=await integration.run({startNode:"reason",packetId:"p1",turnId:"t1"});const evidenceIds=run.result.packet.evidence.map(i=>i.id);expect(run.result.disposition).toBe("assert");expect(evidenceIds).toContain("memory:m1");expect(evidenceIds).toContain("capability:read_example");expect(evidenceIds.some(id=>id.startsWith("history:"))).toBe(true);expect(saved.selfModel).toEqual(originalIdentity);expect(saved.behavioralCorrections).toEqual(["do not invent"]);expect(auditEvents.some(e=>e.event==="cog_molecule_complete")).toBe(true);});
+ it("persists unresolved work and reloads it on the next turn without rewriting identity",async()=>{let saved={...state(),goal:"finish export gate",unresolvedWork:["late evidence"]};const identity=structuredClone(saved.selfModel);let saves=0;const store={load:async()=>structuredClone(saved),save:async(_scope:string,next:ArborState)=>{saved=structuredClone(next);saves++;},recentMessages:async()=>[]} as unknown as ArborStateStore;const bridge:ArborBackendBridge={async loadState(){return {memory:[]};},async persistTurn(){}};const integration=new ArborMoleculeIntegration(new MoleculeRuntime([{id:"reason",runtime:circle()}],[]),store,bridge);const first=await integration.run({startNode:"reason",packetId:"turn-1",turnId:"t1"});expect(first.result.packet.unresolved).toContain("goal:finish export gate");expect(first.result.packet.unresolved).toContain("open:late evidence");expect(saved.goal).toBe("finish export gate");expect(saved.unresolvedWork).toEqual(["late evidence"]);const second=await integration.run({startNode:"reason",packetId:"turn-2",turnId:"t2"});expect(second.result.packet.unresolved).toContain("goal:finish export gate");expect(second.result.packet.unresolved).toContain("open:late evidence");expect(saved.selfModel).toEqual(identity);expect(saves).toBe(2);});
 });
