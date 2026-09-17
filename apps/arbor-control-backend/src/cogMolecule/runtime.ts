@@ -1,5 +1,5 @@
 import { AdaptiveComputePolicy } from "./adaptiveCompute.js";
-import type { Cog, CogPacket, MoleculeResult, ReleaseProjection, ValidationResult } from "./types.js";
+import type { Cog, CogEvidence, CogHypothesis, CogChallenge, CogPacket, MoleculeResult, ReleaseProjection, ValidationResult } from "./types.js";
 
 export type CogMoleculeRuntimeOptions = {
   cogs: Cog[];
@@ -31,13 +31,8 @@ export class CogMoleculeRuntime {
     let packet = normalizePacket(structuredClone(initial));
     packet.friction = this.measureFriction(packet);
     const initialDecision = this.options.adaptiveCompute?.decide(packet.friction);
-    let effectiveMaxRounds = Math.min(
-      this.configuredMaxRounds,
-      initialDecision?.maxRounds ?? this.configuredMaxRounds,
-    );
-    const reasons: string[] = initialDecision
-      ? [`adaptive_compute: ${initialDecision.reason}`]
-      : [];
+    let effectiveMaxRounds = Math.min(this.configuredMaxRounds, initialDecision?.maxRounds ?? this.configuredMaxRounds);
+    const reasons: string[] = initialDecision ? [`adaptive_compute: ${initialDecision.reason}`] : [];
     let previousSignature = packetSignature(packet);
     let computeSpent = 0;
     let round = 0;
@@ -53,14 +48,10 @@ export class CogMoleculeRuntime {
       }
 
       packet.friction = this.measureFriction(packet);
-
       const nextDecision = this.options.adaptiveCompute?.decide(packet.friction);
       if (nextDecision) {
         const proposedMax = Math.min(this.configuredMaxRounds, nextDecision.maxRounds);
-        if (proposedMax > effectiveMaxRounds) {
-          effectiveMaxRounds = proposedMax;
-          reasons.push(`adaptive_compute_escalated: ${nextDecision.reason}`);
-        }
+        if (proposedMax > effectiveMaxRounds) { effectiveMaxRounds = proposedMax; reasons.push(`adaptive_compute_escalated: ${nextDecision.reason}`); }
       }
 
       const signature = packetSignature(packet);
@@ -79,54 +70,47 @@ export class CogMoleculeRuntime {
           const projection = await this.options.project(packet, reasons);
           return { disposition: projection.disposition, packet, projection, rounds: round, reasons, computeSpent };
         }
-        packet.challenges.push({
-          id: `validation:${round}:${packet.challenges.length}`,
-          source: "validator",
-          target: packet.destination ?? packet.id,
-          reason: validation.reasons.join("; ") || "validation failed",
-          provenance: [...packet.provenance],
-          resolved: false,
-        });
+        packet.challenges.push({ id: `validation:${round}:${packet.challenges.length}`, source: "validator", target: packet.destination ?? packet.id, reason: validation.reasons.join("; ") || "validation failed", provenance: [...packet.provenance], resolved: false });
+        packet = normalizePacket(packet);
         packet.friction = this.measureFriction(packet);
         previousSignature = "validation_reopened";
-
         const reopenedDecision = this.options.adaptiveCompute?.decide(packet.friction);
         if (reopenedDecision) {
           const proposedMax = Math.min(this.configuredMaxRounds, reopenedDecision.maxRounds);
-          if (proposedMax > effectiveMaxRounds) {
-            effectiveMaxRounds = proposedMax;
-            reasons.push(`adaptive_compute_escalated: ${reopenedDecision.reason}`);
-          }
+          if (proposedMax > effectiveMaxRounds) { effectiveMaxRounds = proposedMax; reasons.push(`adaptive_compute_escalated: ${reopenedDecision.reason}`); }
         }
       }
     }
 
-    return {
-      disposition: packet.unresolved.length || unresolvedChallenges(packet) ? "circulate" : "abstain",
-      packet,
-      rounds: round,
-      reasons: [...reasons, "compute boundary reached without validated release"],
-      computeSpent,
-    };
+    return { disposition: packet.unresolved.length || unresolvedChallenges(packet) ? "circulate" : "abstain", packet, rounds: round, reasons: [...reasons, "compute boundary reached without validated release"], computeSpent };
   }
 
   private measureFriction(packet: CogPacket): number {
     const unresolvedPressure = saturating(packet.unresolved.length);
     const contradictionPressure = saturating(packet.hypotheses.reduce((sum, h) => sum + h.contradictions.length, 0));
     const challengePressure = saturating(unresolvedChallenges(packet));
-    const uncertaintyPressure = packet.hypotheses.length
-      ? packet.hypotheses.reduce((sum, h) => sum + (1 - clamp01(h.confidence)), 0) / packet.hypotheses.length : 0;
+    const uncertaintyPressure = packet.hypotheses.length ? packet.hypotheses.reduce((sum, h) => sum + (1 - clamp01(h.confidence)), 0) / packet.hypotheses.length : 0;
     return clamp01(unresolvedPressure * this.frictionWeights.unresolved + contradictionPressure * this.frictionWeights.contradiction + challengePressure * this.frictionWeights.challenge + uncertaintyPressure * this.frictionWeights.uncertainty);
   }
 }
 
 function normalizePacket(packet: CogPacket): CogPacket {
-  return { ...packet, unresolved: unique(packet.unresolved ?? []), challenges: packet.challenges ?? [], provenance: unique(packet.provenance ?? []) };
+  return {
+    ...packet,
+    evidence: dedupeById(packet.evidence ?? []),
+    hypotheses: dedupeById(packet.hypotheses ?? []),
+    unresolved: unique(packet.unresolved ?? []),
+    challenges: dedupeById(packet.challenges ?? []),
+    provenance: unique(packet.provenance ?? []),
+  };
+}
+function dedupeById<T extends CogEvidence | CogHypothesis | CogChallenge>(values: T[]): T[] {
+  const byId = new Map<string, T>();
+  for (const value of values) byId.set(value.id, value);
+  return [...byId.values()];
 }
 function unresolvedChallenges(packet: CogPacket): number { return packet.challenges.filter((challenge) => !challenge.resolved).length; }
-function packetSignature(packet: CogPacket): string {
-  return JSON.stringify({ evidence: packet.evidence, hypotheses: packet.hypotheses, unresolved: packet.unresolved, challenges: packet.challenges, provenance: packet.provenance, destination: packet.destination });
-}
+function packetSignature(packet: CogPacket): string { return JSON.stringify({ evidence: packet.evidence, hypotheses: packet.hypotheses, unresolved: packet.unresolved, challenges: packet.challenges, provenance: packet.provenance, destination: packet.destination }); }
 function saturating(count: number): number { return count <= 0 ? 0 : count / (count + 1); }
 function clamp01(value: number): number { return Math.max(0, Math.min(1, value)); }
 function unique(values: string[]): string[] { return [...new Set(values.map((value) => value.trim()).filter(Boolean))]; }
