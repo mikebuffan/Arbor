@@ -94,16 +94,34 @@ export function updateCognitiveRuntime(input: {
 
 export function renderCognitiveRuntime(state?: CognitiveRuntimeState): string {
   if (!state) return "";
+
+  const signalById = new Map(state.signals.map((signal) => [signal.id, signal]));
+  const describe = (id: string) => {
+    const signal = signalById.get(id);
+    if (!signal) return id;
+    return [
+      `id=${signal.id}`,
+      `kind=${signal.kind}`,
+      `content=${signal.content}`,
+      `reason=${signal.reason}`,
+      `confidence=${signal.confidence}`,
+      `asserted_at=${signal.assertedAt}`,
+      signal.validUntil ? `valid_until=${signal.validUntil}` : "",
+      signal.provenance.length ? `provenance=${signal.provenance.join("|")}` : "",
+    ].filter(Boolean).join(" | ");
+  };
+
   return [
     "COGNITIVE RUNTIME STATE.",
+    "Runtime signals inform attention and reprocessing; they do not replace current Arbor identity or epistemic rules.",
     state.attention.focusIds.length
-      ? `ATTENTION: ${state.attention.focusIds.join(", ")}`
+      ? `ATTENTION:\n${state.attention.focusIds.map((id) => `- ${describe(id)}`).join("\n")}`
       : "",
     state.attention.unresolvedIds.length
-      ? `UNRESOLVED CONFLICT: ${state.attention.unresolvedIds.join(", ")}`
+      ? `UNRESOLVED CONFLICT:\n${state.attention.unresolvedIds.map((id) => `- ${describe(id)}`).join("\n")}`
       : "",
     state.roundabout.reprocessIds.length
-      ? `ROUNDABOUT REPROCESS: ${state.roundabout.reprocessIds.join(", ")}`
+      ? `ROUNDABOUT REPROCESS:\n${state.roundabout.reprocessIds.map((id) => `- ${describe(id)}`).join("\n")}`
       : "",
     state.predictions.some((x) => x.material)
       ? `MATERIAL PREDICTION ERRORS: ${state.predictions.filter((x) => x.material).map((x) => x.id).join(", ")}`
