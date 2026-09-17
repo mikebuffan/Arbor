@@ -1,21 +1,16 @@
 import type { AgencyResult } from "./agency.js";
 
-export type AgencyRunInput<State> = {
-  state: State;
-};
-
-export type AgencyRunner<Input, Result> = (
+export type AgencyRunner<Input> = (
   input: Input,
-) => Promise<Result>;
+) => Promise<AgencyResult>;
 
 export async function runAgencyToBoundary<
-  Input extends { state: Result["state"] },
-  Result extends AgencyResult,
+  Input extends { state: AgencyResult["state"] },
 >(input: {
   initialInput: Input;
-  run: AgencyRunner<Input, Result>;
+  run: AgencyRunner<Input>;
   maxWindows?: number;
-}): Promise<Result> {
+}): Promise<AgencyResult> {
   const maxWindows = input.maxWindows ?? 32;
   let nextInput = input.initialInput;
   let totalRounds = 0;
@@ -35,7 +30,7 @@ export async function runAgencyToBoundary<
         rounds: totalRounds,
         toolCalls: totalToolCalls,
         researchCalls: totalResearchCalls,
-      } as Result;
+      };
     }
 
     nextInput = {
@@ -44,12 +39,12 @@ export async function runAgencyToBoundary<
     };
   }
 
-  const exhausted = await input.run(nextInput);
-
   return {
-    ...exhausted,
-    rounds: totalRounds + exhausted.rounds,
-    toolCalls: totalToolCalls + exhausted.toolCalls,
-    researchCalls: totalResearchCalls + exhausted.researchCalls,
-  } as Result;
+    status: "checkpointed",
+    text: "Agency outer execution ceiling reached; active objective remains checkpointed.",
+    state: nextInput.state,
+    rounds: totalRounds,
+    toolCalls: totalToolCalls,
+    researchCalls: totalResearchCalls,
+  };
 }
