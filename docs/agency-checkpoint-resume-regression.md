@@ -33,3 +33,6 @@ Add an integration test where work requires more than one `maxRounds` window. As
 - intermediate success is not emitted as final completion;
 - the parent objective eventually returns `complete` or a genuine boundary;
 - state/open loops survive the checkpoint transition.
+
+## Active repair note
+2026-09-17: diagnosis confirmed at runtime behavior level. The inner agency engine preserves the objective correctly at a checkpoint; the remaining defect is orchestration/re-entry. Do not change the bounded inner-loop safeguards as a workaround. The production caller must consume `checkpointed` internally and re-enter the agency runner while preserving state, until `complete`, `blocked`, or a hard outer execution ceiling is reached.
