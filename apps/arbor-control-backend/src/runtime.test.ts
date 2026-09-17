@@ -773,6 +773,6 @@ describe("cross-thread cognitive continuity", () => {
       turnId: "profile-boundary-turn",
       userText: "technical task",
     });
-    expect(response.text).toBe("ok");
+    expect(response.text).toBe("Arbor canonical reply.");
   });
 });
