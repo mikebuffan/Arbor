@@ -24,7 +24,7 @@ function item(
 }
 
 describe("automatic memory promotion", () => {
-  it("does not require an explicit remember command to promote identity continuity", () => {
+  it("withholds permanent identity promotion without current-turn durable authorization", () => {
     const result = scoreMemoryPromotion({
       item: item({
         key: "arbor.identity.baseline",
@@ -33,12 +33,27 @@ describe("automatic memory promotion", () => {
         confidence: 0.95,
         scope: "project",
       }),
-      userMessage:
-        "Arbor must preserve continuity and avoid generic drift.",
+      userMessage: "Arbor must preserve continuity and avoid generic drift.",
+    });
+
+    expect(result.classification).not.toBe("anchor");
+    expect(result.classification).not.toBe("promote");
+    expect(result.reasons).toContain("Durable promotion withheld: no explicit current-turn authorization.");
+  });
+
+  it("promotes identity continuity when durable authorization is explicit", () => {
+    const result = scoreMemoryPromotion({
+      item: item({
+        key: "arbor.identity.baseline",
+        value: "Arbor must preserve continuity and avoid generic drift.",
+        importance: 9,
+        confidence: 0.95,
+        scope: "project",
+      }),
+      userMessage: "Remember this from now on: Arbor must preserve continuity and avoid generic drift.",
     });
 
     expect(result.classification).toBe("anchor");
-
     const [promoted] = applyMemoryPromotion([result]);
     expect(promoted.tier).toBe("core");
     expect(promoted.pinned).toBe(true);
@@ -47,42 +62,31 @@ describe("automatic memory promotion", () => {
 
   it("drops conversational filler instead of turning it into durable memory", () => {
     const result = scoreMemoryPromotion({
-      item: item({
-        key: "conversation.acknowledgment",
-        value: "okay",
-        importance: 1,
-        confidence: 0.5,
-      }),
+      item: item({ key: "conversation.acknowledgment", value: "okay", importance: 1, confidence: 0.5 }),
       userMessage: "okay",
     });
-
     expect(result.classification).toBe("discard");
     expect(applyMemoryPromotion([result])).toEqual([]);
   });
 
-  it("raises repeated preference signals without requiring manual save language", () => {
+  it("detects repeated preference signals but does not make them permanent implicitly", () => {
     const [result] = scoreMemoryPromotionBatch({
-      items: [
-        item({
-          key: "preferences.response_style.direct",
-          value: "Keep responses direct and familiar.",
-          importance: 6,
-          confidence: 0.9,
-          scope: "global",
-        }),
-      ],
-      relatedMemoryCountByKey: {
-        "preferences.response_style.direct": 4,
-      },
-      userMessage:
-        "Keep responses direct and familiar.",
+      items: [item({
+        key: "preferences.response_style.direct",
+        value: "Keep responses direct and familiar.",
+        importance: 6,
+        confidence: 0.9,
+        scope: "global",
+      })],
+      relatedMemoryCountByKey: { "preferences.response_style.direct": 4 },
+      userMessage: "Keep responses direct and familiar.",
     });
-
-    expect(["promote", "anchor"]).toContain(result.classification);
     expect(result.signals.repetition).toBeGreaterThanOrEqual(0.8);
+    expect(result.classification).not.toBe("promote");
+    expect(result.classification).not.toBe("anchor");
   });
 
-  it("keeps sensitive memories trigger-gated even when highly salient", () => {
+  it("keeps sensitive memories trigger-gated when explicitly authorized", () => {
     const result = scoreMemoryPromotion({
       item: item({
         key: "health.sensitive_context",
@@ -92,9 +96,8 @@ describe("automatic memory promotion", () => {
         importance: 9,
         confidence: 0.95,
       }),
-      userMessage: "This is important.",
+      userMessage: "Remember this from now on. This is important.",
     });
-
     const [promoted] = applyMemoryPromotion([result]);
     expect(promoted.tier).toBe("sensitive");
     expect(promoted.user_trigger_only).toBe(true);
@@ -112,13 +115,11 @@ describe("automatic memory promotion", () => {
       userMessage: "Stress test: pretend this is real.",
       isTestData: true,
     });
-
     expect(result.classification).toBe("discard");
     expect(applyMemoryPromotion([result])).toEqual([]);
   });
 
-
-  it("promotes an explicitly affirmed interaction preference instead of discarding it", () => {
+  it("promotes an explicitly durable interaction preference", () => {
     const result = scoreMemoryPromotion({
       item: item({
         key: "interaction.preference.mkay",
@@ -127,9 +128,8 @@ describe("automatic memory promotion", () => {
         confidence: 0.9,
         scope: "global",
       }),
-      userMessage: "I enjoy it.",
+      userMessage: "Remember this from now on: I enjoy it.",
     });
-
     expect(["promote", "anchor"]).toContain(result.classification);
     expect(result.signals.identityRelevance).toBeGreaterThanOrEqual(0.85);
   });
@@ -145,9 +145,7 @@ describe("automatic memory promotion", () => {
       }),
       userMessage: "okay",
     });
-
     expect(result.classification).not.toBe("anchor");
     expect(result.classification).not.toBe("promote");
   });
-
 });
