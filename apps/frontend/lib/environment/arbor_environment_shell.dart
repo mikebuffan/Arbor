@@ -31,12 +31,22 @@ class ArborEnvironmentShell extends StatefulWidget {
 
 class _ArborEnvironmentShellState extends State<ArborEnvironmentShell> {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
+  final _focusNode = FocusNode();
   EnvironmentDestination selected = EnvironmentDestination.home;
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final objective = widget.objective ?? EnvironmentFixture.houseHasWalls();
-    return Shortcuts(
+    return Focus(
+      autofocus: true,
+      focusNode: _focusNode,
+      child: Shortcuts(
       shortcuts: const {
         SingleActivator(LogicalKeyboardKey.keyK, control: true): ActivateIntent(),
       },
@@ -105,7 +115,7 @@ class _ArborEnvironmentShellState extends State<ArborEnvironmentShell> {
               ],
             )
           : null,
-    )));
+    ))));
   }
 
   void _select(EnvironmentDestination value) => setState(() => selected = value);
