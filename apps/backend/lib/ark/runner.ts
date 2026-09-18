@@ -39,6 +39,7 @@ export async function runArkWorkerCycle(input: {
   maxRuntimeMs?: number;
   now?: () => Date;
   verifyCompletion?: ArkCompletionVerifier;
+  objectiveId?: string;
 }): Promise<ArkWorkerCycleResult> {
   const now = input.now ?? (() => new Date());
   const leaseMs = Math.min(3_600_000, Math.max(1000, input.leaseMs ?? 60_000));
@@ -61,7 +62,7 @@ export async function runArkWorkerCycle(input: {
   };
 
   if (input.verifyCompletion) {
-    const awaiting = await input.store.nextObjectiveAwaitingVerification();
+    const awaiting = await input.store.nextObjectiveAwaitingVerification(input.objectiveId);
     if (awaiting) {
       const verification = await input.verifyCompletion(awaiting);
       await input.store.verifyObjective({
@@ -85,6 +86,7 @@ export async function runArkWorkerCycle(input: {
       leaseMs,
       now: claimedAt,
       excludedObjectiveIds: [...excludedObjectiveIds],
+      onlyObjectiveId: input.objectiveId,
     });
     if (!claim) {
       result.status = result.claimed > 0 ? "completed" : "idle";
