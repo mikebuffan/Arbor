@@ -189,6 +189,7 @@ export async function recordAgencyProgress(input: {
     projectId: input.projectId,
     agency: next,
     expectedRevision: input.agency.objective?.revision,
+    checkpointReason: `progress step ${input.step}`,
   });
 
   return next;
@@ -224,6 +225,7 @@ export async function blockAgencySession(input: {
     projectId: input.projectId,
     agency: next,
     expectedRevision: input.agency.objective?.revision,
+    checkpointReason: `blocked: ${input.blocker}`,
   });
 
   return next;
@@ -264,6 +266,9 @@ export async function completeAgencySession(input: {
     projectId: input.projectId,
     agency: next,
     expectedRevision: input.agency.objective?.revision,
+    checkpointReason: input.verified
+      ? "completion verified"
+      : "completion verification failed",
   });
 
   return next;
