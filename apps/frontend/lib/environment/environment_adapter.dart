@@ -213,7 +213,17 @@ class FallbackEnvironmentAdapter implements EnvironmentRuntimeAdapter {
 
   @override
   Stream<EnvironmentSnapshot> watch() async* {
-    yield await snapshot();
+    try {
+      await for (final primarySnapshot in primary.watch()) {
+        if (primarySnapshot.objective.state != EnvironmentRunState.unavailable) {
+          yield primarySnapshot;
+        } else {
+          yield fallback.makeSnapshot(reason: primarySnapshot.source);
+        }
+      }
+    } catch (_) {
+      yield fallback.makeSnapshot(reason: 'ARK READ FAILED');
+    }
   }
 }
 
