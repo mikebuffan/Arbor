@@ -39,6 +39,8 @@ jobs:
         run: pnpm --filter firefly-backend exec tsc --noEmit
 
       - name: Tests
+        env:
+          OPENAI_API_KEY: ci-placeholder-key
         run: pnpm --filter firefly-backend test
 
       - name: ARK integration lint
@@ -50,6 +52,8 @@ jobs:
             lib/arbor/timeline/types.ts
 
       - name: Production build
+        env:
+          OPENAI_API_KEY: ci-placeholder-key
         run: pnpm --filter firefly-backend build
 
       - name: Baseline repository lint debt (informational)
