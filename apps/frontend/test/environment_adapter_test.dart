@@ -157,6 +157,38 @@ void main() {
     expect(snapshot.objective.hasTruthfulState, isTrue);
   });
 
+  test('malformed completed state without evidence is degraded, never shown complete', () async {
+    final adapter = ArkEnvironmentAdapter(
+      reader: _FakeReader({
+        'available': true,
+        'objectives': [
+          {
+            'id': 'objective-1',
+            'goal': 'Missing proof',
+            'status': 'completed',
+          },
+        ],
+        'tasks': [
+          {
+            'objective_id': 'objective-1',
+            'task_key': 'step-1',
+            'description': 'Finish work',
+            'status': 'completed',
+          },
+        ],
+        'checkpoints': [],
+        'events': [],
+      }),
+      projectId: 'project-1',
+    );
+
+    final snapshot = await adapter.snapshot();
+
+    expect(snapshot.objective.state, EnvironmentRunState.degraded);
+    expect(snapshot.objective.completionReceipt, isNull);
+    expect(snapshot.objective.hasTruthfulState, isTrue);
+  });
+
   test('canary lifecycle stays truthful from queue through verified completion', () async {
     Map<String, dynamic> payload(
       String objectiveStatus,
