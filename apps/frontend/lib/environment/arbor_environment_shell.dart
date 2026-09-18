@@ -194,34 +194,46 @@ class _Home extends StatelessWidget {
   const _Home({required this.objective});
   final EnvironmentObjectiveView objective;
   @override
-  Widget build(BuildContext context) => Wrap(
-        spacing: 16,
-        runSpacing: 16,
+  Widget build(BuildContext context) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(width: 520, child: EnvironmentPanel(child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          Wrap(
+            spacing: 16,
+            runSpacing: 16,
             children: [
-              const Text('CURRENT OBJECTIVE', style: TextStyle(color: ArborEnvironmentTokens.cyan, fontSize: 11, letterSpacing: 1.4)),
-              const SizedBox(height: 12),
-              Text(objective.title, style: const TextStyle(color: ArborEnvironmentTokens.textPrimary, fontSize: 20)),
-              const SizedBox(height: 10),
-              Text(objective.nextAction ?? 'No next action reported.', style: const TextStyle(color: ArborEnvironmentTokens.textMuted)),
-              if (objective.isDemo) ...[
-                const SizedBox(height: 16),
-                const Text('DEMO DATA — live ARK adapter intentionally disconnected.', style: TextStyle(color: ArborEnvironmentTokens.firefly, fontSize: 11)),
-              ],
+              SizedBox(width: 520, child: EnvironmentPanel(child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('CURRENT OBJECTIVE', style: TextStyle(color: ArborEnvironmentTokens.cyan, fontSize: 11, letterSpacing: 1.4)),
+                  const SizedBox(height: 12),
+                  Text(objective.title, style: const TextStyle(color: ArborEnvironmentTokens.textPrimary, fontSize: 20)),
+                  const SizedBox(height: 10),
+                  Text(objective.nextAction ?? 'No next action reported.', style: const TextStyle(color: ArborEnvironmentTokens.textMuted)),
+                  if (objective.isDemo) ...[
+                    const SizedBox(height: 16),
+                    const Text('DEMO DATA — live ARK adapter intentionally disconnected.', style: TextStyle(color: ArborEnvironmentTokens.firefly, fontSize: 11)),
+                  ],
+                ],
+              ))),
+              const SizedBox(width: 300, child: EnvironmentPanel(child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('HOUSE STATUS', style: TextStyle(color: ArborEnvironmentTokens.violet, fontSize: 11, letterSpacing: 1.4)),
+                  SizedBox(height: 12),
+                  Text('The observatory is online.', style: TextStyle(color: ArborEnvironmentTokens.textPrimary, fontSize: 20)),
+                  SizedBox(height: 8),
+                  Text('ARK boundary intact. Production untouched.', style: TextStyle(color: ArborEnvironmentTokens.textMuted)),
+                ],
+              ))),
             ],
-          ))),
-          const SizedBox(width: 300, child: EnvironmentPanel(child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('HOUSE STATUS', style: TextStyle(color: ArborEnvironmentTokens.violet, fontSize: 11, letterSpacing: 1.4)),
-              SizedBox(height: 12),
-              Text('Walls going up.', style: TextStyle(color: ArborEnvironmentTokens.textPrimary, fontSize: 20)),
-              SizedBox(height: 8),
-              Text('ARK boundary intact.', style: TextStyle(color: ArborEnvironmentTokens.textMuted)),
-            ],
-          ))),
+          ),
+          const SizedBox(height: 16),
+          const ActivityView(events: [
+            ActivityEvent(title: 'Environment branch isolated', detail: 'No production or ARK mutation.', kind: 'boundary'),
+            ActivityEvent(title: 'Truth contract active', detail: 'Operational claims require supporting state.', kind: 'verification'),
+            ActivityEvent(title: 'Conversation room preserved', detail: 'Existing text and voice shell lives inside the Environment.', kind: 'integration'),
+            ActivityEvent(title: 'Observatory atmosphere added', detail: 'Reduced-motion aware ambient layer.', kind: 'design'),
+          ]),
         ],
       );
 }
