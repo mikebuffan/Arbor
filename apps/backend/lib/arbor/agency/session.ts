@@ -129,6 +129,7 @@ export async function beginAgencySession(input: {
     // completed objective being replaced by a new goal. This prevents two
     // simultaneous turns from silently overwriting one another.
     expectedRevision: prior?.objective?.revision,
+    expectAbsent: !prior,
   });
 
   return agency;
