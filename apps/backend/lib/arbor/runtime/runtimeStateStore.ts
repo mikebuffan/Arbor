@@ -40,25 +40,48 @@ export async function loadRuntimeState(input: {
   );
 
   if (!exact) {
-    return loadLatestRuntimeState(input);
+    return loadProjectRuntimeState(input) ?? loadLatestRuntimeState(input);
   }
 
   if (meaningfulRuntimeState(exact)) {
     return exact;
   }
 
-  const fallback = await loadLatestRuntimeState({
-    supabase: input.supabase,
-    userId: input.userId,
-    projectId: input.projectId,
-    excludeConversationId: exact.conversationId,
-  });
+  const fallback =
+    (await loadProjectRuntimeState(input)) ??
+    (await loadLatestRuntimeState({
+      supabase: input.supabase,
+      userId: input.userId,
+      projectId: input.projectId,
+      excludeConversationId: exact.conversationId,
+    }));
 
   if (!fallback || fallback.conversationId === exact.conversationId) {
     return exact;
   }
 
   return mergeRuntimeFallback(fallback, exact);
+}
+
+export async function loadProjectRuntimeState(input: {
+  supabase: SupabaseClient;
+  userId: string;
+  projectId: string;
+}): Promise<ArborRuntimeState | null> {
+  const { data, error } = await input.supabase
+    .from("arbor_runtime_state")
+    .select("user_id,project_id,conversation_id,state,updated_at")
+    .eq("user_id", input.userId)
+    .eq("project_id", input.projectId)
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    if (isMissingRuntimeTable(error)) return null;
+    throw error;
+  }
+  return rowState((data as RuntimeRow | null) ?? null);
 }
 
 export async function loadLatestRuntimeState(input: {
@@ -121,6 +144,26 @@ export async function saveRuntimeState(input: {
   if (error) {
     if (isMissingRuntimeTable(error)) return;
     throw error;
+  }
+
+  // Keep the project-level carrier current as the durable cross-thread fallback.
+  // Conversation state remains local; project state prevents a blank/new thread
+  // from erasing the active objective and agency checkpoint.
+  const { error: projectError } = await input.supabase
+    .from("arbor_runtime_state")
+    .upsert(
+      {
+        user_id: state.userId,
+        project_id: state.projectId,
+        conversation_id: state.conversationId,
+        state,
+        updated_at: state.updatedAt,
+      },
+      { onConflict: "user_id,project_id,conversation_id" },
+    );
+
+  if (projectError && !isMissingRuntimeTable(projectError)) {
+    throw projectError;
   }
 }
 
