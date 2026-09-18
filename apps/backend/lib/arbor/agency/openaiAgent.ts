@@ -159,6 +159,20 @@ function functionCalls(
   );
 }
 
+function stableJson(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map((item) => stableJson(item)).join(",")}]`;
+  }
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    return `{${Object.keys(record)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${stableJson(record[key])}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(value) ?? "null";
+}
+
 function requestTools(
   tools:
     Array<Record<string, unknown>>,
@@ -500,7 +514,7 @@ export async function runOpenAIAgencyAgent(
           ? [
               input.context.turnId,
               tool.name,
-              JSON.stringify(args, Object.keys(args).sort()),
+              stableJson(args),
             ].join(":")
           : null;
 
