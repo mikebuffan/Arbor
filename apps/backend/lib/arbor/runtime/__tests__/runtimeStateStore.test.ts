@@ -43,6 +43,7 @@ describe("runtime state persistence", () => {
     };
 
     let storedRow: Record<string, unknown> | null = null;
+    const queriedTables: string[] = [];
 
     const query = {
       select() {
@@ -148,7 +149,10 @@ describe("runtime state persistence", () => {
     };
 
     const supabase = {
-      from: vi.fn(() => query),
+      from: vi.fn((table: string) => {
+        queriedTables.push(table);
+        return query;
+      }),
     } as unknown as SupabaseClient;
 
     const loaded = await loadRuntimeState({
