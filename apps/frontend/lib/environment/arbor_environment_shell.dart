@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'environment_panel.dart';
 import 'environment_state.dart';
@@ -10,6 +11,9 @@ import 'activity_view.dart';
 import 'evidence_view.dart';
 import 'system_health_view.dart';
 import 'command_palette.dart';
+import 'environment_atmosphere.dart';
+import 'benchmark_view.dart';
+import 'project_view.dart';
 import '../pages/arbor_shell_page.dart';
 
 enum EnvironmentDestination { home, conversation, objective, queue, projects, evidence, benchmarks, health, settings }
@@ -139,14 +143,7 @@ class _Surface extends StatelessWidget {
       EnvironmentDestination.health => 'System Health',
       EnvironmentDestination.settings => 'Settings',
     };
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: RadialGradient(
-          center: Alignment(.55, -.75),
-          radius: 1.25,
-          colors: [ArborEnvironmentTokens.deepForest, ArborEnvironmentTokens.midnight, ArborEnvironmentTokens.voidBlack],
-        ),
-      ),
+    return EnvironmentAtmosphere(
       child: ListView(
         padding: const EdgeInsets.all(24),
         children: [
@@ -168,6 +165,8 @@ class _Surface extends StatelessWidget {
               WorkItemView('Integrate conversation surface', WorkItemState.running, detail: 'Preserve shared text/voice continuity'),
               WorkItemView('Connect live ARK adapter', WorkItemState.blocked, detail: 'Exact ARK checkpoint recovery required'),
             ])
+          else if (selected == EnvironmentDestination.projects)
+            const ProjectsView()
           else if (selected == EnvironmentDestination.evidence)
             const EvidenceProvenanceView(nodes: [
               EvidenceNodeView(label: 'Existing client is Flutter cross-platform', kind: EvidenceKind.direct, source: 'repository'),
@@ -177,10 +176,11 @@ class _Surface extends StatelessWidget {
           else if (selected == EnvironmentDestination.health)
             const SystemHealthView()
           else if (selected == EnvironmentDestination.benchmarks)
-            const ActivityView(events: [
-              ActivityEvent(title: 'Environment implementation started', detail: 'Isolated branch created.', kind: 'checkpoint'),
-              ActivityEvent(title: 'Truth contract encoded', detail: 'Invalid operational states are rejected.', kind: 'verification'),
-              ActivityEvent(title: 'Conversation integrated', detail: 'Existing text/voice shell preserved inside Environment.', kind: 'integration'),
+            const BenchmarkView(metrics: [
+              BenchmarkMetric('Displayed work time', '—', note: 'Populate only from captured run evidence.'),
+              BenchmarkMetric('Wall time', '—', note: 'Measured from objective handoff to finished deliverable.'),
+              BenchmarkMetric('Human interventions', '—', note: 'Count only genuine required user inputs.'),
+              BenchmarkMetric('Completion proof', 'REQUIRED', note: 'No benchmark pass without evidence.'),
             ])
           else
             _PlaceholderSurface(title: title),
