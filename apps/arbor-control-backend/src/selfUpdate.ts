@@ -1,3 +1,8 @@
+import {
+  SELF_UPDATE_RETENTION_THRESHOLD,
+  SELF_UPDATE_REVERT_THRESHOLD,
+  assessSelfUpdateStrategy,
+} from "./fireflyCode.js";
 import type {
   ArborState,
   StrategyCandidate,
@@ -7,10 +12,15 @@ function clean(value: string): string {
   return value.trim().replace(/\s+/g, " ");
 }
 
+export type StrategyObservation = {
+  verificationId?: string;
+};
+
 export function observeStrategy(
   state: ArborState,
   strategy: string,
   verificationPassed: boolean,
+  observation: StrategyObservation = {},
 ): ArborState {
   const normalized = clean(strategy);
 
@@ -32,9 +42,49 @@ export function observeStrategy(
           successes: 0,
           failures: 0,
           status: "candidate",
+          verificationIds: [],
         };
 
-  if (current.status !== "candidate") {
+  if (current.status === "reverted") {
+    return state;
+  }
+
+  const assessment = assessSelfUpdateStrategy(normalized);
+
+  if (!assessment.allowed) {
+    const rejected: StrategyCandidate = {
+      ...current,
+      status: "reverted",
+      rejectionReason: assessment.reason ?? "protected_core_mutation",
+    };
+
+    if (index >= 0) {
+      candidates[index] = rejected;
+    } else {
+      candidates.push(rejected);
+    }
+
+    return {
+      ...state,
+      strategyNotes: state.strategyNotes.filter(
+        (item) => item !== normalized,
+      ),
+      strategyCandidates: candidates.slice(-40),
+    };
+  }
+
+  const verificationId = clean(
+    observation.verificationId ??
+      `legacy:${verificationPassed ? "pass" : "fail"}:${current.successes + current.failures + 1}`,
+  );
+
+  const evidenceKey =
+    `${verificationPassed ? "pass" : "fail"}:${verificationId}`;
+
+  const priorVerificationIds =
+    current.verificationIds ?? [];
+
+  if (priorVerificationIds.includes(evidenceKey)) {
     return state;
   }
 
@@ -46,17 +96,23 @@ export function observeStrategy(
     failures:
       current.failures +
       (verificationPassed ? 0 : 1),
+    verificationIds: [
+      ...priorVerificationIds,
+      evidenceKey,
+    ].slice(-20),
+    rejectionReason: undefined,
   };
 
   if (
-    next.successes >= 2 &&
+    next.successes >= SELF_UPDATE_RETENTION_THRESHOLD &&
     next.failures === 0
   ) {
     next.status = "retained";
   }
 
-  if (next.failures >= 2) {
+  if (next.failures >= SELF_UPDATE_REVERT_THRESHOLD) {
     next.status = "reverted";
+    next.rejectionReason = "repeated_verification_failure";
   }
 
   if (index >= 0) {
