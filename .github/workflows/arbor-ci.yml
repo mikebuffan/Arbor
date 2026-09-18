@@ -66,6 +66,106 @@ jobs:
       - name: Build control backend
         run: pnpm --filter arbor-control-backend build
 
+  investigation-schema:
+    name: Investigation migration parse + apply
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: arbor_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      PGPASSWORD: postgres
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/arbor_ci
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare minimal Supabase-compatible schema
+        run: |
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          create extension if not exists pgcrypto;
+          create schema if not exists auth;
+          create role authenticated nologin;
+          create table auth.users (id uuid primary key default gen_random_uuid());
+          create table public.projects (
+            id uuid primary key default gen_random_uuid(),
+            user_id uuid not null references auth.users(id)
+          );
+          create or replace function auth.uid()
+          returns uuid
+          language sql
+          stable
+          as $ select null::uuid $;
+          SQL
+
+      - name: Parse and apply investigation workbench migration
+        run: >-
+          psql "$DATABASE_URL"
+          -v ON_ERROR_STOP=1
+          -f supabase/migrations/20260918002000_arbor_investigation_workbench.sql
+
+      - name: Verify RLS and immutable evidence triggers exist
+        run: |
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          do $
+          declare
+            missing integer;
+          begin
+            select count(*) into missing
+            from (
+              values
+                ('arbor_investigation_cases'),
+                ('arbor_investigation_sources'),
+                ('arbor_investigation_evidence_packets'),
+                ('arbor_investigation_claims'),
+                ('arbor_investigation_edges'),
+                ('arbor_investigation_coverage'),
+                ('arbor_investigation_hypotheses'),
+                ('arbor_investigation_findings')
+            ) expected(name)
+            where not exists (
+              select 1
+              from pg_class c
+              join pg_namespace n on n.oid = c.relnamespace
+              where n.nspname = 'public'
+                and c.relname = expected.name
+                and c.relrowsecurity
+            );
+
+            if missing <> 0 then
+              raise exception 'investigation RLS verification failed: % table(s)', missing;
+            end if;
+
+            if not exists (
+              select 1 from pg_trigger
+              where tgname = 'arbor_investigation_evidence_packets_immutable'
+                and not tgisinternal
+            ) then
+              raise exception 'immutable evidence trigger missing';
+            end if;
+
+            if not exists (
+              select 1 from pg_trigger
+              where tgname = 'arbor_investigation_findings_guard'
+                and not tgisinternal
+            ) then
+              raise exception 'finding lifecycle trigger missing';
+            end if;
+          end $;
+          SQL
+
   flutter:
     name: Flutter analyze + test
     runs-on: ubuntu-latest
