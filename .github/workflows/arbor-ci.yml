@@ -110,6 +110,34 @@ jobs:
           as $func$ select null::uuid $func$;
           SQL
 
+      - name: Prepare runtime carrier schema
+        run: |
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          create table if not exists public.arbor_runtime_state (
+            user_id uuid not null references auth.users(id) on delete cascade,
+            project_id uuid not null references public.projects(id) on delete cascade,
+            active_subsystem text not null default 'arbor',
+            voice_id text not null default 'cedar',
+            acoustic_corrections jsonb not null default '[]'::jsonb,
+            agency_goal text null,
+            agency_status text null,
+            agency_current_step integer not null default 0,
+            agency_unresolved_work jsonb not null default '[]'::jsonb,
+            agency_recurring_weaknesses jsonb not null default '[]'::jsonb,
+            agency_strategy_notes jsonb not null default '[]'::jsonb,
+            agency_blocker text null,
+            created_at timestamptz not null default now(),
+            updated_at timestamptz not null default now(),
+            primary key (user_id, project_id)
+          );
+          SQL
+
+      - name: Parse and apply durable parent objective migration
+        run: >-
+          psql "$DATABASE_URL"
+          -v ON_ERROR_STOP=1
+          -f supabase/migrations/20260918013000_arbor_durable_parent_objective.sql
+
       - name: Parse and apply investigation workbench migration
         run: >-
           psql "$DATABASE_URL"
