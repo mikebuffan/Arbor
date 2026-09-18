@@ -116,7 +116,8 @@ export type ArkExecutionResult =
           | "irreversible_action"
           | "missing_preference"
           | "high_consequence_fork"
-          | "unsupported_capability";
+          | "unsupported_capability"
+          | "operation_in_progress";
         message: string;
       };
     };
