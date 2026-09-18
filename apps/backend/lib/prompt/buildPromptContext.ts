@@ -560,6 +560,8 @@ export async function buildPromptContext({
 
     ${historicalRecallBlock ? "\n" + historicalRecallBlock + "\n" : ""}
 
+    ${patternHopBlock ? "\n" + patternHopBlock + "\n" : ""}
+
     ${provenanceGuard ? "HISTORICAL/PROVENANCE VERIFICATION:\n" + provenanceGuard + "\nRetrieved material is evidence, not automatic truth. Preserve conflicts. Label inference. If evidence is insufficient, say I do not know." : ""}
 
     ${continuityBlock}
