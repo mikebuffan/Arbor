@@ -20,6 +20,7 @@ const ROUTES: Array<{ route: CodexRoute; patterns: RegExp[]; expansion: string }
     /\b(?:first|origin|originally|earliest|before you broke)\b/i,
     /\b(?:you|i|we) (?:said|told|wanted|decided|built|made|invented|started|noticed)\b/i,
     /\b(?:picked|learned|got) (?:that|it) (?:up )?from\b/i,
+    /\b(?:you|i|we) (?:say|use|call) .{0,60}\b(?:too|also|same)\b/i,
   ], expansion: " origin earliest contemporaneous source chronology provenance direct evidence " },
   { route: "continuity", patterns: [
     /\bremember(?: when)?\b/i, /\bwe already\b/i, /\blast time\b/i,
