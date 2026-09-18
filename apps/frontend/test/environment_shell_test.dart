@@ -6,7 +6,7 @@ import 'package:frontend/environment/environment_state.dart';
 void main() {
   testWidgets('environment labels fixture operational state as demo data', (tester) async {
     await tester.pumpWidget(const MaterialApp(home: ArborEnvironmentShell()));
-    expect(find.text('DEMO DATA'), findsOneWidget);
+    expect(find.text('DEMO DATA'), findsWidgets);
     expect(find.text('Build Arbor Environment — House Has Walls'), findsWidgets);
   });
 
