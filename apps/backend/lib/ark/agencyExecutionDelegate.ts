@@ -13,6 +13,11 @@ export function buildArkAgencyExecutionDelegate(input: {
     arguments: Record<string, unknown>;
     turnId: string;
   }) => string | null;
+  canDispatch?: (input: {
+    capability: string;
+    arguments: Record<string, unknown>;
+    turnId: string;
+  }) => { allowed: boolean; reason?: string };
   onEnqueued?: (input: {
     objectiveId: string;
     planId: string;
@@ -22,6 +27,20 @@ export function buildArkAgencyExecutionDelegate(input: {
   return {
     managesWriteIdempotency: true,
     async execute({ tool, args, context, attemptedRoutes }) {
+      const guard = input.canDispatch?.({
+        capability: tool.name,
+        arguments: args,
+        turnId: context.turnId,
+      });
+      if (guard && !guard.allowed) {
+        return {
+          kind: "checkpointed",
+          reason:
+            guard.reason ??
+            "A prior durable ARK action is still unresolved; no second action will be started.",
+        };
+      }
+
       const planId =
         input.resolvePlanId?.({
           capability: tool.name,
