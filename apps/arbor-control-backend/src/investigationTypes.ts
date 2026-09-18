@@ -66,6 +66,18 @@ export type HopRecord = {
   expectedDisconfirmation?: string;
 };
 
+export type ExtractionQuality = {
+  method?: "native_text" | "ocr" | "manual_transcription" | "mixed";
+  confidence?: number;
+  warnings?: string[];
+};
+
+export type DocumentCompleteness = {
+  status: "complete" | "partial" | "fragment" | "unknown";
+  missingRanges?: string[];
+  note?: string;
+};
+
 export type EvidencePacket = {
   schemaVersion: "1.0";
   evidenceId: string;
@@ -79,6 +91,8 @@ export type EvidencePacket = {
   entities: EntityReference[];
   counterevidence: CounterEvidenceRef[];
   sourceIndependence: SourceIndependenceStatus;
+  extractionQuality?: ExtractionQuality;
+  documentCompleteness?: DocumentCompleteness;
   context?: string;
   causalContext?: string;
   validFrom?: string;
