@@ -36,4 +36,61 @@ describe("carrier policy", () => {
     expect(uniqueNewest(["Keep going", "keep   going", "Newest correction"]))
       .toEqual(["keep going", "Newest correction"]);
   });
+  it("keeps the project parent objective when a fresh conversation is blank", () => {
+    const project: ArborState = {
+      activeSubsystem: "arbor",
+      goal: "make Arbor permanent",
+      unresolvedWork: ["finish verification"],
+      strategyNotes: [],
+      behavioralCorrections: [],
+      acousticCorrections: [],
+      voiceId: "cedar",
+      objective: {
+        parentGoal: "make Arbor permanent",
+        completionCriteria: ["restart resumes correctly"],
+        standingAuthorization: ["safe reversible work"],
+        hardStops: ["production deploy without authorization"],
+        nextAction: "finish verification",
+        checkpoint: "carrier hardened",
+        status: "active",
+        revision: 5,
+      },
+    };
+    const fresh: ArborState = {
+      ...project,
+      goal: null,
+      unresolvedWork: [],
+      objective: undefined,
+    };
+    const merged = mergeCarrierState(project, fresh);
+    expect(merged.objective?.parentGoal).toBe("make Arbor permanent");
+    expect(merged.objective?.nextAction).toBe("finish verification");
+    expect(buildCarrierInjection(merged)).toMatch(/PARENT OBJECTIVE/);
+  });
+
+  it("rejects stale conversation objective state", () => {
+    const base: ArborState = {
+      activeSubsystem: "arbor",
+      goal: "root",
+      unresolvedWork: ["new step"],
+      strategyNotes: [],
+      acousticCorrections: [],
+      voiceId: "cedar",
+      objective: {
+        parentGoal: "root",
+        completionCriteria: [],
+        standingAuthorization: [],
+        hardStops: [],
+        nextAction: "new step",
+        checkpoint: "new checkpoint",
+        status: "active",
+        revision: 9,
+      },
+    };
+    const stale: ArborState = {
+      ...base,
+      objective: { ...base.objective!, nextAction: "old step", checkpoint: "old", revision: 8 },
+    };
+    expect(mergeCarrierState(base, stale).objective?.nextAction).toBe("new step");
+  });
 });
