@@ -133,6 +133,10 @@ jobs:
             claimed_objective uuid;
             completed jsonb;
             verified jsonb;
+            abandoned jsonb;
+            recovered jsonb;
+            checkpointed jsonb;
+            resumed jsonb;
           begin
             insert into auth.users(id) values (u1), (u2);
             insert into public.projects(id, user_id) values (p1, u1), (p2, u2);
@@ -198,6 +202,99 @@ jobs:
             );
             if verified->>'status' <> 'completed' then
               raise exception 'objective did not verify complete';
+            end if;
+
+            -- Simulate a worker dying while holding a lease. A later worker
+            -- must recover the exact same task after lease expiry, then prove
+            -- a persisted checkpoint survives another worker handoff.
+            abandoned := public.ark_claim_next_task(
+              'dead-worker',
+              1000,
+              now(),
+              '{}'::uuid[],
+              (o1->>'id')::uuid
+            );
+            if abandoned is null then
+              raise exception 'failed to claim interruption objective';
+            end if;
+
+            recovered := public.ark_claim_next_task(
+              'recovery-worker',
+              1000,
+              now() + interval '2 seconds',
+              '{}'::uuid[],
+              (o1->>'id')::uuid
+            );
+            if recovered is null then
+              raise exception 'expired lease was not recovered';
+            end if;
+            if (recovered->'task'->>'attempt_count')::integer <> 2 then
+              raise exception 'recovered task did not advance attempt count';
+            end if;
+            if recovered->'task'->>'lease_owner' <> 'recovery-worker' then
+              raise exception 'recovered task has wrong lease owner';
+            end if;
+
+            task_id := (recovered->'task'->>'id')::uuid;
+            lease_token := (recovered->'task'->>'lease_token')::uuid;
+            checkpointed := public.ark_checkpoint_task(
+              task_id,
+              'recovery-worker',
+              lease_token,
+              1,
+              '{"cursor":7}'::jsonb,
+              'continue from cursor 7',
+              'interruption smoke',
+              now() + interval '3 seconds',
+              now() + interval '2 seconds'
+            );
+            if checkpointed->>'status' <> 'checkpointed' then
+              raise exception 'checkpoint was not persisted';
+            end if;
+            if (checkpointed->>'checkpoint_sequence')::integer <> 1 then
+              raise exception 'checkpoint sequence was not persisted';
+            end if;
+
+            resumed := public.ark_claim_next_task(
+              'post-checkpoint-worker',
+              1000,
+              now() + interval '4 seconds',
+              '{}'::uuid[],
+              (o1->>'id')::uuid
+            );
+            if resumed is null then
+              raise exception 'checkpointed task did not resume';
+            end if;
+            if (resumed->'task'->>'lease_owner') <> 'post-checkpoint-worker' then
+              raise exception 'checkpoint resumed under wrong worker';
+            end if;
+            if (resumed->'task'->>'checkpoint_sequence')::integer <> 1 then
+              raise exception 'checkpoint sequence was lost during resume';
+            end if;
+            if (resumed->'task'->>'attempt_count')::integer <> 3 then
+              raise exception 'checkpoint resume did not advance attempt count';
+            end if;
+
+            completed := public.ark_complete_task(
+              (resumed->'task'->>'id')::uuid,
+              'post-checkpoint-worker',
+              (resumed->'task'->>'lease_token')::uuid,
+              '{"capability":"smoke","verified":true,"attempts":3}'::jsonb,
+              now() + interval '4 seconds'
+            );
+            if completed->'objective'->>'status' <> 'awaiting_verification' then
+              raise exception 'recovered objective did not reach verification';
+            end if;
+
+            verified := public.ark_verify_objective(
+              (o1->>'id')::uuid,
+              true,
+              '{"gate":"lease-and-checkpoint-recovery"}'::jsonb,
+              '{}'::text[],
+              now() + interval '4 seconds'
+            );
+            if verified->>'status' <> 'completed' then
+              raise exception 'recovered objective did not verify complete';
             end if;
 
             begin
