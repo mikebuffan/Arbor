@@ -134,7 +134,7 @@ class ArkEnvironmentAdapter implements EnvironmentRuntimeAdapter {
   @override
   Stream<EnvironmentSnapshot> watch() async* {
     yield await snapshot();
-    await for (final _ in Stream<void>.periodic(refreshInterval)) {
+    await for (final _ in Stream<int>.periodic(refreshInterval, (count) => count)) {
       yield await snapshot();
     }
   }
@@ -203,11 +203,11 @@ class FallbackEnvironmentAdapter implements EnvironmentRuntimeAdapter {
       if (primarySnapshot.objective.state != EnvironmentRunState.unavailable) {
         return primarySnapshot;
       }
-      return fallback.snapshot(
+      return fallback.makeSnapshot(
         reason: primarySnapshot.source,
       );
     } catch (_) {
-      return fallback.snapshot(reason: 'ARK READ FAILED');
+      return fallback.makeSnapshot(reason: 'ARK READ FAILED');
     }
   }
 
@@ -242,7 +242,7 @@ class UnavailableEnvironmentAdapter implements EnvironmentRuntimeAdapter {
 class DemoEnvironmentAdapter implements EnvironmentRuntimeAdapter {
   DemoEnvironmentAdapter();
 
-  EnvironmentSnapshot snapshot({String reason = 'LIVE ARK NOT AVAILABLE'}) =>
+  EnvironmentSnapshot makeSnapshot({String reason = 'LIVE ARK NOT AVAILABLE'}) =>
       EnvironmentSnapshot(
         objective: EnvironmentFixture.houseHasWalls(),
         workItems: const [
@@ -258,10 +258,10 @@ class DemoEnvironmentAdapter implements EnvironmentRuntimeAdapter {
       );
 
   @override
-  Future<EnvironmentSnapshot> snapshot() async => snapshot();
+  Future<EnvironmentSnapshot> snapshot() async => makeSnapshot();
 
   @override
-  Stream<EnvironmentSnapshot> watch() => Stream.value(snapshot());
+  Stream<EnvironmentSnapshot> watch() => Stream.value(makeSnapshot());
 }
 
 List<Map<String, dynamic>> _records(dynamic value) {
