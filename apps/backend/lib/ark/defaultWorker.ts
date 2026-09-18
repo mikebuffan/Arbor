@@ -6,6 +6,7 @@ import { SupabaseArkStore } from "./supabaseStore";
 
 export async function runDefaultArkWorkerCycle(input: {
   supabase: SupabaseClient;
+  toolSupabase?: SupabaseClient;
   workerId: string;
   maxTasks?: number;
   maxRuntimeMs?: number;
