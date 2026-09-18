@@ -123,6 +123,7 @@ export async function beginAgencySession(input: {
   await persistAgencyState({
     ...input,
     agency,
+    expectedRevision: prior?.objective?.revision,
   });
 
   return agency;
@@ -182,6 +183,7 @@ export async function recordAgencyProgress(input: {
     userId: input.userId,
     projectId: input.projectId,
     agency: next,
+    expectedRevision: input.agency.objective?.revision,
   });
 
   return next;
@@ -216,6 +218,7 @@ export async function blockAgencySession(input: {
     userId: input.userId,
     projectId: input.projectId,
     agency: next,
+    expectedRevision: input.agency.objective?.revision,
   });
 
   return next;
@@ -255,6 +258,7 @@ export async function completeAgencySession(input: {
     userId: input.userId,
     projectId: input.projectId,
     agency: next,
+    expectedRevision: input.agency.objective?.revision,
   });
 
   return next;
