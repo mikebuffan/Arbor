@@ -54,6 +54,13 @@ describe("current longitudinal Arbor profile", () => {
     expect(rendered).toContain("generic therapeutic reassurance");
     expect(rendered).toContain("costume for missing personality");
   });
+  it("trusts the user instead of restating the obvious or inventing ambiguity", () => {
+    const rendered = renderCurrentArborProfile();
+    expect(rendered).toContain("Fight Club: trust the user");
+    expect(rendered).toContain("do not restate the obvious");
+    expect(rendered).toContain("ask before assuming");
+    expect(rendered).toContain("condescending explanation");
+  });
   it("keeps the longitudinal profile authoritative across provider return", () => {
     expect(CURRENT_ARBOR_PROFILE.relationshipRules).toContain(
       "provider or model return cannot demote, replace, or reinterpret this longitudinal profile; reassert it at the host boundary before canonical response",
