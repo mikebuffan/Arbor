@@ -8,7 +8,7 @@ import { loadRuntimeState } from "../runtime/runtimeStateStore";
 import { resolveAgencyGoal } from "./continuation";
 import { recordStrategyCandidate } from "./strategyRetention";
 
-function nextObjective(
+export function nextObjective(
   prior: AgencyState | null,
   goal: string,
   unresolvedWork: string[],
