@@ -37,3 +37,18 @@ describe("carrier policy", () => {
       .toEqual(["keep going", "Newest correction"]);
   });
 });
+
+describe("durable parent objective carrier", () => {
+  it("does not let a blank conversation erase the project objective", () => {
+    const project: ArborState = { activeSubsystem:"arbor", goal:"finish whole build", unresolvedWork:["step 2"], strategyNotes:[], acousticCorrections:[], voiceId:"cedar", objective:{parentGoal:"finish whole build",completionCriteria:["all tests green"],standingAuthorization:["safe reversible work"],hardStops:["merge","deploy"],nextAction:"step 2",checkpoint:"step 1 done",status:"active",revision:7}};
+    const local: ArborState = {...project, goal:null, unresolvedWork:[], objective:undefined};
+    const merged=mergeCarrierState(project,local);
+    expect(merged.objective?.parentGoal).toBe("finish whole build");
+    expect(merged.objective?.nextAction).toBe("step 2");
+  });
+  it("prefers only a newer objective revision", () => {
+    const base: ArborState = {activeSubsystem:"arbor",goal:"x",unresolvedWork:["x"],strategyNotes:[],acousticCorrections:[],voiceId:"cedar",objective:{parentGoal:"root",completionCriteria:[],standingAuthorization:[],hardStops:[],nextAction:"a",checkpoint:null,status:"active",revision:5}};
+    const stale: ArborState = {...base,objective:{...base.objective!,nextAction:"stale",revision:4}};
+    expect(mergeCarrierState(base,stale).objective?.nextAction).toBe("a");
+  });
+});
