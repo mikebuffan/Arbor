@@ -181,12 +181,19 @@ export async function fireflyHeartbeat(): Promise<HeartbeatResult> {
       syncedMemories += sync.processed;
     }
 
-    const ark = await runDefaultArkWorkerCycle({
-      supabase: client,
-      workerId: `firefly-heartbeat:${startedAt}`,
-      maxTasks: 8,
-      maxRuntimeMs: 15_000,
-    });
+    const ark =
+      process.env.ARBOR_ENABLE_ARK_EXECUTION === "true"
+        ? await runDefaultArkWorkerCycle({
+            supabase: client,
+            workerId: `firefly-heartbeat:${startedAt}`,
+            maxTasks: 8,
+            maxRuntimeMs: 15_000,
+          })
+        : {
+            status: "skipped" as const,
+            reason: "ark_execution_disabled",
+            processed: 0,
+          };
 
     const result: HeartbeatResult = {
       status: "completed",
