@@ -71,7 +71,11 @@ export function registerArkAgencyToolExecutor(input: {
     });
 
     if (!outcome.ok) {
-      throw new Error(`ark_agency_tool_failed:${outcome.failure.kind}`);
+      return {
+        status: "failed",
+        error: `${outcome.failure.kind}:${outcome.failure.error}`,
+        retryable: outcome.failure.retryable,
+      };
     }
 
     return {
