@@ -346,7 +346,8 @@ export async function buildPromptContext({
     projectId &&
     (codexRoute.requiresVerification ||
       codexRoute.routes.includes("continuity") ||
-      codexRoute.routes.includes("project"))
+      codexRoute.routes.includes("project")) &&
+    process.env.NODE_ENV !== "test"
   ) {
     try {
       const hop = await runPatternHopResearch({
