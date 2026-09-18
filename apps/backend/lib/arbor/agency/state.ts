@@ -2,12 +2,39 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AgencyState } from "./engine";
 import { isMissingRuntimeTable } from "@/lib/arbor/runtime/missingRuntimeTable";
 
-function toStrings(value: unknown): string[] {
+export function normalizeUnresolvedWork(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
-  return value
-    .filter((item): item is string => typeof item === "string")
-    .map((item) => item.trim())
-    .filter(Boolean);
+
+  const out: string[] = [];
+  for (const item of value) {
+    if (typeof item === "string") {
+      const text = item.trim();
+      if (text) out.push(text);
+      continue;
+    }
+
+    if (!item || typeof item !== "object") continue;
+    const record = item as Record<string, unknown>;
+    const preferred = [
+      record.exactNextAction,
+      record.objective,
+      record.id,
+    ].find((candidate) => typeof candidate === "string" && candidate.trim());
+
+    if (typeof preferred === "string") {
+      out.push(preferred.trim());
+      continue;
+    }
+
+    // Keep legacy structured work visible rather than silently erasing it.
+    out.push(JSON.stringify(record));
+  }
+
+  return Array.from(new Set(out)).filter(Boolean);
+}
+
+function toStrings(value: unknown): string[] {
+  return normalizeUnresolvedWork(value);
 }
 
 export async function loadAgencyState(input: {
@@ -18,7 +45,7 @@ export async function loadAgencyState(input: {
   const { data, error } = await input.supabase
     .from("arbor_runtime_state")
     .select(
-      "agency_goal,agency_status,agency_current_step,agency_unresolved_work,agency_recurring_weaknesses,agency_strategy_notes,agency_blocker",
+      "agency_goal,agency_status,agency_current_step,agency_unresolved_work,agency_recurring_weaknesses,agency_strategy_notes,agency_blocker,agency_objective",
     )
     .eq("user_id", input.userId)
     .eq("project_id", input.projectId)
@@ -38,6 +65,10 @@ export async function loadAgencyState(input: {
     recurringWeaknesses: toStrings(data.agency_recurring_weaknesses),
     strategyNotes: toStrings(data.agency_strategy_notes),
     blocker: (data.agency_blocker as AgencyState["blocker"]) ?? null,
+    objective:
+      data.agency_objective && typeof data.agency_objective === "object"
+        ? (data.agency_objective as AgencyState["objective"])
+        : undefined,
   };
 }
 
@@ -60,6 +91,7 @@ export async function persistAgencyState(input: {
         agency_recurring_weaknesses: input.agency.recurringWeaknesses,
         agency_strategy_notes: input.agency.strategyNotes,
         agency_blocker: input.agency.blocker ?? null,
+        agency_objective: input.agency.objective ?? null,
         updated_at: new Date().toISOString(),
       },
       { onConflict: "user_id,project_id" },
@@ -84,6 +116,7 @@ export async function clearCompletedAgencyState(input: {
       agency_current_step: 0,
       agency_unresolved_work: [],
       agency_blocker: null,
+      agency_objective: null,
       updated_at: new Date().toISOString(),
     })
     .eq("user_id", input.userId)
