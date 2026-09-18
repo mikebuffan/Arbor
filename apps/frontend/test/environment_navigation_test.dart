@@ -11,7 +11,7 @@ void main() {
 
     await tester.pumpWidget(const MaterialApp(home: ArborEnvironmentShell()));
 
-    await tester.tap(find.text('Current Objective'));
+    await tester.tap(find.text('Objective'));
     await tester.pumpAndSettle();
     expect(find.text('WHY THIS EXISTS'), findsOneWidget);
 
