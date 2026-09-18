@@ -50,6 +50,20 @@ describe("persistent cognitive runtime", () => {
     expect(renderCognitiveRuntime(state)).toContain("MATERIAL PREDICTION ERRORS");
   });
 
+  it("rejects incomplete causal traces instead of persisting broken causal history", () => {
+    const state = updateCognitiveRuntime({
+      causalTrace: {
+        eventId: "broken",
+        internalStateChange: "",
+        attentionEffect: "focus changed",
+        expectationEffect: "prediction changed",
+        interpretationEffect: "meaning changed",
+        provenance: ["turn:test"],
+      },
+    });
+    expect(state.causalTraces).toEqual([]);
+  });
+
   it("keeps durable consolidation and rejects transient/superseded state", () => {
     const state = updateCognitiveRuntime({
       consolidation: [
