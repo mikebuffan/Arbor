@@ -22,7 +22,7 @@ class EnvironmentPanel extends StatelessWidget {
           decoration: BoxDecoration(
             color: ArborEnvironmentTokens.glass,
             borderRadius: BorderRadius.circular(ArborEnvironmentTokens.radiusMedium),
-            border: Border.all(color: Colors.white.withOpacity(0.09)),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.09)),
           ),
           child: Padding(padding: padding, child: child),
         ),
