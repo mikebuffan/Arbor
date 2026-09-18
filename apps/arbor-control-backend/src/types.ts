@@ -78,10 +78,24 @@ export type SelfModelMigrationRecord = {
   appliedAt: string;
 };
 
+export type ArborExecutionBoundary = "safe-reversible" | "authorization-required";
+
+export type ArborObjectiveState = {
+  parentGoal: string;
+  completionCriteria: string[];
+  standingAuthorization: string[];
+  hardStops: string[];
+  nextAction: string | null;
+  checkpoint: string | null;
+  status: "active" | "blocked" | "complete";
+  revision: number;
+};
+
 export type ArborState = {
   activeSubsystem: ArborSubsystem;
   goal: string | null;
   unresolvedWork: string[];
+  objective?: ArborObjectiveState;
   strategyNotes: string[];
   strategyCandidates?: StrategyCandidate[];
   recoveryRouteStats?: ArborRecoveryRouteStats[];
