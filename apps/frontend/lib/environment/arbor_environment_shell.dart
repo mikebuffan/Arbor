@@ -4,6 +4,8 @@ import 'environment_panel.dart';
 import 'environment_state.dart';
 import 'environment_tokens.dart';
 import 'objective_strip.dart';
+import 'work_queue.dart';
+import '../pages/arbor_shell_page.dart';
 
 enum EnvironmentDestination { home, conversation, objective, queue, projects, evidence, benchmarks, health, settings }
 
@@ -115,7 +117,19 @@ class _Surface extends StatelessWidget {
           const SizedBox(height: 6),
           const Text('ARBOR ENVIRONMENT', style: TextStyle(color: ArborEnvironmentTokens.textMuted, fontSize: 11, letterSpacing: 2)),
           const SizedBox(height: 24),
-          if (selected == EnvironmentDestination.home) _Home(objective: objective) else _PlaceholderSurface(title: title),
+          if (selected == EnvironmentDestination.home)
+            _Home(objective: objective)
+          else if (selected == EnvironmentDestination.conversation)
+            const SizedBox(height: 720, child: ArborShellPage())
+          else if (selected == EnvironmentDestination.queue)
+            const WorkQueueView(items: [
+              WorkItemView('Design tokens and primitives', WorkItemState.complete),
+              WorkItemView('Responsive environment shell', WorkItemState.complete),
+              WorkItemView('Integrate conversation surface', WorkItemState.running, detail: 'Preserve shared text/voice continuity'),
+              WorkItemView('Connect live ARK adapter', WorkItemState.blocked, detail: 'Exact ARK checkpoint recovery required'),
+            ])
+          else
+            _PlaceholderSurface(title: title),
         ],
       ),
     );
