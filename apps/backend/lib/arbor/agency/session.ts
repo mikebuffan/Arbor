@@ -51,7 +51,9 @@ function resumableAgency(
   value: AgencyState | null | undefined,
 ): AgencyState | null {
   if (!value) return null;
-  return value.status === "active" || value.status === "blocked"
+  return value.status === "active" ||
+    value.status === "blocked" ||
+    value.status === "checkpointed"
     ? value
     : null;
 }
@@ -75,13 +77,17 @@ export async function beginAgencySession(input: {
       : Promise.resolve(null),
   ]);
 
-  // Prefer unfinished work already owned by this conversation. Falling back to
-  // project-level state preserves cross-thread continuation, while revisiting an
-  // older thread can still recover the unfinished goal that thread owned.
+  // Project state is the canonical carrier. A conversation may resume only
+  // when it is not older than the project objective. This prevents revisiting
+  // an old thread from resurrecting stale work over a newer project checkpoint.
+  const project = resumableAgency(projectAgency) ?? projectAgency;
+  const conversation = resumableAgency(conversationRuntime?.agency);
+  const projectRevision = project?.objective?.revision ?? 0;
+  const conversationRevision = conversation?.objective?.revision ?? 0;
   const prior =
-    resumableAgency(conversationRuntime?.agency) ??
-    resumableAgency(projectAgency) ??
-    projectAgency;
+    conversation && conversationRevision >= projectRevision
+      ? conversation
+      : project ?? conversation;
 
   const { goal, resume } = resolveAgencyGoal(input.userText, prior);
 
