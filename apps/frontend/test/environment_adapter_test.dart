@@ -12,6 +12,20 @@ class _FakeReader implements ArkStatusReader {
   Future<Map<String, dynamic>?> read(String projectId) async => payload;
 }
 
+class _SequenceReader implements ArkStatusReader {
+  _SequenceReader(this.payloads);
+
+  final List<Map<String, dynamic>> payloads;
+  var index = 0;
+
+  @override
+  Future<Map<String, dynamic>?> read(String projectId) async {
+    final current = payloads[index];
+    if (index < payloads.length - 1) index += 1;
+    return current;
+  }
+}
+
 void main() {
   test('demo adapter identifies itself as fallback data', () async {
     final snapshot = await DemoEnvironmentAdapter().snapshot();
@@ -141,6 +155,81 @@ void main() {
     expect(snapshot.objective.state, EnvironmentRunState.complete);
     expect(snapshot.objective.completionReceipt, contains('verified'));
     expect(snapshot.objective.hasTruthfulState, isTrue);
+  });
+
+  test('canary lifecycle stays truthful from queue through verified completion', () async {
+    Map<String, dynamic> payload(
+      String objectiveStatus,
+      String taskStatus, {
+      Map<String, dynamic>? checkpoint,
+      Object? evidence,
+    }) =>
+        {
+          'available': true,
+          'objectives': [
+            {
+              'id': 'objective-1',
+              'goal': 'Canary objective',
+              'status': objectiveStatus,
+              if (evidence != null) 'completion_evidence': evidence,
+            },
+          ],
+          'tasks': [
+            {
+              'objective_id': 'objective-1',
+              'task_key': 'execute',
+              'description': 'Execute canary',
+              'status': taskStatus,
+              'attempt_count': 1,
+              'max_attempts': 3,
+              'checkpoint_sequence': checkpoint == null ? 0 : 1,
+            },
+          ],
+          'checkpoints': checkpoint == null ? [] : [checkpoint],
+          'events': [],
+        };
+
+    final adapter = ArkEnvironmentAdapter(
+      reader: _SequenceReader([
+        payload('queued', 'queued'),
+        payload('running', 'running'),
+        payload(
+          'checkpointed',
+          'checkpointed',
+          checkpoint: {
+            'objective_id': 'objective-1',
+            'sequence': 1,
+            'reason': 'interruption',
+            'next_action': 'Resume canary',
+          },
+        ),
+        payload('running', 'running'),
+        payload(
+          'completed',
+          'completed',
+          evidence: {'verification': 'passed'},
+        ),
+      ]),
+      projectId: 'project-1',
+    );
+
+    final states = <EnvironmentRunState>[];
+    for (var i = 0; i < 5; i += 1) {
+      final snapshot = await adapter.snapshot();
+      states.add(snapshot.objective.state);
+      expect(snapshot.objective.hasTruthfulState, isTrue);
+    }
+
+    expect(
+      states,
+      [
+        EnvironmentRunState.idle,
+        EnvironmentRunState.working,
+        EnvironmentRunState.checkpointed,
+        EnvironmentRunState.working,
+        EnvironmentRunState.complete,
+      ],
+    );
   });
 
   test('unavailable ARK can fall back without masquerading as live state', () async {
