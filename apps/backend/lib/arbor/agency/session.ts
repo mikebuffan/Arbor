@@ -125,12 +125,10 @@ export async function beginAgencySession(input: {
   await persistAgencyState({
     ...input,
     agency,
-    // CAS only when advancing an existing durable objective. First-write and
-    // legacy rows intentionally use the ordinary upsert path.
-    expectedRevision:
-      prior?.objective && resume
-        ? prior.objective.revision
-        : undefined,
+    // Any existing durable objective is revision-owned, including a
+    // completed objective being replaced by a new goal. This prevents two
+    // simultaneous turns from silently overwriting one another.
+    expectedRevision: prior?.objective?.revision,
   });
 
   return agency;
