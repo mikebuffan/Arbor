@@ -21,7 +21,13 @@ class EnvironmentRuntimeBootstrap extends StatefulWidget {
 class _EnvironmentRuntimeBootstrapState
     extends State<EnvironmentRuntimeBootstrap> {
   ArborApiClient? _apiClient;
-  late final Future<EnvironmentRuntimeAdapter> _adapter = _resolveAdapter();
+  late final Future<EnvironmentRuntimeAdapter> _adapter;
+
+  @override
+  void initState() {
+    super.initState();
+    _adapter = _resolveAdapter();
+  }
 
   Future<EnvironmentRuntimeAdapter> _resolveAdapter() async {
     final user = Supabase.instance.client.auth.currentUser;
