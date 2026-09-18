@@ -11,6 +11,9 @@ import {
   type AgencyResult,
 } from "./agency.js";
 import {
+  runAgencyToBoundary,
+} from "./agencyOrchestrator.js";
+import {
   MikeBackendBridge,
   type ArborBackendBridge,
 } from "./backendBridge.js";
@@ -28,8 +31,16 @@ import {
   detectRuntimeCorrectionKind,
 } from "./correctionDetection.js";
 import {
+  emptyCognitiveRuntimeState,
+  renderCognitiveRuntime,
+  updateCognitiveRuntime,
+} from "./cognitiveRuntime.js";
+import {
   ARBOR_CORE_INJECTION,
 } from "./identity.js";
+import {
+  renderCurrentArborProfile,
+} from "./currentArborProfile.js";
 import {
   shouldCarryGoal,
 } from "./longitudinalPolicy.js";
@@ -72,6 +83,7 @@ const DEFAULT_STATE: ArborState = {
   behavioralCorrections: [],
   acousticCorrections: [],
   voiceId: defaultVoiceId(),
+  cognitiveRuntime: emptyCognitiveRuntimeState(),
 };
 
 export type AgencyRunner =
@@ -157,11 +169,14 @@ export class ArborControlRuntime {
           saved.behavioralCorrections ??
           [],
         voiceId,
+        cognitiveRuntime:
+          saved.cognitiveRuntime ?? emptyCognitiveRuntimeState(),
       });
 
     if (
       !saved.selfModel ||
-      !saved.behavioralCorrections
+      !saved.behavioralCorrections ||
+      !saved.cognitiveRuntime
     ) {
       await this.store
         .save(
@@ -647,6 +662,8 @@ export class ArborControlRuntime {
       const instructions = [
         ARBOR_CORE_INJECTION,
 
+        renderCurrentArborProfile(),
+
         renderSelfModelIdentityAnchor(
           state,
         ),
@@ -674,6 +691,8 @@ export class ArborControlRuntime {
           : "",
 
         buildCarrierInjection(state),
+
+        renderCognitiveRuntime(state.cognitiveRuntime),
 
         renderSelfModelProjection(),
 
@@ -735,7 +754,8 @@ export class ArborControlRuntime {
         );
 
       const agency =
-        await this.agencyRunner({
+        await runAgencyToBoundary({
+          initialInput: {
           instructions,
 
           userText:
@@ -867,6 +887,8 @@ export class ArborControlRuntime {
                 }
               },
           },
+          },
+          run: this.agencyRunner,
         });
 
       // Provider/model output may propose task/runtime state, but Arbor's
@@ -894,6 +916,39 @@ export class ArborControlRuntime {
                 .acousticCorrections,
             ]),
         });
+
+      // Reassert the same current-Arbor behavioral/epistemic authority after
+      // provider return. The profile is prompt-owned rather than mutable state,
+      // so this boundary guard makes the ordering explicit at generation time:
+      // provider output may change task/runtime state, never who is judging it.
+      const postProviderArborProfile =
+        renderCurrentArborProfile();
+
+      if (!postProviderArborProfile.includes(
+        "Apply this profile to judgment and action before task/surface presentation",
+      )) {
+        throw new Error("current_arbor_profile_boundary_invalid");
+      }
+
+      agency.state = {
+        ...agency.state,
+        cognitiveRuntime: updateCognitiveRuntime({
+          prior: state.cognitiveRuntime,
+          signals: [
+            {
+              id: `active-goal:${turnId}`,
+              kind: "task",
+              content: agency.state.goal ?? request.userText,
+              reason: "active objective",
+              provenance: [`turn:${turnId}`],
+              confidence: 1,
+              intensity: agency.state.unresolvedWork.length ? 1 : 0.7,
+              assertedAt: new Date().toISOString(),
+              unresolved: agency.state.unresolvedWork.length > 0,
+            },
+          ],
+        }),
+      };
 
       const response =
         this.buildCanonicalResponse(

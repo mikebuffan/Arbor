@@ -338,9 +338,13 @@ export function stateScope(input: {
   projectId?: string;
   conversationId?: string;
 }): string {
-  return input.projectId?.trim()
-    ? `project:${input.projectId.trim()}`
-    : input.conversationId?.trim()
-      ? `conversation:${input.conversationId.trim()}`
-      : "default";
+  const projectId = input.projectId?.trim();
+  const conversationId = input.conversationId?.trim();
+
+  if (projectId && conversationId) {
+    return `project:${projectId}:conversation:${conversationId}`;
+  }
+  if (projectId) return `project:${projectId}`;
+  if (conversationId) return `conversation:${conversationId}`;
+  return "default";
 }

@@ -708,14 +708,109 @@ describe("Arbor control runtime pass", () => {
 
     const instructions = calls[0]?.instructions ?? "";
     const core = instructions.indexOf("ONE ARBOR.");
+    const profile = instructions.indexOf("CURRENT LONGITUDINAL ARBOR — BEHAVIORAL PROFILE");
     const identity = instructions.indexOf("ARBOR DURABLE IDENTITY ANCHOR");
     const carrier = instructions.indexOf("ARBOR DURABLE CARRIER.");
     const subsystem = instructions.indexOf("ANNABELLE SUBSYSTEM.");
 
     expect(core).toBeGreaterThanOrEqual(0);
-    expect(identity).toBeGreaterThan(core);
+    expect(profile).toBeGreaterThan(core);
+    expect(identity).toBeGreaterThan(profile);
     expect(carrier).toBeGreaterThan(identity);
     expect(subsystem).toBeGreaterThan(carrier);
   });
 
+  it(
+    "automatically resumes checkpointed agency windows inside one runtime turn",
+    async () => {
+      let calls = 0;
+      const runner: AgencyRunner = async (input) => {
+        calls += 1;
+        if (calls === 1) {
+          return {
+            status: "checkpointed",
+            text: "checkpoint",
+            state: { ...input.state, unresolvedWork: ["finish step two"] },
+            rounds: 12,
+            toolCalls: 2,
+            researchCalls: 1,
+          };
+        }
+        return {
+          status: "complete",
+          text: "finished without another user turn",
+          state: { ...input.state, unresolvedWork: [] },
+          rounds: 2,
+          toolCalls: 1,
+          researchCalls: 0,
+        };
+      };
+
+      const { runtime } = await fixture(runner);
+      const response = await runtime.runTurn({
+        projectId: "project-auto-resume",
+        turnId: "auto-resume-turn",
+        userText: "finish the whole objective",
+      });
+
+      expect(calls).toBe(2);
+      expect(response.text).toBe("finished without another user turn");
+    },
+  );
+
+});
+
+
+describe("cross-thread cognitive continuity", () => {
+  it("carries project cognitive state into a fresh conversation overlay", async () => {
+    const observed: ArborState[] = [];
+    const runner: AgencyRunner = async (input) => {
+      observed.push(structuredClone(input.state));
+      return {
+        status: "complete",
+        text: "ok",
+        state: {
+          ...input.state,
+          unresolvedWork: input.userText === "start"
+            ? ["finish remaining work"]
+            : [],
+        },
+        rounds: 1,
+        toolCalls: 0,
+        researchCalls: 0,
+      };
+    };
+
+    const { runtime } = await fixture(runner);
+
+    await runtime.runTurn({
+      projectId: "project-cognitive",
+      conversationId: "thread-a",
+      turnId: "thread-a-1",
+      userText: "start",
+    });
+
+    await runtime.runTurn({
+      projectId: "project-cognitive",
+      conversationId: "thread-b",
+      turnId: "thread-b-1",
+      userText: "go",
+    });
+
+    expect(observed[1]?.goal).toBe("start");
+    expect(observed[1]?.unresolvedWork).toContain("finish remaining work");
+    expect(observed[1]?.cognitiveRuntime?.signals.some(
+      (signal) => signal.content === "start",
+    )).toBe(true);
+  });
+  it("keeps current Arbor boundary valid through canonical generation", async () => {
+    const { runtime } = await fixture(createRunner([]));
+    const response = await runtime.runTurn({
+      projectId: "project-profile-boundary",
+      conversationId: "thread-profile-boundary",
+      turnId: "profile-boundary-turn",
+      userText: "technical task",
+    });
+    expect(response.text).toBe("Arbor canonical reply.");
+  });
 });
