@@ -8,15 +8,31 @@ import { dispatchAgencyToolThroughArk } from "./agencyDispatcher";
 export function buildArkAgencyExecutionDelegate(input: {
   supabase: SupabaseClient;
   goal: string;
+  resolvePlanId?: (input: {
+    capability: string;
+    arguments: Record<string, unknown>;
+    turnId: string;
+  }) => string | null;
+  onEnqueued?: (input: {
+    objectiveId: string;
+    planId: string;
+    capability: string;
+  }) => Promise<void>;
 }): AgencyToolExecutionDelegate {
   return {
     managesWriteIdempotency: true,
     async execute({ tool, args, context, attemptedRoutes }) {
-      const planId = `ark:${agencyOperationKey({
-        turnId: context.turnId,
-        toolName: tool.name,
-        args,
-      })}`;
+      const planId =
+        input.resolvePlanId?.({
+          capability: tool.name,
+          arguments: args,
+          turnId: context.turnId,
+        }) ??
+        `ark:${agencyOperationKey({
+          turnId: context.turnId,
+          toolName: tool.name,
+          args,
+        })}`;
 
       const dispatched = await dispatchAgencyToolThroughArk({
         supabase: input.supabase,
@@ -29,6 +45,14 @@ export function buildArkAgencyExecutionDelegate(input: {
         actionId: "execute",
         capability: tool.name,
         arguments: args,
+        onEnqueued: input.onEnqueued
+          ? (objectiveId) =>
+              input.onEnqueued!({
+                objectiveId,
+                planId,
+                capability: tool.name,
+              })
+          : undefined,
       });
 
       if (dispatched.status === "completed") {
