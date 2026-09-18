@@ -720,6 +720,44 @@ describe("Arbor control runtime pass", () => {
     expect(subsystem).toBeGreaterThan(carrier);
   });
 
+  it(
+    "automatically resumes checkpointed agency windows inside one runtime turn",
+    async () => {
+      let calls = 0;
+      const runner: AgencyRunner = async (input) => {
+        calls += 1;
+        if (calls === 1) {
+          return {
+            status: "checkpointed",
+            text: "checkpoint",
+            state: { ...input.state, unresolvedWork: ["finish step two"] },
+            rounds: 12,
+            toolCalls: 2,
+            researchCalls: 1,
+          };
+        }
+        return {
+          status: "complete",
+          text: "finished without another user turn",
+          state: { ...input.state, unresolvedWork: [] },
+          rounds: 2,
+          toolCalls: 1,
+          researchCalls: 0,
+        };
+      };
+
+      const { runtime } = await fixture(runner);
+      const response = await runtime.runTurn({
+        projectId: "project-auto-resume",
+        turnId: "auto-resume-turn",
+        userText: "finish the whole objective",
+      });
+
+      expect(calls).toBe(2);
+      expect(response.text).toBe("finished without another user turn");
+    },
+  );
+
 });
 
 
