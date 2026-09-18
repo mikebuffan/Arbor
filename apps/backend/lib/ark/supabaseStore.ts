@@ -122,12 +122,14 @@ export class SupabaseArkStore implements ArkStore {
     leaseMs: number;
     now: string;
     excludedObjectiveIds?: string[];
+    onlyObjectiveId?: string;
   }): Promise<ArkClaim | null> {
     const { data, error } = await this.supabase.rpc("ark_claim_next_task", {
       p_worker_id: input.workerId,
       p_lease_ms: input.leaseMs,
       p_now: input.now,
       p_excluded_objective_ids: input.excludedObjectiveIds ?? [],
+      p_only_objective_id: input.onlyObjectiveId ?? null,
     });
     if (error) throw error;
     if (!data) return null;
@@ -138,14 +140,17 @@ export class SupabaseArkStore implements ArkStore {
     };
   }
 
-  async nextObjectiveAwaitingVerification(): Promise<ArkObjective | null> {
-    const { data, error } = await this.supabase
+  async nextObjectiveAwaitingVerification(objectiveId?: string): Promise<ArkObjective | null> {
+    let query = this.supabase
       .from("ark_objectives")
       .select("*")
       .eq("status", "awaiting_verification")
       .order("updated_at", { ascending: true })
-      .limit(1)
-      .maybeSingle();
+      .limit(1);
+    if (objectiveId) {
+      query = query.eq("id", objectiveId);
+    }
+    const { data, error } = await query.maybeSingle();
     if (error) throw error;
     return data ? objectiveFromRow(object(data)) : null;
   }
