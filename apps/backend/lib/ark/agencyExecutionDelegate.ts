@@ -6,7 +6,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { dispatchAgencyToolThroughArk } from "./agencyDispatcher";
 
 export function buildArkAgencyExecutionDelegate(input: {
-  supabase: SupabaseClient;
+  arkSupabase: SupabaseClient;
+  toolSupabase: SupabaseClient;
   goal: string;
   resolvePlanId?: (input: {
     capability: string;
@@ -54,7 +55,8 @@ export function buildArkAgencyExecutionDelegate(input: {
         })}`;
 
       const dispatched = await dispatchAgencyToolThroughArk({
-        supabase: input.supabase,
+        arkSupabase: input.arkSupabase,
+        toolSupabase: input.toolSupabase,
         userId: context.userId,
         projectId: context.projectId,
         conversationId: context.conversationId,
