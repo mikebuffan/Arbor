@@ -16,6 +16,7 @@ import { buildArborAgencyTools } from "@/lib/arbor/agency/arborTools";
 import {
   beginAgencySession,
   blockAgencySession,
+  checkpointAgencySession,
   completeAgencySession,
   recordAgencyProgress,
 } from "@/lib/arbor/agency/session";
@@ -726,6 +727,14 @@ export async function POST(req: Request) {
         projectId,
         agency: agencyState,
         verified: !finalAssistant.flagged,
+      });
+    } else if (agentResult.status === "checkpointed") {
+      agencyState = await checkpointAgencySession({
+        supabase,
+        userId,
+        projectId,
+        agency: agencyState,
+        reason: "execution ceiling reached after canonical assistant turn persisted",
       });
     }
 
