@@ -40,7 +40,8 @@ describe("ARK agency execution delegate", () => {
     });
 
     const delegate = buildArkAgencyExecutionDelegate({
-      supabase: {} as never,
+      arkSupabase: {} as never,
+      toolSupabase: {} as never,
       goal: "inspect state",
     });
 
@@ -75,7 +76,8 @@ describe("ARK agency execution delegate", () => {
     });
 
     const delegate = buildArkAgencyExecutionDelegate({
-      supabase: {} as never,
+      arkSupabase: {} as never,
+      toolSupabase: {} as never,
       goal: "inspect state",
     });
 
@@ -94,7 +96,8 @@ describe("ARK agency execution delegate", () => {
 
   it("refuses to start a second action while a prior durable action is unresolved", async () => {
     const delegate = buildArkAgencyExecutionDelegate({
-      supabase: {} as never,
+      arkSupabase: {} as never,
+      toolSupabase: {} as never,
       goal: "finish",
       canDispatch: () => ({
         allowed: false,
@@ -127,7 +130,8 @@ describe("ARK agency execution delegate", () => {
     });
 
     const delegate = buildArkAgencyExecutionDelegate({
-      supabase: {} as never,
+      arkSupabase: {} as never,
+      toolSupabase: {} as never,
       goal: "persist state",
     });
 
