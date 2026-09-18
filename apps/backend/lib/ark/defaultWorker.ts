@@ -15,7 +15,7 @@ export async function runDefaultArkWorkerCycle(input: {
   const registry = new ArkExecutorRegistry();
   registerArkAgencyToolExecutor({
     registry,
-    supabase: input.supabase,
+    supabase: input.toolSupabase ?? input.supabase,
   });
 
   const store = new SupabaseArkStore(input.supabase);
