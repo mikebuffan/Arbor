@@ -37,6 +37,15 @@ describe("durable parent objective lifecycle", () => {
         checkpoint: "step 8",
         status: "active",
         revision: 12,
+        execution: {
+          planId: "ark:plan-1",
+          actionId: "execute",
+          capability: "state.inspect",
+          arguments: { scope: "project" },
+          turnId: "turn-1",
+          arkObjectiveId: "objective-1",
+          status: "dispatched",
+        },
       },
     };
 
@@ -50,5 +59,10 @@ describe("durable parent objective lifecycle", () => {
     expect(objective?.parentGoal).toBe(prior.objective?.parentGoal);
     expect(objective?.revision).toBe(13);
     expect(objective?.nextAction).toBe("new next");
+    expect(objective?.execution).toMatchObject({
+      planId: "ark:plan-1",
+      arkObjectiveId: "objective-1",
+      status: "dispatched",
+    });
   });
 });
