@@ -13,6 +13,7 @@ vi.mock("@/lib/supabase/admin", () => ({
 }));
 
 import { buildArkAgencyExecutionDelegate } from "../agencyExecutionDelegate";
+import { executeAgencyToolWithRecovery } from "@/lib/arbor/agency/toolExecution";
 
 const context = {
   userId: "user-1",
@@ -69,6 +70,48 @@ describe("ARK agency execution delegate", () => {
         actionId: "execute",
       }),
     );
+  });
+
+  it("preserves the direct execution result when the same action runs through ARK", async () => {
+    const parityTool = {
+      ...tool,
+      execute: vi.fn().mockResolvedValue({ value: 42 }),
+    };
+    const direct = await executeAgencyToolWithRecovery({
+      tool: parityTool,
+      args: { scope: "project" },
+      context,
+      attemptedRoutes: [],
+    });
+    expect(direct.ok).toBe(true);
+
+    mocks.dispatch.mockResolvedValue({
+      status: "completed",
+      objectiveId: "objective-1",
+      output: direct.ok ? direct.result : null,
+      attempts: direct.attempts,
+      replayed: false,
+    });
+
+    const delegate = buildArkAgencyExecutionDelegate({
+      toolSupabase: {} as never,
+      goal: "inspect state",
+    });
+    const throughArk = await delegate.execute({
+      tool: parityTool,
+      args: { scope: "project" },
+      context,
+      attemptedRoutes: [],
+    });
+
+    expect(throughArk).toMatchObject({
+      kind: "outcome",
+      outcome: {
+        ok: true,
+        result: direct.ok ? direct.result : null,
+        attempts: direct.attempts,
+      },
+    });
   });
 
   it("checkpoints the planner when ARK still owns unfinished work", async () => {
