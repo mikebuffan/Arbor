@@ -19,7 +19,6 @@ import {
   completeAgencyOperation,
 } from "@/lib/arbor/agency/idempotency";
 import { buildArkAgencyExecutionDelegate } from "@/lib/ark/agencyExecutionDelegate";
-import { supabaseAdmin } from "@/lib/supabase/admin";
 import { toolNeedsUserBoundary } from "@/lib/arbor/agency/tools";
 import {
   beginAgencySession,
@@ -419,7 +418,6 @@ export async function POST(req: Request) {
 
     const arkExecutionDelegate = arkExecutionEnabled
       ? buildArkAgencyExecutionDelegate({
-          arkSupabase: supabaseAdmin(),
           toolSupabase: supabase,
           goal: agencyState.goal,
           canDispatch: ({ capability, arguments: args }) => {
