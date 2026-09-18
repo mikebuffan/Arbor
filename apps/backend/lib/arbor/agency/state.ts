@@ -159,7 +159,9 @@ export async function clearCompletedAgencyState(input: {
       updated_at: new Date().toISOString(),
     })
     .eq("user_id", input.userId)
-    .eq("project_id", input.projectId);
+    .eq("project_id", input.projectId)
+    // Never let a delayed cleanup erase a newer active/checkpointed objective.
+    .eq("agency_status", "complete");
 
   if (error) {
     if (isMissingRuntimeTable(error)) return;
