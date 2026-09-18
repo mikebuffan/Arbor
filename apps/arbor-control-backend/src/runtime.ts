@@ -11,6 +11,9 @@ import {
   type AgencyResult,
 } from "./agency.js";
 import {
+  runAgencyToBoundary,
+} from "./agencyOrchestrator.js";
+import {
   MikeBackendBridge,
   type ArborBackendBridge,
 } from "./backendBridge.js";
@@ -751,7 +754,8 @@ export class ArborControlRuntime {
         );
 
       const agency =
-        await this.agencyRunner({
+        await runAgencyToBoundary({
+          initialInput: {
           instructions,
 
           userText:
@@ -883,6 +887,8 @@ export class ArborControlRuntime {
                 }
               },
           },
+          },
+          run: this.agencyRunner,
         });
 
       // Provider/model output may propose task/runtime state, but Arbor's
