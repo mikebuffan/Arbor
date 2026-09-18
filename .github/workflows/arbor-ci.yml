@@ -107,7 +107,7 @@ jobs:
           returns uuid
           language sql
           stable
-          as $ select null::uuid $;
+          as $func$ select null::uuid $func$;
           SQL
 
       - name: Parse and apply investigation workbench migration
@@ -119,7 +119,7 @@ jobs:
       - name: Verify RLS and immutable evidence triggers exist
         run: |
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
-          do $
+          do $verify$
           declare
             missing integer;
           begin
@@ -163,7 +163,7 @@ jobs:
             ) then
               raise exception 'finding lifecycle trigger missing';
             end if;
-          end $;
+          end $verify$;
           SQL
 
   flutter:
