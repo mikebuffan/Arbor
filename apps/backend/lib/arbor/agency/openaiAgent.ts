@@ -101,6 +101,12 @@ export type AgentResult =
       toolCalls: number;
     }
   | {
+      status: "checkpointed";
+      text: string;
+      responseId: string;
+      toolCalls: number;
+    }
+  | {
       status: "blocked";
       reason:
         | "irreversible_action"
@@ -208,7 +214,7 @@ export async function runOpenAIAgencyAgent(
   },
 ): Promise<AgentResult> {
   const maxRounds =
-    input.maxRounds ?? 16;
+    input.maxRounds ?? 48;
 
   let toolCalls = 0;
 
@@ -594,7 +600,11 @@ export async function runOpenAIAgencyAgent(
       );
   }
 
-  throw new Error(
-    `agency_round_budget_exhausted:${maxRounds}`,
-  );
+  return {
+    status: "checkpointed",
+    text:
+      "The active objective reached an execution checkpoint. Its durable state is preserved and remains unfinished.",
+    responseId: response.id,
+    toolCalls,
+  };
 }
