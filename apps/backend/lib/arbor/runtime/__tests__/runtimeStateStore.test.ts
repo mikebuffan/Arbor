@@ -86,6 +86,8 @@ describe("runtime state persistence", () => {
     expect(loaded?.currentGoal).toBe(
       "finish integration",
     );
+    expect(queriedTables.filter((table) => table === "arbor_conversation_state")).toHaveLength(2);
+    expect(queriedTables.filter((table) => table === "arbor_runtime_state")).toHaveLength(1);
   });
 
   it("prefers the durable project carrier when the current thread is blank", async () => {
