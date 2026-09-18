@@ -157,6 +157,7 @@ export async function runAgency(input: {
 
   const model = process.env.ARBOR_MODEL ?? "gpt-5.6";
   const goal = state.goal ?? input.userText;
+  state = ensureActiveObjective(state, goal);
   const firstInput = [
     ...(input.history ?? []),
     {
@@ -211,12 +212,15 @@ export async function runAgency(input: {
               ? ("irreversible_action" as const)
               : ("high_consequence_fork" as const);
 
-          state = {
-            ...state,
-            unresolvedWork: [
-              `requires user boundary: ${capability.name}`,
-            ],
-          };
+          state = markObjectiveBlocked(
+            {
+              ...state,
+              unresolvedWork: [
+                `requires user boundary: ${capability.name}`,
+              ],
+            },
+            `requires user boundary: ${capability.name}`,
+          );
 
           await input.hooks?.onBoundary?.({
             round,
@@ -371,13 +375,16 @@ export async function runAgency(input: {
                   .requiredUserInput ??
                 "Provide the required authorization.";
 
-              state = {
-                ...state,
-                unresolvedWork: [
-                  `requires user input: ${requiredUserInput}`,
-                  `resume goal: ${goal}`,
-                ],
-              };
+              state = markObjectiveBlocked(
+                {
+                  ...state,
+                  unresolvedWork: [
+                    `requires user input: ${requiredUserInput}`,
+                    `resume goal: ${goal}`,
+                  ],
+                },
+                `requires user input: ${requiredUserInput}`,
+              );
 
               await input.hooks?.onBoundary?.({
                 round,
@@ -545,13 +552,15 @@ export async function runAgency(input: {
         }
       }
 
+      const completedState = markObjectiveComplete({
+        ...state,
+        unresolvedWork: [],
+      });
+
       return {
         status: "complete",
         text,
-        state: {
-          ...state,
-          unresolvedWork: [],
-        },
+        state: completedState,
         rounds: round + 1,
         toolCalls,
         researchCalls,
@@ -568,13 +577,13 @@ export async function runAgency(input: {
     });
   }
 
-  state = {
+  state = markObjectiveCheckpoint({
     ...state,
     goal,
     unresolvedWork: state.unresolvedWork.length
       ? state.unresolvedWork
       : ["resume active objective after agency round checkpoint"],
-  };
+  });
 
   return {
     status: "checkpointed",
@@ -726,4 +735,86 @@ async function verifyCompletion(input: {
       strategyCorrection: "verify before claiming completion",
     };
   }
+}
+
+
+function ensureActiveObjective(state: ArborState, goal: string): ArborState {
+  if (state.objective) {
+    return state.objective.status === "complete" && state.unresolvedWork.length > 0
+      ? {
+          ...state,
+          objective: {
+            ...state.objective,
+            status: "active",
+            nextAction: state.unresolvedWork[0] ?? null,
+            revision: state.objective.revision + 1,
+          },
+        }
+      : state;
+  }
+
+  return {
+    ...state,
+    objective: {
+      parentGoal: goal,
+      completionCriteria: [
+        "completion verifier reports complete",
+        "unresolved work is empty",
+      ],
+      standingAuthorization: [
+        "safe reversible in-scope work that requires no user boundary",
+      ],
+      hardStops: [
+        "irreversible action",
+        "high-consequence fork",
+        "authorization required",
+      ],
+      nextAction: state.unresolvedWork[0] ?? "continue parent objective",
+      checkpoint: null,
+      status: "active",
+      revision: 1,
+    },
+  };
+}
+
+function markObjectiveBlocked(state: ArborState, reason: string): ArborState {
+  if (!state.objective) return state;
+  return {
+    ...state,
+    objective: {
+      ...state.objective,
+      status: "blocked",
+      nextAction: reason,
+      checkpoint: reason,
+      revision: state.objective.revision + 1,
+    },
+  };
+}
+
+function markObjectiveComplete(state: ArborState): ArborState {
+  if (!state.objective) return state;
+  return {
+    ...state,
+    objective: {
+      ...state.objective,
+      status: "complete",
+      nextAction: null,
+      checkpoint: "completion verified",
+      revision: state.objective.revision + 1,
+    },
+  };
+}
+
+function markObjectiveCheckpoint(state: ArborState): ArborState {
+  if (!state.objective) return state;
+  return {
+    ...state,
+    objective: {
+      ...state.objective,
+      status: "active",
+      nextAction: state.unresolvedWork[0] ?? "resume active objective",
+      checkpoint: "agency execution checkpoint",
+      revision: state.objective.revision + 1,
+    },
+  };
 }
