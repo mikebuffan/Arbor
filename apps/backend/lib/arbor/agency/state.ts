@@ -85,9 +85,13 @@ export async function persistAgencyState(input: {
   projectId: string;
   agency: AgencyState;
   expectedRevision?: number;
+  checkpointReason?: string;
 }): Promise<void> {
   if (input.expectedRevision !== undefined) {
-    const { data, error } = await input.supabase.rpc("arbor_cas_agency_state", {
+    const rpcName = input.checkpointReason
+      ? "arbor_record_agency_checkpoint"
+      : "arbor_cas_agency_state";
+    const rpcArgs = {
       p_user_id: input.userId,
       p_project_id: input.projectId,
       p_expected_revision: input.expectedRevision,
@@ -99,7 +103,12 @@ export async function persistAgencyState(input: {
       p_strategy_notes: input.agency.strategyNotes,
       p_blocker: input.agency.blocker ?? null,
       p_objective: input.agency.objective ?? null,
-    });
+      ...(input.checkpointReason
+        ? { p_reason: input.checkpointReason }
+        : {}),
+    };
+    const { data, error } = await input.supabase.rpc(rpcName, rpcArgs);
+
     if (error) {
       if (isMissingRuntimeTable(error)) return;
       throw error;
