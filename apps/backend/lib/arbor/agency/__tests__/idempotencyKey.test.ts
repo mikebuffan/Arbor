@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { agencyOperationKey, stableJson } from "../openaiAgent";
+import { agencyOperationKey, stableJson } from "../idempotency";
 
 describe("agency operation idempotency keys", () => {
   it("is stable across object key order, including nested objects", () => {
