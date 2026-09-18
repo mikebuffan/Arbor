@@ -121,8 +121,31 @@ export async function persistAgencyState(input: {
   projectId: string;
   agency: AgencyState;
   expectedRevision?: number;
+  expectAbsent?: boolean;
   checkpointReason?: string;
 }): Promise<void> {
+  if (input.expectAbsent) {
+    const { data, error } = await input.supabase.rpc("arbor_claim_agency_state", {
+      p_user_id: input.userId,
+      p_project_id: input.projectId,
+      p_goal: input.agency.goal,
+      p_status: input.agency.status,
+      p_current_step: input.agency.currentStep,
+      p_unresolved_work: input.agency.unresolvedWork,
+      p_recurring_weaknesses: input.agency.recurringWeaknesses,
+      p_strategy_notes: input.agency.strategyNotes,
+      p_blocker: input.agency.blocker ?? null,
+      p_objective: input.agency.objective ?? null,
+    });
+
+    if (error) {
+      if (isMissingRuntimeTable(error)) return;
+      throw error;
+    }
+    if (data !== true) throw new AgencyStateConflictError();
+    return;
+  }
+
   if (input.expectedRevision !== undefined) {
     const rpcName = input.checkpointReason
       ? "arbor_record_agency_checkpoint"
