@@ -15,6 +15,16 @@ export type AgencyAction = {
   highConsequenceFork?: boolean;
 };
 
+export type AgencyExecutionState = {
+  planId: string;
+  actionId: string;
+  capability: string;
+  arguments: Record<string, unknown>;
+  turnId: string;
+  arkObjectiveId?: string | null;
+  status: "selected" | "dispatched" | "checkpointed";
+};
+
 export type AgencyObjectiveState = {
   parentGoal: string;
   completionCriteria: string[];
@@ -24,6 +34,7 @@ export type AgencyObjectiveState = {
   checkpoint: string | null;
   status: "active" | "blocked" | "checkpointed" | "complete";
   revision: number;
+  execution?: AgencyExecutionState | null;
 };
 
 export type AgencyVerification = {
