@@ -1,10 +1,10 @@
 import { adapterFailure } from "@/lib/arbor/adapters/result";
 import { decideAdapterRecovery } from "@/lib/arbor/adapters/recovery";
-import { agencyOperationKey } from "@/lib/arbor/agency/idempotency";
 import type { AgencyToolExecutionDelegate } from "@/lib/arbor/agency/openaiAgent";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { dispatchAgencyToolThroughArk } from "./agencyDispatcher";
+import { arkAgencyPlanId } from "./agencyPlanId";
 
 export function buildArkAgencyExecutionDelegate(input: {
   toolSupabase: SupabaseClient;
@@ -48,11 +48,11 @@ export function buildArkAgencyExecutionDelegate(input: {
           arguments: args,
           turnId: context.turnId,
         }) ??
-        `ark:${agencyOperationKey({
+        arkAgencyPlanId({
           turnId: context.turnId,
           toolName: tool.name,
           args,
-        })}`;
+        });
 
       const dispatched = await dispatchAgencyToolThroughArk({
         arkSupabase: supabaseAdmin(),
