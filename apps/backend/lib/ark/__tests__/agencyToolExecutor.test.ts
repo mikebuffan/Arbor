@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   get: vi.fn(),
   execute: vi.fn(),
+  claimOperation: vi.fn(),
+  completeOperation: vi.fn(),
 }));
 
 vi.mock("@/lib/arbor/agency/arborTools", () => ({
@@ -11,6 +13,11 @@ vi.mock("@/lib/arbor/agency/arborTools", () => ({
 
 vi.mock("@/lib/arbor/agency/toolExecution", () => ({
   executeAgencyToolWithRecovery: mocks.execute,
+}));
+
+vi.mock("@/lib/arbor/agency/idempotency", () => ({
+  claimAgencyOperation: mocks.claimOperation,
+  completeAgencyOperation: mocks.completeOperation,
 }));
 
 import { registerArkAgencyToolExecutor } from "../agencyToolExecutor";
@@ -65,6 +72,8 @@ function claim(capability: string): ArkClaim {
 describe("ARK Arbor tool boundary", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.claimOperation.mockResolvedValue({ acquired: true, result: null });
+    mocks.completeOperation.mockResolvedValue(undefined);
   });
 
   it("blocks an unknown capability without retrying execution", async () => {
@@ -82,6 +91,57 @@ describe("ARK Arbor tool boundary", () => {
     expect(result).toMatchObject({
       status: "blocked",
       blocker: { kind: "unsupported_capability" },
+    });
+    expect(mocks.execute).not.toHaveBeenCalled();
+  });
+
+  it("replays a completed reversible-write result without executing the tool again", async () => {
+    mocks.get.mockReturnValue({
+      name: "write.tool",
+      description: "write",
+      parameters: {},
+      risk: "reversible_write",
+      execute: vi.fn(),
+    });
+    mocks.claimOperation.mockResolvedValue({
+      acquired: false,
+      result: { persisted: true },
+    });
+    const registry = new ArkExecutorRegistry();
+    registerArkAgencyToolExecutor({ registry, supabase: {} as never });
+
+    const result = await registry.get("arbor.agency-tool")!({
+      claim: claim("write.tool"),
+      heartbeat: vi.fn(),
+    });
+
+    expect(result).toMatchObject({
+      status: "completed",
+      result: { replayed: true, output: { persisted: true } },
+    });
+    expect(mocks.execute).not.toHaveBeenCalled();
+  });
+
+  it("blocks an unfinished reversible-write claim instead of replaying its side effect", async () => {
+    mocks.get.mockReturnValue({
+      name: "write.tool",
+      description: "write",
+      parameters: {},
+      risk: "reversible_write",
+      execute: vi.fn(),
+    });
+    mocks.claimOperation.mockResolvedValue({ acquired: false, result: null });
+    const registry = new ArkExecutorRegistry();
+    registerArkAgencyToolExecutor({ registry, supabase: {} as never });
+
+    const result = await registry.get("arbor.agency-tool")!({
+      claim: claim("write.tool"),
+      heartbeat: vi.fn(),
+    });
+
+    expect(result).toMatchObject({
+      status: "blocked",
+      blocker: { kind: "operation_in_progress" },
     });
     expect(mocks.execute).not.toHaveBeenCalled();
   });
