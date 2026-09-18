@@ -12,6 +12,7 @@ import {
 import {
   executeAgencyToolWithRecovery,
   recoveryInstruction,
+  type AgencyToolExecutionOutcome,
 } from "./toolExecution";
 
 import {
@@ -21,6 +22,27 @@ import {
 export type AgencyMessage = {
   role: "user" | "assistant";
   content: string;
+};
+
+export type AgencyToolExecutionDelegateResult =
+  | {
+      kind: "outcome";
+      outcome: AgencyToolExecutionOutcome;
+    }
+  | {
+      kind: "checkpointed";
+      reason: string;
+      objectiveId?: string;
+    };
+
+export type AgencyToolExecutionDelegate = {
+  managesWriteIdempotency?: boolean;
+  execute(input: {
+    tool: ReturnType<AgencyToolRegistry["get"]>;
+    args: Record<string, unknown>;
+    context: AgencyToolContext;
+    attemptedRoutes: string[];
+  }): Promise<AgencyToolExecutionDelegateResult>;
 };
 
 export type AgencyLoopHooks = {
@@ -219,6 +241,7 @@ export async function runOpenAIAgencyAgent(
       >;
       complete(input: { key: string; result: unknown }): Promise<void>;
     };
+    executionDelegate?: AgencyToolExecutionDelegate;
   },
 ): Promise<AgentResult> {
   const maxRounds =
@@ -497,7 +520,9 @@ export async function runOpenAIAgencyAgent(
       }
 
       const idempotencyKey =
-        tool.risk === "reversible_write" && input.idempotency
+        tool.risk === "reversible_write" &&
+        input.idempotency &&
+        !input.executionDelegate?.managesWriteIdempotency
           ? agencyOperationKey({
               turnId: input.context.turnId,
               toolName: tool.name,
@@ -548,19 +573,34 @@ export async function runOpenAIAgencyAgent(
         }
       }
 
-      const execution =
-        await executeAgencyToolWithRecovery(
-          {
-            tool,
-            args,
-            context:
-              input.context,
-            attemptedRoutes:
-              [
-                ...attemptedRoutes,
-              ],
-          },
-        );
+      const delegatedExecution =
+        input.executionDelegate
+          ? await input.executionDelegate.execute({
+              tool,
+              args,
+              context: input.context,
+              attemptedRoutes: [...attemptedRoutes],
+            })
+          : {
+              kind: "outcome" as const,
+              outcome: await executeAgencyToolWithRecovery({
+                tool,
+                args,
+                context: input.context,
+                attemptedRoutes: [...attemptedRoutes],
+              }),
+            };
+
+      if (delegatedExecution.kind === "checkpointed") {
+        return {
+          status: "checkpointed",
+          text: delegatedExecution.reason,
+          responseId: response.id,
+          toolCalls,
+        };
+      }
+
+      const execution = delegatedExecution.outcome;
 
       toolCalls +=
         execution.attempts;
