@@ -12,8 +12,8 @@ class ToolsView extends StatelessWidget {
       children: [
         Text('TOOLS & CONNECTORS', style: TextStyle(color: ArborEnvironmentTokens.cyan, fontSize: 11, letterSpacing: 1.4)),
         SizedBox(height: 12),
-        _ToolLine('GitHub', 'Repository work and verification', 'AVAILABLE IN CURRENT BUILD SESSION'),
-        _ToolLine('Supabase', 'Durable state/data backend', 'CLIENT CONFIGURED'),
+        _ToolLine('GitHub', 'Repository work and verification', 'ENVIRONMENT ADAPTER PENDING'),
+        _ToolLine('Supabase', 'Durable state/data backend', 'CLIENT BOOTSTRAP CONFIGURED'),
         _ToolLine('Web', 'Public-source research', 'ENVIRONMENT ADAPTER PENDING'),
         _ToolLine('Files', 'Artifacts and evidence', 'ENVIRONMENT ADAPTER PENDING'),
       ],
