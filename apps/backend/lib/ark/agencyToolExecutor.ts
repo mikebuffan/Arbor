@@ -2,6 +2,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { buildArborAgencyTools } from "@/lib/arbor/agency/arborTools";
 import { executeAgencyToolWithRecovery } from "@/lib/arbor/agency/toolExecution";
 import { toolNeedsUserBoundary } from "@/lib/arbor/agency/tools";
+import {
+  claimAgencyOperation,
+  completeAgencyOperation,
+} from "@/lib/arbor/agency/idempotency";
 import type { AgencyTool } from "@/lib/arbor/agency/tools";
 import type { ArkExecutorRegistry } from "./executorRegistry";
 
@@ -54,6 +58,41 @@ export function registerArkAgencyToolExecutor(input: {
       };
     }
 
+    const operationKey =
+      tool.risk === "reversible_write" ? claim.task.idempotencyKey : null;
+
+    if (operationKey) {
+      const idempotency = await claimAgencyOperation({
+        supabase: input.supabase,
+        userId: claim.task.userId,
+        projectId: claim.task.projectId,
+        key: operationKey,
+        operation: capability,
+      });
+      if (!idempotency.acquired) {
+        if (idempotency.result !== null && idempotency.result !== undefined) {
+          return {
+            status: "completed",
+            result: {
+              capability,
+              verified: true,
+              attempts: 0,
+              replayed: true,
+              output: idempotency.result,
+            },
+          };
+        }
+        return {
+          status: "blocked",
+          blocker: {
+            kind: "operation_in_progress",
+            message:
+              `${capability} already has an unfinished idempotent execution; ARK will not replay the side effect`,
+          },
+        };
+      }
+    }
+
     await heartbeat();
     const outcome = await executeAgencyToolWithRecovery({
       tool,
@@ -76,6 +115,16 @@ export function registerArkAgencyToolExecutor(input: {
         error: `${outcome.failure.kind}:${outcome.failure.error}`,
         retryable: outcome.failure.retryable,
       };
+    }
+
+    if (operationKey) {
+      await completeAgencyOperation({
+        supabase: input.supabase,
+        userId: claim.task.userId,
+        projectId: claim.task.projectId,
+        key: operationKey,
+        result: outcome.result,
+      });
     }
 
     return {
