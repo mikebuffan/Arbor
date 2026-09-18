@@ -9,6 +9,7 @@ export async function runDefaultArkWorkerCycle(input: {
   workerId: string;
   maxTasks?: number;
   maxRuntimeMs?: number;
+  objectiveId?: string;
 }): Promise<ArkWorkerCycleResult> {
   const registry = new ArkExecutorRegistry();
   registerArkAgencyToolExecutor({
@@ -23,6 +24,7 @@ export async function runDefaultArkWorkerCycle(input: {
     workerId: input.workerId,
     maxTasks: input.maxTasks,
     maxRuntimeMs: input.maxRuntimeMs,
+    objectiveId: input.objectiveId,
     verifyCompletion: (objective) =>
       store.assessObjectiveCompletion(objective.id),
   });
