@@ -4,6 +4,7 @@ import {
   chooseExploration,
   liveSignals,
   consolidate,
+  completeCausalTrace,
   observePrediction,
   rankCounterfactuals,
   type AttentionState,
@@ -84,7 +85,7 @@ export function updateCognitiveRuntime(input: {
     consolidation: input.consolidation
       ? consolidate(input.consolidation)
       : [...prior.consolidation],
-    causalTraces: input.causalTrace
+    causalTraces: input.causalTrace && completeCausalTrace(input.causalTrace)
       ? [...prior.causalTraces, input.causalTrace].slice(-100)
       : [...prior.causalTraces],
     roundabout: routeRoundabout(signals, input.attentionCapacity ?? 4, now),
