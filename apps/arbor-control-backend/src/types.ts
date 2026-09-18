@@ -18,6 +18,8 @@ export type StrategyCandidate = {
   successes: number;
   failures: number;
   status: "candidate" | "retained" | "reverted";
+  verificationIds?: string[];
+  rejectionReason?: string;
 };
 
 export type AnnabelleWorkspaceState = {
