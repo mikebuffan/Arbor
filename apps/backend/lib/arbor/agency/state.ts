@@ -76,6 +76,40 @@ export function normalizeObjective(
   };
 }
 
+async function loadLastAgencyCheckpoint(input: {
+  supabase: SupabaseClient;
+  userId: string;
+  projectId: string;
+}): Promise<AgencyState | null> {
+  const { data, error } = await input.supabase
+    .from("arbor_agency_checkpoints")
+    .select("agency_status,current_step,unresolved_work,objective")
+    .eq("user_id", input.userId)
+    .eq("project_id", input.projectId)
+    .order("objective_revision", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    if (isMissingRuntimeTable(error)) return null;
+    throw error;
+  }
+
+  const objective = normalizeObjective(data?.objective);
+  if (!data || !objective) return null;
+
+  return {
+    goal: objective.parentGoal,
+    status: data.agency_status as AgencyState["status"],
+    currentStep: Number(data.current_step ?? 0),
+    unresolvedWork: toStrings(data.unresolved_work),
+    recurringWeaknesses: [],
+    strategyNotes: [],
+    blocker: null,
+    objective,
+  };
+}
+
 export async function loadAgencyState(input: {
   supabase: SupabaseClient;
   userId: string;
@@ -94,7 +128,23 @@ export async function loadAgencyState(input: {
     if (isMissingRuntimeTable(error)) return null;
     throw error;
   }
-  if (!data?.agency_goal || !data?.agency_status) return null;
+
+  if (!data?.agency_goal || !data?.agency_status) {
+    return loadLastAgencyCheckpoint(input);
+  }
+
+  const objective = normalizeObjective(data.agency_objective);
+  const resumableStatus =
+    data.agency_status === "active" ||
+    data.agency_status === "blocked" ||
+    data.agency_status === "checkpointed";
+
+  // A malformed/missing objective on unfinished work is not silently accepted:
+  // recover the last valid append-only checkpoint instead.
+  if (resumableStatus && !objective) {
+    const recovered = await loadLastAgencyCheckpoint(input);
+    if (recovered) return recovered;
+  }
 
   return {
     goal: String(data.agency_goal),
@@ -104,7 +154,7 @@ export async function loadAgencyState(input: {
     recurringWeaknesses: toStrings(data.agency_recurring_weaknesses),
     strategyNotes: toStrings(data.agency_strategy_notes),
     blocker: (data.agency_blocker as AgencyState["blocker"]) ?? null,
-    objective: normalizeObjective(data.agency_objective),
+    objective,
   };
 }
 
