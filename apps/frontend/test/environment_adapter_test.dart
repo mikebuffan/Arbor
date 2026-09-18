@@ -1,20 +1,168 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/environment/environment_adapter.dart';
+import 'package:frontend/environment/environment_state.dart';
+import 'package:frontend/environment/work_queue.dart';
+
+class _FakeReader implements ArkStatusReader {
+  _FakeReader(this.payload);
+
+  final Map<String, dynamic>? payload;
+
+  @override
+  Future<Map<String, dynamic>?> read(String projectId) async => payload;
+}
 
 void main() {
-  test('demo adapter identifies its source and never masquerades as live data', () async {
-    final adapter = DemoEnvironmentAdapter();
-    final snapshot = await adapter.snapshot();
+  test('demo adapter identifies itself as fallback data', () async {
+    final snapshot = await DemoEnvironmentAdapter().snapshot();
 
-    expect(snapshot.source, 'DEMO DATA');
+    expect(snapshot.source, startsWith('DEMO DATA'));
     expect(snapshot.objective.isDemo, isTrue);
+    expect(snapshot.stale, isTrue);
     expect(snapshot.workItems.every((item) => item.isDemo), isTrue);
   });
 
-  test('demo snapshot preserves explicit ARK boundary', () async {
-    final snapshot = await DemoEnvironmentAdapter().snapshot();
-    final ark = snapshot.workItems.singleWhere((item) => item.title.contains('ARK adapter'));
+  test('ARK adapter maps running objective and real task attempts', () async {
+    final adapter = ArkEnvironmentAdapter(
+      reader: _FakeReader({
+        'available': true,
+        'capturedAt': '2026-09-18T20:00:00Z',
+        'objectives': [
+          {
+            'id': 'objective-1',
+            'goal': 'Finish ARK canary',
+            'status': 'running',
+            'updated_at': '2026-09-18T19:59:00Z',
+          },
+        ],
+        'tasks': [
+          {
+            'id': 'task-1',
+            'objective_id': 'objective-1',
+            'task_key': 'step-1',
+            'kind': 'arbor.agency-tool',
+            'description': 'Inspect project state',
+            'status': 'running',
+            'attempt_count': 2,
+            'max_attempts': 3,
+            'checkpoint_sequence': 0,
+          },
+        ],
+        'checkpoints': [],
+        'events': [],
+      }),
+      projectId: 'project-1',
+    );
 
-    expect(ark.detail, contains('Exact ARK checkpoint recovery required'));
+    final snapshot = await adapter.snapshot();
+
+    expect(snapshot.source, 'ARK • READ ONLY');
+    expect(snapshot.objective.isDemo, isFalse);
+    expect(snapshot.objective.state, EnvironmentRunState.working);
+    expect(snapshot.objective.nextAction, 'Inspect project state');
+    expect(snapshot.objective.hasTruthfulState, isTrue);
+    expect(snapshot.workItems, hasLength(1));
+    expect(snapshot.workItems.single.state, WorkItemState.running);
+    expect(snapshot.workItems.single.detail, contains('attempt 2/3'));
+  });
+
+  test('ARK adapter surfaces persisted checkpoint receipt', () async {
+    final adapter = ArkEnvironmentAdapter(
+      reader: _FakeReader({
+        'available': true,
+        'objectives': [
+          {
+            'id': 'objective-1',
+            'goal': 'Resume durable work',
+            'status': 'checkpointed',
+          },
+        ],
+        'tasks': [
+          {
+            'objective_id': 'objective-1',
+            'task_key': 'step-1',
+            'description': 'Continue extraction',
+            'status': 'checkpointed',
+            'attempt_count': 1,
+            'max_attempts': 3,
+            'checkpoint_sequence': 2,
+          },
+        ],
+        'checkpoints': [
+          {
+            'objective_id': 'objective-1',
+            'sequence': 2,
+            'reason': 'interruption',
+            'next_action': 'Resume at cursor 7',
+          },
+        ],
+        'events': [],
+      }),
+      projectId: 'project-1',
+    );
+
+    final snapshot = await adapter.snapshot();
+
+    expect(snapshot.objective.state, EnvironmentRunState.checkpointed);
+    expect(snapshot.objective.checkpointReceipt, contains('Checkpoint #2'));
+    expect(snapshot.objective.checkpointReceipt, contains('Resume at cursor 7'));
+    expect(snapshot.objective.hasTruthfulState, isTrue);
+    expect(snapshot.workItems.single.state, WorkItemState.checkpointed);
+  });
+
+  test('ARK adapter never calls completed without completion evidence', () async {
+    final adapter = ArkEnvironmentAdapter(
+      reader: _FakeReader({
+        'available': true,
+        'objectives': [
+          {
+            'id': 'objective-1',
+            'goal': 'Verified work',
+            'status': 'completed',
+            'completion_evidence': {'gate': 'verified'},
+          },
+        ],
+        'tasks': [
+          {
+            'objective_id': 'objective-1',
+            'task_key': 'step-1',
+            'description': 'Finish work',
+            'status': 'completed',
+          },
+        ],
+        'checkpoints': [],
+        'events': [],
+      }),
+      projectId: 'project-1',
+    );
+
+    final snapshot = await adapter.snapshot();
+
+    expect(snapshot.objective.state, EnvironmentRunState.complete);
+    expect(snapshot.objective.completionReceipt, contains('verified'));
+    expect(snapshot.objective.hasTruthfulState, isTrue);
+  });
+
+  test('unavailable ARK can fall back without masquerading as live state', () async {
+    final adapter = FallbackEnvironmentAdapter(
+      primary: ArkEnvironmentAdapter(
+        reader: _FakeReader({
+          'available': false,
+          'objectives': [],
+          'tasks': [],
+          'checkpoints': [],
+          'events': [],
+        }),
+        projectId: 'project-1',
+      ),
+      fallback: DemoEnvironmentAdapter(),
+    );
+
+    final snapshot = await adapter.snapshot();
+
+    expect(snapshot.objective.isDemo, isTrue);
+    expect(snapshot.source, contains('DEMO DATA'));
+    expect(snapshot.source, contains('ARK • UNAVAILABLE'));
+    expect(snapshot.stale, isTrue);
   });
 }
