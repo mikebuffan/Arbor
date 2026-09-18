@@ -100,3 +100,10 @@ Ambiguous reversible-write ownership is intentionally fail-closed: an unfinished
 ## Crossing point
 
 Do not merge or deploy this branch until executable evidence above is green and Danelle explicitly authorizes the production crossing.
+
+
+## Executable verification harness
+
+The isolated branch now carries `.github/workflows/ark-integration-verification.yml`.
+It runs frozen-lockfile install, TypeScript, lint, and the backend Vitest suite on
+pushes to this branch. Its result is evidence only; it does not merge or deploy.
