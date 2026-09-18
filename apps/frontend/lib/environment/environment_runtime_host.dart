@@ -20,32 +20,51 @@ class EnvironmentRuntimeBootstrap extends StatefulWidget {
 
 class _EnvironmentRuntimeBootstrapState
     extends State<EnvironmentRuntimeBootstrap> {
-  ArborApiClient? _apiClient;
-  late final Future<EnvironmentRuntimeAdapter> _adapter;
+  late final ArborApiClient _apiClient;
+  late final EnvironmentRuntimeAdapter _adapter;
 
   @override
   void initState() {
     super.initState();
-    _adapter = _resolveAdapter();
+    _apiClient = ArborApiClient(baseUrl: ArborConfig.apiBaseUrl);
+    _adapter = _SessionAwareEnvironmentAdapter(_apiClient);
   }
 
-  Future<EnvironmentRuntimeAdapter> _resolveAdapter() async {
+  @override
+  void dispose() {
+    _apiClient.close();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      EnvironmentRuntimeHost(adapter: _adapter);
+}
+
+class _SessionAwareEnvironmentAdapter implements EnvironmentRuntimeAdapter {
+  _SessionAwareEnvironmentAdapter(
+    this.apiClient, {
+    this.refreshInterval = const Duration(seconds: 10),
+  });
+
+  final ArborApiClient apiClient;
+  final Duration refreshInterval;
+
+  @override
+  Future<EnvironmentSnapshot> snapshot() async {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) {
       return const UnavailableEnvironmentAdapter(
         'No authenticated Arbor session is available.',
-      );
+      ).snapshot();
     }
 
     final session = await ArborSession.instance.contextFor(user.id);
     if (session == null) {
       return const UnavailableEnvironmentAdapter(
         'No Arbor project is selected yet.',
-      );
+      ).snapshot();
     }
-
-    final apiClient = ArborApiClient(baseUrl: ArborConfig.apiBaseUrl);
-    _apiClient = apiClient;
 
     return FallbackEnvironmentAdapter(
       primary: ArkEnvironmentAdapter(
@@ -53,46 +72,16 @@ class _EnvironmentRuntimeBootstrapState
         projectId: session.projectId,
       ),
       fallback: DemoEnvironmentAdapter(),
-    );
+    ).snapshot();
   }
 
   @override
-  void dispose() {
-    _apiClient?.close();
-    super.dispose();
+  Stream<EnvironmentSnapshot> watch() async* {
+    while (true) {
+      yield await snapshot();
+      await Future<void>.delayed(refreshInterval);
+    }
   }
-
-  @override
-  Widget build(BuildContext context) => FutureBuilder<EnvironmentRuntimeAdapter>(
-        future: _adapter,
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return ArborEnvironmentShell(
-              objective: EnvironmentObjectiveView(
-                title: 'Environment runtime unavailable',
-                state: EnvironmentRunState.unavailable,
-                blocker: snapshot.error.toString(),
-              ),
-              runtimeSource: 'NO RUNTIME',
-              runtimeStale: true,
-            );
-          }
-
-          final adapter = snapshot.data;
-          if (adapter == null) {
-            return const ArborEnvironmentShell(
-              objective: EnvironmentObjectiveView(
-                title: 'Connecting to ARK…',
-                state: EnvironmentRunState.unavailable,
-              ),
-              runtimeSource: 'ARK • CONNECTING',
-              runtimeStale: true,
-            );
-          }
-
-          return EnvironmentRuntimeHost(adapter: adapter);
-        },
-      );
 }
 
 class EnvironmentRuntimeHost extends StatefulWidget {
