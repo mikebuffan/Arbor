@@ -15,6 +15,17 @@ export type AgencyAction = {
   highConsequenceFork?: boolean;
 };
 
+export type AgencyObjectiveState = {
+  parentGoal: string;
+  completionCriteria: string[];
+  standingAuthorization: string[];
+  hardStops: string[];
+  nextAction: string | null;
+  checkpoint: string | null;
+  status: "active" | "blocked" | "complete";
+  revision: number;
+};
+
 export type AgencyVerification = {
   ok: boolean;
   evidence?: unknown;
@@ -26,6 +37,7 @@ export type AgencyState = {
   status: "active" | "complete" | "blocked" | "checkpointed";
   currentStep: number;
   unresolvedWork: string[];
+  objective?: AgencyObjectiveState;
   recurringWeaknesses: string[];
   strategyNotes: string[];
   blocker?: AgencyBlocker | null;
