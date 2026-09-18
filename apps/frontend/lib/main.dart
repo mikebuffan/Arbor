@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'environment/arbor_environment_shell.dart';
+import 'environment/environment_runtime_host.dart';
 import 'environment/environment_theme.dart';
 
 Future<void> main() async {
@@ -29,6 +29,6 @@ class ArborApp extends StatelessWidget {
         debugShowCheckedModeBanner: false,
         title: 'Arbor Environment',
         theme: ArborEnvironmentTheme.theme(),
-        home: const ArborEnvironmentShell(),
+        home: const EnvironmentRuntimeBootstrap(),
       );
 }
