@@ -294,6 +294,41 @@ describe("ARK autonomous work runner", () => {
     expect(calls).toBe(2);
   });
 
+  it("does not replay an executor-declared non-retryable failure", async () => {
+    const store = new MemoryArkStore();
+    const objective = await store.enqueueObjective({
+      ...draft(),
+      tasks: [{ ...draft().tasks[0], maxAttempts: 3 }],
+    });
+    let calls = 0;
+    const registry = new ArkExecutorRegistry().register("test", async () => {
+      calls += 1;
+      return {
+        status: "failed",
+        error: "ambiguous write failure",
+        retryable: false,
+      };
+    });
+
+    const first = await runArkWorkerCycle({
+      store,
+      executors: registry,
+      workerId: "worker-1",
+      now: () => new Date(START),
+    });
+    expect(first.failed).toBe(1);
+    expect(calls).toBe(1);
+    expect(store.objectives.get(objective.id)?.status).toBe("failed");
+
+    await runArkWorkerCycle({
+      store,
+      executors: registry,
+      workerId: "worker-2",
+      now: () => new Date(START + 1000),
+    });
+    expect(calls).toBe(1);
+  });
+
   it("blocks unknown capabilities instead of pretending they ran", async () => {
     const store = new MemoryArkStore();
     const objective = await store.enqueueObjective({
