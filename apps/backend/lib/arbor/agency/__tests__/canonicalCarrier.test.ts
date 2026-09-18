@@ -33,11 +33,20 @@ describe("canonical agency carrier selection", () => {
     );
   });
 
-  it("allows a conversation checkpoint only when it is at least as new", () => {
+  it("allows a conversation checkpoint only when it is newer", () => {
     const project = state(10, "project step");
     const thread = state(11, "newer thread step");
     expect(choosePriorAgency(project, thread)?.objective?.nextAction).toBe(
       "newer thread step",
+    );
+  });
+
+
+  it("keeps canonical project state when revisions tie", () => {
+    const project = state(10, "canonical project step");
+    const thread = state(10, "conflicting thread step");
+    expect(choosePriorAgency(project, thread)?.objective?.nextAction).toBe(
+      "canonical project step",
     );
   });
 
