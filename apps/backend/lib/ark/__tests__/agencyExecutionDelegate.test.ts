@@ -92,6 +92,30 @@ describe("ARK agency execution delegate", () => {
     });
   });
 
+  it("refuses to start a second action while a prior durable action is unresolved", async () => {
+    const delegate = buildArkAgencyExecutionDelegate({
+      supabase: {} as never,
+      goal: "finish",
+      canDispatch: () => ({
+        allowed: false,
+        reason: "prior action still owned",
+      }),
+    });
+
+    const result = await delegate.execute({
+      tool,
+      args: {},
+      context,
+      attemptedRoutes: [],
+    });
+
+    expect(result).toEqual({
+      kind: "checkpointed",
+      reason: "prior action still owned",
+    });
+    expect(mocks.dispatch).not.toHaveBeenCalled();
+  });
+
   it("treats an in-progress idempotent write as a checkpoint, never a replay", async () => {
     mocks.dispatch.mockResolvedValue({
       status: "blocked",
