@@ -86,6 +86,42 @@ describe("ARK Arbor tool boundary", () => {
     expect(mocks.execute).not.toHaveBeenCalled();
   });
 
+  it("does not turn an ambiguous reversible-write failure into an ARK retry", async () => {
+    mocks.get.mockReturnValue({
+      name: "write.tool",
+      description: "write",
+      parameters: {},
+      risk: "reversible_write",
+      execute: vi.fn(),
+    });
+    mocks.execute.mockResolvedValue({
+      ok: false,
+      failure: {
+        kind: "provider_failure",
+        error: "provider failed after request",
+        retryable: false,
+        alternateRoutes: [],
+        evidence: { capability: "write.tool", attempt: 1 },
+      },
+      recovery: { kind: "block", reason: "provider failed after request" },
+      attempts: 1,
+      recoveredFailures: [],
+    });
+    const registry = new ArkExecutorRegistry();
+    registerArkAgencyToolExecutor({ registry, supabase: {} as never });
+
+    const result = await registry.get("arbor.agency-tool")!({
+      claim: claim("write.tool"),
+      heartbeat: vi.fn(),
+    });
+
+    expect(result).toMatchObject({
+      status: "failed",
+      retryable: false,
+    });
+    expect(mocks.execute).toHaveBeenCalledTimes(1);
+  });
+
   it("blocks a high-consequence tool before execution", async () => {
     mocks.get.mockReturnValue({
       name: "dangerous.tool",
