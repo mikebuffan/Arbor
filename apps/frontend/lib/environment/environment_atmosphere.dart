@@ -91,7 +91,7 @@ class _AtmospherePainter extends CustomPainter {
       final y = (baseY + math.sin((phase * math.pi * 2) + i) * 8) % size.height;
       final radius = 1.2 + (i % 3) * .45;
       glow.color = (i % 4 == 0 ? ArborEnvironmentTokens.violet : ArborEnvironmentTokens.firefly)
-          .withOpacity(.16 + (i % 5) * .035);
+          .withValues(alpha: .16 + (i % 5) * .035);
       canvas.drawCircle(Offset(x, y), radius, glow);
     }
   }
