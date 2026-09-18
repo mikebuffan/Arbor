@@ -86,6 +86,8 @@ export function registerArkReadTools(server: McpServer): void {
         available: z.boolean(),
         objectives: z.array(JsonRecord),
         tasks: z.array(JsonRecord),
+        checkpoints: z.array(JsonRecord),
+        events: z.array(JsonRecord),
         capturedAt: z.string(),
         truncated: z.boolean(),
       }),
