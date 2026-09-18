@@ -276,6 +276,40 @@ describe("ARK autonomous work runner", () => {
     expect(store.checkpoints).toHaveLength(1);
   });
 
+  it("recovers an expired claimed lease after a worker interruption", async () => {
+    const store = new MemoryArkStore();
+    const objective = await store.enqueueObjective({
+      ...draft(),
+      tasks: [{ ...draft().tasks[0], maxAttempts: 3 }],
+    });
+
+    const abandoned = await store.claimNextTask({
+      workerId: "worker-that-died",
+      leaseMs: 1000,
+      now: new Date(START).toISOString(),
+    });
+    expect(abandoned?.task.status).toBe("running");
+
+    let executions = 0;
+    const registry = new ArkExecutorRegistry().register("test", async () => {
+      executions += 1;
+      return { status: "completed", result: { verified: true } };
+    });
+
+    const resumed = await runArkWorkerCycle({
+      store,
+      executors: registry,
+      workerId: "replacement-worker",
+      now: () => new Date(START + 1001),
+      verifyCompletion: async () => ({ ok: true, evidence: ["recovered"] }),
+    });
+
+    expect(executions).toBe(1);
+    expect(resumed.completed).toBe(1);
+    expect(store.objectives.get(objective.id)?.status).toBe("completed");
+    expect([...store.tasks.values()][0]?.attemptCount).toBe(2);
+  });
+
   it("schedules bounded retry rather than replaying immediately", async () => {
     const store = new MemoryArkStore();
     await store.enqueueObjective({ ...draft(), tasks: [{ ...draft().tasks[0], maxAttempts: 2 }] });
