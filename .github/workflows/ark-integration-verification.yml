@@ -257,7 +257,7 @@ jobs:
               1,
               '{"cursor":7}'::jsonb,
               'continue from cursor 7',
-              'interruption smoke',
+              'interruption',
               now() + interval '3 seconds',
               now() + interval '2 seconds'
             );
