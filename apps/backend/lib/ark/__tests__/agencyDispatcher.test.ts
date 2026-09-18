@@ -45,7 +45,8 @@ describe("ARK agency dispatcher", () => {
     });
 
     const result = await dispatchAgencyToolThroughArk({
-      supabase,
+      arkSupabase: supabase,
+      toolSupabase: {} as never,
       userId: "user-1",
       projectId: "project-1",
       conversationId: "conversation-1",
@@ -91,7 +92,8 @@ describe("ARK agency dispatcher", () => {
     });
 
     const result = await dispatchAgencyToolThroughArk({
-      supabase,
+      arkSupabase: supabase,
+      toolSupabase: {} as never,
       userId: "user-1",
       projectId: "project-1",
       turnId: "turn-1",
@@ -122,7 +124,8 @@ describe("ARK agency dispatcher", () => {
     });
 
     const result = await dispatchAgencyToolThroughArk({
-      supabase,
+      arkSupabase: supabase,
+      toolSupabase: {} as never,
       userId: "user-1",
       projectId: "project-1",
       turnId: "turn-1",
