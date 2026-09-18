@@ -14,9 +14,11 @@ import { buildPromptContext } from "@/lib/prompt/buildPromptContext";
 import { runOpenAIAgencyAgent } from "@/lib/arbor/agency/openaiAgent";
 import { buildArborAgencyTools } from "@/lib/arbor/agency/arborTools";
 import {
+  agencyOperationKey,
   claimAgencyOperation,
   completeAgencyOperation,
 } from "@/lib/arbor/agency/idempotency";
+import { buildArkAgencyExecutionDelegate } from "@/lib/ark/agencyExecutionDelegate";
 import {
   beginAgencySession,
   blockAgencySession,
@@ -410,6 +412,42 @@ export async function POST(req: Request) {
     }));
 
     const agencyTools = buildArborAgencyTools({ supabase });
+    const arkExecutionEnabled =
+      process.env.ARBOR_ENABLE_ARK_EXECUTION === "true";
+
+    const arkExecutionDelegate = arkExecutionEnabled
+      ? buildArkAgencyExecutionDelegate({
+          supabase,
+          goal: agencyState.goal,
+          resolvePlanId: ({ capability, arguments: args }) => {
+            const execution = agencyState.objective?.execution;
+            if (!execution || execution.capability !== capability) return null;
+            const expected = `ark:${agencyOperationKey({
+              turnId: execution.turnId,
+              toolName: capability,
+              args,
+            })}`;
+            return execution.planId === expected ? execution.planId : null;
+          },
+          onEnqueued: async ({ objectiveId, planId, capability }) => {
+            const execution = agencyState.objective?.execution;
+            if (!execution || execution.planId !== planId) return;
+            agencyState = await recordAgencyProgress({
+              supabase,
+              userId,
+              projectId,
+              agency: agencyState,
+              step: agencyState.currentStep,
+              execution: {
+                ...execution,
+                arkObjectiveId: objectiveId,
+                status: "dispatched",
+              },
+              unresolvedWork: [`execute capability: ${capability}`],
+            });
+          },
+        })
+      : undefined;
 
     const agentResult = await runOpenAIAgencyAgent({
       instructions: systemPrompt,
@@ -457,6 +495,7 @@ export async function POST(req: Request) {
             result,
           }),
       },
+      executionDelegate: arkExecutionDelegate,
       hooks: {
         async onRoundStart(round) {
           agencyState = await recordAgencyProgress({
@@ -474,6 +513,22 @@ export async function POST(req: Request) {
           });
         },
         async onToolSelected({ name, arguments: args }) {
+          const execution = arkExecutionEnabled
+            ? {
+                planId: `ark:${agencyOperationKey({
+                  turnId,
+                  toolName: name,
+                  args,
+                })}`,
+                actionId: "execute",
+                capability: name,
+                arguments: args,
+                turnId,
+                arkObjectiveId: null,
+                status: "selected" as const,
+              }
+            : undefined;
+
           agencyState = await recordAgencyProgress({
             supabase,
             userId,
@@ -481,6 +536,7 @@ export async function POST(req: Request) {
             agency: agencyState,
             step: agencyState.currentStep,
             unresolvedWork: [`execute capability: ${name}`],
+            ...(execution ? { execution } : {}),
           });
 
           await timeline.record(
@@ -509,6 +565,7 @@ export async function POST(req: Request) {
             // proves completion. This also makes a process interruption between
             // action and verification resumable on the next turn.
             unresolvedWork: [`verify capability result: ${name}`],
+            ...(arkExecutionEnabled ? { execution: null } : {}),
           });
 
           await timeline.record(
@@ -529,6 +586,7 @@ export async function POST(req: Request) {
             recurringWeakness: `tool failure: ${name}`,
             strategyChange:
               `When ${name} fails, inspect the failure and choose another reversible route before stopping.`,
+            ...(arkExecutionEnabled ? { execution: null } : {}),
           });
 
           await timeline.record(
