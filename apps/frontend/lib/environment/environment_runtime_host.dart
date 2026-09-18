@@ -42,13 +42,10 @@ class _EnvironmentRuntimeBootstrapState
 }
 
 class _SessionAwareEnvironmentAdapter implements EnvironmentRuntimeAdapter {
-  _SessionAwareEnvironmentAdapter(
-    this.apiClient, {
-    this.refreshInterval = const Duration(seconds: 10),
-  });
+  _SessionAwareEnvironmentAdapter(this.apiClient);
 
   final ArborApiClient apiClient;
-  final Duration refreshInterval;
+  static const refreshInterval = Duration(seconds: 10);
 
   @override
   Future<EnvironmentSnapshot> snapshot() async {
