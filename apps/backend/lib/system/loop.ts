@@ -189,11 +189,11 @@ export async function fireflyHeartbeat(): Promise<HeartbeatResult> {
             maxTasks: 8,
             maxRuntimeMs: 15_000,
           })
-        : {
-            status: "skipped" as const,
+        : ({
+            status: "skipped",
             reason: "ark_execution_disabled",
             processed: 0,
-          };
+          } satisfies SkippedTask);
 
     const result: HeartbeatResult = {
       status: "completed",
