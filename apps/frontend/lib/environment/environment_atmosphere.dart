@@ -32,17 +32,21 @@ class _EnvironmentAtmosphereState extends State<EnvironmentAtmosphere>
   @override
   Widget build(BuildContext context) {
     final reduceMotion = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
-    return Stack(
+    Widget scene(double phase) => Stack(
       fit: StackFit.expand,
       children: [
         const ColoredBox(color: ArborEnvironmentTokens.voidBlack),
         RepaintBoundary(
-          child: CustomPaint(
-            painter: _AtmospherePainter(phase: reduceMotion ? 0 : _controller.value),
-          ),
+          child: CustomPaint(painter: _AtmospherePainter(phase: phase)),
         ),
         widget.child,
       ],
+    );
+
+    if (reduceMotion) return scene(0);
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, _) => scene(_controller.value),
     );
   }
 }
