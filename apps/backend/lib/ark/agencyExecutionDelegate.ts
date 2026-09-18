@@ -3,10 +3,10 @@ import { decideAdapterRecovery } from "@/lib/arbor/adapters/recovery";
 import { agencyOperationKey } from "@/lib/arbor/agency/idempotency";
 import type { AgencyToolExecutionDelegate } from "@/lib/arbor/agency/openaiAgent";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 import { dispatchAgencyToolThroughArk } from "./agencyDispatcher";
 
 export function buildArkAgencyExecutionDelegate(input: {
-  arkSupabase: SupabaseClient;
   toolSupabase: SupabaseClient;
   goal: string;
   resolvePlanId?: (input: {
@@ -55,7 +55,7 @@ export function buildArkAgencyExecutionDelegate(input: {
         })}`;
 
       const dispatched = await dispatchAgencyToolThroughArk({
-        arkSupabase: input.arkSupabase,
+        arkSupabase: supabaseAdmin(),
         toolSupabase: input.toolSupabase,
         userId: context.userId,
         projectId: context.projectId,
