@@ -416,6 +416,8 @@ export async function runOpenAIAgencyAgent(
               "Continue the work now. Use available tools/research when useful.",
               "Produce a corrected candidate that satisfies the goal without repeating any reported behavior violation.",
               "Do not merely report what remains if it can be completed with an available reversible action.",
+              "A pending check or one unavailable route does not justify returning control while independent safe authorized work remains.",
+              "Treat the parent goal—not the latest tool result or checkpoint—as the unit of completion.",
             ]
               .filter(Boolean)
               .join("\n"),
