@@ -8,6 +8,10 @@ vi.mock("../agencyDispatcher", () => ({
   dispatchAgencyToolThroughArk: mocks.dispatch,
 }));
 
+vi.mock("@/lib/supabase/admin", () => ({
+  supabaseAdmin: () => ({}),
+}));
+
 import { buildArkAgencyExecutionDelegate } from "../agencyExecutionDelegate";
 
 const context = {
