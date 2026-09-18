@@ -211,6 +211,13 @@ export async function runOpenAIAgencyAgent(
     priorActionEvidence?: string[];
     maxRounds?: number;
     hooks?: AgencyLoopHooks;
+    idempotency?: {
+      claim(input: { key: string; operation: string }): Promise<
+        | { acquired: true; result: null }
+        | { acquired: false; result: unknown }
+      >;
+      complete(input: { key: string; result: unknown }): Promise<void>;
+    };
   },
 ): Promise<AgentResult> {
   const maxRounds =
@@ -488,6 +495,58 @@ export async function runOpenAIAgencyAgent(
         };
       }
 
+      const idempotencyKey =
+        tool.risk === "reversible_write" && input.idempotency
+          ? [
+              input.context.turnId,
+              tool.name,
+              JSON.stringify(args, Object.keys(args).sort()),
+            ].join(":")
+          : null;
+
+      if (idempotencyKey && input.idempotency) {
+        const claim = await input.idempotency.claim({
+          key: idempotencyKey,
+          operation: tool.name,
+        });
+
+        if (!claim.acquired) {
+          if (claim.result !== null && claim.result !== undefined) {
+            await input.hooks?.onToolResult?.({
+              round,
+              name: tool.name,
+              result: claim.result,
+            });
+            actionEvidence.push(
+              `capability ${tool.name} completed successfully (idempotent replay)`,
+            );
+            outputs.push({
+              type: "function_call_output",
+              call_id: call.call_id,
+              output: JSON.stringify({
+                ok: true,
+                result: claim.result,
+                replayed: true,
+                attempts: 0,
+              }),
+            });
+          } else {
+            outputs.push({
+              type: "function_call_output",
+              call_id: call.call_id,
+              output: JSON.stringify({
+                ok: false,
+                kind: "operation_in_progress",
+                retryable: false,
+                instruction:
+                  "Do not repeat this side effect. Preserve the objective and resume after the owning execution checkpoints.",
+              }),
+            });
+          }
+          continue;
+        }
+      }
+
       const execution =
         await executeAgencyToolWithRecovery(
           {
@@ -506,6 +565,13 @@ export async function runOpenAIAgencyAgent(
         execution.attempts;
 
       if (execution.ok) {
+        if (idempotencyKey && input.idempotency) {
+          await input.idempotency.complete({
+            key: idempotencyKey,
+            result: execution.result,
+          });
+        }
+
         await input.hooks
           ?.onToolResult?.({
             round,
