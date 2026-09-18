@@ -3,6 +3,8 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 import { runMemoryDecay } from "@/lib/tasks/decay";
 import { runReflectionJob } from "@/lib/tasks/reflection";
 import { runMemorySync } from "@/lib/tasks/sync";
+import { runDefaultArkWorkerCycle } from "@/lib/ark/defaultWorker";
+import type { ArkWorkerCycleResult } from "@/lib/ark/runner";
 
 const LOCK_TABLE = "system_locks";
 const HEARTBEAT_TABLE = "system_heartbeats";
@@ -28,6 +30,7 @@ export type HeartbeatResult = {
       processed: number;
       reason?: string;
     };
+    ark: ArkWorkerCycleResult | SkippedTask;
   };
 };
 
@@ -145,6 +148,11 @@ function skippedSync(reason: string): HeartbeatResult {
         reason,
         processed: 0,
       },
+      ark: {
+        status: "skipped",
+        reason,
+        processed: 0,
+      },
     },
   };
 }
@@ -173,6 +181,13 @@ export async function fireflyHeartbeat(): Promise<HeartbeatResult> {
       syncedMemories += sync.processed;
     }
 
+    const ark = await runDefaultArkWorkerCycle({
+      supabase: client,
+      workerId: `firefly-heartbeat:${startedAt}`,
+      maxTasks: 8,
+      maxRuntimeMs: 15_000,
+    });
+
     const result: HeartbeatResult = {
       status: "completed",
       processedProjects: projectIds.length,
@@ -184,6 +199,7 @@ export async function fireflyHeartbeat(): Promise<HeartbeatResult> {
           status: "completed",
           processed: projectIds.length,
         },
+        ark,
       },
     };
 
