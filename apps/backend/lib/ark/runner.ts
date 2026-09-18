@@ -177,6 +177,26 @@ export async function runArkWorkerCycle(input: {
       continue;
     }
 
+    if (execution.status === "failed") {
+      const canRetry =
+        execution.retryable && claim.task.attemptCount < claim.task.maxAttempts;
+      const retryMs = Math.min(
+        60_000,
+        Math.max(1000, execution.retryAfterMs ?? retryDelayMs(claim.task.attemptCount)),
+      );
+      await input.store.failTask({
+        claim,
+        error: safeError(execution.error),
+        retryAt: canRetry
+          ? new Date(now().getTime() + retryMs).toISOString()
+          : null,
+        now: now().toISOString(),
+      });
+      result.failed += 1;
+      enforceObjectiveBudget();
+      continue;
+    }
+
     const completion = await input.store.completeTask({
       claim,
       result: execution.result ?? null,
