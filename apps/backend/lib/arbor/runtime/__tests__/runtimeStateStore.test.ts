@@ -64,7 +64,10 @@ describe("runtime state persistence", () => {
     };
 
     const supabase = {
-      from: vi.fn(() => query),
+      from: vi.fn((table: string) => {
+        queriedTables.push(table);
+        return query;
+      }),
     } as unknown as SupabaseClient;
 
     await saveRuntimeState({ supabase, state });
@@ -84,7 +87,7 @@ describe("runtime state persistence", () => {
     );
   });
 
-  it("falls back past a blank current thread to the latest meaningful project runtime", async () => {
+  it("prefers the durable project carrier when the current thread is blank", async () => {
     const blankState: ArborRuntimeState = {
       schemaVersion: 1,
       userId: "user-1",
@@ -113,6 +116,7 @@ describe("runtime state persistence", () => {
     };
 
     let lookup = 0;
+    const queriedTables: string[] = [];
     const query = {
       select() { return this; },
       eq() { return this; },
@@ -157,6 +161,8 @@ describe("runtime state persistence", () => {
     expect(loaded?.conversationId).toBe("conversation-blank");
     expect(loaded?.currentGoal).toBe("restore automatic memory path");
     expect(loaded?.lastMeaningfulUserTurn).toBe("keep going");
+    expect(queriedTables).toContain("arbor_conversation_state");
+    expect(queriedTables).toContain("arbor_runtime_state");
   });
 
 });
