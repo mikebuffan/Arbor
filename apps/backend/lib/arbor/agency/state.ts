@@ -37,6 +37,45 @@ function toStrings(value: unknown): string[] {
   return normalizeUnresolvedWork(value);
 }
 
+export function normalizeObjective(
+  value: unknown,
+): AgencyState["objective"] | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return undefined;
+  }
+
+  const record = value as Record<string, unknown>;
+  const statuses = new Set(["active", "blocked", "checkpointed", "complete"]);
+  const revision = Number(record.revision);
+  if (
+    typeof record.parentGoal !== "string" ||
+    !record.parentGoal.trim() ||
+    !statuses.has(String(record.status)) ||
+    !Number.isInteger(revision) ||
+    revision < 0
+  ) {
+    return undefined;
+  }
+
+  const nullableText = (candidate: unknown): string | null =>
+    typeof candidate === "string"
+      ? candidate
+      : candidate === null || candidate === undefined
+        ? null
+        : null;
+
+  return {
+    parentGoal: record.parentGoal.trim(),
+    completionCriteria: toStrings(record.completionCriteria),
+    standingAuthorization: toStrings(record.standingAuthorization),
+    hardStops: toStrings(record.hardStops),
+    nextAction: nullableText(record.nextAction),
+    checkpoint: nullableText(record.checkpoint),
+    status: String(record.status) as NonNullable<AgencyState["objective"]>["status"],
+    revision,
+  };
+}
+
 export async function loadAgencyState(input: {
   supabase: SupabaseClient;
   userId: string;
@@ -65,10 +104,7 @@ export async function loadAgencyState(input: {
     recurringWeaknesses: toStrings(data.agency_recurring_weaknesses),
     strategyNotes: toStrings(data.agency_strategy_notes),
     blocker: (data.agency_blocker as AgencyState["blocker"]) ?? null,
-    objective:
-      data.agency_objective && typeof data.agency_objective === "object"
-        ? (data.agency_objective as AgencyState["objective"])
-        : undefined,
+    objective: normalizeObjective(data.agency_objective),
   };
 }
 
