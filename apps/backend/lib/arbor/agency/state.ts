@@ -45,7 +45,7 @@ export async function loadAgencyState(input: {
   const { data, error } = await input.supabase
     .from("arbor_runtime_state")
     .select(
-      "agency_goal,agency_status,agency_current_step,agency_unresolved_work,agency_recurring_weaknesses,agency_strategy_notes,agency_blocker",
+      "agency_goal,agency_status,agency_current_step,agency_unresolved_work,agency_recurring_weaknesses,agency_strategy_notes,agency_blocker,agency_objective",
     )
     .eq("user_id", input.userId)
     .eq("project_id", input.projectId)
@@ -65,6 +65,10 @@ export async function loadAgencyState(input: {
     recurringWeaknesses: toStrings(data.agency_recurring_weaknesses),
     strategyNotes: toStrings(data.agency_strategy_notes),
     blocker: (data.agency_blocker as AgencyState["blocker"]) ?? null,
+    objective:
+      data.agency_objective && typeof data.agency_objective === "object"
+        ? (data.agency_objective as AgencyState["objective"])
+        : undefined,
   };
 }
 
@@ -87,6 +91,7 @@ export async function persistAgencyState(input: {
         agency_recurring_weaknesses: input.agency.recurringWeaknesses,
         agency_strategy_notes: input.agency.strategyNotes,
         agency_blocker: input.agency.blocker ?? null,
+        agency_objective: input.agency.objective ?? null,
         updated_at: new Date().toISOString(),
       },
       { onConflict: "user_id,project_id" },
@@ -111,6 +116,7 @@ export async function clearCompletedAgencyState(input: {
       agency_current_step: 0,
       agency_unresolved_work: [],
       agency_blocker: null,
+      agency_objective: null,
       updated_at: new Date().toISOString(),
     })
     .eq("user_id", input.userId)
