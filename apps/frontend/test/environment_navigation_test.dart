@@ -12,11 +12,11 @@ void main() {
     await tester.pumpWidget(const MaterialApp(home: ArborEnvironmentShell()));
 
     await tester.tap(find.text('Objective'));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('WHY THIS EXISTS'), findsOneWidget);
 
     await tester.tap(find.text('Evidence'));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('EVIDENCE & PROVENANCE'), findsOneWidget);
     expect(find.textContaining('Repetition is not corroboration'), findsOneWidget);
   });
@@ -24,7 +24,7 @@ void main() {
   testWidgets('command palette is reachable from visible control', (tester) async {
     await tester.pumpWidget(const MaterialApp(home: ArborEnvironmentShell()));
     await tester.tap(find.byTooltip('Open command palette'));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.text('COMMAND PALETTE'), findsOneWidget);
     expect(find.text('Open Current Objective'), findsOneWidget);
@@ -34,7 +34,7 @@ void main() {
   testWidgets('inspector is reachable from visible control', (tester) async {
     await tester.pumpWidget(const MaterialApp(home: ArborEnvironmentShell()));
     await tester.tap(find.byTooltip('Open inspector'));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.text('INSPECTOR'), findsOneWidget);
     expect(find.textContaining('Live backend inspection remains disconnected'), findsOneWidget);
