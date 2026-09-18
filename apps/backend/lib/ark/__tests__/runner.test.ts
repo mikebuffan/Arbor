@@ -456,6 +456,48 @@ describe("ARK autonomous work runner", () => {
     expect(store.objectives.get(first.id)?.status).toBe("queued");
   });
 
+  it("finishes a long dependency chain across repeated continuation cycles without replay", async () => {
+    const store = new MemoryArkStore();
+    const tasks = Array.from({ length: 12 }, (_, index) => ({
+      taskKey: `step-${index + 1}`,
+      kind: "test",
+      description: `step ${index + 1}`,
+      dependencies: index === 0 ? [] : [`step-${index}`],
+      idempotencyKey: `long:step-${index + 1}`,
+    }));
+    const objective = await store.enqueueObjective({
+      userId: "user-1",
+      projectId: "project-1",
+      goal: "finish a long durable chain",
+      idempotencyKey: "long-objective",
+      budget: { maxTasksPerCycle: 3 },
+      tasks,
+    });
+    const seen: string[] = [];
+    const registry = new ArkExecutorRegistry().register("test", async ({ claim }) => {
+      seen.push(claim.task.taskKey);
+      return { status: "completed", result: { verified: true } };
+    });
+
+    for (let cycle = 0; cycle < 4; cycle += 1) {
+      await runArkWorkerCycle({
+        store,
+        executors: registry,
+        workerId: `worker-${cycle + 1}`,
+        now: () => new Date(START + cycle * 1000),
+        maxTasks: 100,
+        verifyCompletion: async () => ({ ok: true, evidence: ["long chain complete"] }),
+      });
+    }
+
+    expect(seen).toEqual(tasks.map((task) => task.taskKey));
+    expect(new Set(seen).size).toBe(tasks.length);
+    expect(store.objectives.get(objective.id)).toMatchObject({
+      status: "completed",
+      completionEvidence: ["long chain complete"],
+    });
+  });
+
   it("honors an objective task budget across continuation cycles", async () => {
     const store = new MemoryArkStore();
     const objective = await store.enqueueObjective({
