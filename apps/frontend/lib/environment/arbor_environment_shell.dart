@@ -5,6 +5,11 @@ import 'environment_state.dart';
 import 'environment_tokens.dart';
 import 'objective_strip.dart';
 import 'work_queue.dart';
+import 'objective_workspace.dart';
+import 'activity_view.dart';
+import 'evidence_view.dart';
+import 'system_health_view.dart';
+import 'command_palette.dart';
 import '../pages/arbor_shell_page.dart';
 
 enum EnvironmentDestination { home, conversation, objective, queue, projects, evidence, benchmarks, health, settings }
@@ -18,12 +23,21 @@ class ArborEnvironmentShell extends StatefulWidget {
 }
 
 class _ArborEnvironmentShellState extends State<ArborEnvironmentShell> {
+  bool inspectorOpen = false;
   EnvironmentDestination selected = EnvironmentDestination.home;
 
   @override
   Widget build(BuildContext context) {
     final objective = widget.objective ?? EnvironmentFixture.houseHasWalls();
-    return Scaffold(
+    return Shortcuts(
+      shortcuts: const {
+        SingleActivator(LogicalKeyboardKey.keyK, control: true): ActivateIntent(),
+      },
+      child: Actions(
+        actions: <Type, Action<Intent>>{
+          ActivateIntent: CallbackAction<ActivateIntent>(onInvoke: (_) { _openPalette(context); return null; }),
+        },
+        child: Scaffold(
       backgroundColor: ArborEnvironmentTokens.voidBlack,
       body: SafeArea(
         child: Column(children: [
@@ -39,6 +53,19 @@ class _ArborEnvironmentShellState extends State<ArborEnvironmentShell> {
           ),
         ]),
       ),
+      endDrawer: Drawer(
+        backgroundColor: ArborEnvironmentTokens.midnight,
+        child: SafeArea(child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: const [
+            Text('INSPECTOR', style: TextStyle(color: ArborEnvironmentTokens.cyan, fontSize: 11, letterSpacing: 1.4)),
+            SizedBox(height: 14),
+            Text('Select an objective, work item, evidence node, or event to inspect its provenance and state.', style: TextStyle(color: ArborEnvironmentTokens.textMuted, height: 1.5)),
+            SizedBox(height: 16),
+            Text('Live backend inspection remains disconnected until its adapter is proven.', style: TextStyle(color: ArborEnvironmentTokens.firefly, fontSize: 12)),
+          ]),
+        )),
+      ),
       bottomNavigationBar: MediaQuery.sizeOf(context).width < 900
           ? NavigationBar(
               selectedIndex: selected.index.clamp(0, 4),
@@ -52,10 +79,21 @@ class _ArborEnvironmentShellState extends State<ArborEnvironmentShell> {
               ],
             )
           : null,
-    );
+    )));
   }
 
   void _select(EnvironmentDestination value) => setState(() => selected = value);
+
+  void _openPalette(BuildContext context) {
+    showEnvironmentCommandPalette(context, [
+      EnvironmentCommand('Go Home', () => _select(EnvironmentDestination.home)),
+      EnvironmentCommand('Open Conversation', () => _select(EnvironmentDestination.conversation)),
+      EnvironmentCommand('Open Current Objective', () => _select(EnvironmentDestination.objective)),
+      EnvironmentCommand('Open Work Queue', () => _select(EnvironmentDestination.queue)),
+      EnvironmentCommand('Open Evidence & Provenance', () => _select(EnvironmentDestination.evidence)),
+      EnvironmentCommand('Open System Health', () => _select(EnvironmentDestination.health)),
+    ]);
+  }
 }
 
 class _Navigation extends StatelessWidget {
@@ -121,12 +159,28 @@ class _Surface extends StatelessWidget {
             _Home(objective: objective)
           else if (selected == EnvironmentDestination.conversation)
             const SizedBox(height: 720, child: ArborShellPage())
+          else if (selected == EnvironmentDestination.objective)
+            ObjectiveWorkspace(objective: objective)
           else if (selected == EnvironmentDestination.queue)
             const WorkQueueView(items: [
               WorkItemView('Design tokens and primitives', WorkItemState.complete),
               WorkItemView('Responsive environment shell', WorkItemState.complete),
               WorkItemView('Integrate conversation surface', WorkItemState.running, detail: 'Preserve shared text/voice continuity'),
               WorkItemView('Connect live ARK adapter', WorkItemState.blocked, detail: 'Exact ARK checkpoint recovery required'),
+            ])
+          else if (selected == EnvironmentDestination.evidence)
+            const EvidenceProvenanceView(nodes: [
+              EvidenceNodeView(label: 'Existing client is Flutter cross-platform', kind: EvidenceKind.direct, source: 'repository'),
+              EvidenceNodeView(label: 'Environment must not imply ARK execution', kind: EvidenceKind.derived, source: 'truth contract'),
+              EvidenceNodeView(label: 'Live ARK adapter can be connected after recovery', kind: EvidenceKind.hypothesis, source: 'planned boundary'),
+            ])
+          else if (selected == EnvironmentDestination.health)
+            const SystemHealthView()
+          else if (selected == EnvironmentDestination.benchmarks)
+            const ActivityView(events: [
+              ActivityEvent(title: 'Environment implementation started', detail: 'Isolated branch created.', kind: 'checkpoint'),
+              ActivityEvent(title: 'Truth contract encoded', detail: 'Invalid operational states are rejected.', kind: 'verification'),
+              ActivityEvent(title: 'Conversation integrated', detail: 'Existing text/voice shell preserved inside Environment.', kind: 'integration'),
             ])
           else
             _PlaceholderSurface(title: title),
