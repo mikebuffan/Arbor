@@ -40,6 +40,38 @@ describe("agency state hydration", () => {
     });
   });
 
+  it("hydrates a durable ARK execution pointer without dropping its arguments", () => {
+    expect(
+      normalizeObjective({
+        parentGoal: "finish permanence",
+        completionCriteria: ["verified"],
+        standingAuthorization: ["safe reversible work"],
+        hardStops: ["deploy"],
+        nextAction: "execute capability: state.inspect",
+        checkpoint: "step 3 persisted",
+        status: "active",
+        revision: 10,
+        execution: {
+          planId: "ark:plan-1",
+          actionId: "execute",
+          capability: "state.inspect",
+          arguments: { scope: "project" },
+          turnId: "turn-1",
+          arkObjectiveId: "objective-1",
+          status: "dispatched",
+        },
+      }),
+    ).toMatchObject({
+      execution: {
+        planId: "ark:plan-1",
+        capability: "state.inspect",
+        arguments: { scope: "project" },
+        arkObjectiveId: "objective-1",
+        status: "dispatched",
+      },
+    });
+  });
+
   it("still accepts ordinary string work items", () => {
     expect(normalizeUnresolvedWork([" step one ", "", "step two"])).toEqual([
       "step one",

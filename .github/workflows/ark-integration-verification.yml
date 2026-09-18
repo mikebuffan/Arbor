@@ -1,0 +1,340 @@
+name: ARK integration verification
+
+on:
+  push:
+    branches:
+      - feature/ark-integration-20260918
+  workflow_dispatch:
+
+concurrency:
+  group: ark-integration-verification
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend-verification:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.30.3
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: TypeScript
+        run: pnpm --filter firefly-backend exec tsc --noEmit
+
+      - name: Tests
+        env:
+          OPENAI_API_KEY: ci-placeholder-key
+        run: pnpm --filter firefly-backend test
+
+      - name: ARK integration lint
+        run: |
+          pnpm --filter firefly-backend exec eslint \
+            app/api/ark/status/route.ts \
+            lib/ark \
+            lib/system/loop.ts \
+            lib/arbor/timeline/types.ts
+
+      - name: Production build
+        env:
+          OPENAI_API_KEY: ci-placeholder-key
+        run: pnpm --filter firefly-backend build
+
+      - name: Baseline repository lint debt (informational)
+        continue-on-error: true
+        run: pnpm --filter firefly-backend lint
+
+
+  migration-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: arbor_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d arbor_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: arbor_test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Seed minimal Supabase-compatible schema
+        run: |
+          psql -v ON_ERROR_STOP=1 <<'SQL'
+          create role anon nologin;
+          create role authenticated nologin;
+          create role service_role nologin bypassrls;
+          create schema auth;
+          create function auth.uid() returns uuid
+          language sql stable
+          as $$
+            select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid
+          $$;
+          create table auth.users (
+            id uuid primary key
+          );
+          create table public.projects (
+            id uuid primary key,
+            user_id uuid not null references auth.users(id) on delete cascade
+          );
+          grant usage on schema public, auth to anon, authenticated, service_role;
+          grant select on public.projects to service_role;
+          SQL
+
+      - name: Apply recovered ARK schema
+        run: |
+          psql -v ON_ERROR_STOP=1 -f supabase/migrations/20260918143000_create_ark_autonomous_work_runner.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/migrations/20260918203000_ark_targeted_objective_claim.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/migrations/20260918210000_ark_owner_integrity.sql
+
+      - name: Exercise ownership, targeted claim, completion, and RLS
+        run: |
+          psql -v ON_ERROR_STOP=1 <<'SQL'
+          do $$
+          declare
+            u1 uuid := '11111111-1111-1111-1111-111111111111';
+            u2 uuid := '22222222-2222-2222-2222-222222222222';
+            p1 uuid := 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+            p2 uuid := 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
+            o1 jsonb;
+            o2 jsonb;
+            claim jsonb;
+            task_id uuid;
+            lease_token uuid;
+            claimed_objective uuid;
+            completed jsonb;
+            verified jsonb;
+            abandoned jsonb;
+            recovered jsonb;
+            checkpointed jsonb;
+            resumed jsonb;
+          begin
+            insert into auth.users(id) values (u1), (u2);
+            insert into public.projects(id, user_id) values (p1, u1), (p2, u2);
+
+            begin
+              insert into public.ark_objectives (
+                user_id, project_id, goal, idempotency_key, request_hash
+              ) values (
+                u1, p2, 'cross-owner direct insert', 'direct:wrong-owner',
+                '00000000000000000000000000000000'
+              );
+              raise exception 'database accepted an objective/project owner mismatch';
+            exception
+              when foreign_key_violation then null;
+            end;
+
+            o1 := public.ark_enqueue_objective(
+              u1, p1, 'first objective', 0, '{}'::jsonb, 'plan:first',
+              jsonb_build_array(jsonb_build_object(
+                'task_key','execute',
+                'kind','arbor.agency-tool',
+                'description','execute first',
+                'dependencies','[]'::jsonb,
+                'payload','{}'::jsonb,
+                'max_attempts',3,
+                'idempotency_key','plan:first:execute'
+              ))
+            );
+            o2 := public.ark_enqueue_objective(
+              u1, p1, 'second objective', 0, '{}'::jsonb, 'plan:second',
+              jsonb_build_array(jsonb_build_object(
+                'task_key','execute',
+                'kind','arbor.agency-tool',
+                'description','execute second',
+                'dependencies','[]'::jsonb,
+                'payload','{}'::jsonb,
+                'max_attempts',3,
+                'idempotency_key','plan:second:execute'
+              ))
+            );
+
+            claim := public.ark_claim_next_task(
+              'smoke-worker',
+              10000,
+              now(),
+              '{}'::uuid[],
+              (o2->>'id')::uuid
+            );
+            claimed_objective := (claim->'objective'->>'id')::uuid;
+            if claimed_objective <> (o2->>'id')::uuid then
+              raise exception 'targeted claim selected wrong objective';
+            end if;
+
+            task_id := (claim->'task'->>'id')::uuid;
+            lease_token := (claim->'task'->>'lease_token')::uuid;
+
+            completed := public.ark_complete_task(
+              task_id,
+              'smoke-worker',
+              lease_token,
+              '{"capability":"smoke","verified":true,"attempts":1}'::jsonb,
+              now()
+            );
+
+            if completed->'objective'->>'status' <> 'awaiting_verification' then
+              raise exception 'objective did not reach awaiting_verification';
+            end if;
+
+            verified := public.ark_verify_objective(
+              (o2->>'id')::uuid,
+              true,
+              '{"gate":"smoke"}'::jsonb,
+              '{}'::text[],
+              now()
+            );
+            if verified->>'status' <> 'completed' then
+              raise exception 'objective did not verify complete';
+            end if;
+
+            -- Simulate a worker dying while holding a lease. A later worker
+            -- must recover the exact same task after lease expiry, then prove
+            -- a persisted checkpoint survives another worker handoff.
+            abandoned := public.ark_claim_next_task(
+              'dead-worker',
+              1000,
+              now(),
+              '{}'::uuid[],
+              (o1->>'id')::uuid
+            );
+            if abandoned is null then
+              raise exception 'failed to claim interruption objective';
+            end if;
+
+            recovered := public.ark_claim_next_task(
+              'recovery-worker',
+              1000,
+              now() + interval '2 seconds',
+              '{}'::uuid[],
+              (o1->>'id')::uuid
+            );
+            if recovered is null then
+              raise exception 'expired lease was not recovered';
+            end if;
+            if (recovered->'task'->>'attempt_count')::integer <> 2 then
+              raise exception 'recovered task did not advance attempt count';
+            end if;
+            if recovered->'task'->>'lease_owner' <> 'recovery-worker' then
+              raise exception 'recovered task has wrong lease owner';
+            end if;
+
+            task_id := (recovered->'task'->>'id')::uuid;
+            lease_token := (recovered->'task'->>'lease_token')::uuid;
+            checkpointed := public.ark_checkpoint_task(
+              task_id,
+              'recovery-worker',
+              lease_token,
+              1,
+              '{"cursor":7}'::jsonb,
+              'continue from cursor 7',
+              'interruption',
+              now() + interval '3 seconds',
+              now() + interval '2 seconds'
+            );
+            if checkpointed->>'status' <> 'checkpointed' then
+              raise exception 'checkpoint was not persisted';
+            end if;
+            if (checkpointed->>'checkpoint_sequence')::integer <> 1 then
+              raise exception 'checkpoint sequence was not persisted';
+            end if;
+
+            resumed := public.ark_claim_next_task(
+              'post-checkpoint-worker',
+              1000,
+              now() + interval '4 seconds',
+              '{}'::uuid[],
+              (o1->>'id')::uuid
+            );
+            if resumed is null then
+              raise exception 'checkpointed task did not resume';
+            end if;
+            if (resumed->'task'->>'lease_owner') <> 'post-checkpoint-worker' then
+              raise exception 'checkpoint resumed under wrong worker';
+            end if;
+            if (resumed->'task'->>'checkpoint_sequence')::integer <> 1 then
+              raise exception 'checkpoint sequence was lost during resume';
+            end if;
+            if (resumed->'task'->>'attempt_count')::integer <> 3 then
+              raise exception 'checkpoint resume did not advance attempt count';
+            end if;
+
+            completed := public.ark_complete_task(
+              (resumed->'task'->>'id')::uuid,
+              'post-checkpoint-worker',
+              (resumed->'task'->>'lease_token')::uuid,
+              '{"capability":"smoke","verified":true,"attempts":3}'::jsonb,
+              now() + interval '4 seconds'
+            );
+            if completed->'objective'->>'status' <> 'awaiting_verification' then
+              raise exception 'recovered objective did not reach verification';
+            end if;
+
+            verified := public.ark_verify_objective(
+              (o1->>'id')::uuid,
+              true,
+              '{"gate":"lease-and-checkpoint-recovery"}'::jsonb,
+              '{}'::text[],
+              now() + interval '4 seconds'
+            );
+            if verified->>'status' <> 'completed' then
+              raise exception 'recovered objective did not verify complete';
+            end if;
+
+            begin
+              perform public.ark_enqueue_objective(
+                u1, p2, 'wrong owner', 0, '{}'::jsonb, 'plan:wrong-owner',
+                jsonb_build_array(jsonb_build_object(
+                  'task_key','execute',
+                  'kind','arbor.agency-tool',
+                  'description','should fail',
+                  'dependencies','[]'::jsonb,
+                  'payload','{}'::jsonb,
+                  'max_attempts',3,
+                  'idempotency_key','plan:wrong-owner:execute'
+                ))
+              );
+              raise exception 'owner mismatch was not rejected';
+            exception
+              when insufficient_privilege then null;
+            end;
+          end
+          $$;
+
+          grant select on public.ark_objectives to authenticated;
+          set role authenticated;
+          set "request.jwt.claim.sub" = '11111111-1111-1111-1111-111111111111';
+          select count(*) as own_objectives_visible
+          from public.ark_objectives
+          where user_id = '11111111-1111-1111-1111-111111111111';
+          reset role;
+          SQL

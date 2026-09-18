@@ -28,6 +28,7 @@ export type ArborTimelineEventType =
   | "adapter_selected"
   | "render_completed"
   | "state_persisted"
+  | "ark_execution_checkpointed"
   | "turn_completed"
   | "turn_blocked";
 

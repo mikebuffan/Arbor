@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { AgencyState, AgencyBlocker } from "./engine";
+import type { AgencyState, AgencyBlocker, AgencyExecutionState } from "./engine";
 import {
   loadAgencyState,
   persistAgencyState,
@@ -44,6 +44,7 @@ export function nextObjective(
     checkpoint: "objective accepted",
     status: "active",
     revision: (prior?.objective?.revision ?? 0) + 1,
+    execution: null,
   };
 }
 
@@ -144,6 +145,7 @@ export async function recordAgencyProgress(input: {
   unresolvedWork?: string[];
   recurringWeakness?: string;
   strategyChange?: string;
+  execution?: AgencyExecutionState | null;
 }): Promise<AgencyState> {
   const strategyUpdate = input.strategyChange
     ? recordStrategyCandidate(
@@ -180,6 +182,10 @@ export async function recordAgencyProgress(input: {
             `continue goal: ${input.agency.goal}`,
           checkpoint: `step ${input.step} persisted`,
           revision: input.agency.objective.revision + 1,
+          execution:
+            input.execution === undefined
+              ? input.agency.objective.execution ?? null
+              : input.execution,
         }
       : undefined,
   };
@@ -299,6 +305,9 @@ export async function completeAgencySession(input: {
             ? "completion verified and persisted"
             : "completion verification did not pass",
           revision: input.agency.objective.revision + 1,
+          execution: input.verified
+            ? null
+            : input.agency.objective.execution ?? null,
         }
       : undefined,
   };
