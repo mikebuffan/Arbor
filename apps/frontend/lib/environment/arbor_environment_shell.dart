@@ -22,8 +22,17 @@ import '../pages/arbor_shell_page.dart';
 enum EnvironmentDestination { home, conversation, objective, queue, projects, memory, evidence, tools, benchmarks, focus, health, settings }
 
 class ArborEnvironmentShell extends StatefulWidget {
-  const ArborEnvironmentShell({super.key, this.objective});
+  const ArborEnvironmentShell({
+    super.key,
+    this.objective,
+    this.workItems = const [],
+    this.runtimeSource = 'DEMO DATA',
+    this.runtimeStale = false,
+  });
   final EnvironmentObjectiveView? objective;
+  final List<WorkItemView> workItems;
+  final String runtimeSource;
+  final bool runtimeStale;
 
   @override
   State<ArborEnvironmentShell> createState() => _ArborEnvironmentShellState();
@@ -65,7 +74,15 @@ class _ArborEnvironmentShellState extends State<ArborEnvironmentShell> {
               final wide = constraints.maxWidth >= 900;
               return Row(children: [
                 if (wide) _Navigation(selected: selected, onSelect: _select),
-                Expanded(child: _Surface(selected: selected, objective: objective)),
+                Expanded(
+                  child: _Surface(
+                    selected: selected,
+                    objective: objective,
+                    workItems: widget.workItems,
+                    runtimeSource: widget.runtimeSource,
+                    runtimeStale: widget.runtimeStale,
+                  ),
+                ),
               ]);
             }),
           ),
@@ -93,12 +110,15 @@ class _ArborEnvironmentShellState extends State<ArborEnvironmentShell> {
         backgroundColor: ArborEnvironmentTokens.midnight,
         child: SafeArea(child: Padding(
           padding: const EdgeInsets.all(18),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: const [
-            Text('INSPECTOR', style: TextStyle(color: ArborEnvironmentTokens.cyan, fontSize: 11, letterSpacing: 1.4)),
-            SizedBox(height: 14),
-            Text('Select an objective, work item, evidence node, or event to inspect its provenance and state.', style: TextStyle(color: ArborEnvironmentTokens.textMuted, height: 1.5)),
-            SizedBox(height: 16),
-            Text('Live backend inspection remains disconnected until its adapter is proven.', style: TextStyle(color: ArborEnvironmentTokens.firefly, fontSize: 12)),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Text('INSPECTOR', style: TextStyle(color: ArborEnvironmentTokens.cyan, fontSize: 11, letterSpacing: 1.4)),
+            const SizedBox(height: 14),
+            const Text('Select an objective, work item, evidence node, or event to inspect its provenance and state.', style: TextStyle(color: ArborEnvironmentTokens.textMuted, height: 1.5)),
+            const SizedBox(height: 16),
+            Text(
+              'Runtime source: ${widget.runtimeSource}${widget.runtimeStale ? ' • STALE/FALLBACK' : ''}. ARK access is read-only.',
+              style: const TextStyle(color: ArborEnvironmentTokens.firefly, fontSize: 12),
+            ),
           ]),
         )),
       ),
@@ -164,9 +184,18 @@ class _Navigation extends StatelessWidget {
 }
 
 class _Surface extends StatelessWidget {
-  const _Surface({required this.selected, required this.objective});
+  const _Surface({
+    required this.selected,
+    required this.objective,
+    required this.workItems,
+    required this.runtimeSource,
+    required this.runtimeStale,
+  });
   final EnvironmentDestination selected;
   final EnvironmentObjectiveView objective;
+  final List<WorkItemView> workItems;
+  final String runtimeSource;
+  final bool runtimeStale;
 
   @override
   Widget build(BuildContext context) {
@@ -191,37 +220,61 @@ class _Surface extends StatelessWidget {
           Text(title, style: Theme.of(context).textTheme.headlineMedium?.copyWith(
             color: ArborEnvironmentTokens.textPrimary, fontWeight: FontWeight.w300, letterSpacing: 1.2)),
           const SizedBox(height: 6),
-          const Text('ARBOR ENVIRONMENT', style: TextStyle(color: ArborEnvironmentTokens.textMuted, fontSize: 11, letterSpacing: 2)),
+          Text(
+            'ARBOR ENVIRONMENT • $runtimeSource${runtimeStale ? ' • STALE' : ''}',
+            style: const TextStyle(color: ArborEnvironmentTokens.textMuted, fontSize: 11, letterSpacing: 1.6),
+          ),
           const SizedBox(height: 24),
           if (selected == EnvironmentDestination.home)
-            _Home(objective: objective)
+            _Home(
+              objective: objective,
+              runtimeSource: runtimeSource,
+              runtimeStale: runtimeStale,
+            )
           else if (selected == EnvironmentDestination.conversation)
             const SizedBox(height: 720, child: ArborShellPage())
           else if (selected == EnvironmentDestination.objective)
             ObjectiveWorkspace(objective: objective)
           else if (selected == EnvironmentDestination.queue)
-            const WorkQueueView(items: [
-              WorkItemView('Design tokens and primitives', WorkItemState.complete),
-              WorkItemView('Responsive environment shell', WorkItemState.complete),
-              WorkItemView('Integrate conversation surface', WorkItemState.running, detail: 'Preserve shared text/voice continuity'),
-              WorkItemView('Connect live ARK adapter', WorkItemState.blocked, detail: 'Exact ARK checkpoint recovery required'),
-            ])
+            WorkQueueView(items: workItems)
           else if (selected == EnvironmentDestination.projects)
             const ProjectsView()
           else if (selected == EnvironmentDestination.memory)
             const MemoryStateView()
           else if (selected == EnvironmentDestination.evidence)
-            const EvidenceProvenanceView(nodes: [
-              EvidenceNodeView(label: 'Existing client is Flutter cross-platform', kind: EvidenceKind.direct, source: 'repository'),
-              EvidenceNodeView(label: 'Environment must not imply ARK execution', kind: EvidenceKind.derived, source: 'truth contract'),
-              EvidenceNodeView(label: 'Live ARK adapter can be connected after recovery', kind: EvidenceKind.hypothesis, source: 'planned boundary'),
+            EvidenceProvenanceView(nodes: [
+              EvidenceNodeView(
+                label: 'Runtime snapshot source: $runtimeSource',
+                kind: EvidenceKind.direct,
+                source: 'read-only runtime adapter',
+                isDemo: objective.isDemo,
+              ),
+              const EvidenceNodeView(
+                label: 'Environment cannot execute or mutate ARK work',
+                kind: EvidenceKind.direct,
+                source: 'read-only adapter contract',
+                isDemo: false,
+              ),
+              EvidenceNodeView(
+                label: objective.hasTruthfulState
+                    ? 'Displayed objective satisfies the Environment truth contract'
+                    : 'Displayed objective violates the Environment truth contract',
+                kind: objective.hasTruthfulState
+                    ? EvidenceKind.derived
+                    : EvidenceKind.contradiction,
+                source: 'Environment state validation',
+                isDemo: objective.isDemo,
+              ),
             ])
           else if (selected == EnvironmentDestination.tools)
             const ToolsView()
           else if (selected == EnvironmentDestination.focus)
             FocusView(objective: objective)
           else if (selected == EnvironmentDestination.health)
-            const SystemHealthView()
+            SystemHealthView(
+              runtimeSource: runtimeSource,
+              runtimeStale: runtimeStale,
+            )
           else if (selected == EnvironmentDestination.benchmarks)
             const BenchmarkView(metrics: [
               BenchmarkMetric('Displayed work time', '—', note: 'Populate only from captured run evidence.'),
@@ -238,8 +291,14 @@ class _Surface extends StatelessWidget {
 }
 
 class _Home extends StatelessWidget {
-  const _Home({required this.objective});
+  const _Home({
+    required this.objective,
+    required this.runtimeSource,
+    required this.runtimeStale,
+  });
   final EnvironmentObjectiveView objective;
+  final String runtimeSource;
+  final bool runtimeStale;
   @override
   Widget build(BuildContext context) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -258,28 +317,47 @@ class _Home extends StatelessWidget {
                   Text(objective.nextAction ?? 'No next action reported.', style: const TextStyle(color: ArborEnvironmentTokens.textMuted)),
                   if (objective.isDemo) ...[
                     const SizedBox(height: 16),
-                    const Text('DEMO DATA — live ARK adapter intentionally disconnected.', style: TextStyle(color: ArborEnvironmentTokens.firefly, fontSize: 11)),
+                    const Text('DEMO FALLBACK — live ARK state is unavailable.', style: TextStyle(color: ArborEnvironmentTokens.firefly, fontSize: 11)),
                   ],
                 ],
               ))),
-              const SizedBox(width: 300, child: EnvironmentPanel(child: Column(
+              SizedBox(width: 340, child: EnvironmentPanel(child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('HOUSE STATUS', style: TextStyle(color: ArborEnvironmentTokens.violet, fontSize: 11, letterSpacing: 1.4)),
-                  SizedBox(height: 12),
-                  Text('The observatory is online.', style: TextStyle(color: ArborEnvironmentTokens.textPrimary, fontSize: 20)),
-                  SizedBox(height: 8),
-                  Text('ARK boundary intact. Production untouched.', style: TextStyle(color: ArborEnvironmentTokens.textMuted)),
+                  const Text('HOUSE STATUS', style: TextStyle(color: ArborEnvironmentTokens.violet, fontSize: 11, letterSpacing: 1.4)),
+                  const SizedBox(height: 12),
+                  Text(runtimeSource, style: const TextStyle(color: ArborEnvironmentTokens.textPrimary, fontSize: 20)),
+                  const SizedBox(height: 8),
+                  Text(
+                    runtimeStale
+                        ? 'Snapshot is stale/fallback. ARK remains read-only.'
+                        : 'Live snapshot is read-only. Environment cannot mutate ARK.',
+                    style: const TextStyle(color: ArborEnvironmentTokens.textMuted),
+                  ),
                 ],
               ))),
             ],
           ),
           const SizedBox(height: 16),
-          const ActivityView(events: [
-            ActivityEvent(title: 'Environment branch isolated', detail: 'No production or ARK mutation.', kind: 'boundary'),
-            ActivityEvent(title: 'Truth contract active', detail: 'Operational claims require supporting state.', kind: 'verification'),
-            ActivityEvent(title: 'Conversation room preserved', detail: 'Existing text and voice shell lives inside the Environment.', kind: 'integration'),
-            ActivityEvent(title: 'Observatory atmosphere added', detail: 'Reduced-motion aware ambient layer.', kind: 'design'),
+          ActivityView(events: [
+            const ActivityEvent(
+              title: 'Environment branch isolated',
+              detail: 'No production mutation.',
+              kind: 'boundary',
+              isDemo: false,
+            ),
+            ActivityEvent(
+              title: 'Runtime snapshot',
+              detail: '$runtimeSource${runtimeStale ? ' • stale/fallback' : ''}',
+              kind: 'runtime',
+              isDemo: objective.isDemo,
+            ),
+            const ActivityEvent(
+              title: 'Read-only boundary active',
+              detail: 'Environment observes ARK but has no execution controls.',
+              kind: 'safety',
+              isDemo: false,
+            ),
           ]),
         ],
       );
