@@ -40,7 +40,7 @@ export async function loadRuntimeState(input: {
   );
 
   if (!exact) {
-    return loadProjectRuntimeState(input) ?? loadLatestRuntimeState(input);
+    return (await loadProjectRuntimeState(input)) ?? (await loadLatestRuntimeState(input));
   }
 
   if (meaningfulRuntimeState(exact)) {
