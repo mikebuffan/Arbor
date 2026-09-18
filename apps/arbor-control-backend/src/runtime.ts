@@ -869,9 +869,9 @@ export class ArborControlRuntime {
                 }
               },
           },
-        }),
+        },
           run: this.agencyRunner,
-        })
+        });
 
       // Provider/model output may propose task/runtime state, but Arbor's
       // durable identity anchor remains authoritative at the host boundary.
