@@ -47,7 +47,7 @@ export function nextObjective(
   };
 }
 
-function resumableAgency(
+export function resumableAgency(
   value: AgencyState | null | undefined,
 ): AgencyState | null {
   if (!value) return null;
@@ -56,6 +56,19 @@ function resumableAgency(
     value.status === "checkpointed"
     ? value
     : null;
+}
+
+export function choosePriorAgency(
+  projectAgency: AgencyState | null,
+  conversationAgency: AgencyState | null | undefined,
+): AgencyState | null {
+  const project = resumableAgency(projectAgency) ?? projectAgency;
+  const conversation = resumableAgency(conversationAgency);
+  const projectRevision = project?.objective?.revision ?? 0;
+  const conversationRevision = conversation?.objective?.revision ?? 0;
+  return conversation && conversationRevision >= projectRevision
+    ? conversation
+    : project ?? conversation;
 }
 
 export async function beginAgencySession(input: {
@@ -80,14 +93,10 @@ export async function beginAgencySession(input: {
   // Project state is the canonical carrier. A conversation may resume only
   // when it is not older than the project objective. This prevents revisiting
   // an old thread from resurrecting stale work over a newer project checkpoint.
-  const project = resumableAgency(projectAgency) ?? projectAgency;
-  const conversation = resumableAgency(conversationRuntime?.agency);
-  const projectRevision = project?.objective?.revision ?? 0;
-  const conversationRevision = conversation?.objective?.revision ?? 0;
-  const prior =
-    conversation && conversationRevision >= projectRevision
-      ? conversation
-      : project ?? conversation;
+  const prior = choosePriorAgency(
+    projectAgency,
+    conversationRuntime?.agency,
+  );
 
   const { goal, resume } = resolveAgencyGoal(input.userText, prior);
 
