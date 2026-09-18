@@ -27,12 +27,15 @@ function userClientConfiguration() {
   return { url, anonKey };
 }
 
-export function createRequestScopedUserClient(req: Request): SupabaseClient {
-  const token = bearerTokenFromRequest(req);
+export function createUserClientForBearerToken(token: string): SupabaseClient {
   const { url, anonKey } = userClientConfiguration();
 
   return createClient(url, anonKey, {
     auth: { persistSession: false, autoRefreshToken: false },
     global: { headers: { Authorization: `Bearer ${token}` } },
   });
+}
+
+export function createRequestScopedUserClient(req: Request): SupabaseClient {
+  return createUserClientForBearerToken(bearerTokenFromRequest(req));
 }
