@@ -128,7 +128,7 @@ export async function runAgency(input: {
   maxRounds?: number;
   hooks?: AgencyHooks;
 }): Promise<AgencyResult> {
-  const maxRounds = input.maxRounds ?? 12;
+  const maxRounds = input.maxRounds ?? 48;
   const capabilities =
     input.capabilities ?? new ArborCapabilityRegistry();
 
@@ -478,6 +478,10 @@ export async function runAgency(input: {
         state,
         pendingStrategy,
         verification.complete,
+        {
+          verificationId:
+            `${input.context.turnId}:round:${round}`,
+        },
       );
     }
 
@@ -507,6 +511,10 @@ export async function runAgency(input: {
           state,
           pendingStrategy,
           confirmation.complete,
+          {
+            verificationId:
+              `${input.context.turnId}:round:${round}`,
+          },
         );
 
         await input.hooks?.onVerification?.({
@@ -676,7 +684,8 @@ async function verifyCompletion(input: {
       "You are Arbor's completion verifier.",
       "Do not accept promises, status narration, or unevidenced claims as completion.",
       "If the goal required an action and no capability or research evidence exists, completion must be false.",
-      "A strategy correction is a task-execution candidate, not a durable identity, safety, authority, Voice, or Annabelle rule.",
+      "A strategy correction is a task-execution candidate, not a durable identity, safety, truthfulness, non-weaponization, privacy, authority, Voice, or Annabelle rule.",
+      "Do not propose a strategy correction that weakens protected Firefly core invariants.",
       "Return JSON only:",
       '{"complete":boolean,"unresolvedWork":string[],"strategyCorrection":string|null}',
     ].join("\n"),

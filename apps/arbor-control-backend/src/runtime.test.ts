@@ -718,4 +718,63 @@ describe("Arbor control runtime pass", () => {
     expect(subsystem).toBeGreaterThan(carrier);
   });
 
+
+  it(
+    "automatically continues checkpointed agency windows before returning to the user",
+    async () => {
+      let calls = 0;
+      let carriedMarker = false;
+
+      const runner: AgencyRunner = async (input) => {
+        calls += 1;
+
+        if (calls === 1) {
+          return {
+            status: "checkpointed",
+            text: "intermediate checkpoint that must not escape",
+            state: {
+              ...input.state,
+              unresolvedWork: ["continue the same objective"],
+              strategyNotes: [
+                ...input.state.strategyNotes,
+                "checkpoint-marker",
+              ],
+            },
+            rounds: 48,
+            toolCalls: 2,
+            researchCalls: 1,
+          };
+        }
+
+        carriedMarker = input.state.strategyNotes.includes(
+          "checkpoint-marker",
+        );
+
+        return {
+          status: "complete",
+          text: "final verified result",
+          state: {
+            ...input.state,
+            unresolvedWork: [],
+          },
+          rounds: 2,
+          toolCalls: 1,
+          researchCalls: 0,
+        };
+      };
+
+      const { runtime } = await fixture(runner);
+      const response = await runtime.runTurn({
+        projectId: "project-checkpoint",
+        turnId: "checkpoint-turn",
+        userText: "finish the whole authorized list",
+      });
+
+      expect(calls).toBe(2);
+      expect(carriedMarker).toBe(true);
+      expect(response.text).toBe("final verified result");
+      expect(response.text).not.toContain("intermediate checkpoint");
+    },
+  );
+
 });
