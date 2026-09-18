@@ -24,10 +24,17 @@ export async function GET(req: Request) {
       projectId,
     });
 
-    return NextResponse.json({
-      ok: true,
-      ...snapshot,
-    });
+    return NextResponse.json(
+      {
+        ok: true,
+        ...snapshot,
+      },
+      {
+        headers: {
+          "Cache-Control": "no-store",
+        },
+      },
+    );
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
