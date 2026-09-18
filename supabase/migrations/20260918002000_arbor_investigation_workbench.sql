@@ -175,12 +175,93 @@ grant select, insert, update, delete on public.arbor_investigation_coverage to a
 grant select, insert, update, delete on public.arbor_investigation_hypotheses to authenticated;
 grant select, insert, update, delete on public.arbor_investigation_findings to authenticated;
 
+-- Chain-of-custody packets are append-only. Corrections create a new packet.
+create or replace function public.arbor_reject_investigation_packet_mutation()
+returns trigger
+language plpgsql
+as $$
+begin
+  raise exception 'investigation evidence packets are immutable; append a corrected packet';
+end;
+$$;
+
+drop trigger if exists arbor_investigation_evidence_packets_immutable
+  on public.arbor_investigation_evidence_packets;
+create trigger arbor_investigation_evidence_packets_immutable
+before update or delete on public.arbor_investigation_evidence_packets
+for each row execute function public.arbor_reject_investigation_packet_mutation();
+
+-- Finding content is immutable. Only lifecycle status may move forward.
+create or replace function public.arbor_guard_investigation_finding_update()
+returns trigger
+language plpgsql
+as $$
+begin
+  if tg_op = 'DELETE' then
+    raise exception 'investigation findings are immutable';
+  end if;
+
+  if (
+    new.case_id is distinct from old.case_id or
+    new.user_id is distinct from old.user_id or
+    new.project_id is distinct from old.project_id or
+    new.finding_id is distinct from old.finding_id or
+    new.version is distinct from old.version or
+    new.statement is distinct from old.statement or
+    new.evidence_ids is distinct from old.evidence_ids or
+    new.counterevidence_ids is distinct from old.counterevidence_ids or
+    new.entity_state is distinct from old.entity_state or
+    new.confidence is distinct from old.confidence or
+    new.uncertainty is distinct from old.uncertainty or
+    new.supersedes_version is distinct from old.supersedes_version or
+    new.snapshot is distinct from old.snapshot or
+    new.created_at is distinct from old.created_at
+  ) then
+    raise exception 'finding snapshot content is immutable';
+  end if;
+
+  if old.status <> 'current' or new.status not in ('superseded','withdrawn') then
+    raise exception 'invalid finding lifecycle transition';
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists arbor_investigation_findings_guard
+  on public.arbor_investigation_findings;
+create trigger arbor_investigation_findings_guard
+before update or delete on public.arbor_investigation_findings
+for each row execute function public.arbor_guard_investigation_finding_update();
+
+-- Case ownership is checked at both the row and parent-case boundary. Merely
+-- knowing another case UUID cannot be used to attach rows to it.
+drop policy if exists arbor_investigation_cases_select_own on public.arbor_investigation_cases;
+create policy arbor_investigation_cases_select_own
+on public.arbor_investigation_cases for select to authenticated
+using ((select auth.uid()) = user_id);
+
+drop policy if exists arbor_investigation_cases_insert_own on public.arbor_investigation_cases;
+create policy arbor_investigation_cases_insert_own
+on public.arbor_investigation_cases for insert to authenticated
+with check ((select auth.uid()) = user_id);
+
+drop policy if exists arbor_investigation_cases_update_own on public.arbor_investigation_cases;
+create policy arbor_investigation_cases_update_own
+on public.arbor_investigation_cases for update to authenticated
+using ((select auth.uid()) = user_id)
+with check ((select auth.uid()) = user_id);
+
+drop policy if exists arbor_investigation_cases_delete_own on public.arbor_investigation_cases;
+create policy arbor_investigation_cases_delete_own
+on public.arbor_investigation_cases for delete to authenticated
+using ((select auth.uid()) = user_id);
+
 do $$
 declare
   tbl text;
 begin
   foreach tbl in array array[
-    'arbor_investigation_cases',
     'arbor_investigation_sources',
     'arbor_investigation_evidence_packets',
     'arbor_investigation_claims',
@@ -192,23 +273,26 @@ begin
   loop
     execute format('drop policy if exists %I on public.%I', tbl || '_select_own', tbl);
     execute format(
-      'create policy %I on public.%I for select to authenticated using ((select auth.uid()) = user_id)',
-      tbl || '_select_own', tbl
+      'create policy %I on public.%I for select to authenticated using ((select auth.uid()) = user_id and exists (select 1 from public.arbor_investigation_cases c where c.id = public.%I.case_id and c.user_id = (select auth.uid()) and c.project_id = public.%I.project_id))',
+      tbl || '_select_own', tbl, tbl, tbl
     );
+
     execute format('drop policy if exists %I on public.%I', tbl || '_insert_own', tbl);
     execute format(
-      'create policy %I on public.%I for insert to authenticated with check ((select auth.uid()) = user_id)',
-      tbl || '_insert_own', tbl
+      'create policy %I on public.%I for insert to authenticated with check ((select auth.uid()) = user_id and exists (select 1 from public.arbor_investigation_cases c where c.id = public.%I.case_id and c.user_id = (select auth.uid()) and c.project_id = public.%I.project_id))',
+      tbl || '_insert_own', tbl, tbl, tbl
     );
+
     execute format('drop policy if exists %I on public.%I', tbl || '_update_own', tbl);
     execute format(
-      'create policy %I on public.%I for update to authenticated using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id)',
-      tbl || '_update_own', tbl
+      'create policy %I on public.%I for update to authenticated using ((select auth.uid()) = user_id and exists (select 1 from public.arbor_investigation_cases c where c.id = public.%I.case_id and c.user_id = (select auth.uid()) and c.project_id = public.%I.project_id)) with check ((select auth.uid()) = user_id and exists (select 1 from public.arbor_investigation_cases c where c.id = public.%I.case_id and c.user_id = (select auth.uid()) and c.project_id = public.%I.project_id))',
+      tbl || '_update_own', tbl, tbl, tbl, tbl, tbl
     );
+
     execute format('drop policy if exists %I on public.%I', tbl || '_delete_own', tbl);
     execute format(
-      'create policy %I on public.%I for delete to authenticated using ((select auth.uid()) = user_id)',
-      tbl || '_delete_own', tbl
+      'create policy %I on public.%I for delete to authenticated using ((select auth.uid()) = user_id and exists (select 1 from public.arbor_investigation_cases c where c.id = public.%I.case_id and c.user_id = (select auth.uid()) and c.project_id = public.%I.project_id))',
+      tbl || '_delete_own', tbl, tbl, tbl
     );
   end loop;
 end $$;
