@@ -419,6 +419,23 @@ export async function POST(req: Request) {
       ? buildArkAgencyExecutionDelegate({
           supabase,
           goal: agencyState.goal,
+          canDispatch: ({ capability, arguments: args }) => {
+            const execution = agencyState.objective?.execution;
+            if (!execution) return { allowed: true };
+            const expected = `ark:${agencyOperationKey({
+              turnId: execution.turnId,
+              toolName: capability,
+              args,
+            })}`;
+            return execution.capability === capability &&
+              execution.planId === expected
+              ? { allowed: true }
+              : {
+                  allowed: false,
+                  reason:
+                    `ARK still owns ${execution.capability}; refusing to start a different action until that durable execution is resolved.`,
+                };
+          },
           resolvePlanId: ({ capability, arguments: args }) => {
             const execution = agencyState.objective?.execution;
             if (!execution || execution.capability !== capability) return null;
@@ -513,20 +530,34 @@ export async function POST(req: Request) {
           });
         },
         async onToolSelected({ name, arguments: args }) {
+          const existingExecution = agencyState.objective?.execution;
+          const existingPlanForSelection = existingExecution
+            ? `ark:${agencyOperationKey({
+                turnId: existingExecution.turnId,
+                toolName: name,
+                args,
+              })}`
+            : null;
           const execution = arkExecutionEnabled
-            ? {
-                planId: `ark:${agencyOperationKey({
-                  turnId,
-                  toolName: name,
-                  args,
-                })}`,
-                actionId: "execute",
-                capability: name,
-                arguments: args,
-                turnId,
-                arkObjectiveId: null,
-                status: "selected" as const,
-              }
+            ? existingExecution &&
+              existingExecution.capability === name &&
+              existingExecution.planId === existingPlanForSelection
+              ? existingExecution
+              : existingExecution
+                ? existingExecution
+                : {
+                    planId: `ark:${agencyOperationKey({
+                      turnId,
+                      toolName: name,
+                      args,
+                    })}`,
+                    actionId: "execute",
+                    capability: name,
+                    arguments: args,
+                    turnId,
+                    arkObjectiveId: null,
+                    status: "selected" as const,
+                  }
             : undefined;
 
           agencyState = await recordAgencyProgress({
