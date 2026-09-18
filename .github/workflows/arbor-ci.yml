@@ -8,6 +8,7 @@ on:
     branches:
       - main
       - arbor-linear-runtime
+      - "arbor/**"
   workflow_dispatch:
 
 # CI sentinel: keep this workflow visibly updated when main-push Actions delivery stalls.
