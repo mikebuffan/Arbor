@@ -1,13 +1,14 @@
 name: ARK integration verification
 
 on:
-  pull_request:
-    branches:
-      - arbor/permanence-runtime-main
   push:
     branches:
       - feature/ark-integration-20260918
   workflow_dispatch:
+
+concurrency:
+  group: ark-integration-verification
+  cancel-in-progress: true
 
 permissions:
   contents: read
