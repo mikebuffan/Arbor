@@ -37,6 +37,6 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.text('INSPECTOR'), findsOneWidget);
-    expect(find.textContaining('Live backend inspection remains disconnected'), findsOneWidget);
+    expect(find.textContaining('ARK access is read-only'), findsOneWidget);
   });
 }
