@@ -10,7 +10,7 @@ describe("context codex routing", () => {
     expect(result.uncertaintyInstruction).toMatch(/I don't know/i);
   });
 
-  it("routes continuity cues without converting them into facts", () => {
+  it("catches shared-vocabulary cues without inventing who influenced whom", () => {\n    const result = routeContextCodex("I say fresh bullshit too.");\n    expect(result.routes).toContain("provenance");\n    expect(result.requiresVerification).toBe(true);\n  });\n\n  it("routes continuity cues without converting them into facts", () => {
     const result = routeContextCodex("Remember when we already fixed this before you broke?");
     expect(result.routes).toContain("continuity");
     expect(result.query).toMatch(/chronology prior conversation/i);
