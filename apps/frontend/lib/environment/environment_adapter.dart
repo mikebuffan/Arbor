@@ -98,7 +98,6 @@ class ArkEnvironmentAdapter implements EnvironmentRuntimeAdapter {
         .toList(growable: false);
 
     final status = _string(objective['status']);
-    final mappedState = _objectiveState(status);
     final blocker = _blockerText(objective['blocker']) ??
         _failedTaskError(objectiveTasks);
     final checkpointReceipt = objectiveCheckpoints.isEmpty
@@ -112,6 +111,19 @@ class ArkEnvironmentAdapter implements EnvironmentRuntimeAdapter {
       'running' || 'checkpointed' || 'queued' =>
         _nextTaskDescription(objectiveTasks),
       _ => null,
+    };
+
+    final rawState = _objectiveState(status);
+    final mappedState = switch (rawState) {
+      EnvironmentRunState.working when nextAction == null =>
+        EnvironmentRunState.degraded,
+      EnvironmentRunState.checkpointed when checkpointReceipt == null =>
+        EnvironmentRunState.degraded,
+      EnvironmentRunState.blocked when blocker == null =>
+        EnvironmentRunState.degraded,
+      EnvironmentRunState.complete when completionReceipt == null =>
+        EnvironmentRunState.degraded,
+      _ => rawState,
     };
 
     return EnvironmentSnapshot(
