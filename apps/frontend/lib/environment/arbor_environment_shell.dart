@@ -27,7 +27,7 @@ class ArborEnvironmentShell extends StatefulWidget {
 }
 
 class _ArborEnvironmentShellState extends State<ArborEnvironmentShell> {
-  bool inspectorOpen = false;
+  final _scaffoldKey = GlobalKey<ScaffoldState>();
   EnvironmentDestination selected = EnvironmentDestination.home;
 
   @override
@@ -42,6 +42,7 @@ class _ArborEnvironmentShellState extends State<ArborEnvironmentShell> {
           ActivateIntent: CallbackAction<ActivateIntent>(onInvoke: (_) { _openPalette(context); return null; }),
         },
         child: Scaffold(
+      key: _scaffoldKey,
       backgroundColor: ArborEnvironmentTokens.voidBlack,
       body: SafeArea(
         child: Column(children: [
@@ -56,6 +57,24 @@ class _ArborEnvironmentShellState extends State<ArborEnvironmentShell> {
             }),
           ),
         ]),
+      ),
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          FloatingActionButton.small(
+            heroTag: 'inspector',
+            tooltip: 'Open inspector',
+            onPressed: () => _scaffoldKey.currentState?.openEndDrawer(),
+            child: const Icon(Icons.manage_search_outlined),
+          ),
+          const SizedBox(height: 10),
+          FloatingActionButton(
+            heroTag: 'commands',
+            tooltip: 'Open command palette',
+            onPressed: () => _openPalette(context),
+            child: const Icon(Icons.auto_awesome_mosaic_outlined),
+          ),
+        ],
       ),
       endDrawer: Drawer(
         backgroundColor: ArborEnvironmentTokens.midnight,
@@ -72,7 +91,7 @@ class _ArborEnvironmentShellState extends State<ArborEnvironmentShell> {
       ),
       bottomNavigationBar: MediaQuery.sizeOf(context).width < 900
           ? NavigationBar(
-              selectedIndex: selected.index.clamp(0, 4),
+              selectedIndex: selected.index < 5 ? selected.index : 0,
               onDestinationSelected: (i) => _select(EnvironmentDestination.values[i]),
               destinations: const [
                 NavigationDestination(icon: Icon(Icons.home_outlined), label: 'Home'),
