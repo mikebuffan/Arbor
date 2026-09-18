@@ -22,7 +22,7 @@ export type AgencyObjectiveState = {
   hardStops: string[];
   nextAction: string | null;
   checkpoint: string | null;
-  status: "active" | "blocked" | "complete";
+  status: "active" | "blocked" | "checkpointed" | "complete";
   revision: number;
 };
 
