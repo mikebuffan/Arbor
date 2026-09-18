@@ -50,6 +50,7 @@ export async function dispatchAgencyToolThroughArk(input: {
   actionId: string;
   capability: string;
   arguments: Record<string, unknown>;
+  onEnqueued?: (objectiveId: string) => Promise<void>;
 }): Promise<ArkAgencyDispatchOutcome> {
   const objective = await enqueueArkAgencyToolPlan({
     supabase: input.supabase,
@@ -66,6 +67,8 @@ export async function dispatchAgencyToolThroughArk(input: {
       arguments: input.arguments,
     }],
   });
+
+  await input.onEnqueued?.(objective.id);
 
   await runDefaultArkWorkerCycle({
     supabase: input.supabase,
