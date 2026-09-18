@@ -115,6 +115,7 @@ jobs:
         run: |
           psql -v ON_ERROR_STOP=1 -f supabase/migrations/20260918143000_create_ark_autonomous_work_runner.sql
           psql -v ON_ERROR_STOP=1 -f supabase/migrations/20260918203000_ark_targeted_objective_claim.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/migrations/20260918210000_ark_owner_integrity.sql
 
       - name: Exercise ownership, targeted claim, completion, and RLS
         run: |
@@ -140,6 +141,18 @@ jobs:
           begin
             insert into auth.users(id) values (u1), (u2);
             insert into public.projects(id, user_id) values (p1, u1), (p2, u2);
+
+            begin
+              insert into public.ark_objectives (
+                user_id, project_id, goal, idempotency_key, request_hash
+              ) values (
+                u1, p2, 'cross-owner direct insert', 'direct:wrong-owner',
+                '00000000000000000000000000000000'
+              );
+              raise exception 'database accepted an objective/project owner mismatch';
+            exception
+              when foreign_key_violation then null;
+            end;
 
             o1 := public.ark_enqueue_objective(
               u1, p1, 'first objective', 0, '{}'::jsonb, 'plan:first',
