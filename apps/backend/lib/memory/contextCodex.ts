@@ -40,7 +40,7 @@ const ROUTES: Array<{ route: CodexRoute; patterns: RegExp[]; expansion: string }
     /\b(?:annabelle|ever after|will graham|hannibal|rhys)\b/i,
   ], expansion: " writing canon Annabelle Ever After scene continuity " },
   { route: "project", patterns: [
-    /\b(?:epstein|firefly principle|patent|arbor app)\b/i,
+    /\b(?:epstein|firefly principle|patent|arbor app|the app|into the app|moving .{0,30} app)\b/i,
   ], expansion: " project objective decisions history implementation " },
 ];
 
