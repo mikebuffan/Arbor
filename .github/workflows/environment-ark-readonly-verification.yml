@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feature/arbor-environment-ark-readonly-20260918
+      - feature/arbor-readonly-full-stack-20260918
   workflow_dispatch:
 
 concurrency:
