@@ -15,6 +15,8 @@ export function hasMeaningfulConversationCarrier(
   return Boolean(
     state.goal?.trim() ||
     state.unresolvedWork?.length ||
+    state.objective?.status === "active" ||
+    state.objective?.status === "blocked" ||
     state.behavioralCorrections?.length ||
     state.acousticCorrections?.length ||
     state.activeSubsystem === "annabelle",
@@ -43,6 +45,12 @@ export function mergeCarrierState(
       conversationState.unresolvedWork?.length
         ? [...conversationState.unresolvedWork]
         : [...projectState.unresolvedWork],
+
+    objective:
+      conversationState.objective?.revision &&
+      conversationState.objective.revision > (projectState.objective?.revision ?? -1)
+        ? structuredClone(conversationState.objective)
+        : structuredClone(projectState.objective ?? conversationState.objective),
 
     strategyNotes:
       conversationState.strategyNotes?.length
@@ -73,6 +81,9 @@ export function buildCarrierInjection(state: ArborState): string {
     "Identity -> valid corrections -> active goal/open loops -> agency -> task/subsystem.",
     "Text and Voice share this state; channel changes rendering only.",
     state.goal ? `ACTIVE GOAL:\n${state.goal}` : "",
+    state.objective
+      ? `PARENT OBJECTIVE:\n${state.objective.parentGoal}\nSTATUS: ${state.objective.status}\nREVISION: ${state.objective.revision}\nNEXT ACTION: ${state.objective.nextAction ?? "derive from unresolved work"}\nCOMPLETION CRITERIA:\n${state.objective.completionCriteria.map((x) => `- ${x}`).join("\\n")}\nSTANDING AUTHORIZATION:\n${state.objective.standingAuthorization.map((x) => `- ${x}`).join("\\n")}\nHARD STOPS:\n${state.objective.hardStops.map((x) => `- ${x}`).join("\\n")}\nCHECKPOINT: ${state.objective.checkpoint ?? "none"}\nA child step completing does not complete this parent objective. Continue safe authorized work until criteria are satisfied or a hard stop is reached.`
+      : "",
     state.unresolvedWork.length
       ? `UNRESOLVED WORK:\n${state.unresolvedWork.map((x) => `- ${x}`).join("\n")}`
       : "",
