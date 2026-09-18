@@ -66,7 +66,9 @@ export function choosePriorAgency(
   const conversation = resumableAgency(conversationAgency);
   const projectRevision = project?.objective?.revision ?? 0;
   const conversationRevision = conversation?.objective?.revision ?? 0;
-  return conversation && conversationRevision >= projectRevision
+  // Project state is canonical on a revision tie. A conversation may only
+  // override it when it is demonstrably newer.
+  return conversation && conversationRevision > projectRevision
     ? conversation
     : project ?? conversation;
 }
@@ -226,6 +228,48 @@ export async function blockAgencySession(input: {
     agency: next,
     expectedRevision: input.agency.objective?.revision,
     checkpointReason: `blocked: ${input.blocker}`,
+  });
+
+  return next;
+}
+
+export async function checkpointAgencySession(input: {
+  supabase: SupabaseClient;
+  userId: string;
+  projectId: string;
+  agency: AgencyState;
+  reason?: string;
+}): Promise<AgencyState> {
+  const unresolvedWork = input.agency.unresolvedWork.length
+    ? input.agency.unresolvedWork
+    : [`continue goal: ${input.agency.goal}`];
+
+  const next: AgencyState = {
+    ...input.agency,
+    status: "checkpointed",
+    unresolvedWork,
+    blocker: null,
+    objective: input.agency.objective
+      ? {
+          ...input.agency.objective,
+          status: "checkpointed",
+          nextAction:
+            unresolvedWork[0] ??
+            input.agency.objective.nextAction ??
+            `continue goal: ${input.agency.goal}`,
+          checkpoint: input.reason ?? "execution checkpoint persisted",
+          revision: input.agency.objective.revision + 1,
+        }
+      : undefined,
+  };
+
+  await persistAgencyState({
+    supabase: input.supabase,
+    userId: input.userId,
+    projectId: input.projectId,
+    agency: next,
+    expectedRevision: input.agency.objective?.revision,
+    checkpointReason: input.reason ?? "execution checkpoint",
   });
 
   return next;
