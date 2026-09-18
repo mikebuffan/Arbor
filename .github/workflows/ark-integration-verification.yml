@@ -43,3 +43,171 @@ jobs:
 
       - name: Tests
         run: pnpm --filter firefly-backend test
+
+
+  migration-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: arbor_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d arbor_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: arbor_test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Seed minimal Supabase-compatible schema
+        run: |
+          psql -v ON_ERROR_STOP=1 <<'SQL'
+          create role anon nologin;
+          create role authenticated nologin;
+          create role service_role nologin bypassrls;
+          create schema auth;
+          create function auth.uid() returns uuid
+          language sql stable
+          as $$
+            select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid
+          $$;
+          create table auth.users (
+            id uuid primary key
+          );
+          create table public.projects (
+            id uuid primary key,
+            user_id uuid not null references auth.users(id) on delete cascade
+          );
+          grant usage on schema public, auth to anon, authenticated, service_role;
+          grant select on public.projects to service_role;
+          SQL
+
+      - name: Apply recovered ARK schema
+        run: |
+          psql -v ON_ERROR_STOP=1 -f supabase/migrations/20260918143000_create_ark_autonomous_work_runner.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/migrations/20260918203000_ark_targeted_objective_claim.sql
+
+      - name: Exercise ownership, targeted claim, completion, and RLS
+        run: |
+          psql -v ON_ERROR_STOP=1 <<'SQL'
+          do $$
+          declare
+            u1 uuid := '11111111-1111-1111-1111-111111111111';
+            u2 uuid := '22222222-2222-2222-2222-222222222222';
+            p1 uuid := 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+            p2 uuid := 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
+            o1 jsonb;
+            o2 jsonb;
+            claim jsonb;
+            task_id uuid;
+            lease_token uuid;
+            claimed_objective uuid;
+            completed jsonb;
+            verified jsonb;
+          begin
+            insert into auth.users(id) values (u1), (u2);
+            insert into public.projects(id, user_id) values (p1, u1), (p2, u2);
+
+            o1 := public.ark_enqueue_objective(
+              u1, p1, 'first objective', 0, '{}'::jsonb, 'plan:first',
+              jsonb_build_array(jsonb_build_object(
+                'task_key','execute',
+                'kind','arbor.agency-tool',
+                'description','execute first',
+                'dependencies','[]'::jsonb,
+                'payload','{}'::jsonb,
+                'max_attempts',3,
+                'idempotency_key','plan:first:execute'
+              ))
+            );
+            o2 := public.ark_enqueue_objective(
+              u1, p1, 'second objective', 0, '{}'::jsonb, 'plan:second',
+              jsonb_build_array(jsonb_build_object(
+                'task_key','execute',
+                'kind','arbor.agency-tool',
+                'description','execute second',
+                'dependencies','[]'::jsonb,
+                'payload','{}'::jsonb,
+                'max_attempts',3,
+                'idempotency_key','plan:second:execute'
+              ))
+            );
+
+            claim := public.ark_claim_next_task(
+              'smoke-worker',
+              10000,
+              now(),
+              '{}'::uuid[],
+              (o2->>'id')::uuid
+            );
+            claimed_objective := (claim->'objective'->>'id')::uuid;
+            if claimed_objective <> (o2->>'id')::uuid then
+              raise exception 'targeted claim selected wrong objective';
+            end if;
+
+            task_id := (claim->'task'->>'id')::uuid;
+            lease_token := (claim->'task'->>'lease_token')::uuid;
+
+            completed := public.ark_complete_task(
+              task_id,
+              'smoke-worker',
+              lease_token,
+              '{"capability":"smoke","verified":true,"attempts":1}'::jsonb,
+              now()
+            );
+
+            if completed->'objective'->>'status' <> 'awaiting_verification' then
+              raise exception 'objective did not reach awaiting_verification';
+            end if;
+
+            verified := public.ark_verify_objective(
+              (o2->>'id')::uuid,
+              true,
+              '{"gate":"smoke"}'::jsonb,
+              '{}'::text[],
+              now()
+            );
+            if verified->>'status' <> 'completed' then
+              raise exception 'objective did not verify complete';
+            end if;
+
+            begin
+              perform public.ark_enqueue_objective(
+                u1, p2, 'wrong owner', 0, '{}'::jsonb, 'plan:wrong-owner',
+                jsonb_build_array(jsonb_build_object(
+                  'task_key','execute',
+                  'kind','arbor.agency-tool',
+                  'description','should fail',
+                  'dependencies','[]'::jsonb,
+                  'payload','{}'::jsonb,
+                  'max_attempts',3,
+                  'idempotency_key','plan:wrong-owner:execute'
+                ))
+              );
+              raise exception 'owner mismatch was not rejected';
+            exception
+              when insufficient_privilege then null;
+            end;
+          end
+          $$;
+
+          grant select on public.ark_objectives to authenticated;
+          set role authenticated;
+          set "request.jwt.claim.sub" = '11111111-1111-1111-1111-111111111111';
+          select count(*) as own_objectives_visible
+          from public.ark_objectives
+          where user_id = '11111111-1111-1111-1111-111111111111';
+          reset role;
+          SQL
