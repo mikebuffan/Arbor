@@ -14,6 +14,10 @@ import { buildPromptContext } from "@/lib/prompt/buildPromptContext";
 import { runOpenAIAgencyAgent } from "@/lib/arbor/agency/openaiAgent";
 import { buildArborAgencyTools } from "@/lib/arbor/agency/arborTools";
 import {
+  claimAgencyOperation,
+  completeAgencyOperation,
+} from "@/lib/arbor/agency/idempotency";
+import {
   beginAgencySession,
   blockAgencySession,
   checkpointAgencySession,
@@ -435,6 +439,24 @@ export async function POST(req: Request) {
         .map((item) =>
           `capability ${item.slice("verify capability result: ".length)} completed successfully`,
         ),
+      idempotency: {
+        claim: ({ key, operation }) =>
+          claimAgencyOperation({
+            supabase,
+            userId,
+            projectId,
+            key,
+            operation,
+          }),
+        complete: ({ key, result }) =>
+          completeAgencyOperation({
+            supabase,
+            userId,
+            projectId,
+            key,
+            result,
+          }),
+      },
       hooks: {
         async onRoundStart(round) {
           agencyState = await recordAgencyProgress({
