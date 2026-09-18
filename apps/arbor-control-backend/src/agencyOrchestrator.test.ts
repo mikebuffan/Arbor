@@ -58,4 +58,71 @@ describe("runAgencyToBoundary", () => {
     expect(result.researchCalls).toBe(3);
     expect(result.state.unresolvedWork).toEqual([]);
   });
+  it("does not hand back a completed child while the parent objective is active", async () => {
+    let calls = 0;
+    const result = await runAgencyToBoundary({
+      initialInput: {
+        state: {
+          goal: "finish whole build",
+          unresolvedWork: ["integration verification"],
+          objective: {
+            parentGoal: "finish whole build",
+            completionCriteria: ["all verification complete"],
+            standingAuthorization: ["safe reversible work"],
+            hardStops: ["merge", "deploy"],
+            nextAction: "integration verification",
+            checkpoint: "child step complete",
+            status: "active",
+            revision: 3,
+          },
+        } as AgencyResult["state"],
+      },
+      run: async (input): Promise<AgencyResult> => {
+        calls += 1;
+        if (calls === 1) {
+          return {
+            status: "complete",
+            text: "child complete",
+            state: { ...input.state, unresolvedWork: [] },
+            rounds: 1, toolCalls: 0, researchCalls: 0,
+          };
+        }
+        return {
+          status: "complete",
+          text: "parent complete",
+          state: {
+            ...input.state,
+            unresolvedWork: [],
+            objective: { ...input.state.objective!, status: "complete", nextAction: null },
+          },
+          rounds: 1, toolCalls: 0, researchCalls: 0,
+        };
+      },
+    });
+    expect(calls).toBe(2);
+    expect(result.status).toBe("complete");
+    expect(result.boundaryReason).toBe("objective-complete");
+    expect(result.state.objective?.status).toBe("complete");
+  });
+
+  it("labels an execution ceiling as resumable, not completed", async () => {
+    const result = await runAgencyToBoundary({
+      maxWindows: 1,
+      initialInput: {
+        state: {
+          goal: "keep working",
+          unresolvedWork: ["next step"],
+        } as AgencyResult["state"],
+      },
+      run: async (input): Promise<AgencyResult> => ({
+        status: "checkpointed",
+        text: "saved",
+        state: input.state,
+        rounds: 1, toolCalls: 0, researchCalls: 0,
+      }),
+    });
+    expect(result.status).toBe("checkpointed");
+    expect(result.boundaryReason).toBe("execution-ceiling");
+    expect(result.text).toMatch(/not completion/i);
+  });
 });
