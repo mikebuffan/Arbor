@@ -14,11 +14,11 @@ import { buildPromptContext } from "@/lib/prompt/buildPromptContext";
 import { runOpenAIAgencyAgent } from "@/lib/arbor/agency/openaiAgent";
 import { buildArborAgencyTools } from "@/lib/arbor/agency/arborTools";
 import {
-  agencyOperationKey,
   claimAgencyOperation,
   completeAgencyOperation,
 } from "@/lib/arbor/agency/idempotency";
 import { buildArkAgencyExecutionDelegate } from "@/lib/ark/agencyExecutionDelegate";
+import { arkAgencyPlanId } from "@/lib/ark/agencyPlanId";
 import { toolNeedsUserBoundary } from "@/lib/arbor/agency/tools";
 import {
   beginAgencySession,
@@ -423,11 +423,11 @@ export async function POST(req: Request) {
           canDispatch: ({ capability, arguments: args }) => {
             const execution = agencyState.objective?.execution;
             if (!execution) return { allowed: true };
-            const expected = `ark:${agencyOperationKey({
+            const expected = arkAgencyPlanId({
               turnId: execution.turnId,
               toolName: capability,
               args,
-            })}`;
+            });
             return execution.capability === capability &&
               execution.planId === expected
               ? { allowed: true }
@@ -440,11 +440,11 @@ export async function POST(req: Request) {
           resolvePlanId: ({ capability, arguments: args }) => {
             const execution = agencyState.objective?.execution;
             if (!execution || execution.capability !== capability) return null;
-            const expected = `ark:${agencyOperationKey({
+            const expected = arkAgencyPlanId({
               turnId: execution.turnId,
               toolName: capability,
               args,
-            })}`;
+            });
             return execution.planId === expected ? execution.planId : null;
           },
           onEnqueued: async ({ objectiveId, planId, capability }) => {
@@ -533,11 +533,11 @@ export async function POST(req: Request) {
         async onToolSelected({ name, arguments: args }) {
           const existingExecution = agencyState.objective?.execution;
           const existingPlanForSelection = existingExecution
-            ? `ark:${agencyOperationKey({
+            ? arkAgencyPlanId({
                 turnId: existingExecution.turnId,
                 toolName: name,
                 args,
-              })}`
+              })
             : null;
           const selectedToolHasBoundary =
             toolNeedsUserBoundary(agencyTools.get(name));
@@ -550,11 +550,11 @@ export async function POST(req: Request) {
               : existingExecution
                 ? existingExecution
                 : {
-                    planId: `ark:${agencyOperationKey({
+                    planId: arkAgencyPlanId({
                       turnId,
                       toolName: name,
                       args,
-                    })}`,
+                    }),
                     actionId: "execute",
                     capability: name,
                     arguments: args,
