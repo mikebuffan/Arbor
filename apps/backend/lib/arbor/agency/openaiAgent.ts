@@ -159,7 +159,7 @@ function functionCalls(
   );
 }
 
-function stableJson(value: unknown): string {
+export function stableJson(value: unknown): string {
   if (Array.isArray(value)) {
     return `[${value.map((item) => stableJson(item)).join(",")}]`;
   }
@@ -171,6 +171,14 @@ function stableJson(value: unknown): string {
       .join(",")}}`;
   }
   return JSON.stringify(value) ?? "null";
+}
+
+export function agencyOperationKey(input: {
+  turnId: string;
+  toolName: string;
+  args: Record<string, unknown>;
+}): string {
+  return [input.turnId, input.toolName, stableJson(input.args)].join(":");
 }
 
 function requestTools(
@@ -511,11 +519,11 @@ export async function runOpenAIAgencyAgent(
 
       const idempotencyKey =
         tool.risk === "reversible_write" && input.idempotency
-          ? [
-              input.context.turnId,
-              tool.name,
-              stableJson(args),
-            ].join(":")
+          ? agencyOperationKey({
+              turnId: input.context.turnId,
+              toolName: tool.name,
+              args,
+            })
           : null;
 
       if (idempotencyKey && input.idempotency) {
