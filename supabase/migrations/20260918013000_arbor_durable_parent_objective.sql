@@ -16,3 +16,15 @@ alter table public.arbor_runtime_state
     agency_objective is null
     or jsonb_typeof(agency_objective) = 'object'
   );
+
+
+-- The generic agency engine also persists resumable execution ceilings.
+alter table public.arbor_runtime_state
+  drop constraint if exists arbor_runtime_state_agency_status_check;
+
+alter table public.arbor_runtime_state
+  add constraint arbor_runtime_state_agency_status_check
+  check (
+    agency_status is null
+    or agency_status in ('active', 'complete', 'blocked', 'checkpointed')
+  );
