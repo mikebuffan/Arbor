@@ -24,8 +24,8 @@ class ObjectiveStrip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          color: ArborEnvironmentTokens.midnight.withOpacity(.92),
-          border: Border(bottom: BorderSide(color: Colors.white.withOpacity(.08))),
+          color: ArborEnvironmentTokens.midnight.withValues(alpha: .92),
+          border: Border(bottom: BorderSide(color: Colors.white.withValues(alpha: .08))),
         ),
         child: Row(children: [
           if (objective.isDemo) ...[
@@ -54,9 +54,9 @@ class _Tag extends StatelessWidget {
   Widget build(BuildContext context) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: color.withOpacity(.10),
+          color: color.withValues(alpha: .10),
           borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: color.withOpacity(.42)),
+          border: Border.all(color: color.withValues(alpha: .42)),
         ),
         child: Text(label,
             style: TextStyle(color: color, fontSize: 10, letterSpacing: .8, fontWeight: FontWeight.w700)),
