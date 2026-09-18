@@ -72,12 +72,42 @@ export async function loadAgencyState(input: {
   };
 }
 
+export class AgencyStateConflictError extends Error {
+  constructor() {
+    super("agency_state_conflict");
+    this.name = "AgencyStateConflictError";
+  }
+}
+
 export async function persistAgencyState(input: {
   supabase: SupabaseClient;
   userId: string;
   projectId: string;
   agency: AgencyState;
+  expectedRevision?: number;
 }): Promise<void> {
+  if (input.expectedRevision !== undefined) {
+    const { data, error } = await input.supabase.rpc("arbor_cas_agency_state", {
+      p_user_id: input.userId,
+      p_project_id: input.projectId,
+      p_expected_revision: input.expectedRevision,
+      p_goal: input.agency.goal,
+      p_status: input.agency.status,
+      p_current_step: input.agency.currentStep,
+      p_unresolved_work: input.agency.unresolvedWork,
+      p_recurring_weaknesses: input.agency.recurringWeaknesses,
+      p_strategy_notes: input.agency.strategyNotes,
+      p_blocker: input.agency.blocker ?? null,
+      p_objective: input.agency.objective ?? null,
+    });
+    if (error) {
+      if (isMissingRuntimeTable(error)) return;
+      throw error;
+    }
+    if (data !== true) throw new AgencyStateConflictError();
+    return;
+  }
+
   const { error } = await input.supabase
     .from("arbor_runtime_state")
     .upsert(
