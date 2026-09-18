@@ -103,6 +103,12 @@ export type ArkExecutionResult =
   | { status: "completed"; result?: unknown }
   | { status: "checkpointed"; checkpoint: ArkCheckpoint }
   | {
+      status: "failed";
+      error: string;
+      retryable: boolean;
+      retryAfterMs?: number;
+    }
+  | {
       status: "blocked";
       blocker: {
         kind:
