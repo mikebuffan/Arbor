@@ -134,6 +134,7 @@ function createClient(options: ClientOptions = {}) {
 describe("fireflyHeartbeat live-schema alignment", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    process.env.ARBOR_ENABLE_ARK_EXECUTION = "true";
     mocks.runMemoryDecay.mockResolvedValue({
       status: "skipped",
       reason: "memory_decay_schema_unavailable",
@@ -203,6 +204,22 @@ describe("fireflyHeartbeat live-schema alignment", () => {
     expect(calls.heartbeats[0]).toMatchObject({
       status: "completed",
       processed_users: 0,
+    });
+  });
+
+  it("keeps ARK fully disabled unless the execution flag is explicitly enabled", async () => {
+    delete process.env.ARBOR_ENABLE_ARK_EXECUTION;
+    const { client } = createClient({
+      projects: [{ id: "project-1" }],
+    });
+    mocks.supabaseAdmin.mockReturnValue(client);
+
+    const result = await fireflyHeartbeat();
+
+    expect(mocks.runDefaultArkWorkerCycle).not.toHaveBeenCalled();
+    expect(result.tasks.ark).toMatchObject({
+      status: "skipped",
+      reason: "ark_execution_disabled",
     });
   });
 
