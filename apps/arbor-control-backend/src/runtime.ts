@@ -10,6 +10,7 @@ import {
   runAgency,
   type AgencyResult,
 } from "./agency.js";
+import { runAgencyToBoundary } from "./agencyOrchestrator.js";
 import {
   MikeBackendBridge,
   type ArborBackendBridge,
@@ -735,7 +736,8 @@ export class ArborControlRuntime {
         );
 
       const agency =
-        await this.agencyRunner({
+        await runAgencyToBoundary({
+          initialInput: {
           instructions,
 
           userText:
@@ -867,7 +869,9 @@ export class ArborControlRuntime {
                 }
               },
           },
-        });
+        }),
+          run: this.agencyRunner,
+        })
 
       // Provider/model output may propose task/runtime state, but Arbor's
       // durable identity anchor remains authoritative at the host boundary.
