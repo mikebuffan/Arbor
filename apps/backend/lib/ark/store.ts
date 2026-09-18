@@ -19,8 +19,9 @@ export interface ArkStore {
     leaseMs: number;
     now: string;
     excludedObjectiveIds?: string[];
+    onlyObjectiveId?: string;
   }): Promise<ArkClaim | null>;
-  nextObjectiveAwaitingVerification(): Promise<ArkObjective | null>;
+  nextObjectiveAwaitingVerification(objectiveId?: string): Promise<ArkObjective | null>;
   heartbeat(input: {
     taskId: string;
     workerId: string;
