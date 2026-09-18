@@ -14,6 +14,7 @@ import {
   classifySourceFamilies,
   createFindingSnapshot,
   emptyEvidenceGraph,
+  evidenceReviewFlags,
   exportFindingPacket,
   independentSourceCount,
   negativeEvidenceConclusion,
@@ -373,4 +374,86 @@ describe("investigation routing and export", () => {
     );
     expect(exported.evidence[0].locator.page).toBe(12);
   });
+
+describe("extraction, partial-document, and copy-chain torture cases", () => {
+  it("flags low-confidence OCR rather than silently trusting extracted text", () => {
+    const reviewed = packet({
+      extractionQuality: {
+        method: "ocr",
+        confidence: 0.61,
+        warnings: ["uncertain surname on line 8"],
+      },
+    });
+
+    expect(evidenceReviewFlags(reviewed)).toEqual(
+      expect.arrayContaining([
+        "low_extraction_confidence",
+        "extraction_warning",
+      ]),
+    );
+  });
+
+  it("flags partial documents so missing pages cannot disappear from context", () => {
+    const reviewed = packet({
+      documentCompleteness: {
+        status: "partial",
+        missingRanges: ["13-15"],
+        note: "release skips pages in the middle of the file",
+      },
+    });
+
+    expect(evidenceReviewFlags(reviewed)).toContain("partial_document");
+  });
+
+  it("keeps a derived/hearsay copy chain non-independent", () => {
+    const sources: SourceRecord[] = [
+      {
+        sourceId: "original-statement",
+        sourceFamilyId: "statement-family",
+        contentHash: "source-hash",
+        originId: "statement-origin",
+      },
+      {
+        sourceId: "summary-of-statement",
+        sourceFamilyId: "summary-family",
+        contentHash: "summary-hash",
+        originId: "summary-origin",
+        derivedFromSourceIds: ["original-statement"],
+      },
+    ];
+
+    const families = classifySourceFamilies(sources);
+    const derived = families.find(
+      (family) => family.members.includes("summary-of-statement"),
+    );
+
+    expect(derived?.status).toBe("derived");
+    expect(derived?.independentWeight).toBe(0);
+  });
+
+  it("preserves conflicting testimony as counterevidence instead of resolving it by preference", () => {
+    const reviewed = packet({
+      counterevidence: [
+        {
+          evidenceId: "ev-conflicting-testimony",
+          relation: "contradicts",
+          note: "witness gives a materially different date",
+        },
+      ],
+    });
+
+    expect(evidenceReviewFlags(reviewed)).toContain(
+      "counterevidence_present",
+    );
+
+    const route = chooseInvestigationRoute({
+      packets: [reviewed],
+      coverage: [],
+      hypotheses: [],
+    });
+
+    expect(route.next).toBe("resolve_contradiction");
+  });
+});
+
 });
