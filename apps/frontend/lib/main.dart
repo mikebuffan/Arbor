@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'theme/arbor_theme.dart';
-import 'pages/arbor_shell_page.dart';
+import 'environment/arbor_environment_shell.dart';
+import 'environment/environment_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,11 +17,7 @@ Future<void> main() async {
     );
   }
 
-  await Supabase.initialize(
-    url: supabaseUrl,
-    anonKey: supabaseAnonKey,
-  );
-
+  await Supabase.initialize(url: supabaseUrl, anonKey: supabaseAnonKey);
   runApp(const ArborApp());
 }
 
@@ -29,13 +25,10 @@ class ArborApp extends StatelessWidget {
   const ArborApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      theme: ArborTheme.theme(),
-      home: const Scaffold(
-        body: SafeArea(child: ArborShellPage()),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => MaterialApp(
+        debugShowCheckedModeBanner: false,
+        title: 'Arbor Environment',
+        theme: ArborEnvironmentTheme.theme(),
+        home: const ArborEnvironmentShell(),
+      );
 }
