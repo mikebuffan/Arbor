@@ -18,7 +18,14 @@ function state(revision: number, nextAction: string, status: AgencyState["status
       hardStops: ["deploy"],
       nextAction,
       checkpoint: `revision ${revision}`,
-      status: status === "complete" ? "complete" : status === "blocked" ? "blocked" : "active",
+      status:
+        status === "complete"
+          ? "complete"
+          : status === "blocked"
+            ? "blocked"
+            : status === "checkpointed"
+              ? "checkpointed"
+              : "active",
       revision,
     },
   };
