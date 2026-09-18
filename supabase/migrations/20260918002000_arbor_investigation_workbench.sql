@@ -244,13 +244,34 @@ using ((select auth.uid()) = user_id);
 drop policy if exists arbor_investigation_cases_insert_own on public.arbor_investigation_cases;
 create policy arbor_investigation_cases_insert_own
 on public.arbor_investigation_cases for insert to authenticated
-with check ((select auth.uid()) = user_id);
+with check (
+  (select auth.uid()) = user_id
+  and exists (
+    select 1 from public.projects p
+    where p.id = project_id
+      and p.user_id = (select auth.uid())
+  )
+);
 
 drop policy if exists arbor_investigation_cases_update_own on public.arbor_investigation_cases;
 create policy arbor_investigation_cases_update_own
 on public.arbor_investigation_cases for update to authenticated
-using ((select auth.uid()) = user_id)
-with check ((select auth.uid()) = user_id);
+using (
+  (select auth.uid()) = user_id
+  and exists (
+    select 1 from public.projects p
+    where p.id = project_id
+      and p.user_id = (select auth.uid())
+  )
+)
+with check (
+  (select auth.uid()) = user_id
+  and exists (
+    select 1 from public.projects p
+    where p.id = project_id
+      and p.user_id = (select auth.uid())
+  )
+);
 
 drop policy if exists arbor_investigation_cases_delete_own on public.arbor_investigation_cases;
 create policy arbor_investigation_cases_delete_own
