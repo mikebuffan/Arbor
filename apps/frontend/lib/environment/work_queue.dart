@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'environment_panel.dart';
 import 'environment_tokens.dart';
 
-enum WorkItemState { queued, running, checkpointed, blocked, complete }
+enum WorkItemState { queued, running, checkpointed, blocked, complete, failed, cancelled }
 
 class WorkItemView {
   const WorkItemView(this.title, this.state, {this.detail, this.isDemo = true});
@@ -58,6 +58,8 @@ class _WorkRow extends StatelessWidget {
     WorkItemState.checkpointed => Icons.bookmark_added_outlined,
     WorkItemState.blocked => Icons.block,
     WorkItemState.complete => Icons.check_circle_outline,
+    WorkItemState.failed => Icons.error_outline,
+    WorkItemState.cancelled => Icons.cancel_outlined,
   };
   Color get _color => switch (item.state) {
     WorkItemState.running => ArborEnvironmentTokens.cyan,
@@ -65,5 +67,7 @@ class _WorkRow extends StatelessWidget {
     WorkItemState.complete => ArborEnvironmentTokens.teal,
     WorkItemState.checkpointed => ArborEnvironmentTokens.violet,
     WorkItemState.queued => ArborEnvironmentTokens.textMuted,
+    WorkItemState.failed => ArborEnvironmentTokens.danger,
+    WorkItemState.cancelled => ArborEnvironmentTokens.textMuted,
   };
 }
