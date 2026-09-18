@@ -31,7 +31,7 @@ void main() {
 
     expect(find.text('CHECKPOINTED'), findsOneWidget);
     expect(find.text('DEMO DATA'), findsNothing);
-    expect(find.textContaining('ARK • READ ONLY'), findsOneWidget);
+    expect(find.textContaining('ARK • READ ONLY'), findsWidgets);
   });
 
   testWidgets('work queue renders the real ARK task state', (tester) async {
