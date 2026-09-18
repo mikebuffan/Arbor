@@ -14,9 +14,12 @@ import 'command_palette.dart';
 import 'environment_atmosphere.dart';
 import 'benchmark_view.dart';
 import 'project_view.dart';
+import 'memory_state_view.dart';
+import 'tools_view.dart';
+import 'focus_view.dart';
 import '../pages/arbor_shell_page.dart';
 
-enum EnvironmentDestination { home, conversation, objective, queue, projects, evidence, benchmarks, health, settings }
+enum EnvironmentDestination { home, conversation, objective, queue, projects, memory, evidence, tools, benchmarks, focus, health, settings }
 
 class ArborEnvironmentShell extends StatefulWidget {
   const ArborEnvironmentShell({super.key, this.objective});
@@ -113,7 +116,10 @@ class _ArborEnvironmentShellState extends State<ArborEnvironmentShell> {
       EnvironmentCommand('Open Conversation', () => _select(EnvironmentDestination.conversation)),
       EnvironmentCommand('Open Current Objective', () => _select(EnvironmentDestination.objective)),
       EnvironmentCommand('Open Work Queue', () => _select(EnvironmentDestination.queue)),
+      EnvironmentCommand('Open Memory & State', () => _select(EnvironmentDestination.memory)),
       EnvironmentCommand('Open Evidence & Provenance', () => _select(EnvironmentDestination.evidence)),
+      EnvironmentCommand('Open Tools & Connectors', () => _select(EnvironmentDestination.tools)),
+      EnvironmentCommand('Enter Focus Mode', () => _select(EnvironmentDestination.focus)),
       EnvironmentCommand('Open System Health', () => _select(EnvironmentDestination.health)),
     ]);
   }
@@ -136,8 +142,11 @@ class _Navigation extends StatelessWidget {
           NavigationRailDestination(icon: Icon(Icons.track_changes_outlined), label: Text('Objective')),
           NavigationRailDestination(icon: Icon(Icons.view_list_outlined), label: Text('Work Queue')),
           NavigationRailDestination(icon: Icon(Icons.folder_outlined), label: Text('Projects')),
+          NavigationRailDestination(icon: Icon(Icons.memory_outlined), label: Text('Memory & State')),
           NavigationRailDestination(icon: Icon(Icons.hub_outlined), label: Text('Evidence')),
+          NavigationRailDestination(icon: Icon(Icons.extension_outlined), label: Text('Tools')),
           NavigationRailDestination(icon: Icon(Icons.speed_outlined), label: Text('Benchmarks')),
+          NavigationRailDestination(icon: Icon(Icons.center_focus_strong_outlined), label: Text('Focus')),
           NavigationRailDestination(icon: Icon(Icons.monitor_heart_outlined), label: Text('System Health')),
           NavigationRailDestination(icon: Icon(Icons.settings_outlined), label: Text('Settings')),
         ],
@@ -157,8 +166,11 @@ class _Surface extends StatelessWidget {
       EnvironmentDestination.objective => 'Current Objective',
       EnvironmentDestination.queue => 'Work Queue',
       EnvironmentDestination.projects => 'Projects',
+      EnvironmentDestination.memory => 'Memory & State',
       EnvironmentDestination.evidence => 'Evidence & Provenance',
+      EnvironmentDestination.tools => 'Tools & Connectors',
       EnvironmentDestination.benchmarks => 'Testing & Benchmarks',
+      EnvironmentDestination.focus => 'Focus',
       EnvironmentDestination.health => 'System Health',
       EnvironmentDestination.settings => 'Settings',
     };
@@ -186,12 +198,18 @@ class _Surface extends StatelessWidget {
             ])
           else if (selected == EnvironmentDestination.projects)
             const ProjectsView()
+          else if (selected == EnvironmentDestination.memory)
+            const MemoryStateView()
           else if (selected == EnvironmentDestination.evidence)
             const EvidenceProvenanceView(nodes: [
               EvidenceNodeView(label: 'Existing client is Flutter cross-platform', kind: EvidenceKind.direct, source: 'repository'),
               EvidenceNodeView(label: 'Environment must not imply ARK execution', kind: EvidenceKind.derived, source: 'truth contract'),
               EvidenceNodeView(label: 'Live ARK adapter can be connected after recovery', kind: EvidenceKind.hypothesis, source: 'planned boundary'),
             ])
+          else if (selected == EnvironmentDestination.tools)
+            const ToolsView()
+          else if (selected == EnvironmentDestination.focus)
+            FocusView(objective: objective)
           else if (selected == EnvironmentDestination.health)
             const SystemHealthView()
           else if (selected == EnvironmentDestination.benchmarks)
