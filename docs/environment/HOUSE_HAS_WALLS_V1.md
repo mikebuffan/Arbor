@@ -1,8 +1,8 @@
 # Arbor Environment — House Has Walls v1
 
-Status: implementation foundation
-Base: `arbor/permanence-runtime-main`
-ARK boundary: DO NOT MODIFY ARK runtime/orchestration in this branch.
+Status: implementation foundation + read-only ARK observability lane
+Base: frozen known-good ARK checkpoint `d3b216884e279a7add53a72649e421972d0ca557`
+ARK boundary: READ ONLY. Do not enable execution, mutate ARK work, merge, or deploy from this branch.
 
 ## Evidence-first frontend map
 
@@ -54,12 +54,19 @@ The UI MUST NOT infer operational success from animation or elapsed time.
 
 ## ARK adapter boundary
 
-Until exact ARK checkpoint `2bc30e1` is recovered and verified:
-- no ARK runtime changes
-- no duplicate objective/work orchestration
-- no guessed ARK API
-- no live ARK status claims
-- UI may define typed view models and adapters, but ARK data sources remain fixture/demo or unavailable.
+The exact recovered ARK checkpoint `2bc30e1c564ca12104d4d7f7752a5bb387b527b8`
+was preserved and the integration was verified separately. The frozen known-good
+integration used by this branch is
+`d3b216884e279a7add53a72649e421972d0ca557`.
+
+Environment integration remains observation-only:
+- authenticated `GET /api/ark/status`
+- project ownership checked before reads
+- objectives/tasks/checkpoint receipts/events are scoped to the selected project
+- no mutation controls are exposed by the Environment adapter
+- ARK execution remains disabled unless the backend feature flag is explicitly enabled
+- unavailable ARK data may fall back to visibly labeled DEMO DATA only
+- unknown, stale, blocked, checkpointed, failed, cancelled, and completed states remain distinct
 
 ## First implementation slice
 
@@ -72,11 +79,11 @@ Until exact ARK checkpoint `2bc30e1` is recovered and verified:
 - global status
 - Home
 - Conversation integration
-- Work Queue demo surface
+- Work Queue backed by read-only ARK task state when available
 - Inspector
 - command palette
 - accessibility/reduced-motion foundation
-- truthful fixture state model
+- truthful live/fallback state model
 
 ## Current source findings
 
@@ -88,6 +95,6 @@ The current shell already shares project/conversation continuity between text an
 
 ## Implementation rule
 
-Read → map → preserve working behavior → introduce tokens/primitives → shell → demo state → screens → tests → build → visual reconciliation.
+Read → map → preserve working behavior → introduce tokens/primitives → shell → read-only ARK state → fallback/demo state → screens → tests → build → visual reconciliation.
 
 No production merge/deploy from this branch.
