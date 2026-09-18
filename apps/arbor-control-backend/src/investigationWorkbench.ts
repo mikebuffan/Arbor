@@ -28,6 +28,58 @@ function assertConfidence(value: number, field: string): void {
   }
 }
 
+export type EvidenceReviewFlag =
+  | "low_extraction_confidence"
+  | "extraction_warning"
+  | "partial_document"
+  | "unresolved_identity"
+  | "non_independent_source"
+  | "counterevidence_present";
+
+export function evidenceReviewFlags(
+  packet: EvidencePacket,
+): EvidenceReviewFlag[] {
+  const flags: EvidenceReviewFlag[] = [];
+
+  if (
+    packet.extractionQuality?.confidence !== undefined &&
+    packet.extractionQuality.confidence < 0.9
+  ) {
+    flags.push("low_extraction_confidence");
+  }
+
+  if ((packet.extractionQuality?.warnings?.length ?? 0) > 0) {
+    flags.push("extraction_warning");
+  }
+
+  if (
+    packet.documentCompleteness &&
+    packet.documentCompleteness.status !== "complete"
+  ) {
+    flags.push("partial_document");
+  }
+
+  if (
+    packet.entities.some(
+      (entity) =>
+        entity.status === "unresolved" ||
+        entity.status === "ambiguous",
+    )
+  ) {
+    flags.push("unresolved_identity");
+  }
+
+  if (packet.sourceIndependence !== "independent") {
+    flags.push("non_independent_source");
+  }
+
+  if (packet.counterevidence.length > 0) {
+    flags.push("counterevidence_present");
+  }
+
+  return [...new Set(flags)];
+}
+
 export function validateEvidencePacket(packet: EvidencePacket): EvidencePacket {
   if (packet.schemaVersion !== "1.0") {
     throw new Error("unsupported_evidence_packet_version");
@@ -52,6 +104,13 @@ export function validateEvidencePacket(packet: EvidencePacket): EvidencePacket {
   }
 
   assertConfidence(packet.confidence, "confidence");
+
+  if (packet.extractionQuality?.confidence !== undefined) {
+    assertConfidence(
+      packet.extractionQuality.confidence,
+      "extraction_confidence",
+    );
+  }
 
   for (const entity of packet.entities) {
     assertConfidence(entity.confidence, "entity_confidence");
