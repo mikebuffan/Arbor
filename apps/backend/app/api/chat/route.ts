@@ -420,16 +420,10 @@ export async function POST(req: Request) {
       ? buildArkAgencyExecutionDelegate({
           toolSupabase: supabase,
           goal: agencyState.goal,
-          canDispatch: ({ capability, arguments: args }) => {
+          canDispatch: ({ capability }) => {
             const execution = agencyState.objective?.execution;
             if (!execution) return { allowed: true };
-            const expected = arkAgencyPlanId({
-              turnId: execution.turnId,
-              toolName: capability,
-              args,
-            });
-            return execution.capability === capability &&
-              execution.planId === expected
+            return execution.capability === capability
               ? { allowed: true }
               : {
                   allowed: false,
@@ -437,15 +431,14 @@ export async function POST(req: Request) {
                     `ARK still owns ${execution.capability}; refusing to start a different action until that durable execution is resolved.`,
                 };
           },
-          resolvePlanId: ({ capability, arguments: args }) => {
+          resolvePlanId: ({ capability }) => {
             const execution = agencyState.objective?.execution;
-            if (!execution || execution.capability !== capability) return null;
-            const expected = arkAgencyPlanId({
-              turnId: execution.turnId,
-              toolName: capability,
-              args,
-            });
-            return execution.planId === expected ? execution.planId : null;
+            // Once a durable objective exists, its stored task payload is the
+            // source of truth. A resumed planner turn does not need to
+            // reconstruct byte-identical arguments to recover that work.
+            return execution?.capability === capability
+              ? execution.planId
+              : null;
           },
           onEnqueued: async ({ objectiveId, planId, capability }) => {
             const execution = agencyState.objective?.execution;
