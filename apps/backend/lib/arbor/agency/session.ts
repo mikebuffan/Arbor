@@ -8,6 +8,45 @@ import { loadRuntimeState } from "../runtime/runtimeStateStore";
 import { resolveAgencyGoal } from "./continuation";
 import { recordStrategyCandidate } from "./strategyRetention";
 
+function nextObjective(
+  prior: AgencyState | null,
+  goal: string,
+  unresolvedWork: string[],
+  resume: boolean,
+): AgencyState["objective"] {
+  if (resume && prior?.objective) {
+    return {
+      ...prior.objective,
+      parentGoal: prior.objective.parentGoal || goal,
+      status: "active",
+      nextAction: unresolvedWork[0] ?? prior.objective.nextAction ?? `continue goal: ${goal}`,
+      checkpoint: prior.objective.checkpoint,
+      revision: prior.objective.revision + 1,
+    };
+  }
+
+  return {
+    parentGoal: goal,
+    completionCriteria: [
+      "completion verifier passes",
+      "unresolved work is empty",
+      "canonical assistant turn is persisted",
+    ],
+    standingAuthorization: [
+      "continue safe reversible in-scope work without another go/okay",
+    ],
+    hardStops: [
+      "irreversible action",
+      "high-consequence fork",
+      "missing required authorization",
+    ],
+    nextAction: unresolvedWork[0] ?? `complete goal: ${goal}`,
+    checkpoint: "objective accepted",
+    status: "active",
+    revision: (prior?.objective?.revision ?? 0) + 1,
+  };
+}
+
 function resumableAgency(
   value: AgencyState | null | undefined,
 ): AgencyState | null {
@@ -46,22 +85,24 @@ export async function beginAgencySession(input: {
 
   const { goal, resume } = resolveAgencyGoal(input.userText, prior);
 
+  const unresolvedWork =
+    resume && prior
+      ? prior.unresolvedWork.length
+        ? prior.unresolvedWork
+        : [`complete goal: ${prior.goal}`]
+      : [`complete goal: ${goal}`];
+
   const agency: AgencyState = {
     goal,
     status: "active",
     currentStep: resume && prior ? prior.currentStep : 0,
-    // A newly accepted goal is unfinished until verified otherwise. Persist a
-    // concrete ownership marker immediately so a crash/interruption before the
-    // first tool call cannot turn active work into an empty state.
-    unresolvedWork:
-      resume && prior
-        ? prior.unresolvedWork.length
-          ? prior.unresolvedWork
-          : [`complete goal: ${prior.goal}`]
-        : [`complete goal: ${goal}`],
+    // Persist ownership immediately so an interrupted request cannot erase
+    // the parent objective before the first tool call.
+    unresolvedWork,
     recurringWeaknesses: prior?.recurringWeaknesses ?? [],
     strategyNotes: prior?.strategyNotes ?? [],
     blocker: null,
+    objective: nextObjective(prior, goal, unresolvedWork, resume),
   };
 
   await persistAgencyState({
@@ -89,12 +130,14 @@ export async function recordAgencyProgress(input: {
       )
     : null;
 
+  const unresolvedWork =
+    input.unresolvedWork ?? input.agency.unresolvedWork;
+
   const next: AgencyState = {
     ...input.agency,
     status: "active",
     currentStep: input.step,
-    unresolvedWork:
-      input.unresolvedWork ?? input.agency.unresolvedWork,
+    unresolvedWork,
     recurringWeaknesses: input.recurringWeakness
       ? [
           ...input.agency.recurringWeaknesses,
@@ -105,6 +148,18 @@ export async function recordAgencyProgress(input: {
       strategyUpdate?.notes ??
       input.agency.strategyNotes,
     blocker: null,
+    objective: input.agency.objective
+      ? {
+          ...input.agency.objective,
+          status: "active",
+          nextAction:
+            unresolvedWork[0] ??
+            input.agency.objective.nextAction ??
+            `continue goal: ${input.agency.goal}`,
+          checkpoint: `step ${input.step} persisted`,
+          revision: input.agency.objective.revision + 1,
+        }
+      : undefined,
   };
 
   await persistAgencyState({
@@ -130,6 +185,15 @@ export async function blockAgencySession(input: {
     status: "blocked",
     blocker: input.blocker,
     unresolvedWork: input.unresolvedWork,
+    objective: input.agency.objective
+      ? {
+          ...input.agency.objective,
+          status: "blocked",
+          nextAction: input.unresolvedWork[0] ?? null,
+          checkpoint: `blocked: ${input.blocker}`,
+          revision: input.agency.objective.revision + 1,
+        }
+      : undefined,
   };
 
   await persistAgencyState({
@@ -156,6 +220,19 @@ export async function completeAgencySession(input: {
       ? []
       : input.agency.unresolvedWork,
     blocker: null,
+    objective: input.agency.objective
+      ? {
+          ...input.agency.objective,
+          status: input.verified ? "complete" : "active",
+          nextAction: input.verified
+            ? null
+            : input.agency.unresolvedWork[0] ?? input.agency.objective.nextAction,
+          checkpoint: input.verified
+            ? "completion verified and persisted"
+            : "completion verification did not pass",
+          revision: input.agency.objective.revision + 1,
+        }
+      : undefined,
   };
 
   await persistAgencyState({
