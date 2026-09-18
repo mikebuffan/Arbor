@@ -12,11 +12,13 @@
     "import:history": "tsx scripts/import_chatgpt/importHistoricalOnly.ts"
   },
   "dependencies": {
+    "@modelcontextprotocol/server": "2.0.0",
     "@opentelemetry/api": "^1.9.0",
     "@sentry/nextjs": "^10.32.1",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.89.0",
     "dotenv": "^17.3.1",
+    "mcp-handler": "2.2.0",
     "next": "16.1.0",
     "openai": "^6.15.0",
     "react": "19.2.3",
