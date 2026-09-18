@@ -37,6 +37,37 @@ function toStrings(value: unknown): string[] {
   return normalizeUnresolvedWork(value);
 }
 
+function normalizeExecution(
+  value: unknown,
+): NonNullable<AgencyState["objective"]>["execution"] {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+  const record = value as Record<string, unknown>;
+  if (
+    typeof record.planId !== "string" ||
+    typeof record.actionId !== "string" ||
+    typeof record.capability !== "string" ||
+    typeof record.turnId !== "string" ||
+    !record.arguments ||
+    typeof record.arguments !== "object" ||
+    Array.isArray(record.arguments) ||
+    !["selected", "dispatched", "checkpointed"].includes(String(record.status))
+  ) {
+    return null;
+  }
+  return {
+    planId: record.planId,
+    actionId: record.actionId,
+    capability: record.capability,
+    arguments: record.arguments as Record<string, unknown>,
+    turnId: record.turnId,
+    arkObjectiveId:
+      typeof record.arkObjectiveId === "string" ? record.arkObjectiveId : null,
+    status: String(record.status) as "selected" | "dispatched" | "checkpointed",
+  };
+}
+
 export function normalizeObjective(
   value: unknown,
 ): AgencyState["objective"] | undefined {
@@ -73,6 +104,7 @@ export function normalizeObjective(
     checkpoint: nullableText(record.checkpoint),
     status: String(record.status) as NonNullable<AgencyState["objective"]>["status"],
     revision,
+    execution: normalizeExecution(record.execution),
   };
 }
 
