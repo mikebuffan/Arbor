@@ -40,7 +40,8 @@ function record(value: unknown): JsonRow {
  * execution after enqueue.
  */
 export async function dispatchAgencyToolThroughArk(input: {
-  supabase: SupabaseClient;
+  arkSupabase: SupabaseClient;
+  toolSupabase: SupabaseClient;
   userId: string;
   projectId: string;
   conversationId?: string | null;
@@ -53,7 +54,7 @@ export async function dispatchAgencyToolThroughArk(input: {
   onEnqueued?: (objectiveId: string) => Promise<void>;
 }): Promise<ArkAgencyDispatchOutcome> {
   const objective = await enqueueArkAgencyToolPlan({
-    supabase: input.supabase,
+    supabase: input.arkSupabase,
     userId: input.userId,
     projectId: input.projectId,
     conversationId: input.conversationId ?? null,
@@ -71,14 +72,15 @@ export async function dispatchAgencyToolThroughArk(input: {
   await input.onEnqueued?.(objective.id);
 
   await runDefaultArkWorkerCycle({
-    supabase: input.supabase,
+    supabase: input.arkSupabase,
+    toolSupabase: input.toolSupabase,
     workerId: `chat:${input.turnId}:${input.actionId}`,
     objectiveId: objective.id,
     maxTasks: 1,
     maxRuntimeMs: 20_000,
   });
 
-  const { data, error } = await input.supabase
+  const { data, error } = await input.arkSupabase
     .from("ark_tasks")
     .select("status,result,last_error,attempt_count")
     .eq("objective_id", objective.id)
