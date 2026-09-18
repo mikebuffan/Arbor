@@ -77,7 +77,7 @@ class MemoryArkStore implements ArkStore {
     return objective;
   }
 
-  async claimNextTask(input: { workerId: string; leaseMs: number; now: string; excludedObjectiveIds?: string[] }): Promise<ArkClaim | null> {
+  async claimNextTask(input: { workerId: string; leaseMs: number; now: string; excludedObjectiveIds?: string[]; onlyObjectiveId?: string }): Promise<ArkClaim | null> {
     const nowMs = Date.parse(input.now);
     for (const task of this.tasks.values()) {
       if (
@@ -95,6 +95,7 @@ class MemoryArkStore implements ArkStore {
     const task = [...this.tasks.values()].find((candidate) => {
       const objective = this.objectives.get(candidate.objectiveId)!;
       if (input.excludedObjectiveIds?.includes(objective.id)) return false;
+      if (input.onlyObjectiveId && objective.id !== input.onlyObjectiveId) return false;
       const dependenciesComplete = candidate.dependencies.every((key) =>
         [...this.tasks.values()].some(
           (other) => other.objectiveId === candidate.objectiveId &&
@@ -119,9 +120,10 @@ class MemoryArkStore implements ArkStore {
     return { objective: { ...objective }, task: { ...task } };
   }
 
-  async nextObjectiveAwaitingVerification(): Promise<ArkObjective | null> {
+  async nextObjectiveAwaitingVerification(objectiveId?: string): Promise<ArkObjective | null> {
     const objective = [...this.objectives.values()].find(
-      (candidate) => candidate.status === "awaiting_verification",
+      (candidate) => candidate.status === "awaiting_verification" &&
+        (!objectiveId || candidate.id === objectiveId),
     );
     return objective ? { ...objective } : null;
   }
@@ -386,6 +388,38 @@ describe("ARK autonomous work runner", () => {
     expect(executions).toBe(1);
     expect(resumed.verifiedObjectives).toBe(1);
     expect(store.objectives.get(objective.id)?.status).toBe("completed");
+  });
+
+  it("can target one objective without consuming unrelated queued work", async () => {
+    const store = new MemoryArkStore();
+    const first = await store.enqueueObjective({
+      ...draft(),
+      idempotencyKey: "first",
+      tasks: [{ ...draft().tasks[0], idempotencyKey: "first:act" }],
+    });
+    const second = await store.enqueueObjective({
+      ...draft(),
+      idempotencyKey: "second",
+      tasks: [{ ...draft().tasks[0], idempotencyKey: "second:act" }],
+    });
+    const seen: string[] = [];
+    const registry = new ArkExecutorRegistry().register("test", async ({ claim }) => {
+      seen.push(claim.objective.id);
+      return { status: "completed", result: { verified: true } };
+    });
+
+    await runArkWorkerCycle({
+      store,
+      executors: registry,
+      workerId: "worker-targeted",
+      objectiveId: second.id,
+      now: () => new Date(START),
+      verifyCompletion: async () => ({ ok: true }),
+    });
+
+    expect(seen).toEqual([second.id]);
+    expect(store.objectives.get(second.id)?.status).toBe("completed");
+    expect(store.objectives.get(first.id)?.status).toBe("queued");
   });
 
   it("honors an objective task budget across continuation cycles", async () => {
