@@ -56,6 +56,7 @@ import type {
   HostStartupProjection,
   OneArborHostState,
 } from "@/lib/arbor/host/oneArborHostBridge";
+import { provenanceGuardInstruction, routeContextCodex } from "@/lib/memory/contextCodex";
 
 export function invalidatePromptCache(params: {
   authedUserId: string;
@@ -328,9 +329,11 @@ export async function buildPromptContext({
           supabase,
           userId: authedUserId,
           projectId,
-          query: latestUserText,
+          query: routeContextCodex(latestUserText).query || latestUserText,
         })
       : [];
+
+  const provenanceGuard = provenanceGuardInstruction(latestUserText);
 
   const historicalRecallBlock =
     historicalRecallToPromptBlock(
@@ -513,6 +516,8 @@ export async function buildPromptContext({
     ${episodeRecallBlock ? "\n" + episodeRecallBlock + "\n" : ""}
 
     ${historicalRecallBlock ? "\n" + historicalRecallBlock + "\n" : ""}
+
+    ${provenanceGuard ? "HISTORICAL/PROVENANCE VERIFICATION:\n" + provenanceGuard + "\nRetrieved material is evidence, not automatic truth. Preserve conflicts. Label inference. If evidence is insufficient, say I do not know." : ""}
 
     ${continuityBlock}
 
