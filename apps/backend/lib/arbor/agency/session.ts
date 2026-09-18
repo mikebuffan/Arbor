@@ -123,7 +123,12 @@ export async function beginAgencySession(input: {
   await persistAgencyState({
     ...input,
     agency,
-    expectedRevision: prior?.objective?.revision,
+    // CAS only when advancing an existing durable objective. First-write and
+    // legacy rows intentionally use the ordinary upsert path.
+    expectedRevision:
+      prior?.objective && resume
+        ? prior.objective.revision
+        : undefined,
   });
 
   return agency;
