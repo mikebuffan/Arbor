@@ -241,7 +241,7 @@
           "id": 5,
           "objective_id": "objective-canary",
           "task_id": null,
-          "event_type": "objective_verified",
+          "event_type": "objective_completed",
           "created_at": "2026-09-18T22:30:04.000Z"
         },
         {
