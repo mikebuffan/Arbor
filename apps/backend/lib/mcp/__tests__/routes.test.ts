@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { POST as mcpPost } from "@/app/api/mcp/route";
 import { GET as resourceMetadata } from "@/app/.well-known/oauth-protected-resource/route";
+import { GET as scopedResourceMetadata } from "@/app/.well-known/oauth-protected-resource/api/mcp/route";
 
 describe("ARK MCP HTTP boundary", () => {
   afterEach(() => {
@@ -31,7 +32,7 @@ describe("ARK MCP HTTP boundary", () => {
     );
   });
 
-  it("publishes Supabase as the OAuth authorization server", async () => {
+  it("publishes the full MCP endpoint and Supabase OAuth issuer", async () => {
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://project-ref.supabase.co");
 
     const response = resourceMetadata(
@@ -40,7 +41,24 @@ describe("ARK MCP HTTP boundary", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(body.resource).toBe("https://arbor.example");
+    expect(body.resource).toBe("https://arbor.example/api/mcp");
+    expect(body.authorization_servers).toEqual([
+      "https://project-ref.supabase.co/auth/v1",
+    ]);
+    expect(body.bearer_methods_supported).toEqual(["header"]);
+    expect(response.headers.get("access-control-allow-origin")).toBe("*");
+  });
+
+  it("serves identical metadata at RFC 9728's path-specific URL", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://project-ref.supabase.co");
+
+    const response = scopedResourceMetadata(
+      new Request("https://arbor.example/.well-known/oauth-protected-resource/api/mcp"),
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.resource).toBe("https://arbor.example/api/mcp");
     expect(body.authorization_servers).toEqual([
       "https://project-ref.supabase.co/auth/v1",
     ]);
