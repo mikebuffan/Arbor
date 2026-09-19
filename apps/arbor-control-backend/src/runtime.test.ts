@@ -167,6 +167,40 @@ describe("Arbor control runtime pass", () => {
     expect((await store.load("project:project-auto-resume"))?.unresolvedWork).toEqual([]);
   });
 
+  it("does not auto-resume through a protected agency boundary", async () => {
+    let calls = 0;
+
+    const runner: AgencyRunner = async (input) => {
+      calls += 1;
+      return {
+        status: "blocked",
+        text: "authorization required",
+        state: {
+          ...input.state,
+          unresolvedWork: ["await authorization"],
+        },
+        rounds: 1,
+        toolCalls: 0,
+        researchCalls: 0,
+        blocker: "authorization_required",
+        capability: "canary.write",
+        requiredUserInput: "Approve the protected action.",
+      };
+    };
+
+    const { runtime, store } = await fixture(runner);
+    const response = await runtime.runTurn({
+      projectId: "project-boundary",
+      turnId: "turn-boundary",
+      userText: "perform protected action",
+    });
+
+    expect(calls).toBe(1);
+    expect(response.text).toBe("authorization required");
+    expect((await store.load("project:project-boundary"))?.unresolvedWork)
+      .toEqual(["await authorization"]);
+  });
+
   it(
     "switches Arbor -> Annabelle -> Arbor while carrying its own conversation history",
     async () => {
