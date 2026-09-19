@@ -1,6 +1,6 @@
 # ARK full-stack release preparation — 2026-09-19
 
-Status: **PREPARATION ONLY. No production merge, database mutation, flag activation, or live ChatGPT reauthorization is authorized by this document.**
+Status: **Danelle's authorization to proceed was relayed on 2026-09-19. PRE-PRODUCTION GATE remains blocked pending a verified restorable backup of the original Firefly database. No production merge, database mutation, execution-flag activation, or live ChatGPT reauthorization has been performed by this release handoff.**
 
 ## Anchors and scope
 
@@ -24,7 +24,7 @@ Status: **PREPARATION ONLY. No production merge, database mutation, flag activat
 Original Firefly production (existing user data; do not copy/replace casually):
 - 5 projects, 3,687 memory items, 97 conversations, 259 messages.
 - 2 Arbor runtime state rows, 4 Arbor conversation state rows.
-- 3 current auth users and 4 distinct stored project owner IDs; **1 project references an auth user ID absent from current auth.users**. Investigate ownership/history before choosing a real-user canary or altering records. Do not automatically reassign or delete the orphan project.
+- 3 current auth users and 4 distinct stored project owner IDs; **1 ARBOR ACCEPTANCE ... OTHER synthetic test project references an auth user ID absent from current auth.users**. The two Default Projects and both other acceptance projects have current auth users. Do not automatically reassign or delete the orphan test project.
 - The three ARK schema migrations listed below are NOT in the production migration history. ARK objectives/tasks/checkpoints/events do not yet exist there.
 - Additional investigation, vault, and retrieval migrations exist in production that do not appear in the preview history. Preview is **not** a full production clone.
 
@@ -46,9 +46,9 @@ The prep-only workflow `.github/workflows/ark-release-prep-verification.yml` run
 
 ## Production migration preflight — read only until Danelle authorizes rollout
 
-1. Take a recoverable database snapshot/backup and rehearse restoring it to an isolated location. Check both data and schema.
-2. Resolve owner/account mapping for Danelle's intended Firefly account and investigate the one orphan project without editing it during preflight.
-3. Compare production migration versions and required SQL objects with the release branch. Do NOT reset the production migration table or replay preview baseline migrations wholesale.
+1. **Confirmed actual organization plan: Free**. Supabase's current backup guidance recommends regular off-site `supabase db dump` exports for Free plan projects. Do not assume a downloadable automatic daily backup exists. Have Mike open Firefly (NOT Firefly ARK Preview) → Database → Backups and verify the available restore point, or take a fresh encrypted off-site `supabase db dump` (roles, schema, data) with the Supabase CLI and rehearse restoring to an isolated location. Include Storage objects separately, if relevant. Neither a Git branch nor copying tables into the same live database is a recoverable off-site backup. **Do not run production DDL before an actually verified restore path.**
+2. Resolve owner/account mapping for Danelle's intended Firefly account; the one orphan row is a synthetic acceptance test project. Do not modify it or substitute the ARK Preview test user's identity.
+3. Compare production migration versions and required SQL objects with the release branch. Do NOT reset the production migration table or replay preview baseline migrations wholesale. Production already has agency durable-parent, CAS/checkpoint-history/idempotency migrations under different version numbers; the preview-only `arbor_agency_first_claim`, `arbor_agency_idempotency_update_policy`, and `arbor_autonomous_work_runner` changes are absent and require explicit dependency reconciliation before the three final ARK migrations.
 4. On a production-derived disposable database run the exact incremental migrations, including dependency checks. Three final ARK migrations are:
    - `20260918143000_create_ark_autonomous_work_runner.sql`
    - `20260918203000_ark_targeted_objective_claim.sql`
@@ -102,3 +102,10 @@ Do not conflate:
 - automatic synchronization of every native ChatGPT message or voice turn into Firefly.
 
 Each requires its own successful live test and explicit authorization boundary.
+
+## 2026-09-19 post-consent checkpoint
+
+- PR #116 with tested OAuth fixes merged into **release/ark-activation-candidate-20260919 only**; no merge into `main`.
+- The Supabase organization plan reports `free`. Current connected Supabase actions can inspect migrations and apply SQL but cannot create/verify an off-site restorable production backup. The backup/restore confirmation is an actual blocker to live DDL, not a request for redundant approval.
+- Live database inspection: 5 projects; orphan project is acceptance-test `OTHER`; 2 Default Projects map to present auth users and carry 1 runtime row/3 continuity rows in one of them. No ownership reassignment performed.
+- The consolidated release candidate includes a branch-push verification workflow. Freeze its new passed commit and deployment checks before promotion.
