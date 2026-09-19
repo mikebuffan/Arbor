@@ -51,6 +51,13 @@ jobs:
           OPENAI_API_KEY: ci-placeholder-key
         run: pnpm --filter firefly-backend build
 
+      - name: Arbor control runtime build
+        run: pnpm --filter arbor-control-backend build
+      - name: Arbor control runtime tests
+        env:
+          OPENAI_API_KEY: ci-placeholder-key
+        run: pnpm --filter arbor-control-backend test
+
   migration-smoke:
     runs-on: ubuntu-latest
     timeout-minutes: 15
