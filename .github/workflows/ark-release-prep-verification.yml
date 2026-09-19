@@ -1,0 +1,383 @@
+name: ARK release prep full-stack verification
+
+on:
+  push:
+    branches:
+      - prep/ark-production-readiness-20260919
+  pull_request:
+    branches:
+      - release/ark-activation-candidate-20260919
+  workflow_dispatch:
+
+concurrency:
+  group: ark-release-prep-verification
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend-verification:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.30.3
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: TypeScript
+        run: pnpm --filter firefly-backend exec tsc --noEmit
+      - name: Tests
+        env:
+          OPENAI_API_KEY: ci-placeholder-key
+        run: pnpm --filter firefly-backend test
+      - name: ARK + status API lint
+        run: |
+          pnpm --filter firefly-backend exec eslint \
+            app/api/ark/status/route.ts \
+            lib/ark \
+            lib/system/loop.ts \
+            lib/arbor/timeline/types.ts \
+            lib/mcp \
+            app/api/mcp \
+            app/.well-known/oauth-protected-resource
+      - name: Production build
+        env:
+          OPENAI_API_KEY: ci-placeholder-key
+        run: pnpm --filter firefly-backend build
+
+      - name: Arbor control runtime build
+        run: pnpm --filter arbor-control-backend build
+      - name: Arbor control runtime tests
+        env:
+          OPENAI_API_KEY: ci-placeholder-key
+        run: pnpm --filter arbor-control-backend test
+
+  migration-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: arbor_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d arbor_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: arbor_test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Seed minimal Supabase-compatible schema
+        run: |
+          psql -v ON_ERROR_STOP=1 <<'SQL'
+          create role anon nologin;
+          create role authenticated nologin;
+          create role service_role nologin bypassrls;
+          create schema auth;
+          create function auth.uid() returns uuid
+          language sql stable
+          as $$
+            select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid
+          $$;
+          create table auth.users (id uuid primary key);
+          create table public.projects (
+            id uuid primary key,
+            user_id uuid not null references auth.users(id) on delete cascade
+          );
+          grant usage on schema public, auth to anon, authenticated, service_role;
+          grant select on public.projects to service_role;
+          SQL
+      - name: Apply ARK migrations
+        run: |
+          psql -v ON_ERROR_STOP=1 -f supabase/migrations/20260918143000_create_ark_autonomous_work_runner.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/migrations/20260918203000_ark_targeted_objective_claim.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/migrations/20260918210000_ark_owner_integrity.sql
+      - name: Smoke read model tables and owner integrity
+        run: |
+          psql -v ON_ERROR_STOP=1 <<'SQL'
+          insert into auth.users(id) values
+            ('11111111-1111-1111-1111-111111111111'),
+            ('22222222-2222-2222-2222-222222222222');
+          insert into public.projects(id, user_id) values
+            ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','11111111-1111-1111-1111-111111111111'),
+            ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb','22222222-2222-2222-2222-222222222222');
+
+          select public.ark_enqueue_objective(
+            '11111111-1111-1111-1111-111111111111',
+            'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+            'environment read smoke',
+            0,
+            '{}'::jsonb,
+            'env:smoke',
+            jsonb_build_array(jsonb_build_object(
+              'task_key','inspect',
+              'kind','arbor.agency-tool',
+              'description','inspect state',
+              'dependencies','[]'::jsonb,
+              'payload','{}'::jsonb,
+              'max_attempts',3,
+              'idempotency_key','env:smoke:inspect'
+            ))
+          );
+
+          do $$
+          begin
+            insert into public.ark_objectives(
+              user_id, project_id, goal, idempotency_key, request_hash
+            ) values (
+              '11111111-1111-1111-1111-111111111111',
+              'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+              'must fail',
+              'env:wrong-owner',
+              '00000000000000000000000000000000'
+            );
+            raise exception 'owner mismatch accepted';
+          exception
+            when foreign_key_violation then null;
+          end
+          $$;
+
+          select count(*) from public.ark_objectives;
+          select count(*) from public.ark_tasks;
+          select count(*) from public.ark_checkpoints;
+          select count(*) from public.ark_events;
+          SQL
+
+  frontend-verification:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: apps/frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Dependencies
+        run: flutter pub get
+      - name: Environment analyze
+        run: |
+          flutter analyze \
+            lib/environment \
+            test/environment_adapter_test.dart \
+            test/environment_state_test.dart \
+            test/environment_shell_test.dart \
+            test/environment_navigation_test.dart \
+            test/environment_live_ark_test.dart \
+            test/environment_shared_canary_fixture_test.dart
+      - name: Full repository analyze debt (informational)
+        continue-on-error: true
+        run: flutter analyze
+      - name: Tests
+        run: flutter test
+      - name: Web compile
+        run: flutter build web --release
+
+
+  full-stack-canary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: arbor_canary
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d arbor_canary"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: localhost
+      PGPORT: 5433
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: arbor_canary
+    steps:
+      - uses: actions/checkout@v4
+      - name: Seed isolated canary database
+        run: |
+          psql -v ON_ERROR_STOP=1 <<'SQL'
+          create role anon nologin;
+          create role authenticated nologin;
+          create role service_role nologin bypassrls;
+          create schema auth;
+          create function auth.uid() returns uuid
+          language sql stable
+          as $$
+            select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid
+          $$;
+          create table auth.users (id uuid primary key);
+          create table public.projects (
+            id uuid primary key,
+            user_id uuid not null references auth.users(id) on delete cascade
+          );
+          grant usage on schema public, auth to anon, authenticated, service_role;
+          grant select on public.projects to service_role;
+          SQL
+      - name: Apply ARK schema
+        run: |
+          psql -v ON_ERROR_STOP=1 -f supabase/migrations/20260918143000_create_ark_autonomous_work_runner.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/migrations/20260918203000_ark_targeted_objective_claim.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/migrations/20260918210000_ark_owner_integrity.sql
+      - name: Run safe objective through claim checkpoint resume completion verification
+        run: |
+          psql -v ON_ERROR_STOP=1 <<'SQL'
+          do $$
+          declare
+            u uuid := '11111111-1111-1111-1111-111111111111';
+            p uuid := 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+            objective jsonb;
+            first_claim jsonb;
+            checkpointed jsonb;
+            resumed jsonb;
+            completed jsonb;
+            verified jsonb;
+            v_objective_id uuid;
+            v_task_id uuid;
+          begin
+            insert into auth.users(id) values (u);
+            insert into public.projects(id, user_id) values (p, u);
+
+            objective := public.ark_enqueue_objective(
+              u,
+              p,
+              'Run safe full-stack canary',
+              0,
+              '{"canary":"safe-read"}'::jsonb,
+              'canary:full-stack',
+              jsonb_build_array(jsonb_build_object(
+                'task_key','execute',
+                'kind','canary.read',
+                'description','Read canary state',
+                'dependencies','[]'::jsonb,
+                'payload','{"safe":true}'::jsonb,
+                'max_attempts',3,
+                'idempotency_key','canary:full-stack:execute'
+              ))
+            );
+            v_objective_id := (objective->>'id')::uuid;
+
+            first_claim := public.ark_claim_next_task(
+              'canary-worker-1',
+              1000,
+              now(),
+              '{}'::uuid[],
+              v_objective_id
+            );
+            if first_claim is null then
+              raise exception 'canary was not claimed';
+            end if;
+
+            v_task_id := (first_claim->'task'->>'id')::uuid;
+
+            checkpointed := public.ark_checkpoint_task(
+              v_task_id,
+              'canary-worker-1',
+              (first_claim->'task'->>'lease_token')::uuid,
+              1,
+              '{"cursor":1}'::jsonb,
+              'Resume safe canary read',
+              'interruption',
+              now() + interval '2 seconds',
+              now()
+            );
+            if checkpointed->>'status' <> 'checkpointed' then
+              raise exception 'canary checkpoint was not persisted';
+            end if;
+
+            resumed := public.ark_claim_next_task(
+              'canary-worker-2',
+              1000,
+              now() + interval '3 seconds',
+              '{}'::uuid[],
+              v_objective_id
+            );
+            if resumed is null then
+              raise exception 'checkpointed canary did not resume';
+            end if;
+            if (resumed->'task'->>'attempt_count')::integer <> 2 then
+              raise exception 'canary resume did not preserve attempt history';
+            end if;
+            if (resumed->'task'->>'checkpoint_sequence')::integer <> 1 then
+              raise exception 'canary resume lost checkpoint sequence';
+            end if;
+
+            completed := public.ark_complete_task(
+              v_task_id,
+              'canary-worker-2',
+              (resumed->'task'->>'lease_token')::uuid,
+              '{"verified":true,"output":{"safe":true}}'::jsonb,
+              now() + interval '3 seconds'
+            );
+            if completed->'objective'->>'status' <> 'awaiting_verification' then
+              raise exception 'canary did not reach verification gate';
+            end if;
+
+            verified := public.ark_verify_objective(
+              v_objective_id,
+              true,
+              '{"verification":"passed","canary":"safe-read"}'::jsonb,
+              '{}'::text[],
+              now() + interval '3 seconds'
+            );
+            if verified->>'status' <> 'completed' then
+              raise exception 'canary did not complete after verification';
+            end if;
+
+            if not exists (
+              select 1 from public.ark_checkpoints
+              where objective_id = v_objective_id
+                and task_id = v_task_id
+                and sequence = 1
+            ) then
+              raise exception 'canary checkpoint receipt missing';
+            end if;
+
+            if not exists (
+              select 1 from public.ark_events
+              where objective_id = v_objective_id
+                and event_type = 'task_checkpointed'
+            ) then
+              raise exception 'canary checkpoint event missing';
+            end if;
+
+            if not exists (
+              select 1 from public.ark_events
+              where objective_id = v_objective_id
+                and event_type = 'task_completed'
+            ) then
+              raise exception 'canary completion event missing';
+            end if;
+
+            if not exists (
+              select 1 from public.ark_events
+              where objective_id = v_objective_id
+                and event_type = 'objective_completed'
+            ) then
+              raise exception 'canary verification receipt missing';
+            end if;
+          end
+          $$;
+          SQL

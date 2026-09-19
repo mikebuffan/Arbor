@@ -1,4 +1,4 @@
-import { metadataCorsOptionsRequestHandler, protectedResourceHandler } from "mcp-handler";
+import { metadataCorsOptionsRequestHandler } from "mcp-handler";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,9 +10,22 @@ function authorizationServerUrl(): string {
 }
 
 export function GET(request: Request): Response {
-  return protectedResourceHandler({
-    authServerUrls: [authorizationServerUrl()],
-  })(request);
+  // The resource identifier must match the full URL clients use for MCP,
+  // not the application's origin (RFC 9728).
+  const resource = new URL("/api/mcp", request.url).toString();
+  return Response.json(
+    {
+      resource,
+      authorization_servers: [authorizationServerUrl()],
+      bearer_methods_supported: ["header"],
+    },
+    {
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "no-store",
+      },
+    },
+  );
 }
 
 export const OPTIONS = metadataCorsOptionsRequestHandler();
