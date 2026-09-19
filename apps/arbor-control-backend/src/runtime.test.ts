@@ -118,6 +118,89 @@ async function fixture(
 }
 
 describe("Arbor control runtime pass", () => {
+  it("automatically re-enters checkpointed work before returning the turn", async () => {
+    let calls = 0;
+
+    const runner: AgencyRunner = async (input) => {
+      calls += 1;
+
+      if (calls === 1) {
+        return {
+          status: "checkpointed",
+          text: "intermediate checkpoint",
+          state: {
+            ...input.state,
+            goal: "finish parent objective",
+            unresolvedWork: ["second window"],
+          },
+          rounds: 12,
+          toolCalls: 2,
+          researchCalls: 1,
+        };
+      }
+
+      expect(input.state.goal).toBe("finish parent objective");
+      expect(input.state.unresolvedWork).toEqual(["second window"]);
+
+      return {
+        status: "complete",
+        text: "parent objective complete",
+        state: {
+          ...input.state,
+          unresolvedWork: [],
+        },
+        rounds: 2,
+        toolCalls: 1,
+        researchCalls: 0,
+      };
+    };
+
+    const { runtime, store } = await fixture(runner);
+    const response = await runtime.runTurn({
+      projectId: "project-auto-resume",
+      turnId: "turn-auto-resume",
+      userText: "finish parent objective",
+    });
+
+    expect(calls).toBe(2);
+    expect(response.text).toBe("parent objective complete");
+    expect((await store.load("project:project-auto-resume"))?.unresolvedWork).toEqual([]);
+  });
+
+  it("does not auto-resume through a protected agency boundary", async () => {
+    let calls = 0;
+
+    const runner: AgencyRunner = async (input) => {
+      calls += 1;
+      return {
+        status: "blocked",
+        text: "authorization required",
+        state: {
+          ...input.state,
+          unresolvedWork: ["await authorization"],
+        },
+        rounds: 1,
+        toolCalls: 0,
+        researchCalls: 0,
+        blocker: "authorization_required",
+        capability: "canary.write",
+        requiredUserInput: "Approve the protected action.",
+      };
+    };
+
+    const { runtime, store } = await fixture(runner);
+    const response = await runtime.runTurn({
+      projectId: "project-boundary",
+      turnId: "turn-boundary",
+      userText: "perform protected action",
+    });
+
+    expect(calls).toBe(1);
+    expect(response.text).toBe("authorization required");
+    expect((await store.load("project:project-boundary"))?.unresolvedWork)
+      .toEqual(["await authorization"]);
+  });
+
   it(
     "switches Arbor -> Annabelle -> Arbor while carrying its own conversation history",
     async () => {

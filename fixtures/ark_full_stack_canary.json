@@ -1,0 +1,271 @@
+{
+  "projectId": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+  "snapshots": [
+    {
+      "available": true,
+      "capturedAt": "2026-09-18T22:30:00.000Z",
+      "objectives": [
+        {
+          "id": "objective-canary",
+          "goal": "Run safe full-stack canary",
+          "status": "queued",
+          "priority": 0,
+          "blocker": null,
+          "completion_evidence": null,
+          "version": 1,
+          "updated_at": "2026-09-18T22:30:00.000Z"
+        }
+      ],
+      "tasks": [
+        {
+          "id": "task-canary",
+          "objective_id": "objective-canary",
+          "task_key": "execute",
+          "kind": "canary.read",
+          "description": "Read canary state",
+          "status": "queued",
+          "attempt_count": 0,
+          "max_attempts": 3,
+          "checkpoint_sequence": 0,
+          "last_error": null
+        }
+      ],
+      "checkpoints": [],
+      "events": []
+    },
+    {
+      "available": true,
+      "capturedAt": "2026-09-18T22:30:01.000Z",
+      "objectives": [
+        {
+          "id": "objective-canary",
+          "goal": "Run safe full-stack canary",
+          "status": "running",
+          "priority": 0,
+          "blocker": null,
+          "completion_evidence": null,
+          "version": 2,
+          "updated_at": "2026-09-18T22:30:01.000Z"
+        }
+      ],
+      "tasks": [
+        {
+          "id": "task-canary",
+          "objective_id": "objective-canary",
+          "task_key": "execute",
+          "kind": "canary.read",
+          "description": "Read canary state",
+          "status": "running",
+          "attempt_count": 1,
+          "max_attempts": 3,
+          "checkpoint_sequence": 0,
+          "last_error": null
+        }
+      ],
+      "checkpoints": [],
+      "events": [
+        {
+          "id": 1,
+          "objective_id": "objective-canary",
+          "task_id": "task-canary",
+          "event_type": "task_claimed",
+          "created_at": "2026-09-18T22:30:01.000Z"
+        }
+      ]
+    },
+    {
+      "available": true,
+      "capturedAt": "2026-09-18T22:30:02.000Z",
+      "objectives": [
+        {
+          "id": "objective-canary",
+          "goal": "Run safe full-stack canary",
+          "status": "checkpointed",
+          "priority": 0,
+          "blocker": null,
+          "completion_evidence": null,
+          "version": 3,
+          "updated_at": "2026-09-18T22:30:02.000Z"
+        }
+      ],
+      "tasks": [
+        {
+          "id": "task-canary",
+          "objective_id": "objective-canary",
+          "task_key": "execute",
+          "kind": "canary.read",
+          "description": "Read canary state",
+          "status": "checkpointed",
+          "attempt_count": 1,
+          "max_attempts": 3,
+          "checkpoint_sequence": 1,
+          "last_error": null
+        }
+      ],
+      "checkpoints": [
+        {
+          "id": "checkpoint-canary",
+          "objective_id": "objective-canary",
+          "task_id": "task-canary",
+          "sequence": 1,
+          "next_action": "Resume safe canary read",
+          "reason": "interruption",
+          "created_at": "2026-09-18T22:30:02.000Z"
+        }
+      ],
+      "events": [
+        {
+          "id": 2,
+          "objective_id": "objective-canary",
+          "task_id": "task-canary",
+          "event_type": "task_checkpointed",
+          "created_at": "2026-09-18T22:30:02.000Z"
+        },
+        {
+          "id": 1,
+          "objective_id": "objective-canary",
+          "task_id": "task-canary",
+          "event_type": "task_claimed",
+          "created_at": "2026-09-18T22:30:01.000Z"
+        }
+      ]
+    },
+    {
+      "available": true,
+      "capturedAt": "2026-09-18T22:30:03.000Z",
+      "objectives": [
+        {
+          "id": "objective-canary",
+          "goal": "Run safe full-stack canary",
+          "status": "running",
+          "priority": 0,
+          "blocker": null,
+          "completion_evidence": null,
+          "version": 4,
+          "updated_at": "2026-09-18T22:30:03.000Z"
+        }
+      ],
+      "tasks": [
+        {
+          "id": "task-canary",
+          "objective_id": "objective-canary",
+          "task_key": "execute",
+          "kind": "canary.read",
+          "description": "Read canary state",
+          "status": "running",
+          "attempt_count": 2,
+          "max_attempts": 3,
+          "checkpoint_sequence": 1,
+          "last_error": null
+        }
+      ],
+      "checkpoints": [
+        {
+          "id": "checkpoint-canary",
+          "objective_id": "objective-canary",
+          "task_id": "task-canary",
+          "sequence": 1,
+          "next_action": "Resume safe canary read",
+          "reason": "interruption",
+          "created_at": "2026-09-18T22:30:02.000Z"
+        }
+      ],
+      "events": [
+        {
+          "id": 3,
+          "objective_id": "objective-canary",
+          "task_id": "task-canary",
+          "event_type": "task_claimed",
+          "created_at": "2026-09-18T22:30:03.000Z"
+        },
+        {
+          "id": 2,
+          "objective_id": "objective-canary",
+          "task_id": "task-canary",
+          "event_type": "task_checkpointed",
+          "created_at": "2026-09-18T22:30:02.000Z"
+        }
+      ]
+    },
+    {
+      "available": true,
+      "capturedAt": "2026-09-18T22:30:04.000Z",
+      "objectives": [
+        {
+          "id": "objective-canary",
+          "goal": "Run safe full-stack canary",
+          "status": "completed",
+          "priority": 0,
+          "blocker": null,
+          "completion_evidence": {
+            "verification": "passed",
+            "canary": "safe-read"
+          },
+          "version": 6,
+          "updated_at": "2026-09-18T22:30:04.000Z"
+        }
+      ],
+      "tasks": [
+        {
+          "id": "task-canary",
+          "objective_id": "objective-canary",
+          "task_key": "execute",
+          "kind": "canary.read",
+          "description": "Read canary state",
+          "status": "completed",
+          "attempt_count": 2,
+          "max_attempts": 3,
+          "checkpoint_sequence": 1,
+          "last_error": null,
+          "result": {
+            "verified": true,
+            "output": {
+              "safe": true
+            }
+          }
+        }
+      ],
+      "checkpoints": [
+        {
+          "id": "checkpoint-canary",
+          "objective_id": "objective-canary",
+          "task_id": "task-canary",
+          "sequence": 1,
+          "next_action": "Resume safe canary read",
+          "reason": "interruption",
+          "created_at": "2026-09-18T22:30:02.000Z"
+        }
+      ],
+      "events": [
+        {
+          "id": 5,
+          "objective_id": "objective-canary",
+          "task_id": null,
+          "event_type": "objective_completed",
+          "created_at": "2026-09-18T22:30:04.000Z"
+        },
+        {
+          "id": 4,
+          "objective_id": "objective-canary",
+          "task_id": "task-canary",
+          "event_type": "task_completed",
+          "created_at": "2026-09-18T22:30:04.000Z"
+        },
+        {
+          "id": 3,
+          "objective_id": "objective-canary",
+          "task_id": "task-canary",
+          "event_type": "task_claimed",
+          "created_at": "2026-09-18T22:30:03.000Z"
+        },
+        {
+          "id": 2,
+          "objective_id": "objective-canary",
+          "task_id": "task-canary",
+          "event_type": "task_checkpointed",
+          "created_at": "2026-09-18T22:30:02.000Z"
+        }
+      ]
+    }
+  ]
+}
