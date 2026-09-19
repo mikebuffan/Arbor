@@ -246,8 +246,8 @@ jobs:
             resumed jsonb;
             completed jsonb;
             verified jsonb;
-            objective_id uuid;
-            task_id uuid;
+            v_objective_id uuid;
+            v_task_id uuid;
           begin
             insert into auth.users(id) values (u);
             insert into public.projects(id, user_id) values (p, u);
@@ -269,23 +269,23 @@ jobs:
                 'idempotency_key','canary:full-stack:execute'
               ))
             );
-            objective_id := (objective->>'id')::uuid;
+            v_objective_id := (objective->>'id')::uuid;
 
             first_claim := public.ark_claim_next_task(
               'canary-worker-1',
               1000,
               now(),
               '{}'::uuid[],
-              objective_id
+              v_objective_id
             );
             if first_claim is null then
               raise exception 'canary was not claimed';
             end if;
 
-            task_id := (first_claim->'task'->>'id')::uuid;
+            v_task_id := (first_claim->'task'->>'id')::uuid;
 
             checkpointed := public.ark_checkpoint_task(
-              task_id,
+              v_task_id,
               'canary-worker-1',
               (first_claim->'task'->>'lease_token')::uuid,
               1,
@@ -304,7 +304,7 @@ jobs:
               1000,
               now() + interval '3 seconds',
               '{}'::uuid[],
-              objective_id
+              v_objective_id
             );
             if resumed is null then
               raise exception 'checkpointed canary did not resume';
@@ -317,7 +317,7 @@ jobs:
             end if;
 
             completed := public.ark_complete_task(
-              task_id,
+              v_task_id,
               'canary-worker-2',
               (resumed->'task'->>'lease_token')::uuid,
               '{"verified":true,"output":{"safe":true}}'::jsonb,
@@ -328,7 +328,7 @@ jobs:
             end if;
 
             verified := public.ark_verify_objective(
-              objective_id,
+              v_objective_id,
               true,
               '{"verification":"passed","canary":"safe-read"}'::jsonb,
               '{}'::text[],
@@ -340,8 +340,8 @@ jobs:
 
             if not exists (
               select 1 from public.ark_checkpoints
-              where objective_id = objective_id
-                and task_id = task_id
+              where objective_id = v_objective_id
+                and task_id = v_task_id
                 and sequence = 1
             ) then
               raise exception 'canary checkpoint receipt missing';
@@ -349,7 +349,7 @@ jobs:
 
             if not exists (
               select 1 from public.ark_events
-              where objective_id = objective_id
+              where objective_id = v_objective_id
                 and event_type = 'task_checkpointed'
             ) then
               raise exception 'canary checkpoint event missing';
@@ -357,7 +357,7 @@ jobs:
 
             if not exists (
               select 1 from public.ark_events
-              where objective_id = objective_id
+              where objective_id = v_objective_id
                 and event_type = 'task_completed'
             ) then
               raise exception 'canary completion event missing';
@@ -365,7 +365,7 @@ jobs:
 
             if not exists (
               select 1 from public.ark_events
-              where objective_id = objective_id
+              where objective_id = v_objective_id
                 and event_type = 'objective_completed'
             ) then
               raise exception 'canary verification receipt missing';
