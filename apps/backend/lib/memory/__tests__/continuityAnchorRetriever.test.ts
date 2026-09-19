@@ -22,6 +22,8 @@ function memory(
     user_trigger_only: false,
     importance: 5,
     confidence: 0.8,
+    mention_count: 0,
+    correction_count: 0,
     pinned: false,
     locked: false,
     status: "active",

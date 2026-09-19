@@ -15,6 +15,28 @@ export type AgencyAction = {
   highConsequenceFork?: boolean;
 };
 
+export type AgencyExecutionState = {
+  planId: string;
+  actionId: string;
+  capability: string;
+  arguments: Record<string, unknown>;
+  turnId: string;
+  arkObjectiveId?: string | null;
+  status: "selected" | "dispatched" | "checkpointed";
+};
+
+export type AgencyObjectiveState = {
+  parentGoal: string;
+  completionCriteria: string[];
+  standingAuthorization: string[];
+  hardStops: string[];
+  nextAction: string | null;
+  checkpoint: string | null;
+  status: "active" | "blocked" | "checkpointed" | "complete";
+  revision: number;
+  execution?: AgencyExecutionState | null;
+};
+
 export type AgencyVerification = {
   ok: boolean;
   evidence?: unknown;
@@ -26,6 +48,7 @@ export type AgencyState = {
   status: "active" | "complete" | "blocked" | "checkpointed";
   currentStep: number;
   unresolvedWork: string[];
+  objective?: AgencyObjectiveState;
   recurringWeaknesses: string[];
   strategyNotes: string[];
   blocker?: AgencyBlocker | null;

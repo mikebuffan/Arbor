@@ -4,6 +4,72 @@ import type { AgencyResult } from "./agency.js";
 import { runAgencyToBoundary } from "./agencyOrchestrator.js";
 
 describe("runAgencyToBoundary", () => {
+  it("stops at the outer execution ceiling instead of looping forever", async () => {
+    let calls = 0;
+
+    const result = await runAgencyToBoundary({
+      initialInput: {
+        state: {
+          goal: "bounded objective",
+          unresolvedWork: ["still working"],
+        } as AgencyResult["state"],
+      },
+      maxWindows: 3,
+      run: async (input): Promise<AgencyResult> => {
+        calls += 1;
+        return {
+          status: "checkpointed",
+          text: `checkpoint ${calls}`,
+          state: {
+            ...input.state,
+            unresolvedWork: [`window ${calls + 1}`],
+          },
+          rounds: 12,
+          toolCalls: 1,
+          researchCalls: 0,
+        };
+      },
+    });
+
+    expect(calls).toBe(3);
+    expect(result.status).toBe("checkpointed");
+    expect(result.text).toContain("outer execution ceiling reached");
+    expect(result.rounds).toBe(36);
+    expect(result.toolCalls).toBe(3);
+    expect(result.state.unresolvedWork).toEqual(["window 4"]);
+  });
+
+  it("returns immediately when a real boundary is reached", async () => {
+    let calls = 0;
+
+    const result = await runAgencyToBoundary({
+      initialInput: {
+        state: {
+          goal: "authorization-bound objective",
+          unresolvedWork: ["await authorization"],
+        } as AgencyResult["state"],
+      },
+      run: async (input): Promise<AgencyResult> => {
+        calls += 1;
+        return {
+          status: "blocked",
+          text: "authorization required",
+          state: input.state,
+          rounds: 1,
+          toolCalls: 0,
+          researchCalls: 0,
+          blocker: "authorization_required",
+          capability: "canary.write",
+          requiredUserInput: "Approve the protected action.",
+        };
+      },
+    });
+
+    expect(calls).toBe(1);
+    expect(result.status).toBe("blocked");
+    expect(result.text).toBe("authorization required");
+  });
+
   it("automatically resumes checkpointed agency work without another user turn", async () => {
     let calls = 0;
     const seenGoals: Array<string | null | undefined> = [];

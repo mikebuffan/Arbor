@@ -44,6 +44,7 @@ function operations(
     memory_pipeline: memoryPipeline,
     conversation_update: vi.fn().mockResolvedValue(undefined),
     decision_outcome: vi.fn().mockResolvedValue(undefined),
+    episode_maintenance: vi.fn().mockResolvedValue(undefined),
     ...overrides,
   };
 }

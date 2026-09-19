@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   runMemoryDecay: vi.fn(),
   runReflectionJob: vi.fn(),
   runMemorySync: vi.fn(),
+  runDefaultArkWorkerCycle: vi.fn(),
 }));
 
 vi.mock("@/lib/supabase/admin", () => ({
@@ -21,6 +22,10 @@ vi.mock("@/lib/tasks/reflection", () => ({
 
 vi.mock("@/lib/tasks/sync", () => ({
   runMemorySync: mocks.runMemorySync,
+}));
+
+vi.mock("@/lib/ark/defaultWorker", () => ({
+  runDefaultArkWorkerCycle: mocks.runDefaultArkWorkerCycle,
 }));
 
 import { fireflyHeartbeat } from "@/lib/system/loop";
@@ -129,6 +134,7 @@ function createClient(options: ClientOptions = {}) {
 describe("fireflyHeartbeat live-schema alignment", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    process.env.ARBOR_ENABLE_ARK_EXECUTION = "true";
     mocks.runMemoryDecay.mockResolvedValue({
       status: "skipped",
       reason: "memory_decay_schema_unavailable",
@@ -142,6 +148,15 @@ describe("fireflyHeartbeat live-schema alignment", () => {
     mocks.runMemorySync.mockResolvedValue({
       status: "completed",
       processed: 2,
+    });
+    mocks.runDefaultArkWorkerCycle.mockResolvedValue({
+      status: "idle",
+      claimed: 0,
+      completed: 0,
+      checkpointed: 0,
+      blocked: 0,
+      failed: 0,
+      verifiedObjectives: 0,
     });
   });
 
@@ -167,6 +182,13 @@ describe("fireflyHeartbeat live-schema alignment", () => {
     expect(calls.tables).not.toContain("users");
     expect(calls.tables).not.toContain("app_users");
     expect(mocks.runMemorySync).toHaveBeenCalledTimes(2);
+    expect(mocks.runDefaultArkWorkerCycle).toHaveBeenCalledWith(
+      expect.objectContaining({
+        supabase: client,
+        maxTasks: 8,
+        maxRuntimeMs: 15_000,
+      }),
+    );
     expect(result).toMatchObject({
       status: "completed",
       processedProjects: 2,
@@ -175,12 +197,29 @@ describe("fireflyHeartbeat live-schema alignment", () => {
         decay: { status: "skipped" },
         reflection: { status: "skipped" },
         sync: { status: "completed" },
+        ark: { status: "idle" },
       },
     });
     expect(calls.heartbeats).toHaveLength(1);
     expect(calls.heartbeats[0]).toMatchObject({
       status: "completed",
       processed_users: 0,
+    });
+  });
+
+  it("keeps ARK fully disabled unless the execution flag is explicitly enabled", async () => {
+    delete process.env.ARBOR_ENABLE_ARK_EXECUTION;
+    const { client } = createClient({
+      projects: [{ id: "project-1" }],
+    });
+    mocks.supabaseAdmin.mockReturnValue(client);
+
+    const result = await fireflyHeartbeat();
+
+    expect(mocks.runDefaultArkWorkerCycle).not.toHaveBeenCalled();
+    expect(result.tasks.ark).toMatchObject({
+      status: "skipped",
+      reason: "ark_execution_disabled",
     });
   });
 
@@ -205,6 +244,7 @@ describe("fireflyHeartbeat live-schema alignment", () => {
     });
     expect(mocks.runMemoryDecay).not.toHaveBeenCalled();
     expect(mocks.runMemorySync).not.toHaveBeenCalled();
+    expect(mocks.runDefaultArkWorkerCycle).not.toHaveBeenCalled();
     expect(calls.heartbeats[0]).toMatchObject({
       status: "skipped",
       processed_users: 0,
@@ -239,6 +279,22 @@ describe("fireflyHeartbeat live-schema alignment", () => {
     mocks.supabaseAdmin.mockReturnValue(client);
 
     await expect(fireflyHeartbeat()).rejects.toThrow("project query failed");
+    expect(calls.heartbeats).not.toContainEqual(
+      expect.objectContaining({ status: "completed" }),
+    );
+  });
+
+  it("does not hide an ARK continuation failure", async () => {
+    const { client, calls } = createClient();
+    mocks.supabaseAdmin.mockReturnValue(client);
+    mocks.runDefaultArkWorkerCycle.mockRejectedValue(
+      new Error("ark continuation failed"),
+    );
+
+    await expect(fireflyHeartbeat()).rejects.toThrow(
+      "ark continuation failed",
+    );
+    expect(calls.lockUpdate).toMatchObject({ is_active: false });
     expect(calls.heartbeats).not.toContainEqual(
       expect.objectContaining({ status: "completed" }),
     );

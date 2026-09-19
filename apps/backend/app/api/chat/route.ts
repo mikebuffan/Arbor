@@ -14,8 +14,16 @@ import { buildPromptContext } from "@/lib/prompt/buildPromptContext";
 import { runOpenAIAgencyAgent } from "@/lib/arbor/agency/openaiAgent";
 import { buildArborAgencyTools } from "@/lib/arbor/agency/arborTools";
 import {
+  claimAgencyOperation,
+  completeAgencyOperation,
+} from "@/lib/arbor/agency/idempotency";
+import { buildArkAgencyExecutionDelegate } from "@/lib/ark/agencyExecutionDelegate";
+import { arkAgencyPlanId } from "@/lib/ark/agencyPlanId";
+import { toolNeedsUserBoundary } from "@/lib/arbor/agency/tools";
+import {
   beginAgencySession,
   blockAgencySession,
+  checkpointAgencySession,
   completeAgencySession,
   recordAgencyProgress,
 } from "@/lib/arbor/agency/session";
@@ -405,6 +413,52 @@ export async function POST(req: Request) {
     }));
 
     const agencyTools = buildArborAgencyTools({ supabase });
+    const arkExecutionEnabled =
+      process.env.ARBOR_ENABLE_ARK_EXECUTION === "true";
+
+    const arkExecutionDelegate = arkExecutionEnabled
+      ? buildArkAgencyExecutionDelegate({
+          toolSupabase: supabase,
+          goal: agencyState.goal,
+          canDispatch: ({ capability }) => {
+            const execution = agencyState.objective?.execution;
+            if (!execution) return { allowed: true };
+            return execution.capability === capability
+              ? { allowed: true }
+              : {
+                  allowed: false,
+                  reason:
+                    `ARK still owns ${execution.capability}; refusing to start a different action until that durable execution is resolved.`,
+                };
+          },
+          resolvePlanId: ({ capability }) => {
+            const execution = agencyState.objective?.execution;
+            // Once a durable objective exists, its stored task payload is the
+            // source of truth. A resumed planner turn does not need to
+            // reconstruct byte-identical arguments to recover that work.
+            return execution?.capability === capability
+              ? execution.planId
+              : null;
+          },
+          onEnqueued: async ({ objectiveId, planId, capability }) => {
+            const execution = agencyState.objective?.execution;
+            if (!execution || execution.planId !== planId) return;
+            agencyState = await recordAgencyProgress({
+              supabase,
+              userId,
+              projectId,
+              agency: agencyState,
+              step: agencyState.currentStep,
+              execution: {
+                ...execution,
+                arkObjectiveId: objectiveId,
+                status: "dispatched",
+              },
+              unresolvedWork: [`execute capability: ${capability}`],
+            });
+          },
+        })
+      : undefined;
 
     const agentResult = await runOpenAIAgencyAgent({
       instructions: systemPrompt,
@@ -434,6 +488,25 @@ export async function POST(req: Request) {
         .map((item) =>
           `capability ${item.slice("verify capability result: ".length)} completed successfully`,
         ),
+      idempotency: {
+        claim: ({ key, operation }) =>
+          claimAgencyOperation({
+            supabase,
+            userId,
+            projectId,
+            key,
+            operation,
+          }),
+        complete: ({ key, result }) =>
+          completeAgencyOperation({
+            supabase,
+            userId,
+            projectId,
+            key,
+            result,
+          }),
+      },
+      executionDelegate: arkExecutionDelegate,
       hooks: {
         async onRoundStart(round) {
           agencyState = await recordAgencyProgress({
@@ -451,6 +524,39 @@ export async function POST(req: Request) {
           });
         },
         async onToolSelected({ name, arguments: args }) {
+          const existingExecution = agencyState.objective?.execution;
+          const existingPlanForSelection = existingExecution
+            ? arkAgencyPlanId({
+                turnId: existingExecution.turnId,
+                toolName: name,
+                args,
+              })
+            : null;
+          const selectedToolHasBoundary =
+            toolNeedsUserBoundary(agencyTools.get(name));
+          const execution =
+            arkExecutionEnabled && !selectedToolHasBoundary
+            ? existingExecution &&
+              existingExecution.capability === name &&
+              existingExecution.planId === existingPlanForSelection
+              ? existingExecution
+              : existingExecution
+                ? existingExecution
+                : {
+                    planId: arkAgencyPlanId({
+                      turnId,
+                      toolName: name,
+                      args,
+                    }),
+                    actionId: "execute",
+                    capability: name,
+                    arguments: args,
+                    turnId,
+                    arkObjectiveId: null,
+                    status: "selected" as const,
+                  }
+            : undefined;
+
           agencyState = await recordAgencyProgress({
             supabase,
             userId,
@@ -458,6 +564,7 @@ export async function POST(req: Request) {
             agency: agencyState,
             step: agencyState.currentStep,
             unresolvedWork: [`execute capability: ${name}`],
+            ...(execution ? { execution } : {}),
           });
 
           await timeline.record(
@@ -486,6 +593,7 @@ export async function POST(req: Request) {
             // proves completion. This also makes a process interruption between
             // action and verification resumable on the next turn.
             unresolvedWork: [`verify capability result: ${name}`],
+            ...(arkExecutionEnabled ? { execution: null } : {}),
           });
 
           await timeline.record(
@@ -506,6 +614,7 @@ export async function POST(req: Request) {
             recurringWeakness: `tool failure: ${name}`,
             strategyChange:
               `When ${name} fails, inspect the failure and choose another reversible route before stopping.`,
+            ...(arkExecutionEnabled ? { execution: null } : {}),
           });
 
           await timeline.record(
@@ -727,6 +836,24 @@ export async function POST(req: Request) {
         agency: agencyState,
         verified: !finalAssistant.flagged,
       });
+    } else if (agentResult.status === "checkpointed") {
+      const arkExecution = agencyState.objective?.execution;
+      agencyState = await checkpointAgencySession({
+        supabase,
+        userId,
+        projectId,
+        agency: agencyState,
+        reason: arkExecution
+          ? `ARK execution checkpoint persisted: ${arkExecution.arkObjectiveId ?? arkExecution.planId}`
+          : "execution ceiling reached after canonical assistant turn persisted",
+      });
+      if (arkExecution) {
+        await timeline.record("persist", "ark_execution_checkpointed", {
+          capability: arkExecution.capability,
+          planId: arkExecution.planId,
+          arkObjectiveId: arkExecution.arkObjectiveId ?? null,
+        });
+      }
     }
 
     await timeline.record(
