@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - prep/ark-production-readiness-20260919
+  pull_request:
+    branches:
+      - release/ark-activation-candidate-20260919
   workflow_dispatch:
 
 concurrency:
