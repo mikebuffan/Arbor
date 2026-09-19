@@ -58,6 +58,9 @@ describe("runAgencyToBoundary", () => {
           rounds: 1,
           toolCalls: 0,
           researchCalls: 0,
+          blocker: "authorization_required",
+          capability: "canary.write",
+          requiredUserInput: "Approve the protected action.",
         };
       },
     });
