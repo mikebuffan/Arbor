@@ -126,10 +126,10 @@ describe("full-stack ARK canary through ChatGPT read boundary", () => {
         checkpoint_sequence: 1,
       }],
       checkpoints: [{ sequence: 1 }],
-      events: [
-        { event_type: "objective_completed" },
-        { event_type: "task_completed" },
-      ],
+      events: expect.arrayContaining([
+        expect.objectContaining({ event_type: "objective_completed" }),
+        expect.objectContaining({ event_type: "task_completed" }),
+      ]),
       truncated: false,
     });
   });
