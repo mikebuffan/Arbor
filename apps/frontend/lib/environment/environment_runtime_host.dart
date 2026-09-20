@@ -38,7 +38,10 @@ class _EnvironmentRuntimeBootstrapState
 
   @override
   Widget build(BuildContext context) =>
-      EnvironmentRuntimeHost(adapter: _adapter);
+      EnvironmentRuntimeHost(
+        adapter: _adapter,
+        initialDestination: EnvironmentDestination.conversation,
+      );
 }
 
 /// Keep the read-only ARK status feed alive across transient session or
@@ -104,9 +107,11 @@ class EnvironmentRuntimeHost extends StatefulWidget {
   const EnvironmentRuntimeHost({
     super.key,
     required this.adapter,
+    this.initialDestination = EnvironmentDestination.home,
   });
 
   final EnvironmentRuntimeAdapter adapter;
+  final EnvironmentDestination initialDestination;
 
   @override
   State<EnvironmentRuntimeHost> createState() => _EnvironmentRuntimeHostState();
@@ -161,6 +166,7 @@ class _EnvironmentRuntimeHostState extends State<EnvironmentRuntimeHost> {
 
     if (snapshot == null) {
       return ArborEnvironmentShell(
+        initialDestination: widget.initialDestination,
         objective: EnvironmentObjectiveView(
           title: _streamError == null
               ? 'Reading ARK state…'
@@ -175,6 +181,7 @@ class _EnvironmentRuntimeHostState extends State<EnvironmentRuntimeHost> {
     }
 
     return ArborEnvironmentShell(
+      initialDestination: widget.initialDestination,
       objective: snapshot.objective,
       workItems: snapshot.workItems,
       runtimeSource: snapshot.source,

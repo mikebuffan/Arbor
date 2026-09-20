@@ -28,11 +28,16 @@ class ArborEnvironmentShell extends StatefulWidget {
     this.workItems = const [],
     this.runtimeSource = 'DEMO DATA',
     this.runtimeStale = false,
+    this.initialDestination = EnvironmentDestination.home,
+    this.conversationLayer,
   });
   final EnvironmentObjectiveView? objective;
   final List<WorkItemView> workItems;
   final String runtimeSource;
   final bool runtimeStale;
+  final EnvironmentDestination initialDestination;
+  /// Optional only for embedding or testing the conversation surface.
+  final Widget? conversationLayer;
 
   @override
   State<ArborEnvironmentShell> createState() => _ArborEnvironmentShellState();
@@ -41,7 +46,13 @@ class ArborEnvironmentShell extends StatefulWidget {
 class _ArborEnvironmentShellState extends State<ArborEnvironmentShell> {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
   final _focusNode = FocusNode();
-  EnvironmentDestination selected = EnvironmentDestination.home;
+  late EnvironmentDestination selected;
+
+  @override
+  void initState() {
+    super.initState();
+    selected = widget.initialDestination;
+  }
 
   @override
   void dispose() {
@@ -81,6 +92,7 @@ class _ArborEnvironmentShellState extends State<ArborEnvironmentShell> {
                     workItems: widget.workItems,
                     runtimeSource: widget.runtimeSource,
                     runtimeStale: widget.runtimeStale,
+                    conversationLayer: widget.conversationLayer,
                   ),
                 ),
               ]);
@@ -190,12 +202,14 @@ class _Surface extends StatelessWidget {
     required this.workItems,
     required this.runtimeSource,
     required this.runtimeStale,
+    this.conversationLayer,
   });
   final EnvironmentDestination selected;
   final EnvironmentObjectiveView objective;
   final List<WorkItemView> workItems;
   final String runtimeSource;
   final bool runtimeStale;
+  final Widget? conversationLayer;
 
   @override
   Widget build(BuildContext context) {
@@ -213,6 +227,14 @@ class _Surface extends StatelessWidget {
       EnvironmentDestination.health => 'System Health',
       EnvironmentDestination.settings => 'Settings',
     };
+    // Conversation needs the available phone height for Text, Voice, and the
+    // keyboard; a fixed 720px panel nested inside a scrolling dashboard
+    // can obscure input on shorter screens.
+    if (selected == EnvironmentDestination.conversation) {
+      return EnvironmentAtmosphere(
+        child: conversationLayer ?? const ArborShellPage(),
+      );
+    }
     return EnvironmentAtmosphere(
       child: ListView(
         padding: const EdgeInsets.all(24),
@@ -231,8 +253,6 @@ class _Surface extends StatelessWidget {
               runtimeSource: runtimeSource,
               runtimeStale: runtimeStale,
             )
-          else if (selected == EnvironmentDestination.conversation)
-            const SizedBox(height: 720, child: ArborShellPage())
           else if (selected == EnvironmentDestination.objective)
             ObjectiveWorkspace(objective: objective)
           else if (selected == EnvironmentDestination.queue)
