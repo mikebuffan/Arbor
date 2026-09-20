@@ -47,6 +47,7 @@ This bundle is intentionally NOT auto-run and is intentionally NOT in the migrat
 - The release candidate's heartbeat previously called an unscoped ARK worker whenever `ARBOR_ENABLE_ARK_EXECUTION=true`. That did not itself limit execution to the intended first canary.
 - The reconciliation preparation branch now requires **both** `ARBOR_ENABLE_ARK_EXECUTION=true` and `ARBOR_ARK_CANARY_OBJECTIVE_ID=<UUID>` to let the heartbeat claim tasks for the selected durable objective.
 - A separate `ARBOR_ARK_ALLOW_GLOBAL_EXECUTION=true` authorizes the unscoped worker later, after the canary has been verified. If both canary and global settings are present, the canary ID wins. Invalid nonempty canary IDs fail closed rather than widening to global.
+- Targeted task claims now also scope database-side expired-lease cleanup and failed-objective propagation to the selected objective; a canary no longer changes unrelated queued/running jobs during claim. The exact production-bundle PostgreSQL 17 test seeds an unrelated expired job, proves targeted isolation, and separately proves the explicitly global worker still cleans it up.
 - Missing or disabled execution flag still skips all heartbeat ARK work. No environment variables were changed in Vercel.
 - The chat API is now independently gated: `ARBOR_ENABLE_ARK_EXECUTION=true` alone does NOT opt ordinary chats into the ARK tool dispatcher. Chat dispatch additionally requires `ARBOR_ENABLE_ARK_CHAT_EXECUTION=true`, after a separately reviewed interactive rollout. With the chat switch absent/false, ordinary chat keeps its prior direct agency execution path. The explicit canary UUID limits heartbeat claims only and must not be represented as globally limiting the chat API.
 - This is a new runtime change **on PR #117's preparation branch only**, not the still-frozen PR #115 release candidate. Do not promote PR #115 alone and mistake it for containing the isolation safeguard: reconcile the tested preparation head before a production activation.
@@ -61,7 +62,7 @@ A verified restorable backup of original Firefly still has not been independentl
 
 1. Apply the forward-only bundle to original Firefly.
 2. Verify ARK tables, RPC signatures, policies, owner constraints, and unchanged counts for projects/memories/conversations.
-3. Merge/promote PR #115.
+3. Reconcile and merge this tested PR #117 preparation head **into the release candidate branch first**; re-run the release checks on that new candidate, then merge/promote PR #115. Never promote the older PR #115 head alone.
 4. Deploy with `ARBOR_ENABLE_ARK_EXECUTION` absent/false.
 5. Verify existing Firefly login, planner, tools, memory, text/voice, and production account ownership.
 6. Enable a single ARK canary.
