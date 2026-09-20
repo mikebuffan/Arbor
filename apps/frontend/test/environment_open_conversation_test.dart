@@ -25,7 +25,7 @@ void main() {
     expect(tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex, 1);
 
     await tester.tap(find.text('Home'));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 350));
     expect(tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex, 0);
 
     // An ARK dashboard refresh must not throw the user back to Talk.
@@ -46,7 +46,7 @@ void main() {
     expect(tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex, 0);
 
     await tester.tap(find.text('Talk'));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 350));
     expect(tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex, 1);
     expect(find.text('CHAT READY'), findsOneWidget);
   });
