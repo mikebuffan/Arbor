@@ -1,0 +1,195 @@
+name: ARK exact production reconciliation bundle smoke
+
+on:
+  push:
+    branches:
+      - prep/ark-production-reconciliation-20260920
+    paths:
+      - docs/operations/ARK_PRODUCTION_FORWARD_BUNDLE_20260920.sql
+      - .github/workflows/ark-production-bundle-smoke.yml
+  pull_request:
+    branches:
+      - release/ark-activation-candidate-20260919
+    paths:
+      - docs/operations/ARK_PRODUCTION_FORWARD_BUNDLE_20260920.sql
+      - .github/workflows/ark-production-bundle-smoke.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  exact-production-bundle-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: firefly_reconciliation_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d firefly_reconciliation_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: firefly_reconciliation_test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Seed production-shaped existing agency tables with synthetic records
+        run: |
+          psql -X -v ON_ERROR_STOP=1 <<'SQL'
+          create role anon nologin;
+          create role authenticated nologin;
+          create role service_role nologin bypassrls;
+          create schema auth;
+          create function auth.uid() returns uuid
+          language sql stable as $$
+            select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid
+          $$;
+          create table auth.users (id uuid primary key);
+          create table public.projects (
+            id uuid primary key,
+            user_id uuid not null references auth.users(id) on delete cascade,
+            name text not null default 'Default Project'
+          );
+          create table public.arbor_runtime_state (
+            user_id uuid not null references auth.users(id),
+            project_id uuid not null references public.projects(id),
+            active_subsystem text not null default 'arbor',
+            voice_id text not null default 'cedar',
+            acoustic_corrections jsonb not null default '[]'::jsonb,
+            agency_goal text,
+            agency_status text,
+            agency_current_step integer not null default 0,
+            agency_unresolved_work jsonb not null default '[]'::jsonb,
+            agency_recurring_weaknesses jsonb not null default '[]'::jsonb,
+            agency_strategy_notes jsonb not null default '[]'::jsonb,
+            agency_blocker text,
+            agency_objective jsonb,
+            created_at timestamptz not null default now(),
+            updated_at timestamptz not null default now(),
+            unique (user_id, project_id)
+          );
+          create table public.arbor_agency_idempotency (
+            user_id uuid not null references auth.users(id),
+            project_id uuid not null references public.projects(id),
+            idempotency_key text not null,
+            operation text not null,
+            result jsonb,
+            created_at timestamptz not null default now(),
+            unique (user_id,project_id,idempotency_key)
+          );
+          alter table public.arbor_agency_idempotency enable row level security;
+          create policy existing_idempotency_select on public.arbor_agency_idempotency
+            for select to authenticated using (user_id=auth.uid());
+          grant usage on schema public, auth to authenticated, service_role, anon;
+          grant select on public.projects to authenticated, service_role;
+          grant select,update on public.arbor_agency_idempotency to authenticated;
+          insert into auth.users (id) values
+            ('11111111-1111-1111-1111-111111111111'),
+            ('22222222-2222-2222-2222-222222222222');
+          insert into public.projects(id,user_id,name) values
+            ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','11111111-1111-1111-1111-111111111111','Existing Firefly project A'),
+            ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb','22222222-2222-2222-2222-222222222222','Existing Firefly project B');
+          insert into public.arbor_runtime_state(user_id,project_id,agency_goal) values
+            ('11111111-1111-1111-1111-111111111111','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','Preserve existing agency state');
+          insert into public.arbor_agency_idempotency(user_id,project_id,idempotency_key,operation) values
+            ('11111111-1111-1111-1111-111111111111','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','existing-key','existing-operation'),
+            ('22222222-2222-2222-2222-222222222222','bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb','other-key','existing-operation');
+          SQL
+
+      - name: Apply EXACT forward-only production bundle as one atomic transaction
+        run: |
+          psql -X -v ON_ERROR_STOP=1 --single-transaction \
+            -f docs/operations/ARK_PRODUCTION_FORWARD_BUNDLE_20260920.sql
+
+      - name: Verify existing data, all six changes, owner integrity and RLS
+        run: |
+          psql -X -v ON_ERROR_STOP=1 <<'SQL'
+          do $$
+          begin
+            if (select count(*) from public.projects) <> 2
+              or (select count(*) from public.arbor_runtime_state) <> 1
+              or (select count(*) from public.arbor_agency_idempotency) <> 2
+              or (select agency_goal from public.arbor_runtime_state limit 1)
+                <> 'Preserve existing agency state'
+            then
+              raise exception 'Existing Firefly-shaped records were not preserved';
+            end if;
+            if to_regclass('public.arbor_work_jobs') is null
+              or to_regclass('public.ark_objectives') is null
+              or to_regclass('public.ark_tasks') is null
+              or to_regclass('public.ark_checkpoints') is null
+              or to_regclass('public.ark_events') is null
+              or to_regprocedure('public.arbor_claim_agency_state(uuid,uuid,text,text,integer,jsonb,jsonb,jsonb,text,jsonb)') is null
+              or to_regprocedure('public.arbor_claim_work_job(uuid,uuid,text,integer)') is null
+              or to_regprocedure('public.ark_claim_next_task(text,integer,timestamp with time zone,uuid[],uuid)') is null
+            then
+              raise exception 'Production forward bundle did not install all required objects';
+            end if;
+            if not exists (
+              select 1 from pg_policies
+              where schemaname='public' and tablename='arbor_agency_idempotency'
+                and policyname='arbor_agency_idempotency_owner_update'
+            ) then
+              raise exception 'Missing authenticated agency idempotency UPDATE policy';
+            end if;
+            if (select count(*) from pg_constraint where conname in (
+               'ark_objectives_project_owner_fk', 'ark_tasks_objective_owner_fk',
+               'ark_checkpoints_task_objective_fk', 'ark_events_task_objective_fk'
+            )) <> 4 then
+              raise exception 'ARK ownership integrity constraints missing';
+            end if;
+          end
+          $$;
+
+          do $$
+          begin
+            insert into public.ark_objectives(user_id,project_id,goal,idempotency_key,request_hash)
+            values ('11111111-1111-1111-1111-111111111111',
+                    'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+                    'must reject mismatched project owner','bad-owner',
+                    '00000000000000000000000000000000');
+            raise exception 'Owner integrity accepted wrong project owner';
+          exception when foreign_key_violation then
+            null;
+          end
+          $$;
+
+          set role authenticated;
+          set request.jwt.claim.sub = '11111111-1111-1111-1111-111111111111';
+          do $$
+          declare updated_rows integer;
+          begin
+            update public.arbor_agency_idempotency
+            set result = '{"done":true}'::jsonb
+            where idempotency_key = 'existing-key';
+            get diagnostics updated_rows = row_count;
+            if updated_rows <> 1 then
+              raise exception 'Authenticated owner cannot complete agency idempotency key';
+            end if;
+            update public.arbor_agency_idempotency
+            set result = '{"unsafe":true}'::jsonb
+            where idempotency_key = 'other-key';
+            get diagnostics updated_rows = row_count;
+            if updated_rows <> 0 then
+              raise exception 'Authenticated owner updated another user''s idempotency key';
+            end if;
+          end
+          $$;
+          reset role;
+          do $$
+          begin
+            if (select result from public.arbor_agency_idempotency where idempotency_key='other-key') is not null
+            then raise exception 'Cross-user idempotency state changed'; end if;
+          end $$;
+          select 'PASS: exact bundle, existing records, ARK carrier, owner FK, idempotency RLS' as result;
+          SQL
