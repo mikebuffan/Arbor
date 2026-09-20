@@ -134,6 +134,7 @@ function createClient(options: ClientOptions = {}) {
 describe("fireflyHeartbeat live-schema alignment", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    process.env.ARBOR_ARK_ENABLE_LIVE_EXECUTION = "true";
     process.env.ARBOR_ENABLE_ARK_EXECUTION = "true";
     process.env.ARBOR_ARK_CANARY_OBJECTIVE_ID =
       "11111111-1111-4111-8111-111111111111";
