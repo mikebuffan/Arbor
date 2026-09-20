@@ -181,19 +181,40 @@ export async function fireflyHeartbeat(): Promise<HeartbeatResult> {
       syncedMemories += sync.processed;
     }
 
+    // Keep the first live canary pinned to exactly one durable objective.
+    // The execution flag alone must never start an unscoped background worker.
+    const canaryId = process.env.ARBOR_ARK_CANARY_OBJECTIVE_ID?.trim();
+    const validCanaryId = canaryId
+      ? /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(canaryId)
+      : false;
+    const executionEnabled = process.env.ARBOR_ENABLE_ARK_EXECUTION === "true";
+    const globalEnabled = process.env.ARBOR_ARK_ALLOW_GLOBAL_EXECUTION === "true";
     const ark =
-      process.env.ARBOR_ENABLE_ARK_EXECUTION === "true"
-        ? await runDefaultArkWorkerCycle({
-            supabase: client,
-            workerId: `firefly-heartbeat:${startedAt}`,
-            maxTasks: 8,
-            maxRuntimeMs: 15_000,
-          })
-        : ({
+      !executionEnabled
+        ? ({
             status: "skipped",
             reason: "ark_execution_disabled",
             processed: 0,
-          } satisfies SkippedTask);
+          } satisfies SkippedTask)
+        : canaryId && !validCanaryId
+          ? ({
+              status: "skipped",
+              reason: "ark_invalid_canary_objective_id",
+              processed: 0,
+            } satisfies SkippedTask)
+          : !validCanaryId && !globalEnabled
+            ? ({
+                status: "skipped",
+                reason: "ark_canary_objective_required",
+                processed: 0,
+              } satisfies SkippedTask)
+            : await runDefaultArkWorkerCycle({
+                supabase: client,
+                workerId: `firefly-heartbeat:${startedAt}`,
+                maxTasks: 8,
+                maxRuntimeMs: 15_000,
+                ...(validCanaryId ? { objectiveId: canaryId } : {}),
+              });
 
     const result: HeartbeatResult = {
       status: "completed",
