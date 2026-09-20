@@ -2,6 +2,7 @@ import { openai } from "@/lib/providers/openai";
 import type {
   AgencyToolContext,
 } from "./tools";
+import { agencyOperationKey } from "./idempotency";
 
 import {
   AgencyToolRegistry,
@@ -11,6 +12,7 @@ import {
 import {
   executeAgencyToolWithRecovery,
   recoveryInstruction,
+  type AgencyToolExecutionOutcome,
 } from "./toolExecution";
 
 import {
@@ -20,6 +22,27 @@ import {
 export type AgencyMessage = {
   role: "user" | "assistant";
   content: string;
+};
+
+export type AgencyToolExecutionDelegateResult =
+  | {
+      kind: "outcome";
+      outcome: AgencyToolExecutionOutcome;
+    }
+  | {
+      kind: "checkpointed";
+      reason: string;
+      objectiveId?: string;
+    };
+
+export type AgencyToolExecutionDelegate = {
+  managesWriteIdempotency?: boolean;
+  execute(input: {
+    tool: ReturnType<AgencyToolRegistry["get"]>;
+    args: Record<string, unknown>;
+    context: AgencyToolContext;
+    attemptedRoutes: string[];
+  }): Promise<AgencyToolExecutionDelegateResult>;
 };
 
 export type AgencyLoopHooks = {
@@ -96,6 +119,12 @@ type FunctionCall = {
 export type AgentResult =
   | {
       status: "complete";
+      text: string;
+      responseId: string;
+      toolCalls: number;
+    }
+  | {
+      status: "checkpointed";
       text: string;
       responseId: string;
       toolCalls: number;
@@ -205,10 +234,18 @@ export async function runOpenAIAgencyAgent(
     priorActionEvidence?: string[];
     maxRounds?: number;
     hooks?: AgencyLoopHooks;
+    idempotency?: {
+      claim(input: { key: string; operation: string }): Promise<
+        | { acquired: true; result: null }
+        | { acquired: false; result: unknown }
+      >;
+      complete(input: { key: string; result: unknown }): Promise<void>;
+    };
+    executionDelegate?: AgencyToolExecutionDelegate;
   },
 ): Promise<AgentResult> {
   const maxRounds =
-    input.maxRounds ?? 16;
+    input.maxRounds ?? 48;
 
   let toolCalls = 0;
 
@@ -482,24 +519,100 @@ export async function runOpenAIAgencyAgent(
         };
       }
 
-      const execution =
-        await executeAgencyToolWithRecovery(
-          {
-            tool,
-            args,
-            context:
-              input.context,
-            attemptedRoutes:
-              [
-                ...attemptedRoutes,
-              ],
-          },
-        );
+      const idempotencyKey =
+        tool.risk === "reversible_write" &&
+        input.idempotency &&
+        !input.executionDelegate?.managesWriteIdempotency
+          ? agencyOperationKey({
+              turnId: input.context.turnId,
+              toolName: tool.name,
+              args,
+            })
+          : null;
+
+      if (idempotencyKey && input.idempotency) {
+        const claim = await input.idempotency.claim({
+          key: idempotencyKey,
+          operation: tool.name,
+        });
+
+        if (!claim.acquired) {
+          if (claim.result !== null && claim.result !== undefined) {
+            await input.hooks?.onToolResult?.({
+              round,
+              name: tool.name,
+              result: claim.result,
+            });
+            actionEvidence.push(
+              `capability ${tool.name} completed successfully (idempotent replay)`,
+            );
+            outputs.push({
+              type: "function_call_output",
+              call_id: call.call_id,
+              output: JSON.stringify({
+                ok: true,
+                result: claim.result,
+                replayed: true,
+                attempts: 0,
+              }),
+            });
+          } else {
+            outputs.push({
+              type: "function_call_output",
+              call_id: call.call_id,
+              output: JSON.stringify({
+                ok: false,
+                kind: "operation_in_progress",
+                retryable: false,
+                instruction:
+                  "Do not repeat this side effect. Preserve the objective and resume after the owning execution checkpoints.",
+              }),
+            });
+          }
+          continue;
+        }
+      }
+
+      const delegatedExecution =
+        input.executionDelegate
+          ? await input.executionDelegate.execute({
+              tool,
+              args,
+              context: input.context,
+              attemptedRoutes: [...attemptedRoutes],
+            })
+          : {
+              kind: "outcome" as const,
+              outcome: await executeAgencyToolWithRecovery({
+                tool,
+                args,
+                context: input.context,
+                attemptedRoutes: [...attemptedRoutes],
+              }),
+            };
+
+      if (delegatedExecution.kind === "checkpointed") {
+        return {
+          status: "checkpointed",
+          text: delegatedExecution.reason,
+          responseId: response.id,
+          toolCalls,
+        };
+      }
+
+      const execution = delegatedExecution.outcome;
 
       toolCalls +=
         execution.attempts;
 
       if (execution.ok) {
+        if (idempotencyKey && input.idempotency) {
+          await input.idempotency.complete({
+            key: idempotencyKey,
+            result: execution.result,
+          });
+        }
+
         await input.hooks
           ?.onToolResult?.({
             round,
@@ -594,7 +707,11 @@ export async function runOpenAIAgencyAgent(
       );
   }
 
-  throw new Error(
-    `agency_round_budget_exhausted:${maxRounds}`,
-  );
+  return {
+    status: "checkpointed",
+    text:
+      "The active objective reached an execution checkpoint. Its durable state is preserved and remains unfinished.",
+    responseId: response.id,
+    toolCalls,
+  };
 }
