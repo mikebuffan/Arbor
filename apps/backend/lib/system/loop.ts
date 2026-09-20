@@ -5,6 +5,7 @@ import { runReflectionJob } from "@/lib/tasks/reflection";
 import { runMemorySync } from "@/lib/tasks/sync";
 import { runDefaultArkWorkerCycle } from "@/lib/ark/defaultWorker";
 import type { ArkWorkerCycleResult } from "@/lib/ark/runner";
+import { isArkLiveExecutionUnlocked } from "@/lib/ark/activation";
 
 const LOCK_TABLE = "system_locks";
 const HEARTBEAT_TABLE = "system_heartbeats";
@@ -187,7 +188,9 @@ export async function fireflyHeartbeat(): Promise<HeartbeatResult> {
     const validCanaryId = canaryId
       ? /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(canaryId)
       : false;
-    const executionEnabled = process.env.ARBOR_ENABLE_ARK_EXECUTION === "true";
+    const executionEnabled =
+      isArkLiveExecutionUnlocked(process.env.ARBOR_ARK_ENABLE_LIVE_EXECUTION) &&
+      process.env.ARBOR_ENABLE_ARK_EXECUTION === "true";
     const globalEnabled = process.env.ARBOR_ARK_ALLOW_GLOBAL_EXECUTION === "true";
     const ark =
       !executionEnabled
