@@ -177,7 +177,7 @@ jobs:
 
           -- Even the privileged migration owner must not create mismatched
           -- work-job user/project rows (RLS is bypassed here).
-          do $
+          do $$
           begin
             begin
               insert into public.arbor_work_jobs(user_id,project_id,parent_goal)
@@ -192,7 +192,7 @@ jobs:
               raise exception 'Rejected work-job owner pair still altered rows';
             end if;
           end
-          $;
+          $$;
 
           set role authenticated;
           set request.jwt.claim.sub = '11111111-1111-1111-1111-111111111111';
