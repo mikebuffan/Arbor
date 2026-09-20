@@ -196,7 +196,7 @@ jobs:
             end if;
           end
           $$;
-          do $
+          do $$
           declare
             changed integer;
           begin
@@ -219,20 +219,20 @@ jobs:
             where job_id='bcbcbcbc-bcbc-4bcb-8bcb-bcbcbcbcbcbc';
             get diagnostics changed = row_count;
             if changed <> 0 then raise exception 'Cross-user work-job UPDATE succeeded'; end if;
-          end $;
+          end $$;
           reset role;
-          do $
+          do $$
           begin
             if (select result from public.arbor_agency_idempotency where idempotency_key='other-key') is not null
             then raise exception 'Cross-user idempotency state changed'; end if;
           end $$;
-          do $
+          do $$
           begin
             if (select project_id from public.arbor_work_jobs
                 where job_id='abababab-abab-4aba-8aba-abababababab')
                 is distinct from 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'::uuid
             then raise exception 'Work-job project ownership changed despite RLS'; end if;
-          end $;
+          end $$;
           -- A targeted canary must not reset another user's expired ARK job
           -- or mark that unrelated objective failed.
           do $$
