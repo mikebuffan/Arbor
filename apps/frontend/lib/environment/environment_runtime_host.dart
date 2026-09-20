@@ -41,6 +41,26 @@ class _EnvironmentRuntimeBootstrapState
       EnvironmentRuntimeHost(adapter: _adapter);
 }
 
+/// Keep the read-only ARK status feed alive across transient session or
+/// network errors. Never substitute demo data for an unverified live result.
+Stream<EnvironmentSnapshot> retryingEnvironmentSnapshots({
+  required Future<EnvironmentSnapshot> Function() read,
+  required Duration refreshInterval,
+}) async* {
+  while (true) {
+    late final EnvironmentSnapshot next;
+    try {
+      next = await read();
+    } catch (_) {
+      next = await const UnavailableEnvironmentAdapter(
+        'ARK status refresh failed. Retrying automatically.',
+      ).snapshot();
+    }
+    yield next;
+    await Future<void>.delayed(refreshInterval);
+  }
+}
+
 class _SessionAwareEnvironmentAdapter implements EnvironmentRuntimeAdapter {
   _SessionAwareEnvironmentAdapter(this.apiClient);
 
@@ -73,12 +93,11 @@ class _SessionAwareEnvironmentAdapter implements EnvironmentRuntimeAdapter {
   }
 
   @override
-  Stream<EnvironmentSnapshot> watch() async* {
-    while (true) {
-      yield await snapshot();
-      await Future<void>.delayed(refreshInterval);
-    }
-  }
+  Stream<EnvironmentSnapshot> watch() =>
+      retryingEnvironmentSnapshots(
+        read: snapshot,
+        refreshInterval: refreshInterval,
+      );
 }
 
 class EnvironmentRuntimeHost extends StatefulWidget {
