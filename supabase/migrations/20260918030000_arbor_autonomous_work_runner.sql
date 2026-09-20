@@ -40,7 +40,12 @@ create policy arbor_work_jobs_owner_insert on public.arbor_work_jobs for insert
   ));
 drop policy if exists arbor_work_jobs_owner_update on public.arbor_work_jobs;
 create policy arbor_work_jobs_owner_update on public.arbor_work_jobs for update
-  using (user_id = auth.uid()) with check (user_id = auth.uid());
+  using (user_id = auth.uid() and exists (
+    select 1 from public.projects p where p.id = project_id and p.user_id = auth.uid()
+  ))
+  with check (user_id = auth.uid() and exists (
+    select 1 from public.projects p where p.id = project_id and p.user_id = auth.uid()
+  ));
 
 create or replace function public.arbor_claim_work_job(
   p_user_id uuid, p_project_id uuid, p_worker_id text, p_lease_seconds integer default 90
