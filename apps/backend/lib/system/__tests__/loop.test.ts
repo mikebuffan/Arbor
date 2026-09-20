@@ -135,6 +135,9 @@ describe("fireflyHeartbeat live-schema alignment", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     process.env.ARBOR_ENABLE_ARK_EXECUTION = "true";
+    process.env.ARBOR_ARK_CANARY_OBJECTIVE_ID =
+      "11111111-1111-4111-8111-111111111111";
+    delete process.env.ARBOR_ARK_ALLOW_GLOBAL_EXECUTION;
     mocks.runMemoryDecay.mockResolvedValue({
       status: "skipped",
       reason: "memory_decay_schema_unavailable",
@@ -187,6 +190,7 @@ describe("fireflyHeartbeat live-schema alignment", () => {
         supabase: client,
         maxTasks: 8,
         maxRuntimeMs: 15_000,
+        objectiveId: "11111111-1111-4111-8111-111111111111",
       }),
     );
     expect(result).toMatchObject({
@@ -221,6 +225,62 @@ describe("fireflyHeartbeat live-schema alignment", () => {
       status: "skipped",
       reason: "ark_execution_disabled",
     });
+  });
+
+  it("does not start an unscoped worker from the execution flag alone", async () => {
+    delete process.env.ARBOR_ARK_CANARY_OBJECTIVE_ID;
+    const { client } = createClient();
+    mocks.supabaseAdmin.mockReturnValue(client);
+
+    const result = await fireflyHeartbeat();
+
+    expect(mocks.runDefaultArkWorkerCycle).not.toHaveBeenCalled();
+    expect(result.tasks.ark).toMatchObject({
+      status: "skipped",
+      reason: "ark_canary_objective_required",
+    });
+  });
+
+  it("rejects an invalid canary ID even when global execution is enabled", async () => {
+    process.env.ARBOR_ARK_CANARY_OBJECTIVE_ID = "not-a-real-objective";
+    process.env.ARBOR_ARK_ALLOW_GLOBAL_EXECUTION = "true";
+    const { client } = createClient();
+    mocks.supabaseAdmin.mockReturnValue(client);
+
+    const result = await fireflyHeartbeat();
+
+    expect(mocks.runDefaultArkWorkerCycle).not.toHaveBeenCalled();
+    expect(result.tasks.ark).toMatchObject({
+      status: "skipped",
+      reason: "ark_invalid_canary_objective_id",
+    });
+  });
+
+  it("scopes a canary even when global authorization is present", async () => {
+    process.env.ARBOR_ARK_ALLOW_GLOBAL_EXECUTION = "true";
+    const { client } = createClient();
+    mocks.supabaseAdmin.mockReturnValue(client);
+
+    await fireflyHeartbeat();
+
+    expect(mocks.runDefaultArkWorkerCycle).toHaveBeenCalledWith(
+      expect.objectContaining({
+        objectiveId: "11111111-1111-4111-8111-111111111111",
+      }),
+    );
+  });
+
+  it("runs an unscoped worker only after separate global authorization", async () => {
+    delete process.env.ARBOR_ARK_CANARY_OBJECTIVE_ID;
+    process.env.ARBOR_ARK_ALLOW_GLOBAL_EXECUTION = "true";
+    const { client } = createClient();
+    mocks.supabaseAdmin.mockReturnValue(client);
+
+    await fireflyHeartbeat();
+
+    expect(mocks.runDefaultArkWorkerCycle).toHaveBeenCalledWith(
+      expect.not.objectContaining({ objectiveId: expect.anything() }),
+    );
   });
 
   it("reports an active lock as a safe skip without running tasks", async () => {

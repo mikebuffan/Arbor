@@ -27,6 +27,17 @@ create index if not exists arbor_work_jobs_claim_idx
 create index if not exists arbor_work_jobs_owner_idx
   on public.arbor_work_jobs(user_id, project_id, updated_at desc);
 
+-- Protect work jobs independently of the later ARK-only migrations.
+-- A service-role client bypasses RLS, so require real project ownership here.
+create unique index if not exists projects_id_user_id_ark_owner_idx
+  on public.projects (id, user_id);
+
+alter table public.arbor_work_jobs
+  add constraint arbor_work_jobs_project_owner_fk
+  foreign key (project_id, user_id)
+  references public.projects (id, user_id)
+  on delete cascade;
+
 alter table public.arbor_work_jobs enable row level security;
 drop policy if exists arbor_work_jobs_owner_select on public.arbor_work_jobs;
 create policy arbor_work_jobs_owner_select on public.arbor_work_jobs for select
@@ -40,7 +51,12 @@ create policy arbor_work_jobs_owner_insert on public.arbor_work_jobs for insert
   ));
 drop policy if exists arbor_work_jobs_owner_update on public.arbor_work_jobs;
 create policy arbor_work_jobs_owner_update on public.arbor_work_jobs for update
-  using (user_id = auth.uid()) with check (user_id = auth.uid());
+  using (user_id = auth.uid() and exists (
+    select 1 from public.projects p where p.id = project_id and p.user_id = auth.uid()
+  ))
+  with check (user_id = auth.uid() and exists (
+    select 1 from public.projects p where p.id = project_id and p.user_id = auth.uid()
+  ));
 
 create or replace function public.arbor_claim_work_job(
   p_user_id uuid, p_project_id uuid, p_worker_id text, p_lease_seconds integer default 90

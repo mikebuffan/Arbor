@@ -1,5 +1,5 @@
 -- Add targeted ARK claims so an interactive bridge can execute one durable
--- objective without consuming unrelated queued work.
+-- objective without consuming or changing unrelated queued or expired work.
 
 drop function if exists public.ark_claim_next_task(text, integer, timestamptz, uuid[]);
 
@@ -31,7 +31,8 @@ begin
       heartbeat_at = null,
       version = version + 1,
       updated_at = p_now
-  where status = 'running' and lease_expires_at <= p_now;
+  where status = 'running' and lease_expires_at <= p_now
+    and (p_only_objective_id is null or objective_id = p_only_objective_id);
 
   update public.ark_objectives o
   set status = 'failed',
@@ -39,6 +40,7 @@ begin
       version = version + 1,
       updated_at = p_now
   where o.status not in ('completed', 'failed', 'cancelled')
+    and (p_only_objective_id is null or o.id = p_only_objective_id)
     and exists (
       select 1 from public.ark_tasks t
       where t.objective_id = o.id and t.status = 'failed'
