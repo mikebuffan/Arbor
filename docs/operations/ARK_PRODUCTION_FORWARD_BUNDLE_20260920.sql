@@ -872,6 +872,14 @@ grant execute on function public.ark_claim_next_task(text, integer, timestamptz,
 create unique index if not exists projects_id_user_id_ark_owner_idx
   on public.projects (id, user_id);
 
+-- Work jobs use a privileged worker; enforce the user/project pair even when
+-- service_role bypasses row-level security.
+alter table public.arbor_work_jobs
+  add constraint arbor_work_jobs_project_owner_fk
+  foreign key (project_id, user_id)
+  references public.projects (id, user_id)
+  on delete cascade;
+
 create unique index if not exists ark_objectives_id_owner_idx
   on public.ark_objectives (id, user_id, project_id);
 
