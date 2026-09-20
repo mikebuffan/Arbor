@@ -28,6 +28,23 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex, 0);
 
+    // An ARK dashboard refresh must not throw the user back to Talk.
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: ArborEnvironmentShell(
+          initialDestination: EnvironmentDestination.conversation,
+          conversationLayer: Center(child: Text('CHAT READY')),
+          objective: EnvironmentObjectiveView(
+            title: 'No active ARK objective',
+            state: EnvironmentRunState.idle,
+          ),
+          runtimeSource: 'ARK • REFRESHED',
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex, 0);
+
     await tester.tap(find.text('Talk'));
     await tester.pumpAndSettle();
     expect(tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex, 1);
