@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:frontend/environment/environment_adapter.dart';
 import 'package:frontend/environment/environment_runtime_host.dart';
 import 'package:frontend/environment/environment_state.dart';
 
