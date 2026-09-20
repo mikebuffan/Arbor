@@ -415,6 +415,7 @@ export async function POST(req: Request) {
 
     const agencyTools = buildArborAgencyTools({ supabase });
     const arkExecutionEnabled = isArkChatExecutionEnabled({
+      ARBOR_ARK_ENABLE_LIVE_EXECUTION: process.env.ARBOR_ARK_ENABLE_LIVE_EXECUTION,
       ARBOR_ENABLE_ARK_EXECUTION: process.env.ARBOR_ENABLE_ARK_EXECUTION,
       ARBOR_ENABLE_ARK_CHAT_EXECUTION: process.env.ARBOR_ENABLE_ARK_CHAT_EXECUTION,
     });
