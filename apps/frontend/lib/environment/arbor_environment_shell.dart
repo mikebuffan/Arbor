@@ -227,6 +227,14 @@ class _Surface extends StatelessWidget {
       EnvironmentDestination.health => 'System Health',
       EnvironmentDestination.settings => 'Settings',
     };
+    // Conversation needs the available phone height for Text, Voice, and the
+    // keyboard; a fixed 720px panel nested inside a scrolling dashboard
+    // can obscure input on shorter screens.
+    if (selected == EnvironmentDestination.conversation) {
+      return EnvironmentAtmosphere(
+        child: conversationLayer ?? const ArborShellPage(),
+      );
+    }
     return EnvironmentAtmosphere(
       child: ListView(
         padding: const EdgeInsets.all(24),
@@ -245,8 +253,6 @@ class _Surface extends StatelessWidget {
               runtimeSource: runtimeSource,
               runtimeStale: runtimeStale,
             )
-          else if (selected == EnvironmentDestination.conversation)
-            SizedBox(height: 720, child: conversationLayer ?? const ArborShellPage())
           else if (selected == EnvironmentDestination.objective)
             ObjectiveWorkspace(objective: objective)
           else if (selected == EnvironmentDestination.queue)
