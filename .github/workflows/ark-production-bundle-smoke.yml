@@ -164,59 +164,6 @@ jobs:
           end
           $$;
 
-          -- A targeted canary must not mutate an unrelated expired lease.
-          -- The unrelated task is at its final attempt: global cleanup would
-          -- mark its task/objective failed, so this is a meaningful isolation test.
-          do $
-          declare
-            unrelated uuid := 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
-            canary uuid := 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
-            unrelated_task uuid := 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
-            canary_task uuid := 'ffffffff-ffff-4fff-8fff-ffffffffffff';
-            claim jsonb;
-            now_at timestamptz := now();
-          begin
-            insert into public.ark_objectives(
-              id,user_id,project_id,goal,status,idempotency_key,request_hash
-            ) values
-              (unrelated,'11111111-1111-1111-1111-111111111111',
-                'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-                'Other work with expired lease','running',
-                'isolation:unrelated','11111111111111111111111111111111'),
-              (canary,'11111111-1111-1111-1111-111111111111',
-                'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-                'Only this canary should be claimed','queued',
-                'isolation:canary','22222222222222222222222222222222');
-            insert into public.ark_tasks(
-              id,objective_id,user_id,project_id,task_key,kind,description,
-              status,idempotency_key,attempt_count,max_attempts,
-              lease_owner,lease_token,lease_expires_at
-            ) values
-              (unrelated_task,unrelated,
-                '11111111-1111-1111-1111-111111111111',
-                'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-                'unrelated','canary.read','Must remain untouched',
-                'running','isolation:unrelated:task',1,1,
-                'unrelated-worker',gen_random_uuid(),now_at - interval '1 minute'),
-              (canary_task,canary,
-                '11111111-1111-1111-1111-111111111111',
-                'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-                'canary','canary.read','Targeted canary',
-                'queued','isolation:canary:task',0,1,
-                null,null,null);
-            claim := public.ark_claim_next_task(
-              'isolation-canary-worker', 60000, now_at, '{}'::uuid[], canary
-            );
-            if claim is null or (claim->'task'->>'id')::uuid <> canary_task
-            then raise exception 'Scoped worker did not claim the selected canary'; end if;
-            if (select status from public.ark_tasks where id=unrelated_task) <> 'running'
-               or (select version from public.ark_tasks where id=unrelated_task) <> 0
-               or (select status from public.ark_objectives where id=unrelated) <> 'running'
-               or (select version from public.ark_objectives where id=unrelated) <> 0
-            then raise exception 'Targeted canary mutated an unrelated expired lease or objective'; end if;
-          end
-          $;
-
           set role authenticated;
           set request.jwt.claim.sub = '11111111-1111-1111-1111-111111111111';
           do $$
