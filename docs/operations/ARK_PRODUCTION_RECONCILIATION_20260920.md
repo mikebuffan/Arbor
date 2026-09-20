@@ -41,6 +41,17 @@ It concatenates only the six tested migrations that correspond to objects confir
 
 This bundle is intentionally NOT auto-run and is intentionally NOT in the migrations directory. It avoids accidentally replaying preview-only historical migrations whose version numbers do not match the live production history.
 
+
+## 2026-09-20 follow-up: canary isolation safeguard (preparation branch only)
+
+- The release candidate's heartbeat previously called an unscoped ARK worker whenever `ARBOR_ENABLE_ARK_EXECUTION=true`. That did not itself limit execution to the intended first canary.
+- The reconciliation preparation branch now requires **both** `ARBOR_ENABLE_ARK_EXECUTION=true` and `ARBOR_ARK_CANARY_OBJECTIVE_ID=<UUID>` to let the heartbeat claim tasks for the selected durable objective.
+- A separate `ARBOR_ARK_ALLOW_GLOBAL_EXECUTION=true` authorizes the unscoped worker later, after the canary has been verified. If both canary and global settings are present, the canary ID wins. Invalid nonempty canary IDs fail closed rather than widening to global.
+- Missing or disabled execution flag still skips all heartbeat ARK work. No environment variables were changed in Vercel.
+- This is a new runtime change **on PR #117's preparation branch only**, not the still-frozen PR #115 release candidate. Do not promote PR #115 alone and mistake it for containing the isolation safeguard: reconcile the tested preparation head before a production activation.
+- These flags scope the background heartbeat, not a general authorization model for interactive requests. Ownership and executor tool protections remain independently required.
+- GitHub verification on the exact prepared head must pass before this change can be marked release-ready.
+
 ## Remaining hard gate
 
 A verified restorable backup of original Firefly still has not been independently proven. The repaired local rehearsal script is preserved in the user's file library, but no successful restore report was available during this audit. Do not apply production DDL until the backup restore is verified.
