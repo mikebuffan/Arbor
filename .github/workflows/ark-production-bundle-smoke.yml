@@ -193,7 +193,7 @@ jobs:
           end $$;
           -- A targeted canary must not reset another user's expired ARK job
           -- or mark that unrelated objective failed.
-          do $
+          do $$
           declare
             canary_id uuid;
             other_id uuid;
@@ -274,6 +274,6 @@ jobs:
               raise exception 'Explicit global worker failed to clean expired lease';
             end if;
           end
-          $;
+          $$;
           select 'PASS: exact bundle, preserved rows, ownership, RLS, targeted canary isolation' as result;
           SQL
