@@ -1,3 +1,4 @@
+import { isArkChatExecutionEnabled } from "@/lib/ark/activation";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -413,8 +414,7 @@ export async function POST(req: Request) {
     }));
 
     const agencyTools = buildArborAgencyTools({ supabase });
-    const arkExecutionEnabled =
-      process.env.ARBOR_ENABLE_ARK_EXECUTION === "true";
+    const arkExecutionEnabled = isArkChatExecutionEnabled(process.env);
 
     const arkExecutionDelegate = arkExecutionEnabled
       ? buildArkAgencyExecutionDelegate({
