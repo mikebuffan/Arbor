@@ -191,5 +191,89 @@ jobs:
             if (select result from public.arbor_agency_idempotency where idempotency_key='other-key') is not null
             then raise exception 'Cross-user idempotency state changed'; end if;
           end $$;
-          select 'PASS: exact bundle, existing records, ARK carrier, owner FK, idempotency RLS' as result;
+          -- A targeted canary must not reset another user's expired ARK job
+          -- or mark that unrelated objective failed.
+          do $
+          declare
+            canary_id uuid;
+            other_id uuid;
+            canary_task_id uuid;
+            other_task_id uuid;
+            claim jsonb;
+            other_before record;
+          begin
+            insert into public.ark_objectives(
+              user_id,project_id,goal,idempotency_key,request_hash
+            ) values (
+              '11111111-1111-1111-1111-111111111111',
+              'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+              'Targeted canary','canary-isolation-target',
+              '11111111111111111111111111111111'
+            ) returning id into canary_id;
+            insert into public.ark_objectives(
+              user_id,project_id,goal,idempotency_key,request_hash,status
+            ) values (
+              '22222222-2222-2222-2222-222222222222',
+              'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+              'Unrelated expired lease','canary-isolation-other',
+              '22222222222222222222222222222222','running'
+            ) returning id into other_id;
+            insert into public.ark_tasks(
+              objective_id,user_id,project_id,task_key,kind,description,
+              idempotency_key
+            ) values (
+              canary_id,
+              '11111111-1111-1111-1111-111111111111',
+              'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+              'canary','canary.read','Do harmless canary read',
+              'canary-isolation-target-task'
+            ) returning id into canary_task_id;
+            insert into public.ark_tasks(
+              objective_id,user_id,project_id,task_key,kind,description,
+              idempotency_key,status,attempt_count,max_attempts,
+              lease_owner,lease_expires_at
+            ) values (
+              other_id,
+              '22222222-2222-2222-2222-222222222222',
+              'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+              'other','other.read','Unrelated expired job',
+              'canary-isolation-other-task',
+              'running',1,1,'unrelated-worker',now()-interval '10 seconds'
+            ) returning id into other_task_id;
+
+            select status,lease_owner,lease_expires_at,version
+            into other_before
+            from public.ark_tasks where id=other_task_id;
+
+            claim := public.ark_claim_next_task(
+              'canary-worker',60000,now(),'{}'::uuid[],canary_id
+            );
+            if (claim->'task'->>'id')::uuid is distinct from canary_task_id
+              or (select status from public.ark_tasks where id=other_task_id)
+                is distinct from other_before.status
+              or (select lease_owner from public.ark_tasks where id=other_task_id)
+                is distinct from other_before.lease_owner
+              or (select lease_expires_at from public.ark_tasks where id=other_task_id)
+                is distinct from other_before.lease_expires_at
+              or (select version from public.ark_tasks where id=other_task_id)
+                is distinct from other_before.version
+              or (select status from public.ark_objectives where id=other_id)
+                is distinct from 'running'
+            then
+              raise exception 'Targeted ARK canary modified an unrelated expired lease';
+            end if;
+
+            perform public.ark_claim_next_task(
+              'global-worker',60000,now(),'{}'::uuid[],null
+            );
+            if (select status from public.ark_tasks where id=other_task_id)
+                 is distinct from 'failed'
+              or (select status from public.ark_objectives where id=other_id)
+                 is distinct from 'failed'
+            then
+              raise exception 'Explicit global worker failed to clean expired lease';
+            end if;
+          end
+          $;
+          select 'PASS: exact bundle, preserved rows, ownership, RLS, targeted canary isolation' as result;
           SQL
