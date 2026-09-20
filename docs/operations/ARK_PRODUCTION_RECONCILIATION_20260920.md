@@ -52,7 +52,20 @@ This bundle is intentionally NOT auto-run and is intentionally NOT in the migrat
 - The chat API is now independently gated: `ARBOR_ENABLE_ARK_EXECUTION=true` alone does NOT opt ordinary chats into the ARK tool dispatcher. Chat dispatch additionally requires `ARBOR_ENABLE_ARK_CHAT_EXECUTION=true`, after a separately reviewed interactive rollout. With the chat switch absent/false, ordinary chat keeps its prior direct agency execution path. The explicit canary UUID limits heartbeat claims only and must not be represented as globally limiting the chat API.
 - This is a new runtime change **on PR #117's preparation branch only**, not the still-frozen PR #115 release candidate. Do not promote PR #115 alone and mistake it for containing the isolation safeguard: reconcile the tested preparation head before a production activation.
 - These flags scope the background heartbeat, not a general authorization model for interactive requests. Ownership and executor tool protections remain independently required.
-- GitHub verification on the exact prepared head must pass before this change can be marked release-ready.
+- GitHub verification on the exact prepared head must pass before this change can be marked release-ready; see the recovery checkpoint and latest linked runs below.
+
+## 2026-09-20 final recovery checkpoint — original private backup now available for inspection
+
+- The *real* original before-ARK SQL files were supplied privately for independent offline verification; do not upload them to this repository, GitHub Actions artifacts, a public URL, or ARK Preview.
+- Original `roles.sql`, `schema.sql`, and `data.sql` match all three recorded SHA-256 manifest entries. The original data dump has 115 well-terminated COPY sections totaling 9,179 rows and zero detected field-count anomalies.
+- Seven primary record-identity sets from the backup were compared read-only with original Firefly and matched. The snapshot records 5 projects, 3,687 memory items, 97 conversations, 259 messages, 2 runtime-state rows, 4 conversation-state rows and 3 Auth users.
+- Offline source integrity checked 82 primary keys, 23 UNIQUE constraints, 94 foreign keys and the 11 separately declared unique indexes, including the three expression/partial indexes. This cannot substitute for real PostgreSQL constraint, extension and restore execution.
+- Original dump Storage metadata: 1 bucket and **0 `storage.objects` rows**. PostgreSQL SQL dumps do not themselves contain Storage object payload bytes; other external file services are outside this backup.
+- Static scan of the three original SQL files found no obvious transaction-incompatible command from the known set (CREATE/DROP DATABASE, VACUUM, CREATE INDEX CONCURRENTLY, ALTER SYSTEM, explicit BEGIN/COMMIT, or psql connect). This is *not* a claim that the restore can commit successfully.
+- This assistant's current runtime contains neither PostgreSQL server/psql/initdb nor Docker and cannot reach the package mirror. No executable isolated restore was possible here. The original snapshot has **not** been copied into ARK Preview or CI.
+- GitHub tested preparation head before this documentation update: `1b77dd16274c9ad1bec6deefee4cc0e5e666fc27`; exact six-migration production-shaped PostgreSQL17 [PASS](https://github.com/mikebuffan/Arbor/actions/runs/35525321656), full-stack backend/frontend/ARK migration/canary [PASS](https://github.com/mikebuffan/Arbor/actions/runs/35525321636). These synthetic release tests are distinct from the private-backup restore.
+- Remaining single hard recovery gate: a successful **isolated actual-backup SQL restore**, verified post-commit with seven key row counts, on a privately controlled PostgreSQL/Supabase-compatible host. Preserve any successful existing local restore; do not reset it blindly. Upload only a privacy-scrubbed success report, not Auth sessions, refresh tokens or original SQL.
+- Latest read-only original Firefly inspection still showed expected key counts and no `ark_objectives` or `arbor_work_jobs` installed. Neither PR #115 nor PR #117 was merged, no original Firefly DDL was executed, and execution flags were not enabled.
 
 ## Remaining hard gate
 
