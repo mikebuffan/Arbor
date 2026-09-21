@@ -1,36 +1,28 @@
-# Arbor Investigation Worker
+# Arbor investigation worker — source synchronization checkpoint
 
-Durable investigation worker for Arbor.
+**Isolation notice (2026-09-21):** This folder was synchronized from the deployed **Firefly** Supabase Edge Function 'arbor-investigation-worker', reported as **version 5** with code-package SHA-256 'f70e2a8a84cc6b61c06dff62666ad053f2afb0f4b72e6099bce724c054f17734'. The deployed file content and import map were read through Supabase and independently compared for exact text equality against 'index.ts' and 'deno.json' on draft PR #123. This is source recovery, **not a deployment**. A later deployed version invalidates this checkpoint; re-fetch before changing or deploying the worker. Do not assume package hash equals SHA-256 of the index.ts text.
 
-## Contract
+## Deployed v5 processor contract (observed, not inferred)
 
-The worker is a bounded executor, not the owner of investigation state. Durable state lives in Postgres/PGMQ. A worker invocation claims a leased task, executes one supported processor, records evidence/provenance and a checkpoint, then completes/retries/blocks the task. Cron invokes the worker again, so an investigation continues across process lifetimes.
+- Authorized POST using the existing worker-key hash check in the service database. Do not include the worker key or secret values in GitHub.
+- A bounded batch (up to 10 claims per request) from the existing investigation task queue.
+- 'source_fetch': HTTPS text/HTML/JSON capture, source URI, optional document ID, content SHA-256, capture metadata; queues 'text_ingest'.
+- 'text_ingest': creates provenance-preserving chunks from captured source text.
+- Unsupported task types are marked blocked. Binary/PDF fetch is **not parsed** by this version; it records a 'needs_document_parser' block.
+- Reported source hash is of the captured/normalized text, **not of original binary PDF bytes**.
+- Current v5 does not implement independent ARK 60-minute research-session claims, autonomous hour-long scheduling, PDF document parsing, claim verification, or Pattern Hop processors.
 
-## Current verified processor
+## Invariants for the next, separate increment
 
-- `source_fetch`: fetches HTTPS text/HTML/JSON, records a SHA-256 content hash and provenance in `arbor_investigation_evidence`.
+1. Keep production v5 unchanged while developing and testing the next processor in this draft.
+2. Any source URL must pass a trusted-host/redirect and fetch-limit policy. Checking the initial 'https://' string alone is not SSRF protection.
+3. Never treat a human-login page, DOJ age gate or other HTML response as a captured PDF.
+4. Preserve source URI/document ID, 1-based physical PDF page, printed folio separately, extraction method, source file hash, and local excerpt for any extracted statement.
+5. Network/parser timeouts must fit the remaining research session budget; late SQL settlement is rejected but does **not** retroactively prevent external processing cost.
+6. Checkpoints are not completion, search misses are not proof of absence, association is not culpability.
+7. Add new processor tests and disposable-DB integration tests before any deploy, scheduler enablement, or investigation task enqueue.
+8. Preserve a rollback by saving the verified previous worker package.
 
-## Next processors
+See: docs/research/ARK_RESEARCH_BUILD_ORDER_20260921.md and docs/research/ARK_RESEARCH_SESSIONS_60M.md.
 
-- `text_ingest`: accept already-extracted document text with document/page locators.
-- `document_parse`: parse PDFs/documents and enqueue page/chunk ingestion.
-- `evidence_extract`: split source captures into atomic claims/events/entities with provenance.
-- `pattern_hop`: create evidence-justified follow-up tasks with dedupe/depth limits.
-- `verify`: seek independent corroboration, contradictions, and negative findings.
-- `entity_resolve`: distinguish aliases/name collisions/phones/addresses/organizations.
-- `report`: surface meaningful reviewed findings with evidence chains.
-
-## Invariants
-
-1. Checkpoint is internal state, never equivalent to investigation completion.
-2. Association is not culpability.
-3. Preserve source URI/document ID/locator/hash for every evidence record.
-4. Never silently discard failed searches or contradictions.
-5. Child tasks require a recorded rationale and parent evidence/task.
-6. Dedupe before enqueueing child work.
-7. Leases expire so crashed workers do not strand tasks.
-8. Consequential conclusions require review; worker stores evidence and epistemic status rather than declaring guilt.
-9. Secrets never belong in repository source.
-10. Existing working processors remain deployable while new processors are developed/tested.
-
-The live Firefly deployment currently runs independently of this repository file; keep deployed function source and repo source synchronized as the worker is promoted.
+**Do not deploy this branch or merge the proposed research SQL merely because CI passes.** Live function updates, billing, and production investigation runs remain separate approval gates.
