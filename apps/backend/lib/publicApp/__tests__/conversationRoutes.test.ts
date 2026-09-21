@@ -26,7 +26,7 @@ import { GET as listConversations } from
 
 const foreignConversation = "11111111-1111-4111-8111-111111111111";
 
-function fakeQuery(result: Record<string, unknown> | unknown[]) {
+function fakeQuery(result: unknown) {
   const query = {
     select: vi.fn(),
     eq: vi.fn(),
