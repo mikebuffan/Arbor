@@ -22,6 +22,17 @@ describe("bounded durable research-session policy", () => {
       remainingUnits: 56, remainingCostCents: 425,
     });
   });
+  it("rejects malformed persisted status and evidence before any work is claimed", () => {
+    expect(() => validateResearchSession({
+      ...baseline(), status: "invented" as ResearchSession["status"],
+    })).toThrow("invalid_research_session_status");
+    expect(() => validateResearchSession({
+      ...baseline(), authorized: "yes" as unknown as boolean,
+    })).toThrow("invalid_research_session_authorization_state");
+    expect(() => validateResearchSession({
+      ...baseline(), completedEvidenceRefs: ["EFTA00183759", " "],
+    })).toThrow("invalid_research_session_evidence_refs");
+  });
   it("rejects >60-minute and reversed timeboxes", () => {
     expect(() => validateResearchSession({
       ...baseline(), deadlineAt: "2026-09-20T19:00:00.001Z",
