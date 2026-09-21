@@ -4,6 +4,7 @@ export const MAX_PDF_PAGES_PER_BATCH = 128;
 
 export type PdfPageBatch = {
   batchIndex: number;
+  batchPageLimit: number;
   firstPhysicalPdfPage: number;
   lastPhysicalPdfPage: number;
   pageCount: number;
@@ -39,6 +40,7 @@ export function planPdfPageBatches(
     const last = Math.min(first + maxPagesPerBatch - 1, original.declaredPageCount);
     batches.push({
       batchIndex,
+      batchPageLimit: maxPagesPerBatch,
       firstPhysicalPdfPage: first,
       lastPhysicalPdfPage: last,
       pageCount: last - first + 1,
@@ -53,13 +55,15 @@ export function validateCompletePdfBatchPlan(
   original: PdfOriginalCapture,
   batches: readonly PdfPageBatch[],
 ): void {
-  const expected = planPdfPageBatches(original,
-    batches.length ? Math.max(...batches.map((batch) => batch.pageCount)) : 1);
+  if (!batches.length) throw new Error("incomplete_pdf_batch_plan");
+  const limit = batches[0].batchPageLimit;
+  const expected = planPdfPageBatches(original, limit);
   if (batches.length !== expected.length) throw new Error("incomplete_pdf_batch_plan");
   for (let index = 0; index < batches.length; index += 1) {
     const actual = batches[index];
     const wanted = expected[index];
     if (actual.batchIndex !== wanted.batchIndex ||
+        actual.batchPageLimit !== wanted.batchPageLimit ||
         actual.firstPhysicalPdfPage !== wanted.firstPhysicalPdfPage ||
         actual.lastPhysicalPdfPage !== wanted.lastPhysicalPdfPage ||
         actual.pageCount !== wanted.pageCount ||
