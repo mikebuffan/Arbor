@@ -4,13 +4,16 @@ import 'environment_panel.dart';
 import 'environment_tokens.dart';
 import 'grove_astronomy.dart';
 import 'grove_house_clock.dart';
+import 'grove_window_time_selection.dart';
 
 /// Native Flutter Living Window controls, backed by the same optional-location
 /// model as the stand-alone reference-image proof of concept.
 /// Never changes device time, reads or writes ARK, or requests precise GPS.
 class GroveLivingWindowPanel extends StatefulWidget {
-  const GroveLivingWindowPanel({super.key, this.clock});
+  const GroveLivingWindowPanel({super.key, this.clock, this.windowPreview});
   final DateTime Function()? clock;
+  /// Injected only for tests/embedding; normal Grove rooms share one preview.
+  final GroveWindowTimeSelection? windowPreview;
 
   @override
   State<GroveLivingWindowPanel> createState() => _GroveLivingWindowPanelState();
@@ -24,15 +27,15 @@ class _GroveLivingWindowPanelState extends State<GroveLivingWindowPanel> {
   };
   Timer? _timer;
   GroveHouseClock? _houseClock;
+  late final GroveWindowTimeSelection _windowPreview;
   String? _place;
-  bool _preview = false;
-  int _minutes = 720;
-  int _dayOffset = 0;
   late DateTime _live;
 
   @override
   void initState() {
     super.initState();
+    _windowPreview = widget.windowPreview ?? GroveWindowTimeSelection.shared;
+    _windowPreview.addListener(_onWindowSelectionChanged);
     if (widget.clock != null) {
       // Allows deterministic widget tests without a shared running timer.
       _live = widget.clock!().toLocal();
@@ -45,35 +48,61 @@ class _GroveLivingWindowPanelState extends State<GroveLivingWindowPanel> {
       _houseClock!.attach();
       _houseClock!.refresh();
       _live = _houseClock!.localNow;
+      _place = _placeFor(_houseClock!.location);
       _houseClock!.addListener(_onHouseTimeChanged);
     }
   }
 
   void _onHouseTimeChanged() {
     if (!mounted) return;
-    setState(() => _live = _houseClock!.localNow);
+    setState(() {
+      _live = _houseClock!.localNow;
+      _place = _placeFor(_houseClock!.location);
+    });
+  }
+
+  void _onWindowSelectionChanged() {
+    if (mounted) setState(() {});
+  }
+
+  static String? _placeFor(GroveLocation? location) {
+    if (location == null) return null;
+    for (final entry in _places.entries) {
+      if (entry.value.latitude == location.latitude &&
+          entry.value.longitude == location.longitude) return entry.key;
+    }
+    return null;
   }
 
   @override
   void dispose() {
     _timer?.cancel();
+    _windowPreview.removeListener(_onWindowSelectionChanged);
     _houseClock?.removeListener(_onHouseTimeChanged);
     _houseClock?.detach();
     super.dispose();
   }
 
-  DateTime get _shown {
-    if (!_preview) return _live;
-    // Construct wall-clock fields, not elapsed minutes: a DST transition
-    // must not shift the user's selected local sundial time by an hour.
-    return DateTime(_live.year, _live.month, _live.day + _dayOffset,
-        _minutes ~/ 60, _minutes % 60);
+  DateTime get _shown => _windowPreview.displayedAt(_live);
+
+  void _previewDay(int delta) {
+    final time = _shown;
+    // Change the *civil day*, not elapsed seconds across a DST boundary.
+    _windowPreview.show(DateTime(time.year, time.month, time.day + delta,
+        time.hour, time.minute));
+  }
+
+  void _previewMinute(int minutes) {
+    final time = _shown;
+    _windowPreview.show(DateTime(time.year, time.month, time.day,
+        minutes ~/ 60, minutes % 60));
   }
 
   @override
   Widget build(BuildContext context) {
     final time = _shown;
-    final sky = GroveAstronomy.at(time, location: _places[_place]);
+    final preview = _windowPreview.isPreviewing;
+    final sky =  GroveAstronomy.at(time, location: _places[_place]);
     final localTime = MaterialLocalizations.of(context).formatTimeOfDay(
       TimeOfDay.fromDateTime(time),
     );
@@ -94,7 +123,7 @@ class _GroveLivingWindowPanelState extends State<GroveLivingWindowPanel> {
           const SizedBox(height: 8),
           Text(localTime, style: const TextStyle(
               color: ArborEnvironmentTokens.textPrimary, fontSize: 28)),
-          Text('$date • ${_preview ? 'PREVIEW TIME' : 'LOCAL TIME · LIVE'}',
+          Text('$date • ${preview ? 'PREVIEW TIME · WINDOW ONLY' : 'LOCAL TIME · LIVE'}',
               style: const TextStyle(
                   color: ArborEnvironmentTokens.textMuted, fontSize: 12)),
           const SizedBox(height: 9),
@@ -133,34 +162,30 @@ class _GroveLivingWindowPanelState extends State<GroveLivingWindowPanel> {
           ),
           Wrap(spacing: 9, runSpacing: 5, children: [
             TextButton(
-              onPressed: () => setState(() {
-                if (!_preview) {
-                  _minutes = _live.hour * 60 + _live.minute;
-                  _dayOffset = 0;
-                }
-                _preview = true;
-              }),
+              onPressed: preview ? null : () => _windowPreview.show(_live),
               child: const Text('Preview another time'),
             ),
-            if (_preview) TextButton(
-              onPressed: () => setState(() => _preview = false),
+            if (preview) TextButton(
+              onPressed: _windowPreview.returnToNow,
               child: const Text('Return to Now'),
             ),
           ]),
-          if (_preview) ...[
+          if (preview) ...[
+            const Text('The room window follows this preview. House time and research timestamps remain live.',
+              style: TextStyle(color: ArborEnvironmentTokens.textMuted)),
             Row(children: [
-              TextButton(onPressed: () => setState(() => _dayOffset--),
+              TextButton(onPressed: () => _previewDay(-1),
                   child: const Text('← Day')),
-              TextButton(onPressed: () => setState(() => _dayOffset++),
+              TextButton(onPressed: () => _previewDay(1),
                   child: const Text('Day →')),
             ]),
             Slider(
-              value: _minutes.toDouble(),
+              value: (time.hour * 60 + time.minute).toDouble(),
               min: 0,
               max: 1439,
-              divisions: 287,
+              divisions: 1439,
               label: localTime,
-              onChanged: (value) => setState(() => _minutes = value.round()),
+              onChanged: (value) => _previewMinute(value.round()),
             ),
           ],
           const Text('Sky calculations are approximate. The room artwork stays the approved Grove scene.',
