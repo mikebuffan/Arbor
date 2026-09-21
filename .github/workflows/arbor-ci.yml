@@ -14,6 +14,8 @@ on:
       - feat/ark-research-observation-bridge-20260921
       # Temporary stacked identity review target; remove before main merge.
       - feat/ark-pdf-sandbox-threat-model-20260921
+      # Temporary evidence-stage review target; remove before main merge.
+      - feat/ark-source-version-identity-20260921
   workflow_dispatch:
 
 # CI sentinel: keep this workflow visibly updated when main-push Actions delivery stalls.
