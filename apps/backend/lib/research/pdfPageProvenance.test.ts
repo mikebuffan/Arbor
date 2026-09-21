@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  createPdfPageEvidenceRecords,
+  capturePdfOriginalBytes, MAX_PDF_SOURCE_BYTES, createPdfPageEvidenceRecords,
   type PdfOriginalCapture,
   type PdfExtractedPage,
 } from "./pdfPageProvenance";
@@ -19,6 +19,37 @@ const pages = (): PdfExtractedPage[] => [
 ];
 
 describe("PDF page provenance intake boundary (not a PDF parser)", () => {
+  it("hashes actual original bytes before text extraction", async () => {
+    const bytes = new TextEncoder().encode("%PDF-1.4\nPUBLIC TEST FIXTURE\n");
+    const capture = await capturePdfOriginalBytes({
+      sourceUri: original().sourceUri,
+      documentId: original().documentId,
+      bytes,
+      declaredPageCount: 3,
+    });
+    expect(capture.originalByteLength).toBe(bytes.byteLength);
+    const digest = await crypto.subtle.digest("SHA-256", bytes);
+    const expected = Array.from(new Uint8Array(digest))
+      .map(byte => byte.toString(16).padStart(2, "0")).join("");
+    expect(capture.originalBytesSha256).toBe(expected);
+    expect(createPdfPageEvidenceRecords(capture, pages())[0].originalBytesSha256)
+      .toBe(expected);
+  });
+  it("rejects a downloaded HTML consent page or unrelated payload", async () => {
+    const html = new TextEncoder().encode("<html>Please verify your age</html>");
+    await expect(capturePdfOriginalBytes({
+      sourceUri: original().sourceUri, documentId: original().documentId,
+      bytes: html, declaredPageCount: 3,
+    })).rejects.toThrow("invalid_pdf_binary_signature");
+  });
+  it("enforces intake size cap before hashing", async () => {
+    const oversized = new Uint8Array(MAX_PDF_SOURCE_BYTES + 1);
+    oversized.set(new TextEncoder().encode("%PDF-1.4"));
+    await expect(capturePdfOriginalBytes({
+      sourceUri: original().sourceUri, documentId: original().documentId,
+      bytes: oversized, declaredPageCount: 3,
+    })).rejects.toThrow("invalid_pdf_original_byte_length");
+  });
   it("keeps physical pages separate from folios and never calls scanned pages empty", () => {
     const records = createPdfPageEvidenceRecords(original(), [...pages()].reverse());
     expect(records.map(r => r.locator.physicalPdfPage)).toEqual([1, 2, 3]);
