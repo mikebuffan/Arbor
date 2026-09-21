@@ -18,6 +18,8 @@ on:
       - feat/ark-source-version-identity-20260921
       # Temporary outcome-receipt review target; remove before main merge.
       - feat/ark-evidence-stage-contract-20260921
+      # Temporary PDF batch-plan review target; remove before main merge.
+      - feat/ark-research-outcome-receipts-20260921
   workflow_dispatch:
 
 # CI sentinel: keep this workflow visibly updated when main-push Actions delivery stalls.
