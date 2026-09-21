@@ -23,8 +23,11 @@ class GroveWorldStore {
   static const storageKey = 'grove_world_state_v1';
   final SharedPreferences? _preferences;
 
-  Future<SharedPreferences> get _prefs async =>
-      _preferences ?? SharedPreferences.getInstance();
+  Future<SharedPreferences> get _prefs async {
+    final provided = _preferences;
+    if (provided != null) return provided;
+    return await SharedPreferences.getInstance();
+  }
 
   Future<GroveWorldLoad> load({DateTime Function()? now}) async {
     final prefs = await _prefs;
