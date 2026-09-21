@@ -26,11 +26,15 @@ GroveMemoryShelfSnapshot snapshot(
 
 Future<void> showShelf(
   WidgetTester tester,
-  Future<GroveMemoryShelfSnapshot> Function() loader,
-) => tester.pumpWidget(MaterialApp(
+  Future<GroveMemoryShelfSnapshot> Function() loader, {
+  Stream<void>? invalidations,
+}) => tester.pumpWidget(MaterialApp(
   home: Scaffold(
     body: SingleChildScrollView(
-      child: GroveMemoryShelfView(load: loader),
+      child: GroveMemoryShelfView(
+        load: loader,
+        invalidations: invalidations,
+      ),
     ),
   ),
 ));
@@ -109,4 +113,33 @@ void main() {
     expect(find.text('Actually saved content a'), findsNothing);
     expect(find.text('Actually saved content b'), findsOneWidget);
   });
+
+  testWidgets('scope change immediately hides old project while reload waits',
+      (tester) async {
+    final changes = StreamController<void>.broadcast(sync: true);
+    final pending = Completer<GroveMemoryShelfSnapshot>();
+    var reads = 0;
+    await showShelf(tester, () {
+      reads++;
+      if (reads == 1) {
+        return Future.value(snapshot('project-a',
+            memories: [saved('a')]));
+      }
+      return pending.future;
+    }, invalidations: changes.stream);
+    await tester.pump();
+    expect(find.text('Actually saved content a'), findsOneWidget);
+
+    changes.add(null);
+    await tester.pump();
+    expect(find.text('Actually saved content a'), findsNothing);
+    expect(find.byKey(const ValueKey('grove-memory-loading')),
+        findsOneWidget);
+    pending.complete(snapshot('project-b', memories: [saved('b')]));
+    await tester.pump();
+    expect(find.text('Actually saved content a'), findsNothing);
+    expect(find.text('Actually saved content b'), findsOneWidget);
+    await changes.close();
+  });
+
 }
