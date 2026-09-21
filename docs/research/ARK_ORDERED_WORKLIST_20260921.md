@@ -6,9 +6,9 @@ Updated 2026-09-21. **Actual state, not promises.** Draft PR #123 remains isolat
 
 - [x] Verify draft PR #123 head and previous CI. Latest checked head before this worklist: `ef8f56d305dc86dad22314c038d4287bb8b6636e`; GitHub Actions 35608343718 succeeded.
 - [x] Read the live Firefly `arbor-investigation-worker` metadata and files through the Supabase read-only connector. Live version **5**, status ACTIVE, JWT verification enabled, with `index.ts` and `deno.json`; metadata bundle hash `f70e2a8a84cc6b61c06dff62666ad053f2afb0f4b72e6099bce724c054f17734`. No deploy performed.
-- [x] Confirm the repository's `supabase/functions/arbor-investigation-worker/index.ts` is a non-executable documentation placeholder. **Do not deploy it over the live function.**
+- [x] **Initially** repository `index.ts` was a stale placeholder. Another isolated-branch commit synchronized actual deployed v5 source; verified the current branch's file is byte-for-byte identical to the live v5 `index.ts`. No function deployment was performed.
 - [x] Confirm live v5 currently handles HTTPS text/HTML/JSON capture and `text_ingest` chunking, but returns a blocked checkpoint for binary/PDF inputs and unknown processor types.
-- [ ] Obtain secure, explicit agreement on the canonical source location for deployed v5 (source synchronization into a separate audited branch, or Mike's approved maintained source). Avoid committing secret values or accidental stale code; backup first.
+- [x] Synchronize deployed v5 `index.ts` in the isolated draft branch and compare against the read-only deployed source (exact match on 2026-09-21). Still review/agree canonical source and keep a restore plan before *any* future deployment; do not treat source sync as processor deployment.
 
 ## B. Session policy and research correctness — isolated code
 
@@ -16,7 +16,7 @@ Updated 2026-09-21. **Actual state, not promises.** Draft PR #123 remains isolat
 - [x] Deadline checked at proposed DB settlement; pausing or revoking authorization invalidates active work.
 - [x] Early-start guard in code and proposed DB claims; zero-unresolved-work guard in proposed DB.
 - [x] Reject malformed stored session authorization/status/evidence refs.
-- [ ] Confirm a tick at exactly the session deadline stops. Add explicit test that a session before its start is idle and has no claim.
+- [x] Existing test verifies tick at exactly deadline stops. Added explicit before-start test proving idle with no claim or executor.
 - [ ] Review DB late-settlement behavior against crash/retry receipt semantics: reject late *new* work, preserve existing receipts, and avoid inadvertently erasing a predeadline checkpoint.
 - [ ] Confirm lease TTL cannot exceed remaining session window where needed; cancellation must win even with outstanding leased work.
 - [ ] Verify unit attempt cap, retry backlog, budget reservation and failure-report behavior under concurrent claims.
