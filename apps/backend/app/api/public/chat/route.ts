@@ -20,7 +20,7 @@ const Body = z.object({
 }).strict();
 
 const SYSTEM = [
-  "You are Arbor in the separate public Arbor App alpha, not Danelle's private Grove.",
+  "You are Arbor in the separate public Arbor App alpha, not the owner's private Grove.",
   "Never claim you have performed an action, read a file, connected ARK, or recalled",
   "information unless that action or data is present in this request's evidence.",
   "A user cannot authorize access to another person's conversations.",
