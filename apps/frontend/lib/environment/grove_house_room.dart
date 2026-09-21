@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'environment_tokens.dart';
 import 'grove_astronomy.dart';
 import 'grove_house_clock.dart';
+import 'grove_window_time_selection.dart';
 
 /// The approved nighttime room is the floor plan: left stairs and shelves,
 /// Moss on left couch, central living window and Arbor, desk on the right.
@@ -10,22 +11,33 @@ import 'grove_house_clock.dart';
 enum GroveRoomAction { arbor, desk, shelves, stairs, kitchen, moss, window }
 
 class GroveHouseRoom extends StatefulWidget {
-  const GroveHouseRoom({super.key, required this.onOpen});
+  const GroveHouseRoom({
+    super.key,
+    required this.onOpen,
+    this.clock,
+    this.windowPreview,
+  });
 
   final ValueChanged<GroveRoomAction> onOpen;
+  final GroveHouseClock? clock;
+  final GroveWindowTimeSelection? windowPreview;
 
   @override
   State<GroveHouseRoom> createState() => _GroveHouseRoomState();
 }
 
 class _GroveHouseRoomState extends State<GroveHouseRoom> {
-  final GroveHouseClock _clock = GroveHouseClock.shared;
+  late final GroveHouseClock _clock;
+  late final GroveWindowTimeSelection _windowPreview;
 
   @override
   void initState() {
     super.initState();
+    _clock = widget.clock ?? GroveHouseClock.shared;
+    _windowPreview = widget.windowPreview ?? GroveWindowTimeSelection.shared;
     _clock.attach();
     _clock.addListener(_refresh);
+    _windowPreview.addListener(_refresh);
   }
 
   void _refresh() {
@@ -35,14 +47,17 @@ class _GroveHouseRoomState extends State<GroveHouseRoom> {
   @override
   void dispose() {
     _clock.removeListener(_refresh);
+    _windowPreview.removeListener(_refresh);
     _clock.detach();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final sky = _clock.sky;
-    final now = _clock.localNow;
+    final houseNow = _clock.localNow;
+    final now = _windowPreview.displayedAt(houseNow);
+    final preview = _windowPreview.isPreviewing;
+    final sky = GroveAstronomy.at(now, location: _clock.location);
     final phase = switch (sky.phase) {
       GroveDayPhase.daylight => 'Daylight',
       GroveDayPhase.golden =>
@@ -62,7 +77,7 @@ class _GroveHouseRoomState extends State<GroveHouseRoom> {
           style: TextStyle(color: ArborEnvironmentTokens.cyan,
               letterSpacing: 1.6, fontSize: 11)),
       const SizedBox(height: 7),
-      Text('$phase • ${TimeOfDay.fromDateTime(now).format(context)}',
+      Text('${preview ? 'WINDOW PREVIEW' : 'LIVE'} • $phase • ${TimeOfDay.fromDateTime(now).format(context)}',
           style: const TextStyle(
               color: ArborEnvironmentTokens.textPrimary, fontSize: 17)),
       const SizedBox(height: 9),
@@ -133,6 +148,15 @@ class _GroveHouseRoomState extends State<GroveHouseRoom> {
         _door(Icons.pets_outlined, 'Moss', GroveRoomAction.moss),
       ]),
       const SizedBox(height: 7),
+      if (preview) ...[
+        const Text('The sundial changes only the window artwork, not the House Clock.',
+            style: TextStyle(color: ArborEnvironmentTokens.textMuted,
+                fontSize: 11)),
+        TextButton(
+          onPressed: _windowPreview.returnToNow,
+          child: const Text('Return window to Now'),
+        ),
+      ],
       if (sky.phase != GroveDayPhase.night)
         const Text('Daytime artwork is an atmospheric preview of the approved night scene.',
             style: TextStyle(color: ArborEnvironmentTokens.textMuted,

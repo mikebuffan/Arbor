@@ -14,6 +14,7 @@ import 'command_palette.dart';
 import 'environment_atmosphere.dart';
 import 'grove_living_window_panel.dart';
 import 'grove_house_room.dart';
+import 'grove_world_panel.dart';
 import 'grove_app_mode.dart';
 import 'annabelle_kitchen_view.dart';
 import 'benchmark_view.dart';
@@ -21,6 +22,7 @@ import 'project_view.dart';
 import 'memory_state_view.dart';
 import 'tools_view.dart';
 import 'focus_view.dart';
+import 'attention_banner.dart';
 import '../pages/arbor_shell_page.dart';
 
 enum EnvironmentDestination { home, conversation, objective, queue, projects, memory, evidence, tools, benchmarks, focus, health, settings, kitchen }
@@ -30,6 +32,7 @@ class ArborEnvironmentShell extends StatefulWidget {
     super.key,
     this.objective,
     this.workItems = const [],
+    this.activityEvents = const [],
     this.runtimeSource = 'DEMO DATA',
     this.runtimeStale = false,
     this.initialDestination = EnvironmentDestination.home,
@@ -37,6 +40,7 @@ class ArborEnvironmentShell extends StatefulWidget {
   });
   final EnvironmentObjectiveView? objective;
   final List<WorkItemView> workItems;
+  final List<ActivityEvent> activityEvents;
   final String runtimeSource;
   final bool runtimeStale;
   final EnvironmentDestination initialDestination;
@@ -87,7 +91,7 @@ class _ArborEnvironmentShellState extends State<ArborEnvironmentShell> {
           // detailed unavailable truth visible on the status panel below.
           if (!groveStandalone ||
               objective.state != EnvironmentRunState.unavailable)
-            ObjectiveStrip(objective: objective),
+            ObjectiveStrip(objective: objective, runtimeStale: widget.runtimeStale),
           Expanded(
             child: LayoutBuilder(builder: (context, constraints) {
               final wide = constraints.maxWidth >= 900;
@@ -98,6 +102,7 @@ class _ArborEnvironmentShellState extends State<ArborEnvironmentShell> {
                     selected: selected,
                     objective: objective,
                     workItems: widget.workItems,
+                    activityEvents: widget.activityEvents,
                     runtimeSource: widget.runtimeSource,
                     runtimeStale: widget.runtimeStale,
                     conversationLayer: widget.conversationLayer,
@@ -267,6 +272,7 @@ class _Surface extends StatelessWidget {
     required this.selected,
     required this.objective,
     required this.workItems,
+    required this.activityEvents,
     required this.runtimeSource,
     required this.runtimeStale,
     this.conversationLayer,
@@ -276,6 +282,7 @@ class _Surface extends StatelessWidget {
   final EnvironmentDestination selected;
   final EnvironmentObjectiveView objective;
   final List<WorkItemView> workItems;
+  final List<ActivityEvent> activityEvents;
   final String runtimeSource;
   final bool runtimeStale;
   final Widget? conversationLayer;
@@ -319,11 +326,17 @@ class _Surface extends StatelessWidget {
             style: const TextStyle(color: ArborEnvironmentTokens.textMuted, fontSize: 11, letterSpacing: 1.6),
           ),
           const SizedBox(height: 24),
+          if (selected == EnvironmentDestination.home ||
+              selected == EnvironmentDestination.objective) ...[
+            AttentionBanner(objective: objective, runtimeStale: runtimeStale),
+            const SizedBox(height: 16),
+          ],
           if (selected == EnvironmentDestination.home)
             _Home(
               objective: objective,
               runtimeSource: runtimeSource,
               runtimeStale: runtimeStale,
+              activityEvents: activityEvents,
               onRoomAction: onRoomAction,
             )
           else if (selected == EnvironmentDestination.kitchen)
@@ -393,17 +406,21 @@ class _Home extends StatelessWidget {
     required this.objective,
     required this.runtimeSource,
     required this.runtimeStale,
+    required this.activityEvents,
     required this.onRoomAction,
   });
   final EnvironmentObjectiveView objective;
   final String runtimeSource;
   final bool runtimeStale;
+  final List<ActivityEvent> activityEvents;
   final ValueChanged<GroveRoomAction> onRoomAction;
   @override
   Widget build(BuildContext context) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           GroveHouseRoom(onOpen: onRoomAction),
+          const SizedBox(height: 16),
+          const GroveWorldPanel(),
           const SizedBox(height: 16),
           const GroveLivingWindowPanel(),
           const SizedBox(height: 16),
@@ -443,26 +460,7 @@ class _Home extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          ActivityView(events: [
-            const ActivityEvent(
-              title: 'Environment branch isolated',
-              detail: 'No production mutation.',
-              kind: 'boundary',
-              isDemo: false,
-            ),
-            ActivityEvent(
-              title: 'Runtime snapshot',
-              detail: '$runtimeSource${runtimeStale ? ' • stale/fallback' : ''}',
-              kind: 'runtime',
-              isDemo: objective.isDemo,
-            ),
-            const ActivityEvent(
-              title: 'Read-only boundary active',
-              detail: 'Environment observes ARK but has no execution controls.',
-              kind: 'safety',
-              isDemo: false,
-            ),
-          ]),
+          ActivityView(events: activityEvents),
         ],
       );
 }
