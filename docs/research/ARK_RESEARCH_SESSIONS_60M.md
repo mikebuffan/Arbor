@@ -27,3 +27,20 @@ The worker invocation's request timeout is separate from the research session's 
 6. **Acceptance:** isolated clock-driven hour simulation, crash/restart, lease expiration, duplicate receipts, stop/cancel, cost limits, cross-owner denial, and provenance report validation.
 
 **Production flags and existing investigation data remain untouched by this branch.** Do not enqueue an Epstein investigation solely because this draft exists.
+
+## Implementation continuation (same isolated PR)
+
+- Added simulated successive worker ticks and restart after expired lease, plus duplicate settlement and honest hour-end tests.
+- Added an owner/project-pinned `SupabaseResearchStore` adapter; it cannot query or settle cross-owner sessions via its public methods.
+- Added proposed Postgres tables for sessions, units, receipts, RLS owner-read policies and service-role-only fenced claim/settle/stop RPCs.
+- **Proposed SQL is deliberately outside `supabase/migrations`** at `docs/research/sql/PROPOSED_arbor_research_sessions.sql`. Merely merging the TypeScript branch will NOT apply untested database changes.
+- Unit cost reservations are passed into the executor and checked at the runner boundary and proposed database settlement.
+- Tests cover adapter identity scoping and cost reservation. These are mocked/unit checks, not a claim that proposed SQL has run.
+
+### Before connecting real research
+1. Run proposed SQL on a disposable, isolated Postgres/Supabase-compatible database. Verify function signatures, permissions and `auth.role()` behavior with real service-role and client JWTs. Exercise concurrent claim/settle and all failure paths; do **not** use the original production database as a scratchpad.
+2. Confirm owner authorization in the server route before constructing `SupabaseResearchStore`. Constructor arguments must not be copied from arbitrary client JSON.
+3. Sync *deployed v5* investigation-worker source into version control without overwriting the live worker from the stale repository placeholder.
+4. Implement processor adapters with verified source IDs/locators/hashes, PDF support and provenance checks. Evidence refs alone cannot prove a source is authentic.
+5. Ensure scheduler invocation is independently authorized, service-secret-protected, and disabled by default. Record actual starts, stops, and costs.
+6. Only after security review and isolated end-to-end tests ask for distinct authorization to deploy/enable. No production objective is enqueued by this PR.
