@@ -2,7 +2,7 @@
 fastapi>=0.115,<1
 uvicorn>=0.34,<1
 pydantic>=2.10,<3
-transformers>=4.51,<5
+transformers>=4.52.4,<5
 peft>=0.17,<1
 accelerate>=1.0,<2
 safetensors>=0.5,<1
