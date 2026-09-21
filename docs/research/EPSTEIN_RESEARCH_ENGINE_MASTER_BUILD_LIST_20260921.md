@@ -43,7 +43,7 @@ Legend: [x] draft code or CI-verified work exists, [~] partially done, [ ] still
 - [x] Detect substitution of source record, excerpt, document identity or file hash.
 - [x] End-to-end fixture test: actual PDF bytes → Poppler → validated page → exact quote → comparison draft.
 - [ ] Persist source-byte capture, extraction run, text spans and claim lineage as atomic, immutable evidence records.
-- [ ] Implement canonical source/version identity and duplicate PDF detection across renamed URLs.
+- [~] Added pure content-first source/version identities and same-bytes mirrored-URL detection in child PR #136, with tests for same-URL changed bytes and no automatic corroboration. Still need durable canonical store, actual redirected/final source URI capture and cross-project scope tests.
 - [ ] Distinguish source quote, independently verified observation, interpretation, hypothesis and published finding.
 - [ ] Require independent original-page visual review and context verification before upgrading a review candidate.
 - [ ] Enforce victim/private-person PII filtering and a separate publication review, not just a status string.
@@ -88,7 +88,7 @@ Legend: [x] draft code or CI-verified work exists, [~] partially done, [ ] still
 - [ ] Produce a dated, source-checkable report with opposing evidence, limitations and explicit unfulfilled questions.
 - [ ] Publish nothing automatically and preserve the distinction between an official published discrepancy and a novel research discovery.
 
-## Milestone and truthful status
+## Content-first source identity checkpoint (stacked child PR #136)\n\n- [x] Separate original-byte content identity from mutable HTTPS source location and local document ID; URL aliases do not manufacture a second independent document.\n- [x] Keep different byte versions served at one URL distinct; byte-equal URLs dedupe, while independent corroboration always requires separate source-chain review.\n- [x] Check conflicting claims about byte count or physical-page count for an identical SHA-256 rather than silently merging them.\n- [ ] Add persistent owner/project-scoped canonical indexes only after disposable-DB RLS/concurrency testing.\n- [ ] Remove temporary branch-specific CI workflow triggers before any production merge.\n\n## Milestone and truthful status
 
 **Completed on draft code:** Original-byte capture, physical-page evidence contract, exact quote bridge, **actual local Poppler parsing of a valid synthetic multi-page PDF** and PDF→page→quote→review-draft tests. The backend CI includes the research suite.
 
