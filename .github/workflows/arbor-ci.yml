@@ -10,6 +10,8 @@ on:
       - arbor-linear-runtime
       # Temporary stacked research review CI. Remove before main integration.
       - feat/ark-research-session-timebox-20260920
+      # Temporary sandbox PDF test branch; remove before main integration.
+      - feat/ark-research-observation-bridge-20260921
   workflow_dispatch:
 
 # CI sentinel: keep this workflow visibly updated when main-push Actions delivery stalls.
@@ -34,6 +36,13 @@ jobs:
       - run: corepack enable
       - run: corepack prepare pnpm@10.30.3 --activate
       - run: pnpm install --frozen-lockfile
+
+      - name: Ensure sandbox Poppler parser tools for harmless PDF fixtures
+        run: |
+          if ! command -v pdfinfo >/dev/null || ! command -v pdftotext >/dev/null || ! command -v pdfimages >/dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y poppler-utils
+          fi
 
       - name: Run backend tests
         env:
