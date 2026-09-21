@@ -97,6 +97,20 @@ describe("bounded durable research-session policy", () => {
     expect(() => validateResearchUnitReceipt(baseline(),{...receipt,costCents:426}))
       .toThrow("invalid_unit_cost_cents");
   });
+  it("cannot mark progress without evidence by relabeling a receipt", () => {
+    const receipt = {
+      sessionId: "session-1", unitId: "unit-1", idempotencyKey: "session:unit-1",
+      status: "checkpointed" as const, recordedAt: at, costCents: 0,
+      evidenceRefs: [], unresolvedRequiredWork: 9,
+    };
+    for (const status of ["checkpointed", "blocked", "failed", "completed"] as const) {
+      expect(() => validateResearchUnitReceipt(baseline(), { ...receipt, status }))
+        .toThrow("research_completion_without_evidence");
+    }
+    expect(() => validateResearchUnitReceipt(baseline(), {
+      ...receipt, unresolvedRequiredWork: 10,
+    })).not.toThrow();
+  });
   it("claims and settles exactly one unit per scheduled invocation", async () => {
     const session = baseline();
     const claim = {
