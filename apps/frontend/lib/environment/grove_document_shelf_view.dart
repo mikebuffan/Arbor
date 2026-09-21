@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -38,8 +40,10 @@ Future<GroveDocumentPage> readCurrentGroveDocumentPage(String? after) async {
 /// Read-only metadata for scoped Firefly chat attachments. Does not silently
 /// imply this is a complete file library or that documents were reviewed.
 class GroveDocumentShelfView extends StatefulWidget {
-  const GroveDocumentShelfView({super.key, this.load});
+  const GroveDocumentShelfView({super.key, this.load, this.invalidations});
   final Future<GroveDocumentPage> Function(String? after)? load;
+  /// Optional scope-change signal for embedding/tests; carries no document data.
+  final Stream<void>? invalidations;
 
   @override
   State<GroveDocumentShelfView> createState() => _GroveDocumentShelfViewState();
@@ -52,22 +56,48 @@ class _GroveDocumentShelfViewState extends State<GroveDocumentShelfView> {
   String? _error;
   bool _loading = false;
   int _generation = 0;
+  StreamSubscription<dynamic>? _authChanges;
+  StreamSubscription<String>? _sessionChanges;
+  StreamSubscription<void>? _invalidationChanges;
 
   @override
   void initState() {
     super.initState();
+    _bindInvalidations();
     _refresh();
   }
 
   @override
   void didUpdateWidget(GroveDocumentShelfView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.load != widget.load) _refresh();
+    if (oldWidget.load != widget.load ||
+        oldWidget.invalidations != widget.invalidations) {
+      _bindInvalidations();
+      _refresh();
+    }
+  }
+
+  void _bindInvalidations() {
+    _authChanges?.cancel();
+    _sessionChanges?.cancel();
+    _invalidationChanges?.cancel();
+    if (widget.invalidations != null) {
+      _invalidationChanges = widget.invalidations!.listen((_) => _refresh());
+    }
+    if (widget.load == null) {
+      _authChanges = Supabase.instance.client.auth.onAuthStateChange
+          .listen((_) => _refresh());
+      _sessionChanges = ArborSession.instance.contextChanges
+          .listen((_) => _refresh());
+    }
   }
 
   @override
   void dispose() {
     _generation++;
+    _authChanges?.cancel();
+    _sessionChanges?.cancel();
+    _invalidationChanges?.cancel();
     super.dispose();
   }
 
