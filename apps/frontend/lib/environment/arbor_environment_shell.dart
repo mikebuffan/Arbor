@@ -14,6 +14,7 @@ import 'command_palette.dart';
 import 'environment_atmosphere.dart';
 import 'grove_living_window_panel.dart';
 import 'grove_house_room.dart';
+import 'grove_world_panel.dart';
 import 'grove_app_mode.dart';
 import 'annabelle_kitchen_view.dart';
 import 'benchmark_view.dart';
@@ -404,6 +405,8 @@ class _Home extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           GroveHouseRoom(onOpen: onRoomAction),
+          const SizedBox(height: 16),
+          const GroveWorldPanel(),
           const SizedBox(height: 16),
           const GroveLivingWindowPanel(),
           const SizedBox(height: 16),
