@@ -4,6 +4,8 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+val isPublicAlpha = System.getenv("ARBOR_PUBLIC_ALPHA_BUILD") == "true"
+
 android {
     namespace = "com.example.arbor"
     compileSdk = flutter.compileSdkVersion
@@ -17,6 +19,8 @@ android {
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.example.arbor"
+        if (isPublicAlpha) applicationIdSuffix = ".publicalpha"
+        manifestPlaceholders["arborAppLabel"] = if (isPublicAlpha) "Arbor Public Alpha" else "arbor"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
