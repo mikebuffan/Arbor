@@ -91,6 +91,11 @@ export function decideResearchSession(
   if (session.status === "paused" || session.status === "blocked") {
     return { action: "stop", status: session.status, reason: "session_" + session.status };
   }
+  // A queued session must never execute before its authorized start window.
+  // This is an idle state, NOT evidence that the investigation is complete.
+  if (now < milliseconds(session.startedAt)) {
+    return { action: "idle", reason: "session_not_started" };
+  }
   const remainingMs = milliseconds(session.deadlineAt) - now;
   if (remainingMs <= 0) {
     return { action: "stop", status: "timebox_ended", reason: "session_deadline_reached" };
