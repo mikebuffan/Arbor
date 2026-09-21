@@ -18,7 +18,7 @@ Updated 2026-09-21. **Actual state, not promises.** Draft PR #123 remains isolat
 - [x] Reject malformed stored session authorization/status/evidence refs.
 - [x] Existing test verifies tick at exactly deadline stops. Added explicit before-start test proving idle with no claim or executor.
 - [ ] Review DB late-settlement behavior against crash/retry receipt semantics: reject late *new* work, preserve existing receipts, and avoid inadvertently erasing a predeadline checkpoint.
-- [ ] Confirm lease TTL cannot exceed remaining session window where needed; cancellation must win even with outstanding leased work.
+- [x] Proposed SQL now caps each issued lease at the session deadline and checks start/deadline/status/authorization at settlement; **DB race and cancellation behavior still require sandbox tests**.
 - [ ] Verify unit attempt cap, retry backlog, budget reservation and failure-report behavior under concurrent claims.
 - [ ] Ensure all RPC permissions/default execute/public grants are correct in a real database, not only mocked Vitest.
 - [ ] Make verified completion a distinct evidence-backed transition; a zero-length queue or 60-minute end must not silently claim the objective was answered.
@@ -26,7 +26,7 @@ Updated 2026-09-21. **Actual state, not promises.** Draft PR #123 remains isolat
 ## C. Database integration — disposable sandbox only
 
 - [ ] Identify or create a **disposable** Postgres/Supabase-compatible database with acknowledged cost and no real user data. Do not assume ARK Preview or Firefly production is disposable.
-- [ ] Inspect the project and user ownership schema before using proposed FK `public.projects(id,user_id)`; test types and exact constraints.
+- [x] Read-only Firefly schema inspection on 2026-09-21 confirms `public.projects.id` and `.user_id` are UUID, and the existing `projects_id_user_id_ark_owner_idx` is a unique composite index satisfying the proposed composite owner FK. **Actual proposed SQL application is still untested**.
 - [ ] Apply `docs/research/sql/PROPOSED_arbor_research_sessions.sql` **only** to the disposable DB after adapting to real schema.
 - [ ] Test RLS with authenticated user A, user B, anon and service role; cross-owner reads/claims must fail.
 - [ ] Simulate competing claimers, worker crash, lease timeout/reclaim, duplicate settlement, paused/cancelled state, deadline, cost ceiling, invalid receipt and 0 unresolved work.
@@ -36,8 +36,8 @@ Updated 2026-09-21. **Actual state, not promises.** Draft PR #123 remains isolat
 
 - [ ] Preserve backed-up working v5 before a processor change. Restore plan + provenance.
 - [ ] Build a dedicated PDF extraction test fixture using **public/non-sensitive** source PDFs; record original PDF bytes hash, source URI, document ID and physical page.
-- [ ] Handle text-layer PDF and image-only PDF separately. A failed extraction is a failure/blocked item, **not proof that a document contains no evidence**.
-- [ ] Distinguish PDF physical page, printed report folio, EFTA document stamp and text offsets; test locator correctness on a real original PDF.
+- [x] Added pure **pre-parser intake boundary** `pdfPageProvenance.ts` and tests requiring the complete physical-page inventory, original-bytes checksum format, distinct printed folio, and explicit image-only/failed page states. This DOES NOT parse real PDF bytes or perform OCR; those processors and fixture tests remain open.
+- [ ] Page intake now keeps physical PDF page and printed folio separately. Still need EFTA stamp, offsets and correctness test against a real original PDF.
 - [ ] Add bounded fetch/download and text extraction handling for large public releases, unexpected types, redirects and retries. Do not bypass publisher age/consent or access controls.
 - [ ] Create atomic observation/evidence extraction with precise original passage, source locator and epistemic type.
 - [x] Pure comparison draft module and tests requiring source URL, physical PDF page, excerpt and context, with mandatory independent-verification and privacy HOLD.
