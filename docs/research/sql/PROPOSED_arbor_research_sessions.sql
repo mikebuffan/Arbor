@@ -165,7 +165,10 @@ begin
   update public.arbor_research_units
     set status='leased',attempt_count=attempt_count+1,lease_owner=p_worker_id,
         lease_token=gen_random_uuid(),
-        lease_expires_at=v_now+make_interval(secs=>p_lease_seconds),
+        -- Never issue a lease that outlives the authorized research window.
+        lease_expires_at=least(
+          v_now+make_interval(secs=>p_lease_seconds),v_session.deadline_at
+        ),
         updated_at=v_now
     where id=v_unit.id returning * into v_unit;
   update public.arbor_research_sessions
@@ -206,6 +209,7 @@ begin
      or p_idempotency_key is distinct from v_unit.unit_key
      -- A worker may start a unit just before the hour ends. Do not settle
      -- late work or revive a session that was paused, blocked, or revoked.
+     or v_now < v_session.started_at
      or v_now >= v_session.deadline_at
      or v_session.status not in ('queued','running')
      or not v_session.authorized
