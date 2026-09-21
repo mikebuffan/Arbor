@@ -12,6 +12,8 @@ on:
       - feat/ark-research-session-timebox-20260920
       # Temporary sandbox PDF test branch; remove before main integration.
       - feat/ark-research-observation-bridge-20260921
+      # Temporary stacked identity review target; remove before main merge.
+      - feat/ark-pdf-sandbox-threat-model-20260921
   workflow_dispatch:
 
 # CI sentinel: keep this workflow visibly updated when main-push Actions delivery stalls.
