@@ -18,19 +18,16 @@ class GroveHouseClock extends ChangeNotifier with WidgetsBindingObserver {
     bool autoStart = true,
   }) : _now = now ?? DateTime.now {
     _localNow = _now().toLocal();
-    if (autoStart) {
-      WidgetsBinding.instance.addObserver(this);
-      _timer = Timer.periodic(
-        const Duration(seconds: 15),
-        (_) => refresh(),
-      );
-    }
+    if (autoStart) attach();
   }
 
-  static final GroveHouseClock shared = GroveHouseClock();
+  // Lazy lifecycle: no timer keeps running when the last room closes.
+  static final GroveHouseClock shared = GroveHouseClock(autoStart: false);
 
   final DateTime Function() _now;
   Timer? _timer;
+  int _clients = 0;
+  bool _observing = false;
   late DateTime _localNow;
   GroveLocation? _location;
 
@@ -38,6 +35,26 @@ class GroveHouseClock extends ChangeNotifier with WidgetsBindingObserver {
   GroveLocation? get location => _location;
   GroveSkySnapshot get sky =>
       GroveAstronomy.at(_localNow, location: _location);
+
+  /// Called by visible house rooms. The first one starts the clock, and the
+  /// last one releases its timer; background/test widgets don't leak timers.
+  void attach() {
+    if (_clients++ > 0) return;
+    WidgetsBinding.instance.addObserver(this);
+    _observing = true;
+    _timer = Timer.periodic(const Duration(seconds: 15), (_) => refresh());
+    refresh(force: true);
+  }
+
+  void detach() {
+    if (_clients == 0 || --_clients > 0) return;
+    _timer?.cancel();
+    _timer = null;
+    if (_observing) {
+      WidgetsBinding.instance.removeObserver(this);
+      _observing = false;
+    }
+  }
 
   /// Reconcile after clock/timezone changes or returning to the foreground.
   /// Notify when calendar day, minute, or UTC offset changes.
@@ -73,7 +90,10 @@ class GroveHouseClock extends ChangeNotifier with WidgetsBindingObserver {
   void dispose() {
     _timer?.cancel();
     _timer = null;
-    WidgetsBinding.instance.removeObserver(this);
+    if (_observing) {
+      WidgetsBinding.instance.removeObserver(this);
+      _observing = false;
+    }
     super.dispose();
   }
 }
