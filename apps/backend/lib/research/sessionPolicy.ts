@@ -48,6 +48,18 @@ export function validateResearchSession(session: ResearchSession): void {
   if (!session.id || !session.userId || !session.projectId || !session.objective.trim()) {
     throw new Error("invalid_research_session_identity");
   }
+  if (!(["queued", "running", "paused", "blocked", "timebox_ended", "completed",
+    "cancelled"] as string[]).includes(session.status)) {
+    throw new Error("invalid_research_session_status");
+  }
+  if (typeof session.authorized !== "boolean" ||
+      typeof session.cancellationRequested !== "boolean") {
+    throw new Error("invalid_research_session_authorization_state");
+  }
+  if (!Array.isArray(session.completedEvidenceRefs) ||
+      session.completedEvidenceRefs.some(ref => typeof ref !== "string" || !ref.trim())) {
+    throw new Error("invalid_research_session_evidence_refs");
+  }
   const start = milliseconds(session.startedAt);
   const end = milliseconds(session.deadlineAt);
   if (end <= start || end - start > MAX_SESSION_DURATION_MS) {
