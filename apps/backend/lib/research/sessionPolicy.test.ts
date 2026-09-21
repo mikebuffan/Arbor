@@ -41,6 +41,28 @@ describe("bounded durable research-session policy", () => {
       ...baseline(), deadlineAt: "2026-09-20T17:00:00.000Z",
     })).toThrow("invalid_research_session_duration");
   });
+  it("holds a queued session until its configured start without claiming work", async () => {
+    const session = baseline();
+    const beforeStart = "2026-09-20T17:59:59.999Z";
+    expect(decideResearchSession(session, beforeStart)).toEqual({
+      action: "idle", reason: "session_not_started",
+    });
+    expect(decideResearchSession(session, session.startedAt))
+      .toMatchObject({ action: "run_one_unit" });
+    const claimOne = vi.fn();
+    const executor = vi.fn();
+    const store: ResearchStore = {
+      loadSession: async () => session,
+      claimOne,
+      settle: vi.fn(), stop: vi.fn(),
+    };
+    const result = await runResearchSessionTick({
+      sessionId: session.id, at: beforeStart, store, executor,
+    });
+    expect(result).toEqual({ status: "idle", reason: "session_not_started" });
+    expect(claimOne).not.toHaveBeenCalled();
+    expect(executor).not.toHaveBeenCalled();
+  });
   it("ends the window without claiming the research was completed", () => {
     expect(decideResearchSession(baseline(), baseline().deadlineAt)).toEqual({
       action: "stop", status: "timebox_ended", reason: "session_deadline_reached",
