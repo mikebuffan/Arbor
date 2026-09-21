@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/environment/attention_banner.dart';
 import 'package:frontend/environment/attention_status.dart';
 import 'package:frontend/environment/environment_state.dart';
+import 'package:frontend/environment/objective_strip.dart';
 
 void main() {
   const authorizedBlocker = EnvironmentObjectiveView(
@@ -103,6 +104,30 @@ void main() {
     expect(find.text('NEEDS YOU'), findsOneWidget);
     expect(find.text('Your decision is needed'), findsOneWidget);
     expect(find.textContaining('Approval required'), findsOneWidget);
+  });
+
+
+  testWidgets('persistent strip reports NEEDS YOU only for fresh data',
+      (tester) async {
+    await tester.pumpWidget(const MaterialApp(
+      home: Scaffold(
+        body: ObjectiveStrip(
+          objective: authorizedBlocker,
+          runtimeStale: false,
+        ),
+      ),
+    ));
+    expect(find.text('NEEDS YOU'), findsOneWidget);
+    await tester.pumpWidget(const MaterialApp(
+      home: Scaffold(
+        body: ObjectiveStrip(
+          objective: authorizedBlocker,
+          runtimeStale: true,
+        ),
+      ),
+    ));
+    expect(find.text('NEEDS YOU'), findsNothing);
+    expect(find.text('BLOCKED'), findsOneWidget);
   });
 
   testWidgets('stale decision blocker is NOT a live user request',
