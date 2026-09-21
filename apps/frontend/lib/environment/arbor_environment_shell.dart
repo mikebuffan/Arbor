@@ -80,7 +80,7 @@ class _ArborEnvironmentShellState extends State<ArborEnvironmentShell> {
       backgroundColor: ArborEnvironmentTokens.voidBlack,
       body: SafeArea(
         child: Column(children: [
-          ObjectiveStrip(objective: objective),
+          ObjectiveStrip(objective: objective, runtimeStale: widget.runtimeStale),
           Expanded(
             child: LayoutBuilder(builder: (context, constraints) {
               final wide = constraints.maxWidth >= 900;
