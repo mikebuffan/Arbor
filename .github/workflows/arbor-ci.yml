@@ -10,6 +10,8 @@ on:
       - arbor-linear-runtime
       # Temporary integration PR target; remove before merging into main.
       - feature/grove-living-window-foundation-20260920
+      # Temporary Grove + ARK integration verification; remove after green CI.
+      - fix/grove-shelf-session-invalidation-20260921
   workflow_dispatch:
 
 # CI sentinel: keep this workflow visibly updated when main-push Actions delivery stalls.
