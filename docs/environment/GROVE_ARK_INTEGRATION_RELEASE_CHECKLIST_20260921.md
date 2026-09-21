@@ -30,10 +30,16 @@ No Qwen/LLM weights, external inference, or production worker changes here.
 - [x] Unit and widget regressions for denied project, invalid handoff,
       unexpected live-work claim, stale response, owner decision, no objective,
       failed fetch and saved checkpoint.
-- [ ] Run exact-head combined Flutter analyze/test, backend/control build and
-      both distinct Android debug flavors; repair all regressions.
-- [ ] Remove the temporary stacked-PR CI trigger and verify PR diff.
-- [ ] Review final code and dependency graph before release handoff.
+- [x] Combined Flutter analyze/test, backend/control build and distinct Arbor
+      and Grove Android debug builds PASSED at tested SHA
+      62bf31a216f1ea8b457790df9c1d8eaf8745a4bb, workflow
+      https://github.com/mikebuffan/Arbor/actions/runs/35662005850.
+      First run found an incomplete-state null unwrap in the inspector;
+      corrected it and verified this rerun.
+- [x] Removed temporary stacked-PR CI trigger after successful run.
+- [x] Reviewed final code lineage and PR file list before handoff.
+      Branch head will differ from tested SHA only in CI workflow cleanup
+      and this explanatory checklist; test receipt covers the code.
 
 ## Explicit physical-device / release gates: not performable from GitHub alone
 
