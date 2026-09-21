@@ -8,6 +8,8 @@ on:
     branches:
       - main
       - arbor-linear-runtime
+      # Temporary stacked Grove PR check; this target is not production.
+      - feature/grove-living-window-foundation-20260920
   workflow_dispatch:
 
 # CI sentinel: keep this workflow visibly updated when main-push Actions delivery stalls.
