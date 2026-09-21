@@ -199,7 +199,12 @@ begin
   if v_unit.status<>'leased' or v_unit.lease_token is distinct from p_lease_token
      or v_unit.lease_expires_at<=v_now
      or p_idempotency_key is distinct from v_unit.unit_key
-     or v_session.status='cancelled' or v_session.cancellation_requested then
+     -- A worker may start a unit just before the hour ends. Do not settle
+     -- late work or revive a session that was paused, blocked, or revoked.
+     or v_now >= v_session.deadline_at
+     or v_session.status not in ('queued','running')
+     or not v_session.authorized
+     or v_session.cancellation_requested then
     return 'lease_lost';
   end if;
   if p_status not in ('completed','checkpointed','blocked','failed')
