@@ -11,6 +11,7 @@ export type ResearchClaim = {
   idempotencyKey: string;
   kind: string;
   payload: Record<string, unknown>;
+  maxCostReservationCents?: number;
 };
 
 /**
@@ -74,12 +75,18 @@ export async function runResearchSessionTick(args: {
   const receipt = await args.executor({
     session, claim, at: args.at,
     remainingMs: decision.remainingMs,
-    remainingCostCents: decision.remainingCostCents,
+    remainingCostCents: Math.min(decision.remainingCostCents,claim.maxCostReservationCents ?? decision.remainingCostCents),
   });
   if (receipt.unitId !== claim.unitId || receipt.idempotencyKey !== claim.idempotencyKey) {
     throw new Error("research_claim_receipt_mismatch");
   }
   validateResearchUnitReceipt(session, receipt);
+  if (claim.maxCostReservationCents !== undefined &&
+      (!Number.isSafeInteger(claim.maxCostReservationCents) ||
+        claim.maxCostReservationCents < 0 ||
+        receipt.costCents > claim.maxCostReservationCents)) {
+    throw new Error("research_unit_reservation_exceeded");
+  }
   const status = await args.store.settle({ session, claim, receipt });
   return { status, receipt };
 }
