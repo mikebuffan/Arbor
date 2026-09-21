@@ -17,11 +17,15 @@ GroveDocumentPage page(String project,
 
 Future<void> show(
   WidgetTester tester,
-  Future<GroveDocumentPage> Function(String? after) load,
-) async {
+  Future<GroveDocumentPage> Function(String? after) load, {
+  Stream<void>? invalidations,
+}) async {
   await tester.pumpWidget(MaterialApp(home: Scaffold(
     body: SingleChildScrollView(
-      child: GroveDocumentShelfView(load: load),
+      child: GroveDocumentShelfView(
+        load: load,
+        invalidations: invalidations,
+      ),
     ),
   )));
   await tester.pump();
@@ -97,4 +101,32 @@ void main() {
     expect(find.text('Report new.pdf'), findsOneWidget);
     expect(find.text('Report old.pdf'), findsNothing);
   });
+
+  testWidgets('scope change hides document names until new project is loaded',
+      (tester) async {
+    final changes = StreamController<void>.broadcast(sync: true);
+    final pending = Completer<GroveDocumentPage>();
+    var reads = 0;
+    await show(tester, (_) {
+      reads++;
+      if (reads == 1) {
+        return Future.value(
+            page('project-a', docs: [file('old', 'project-a')]));
+      }
+      return pending.future;
+    }, invalidations: changes.stream);
+    expect(find.text('Report old.pdf'), findsOneWidget);
+    changes.add(null);
+    await tester.pump();
+    expect(find.text('Report old.pdf'), findsNothing);
+    expect(find.byKey(const ValueKey('grove-document-loading')),
+        findsOneWidget);
+    pending.complete(
+        page('project-b', docs: [file('new', 'project-b')]));
+    await tester.pump();
+    expect(find.text('Report old.pdf'), findsNothing);
+    expect(find.text('Report new.pdf'), findsOneWidget);
+    await changes.close();
+  });
+
 }
