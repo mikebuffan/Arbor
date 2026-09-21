@@ -24,3 +24,13 @@ Danelle should not have to inspect raw task rows, repeat questions, or guess whe
 5. Test operator workflow end-to-end: start an authorized objective, leave the phone idle, return to a factual results-and-blockers report.
 
 **Safety:** keep the existing production investigation worker v5 untouched; repository placeholder is not a deployable replacement.
+
+## September 21: actual event history instead of decorative activity
+
+- Grove Home activity now uses the existing authenticated `/api/ark/status` read-model event records; each displayed entry includes the event type, UTC recorded timestamp and event ID.
+- Only records for the currently displayed objective are eligible; records without event ID, event type or valid timestamp are not presented as reliable activity.
+- The view explicitly says when no ARK events are recorded. Previous hard-coded “Environment branch isolated / no production mutation” and decorative runtime events were removed.
+- The status feed is read-only. An event’s type/time records what the store says happened; it does not prove that a worker is running **now**, nor that an objective is complete.
+- This is independent of the draft 60-minute research sessions and does not start, stop or schedule them.
+
+Phone acceptance, time-aware snapshot age validation and cross-thread objectives still need end-to-end verification before release.
