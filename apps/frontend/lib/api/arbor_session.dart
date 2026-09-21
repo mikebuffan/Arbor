@@ -94,14 +94,13 @@ class ArborSession {
     final resolvedProjectId = projectId ?? current?.projectId;
 
     _loadedUsers.add(userId);
-    // Clear the shelves before awaiting disk persistence.
-    _contextChanges.add(userId);
 
     final prefs = await SharedPreferences.getInstance();
 
     if (resolvedProjectId == null ||
         resolvedProjectId.isEmpty) {
       _memory.remove(userId);
+      _contextChanges.add(userId);
       await prefs.remove(_projectKey(userId));
       await prefs.remove(_conversationKey(userId));
       return;
@@ -110,6 +109,7 @@ class ArborSession {
     _memory[userId] = ArborSessionContext(
       projectId: resolvedProjectId,
     );
+    _contextChanges.add(userId);
 
     await prefs.setString(
       _projectKey(userId),
