@@ -14,6 +14,7 @@ import 'command_palette.dart';
 import 'environment_atmosphere.dart';
 import 'grove_living_window_panel.dart';
 import 'grove_house_room.dart';
+import 'grove_app_mode.dart';
 import 'annabelle_kitchen_view.dart';
 import 'benchmark_view.dart';
 import 'project_view.dart';
@@ -82,7 +83,11 @@ class _ArborEnvironmentShellState extends State<ArborEnvironmentShell> {
       backgroundColor: ArborEnvironmentTokens.voidBlack,
       body: SafeArea(
         child: Column(children: [
-          ObjectiveStrip(objective: objective),
+          // The Grove opens on its room even before ARK sign-in; keep the
+          // detailed unavailable truth visible on the status panel below.
+          if (!groveStandalone ||
+              objective.state != EnvironmentRunState.unavailable)
+            ObjectiveStrip(objective: objective),
           Expanded(
             child: LayoutBuilder(builder: (context, constraints) {
               final wide = constraints.maxWidth >= 900;
