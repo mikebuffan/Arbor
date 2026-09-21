@@ -12,6 +12,7 @@ import 'evidence_view.dart';
 import 'system_health_view.dart';
 import 'command_palette.dart';
 import 'environment_atmosphere.dart';
+import 'grove_living_window_panel.dart';
 import 'benchmark_view.dart';
 import 'project_view.dart';
 import 'memory_state_view.dart';
@@ -323,6 +324,8 @@ class _Home extends StatelessWidget {
   Widget build(BuildContext context) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const GroveLivingWindowPanel(),
+          const SizedBox(height: 16),
           Wrap(
             spacing: 16,
             runSpacing: 16,
