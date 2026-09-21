@@ -3,6 +3,7 @@ import 'environment_panel.dart';
 import 'environment_tokens.dart';
 import 'grove_room_inventory_panel.dart';
 import 'grove_memory_shelf_view.dart';
+import 'grove_document_shelf_view.dart';
 import 'grove_world_state.dart';
 
 class MemoryStateView extends StatelessWidget {
@@ -15,6 +16,8 @@ class MemoryStateView extends StatelessWidget {
       GroveRoomInventoryPanel(initialZone: GroveZone.library),
       SizedBox(height: 16),
       GroveMemoryShelfView(),
+      SizedBox(height: 16),
+      GroveDocumentShelfView(),
       SizedBox(height: 16),
       Wrap(
         spacing: 16,
