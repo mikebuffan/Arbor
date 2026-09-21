@@ -1,97 +1,97 @@
 # Epstein public-records research engine — master ordered build list
 
-Updated 2026-09-21. **One ARK lineage. No second engine.** This is a source-first public-document research system, not a claim of uninterrupted ChatGPT activity, autonomous findings, or guilt by association. Use only lawfully available public materials; do not publish victim or private-person identifiers.
+Updated 2026-09-21. **One ARK lineage. No second engine.** Source-first public-document research only. Draft code is not deployment, authorization, verified research, or a finding. Use only lawful public material; never publish victim/private-person identifiers.
 
-**Source branches:** #123 is the bounded session/evidence-policy foundation. #131 adds the exact quote → observation bridge and fixes Vitest research test discovery. #134 (this child branch) adds the actual sandbox-only Poppler parser and a valid synthetic PDF fixture. Do **not** independently merge overlapping stacked PRs or overwrite the deployed investigation worker v5. Grove integration is a separate lane.
+**Verified research stack:** #123 bounded sessions/evidence policy → #131 exact quote bridge/test discovery → #134 local Poppler synthetic-fixture parser → #135 untrusted-PDF threat model → #136 content-first source/version identity → #139 evidence-stage promotion contract. Grove PRs are a separate lane. Do not independently merge overlapping stacked PRs or overwrite deployed investigation worker v5.
 
-Legend: [x] draft code or CI-verified work exists, [~] partially done, [ ] still required. "Code exists" does not mean deployed, authorized or phone-tested.
+Legend: [x] draft code plus relevant CI evidence exists; [~] partial; [ ] required; **BLOCKED** means the named gate is intentionally not authorized in this build lane.
 
-## 1. Preserve what exists before any change
+## 1. Preserve existing systems before integration
 
-- [x] Inventory original worker v5 and synchronize its source on isolated #123, without deploying the branch.
-- [x] Retain source/branch lineage for Grove and ARK; research changes do not touch Grove.
-- [x] Preserve original evidence bytes and separate PDF page from printed folio.
-- [x] Preserve parent PRs and review the latest heads before every integration.
-- [ ] Capture a reviewed worker-v5 deployment backup and rollback receipt before any live worker change.
-- [ ] Confirm currently deployed Vercel roots/cron and Firefly auth boundaries immediately before integration.
-- [ ] Pin and review local parser runtime image/package version for reproducibility.
-- [ ] Do not ship temporary CI pull-request base triggers into main.
+1. [x] Inventory/synchronize worker-v5 source on isolated #123 without deployment.
+2. [x] Preserve research/Grove branch lineage; no research changes to Grove.
+3. [x] Preserve original-byte SHA and physical PDF page separately from printed folio.
+4. [x] Review parent heads/open PRs before each child; current research child is #139 on exact #136 head `5a165d4e8c4900b52237313d07a65feee7a30811`.
+5. [ ] **BLOCKED — live integration approval:** capture reviewed worker-v5 deployment backup + rollback receipt before live changes.
+6. [ ] **BLOCKED — live integration approval:** confirm deployed Vercel roots/cron and Firefly auth immediately before integration.
+7. [~] Poppler is installed in CI for harmless fixture tests; immutable sandbox runtime/image digest still required.
+8. [ ] Remove all temporary stacked CI PR-base triggers before any main integration.
 
-## 2. Capture and parse actual public PDFs
+## 2. Capture and parse public PDFs safely
 
-- [x] Source identity, HTTPS URI, %PDF- signature, actual original-byte SHA-256 and 25 MiB maximum.
-- [x] Reject HTML/consent-page impostors and credential-bearing or non-HTTPS source locators.
-- [x] Existing pure per-physical-page evidence inventory with missing/duplicate-page rejection.
-- [x] Actual Poppler `pdfinfo`/ `pdftotext` / `pdfimages` local parser, with no shell, URL fetch, or app routes.
-- [x] Exact page-count inventory with a 128-page *local-fixture* cap, subprocess timeouts and bounded output.
-- [x] Per-page text layer, raster-with-no-text, blank/unclassified and extraction-failure states.
-- [x] Temporary local PDF bytes mode 0600, random temporary directory and cleanup.
-- [x] A standards-conformant generated 4-page benign fixture: text / raster / text / blank; Poppler actually parses it in backend CI.
-- [x] Test that every physical page retains its original document SHA-256 and stays on independent-review HOLD.
-- [ ] Run a second fixture from an independently published benign original PDF and visually verify page images and line order.
-- [ ] Add page-image rendering provenance and correct source-stamp/EFTA-number capture; never infer stamps from a file name.
-- [ ] Handle files above local caps by an explicit split/batch design that preserves ORIGINAL full-file SHA and original physical-page numbering.
-- [ ] Design a sandboxed PDF-processing runtime with untrusted-file isolation, memory limits, restricted filesystem and no egress by default.
-- [ ] Provide an opt-in OCR processor for scanned pages, with confidence, source image and human verification, without inventing text.
-- [ ] Add per-page PDF glyph/box geometry if exact visual highlighting is required; UTF-16 extracted-text offsets are NOT PDF byte or image coordinates.
-- [ ] Do not treat a blank, encrypted, inaccessible, image-only or parser-failed page as absence of a fact.
+9. [x] HTTPS source identity, `%PDF-` signature, exact original-byte SHA-256 and 25 MiB capture maximum.
+10. [x] Reject HTML/consent impostors, credentials and non-HTTPS source locators.
+11. [x] Complete physical-page inventory; reject missing/duplicate pages.
+12. [x] Local Poppler `pdfinfo`/`pdftotext`/`pdfimages` parser: argument arrays, no shell, no URL fetch/app route.
+13. [x] 128-page local-fixture cap, subprocess timeout and bounded output.
+14. [x] Text-layer/raster-without-text/blank-unclassified/extraction-failure states.
+15. [x] Mode-0600 temporary PDF, random temp directory and cleanup.
+16. [x] Valid generated four-page benign PDF is parsed by real Poppler in CI.
+17. [x] Every page keeps original SHA and independent-review HOLD.
+18. [ ] **BLOCKED — sandbox gate:** independently published benign PDF acceptance + manual rendered-page/line-order verification must wait for executable untrusted-file isolation.
+19. [ ] Add page-image rendering provenance and explicit source-stamp capture; never infer stamps from filenames.
+20. [ ] Design split/batch handling above local caps while preserving one full-file SHA and original physical-page numbering.
+21. [~] #135 specifies disposable non-root/no-egress/read-only-root/resource-capped sandbox requirements; executable pinned sandbox is not implemented.
+22. [ ] Opt-in OCR processor with source-image reference, confidence and mandatory human verification.
+23. [ ] Per-page glyph/box geometry only if exact visual highlighting becomes required; extracted UTF-16 offsets are not PDF/image coordinates.
+24. [x] Current contracts keep blank/image-only/encrypted/inaccessible/parser-failed states from supporting absence claims; integration must preserve this.
 
 ## 3. Exact observations and evidence integrity
 
-- [x] Existing pure, source-first comparison drafts with independent verification/privacy HOLD.
-- [x] Exact selected passage carries page, document ID, original hash and UTF-16 text span.
-- [x] Detect substitution of source record, excerpt, document identity or file hash.
-- [x] End-to-end fixture test: actual PDF bytes → Poppler → validated page → exact quote → comparison draft.
-- [ ] Persist source-byte capture, extraction run, text spans and claim lineage as atomic, immutable evidence records.
-- [~] Added pure content-first source/version identities and same-bytes mirrored-URL detection in child PR #136, with tests for same-URL changed bytes and no automatic corroboration. Still need durable canonical store, actual redirected/final source URI capture and cross-project scope tests.
-- [ ] Distinguish source quote, independently verified observation, interpretation, hypothesis and published finding.
-- [ ] Require independent original-page visual review and context verification before upgrading a review candidate.
-- [ ] Enforce victim/private-person PII filtering and a separate publication review, not just a status string.
-- [ ] Keep rejected hypotheses, missing data and extraction failures with reasons and timestamps.
-- [ ] Verify two independently sourced claims rather than counting multiple copies of one underlying report as corroboration.
+25. [x] Source-first comparison drafts remain independent-verification/privacy HOLD.
+26. [x] Exact selected passage carries page, document ID, original hash and UTF-16 span.
+27. [x] Detect source/excerpt/document/hash substitution.
+28. [x] Synthetic end-to-end bytes → Poppler → page → exact quote → comparison-draft test.
+29. [ ] **BLOCKED — disposable DB first:** persist source capture, extraction run, spans and claim lineage as atomic immutable evidence records.
+30. [~] #136 separates content identity from URL/local ID, detects byte-identical mirrors and same-URL changed bytes. Durable owner/project canonical index, final-redirect capture and cross-project persistence tests remain.
+31. [~] #139 adds typed `source_quote → verified_observation → interpretation → hypothesis → published_finding` one-step promotion. Exact-head CI is pending; persistence/integration remain.
+32. [~] #139 requires original-page + context review before quote becomes verified observation. Real visual-review workflow remains.
+33. [~] #139 requires privacy + publication review before `published_finding`; actual PII filter/publication-review implementation remains.
+34. [~] #139 preserves explicit counterevidence references; durable rejected-hypothesis/missing-data/failure receipts still required.
+35. [~] #136 prevents byte-identical mirrored URLs from being counted as independent corroboration; source-chain independence proof still required.
 
-## 4. Bounded research sessions and DB safety
+## 4. Bounded sessions and database safety
 
-- [x] Pure 60-minute, one-unit-per-tick policy with work/cost/time limits, cancellation and lease checks in draft #123.
-- [x] Proposed owner/project-scoped SQL and service-role-only adapter isolated outside auto-run migrations.
-- [x] Before-start/deadline/authorization guards and distinct non-completion status for exhausted sessions.
-- [x] Research test discovery corrected: Vitest runs `lib/research/*.test.ts`; tests are no longer falsely invisible behind green CI.
-- [ ] Create/identify a truly disposable database with no real user data and an acknowledged cost profile.
-- [ ] Apply proposed SQL only there; verify RLS with owner, other owner, anonymous, authenticated and service-role identities.
-- [ ] Check search_path/SECURITY DEFINER, public/default EXECUTE permissions and privilege escalation.
-- [ ] Stress concurrency: two claimers, worker crash, leases, cancellation, restart, deadline and duplicate settlement.
-- [ ] Resolve late-settlement semantics without erasing previously committed evidence or checkpoint receipts.
-- [ ] Verify cost reservations, attempt cap, failure receipts and release of stalled work.
-- [ ] Implement evidence-backed completion verification separately from a zero-length queue or timer expiration.
+36. [x] Pure 60-minute one-unit-per-tick policy with work/cost/time/cancel/lease guards in #123.
+37. [x] Proposed owner/project-scoped SQL + service-role adapter remain outside auto-run migrations.
+38. [x] Before-start/deadline/authorization guards and distinct non-completion state.
+39. [x] #131 fixes Vitest discovery so `lib/research/*.test.ts` executes.
+40. [ ] **BLOCKED — explicit disposable DB/cost approval:** create/identify DB containing no real user data.
+41. [ ] **BLOCKED — item 40:** apply proposed SQL only there; test owner/other-owner/anonymous/authenticated/service-role RLS.
+42. [ ] **BLOCKED — item 40:** inspect search_path, SECURITY DEFINER, default/public EXECUTE and privilege escalation.
+43. [ ] **BLOCKED — item 40:** concurrency: two claimers, crash, leases, cancel, restart, deadline, duplicate settlement.
+44. [ ] Resolve late-settlement semantics without erasing committed evidence/checkpoints; validate in item 43.
+45. [ ] Verify cost reservation, attempt cap, failure receipts and stalled-work release in disposable environment.
+46. [ ] Implement evidence-backed completion verification separately from empty queue/timer expiry.
 
-## 5. Worker wiring and actual unattended acceptance
+## 5. Worker wiring and unattended acceptance
 
-- [ ] Preserve live worker v5, review a proposed processor diff and establish a rollback route.
-- [ ] Build a bounded capture/parse executor in a sandbox that explicitly supports authorized PDF work units.
-- [ ] Connect actual evidence writes to session receipts and one-step Pattern Hop suggestions.
-- [ ] Deduplicate leads and preserve sources, reasons, counterevidence and follow-up checkpoints.
-- [ ] Add an owner/project-scoped default-OFF scheduler with distinct service authentication.
-- [ ] Run a deterministic simulated 60-minute session, including restart and cancellation.
-- [ ] Run a genuine unattended hour on permissible benign public sources; verify clock, receipts, budget and source correctness.
-- [ ] Prove same user's project isolation and cross-session handoff before attaching Grove or voice.
-- [ ] Verify real phone/operator status without inferring liveness from a read-only status card.
-- [ ] Obtain separate explicit approval for production deployment, scheduler enablement and expenditure.
+47. [ ] **BLOCKED — live integration approval:** preserve live worker v5, review proposed processor diff and rollback route.
+48. [ ] **BLOCKED — sandbox item 21:** bounded authorized capture/parse executor.
+49. [ ] **BLOCKED — DB items 40–45:** connect immutable evidence writes to receipts + one-step Pattern Hop suggestions.
+50. [ ] Lead dedupe preserving sources, reasons, counterevidence and checkpoints.
+51. [ ] **BLOCKED — separate scheduler authorization:** owner/project-scoped default-OFF scheduler with distinct service auth.
+52. [ ] Deterministic simulated 60-minute session including restart/cancel after safe executor + disposable DB exist.
+53. [ ] **BLOCKED — explicit benign unattended-run approval:** genuine unattended hour only on permissible benign public sources; verify receipts/budget/source correctness.
+54. [ ] Prove same-user project isolation and cross-session handoff before Grove/voice attachment.
+55. [ ] Real phone/operator acceptance; never infer worker liveness from read-only status UI.
+56. [ ] Separate explicit approval for production deployment, scheduler enablement and any expenditure.
 
-## 6. Actual Epstein public-document analysis and responsible reporting
+## 6. Epstein public-document analysis and responsible reporting
 
-- [x] Starter MCC/OIG comparison ledger distinguishing already published official findings from new research questions.
-- [ ] Verify physical PDF pages and imagery of specific public EFTA records against the original OIG report.
-- [ ] Reconcile cited testimony, contemporaneous logs, timestamps and what each source can actually establish.
-- [ ] Redact victim and private-person information before any user-visible report or sharing.
-- [ ] Classify leads as established public finding / corroborated observation / apparent conflict / missing context / insufficient evidence / extraction error / unresolved.
-- [ ] Never treat a name, address-book appearance, flight-log mention or allegation alone as evidence of a crime.
-- [ ] Produce a dated, source-checkable report with opposing evidence, limitations and explicit unfulfilled questions.
-- [ ] Publish nothing automatically and preserve the distinction between an official published discrepancy and a novel research discovery.
+57. [x] Starter MCC/OIG ledger distinguishes published official findings from open research questions.
+58. [ ] **BLOCKED — executable sandbox + source authorization:** verify physical pages/images of specific public EFTA records against original OIG report.
+59. [ ] Reconcile testimony/logs/timestamps only after original-source capture; state what each source can establish.
+60. [ ] Redact victim/private-person information before any user-visible report/share.
+61. [ ] Classify: established public finding / corroborated observation / apparent conflict / missing context / insufficient evidence / extraction error / unresolved.
+62. [x] Policy invariant: name/address-book/flight-log mention/allegation alone is never evidence of a crime.
+63. [ ] Dated source-checkable report with counterevidence, limitations and explicit unresolved questions.
+64. [x] No automatic publication; official published discrepancies remain distinct from novel research discoveries.
 
-## Content-first source identity checkpoint (stacked child PR #136)\n\n- [x] Separate original-byte content identity from mutable HTTPS source location and local document ID; URL aliases do not manufacture a second independent document.\n- [x] Keep different byte versions served at one URL distinct; byte-equal URLs dedupe, while independent corroboration always requires separate source-chain review.\n- [x] Check conflicting claims about byte count or physical-page count for an identical SHA-256 rather than silently merging them.\n- [ ] Add persistent owner/project-scoped canonical indexes only after disposable-DB RLS/concurrency testing.\n- [ ] Remove temporary branch-specific CI workflow triggers before any production merge.\n\n## Milestone and truthful status
+## Current handoff
 
-**Completed on draft code:** Original-byte capture, physical-page evidence contract, exact quote bridge, **actual local Poppler parsing of a valid synthetic multi-page PDF** and PDF→page→quote→review-draft tests. The backend CI includes the research suite.
+**Last verified parent:** #136 exact head `5a165d4e8c4900b52237313d07a65feee7a30811`; Arbor Integration CI run 35659500799 passed. #136 includes eight focused source-version tests inside the backend suite.
 
-**Not completed:** genuine third-party original public PDF acceptance, live worker processor, OCR, sandbox DB, Pattern Hop integration and authorized unattended research. The main build has not been deployed; no real Epstein document was processed by this new parser.
+**Current child:** draft #139, `feat/ark-evidence-stage-contract-20260921`, adds items 31–34 as pure fail-closed contracts/tests. No real Epstein/EFTA files, network fetch, DB writes, worker/scheduler changes, deployment, merge or paid APIs. Exact-head CI run 35662941056 is running; do not call #139 verified until it passes.
 
-**Next dependency:** independently published harmless PDF with manual page-image verification → hardened sandboxed parser executor → disposable DB/security tests → worker-v5 compatibility → owner-authorized scheduler → actual evidence-backed research. Low-risk drafts may proceed; do not treat this list as permission for production writes, paid research, or unreviewed publication.
+**Next safe order:** finish #139 CI/fix any code failure → add durable failure/rejection receipt contract if it can remain pure → design split/batch provenance or page-render provenance → executable sandbox only if it can be implemented and tested without unsafe untrusted-file execution. DB/live-worker/scheduler/public-record analysis stay blocked on their explicit gates above.
