@@ -42,6 +42,7 @@ class _GroveLivingWindowPanelState extends State<GroveLivingWindowPanel> {
       });
     } else {
       _houseClock = GroveHouseClock.shared;
+      _houseClock!.attach();
       _houseClock!.refresh();
       _live = _houseClock!.localNow;
       _houseClock!.addListener(_onHouseTimeChanged);
@@ -57,6 +58,7 @@ class _GroveLivingWindowPanelState extends State<GroveLivingWindowPanel> {
   void dispose() {
     _timer?.cancel();
     _houseClock?.removeListener(_onHouseTimeChanged);
+    _houseClock?.detach();
     super.dispose();
   }
 
