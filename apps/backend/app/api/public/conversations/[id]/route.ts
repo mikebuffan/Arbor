@@ -30,7 +30,7 @@ export async function GET(req: Request, context: Context) {
     }
     const { data: messages, error: messageError } = await db
       .from("public_app_messages")
-      .select("id,role,content,created_at")
+      .select("id,turn_id,role,content,created_at")
       .eq("user_id", userId)
       .eq("conversation_id", candidate.data)
       .order("created_at", { ascending: true })
