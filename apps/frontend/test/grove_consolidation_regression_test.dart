@@ -23,7 +23,7 @@ void main() {
       ),
       runtimeSource: 'ARK • READ ONLY',
     )));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 500));
 
     expect(find.text('THE GROVE • HOME'), findsOneWidget);
     expect(find.text('THE GROVE · LIVING WORLD'), findsOneWidget);
@@ -33,7 +33,7 @@ void main() {
 
     await tester.ensureVisible(find.text('Moss on rug'));
     await tester.tap(find.text('Moss on rug'));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 500));
     expect(find.textContaining('Moss is resting on the rug'), findsOneWidget);
 
     // A present-but-stale blocker must no longer demand an owner decision.
@@ -47,7 +47,7 @@ void main() {
       runtimeSource: 'ARK • STALE',
       runtimeStale: true,
     )));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 500));
 
     expect(find.text('NEEDS YOU'), findsNothing);
     expect(find.text('UNVERIFIED'), findsOneWidget);
