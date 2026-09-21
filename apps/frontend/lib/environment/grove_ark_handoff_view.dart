@@ -188,12 +188,12 @@ class _GroveArkHandoffViewState extends State<GroveArkHandoffView> {
                 key: ValueKey('handoff-empty'),
                 style: TextStyle(color: ArborEnvironmentTokens.textMuted))
             else ...[
-              Text(handoff.goal!,
+              Text(handoff.goal ?? 'Objective title unavailable',
                 key: const ValueKey('handoff-goal'),
                 style: const TextStyle(color: ArborEnvironmentTokens.textPrimary,
                   fontSize: 17)),
               const SizedBox(height: 5),
-              Text('Stored status: ' + handoff.status!,
+              Text('Stored status: ' + (handoff.status ?? 'not reported'),
                 style: const TextStyle(color: ArborEnvironmentTokens.textMuted)),
               if (handoff.nextAction != null)
                 Text('Next recorded action: ' + handoff.nextAction!,
