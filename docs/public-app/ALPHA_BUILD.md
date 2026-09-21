@@ -2,7 +2,7 @@
 
 ## Decision and boundaries
 
-This is the **public Arbor App**, not Danelle's private Grove. The existing repository is PUBLIC. Never commit the Grove's data, private adapter weights, personal examples, access keys, signed URLs, or private evaluation JSONL.
+This is the **public Arbor App**, not the owner's private Grove. The existing repository is PUBLIC. Never commit the Grove's data, private adapter weights, personal examples, access keys, signed URLs, or private evaluation JSONL.
 
 This branch is `arbor/public-app-alpha-20260921`, branched from `main`. Do not switch Vercel production deployment, ARK live execution, or Firefly's current database. A dedicated, empty Supabase alpha project and separate Vercel alpha project are required before testing with real accounts; do not point public clients at Firefly or ARK Preview. Do not create billable resources without approval.
 
@@ -59,7 +59,7 @@ This is conversational software, not a licensed therapist, crisis service, or va
 
 Supabase security linter found multiple RLS-enabled tables with no policies and reported security-definer investigation views in Firefly. An RLS-enabled/no-policy table may be intentionally inaccessible; investigate grants and context before judging severity. Do not copy unrelated privileged views to the public alpha database.
 
-## Danelle's technical handbook — starting vocabulary
+## the owner's technical handbook — starting vocabulary
 
 - **Frontend** is what a person sees, taps, and speaks into. Flutter builds that app.
 - **Backend** authenticates requests, checks permissions, saves history, and routes model calls. Next.js is our backend.
