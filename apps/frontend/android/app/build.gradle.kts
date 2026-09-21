@@ -29,6 +29,20 @@ android {
         versionName = flutter.versionName
     }
 
+    // Two independently installable debug apps from one Flutter codebase.
+    // "arbor" keeps the existing package; "grove" gets its own launcher.
+    flavorDimensions += "experience"
+    productFlavors {
+        create("arbor") {
+            dimension = "experience"
+        }
+        create("grove") {
+            dimension = "experience"
+            applicationIdSuffix = ".grove"
+            versionNameSuffix = "-grove"
+        }
+    }
+
     buildTypes {
         release {
             // TODO: Add your own signing config for the release build.

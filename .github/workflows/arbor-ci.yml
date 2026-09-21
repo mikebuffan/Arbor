@@ -92,17 +92,33 @@ jobs:
 
       - run: flutter test
 
-      - name: Build Android debug APK
+      - name: Build existing Arbor debug APK
         run: >
-          flutter build apk --debug
+          flutter build apk --debug --flavor arbor
           --dart-define=SUPABASE_URL=https://ncpdlyakrzfvobmwzbon.supabase.co
           --dart-define=SUPABASE_ANON_KEY=sb_publishable_med7aHx1vGlYLih1QbdgtA_zQnRTSrS
           --dart-define=ARBOR_API_URL=https://firefly-coral.vercel.app
 
-      - name: Upload Android debug APK
+      - name: Upload existing Arbor debug APK
         uses: actions/upload-artifact@v4
         with:
           name: arbor-android-debug
-          path: apps/frontend/build/app/outputs/flutter-apk/app-debug.apk
+          path: apps/frontend/build/app/outputs/flutter-apk/app-arbor-debug.apk
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Build separate Grove debug APK
+        run: >
+          flutter build apk --debug --flavor grove
+          --dart-define=GROVE_STANDALONE=true
+          --dart-define=SUPABASE_URL=https://ncpdlyakrzfvobmwzbon.supabase.co
+          --dart-define=SUPABASE_ANON_KEY=sb_publishable_med7aHx1vGlYLih1QbdgtA_zQnRTSrS
+          --dart-define=ARBOR_API_URL=https://firefly-coral.vercel.app
+
+      - name: Upload separate Grove debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: the-grove-android-debug
+          path: apps/frontend/build/app/outputs/flutter-apk/app-grove-debug.apk
           if-no-files-found: error
           retention-days: 7
