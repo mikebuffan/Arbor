@@ -123,4 +123,27 @@ describe("bounded durable research-session policy", () => {
     })).rejects.toThrow("research_claim_receipt_mismatch");
     expect(settle).not.toHaveBeenCalled();
   });
+  it("rejects a receipt above the unit reservation before calling settlement", async () => {
+    const session=baseline(),settle=vi.fn();
+    const store:ResearchStore={
+      loadSession:async()=>session,
+      claimOne:async()=>({
+        unitId:"u1",leaseToken:"lease",idempotencyKey:"u1",
+        kind:"fetch",payload:{},maxCostReservationCents:5,
+      }),
+      settle,stop:vi.fn(),
+    };
+    await expect(runResearchSessionTick({
+      sessionId:session.id,at,store,
+      executor:async({remainingCostCents})=>{
+        expect(remainingCostCents).toBe(5);
+        return {
+          sessionId:session.id,unitId:"u1",idempotencyKey:"u1",
+          status:"completed",recordedAt:at,costCents:6,
+          evidenceRefs:["EFTA00212948"],unresolvedRequiredWork:9,
+        };
+      },
+    })).rejects.toThrow("research_unit_reservation_exceeded");
+    expect(settle).not.toHaveBeenCalled();
+  });
 });
