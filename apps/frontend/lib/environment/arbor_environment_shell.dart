@@ -27,6 +27,7 @@ class ArborEnvironmentShell extends StatefulWidget {
     super.key,
     this.objective,
     this.workItems = const [],
+    this.activityEvents = const [],
     this.runtimeSource = 'DEMO DATA',
     this.runtimeStale = false,
     this.initialDestination = EnvironmentDestination.home,
@@ -34,6 +35,7 @@ class ArborEnvironmentShell extends StatefulWidget {
   });
   final EnvironmentObjectiveView? objective;
   final List<WorkItemView> workItems;
+  final List<ActivityEvent> activityEvents;
   final String runtimeSource;
   final bool runtimeStale;
   final EnvironmentDestination initialDestination;
@@ -91,6 +93,7 @@ class _ArborEnvironmentShellState extends State<ArborEnvironmentShell> {
                     selected: selected,
                     objective: objective,
                     workItems: widget.workItems,
+                    activityEvents: widget.activityEvents,
                     runtimeSource: widget.runtimeSource,
                     runtimeStale: widget.runtimeStale,
                     conversationLayer: widget.conversationLayer,
@@ -201,6 +204,7 @@ class _Surface extends StatelessWidget {
     required this.selected,
     required this.objective,
     required this.workItems,
+    required this.activityEvents,
     required this.runtimeSource,
     required this.runtimeStale,
     this.conversationLayer,
@@ -258,6 +262,7 @@ class _Surface extends StatelessWidget {
               objective: objective,
               runtimeSource: runtimeSource,
               runtimeStale: runtimeStale,
+              activityEvents: activityEvents,
             )
           else if (selected == EnvironmentDestination.objective)
             ObjectiveWorkspace(objective: objective)
@@ -321,10 +326,12 @@ class _Home extends StatelessWidget {
     required this.objective,
     required this.runtimeSource,
     required this.runtimeStale,
+    required this.activityEvents,
   });
   final EnvironmentObjectiveView objective;
   final String runtimeSource;
   final bool runtimeStale;
+  final List<ActivityEvent> activityEvents;
   @override
   Widget build(BuildContext context) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -365,26 +372,7 @@ class _Home extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          ActivityView(events: [
-            const ActivityEvent(
-              title: 'Environment branch isolated',
-              detail: 'No production mutation.',
-              kind: 'boundary',
-              isDemo: false,
-            ),
-            ActivityEvent(
-              title: 'Runtime snapshot',
-              detail: '$runtimeSource${runtimeStale ? ' • stale/fallback' : ''}',
-              kind: 'runtime',
-              isDemo: objective.isDemo,
-            ),
-            const ActivityEvent(
-              title: 'Read-only boundary active',
-              detail: 'Environment observes ARK but has no execution controls.',
-              kind: 'safety',
-              isDemo: false,
-            ),
-          ]),
+          ActivityView(events: activityEvents),
         ],
       );
 }
