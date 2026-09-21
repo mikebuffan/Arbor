@@ -162,7 +162,7 @@ class _ConversationHomeState extends State<_ConversationHome> {
   final draft = TextEditingController();
   final scroll = ScrollController();
   List<Map<String, dynamic>> history = [], messages = [];
-  String? conversationId, pendingTurnId, error;
+  String? conversationId, pendingTurnId, pendingUserText, error;
   bool busy = false, loading = true;
   @override
   void initState() {
@@ -194,6 +194,9 @@ class _ConversationHomeState extends State<_ConversationHome> {
       if (code == 'alpha_not_configured') {
         return 'The separate public-alpha backend is not ready.';
       }
+      if (code == 'turn_conflict') {
+        return 'The message is already being handled or changed. Reload history.';
+      }
       return 'Request failed: ' + code;
     }
     return 'Connection failed. Check your network.';
@@ -224,11 +227,22 @@ class _ConversationHomeState extends State<_ConversationHome> {
     try {
       final json = await api.get('/api/public/conversations/' + id);
       if (!mounted) return;
+      final restored = (json?['messages'] as List<dynamic>? ?? [])
+          .whereType<Map<String, dynamic>>().toList();
+      // A model outage can leave a durable user turn without an assistant turn.
+      // Restore its server-issued turn ID so retry never creates a duplicate.
+      final last = restored.isEmpty ? null : restored.last;
+      final unfinished = last?['role'] == 'user' &&
+          last?['turn_id'] is String;
       setState(() {
         conversationId = id;
-        messages = (json?['messages'] as List<dynamic>? ?? [])
-          .whereType<Map<String, dynamic>>().toList();
-        pendingTurnId = null; error = null;
+        messages = restored;
+        pendingTurnId = unfinished ? last!['turn_id'] as String : null;
+        pendingUserText = unfinished ? last!['content'] as String : null;
+        draft.text = pendingUserText ?? '';
+        error = unfinished
+            ? 'Your last message was saved without a reply. Retry it to continue.'
+            : null;
       });
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (scroll.hasClients) scroll.jumpTo(scroll.position.maxScrollExtent);
@@ -240,14 +254,21 @@ class _ConversationHomeState extends State<_ConversationHome> {
   void newThread() {
     if (mounted) setState(() {
       conversationId = null; pendingTurnId = null;
+      pendingUserText = null; draft.clear();
       messages = []; error = null;
     });
   }
   Future<void> send() async {
     final content = draft.text.trim();
     if (busy || content.isEmpty) return;
+    if (pendingTurnId != null && content != pendingUserText) {
+      setState(() => error =
+          'Retry the saved message unchanged, or start a new conversation.');
+      return;
+    }
     final turn = pendingTurnId ?? newTurnId();
     pendingTurnId = turn;
+    pendingUserText = content;
     setState(() { busy = true; error = null; });
     try {
       final answer = await api.post('/api/public/chat', body: {
@@ -257,6 +278,7 @@ class _ConversationHomeState extends State<_ConversationHome> {
       if (!mounted) return;
       conversationId = answer['conversationId'] as String;
       pendingTurnId = null;
+      pendingUserText = null;
       draft.clear();
       await refresh();
     } catch (e) {
@@ -423,6 +445,13 @@ class _ConversationHomeState extends State<_ConversationHome> {
               },
             )),
         if (busy) const Text('Arbor LM is responding…'),
+        if (!busy && pendingTurnId != null)
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 12),
+            child: Text('An unanswered message is saved. '
+              'Send it unchanged to retry, or start a new conversation.',
+              style: TextStyle(color: Colors.amber)),
+          ),
         Padding(padding: const EdgeInsets.all(12),
           child: Row(children: [
             Expanded(child: TextField(
@@ -435,7 +464,8 @@ class _ConversationHomeState extends State<_ConversationHome> {
             )),
             const SizedBox(width: 8),
             IconButton.filled(
-              tooltip: 'Send message',
+              tooltip: pendingTurnId == null
+                  ? 'Send message' : 'Retry saved message',
               onPressed: busy ? null : send,
               icon: const Icon(Icons.arrow_upward),
             ),
