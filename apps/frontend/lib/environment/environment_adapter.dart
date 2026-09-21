@@ -135,6 +135,8 @@ class ArkEnvironmentAdapter implements EnvironmentRuntimeAdapter {
         checkpointReceipt: checkpointReceipt,
         completionReceipt: completionReceipt,
         isDemo: false,
+        requiresUserAction: mappedState == EnvironmentRunState.blocked &&
+            _explicitUserDecision(objective['blocker']),
         updatedAt: _parseDate(objective['updated_at']),
       ),
       workItems: objectiveTasks.map(_workItem).toList(growable: false),
@@ -335,6 +337,19 @@ String? _failedTaskError(List<Map<String, dynamic>> tasks) {
     }
   }
   return null;
+}
+
+/// Only a structured ARK blocker can request a decision from the owner.
+/// Error messages, task failure, and keyword matching are insufficient.
+bool _explicitUserDecision(dynamic blocker) {
+  if (blocker is! Map) return false;
+  return switch (blocker['kind']) {
+    'external_authority' ||
+    'missing_preference' ||
+    'high_consequence_fork' ||
+    'irreversible_action' => true,
+    _ => false,
+  };
 }
 
 String? _blockerText(dynamic value) {
