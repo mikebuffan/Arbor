@@ -144,8 +144,11 @@ export function validateResearchUnitReceipt(
     receipt.evidenceRefs.some(ref => typeof ref !== "string" || !ref.trim())) {
     throw new Error("invalid_research_evidence_refs");
   }
-  if (receipt.status === "completed" && receipt.evidenceRefs.length === 0 &&
-    receipt.unresolvedRequiredWork < session.unresolvedRequiredWork) {
+  // Failed/blocked/checkpointed receipts must not silently reduce required
+  // work merely because the "completed" status was omitted. This is a
+  // minimal guard; source provenance and true completion still need review.
+  if (receipt.evidenceRefs.length === 0 &&
+      receipt.unresolvedRequiredWork < session.unresolvedRequiredWork) {
     throw new Error("research_completion_without_evidence");
   }
 }
