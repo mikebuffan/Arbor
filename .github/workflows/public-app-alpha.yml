@@ -1,0 +1,51 @@
+name: Public Arbor Alpha (Isolated)
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "apps/frontend/lib/public/**"
+      - "apps/backend/lib/publicApp/**"
+      - "apps/backend/app/api/public/**"
+      - "supabase/public-app/**"
+      - "services/public-arbor-lm/**"
+      - ".github/workflows/public-app-alpha.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inference-gateway-syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Compile public inference gateway
+        run: python -m compileall -q services/public-arbor-lm
+
+  public-flutter-entry:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: apps/frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Analyze public entry point
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings lib/public
+      - name: Compile public Android debug entry point (NO real alpha credentials)
+        run: >
+          flutter build apk --debug
+          --target lib/public/main_public.dart
+          --dart-define=SUPABASE_URL=https://aaaaaaaaaaaaaaaaaaaa.supabase.co
+          --dart-define=SUPABASE_ANON_KEY=ci-placeholder-not-a-real-key
+          --dart-define=ARBOR_PUBLIC_API_URL=https://alpha.example.test
+      # Intentionally do not publish an installable artifact with a fake alpha
+      # configuration. A compile success is not a working hosted app.
