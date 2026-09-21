@@ -37,17 +37,6 @@ export type ArkHandoff = {
   liveExecutionVerified: false;
 };
 
-const statuses = new Set([
-  "queued",
-  "running",
-  "checkpointed",
-  "blocked",
-  "awaiting_verification",
-  "completed",
-  "failed",
-  "cancelled",
-]);
-
 const decisionKinds = new Set([
   "external_authority",
   "missing_preference",
@@ -141,7 +130,8 @@ export function buildArkHandoff(snapshot: ArkReadSnapshot): ArkHandoff {
   const checkpoints = snapshot.checkpoints
     .filter((row) => id(row.objective_id) === objectiveId)
     .filter((row) => id(row.id) && text(row.next_action)
-      && Number.isSafeInteger(row.sequence) && Number(row.sequence) > 0)
+      && typeof row.sequence === "number" && Number.isSafeInteger(row.sequence)
+      && row.sequence > 0)
     .sort((a, b) => Number(b.sequence) - Number(a.sequence));
   const checkpoint = checkpoints[0];
   const events = snapshot.events
