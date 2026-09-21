@@ -8,6 +8,8 @@ on:
     branches:
       - main
       - arbor-linear-runtime
+      # Temporary stacked research review CI. Remove before main integration.
+      - feat/ark-research-session-timebox-20260920
   workflow_dispatch:
 
 # CI sentinel: keep this workflow visibly updated when main-push Actions delivery stalls.
