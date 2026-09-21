@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'environment_panel.dart';
 import 'environment_tokens.dart';
 import 'grove_astronomy.dart';
+import 'grove_house_clock.dart';
 
 /// Native Flutter Living Window controls, backed by the same optional-location
 /// model as the stand-alone reference-image proof of concept.
@@ -22,6 +23,7 @@ class _GroveLivingWindowPanelState extends State<GroveLivingWindowPanel> {
     'Seattle, WA (approx.)': GroveLocation(latitude: 47.61, longitude: -122.33),
   };
   Timer? _timer;
+  GroveHouseClock? _houseClock;
   String? _place;
   bool _preview = false;
   int _minutes = 720;
@@ -31,16 +33,30 @@ class _GroveLivingWindowPanelState extends State<GroveLivingWindowPanel> {
   @override
   void initState() {
     super.initState();
-    _live = (widget.clock ?? DateTime.now)();
-    _timer = Timer.periodic(const Duration(minutes: 1), (_) {
-      if (!mounted) return;
-      setState(() => _live = (widget.clock ?? DateTime.now)());
-    });
+    if (widget.clock != null) {
+      // Allows deterministic widget tests without a shared running timer.
+      _live = widget.clock!().toLocal();
+      _timer = Timer.periodic(const Duration(minutes: 1), (_) {
+        if (!mounted) return;
+        setState(() => _live = widget.clock!().toLocal());
+      });
+    } else {
+      _houseClock = GroveHouseClock.shared;
+      _houseClock!.refresh();
+      _live = _houseClock!.localNow;
+      _houseClock!.addListener(_onHouseTimeChanged);
+    }
+  }
+
+  void _onHouseTimeChanged() {
+    if (!mounted) return;
+    setState(() => _live = _houseClock!.localNow);
   }
 
   @override
   void dispose() {
     _timer?.cancel();
+    _houseClock?.removeListener(_onHouseTimeChanged);
     super.dispose();
   }
 
@@ -108,7 +124,10 @@ class _GroveLivingWindowPanelState extends State<GroveLivingWindowPanel> {
               ..._places.keys.map((label) => DropdownMenuItem<String?>(
                   value: label, child: Text(label))),
             ],
-            onChanged: (value) => setState(() => _place = value),
+            onChanged: (value) {
+              _houseClock?.setLocation(_places[value]);
+              setState(() => _place = value);
+            },
           ),
           Wrap(spacing: 9, runSpacing: 5, children: [
             TextButton(
