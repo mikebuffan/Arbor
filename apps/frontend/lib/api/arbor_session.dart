@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ArborSessionContext {
@@ -18,6 +20,13 @@ class ArborSession {
   final Map<String, ArborSessionContext> _memory =
       <String, ArborSessionContext>{};
   final Set<String> _loadedUsers = <String>{};
+
+  // Local account/project/thread changes must invalidate any visible Grove
+  // shelves before another user's or project's contents can be displayed.
+  final StreamController<String> _contextChanges =
+      StreamController<String>.broadcast(sync: true);
+
+  Stream<String> get contextChanges => _contextChanges.stream;
 
   String _projectKey(String userId) =>
       'arbor.session.$userId.projectId';
@@ -67,6 +76,7 @@ class ArborSession {
 
     _loadedUsers.add(userId);
     _memory[userId] = context;
+    _contextChanges.add(userId);
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_projectKey(userId), projectId);
@@ -84,6 +94,8 @@ class ArborSession {
     final resolvedProjectId = projectId ?? current?.projectId;
 
     _loadedUsers.add(userId);
+    // Clear the shelves before awaiting disk persistence.
+    _contextChanges.add(userId);
 
     final prefs = await SharedPreferences.getInstance();
 
@@ -109,6 +121,7 @@ class ArborSession {
   Future<void> clearStoredUser(String userId) async {
     _loadedUsers.add(userId);
     _memory.remove(userId);
+    _contextChanges.add(userId);
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_projectKey(userId));
