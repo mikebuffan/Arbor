@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -48,10 +50,12 @@ Future<GroveMemoryShelfSnapshot> readCurrentGroveMemoryShelf() async {
 
 /// Read-only Firefly memory cards, not original evidence documents.
 class GroveMemoryShelfView extends StatefulWidget {
-  const GroveMemoryShelfView({super.key, this.load});
+  const GroveMemoryShelfView({super.key, this.load, this.invalidations});
 
   /// Injected only for tests or controlled embedding.
   final Future<GroveMemoryShelfSnapshot> Function()? load;
+  /// Optional scope-change signal for embedder/tests; no personal data carried.
+  final Stream<void>? invalidations;
 
   @override
   State<GroveMemoryShelfView> createState() => _GroveMemoryShelfViewState();
@@ -63,22 +67,48 @@ class _GroveMemoryShelfViewState extends State<GroveMemoryShelfView> {
   bool _loading = true;
   int _request = 0;
   int _displayCount = 15;
+  StreamSubscription<dynamic>? _authChanges;
+  StreamSubscription<String>? _sessionChanges;
+  StreamSubscription<void>? _invalidationChanges;
 
   @override
   void initState() {
     super.initState();
+    _bindInvalidations();
     _refresh();
   }
 
   @override
   void didUpdateWidget(GroveMemoryShelfView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.load != widget.load) _refresh();
+    if (oldWidget.load != widget.load ||
+        oldWidget.invalidations != widget.invalidations) {
+      _bindInvalidations();
+      _refresh();
+    }
+  }
+
+  void _bindInvalidations() {
+    _authChanges?.cancel();
+    _sessionChanges?.cancel();
+    _invalidationChanges?.cancel();
+    if (widget.invalidations != null) {
+      _invalidationChanges = widget.invalidations!.listen((_) => _refresh());
+    }
+    if (widget.load == null) {
+      _authChanges = Supabase.instance.client.auth.onAuthStateChange
+          .listen((_) => _refresh());
+      _sessionChanges = ArborSession.instance.contextChanges
+          .listen((_) => _refresh());
+    }
   }
 
   @override
   void dispose() {
     _request++;
+    _authChanges?.cancel();
+    _sessionChanges?.cancel();
+    _invalidationChanges?.cancel();
     super.dispose();
   }
 
