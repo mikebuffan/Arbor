@@ -46,8 +46,10 @@ class _GroveLivingWindowPanelState extends State<GroveLivingWindowPanel> {
 
   DateTime get _shown {
     if (!_preview) return _live;
-    return DateTime(_live.year, _live.month, _live.day + _dayOffset)
-        .add(Duration(minutes: _minutes));
+    // Construct wall-clock fields, not elapsed minutes: a DST transition
+    // must not shift the user's selected local sundial time by an hour.
+    return DateTime(_live.year, _live.month, _live.day + _dayOffset,
+        _minutes ~/ 60, _minutes % 60);
   }
 
   @override
