@@ -41,6 +41,8 @@ jobs:
       - name: Analyze public entry point
         run: flutter analyze --no-fatal-infos --no-fatal-warnings lib/public
       - name: Compile public Android debug entry point (NO real alpha credentials)
+        env:
+          ARBOR_PUBLIC_ALPHA_BUILD: "true"
         run: >
           flutter build apk --debug
           --target lib/public/main_public.dart
