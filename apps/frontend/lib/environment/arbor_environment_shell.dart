@@ -17,6 +17,7 @@ import 'project_view.dart';
 import 'memory_state_view.dart';
 import 'tools_view.dart';
 import 'focus_view.dart';
+import 'attention_banner.dart';
 import '../pages/arbor_shell_page.dart';
 
 enum EnvironmentDestination { home, conversation, objective, queue, projects, memory, evidence, tools, benchmarks, focus, health, settings }
@@ -247,6 +248,11 @@ class _Surface extends StatelessWidget {
             style: const TextStyle(color: ArborEnvironmentTokens.textMuted, fontSize: 11, letterSpacing: 1.6),
           ),
           const SizedBox(height: 24),
+          if (selected == EnvironmentDestination.home ||
+              selected == EnvironmentDestination.objective) ...[
+            AttentionBanner(objective: objective, runtimeStale: runtimeStale),
+            const SizedBox(height: 16),
+          ],
           if (selected == EnvironmentDestination.home)
             _Home(
               objective: objective,
