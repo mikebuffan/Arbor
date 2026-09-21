@@ -132,6 +132,8 @@ begin
       status_reason='cancelled_by_owner',updated_at=v_now where id=p_session_id;
     return null;
   end if;
+  -- A scheduled session cannot execute before its configured start time.
+  if v_now < v_session.started_at then return null; end if;
   if v_now >= v_session.deadline_at or
      v_session.consumed_work_units >= v_session.max_work_units or
      v_session.committed_cost_cents >= v_session.max_cost_cents then
@@ -144,6 +146,9 @@ begin
       status_reason='authorization_required',updated_at=v_now where id=p_session_id;
     return null;
   end if;
+  -- Completion must be independently verified; an empty objective queue is
+  -- idle, never permission to claim unrelated leftover work.
+  if v_session.unresolved_required_work = 0 then return null; end if;
   -- No two active reservations in one session: caps are checked atomically.
   if exists(select 1 from public.arbor_research_units
       where session_id=p_session_id and status='leased'
