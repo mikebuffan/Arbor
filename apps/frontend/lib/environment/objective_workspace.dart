@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'environment_panel.dart';
 import 'environment_state.dart';
 import 'environment_tokens.dart';
+import 'grove_ark_handoff_view.dart';
 
 class ObjectiveWorkspace extends StatelessWidget {
   const ObjectiveWorkspace({super.key, required this.objective});
@@ -12,6 +13,7 @@ class ObjectiveWorkspace extends StatelessWidget {
     spacing: 16,
     runSpacing: 16,
     children: [
+      const SizedBox(width: 560, child: GroveArkHandoffView()),
       SizedBox(
         width: 560,
         child: EnvironmentPanel(
