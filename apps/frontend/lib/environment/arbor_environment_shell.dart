@@ -212,6 +212,7 @@ class _Surface extends StatelessWidget {
   final EnvironmentDestination selected;
   final EnvironmentObjectiveView objective;
   final List<WorkItemView> workItems;
+  final List<ActivityEvent> activityEvents;
   final String runtimeSource;
   final bool runtimeStale;
   final Widget? conversationLayer;
