@@ -62,4 +62,12 @@ Updated 2026-09-21. **Actual state, not promises.** Draft PR #123 remains isolat
 - [ ] Preserve anonymization and redact private-person/victim information; publish nothing automatically.
 - [ ] Triage every lead as verified public finding / corroborated difference / apparent conflict / insufficient evidence / extraction error / unresolved; retain rejected hypotheses and why they failed.
 
+## Implementation checkpoint — source-byte and lease safeguards
+
+- [x] Proposed SQL bounds worker lease expiration by the session deadline and rejects any settlement before the start window. This remains **proposed and not run on a real database**.
+- [x] Added `apps/backend/lib/research/pdfPageProvenance.ts` with a complete one-based physical-page inventory, explicit `image_only` and `extraction_failed` states, separate printed folios, and mandatory image/privacy review.
+- [x] Added a bounded pre-parser `capturePdfOriginalBytes` helper that checks PDF signature, rejects HTML/consent-page responses and files above 25 MiB, and computes SHA-256 on **actual original bytes** before parsing. Tests use harmless synthetic bytes; they do not establish that real public PDFs are parsed successfully.
+- [ ] Integrate a real PDF parser and benign, original public PDF fixture with visual page verification; create blocked tasks for scanned or inaccessible documents. The new helpers are intentionally *not* connected to the live worker or scheduler.
+- [ ] Verify the latest CI head after this worklist update, before treating the branch as green.
+
 **Hard boundary:** no production DB mutations, Edge Function deploys, production feature flags, costly project/branch creation, or public release from this worklist. Authorize and verify those separately.
