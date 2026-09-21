@@ -26,6 +26,11 @@ class ActivityView extends StatelessWidget {
       children: [
         const Text('ACTIVITY', style: TextStyle(color: ArborEnvironmentTokens.cyan, fontSize: 11, letterSpacing: 1.4)),
         const SizedBox(height: 12),
+        if (events.isEmpty)
+          const Text(
+            'No recorded ARK events for the displayed objective.',
+            style: TextStyle(color: ArborEnvironmentTokens.textMuted),
+          ),
         ...events.map((event) => Padding(
           padding: const EdgeInsets.symmetric(vertical: 8),
           child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [

@@ -184,6 +184,7 @@ class _EnvironmentRuntimeHostState extends State<EnvironmentRuntimeHost> {
       initialDestination: widget.initialDestination,
       objective: snapshot.objective,
       workItems: snapshot.workItems,
+      activityEvents: snapshot.activityEvents,
       runtimeSource: snapshot.source,
       runtimeStale: snapshot.stale,
     );
