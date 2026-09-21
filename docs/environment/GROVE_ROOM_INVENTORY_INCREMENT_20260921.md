@@ -15,16 +15,20 @@ production changes, or changes to the approved room artwork.
 - Filtered room reads that cannot expose another project's source entries.
 - Tests for the above, including immutable views, duplicate IDs, and invalid
   provenance.
+- A read-only room inventory panel on Grove Home and a Library-first view on
+  Memory & State, with room chooser and honest source/scenery labels.
+- Widget tests proving unauthenticated and mismatched-project source entries
+  are hidden. The production panels supply scenery only, not fake files.
 
 ## What is NOT built
 
-This is a contract, not a connected live Library, a durable database, a file
-upload, or an automatic room renderer. There is no persistence for inventory
+This is a visible, read-only catalog, NOT a connected live Library, a durable
+inventory database, a file upload, or art that changes with room objects. There is no persistence for inventory
 items and no authorization bypass: a future backend source lookup must still
 perform real authentication and ownership checks on every request.
 
 Next: review the Grove integration and perform signed-in physical device
-acceptance. After the branch is approved, connect an inventory-backed UI and
-explicit persistence with an owner-reviewed retention/sync policy. Do not merge
+acceptance. Later connect real authenticated file retrieval and explicit
+persistence with an owner-reviewed retention/sync policy. Do not merge
 this branch before PR #129 is accepted; do not independently merge the older
 Grove UI source branches in addition to #129.
