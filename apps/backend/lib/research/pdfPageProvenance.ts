@@ -14,6 +14,70 @@ export type PdfOriginalCapture = {
   declaredPageCount: number;
 };
 
+/**
+ * Deliberately bounded intake. A response that looks like an HTML login/age
+ * gate is NOT a PDF source. Do not bypass the gate or treat it as no evidence.
+ * A SHA-256 is computed on the exact input bytes, not extracted text.
+ */
+export const MAX_PDF_SOURCE_BYTES = 25 * 1024 * 1024;
+
+export async function capturePdfOriginalBytes(input: {
+  sourceUri: string;
+  documentId: string;
+  bytes: Uint8Array;
+  declaredPageCount: number;
+}): Promise<PdfOriginalCapture> {
+  if (!(input.bytes instanceof Uint8Array) ||
+      input.bytes.byteLength < 8 ||
+      input.bytes.byteLength > MAX_PDF_SOURCE_BYTES) {
+    throw new Error("invalid_pdf_original_byte_length");
+  }
+  // A UTF-8/HTML page from a redirected consent gate must fail closed.
+  const signature = new TextDecoder().decode(input.bytes.subarray(0, 5));
+  if (signature !== "%PDF-") {
+    throw new Error("invalid_pdf_binary_signature");
+  }
+  const normalizedBytes = new Uint8Array(input.bytes.byteLength);
+  normalizedBytes.set(input.bytes);
+  const digest = await crypto.subtle.digest("SHA-256", normalizedBytes.buffer);
+  const originalBytesSha256 = Array.from(new Uint8Array(digest))
+    .map(byte => byte.toString(16).padStart(2, "0")).join("");
+  const result: PdfOriginalCapture = {
+    sourceUri: input.sourceUri,
+    documentId: input.documentId,
+    originalBytesSha256,
+    originalByteLength: input.bytes.byteLength,
+    declaredPageCount: input.declaredPageCount,
+  };
+  // Reuse the same source-identity, HTTPS and page-count validation as intake.
+  // A no-data page inventory is not used because this is *pre-parser* capture.
+  validatePdfOriginalCapture(result);
+  return result;
+}
+
+function validatePdfOriginalCapture(original: PdfOriginalCapture): void {
+  required(original.sourceUri, "source_uri");
+  required(original.documentId, "document_id");
+  let uri: URL;
+  try { uri = new URL(original.sourceUri); }
+  catch { throw new Error("invalid_pdf_source_uri"); }
+  if (uri.protocol !== "https:" || !uri.hostname || uri.username || uri.password) {
+    throw new Error("invalid_pdf_source_uri");
+  }
+  if (!/^[a-fA-F0-9]{64}$/.test(original.originalBytesSha256)) {
+    throw new Error("invalid_pdf_original_bytes_hash");
+  }
+  if (!Number.isSafeInteger(original.originalByteLength) ||
+      original.originalByteLength < 5 ||
+      original.originalByteLength > MAX_PDF_SOURCE_BYTES) {
+    throw new Error("invalid_pdf_original_byte_length");
+  }
+  if (!Number.isSafeInteger(original.declaredPageCount) ||
+      original.declaredPageCount < 1 || original.declaredPageCount > 10000) {
+    throw new Error("invalid_pdf_page_count");
+  }
+}
+
 export type PdfExtractionStatus = "text_layer" | "image_only" | "extraction_failed";
 
 export type PdfExtractedPage = {
@@ -49,25 +113,7 @@ export function createPdfPageEvidenceRecords(
   original: PdfOriginalCapture,
   parsedPages: PdfExtractedPage[],
 ): PdfPageEvidenceRecord[] {
-  required(original.sourceUri, "source_uri");
-  required(original.documentId, "document_id");
-  let uri: URL;
-  try { uri = new URL(original.sourceUri); }
-  catch { throw new Error("invalid_pdf_source_uri"); }
-  if (uri.protocol !== "https:" || !uri.hostname || uri.username || uri.password) {
-    throw new Error("invalid_pdf_source_uri");
-  }
-  if (!/^[a-fA-F0-9]{64}$/.test(original.originalBytesSha256)) {
-    throw new Error("invalid_pdf_original_bytes_hash");
-  }
-  if (!Number.isSafeInteger(original.originalByteLength) ||
-      original.originalByteLength < 5) {
-    throw new Error("invalid_pdf_original_byte_length");
-  }
-  if (!Number.isSafeInteger(original.declaredPageCount) ||
-      original.declaredPageCount < 1 || original.declaredPageCount > 10000) {
-    throw new Error("invalid_pdf_page_count");
-  }
+  validatePdfOriginalCapture(original);
   if (!Array.isArray(parsedPages) ||
       parsedPages.length !== original.declaredPageCount) {
     throw new Error("incomplete_pdf_page_inventory");
