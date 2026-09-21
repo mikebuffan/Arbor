@@ -29,7 +29,7 @@ export async function GET(req: Request) {
     });
 
     return NextResponse.json(
-      { ok: true, handoff: buildArkHandoff(snapshot) },
+      { ok: true, projectId, handoff: buildArkHandoff(snapshot) },
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {
