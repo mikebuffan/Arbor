@@ -7,6 +7,7 @@ import '../api/arbor_api_client.dart';
 import '../api/arbor_session.dart';
 import '../config/arbor_config.dart';
 import 'arbor_environment_shell.dart';
+import 'grove_app_mode.dart';
 import 'environment_adapter.dart';
 import 'environment_state.dart';
 
@@ -40,7 +41,9 @@ class _EnvironmentRuntimeBootstrapState
   Widget build(BuildContext context) =>
       EnvironmentRuntimeHost(
         adapter: _adapter,
-        initialDestination: EnvironmentDestination.conversation,
+        initialDestination: groveStandalone
+            ? EnvironmentDestination.home
+            : EnvironmentDestination.conversation,
       );
 }
 
