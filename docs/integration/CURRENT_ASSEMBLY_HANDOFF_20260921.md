@@ -34,6 +34,33 @@ Connected Supabase listing showed three existing projects: current Firefly, ARK 
 
 **Next real-world prerequisite:** Danelle chooses the intended Supabase organization and approves the exact quoted creation cost and provider arrangement before a project can be created. Vercel/Grove service isolation and the signed-in cross-provider read-only bridge remain implementation/release work after that. Do not send private credentials through chat and do not assume Mike is required merely because his name owns the existing workspace.
 
+## Verified client → private API → ARK/Layer → LM seam (read-only source inspection)
+
+Inspected Grove #151 `apps/frontend/lib/main.dart`, `config/arbor_config.dart`, `api/arbor_api_client.dart`, `environment/environment_runtime_host.dart`; inspected ARK/Layer #147 `apps/backend/lib/arbor/behavior/arkLayerReadContext.ts` and `behaviorProjection.ts`; consulted the isolated private LM v0.3.5 broker handoff in Library. This is a **contract analysis**, not a working live end-to-end test.
+
+1. Grove #151 initializes a *new* private Supabase client, gates UI on a session with its issuer, routes `ArborConfig.apiBaseUrl` to `GROVE_API_URL`, and sends that Grove session access token in `ArborApiClient` Authorization header. This prevents accidental Firefly host inheritance at client startup; the client does not verify server entitlement or create a bridge.
+2. #147 `readArkLayerContext` expects a Firefly-side Supabase client and a user ID validated by the trusted host; it checks project ownership and optional conversation/attachment scope **before** fetching ARK or continuity. Its `activeObjectiveHandoff: 'not_resolved'` and `liveExecutionVerified:false` are intentionally weaker than #125/#138 selected-objective handoff. Never substitute counts for an active goal or tell the LM that a worker ran.
+3. The isolated v0.3.5 Python receiver accepts the strictly versioned #147 read context behind a trusted host; the optional signed HTTP request is not installed in Grove. Its synthetic/fake-model tests do not establish real Qwen inference. The public alpha `POST /generate` payload has a separate strict schema and must not receive these extra private context fields.
+
+**Necessary crossing, owned by private Grove backend/ARK+Layer collaboration:** verify Grove JWT against *Grove issuer* + signature/audience/expiry and owner invitation; resolve a revocable owner-approved mapping to the *Firefly-side* project/user; create properly scoped Firefly DB context server-side (never transplant the Grove JWT into Firefly or use one global admin project); call #147 with a validated conversation/attachment binding; optionally read #125/#138 selected-objective handoff separately; make a bounded, per-request signed private LM envelope; return truthful availability and receipt metadata. Existing Firefly/ARK status endpoints must remain protected against cross-provider tokens. The public app must not access this mapping. Design/API changes belong to the lane owners, **not** an integration-doc patch.
+
+**Synthetic acceptance matrix before a real release:**
+
+| Test | Expected |
+| --- | --- |
+| No Grove auth configuration or missing private API | Fail closed/setup state; no Firefly fallback or fake login |
+| Firefly/ARK Preview/public JWT sent to Grove API | Reject before project, memory or model read |
+| Grove JWT sent directly to Firefly/ARK API | Reject; must not be implicitly recognized as Firefly owner |
+| Valid invited Grove owner, mapped Firefly project P, conversation C | Only P/C authorized read context, explicit `liveExecutionVerified:false` unless a separate real proof exists |
+| Same Grove token requests another owner's project Q, or wrong conversation/attachment | Deny before any context or attachment metadata returns |
+| Invitation revoked, token expired, mapping removed | Deny, invalidate cached client-visible shelves and broker context |
+| Grove session A→B or P→Q while network read in flight | Clear immediately; discard old late response at every screen and backend cache |
+| Missing/stale ARK, selected objective or model endpoint | Truthful unavailable/unresolved status; no invented task success |
+| Two simultaneous calls / lost response / retry | No duplicate model side effects; no fabricated completed turn or ARK task receipt |
+| Real model response with bound host context | Review private adapter's actual text, identity/correction behavior and tool/payment claims; success HTTP is **not** evidence of ARK work execution |
+
+**Gate before Mike:** these developer-review tasks, synthetic tests and draft backend work can proceed in their owned lanes without local-only access. Provisioning requires Danelle's exact organization and cost authorization, not automatically Mike. Mike enters only for genuinely inaccessible private host/runtime, release signing or resources he alone controls.
+
 ## Owner-facing handoff: when to ask whom
 
 | Need | Responsible next step |
