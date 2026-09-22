@@ -43,7 +43,7 @@ Legend: [x] draft code plus relevant exact-head CI evidence exists; [~] partial/
 30. [~] #136 content identity vs URL/local ID; durable canonical index/final redirect/cross-project persistence remain.
 31. [x] #139 typed one-step evidence promotion; CI `35663024929`.
 32. [~] Original-page/context review contract exists; real workflow remains.
-33. [~] Privacy/publication gates exist; actual PII/publication-review implementation remains.
+33. [~] Privacy/publication gates exist; new synthetic-only `publicationPreflight.ts` requires explicit review receipts and unresolved-flag clearance but always retains release-authorization HOLD. No automatic PII detection or real-data redaction claim; CI pending.
 34. [x] #141 immutable rejected-hypothesis/missing-data/failure receipts.
 35. [~] Byte-identical mirrors do not count as independent corroboration; source-chain independence proof remains.
 
@@ -76,7 +76,7 @@ Legend: [x] draft code plus relevant exact-head CI evidence exists; [~] partial/
 57. [x] Starter MCC/OIG ledger separates published official findings from open questions.
 58. [ ] **BLOCKED — item 18 + separate source authorization:** specific public EFTA original-page verification.
 59. [ ] Reconcile testimony/logs/timestamps only after original-source capture.
-60. [ ] Redact victim/private-person information before user-visible report/share.
+60. [~] Synthetic-only review preflight drafted; actual victim/private-person detection, redaction, human verification and release workflow remain BLOCKED on approved privacy workflow. No real private data processed.
 61. [x] Pure synthetic-only classification in draft #163 (observation/conflict/missing context/insufficient evidence/extraction error/unresolved/finding), fail-closed source/context checks and permanent review/privacy HOLD; exact-head CI `57c48a873280f7e358625799b995ee4adfb27998` backend/control/Flutter and real disposable PDF sandbox smoke passed. Workflow integration and real finding review remain separate.
 62. [x] Mention/allegation alone is never evidence of a crime.
 63. [ ] Dated source-checkable report with counterevidence/limitations/unresolved questions.
@@ -102,3 +102,5 @@ Verified lineage remains #123 → #131 → #134 → #135 → #136 → #139 → #
 - Next numbered gate remains #18 independently published benign PDF review; #40 disposable DB; #47 live worker. Independent safe next: item 33/60 synthetic privacy gate and item 35 source-chain independence tests. No real private/victim data, external PDFs, paid API, live worker, DB, scheduler, merge, deployment or publication.
 
 - Exact-head `57c48a873280f7e358625799b995ee4adfb27998` CI later completed successfully for backend/control/Flutter and real disposable PDF sandbox smoke; item 61 **pure module** now [x]. Supabase Preview skipped, not DB verification.
+
+- Draft #163 subsequent independent synthetic `publicationPreflight.ts` + Vitest tests: requires source/page review, privacy/publication receipts, no unresolved flags, and NEVER grants automatic sharing. At new head, exact-head CI pending. This is not automated redaction or publication approval.
