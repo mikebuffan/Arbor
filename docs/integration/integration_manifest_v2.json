@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "as_of": "2026-09-21 America/Los_Angeles (2026-09-22 UTC)",
+  "as_of": "2026-09-22 PDT (2026-09-22 UTC); refreshed tracked PR heads/main",
   "repository": "mikebuffan/Arbor",
   "main_sha": "d46f6b46fc51ac3db4e158cddfc592c52cc2b5ef",
   "product_separation": [
@@ -16,7 +16,7 @@
     "integration": "Cross-lane integration"
   },
   "tip_pr_by_lane": {
-    "grove": 155,
+    "grove": 156,
     "ark_layer": 147,
     "public_app": 146,
     "research": 152
@@ -130,7 +130,7 @@
     },
     {
       "number": 152,
-      "sha": "d049301558a2129cbb5d38f88fa7a407b0822dc5",
+      "sha": "303b5e74d6dec0dc7737690b7bb53d07e575d705",
       "base": "feat/ark-pdf-page-image-provenance-20260921",
       "base_sha": "fec26c3e6006a895e04042b47ed97167e220c227",
       "state": "open",
@@ -172,7 +172,19 @@
       "draft": true,
       "merged": false,
       "owner": "grove",
-      "branch": "feat/grove-private-read-broker-20260921"
+      "branch": "feat/grove-private-read-broker-20260921",
+      "stacked_into": 156
+    },
+    {
+      "number": 156,
+      "sha": "8999a570cf20b8496f984f62a298a58ef67d7217",
+      "base": "feat/grove-private-read-broker-20260921",
+      "base_sha": "951c41e17fff5d49c4c498d8a709fabbe7f4ee3d",
+      "state": "open",
+      "draft": true,
+      "merged": false,
+      "owner": "grove",
+      "branch": "deploy/grove-private-api-20260921"
     }
   ],
   "external_bases": [
@@ -264,10 +276,22 @@
     {
       "id": "grove_manual_mapping_schema",
       "owner": "grove",
-      "stage": "tested",
+      "stage": "implemented",
       "ref_pr": 155,
-      "pending": "Exact code SHA passed all backend/Flutter tests, TypeScript and build at CI 35687923776 incl private host isolation/legacy routes/heartbeat guard; latest head handoff-doc-only. Live invited owner/bridge grants, standalone Grove Vercel host/config, OTP and physical ARK read remain open; manual DDL missing ledger.",
+      "pending": "Schema and deny-all RLS inspected, exact implementation tests were run at prior 9f363f...; #155 latest head only handoff docs. Manual DDL missing migration ledger. Live invitation/ARK bridge and standalone Grove host pending.",
       "prior_tested_sha": "9f363f989ed42dbc66dee4eeda5cf37f0c371787"
+    },
+    {
+      "id": "grove_private_api_credential_free_build",
+      "owner": "grove",
+      "stage": "tested",
+      "ref_pr": 156,
+      "proof": {
+        "sha": "8999a570cf20b8496f984f62a298a58ef67d7217",
+        "run_id": 35696240828,
+        "scope": "GitHub Actions backend tests, TypeScript and Next.js build with OPENAI_API_KEY empty; NOT Vercel production deploy or owner login"
+      },
+      "pending": "Vercel release capacity; fresh production deploy commit, origin, owner authentication and actual ARK read. Github commit status rate-limited retry in 24h at 2026-09-22 06:44 UTC."
     }
   ],
   "exclusive_path_prefixes": {
@@ -319,5 +343,5 @@
     "rollback_proof",
     "owner_approval"
   ],
-  "notes": "September 21 PDT / September 22 UTC: Grove independent Supabase healthy; manual bridge RLS applied with 0 grants and ledger gap. Grove #155 code 9f363f... CI 35687923776 green with private host route isolation, latest head docs-only. Vercel lists firefly only; inherited backend cron needs review before private deployment. No owner invite/live ARK or model. Re-fetch observed heads for promotion."
+  "notes": "2026-09-22 PDT: Grove #156 credential-free CI 35696240828 passed at 8999a570...; separate Grove Vercel project and seven production settings confirmed in Danelle's UI (connected Vercel project-list is incomplete), next deploy is rate-limited per dated GitHub status. Existing two bridge tables applied manually but no migration ledger; all grants 0. Actual owner invited, actual private live API and model/phone unverified. Research #152 doc-only head moved 303b5e..., not exact-code CI. Refresh all observations for promotion."
 }
