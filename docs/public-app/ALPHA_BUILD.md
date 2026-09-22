@@ -77,3 +77,104 @@ Supabase security linter found multiple RLS-enabled tables with no policies and 
 4. Manual first evaluation highlights correction uptake and unsupported completion claims; further controlled evaluation needed.
 
 Do not mark the private alpha working until actual end-to-end receipts exist.
+
+
+## Continuation branch checkpoint — public history and portability
+
+This continuation is in draft PR #146, stacked on original draft PR #140.
+The source branch is `arbor/public-alpha-continuity-privacy-20260921`.
+Neither PR may be merged independently; neither authorizes production changes.
+
+### Newly written code (NOT deployed acceptance evidence)
+
+- GET one conversation fetches newest 100 turns first, with an explicit offset and
+  `hasMore` / `nextOffset` for older pages; invalid offsets return 400. This
+  changes the former 200-message first-page ceiling. The public Flutter surface
+  can load earlier turns, and view revision checks discard stale history
+  responses after switching conversations. Reopening favors the latest
+  unfinished user turn. Pagination is bounded at offset 10000 and requires
+  a larger-history design before unrestricted archives or UI history claims.
+- An explicitly requested `GET /api/public/conversations?export=1` returns
+  public-alpha conversations and messages belonging to the authenticated
+  user. Every query includes `user_id`. The archive fails with 413 rather
+  than falsely reporting completion above 2000 conversations or 20000 turns.
+  The Flutter alpha offers explicit clipboard copying after a device-privacy
+  warning. This is not a permanent file download and the OS clipboard may
+  retain content. It is not a GDPR/CCPA compliance assertion.
+- Public JSON responses now carry `cache-control: private, no-store` and
+  `x-content-type-options: nosniff`.
+- Synthetic user A/B query-scoping and archive boundary tests added.
+  These are mocks, not an isolated real Postgres cross-user RLS test.
+
+### Prioritized follow-up still required
+
+1. Confirm exact-child-head backend tests, Flutter analyze, public Android debug
+   build, and integration checks. A green parent is NOT a green child.
+2. Validate retry races across two actual alpha API instances: one user turn ID
+   may currently trigger two simultaneous inference calls; the DB uniqueness
+   protects stored assistant duplication but does NOT make inference single
+   flight. Add a durable DB claim/lease and replacement-worker test on the
+   isolated alpha database before advertising retry-idempotent execution.
+3. Run two synthetic confirmed invite accounts on the **dedicated public**
+   Supabase and alpha API; verify each user's JWT, conversations, exports,
+   corrections, and deletions never disclose or mutate the other's data.
+   Include mismatched conversation/turn IDs, expired tokens and re-authentication.
+4. Check same-account sign-out/sign-in, app force-close/relaunch, the latest
+   incomplete turn, earlier-page loads above 200 messages, and new account with
+   zero history on a real Android device. Disable/re-enable network mid-send.
+5. Design and review a public-only, explicitly consented memory schema and
+   CRUD/export/delete controls. Do NOT read private Firefly, ARK Preview, or
+   Grove memories. Do not claim durable public memory until these controls and
+   server-side retrieval actually work and are accepted.
+6. Design public ARK project grants separately from ChatGPT/owner ARK Preview.
+   Default is NO attachment: enforce project owner, account, task authorization,
+   input provenance, read/write scope, and response minimization at the API.
+   Only expose scoped status/continuity after a real two-account test; never
+   accept phone-supplied userId as identity.
+7. Validate Arbor LM v0.3 hosted exact adapter/version from the private
+   artifact store without checking weights or private evaluation prompts
+   into this public repo. The gateway must fail closed on unavailable/model
+   mismatch and may not make unsupported action or clinical claims.
+8. Before any mental-wellness feature testing with people: define supported
+   use cases, minimum age/consent posture, immediate-danger response,
+   escalation language, self-harm and delusion/mania evaluation,
+   human-support routes, model uncertainty, incident handling, and a review
+   process. Software must not imply active emergency monitoring or act as
+   a licensed clinician. No clinical validation or regulatory approval claimed.
+9. Obtain product/privacy review of data purpose, disclosures, processor
+   terms, transmission, access logs, retention clocks, backups, deletion from
+   backups, full account deletion, user export size limits, model-input use,
+   and policy for sensitive data. Conversation deletion != account deletion.
+10. Run real Android accessibility acceptance: screen reader traversal,
+    text scaling, keyboard, high contrast, error visibility, long-scroll
+    performance, slower network and reduced executive-function load.
+11. Invite-only alpha must have explicit rollout and rollback decisions,
+    service-cost limits, capacity alerts, incident contact, and documented
+    synthetic-fixture cleanup. No wider release on compilation alone.
+
+### Real-device alpha acceptance criteria
+
+- New invited A can register, confirm email and sign in; new uninvited B is
+  denied by server even if Flutter is modified.
+- A's first turn returns *actual hosted v0.3* model identity; model-down
+  produces an explicit unavailable state without fabricated reply.
+- A closes/reopens and recovers the last full turn, and an unanswered turn
+  retries with exactly its persisted turn ID without a duplicate saved turn.
+- B, with its own alpha invite, cannot read, export, delete or send within A's
+  conversation, including a guessed UUID and simultaneous sessions.
+- A navigates more than 200 turns and earlier pages without losing the
+  newest pending state or displaying a stale previous-thread response.
+- A can export public data, delete a conversation, confirm that its child
+  messages are absent on reread/export, and verify B's history remains intact.
+- Confirm owner-scoped memory/correction behavior only *after it exists*.
+  No claim of Text/Voice continuity or public ARK work execution in this slice.
+
+### Truth ledger
+
+`written`: public history pagination, clipboard archive UI, scoped archive
+API, no-store headers, synthetic regressions. `verified`: parent PR #140
+has exact-head CI receipts; child PR #146 needs its own exact-head receipts.
+`not deployed`: isolated alpha DB, API, model GPU/HTTPS; no costs incurred.
+`not passed`: real users, real device, cross-user Postgres RLS and model
+conversation end-to-end. `not implemented`: long-term public memory,
+user-wide deletion, ARK attachment, clinical/wellness evaluation.
