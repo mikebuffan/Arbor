@@ -8,11 +8,15 @@ const mock = vi.hoisted(() => ({
   readArkProjectSnapshot: vi.fn(),
   loadLatestRuntimeState: vi.fn(),
   loadRuntimeState: vi.fn(),
+  assertAttachmentOwnedByScope: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/ownership", () => ({
   assertProjectOwnedByUser: mock.assertProjectOwnedByUser,
   assertConversationOwnedByUser: mock.assertConversationOwnedByUser,
+}));
+vi.mock("@/lib/attachments/scope", () => ({
+  assertAttachmentOwnedByScope: mock.assertAttachmentOwnedByScope,
 }));
 vi.mock("@/lib/ark/readModel", () => ({
   readArkProjectSnapshot: mock.readArkProjectSnapshot,
@@ -83,6 +87,12 @@ describe("owner-scoped ARK -> Arbor Layer read crossing", () => {
     mock.readArkProjectSnapshot.mockResolvedValue(snapshot);
     mock.loadLatestRuntimeState.mockResolvedValue(state());
     mock.loadRuntimeState.mockResolvedValue(state());
+    mock.assertAttachmentOwnedByScope.mockResolvedValue({
+      id: "attachment-a", user_id: userId, project_id: projectId,
+      conversation_id: conversationId, status: "uploaded",
+      storage_bucket: "chat-attachments",
+      storage_path: `${userId}/${projectId}/${conversationId}/attachment-a/example.pdf`,
+    });
   });
 
   it("reads the exact owner/project/conversation without creating or executing work", async () => {
@@ -102,6 +112,8 @@ describe("owner-scoped ARK -> Arbor Layer read crossing", () => {
       supabase, userId, projectId, conversationId,
     });
     expect(mock.loadLatestRuntimeState).not.toHaveBeenCalled();
+    expect(mock.assertAttachmentOwnedByScope).not.toHaveBeenCalled();
+    expect(result.selectedAttachment).toBeNull();
     expect(result.access).toBe("read-only");
     expect(result.ark).toEqual({
       available: true, capturedAt: timestamp, objectiveCountInWindow: 1,
@@ -189,6 +201,57 @@ describe("owner-scoped ARK -> Arbor Layer read crossing", () => {
       startupPrompt: null,
     });
     expect(result.behavior.promptBlock).not.toContain("Finish the scoped ARK integration");
+  });
+
+  it("joins a file selected from Grove without pretending its bytes were read", async () => {
+    const result = await readArkLayerContext({
+      supabase: {} as never, authenticatedUserId: userId, projectId,
+      conversationId, selectedAttachment: { conversationId, attachmentId: "attachment-a" },
+      mode: "text",
+    });
+    expect(mock.assertAttachmentOwnedByScope).toHaveBeenCalledWith({
+      supabase: {}, userId, projectId, conversationId, attachmentId: "attachment-a",
+    });
+    expect(result.selectedAttachment).toEqual({
+      source: "chat_attachment_metadata",
+      attachmentId: "attachment-a", projectId, conversationId,
+      displayName: "example.pdf", originalBytesRead: false, citationVerified: false,
+    });
+    expect(JSON.stringify(result)).not.toContain("chat-attachments/");
+    expect(result.behavior.promptBlock).not.toContain("example.pdf");
+    expect(result.behavior.guardRequirements).not.toContain("example.pdf");
+  });
+
+  it("fails the whole read when selected file is not owned or was deleted", async () => {
+    mock.assertAttachmentOwnedByScope.mockRejectedValueOnce(new Error("attachment_not_found"));
+    await expect(readArkLayerContext({
+      supabase: {} as never, authenticatedUserId: userId, projectId,
+      selectedAttachment: { conversationId: "foreign-conversation", attachmentId: "other" },
+      mode: "text",
+    })).rejects.toThrow("attachment_not_found");
+
+    mock.assertAttachmentOwnedByScope.mockResolvedValueOnce({
+      status: "deleted",
+      storage_path: "irrelevant",
+    });
+    await expect(readArkLayerContext({
+      supabase: {} as never, authenticatedUserId: userId, projectId,
+      selectedAttachment: { conversationId, attachmentId: "attachment-a" },
+      mode: "text",
+    })).rejects.toMatchObject({ message: "attachment_not_found", status: 404 });
+  });
+
+  it("strips hostile control characters from selected file display names", async () => {
+    mock.assertAttachmentOwnedByScope.mockResolvedValueOnce({
+      status: "uploaded", storage_path: "scope/control\\u0000file\\u001fname.pdf",
+    });
+    const result = await readArkLayerContext({
+      supabase: {} as never, authenticatedUserId: userId, projectId,
+      selectedAttachment: { conversationId, attachmentId: "attachment-a" },
+      mode: "text",
+    });
+    expect(result.selectedAttachment?.displayName).toBe("controlfile.name.pdf");
+    expect(result.selectedAttachment?.originalBytesRead).toBe(false);
   });
 
   it("does not claim an exhaustive history when bounded read limits are reached", async () => {
