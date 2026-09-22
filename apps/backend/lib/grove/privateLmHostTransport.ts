@@ -139,7 +139,15 @@ export async function sendPrivateGroveLmTurnFromVerifiedHost(
     request?: typeof fetch;
   } = {},
 ): Promise<GroveLmUnverifiedReply> {
-  const config = options.config ?? privateGroveLmHostConfig();
+  // Tests may inject configuration; never let an injected value bypass the
+  // same TLS, path, credential and service-key checks as process.env.
+  const config = options.config
+    ? privateGroveLmHostConfig({
+        ARBOR_LM_PRIVATE_URL: options.config.url,
+        ARBOR_GROVE_API_KEY: options.config.apiKey,
+        ARBOR_GROVE_BROKER_HMAC_KEY: options.config.hmacKey,
+      })
+    : privateGroveLmHostConfig();
   if (![input.ownerId, input.projectId, input.conversationId]
       .every(id => typeof id === "string" && uuid.test(id))) {
     throw new GroveLmTransportError("private_lm_scope_rejected");
@@ -209,7 +217,11 @@ export async function sendPrivateGroveLmTurnFromVerifiedHost(
       !Array.isArray(data.work_receipts) ||
       data.work_receipts.length !== 0 ||
       typeof data.ark_connected !== "boolean" ||
+      data.ark_connected !==
+        (input.readContext.ark as Record<string, unknown>).available ||
       typeof data.continuity_fetched !== "boolean" ||
+      data.continuity_fetched !==
+        (input.readContext.continuity as Record<string, unknown>)?.available ||
       !["unverified_model_text", "known_action_claim_filtered"]
         .includes(String(data.reply_verification))) {
     throw new GroveLmTransportError("private_lm_bad_response");
