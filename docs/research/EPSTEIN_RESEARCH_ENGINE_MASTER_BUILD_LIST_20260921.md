@@ -2,16 +2,16 @@
 
 Updated 2026-09-21. **One ARK lineage. No second engine.** Source-first public-document research only. Draft code is not deployment, authorization, verified research, or a finding. Use only lawful public material; never publish victim/private-person identifiers.
 
-**Verified research stack:** #123 bounded sessions/evidence policy → #131 exact quote bridge/test discovery → #134 local Poppler synthetic-fixture parser → #135 untrusted-PDF threat model → #136 content-first source/version identity → #139 evidence-stage promotion contract. Grove PRs are a separate lane. Do not independently merge overlapping stacked PRs or overwrite deployed investigation worker v5.
+**Research stack:** #123 bounded sessions/evidence policy → #131 exact quote bridge/test discovery → #134 local Poppler synthetic-fixture parser → #135 untrusted-PDF threat model → #136 content-first source/version identity → #139 evidence-stage promotion contract → #141 research outcome receipts → #142 bounded PDF batch planning. Grove and public-app PRs are separate lanes. Do not independently merge overlapping stacked PRs or overwrite deployed investigation worker v5.
 
-Legend: [x] draft code plus relevant CI evidence exists; [~] partial; [ ] required; **BLOCKED** means the named gate is intentionally not authorized in this build lane.
+Legend: [x] draft code plus relevant exact-head CI evidence exists; [~] partial or CI pending; [ ] required; **BLOCKED** means the named gate is intentionally not authorized in this build lane.
 
 ## 1. Preserve existing systems before integration
 
 1. [x] Inventory/synchronize worker-v5 source on isolated #123 without deployment.
-2. [x] Preserve research/Grove branch lineage; no research changes to Grove.
+2. [x] Preserve research/Grove/app branch lineage; no research changes to those lanes.
 3. [x] Preserve original-byte SHA and physical PDF page separately from printed folio.
-4. [x] Review parent heads/open PRs before each child; current research child is #139 on exact #136 head `5a165d4e8c4900b52237313d07a65feee7a30811`.
+4. [x] Review parent heads/open PRs before each child; #141 was created from #139 exact head `9699ce8fee510979ffc9909220752f49a968a083`; #142 was created from #141 exact head `a8909b880d4d4ab107244f165a20a51d593b7024`.
 5. [ ] **BLOCKED — live integration approval:** capture reviewed worker-v5 deployment backup + rollback receipt before live changes.
 6. [ ] **BLOCKED — live integration approval:** confirm deployed Vercel roots/cron and Firefly auth immediately before integration.
 7. [~] Poppler is installed in CI for harmless fixture tests; immutable sandbox runtime/image digest still required.
@@ -30,7 +30,7 @@ Legend: [x] draft code plus relevant CI evidence exists; [~] partial; [ ] requir
 17. [x] Every page keeps original SHA and independent-review HOLD.
 18. [ ] **BLOCKED — sandbox gate:** independently published benign PDF acceptance + manual rendered-page/line-order verification must wait for executable untrusted-file isolation.
 19. [ ] Add page-image rendering provenance and explicit source-stamp capture; never infer stamps from filenames.
-20. [ ] Design split/batch handling above local caps while preserving one full-file SHA and original physical-page numbering.
+20. [~] #142 adds pure bounded page-batch planning above the 128-page local ceiling while preserving one full-file SHA, original document page count and original physical-page numbering; exact-head CI is pending and executable byte splitting remains blocked on sandbox design.
 21. [~] #135 specifies disposable non-root/no-egress/read-only-root/resource-capped sandbox requirements; executable pinned sandbox is not implemented.
 22. [ ] Opt-in OCR processor with source-image reference, confidence and mandatory human verification.
 23. [ ] Per-page glyph/box geometry only if exact visual highlighting becomes required; extracted UTF-16 offsets are not PDF/image coordinates.
@@ -44,10 +44,10 @@ Legend: [x] draft code plus relevant CI evidence exists; [~] partial; [ ] requir
 28. [x] Synthetic end-to-end bytes → Poppler → page → exact quote → comparison-draft test.
 29. [ ] **BLOCKED — disposable DB first:** persist source capture, extraction run, spans and claim lineage as atomic immutable evidence records.
 30. [~] #136 separates content identity from URL/local ID, detects byte-identical mirrors and same-URL changed bytes. Durable owner/project canonical index, final-redirect capture and cross-project persistence tests remain.
-31. [~] #139 adds typed `source_quote → verified_observation → interpretation → hypothesis → published_finding` one-step promotion. Exact-head CI is pending; persistence/integration remain.
+31. [x] #139 adds typed `source_quote → verified_observation → interpretation → hypothesis → published_finding` one-step promotion; exact-head CI run 35663024929 passed. Persistence/integration remain separately gated.
 32. [~] #139 requires original-page + context review before quote becomes verified observation. Real visual-review workflow remains.
 33. [~] #139 requires privacy + publication review before `published_finding`; actual PII filter/publication-review implementation remains.
-34. [~] #139 preserves explicit counterevidence references; durable rejected-hypothesis/missing-data/failure receipts still required.
+34. [~] #141 adds pure immutable audit contracts for rejected hypotheses, missing data and extraction failures with timestamps/reasons/provenance and no overwrite semantics. Exact-head CI run 35668980141 is in progress; durable persistence remains blocked on item 40.
 35. [~] #136 prevents byte-identical mirrored URLs from being counted as independent corroboration; source-chain independence proof still required.
 
 ## 4. Bounded sessions and database safety
@@ -90,8 +90,8 @@ Legend: [x] draft code plus relevant CI evidence exists; [~] partial; [ ] requir
 
 ## Current handoff
 
-**Last verified parent:** #136 exact head `5a165d4e8c4900b52237313d07a65feee7a30811`; Arbor Integration CI run 35659500799 passed. #136 includes eight focused source-version tests inside the backend suite.
+**Verified through #139:** #139 exact head `9699ce8fee510979ffc9909220752f49a968a083`; Arbor Integration CI run 35663024929 passed. Parent #136 run 35659500799 also passed.
 
-**Current child:** draft #139, `feat/ark-evidence-stage-contract-20260921`, adds items 31–34 as pure fail-closed contracts/tests. No real Epstein/EFTA files, network fetch, DB writes, worker/scheduler changes, deployment, merge or paid APIs. Exact-head CI run 35662941056 is running; do not call #139 verified until it passes.
+**Current children:** draft #141 `feat/ark-research-outcome-receipts-20260921` adds item 34's pure receipt contract; exact-head CI run 35668980141 is in progress. Draft #142 `feat/ark-pdf-batch-plan-20260921` adds item 20's pure provenance-preserving batch plan; exact-head CI run 35669083343 is queued/running. No real Epstein/EFTA files, network fetch, DB writes, worker/scheduler changes, deployment, merge or paid APIs were used.
 
-**Next safe order:** finish #139 CI/fix any code failure → add durable failure/rejection receipt contract if it can remain pure → design split/batch provenance or page-render provenance → executable sandbox only if it can be implemented and tested without unsafe untrusted-file execution. DB/live-worker/scheduler/public-record analysis stay blocked on their explicit gates above.
+**Next safe order:** finish #141/#142 exact-head CI and fix code failures if any → page-image rendering provenance/source-stamp review contract → executable sandbox only if it can be pinned and tested safely without external untrusted input. DB/live-worker/scheduler/public-record analysis remain blocked on their explicit gates above.
