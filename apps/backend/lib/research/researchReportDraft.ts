@@ -26,7 +26,7 @@ export function formatResearchReportDraft(input: ResearchReportDraftInput): stri
  const reportId=required(input.reportId,'report_id');
  const scope=required(input.scope,'scope');
  const asOf=required(input.asOf,'as_of');
- if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(asOf)||new Date(asOf+'T00:00:00.000Z').toISOString().slice(0,10)!==asOf) {
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(asOf)||new Date(asOf+'T00:00:00.000Z').toISOString().slice(0,10)!==asOf) {
    throw new Error('invalid_as_of');
  }
  if(!Array.isArray(input.candidates)) throw new Error('invalid_candidates');
@@ -47,9 +47,9 @@ export function formatResearchReportDraft(input: ResearchReportDraftInput): stri
   'Source record IDs (NOT verified citations): '+(candidate.sourceRecordIds.join(', ')||'none'),
   'Counterevidence record IDs: '+(candidate.counterevidenceRecordIds.join(', ')||'none'),
   'Status: '+candidate.reviewStatus+' / '+candidate.sharingStatus,
- ].join('\\n')),
+ ].join('\n')),
  'Limitations: '+(limitations.join(' | ')||'not supplied'),
  'Unresolved questions: '+(unresolved.join(' | ')||'not supplied'),
  'No automated publication. Association or allegation alone is not proof of wrongdoing.',
- ].join('\\n\\n');
+ ].join('\n\n');
 }
