@@ -61,17 +61,26 @@ describe("ARK x Arbor Layer work-order boundary", () => {
   });
 
   it("permits an explicit same-objective checkpoint handoff, not a running takeover", () => {
-    for (const status of ["checkpointed", "blocked"] as WorkStatus[]) {
-      expect(decide(
-        { threadId: "thread-b", intent: "take_over", explicitTakeover: true },
-        { ...active, status },
-      ).disposition).toBe("handoff_checkpointed");
-    }
-    for (const status of ["running", "queued", "awaiting_verification", "failed"] as WorkStatus[]) {
+    expect(decide(
+      { threadId: "thread-b", intent: "take_over", explicitTakeover: true },
+      { ...active, status: "checkpointed" },
+    ).disposition).toBe("handoff_checkpointed");
+    for (const status of ["running", "queued"] as WorkStatus[]) {
       expect(decide(
         { threadId: "thread-b", intent: "take_over", explicitTakeover: true },
         { ...active, status },
       ).disposition).toBe("concurrent_thread_conflict");
+    }
+    for (const [status, disposition] of [
+      ["blocked", "blocked_objective_requires_resolution"],
+      ["failed", "failed_objective_requires_recovery"],
+      ["awaiting_verification", "verification_pending"],
+    ] as const) {
+      expect(decide(
+        { threadId: "thread-b", intent: "take_over", explicitTakeover: true },
+        { ...active, status },
+      )).toMatchObject({ disposition, requiresReconciliation: true, grantsExecution: false });
+      expect(decide({}, { ...active, status }).disposition).toBe(disposition);
     }
     expect(decide({
       threadId: "thread-b",
@@ -109,7 +118,7 @@ describe("ARK x Arbor Layer work-order boundary", () => {
     expect(decide({}, { ...active, assignedThreadId: null, status: "running" }).disposition)
       .toBe("concurrent_thread_conflict");
     expect(decide({}, { ...active, assignedThreadId: null, status: "awaiting_verification" }).disposition)
-      .toBe("concurrent_thread_conflict");
+      .toBe("verification_pending");
     expect(decide({ objectiveId: "other" }, { ...active, status: "completed" })
       .disposition).toBe("prior_objective_terminal");
     expect(decide({ objectiveId: "other" }, { ...active, status: "cancelled" })
