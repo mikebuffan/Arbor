@@ -12,6 +12,9 @@ abstract interface class EnvironmentRuntimeAdapter {
   Stream<EnvironmentSnapshot> watch();
 }
 
+String arkStatusPath({required bool privateGrove}) =>
+    privateGrove ? '/api/grove/ark/status' : '/api/ark/status';
+
 abstract interface class ArkStatusReader {
   Future<Map<String, dynamic>?> read(String projectId);
 }
@@ -23,7 +26,9 @@ class ArborApiArkStatusReader implements ArkStatusReader {
 
   @override
   Future<Map<String, dynamic>?> read(String projectId) =>
-      apiClient.get(groveStandalone ? '/api/grove/ark/status' : '/api/ark/status', queryParameters: {
+      apiClient.get(
+        arkStatusPath(privateGrove: groveStandalone),
+        queryParameters: {
         'projectId': projectId,
       });
 }
