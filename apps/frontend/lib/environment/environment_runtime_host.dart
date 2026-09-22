@@ -99,7 +99,10 @@ class _SessionAwareEnvironmentAdapter implements EnvironmentRuntimeAdapter {
     final session = await ArborSession.instance.contextFor(user.id);
     if (session == null) {
       return const UnavailableEnvironmentAdapter(
-        'No Arbor project is selected yet.',
+        groveStandalone
+            ? 'No private ARK project is currently granted. '
+              'Your Grove room remains available.'
+            : 'No Arbor project is selected yet.',
       ).snapshot();
     }
 
