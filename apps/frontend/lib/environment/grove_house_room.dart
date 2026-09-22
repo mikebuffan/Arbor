@@ -66,12 +66,6 @@ class _GroveHouseRoomState extends State<GroveHouseRoom> {
         sky.morning ? 'Before sunrise' : 'Twilight',
       GroveDayPhase.night => 'Night',
     };
-    final tint = switch (sky.phase) {
-      GroveDayPhase.daylight => const Color(0xAA95CFF4),
-      GroveDayPhase.golden => const Color(0x88FFB56D),
-      GroveDayPhase.twilight => const Color(0x557860CB),
-      GroveDayPhase.night => Colors.transparent,
-    };
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       const Text('THE GROVE • HOME',
           style: TextStyle(color: ArborEnvironmentTokens.cyan,
@@ -102,19 +96,9 @@ class _GroveHouseRoomState extends State<GroveHouseRoom> {
                   ),
                 ),
               )),
-              // No whole-room tint: light should originate at the window.
-              if (sky.phase != GroveDayPhase.night)
-                Positioned(
-                  left: width * .385,
-                  top: width * 409 / 709 * .045,
-                  width: width * .292,
-                  height: width * 409 / 709 * .492,
-                  child: IgnorePointer(child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 500),
-                    decoration: BoxDecoration(color: tint,
-                      borderRadius: BorderRadius.circular(2)),
-                  )),
-                ),
+              // Keep the approved night painting untouched until a matching
+              // daylight window asset exists. A flat golden rectangle obscures
+              // the view rather than rendering a believable living window.
               _pin(width, .085, .15, Icons.restaurant_menu,
                   'Annabelle’s Kitchen', GroveRoomAction.kitchen),
               _pin(width, .13, .42, Icons.stairs_outlined,
@@ -158,7 +142,7 @@ class _GroveHouseRoomState extends State<GroveHouseRoom> {
         ),
       ],
       if (sky.phase != GroveDayPhase.night)
-        const Text('Daytime artwork is an atmospheric preview of the approved night scene.',
+        const Text('The approved night scene remains visible; daytime artwork is not ready yet.',
             style: TextStyle(color: ArborEnvironmentTokens.textMuted,
                 fontSize: 11)),
     ]);
