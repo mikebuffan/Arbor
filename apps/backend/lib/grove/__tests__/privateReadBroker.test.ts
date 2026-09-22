@@ -143,6 +143,27 @@ describe("private Grove provider and token boundaries", () => {
     expect(() => privateGroveReadConfig()).toThrowError("grove_api_not_configured");
   });
 
+  it("canonicalizes root-slash provider origins before issuer/origin checks", async () => {
+    vi.stubEnv("GROVE_SUPABASE_URL", groveUrl + "/");
+    vi.stubEnv("GROVE_FIREFLY_SUPABASE_URL", fireflyUrl + "/");
+    vi.stubEnv("GROVE_PUBLIC_API_ORIGIN", origin + "/");
+    const config = privateGroveReadConfig();
+    expect(config.groveUrl).toBe(groveUrl);
+    expect(config.fireflyUrl).toBe(fireflyUrl);
+    expect(config.apiOrigin).toBe(origin);
+    expect((await readPrivateGroveArk(req(), projectId)).available).toBe(true);
+    expect(mocks.clients.map(c => c.url))
+      .toEqual([groveUrl, groveUrl, fireflyUrl]);
+  });
+
+  it("fails closed on malformed not-before claims", () => {
+    for (const nbf of [null, "0", 0.5, now + 3600]) {
+      expect(groveTokenClaimsMatch(
+        jwt({nbf}), groveOwner, groveUrl, now,
+      )).toBe(false);
+    }
+  });
+
   it("requires expected issuer, audience, role, subject and unexpired time", () => {
     expect(groveTokenClaimsMatch(jwt(), groveOwner, groveUrl)).toBe(true);
     for (const changes of [
