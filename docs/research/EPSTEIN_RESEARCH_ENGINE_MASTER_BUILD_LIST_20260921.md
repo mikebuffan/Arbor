@@ -79,7 +79,7 @@ Legend: [x] draft code plus relevant exact-head CI evidence exists; [~] partial/
 60. [~] Synthetic-only review preflight drafted; actual victim/private-person detection, redaction, human verification and release workflow remain BLOCKED on approved privacy workflow. No real private data processed.
 61. [x] Pure synthetic-only classification in draft #163 (observation/conflict/missing context/insufficient evidence/extraction error/unresolved/finding), fail-closed source/context checks and permanent review/privacy HOLD; exact-head CI `57c48a873280f7e358625799b995ee4adfb27998` backend/control/Flutter and real disposable PDF sandbox smoke passed. Workflow integration and real finding review remain separate.
 62. [x] Mention/allegation alone is never evidence of a crime.
-63. [ ] Dated source-checkable report with counterevidence/limitations/unresolved questions.
+63. [~] Synthetic-only dated HOLD report draft implemented on #163; retains source record IDs, counterevidence, limitations, unresolved questions and separate release authorization. Real original-page citation verification, redaction and publication workflow pending; exact-head CI pending.
 64. [x] No automatic publication; published discrepancies remain distinct from novel research discoveries.
 
 ## Current handoff
@@ -106,3 +106,5 @@ Verified lineage remains #123 → #131 → #134 → #135 → #136 → #139 → #
 - Draft #163 subsequent independent synthetic `publicationPreflight.ts` + Vitest tests: requires source/page review, privacy/publication receipts, no unresolved flags, and NEVER grants automatic sharing. At new head, exact-head CI pending. This is not automated redaction or publication approval.
 
 - Exact-head `62832f6d5d2a75e5b4f5fa38999993bc41c61706` CI `35785427853` PASS on four engineering jobs for synthetic publication preflight; item 33/60 remain partial because this is review receipt gating, not automatic redaction or real-data workflow.
+
+- Added `researchReportDraft.ts` and focused synthetic Vitest tests on #163 for item 63; it formats HOLD-only reports, not verified source citations or published findings. Exact-head CI pending; no release or real-world claims.
