@@ -29,7 +29,10 @@
 ## Phase 4 — private Grove integration dependency order
 - [x] Refresh Grove release tip to stacked private child [#153](https://github.com/mikebuffan/Arbor/pull/153): private ARK fallback now stays unavailable instead of demo; five synthetic Flutter regression cases committed, **not yet Flutter-CI verified**. Parent #151 unchanged.
 - [x] Recheck connected Supabase organization: Aurixus Studios is **Pro** and Supabase quotes **+$10/month** for a new project; two existing active projects remain Firefly and ARK Preview, no Grove project yet.
-- [ ] Receive Danelle's explicit organization/region and +$10/month project confirmation; follow Supabase cost-confirmation flow before creating new private Grove project.
+- [x] Danelle approved Aurixus Studios Pro, US East, +$10/month; Supabase confirmed cost and created the distinct **The Grove** ACTIVE_HEALTHY project; checked empty public schema, publishable key availability and provider isolation.
+- [x] Apply and verify Grove-only migration `20260922035539_grove_private_owner_access`: forced RLS, no anon reads or authenticated writes, only own unrevoked SELECT, **zero grants** and no security advisor lints.
+- [x] Draft [#154](https://github.com/mikebuffan/Arbor/pull/154) on #153: require matching RLS owner grant before showing private house; four pure regression cases committed, Flutter CI still pending.
+- [ ] Configure provider invite-only email OTP, trusted owner invitation/grant, separate Grove API JWT verification and scoped ARK bridge; no owner is silently authorized.
 - [x] Verify code-path *shape*: #151 boot requires dedicated Grove config; Grove API client reads Grove Supabase token; #147 scoped ARK/Layer broker assumes separately authorized Firefly context; LM signed receiver remains isolated prototype.
 - [ ] Grove lane + ARK/Layer lane review owner-approved cross-provider user/project mapping, issuer/audience/signature validation, revoke and late-response handling.
 - [ ] Grove lane + LM lane review signed bounded per-request context transport; no client-authored project ID or fake task receipt.
@@ -44,8 +47,8 @@
 - [ ] Research lane handles independently published benign-PDF page fidelity acceptance before any untrusted source processing or evidence publication.
 
 ## Human decision gates — only interrupt for these
-1. **Danelle:** provider organization, exact quoted cost/region/retention decision for dedicated Grove Supabase, approval for new infrastructure or production migration.
-2. **Danelle:** real-phone observations and final release/public-product decision.
+1. **Danelle:** original Grove Supabase project/cost/region decision **completed**; any further paid infrastructure, private owner invitation or production migration still needs appropriate authorization.
+2. **Danelle:** invited Grove email/owner identity when ready, real-phone observations and final release/public-product decision.
 3. **Mike:** only an exact local-machine, protected runtime, signing key or infrastructure operation inaccessible to the connected tools after alternatives are checked. Do not ask for credentials in chat.
 
 ## Release hard stops
@@ -54,4 +57,4 @@
 - No independent merges of superseded stacked source branches, no invented model/worker receipt, no live Epstein/EFTA PDF ingestion from a synthetic sandbox pass.
 - After interruption, refresh live heads, exact proof and ownership before resuming. This queue is a **checkpoint**, not evidence of asynchronous work.
 
-**Next safe integration-only action:** refresh PR heads and rerun the dated manifest against newly fetched observations at release time; integrate new owner-lane handoffs. The next real-world provisioning gate is explicit owner approval of Aurixus Studios plus $10/month and region, not automatically a Mike task.
+**Next safe integration-only action:** refresh PR heads and rerun the dated manifest against newly fetched observations at release time; integrate #154 owner-lane handoffs. The next real-world gates are private owner invitation, verified email-code template, protected Grove API/backend and physical sign-in; original Supabase organization/cost decision is done.
