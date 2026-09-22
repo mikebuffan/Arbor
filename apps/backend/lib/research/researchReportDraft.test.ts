@@ -13,12 +13,14 @@ describe('research report draft',()=>{
  it('preserves counterevidence, limitations and unresolved questions under HOLD',()=>{
   const output=formatResearchReportDraft(fixture());
   for(const part of ['NOT FOR PUBLICATION','synthetic-source-b','Synthetic only','What is missing?',
-    'unresolved_privacy_flags','separate release authorization','not proof of wrongdoing']) expect(output).toContain(part);
+    'unresolved_privacy_flags','hold_for_explicit_release_authorization','not proof of wrongdoing']) expect(output).toContain(part);
  });
  it('still refuses publication with complete review receipts',()=>{
   const input=fixture();input.preflight={...input.preflight,reviewedOriginalPageIds:['synthetic-page'],
    privacyReviewReceiptId:'synthetic-privacy',publicationReviewReceiptId:'synthetic-publication',unresolvedPrivacyFlags:[]};
-  expect(formatResearchReportDraft(input)).toContain('Status: hold_for_explicit_release_authorization');
+  const output=formatResearchReportDraft(input);
+  expect(output).toContain('Status: hold_for_explicit_release_authorization');
+  expect(output).toContain('separate authorization required');
  });
  it('rejects invalid dates and unverified findings',()=>{
   expect(()=>formatResearchReportDraft({...fixture(),asOf:'2026-02-30'})).toThrow('invalid_as_of');
