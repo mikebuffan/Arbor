@@ -227,7 +227,9 @@ class _ConversationHomeState extends State<_ConversationHome> {
         newThread();
       }
     } catch (e) {
-      if (mounted) setState(() => error = explain(e));
+      if (mounted && revision == _viewRevision) {
+        setState(() => error = explain(e));
+      }
     } finally {
       if (mounted) setState(() => loading = false);
     }
@@ -307,7 +309,7 @@ class _ConversationHomeState extends State<_ConversationHome> {
   }
   Future<void> send() async {
     final content = draft.text.trim();
-    if (busy || content.isEmpty) return;
+    if (busy || loading || content.isEmpty) return;
     if (pendingTurnId != null && content != pendingUserText) {
       setState(() => error =
           'Retry the saved message unchanged, or start a new conversation.');
@@ -330,7 +332,9 @@ class _ConversationHomeState extends State<_ConversationHome> {
       draft.clear();
       await refresh();
     } catch (e) {
-      if (mounted) setState(() => error = explain(e));
+      if (mounted && revision == _viewRevision) {
+        setState(() => error = explain(e));
+      }
     } finally {
       if (mounted) setState(() => busy = false);
     }
@@ -558,7 +562,7 @@ class _ConversationHomeState extends State<_ConversationHome> {
             IconButton.filled(
               tooltip: pendingTurnId == null
                   ? 'Send message' : 'Retry saved message',
-              onPressed: busy ? null : send,
+              onPressed: busy || loading ? null : send,
               icon: const Icon(Icons.arrow_upward),
             ),
           ]),
