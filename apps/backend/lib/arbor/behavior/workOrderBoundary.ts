@@ -91,7 +91,13 @@ export function reconcileWorkOrder(input: {
     return result("objective_conflict", true);
   }
 
-  if (!active.assignedThreadId) return result("resume_unassigned");
+  if (!active.assignedThreadId) {
+    // A missing thread pointer is not proof that a running worker is idle.
+    if (active.status === "running" || active.status === "awaiting_verification") {
+      return result("concurrent_thread_conflict", true);
+    }
+    return result("resume_unassigned");
+  }
   if (active.assignedThreadId === incoming.threadId) {
     return result("resume_same_thread");
   }
