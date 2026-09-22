@@ -124,4 +124,92 @@ describe("runAgencyToBoundary", () => {
     expect(result.researchCalls).toBe(3);
     expect(result.state.unresolvedWork).toEqual([]);
   });
+
+  it("can rebuild derived continuation input from checkpointed state", async () => {
+    let calls = 0;
+    const seenInstructions: string[] = [];
+
+    const result = await runAgencyToBoundary({
+      initialInput: {
+        instructions: "unresolved: step 1, step 2",
+        state: {
+          goal: "finish parent objective",
+          unresolvedWork: ["step 1", "step 2"],
+        } as AgencyResult["state"],
+      },
+      prepareNextInput: (next) => ({
+        ...next,
+        instructions: `unresolved: ${next.state.unresolvedWork.join(", ")}`,
+      }),
+      run: async (input): Promise<AgencyResult> => {
+        calls += 1;
+        seenInstructions.push(input.instructions);
+
+        if (calls === 1) {
+          return {
+            status: "checkpointed",
+            text: "checkpoint",
+            state: {
+              ...input.state,
+              unresolvedWork: ["step 2"],
+            },
+            rounds: 12,
+            toolCalls: 0,
+            researchCalls: 0,
+          };
+        }
+
+        return {
+          status: "complete",
+          text: "done",
+          state: {
+            ...input.state,
+            unresolvedWork: [],
+          },
+          rounds: 1,
+          toolCalls: 0,
+          researchCalls: 0,
+        };
+      },
+    });
+
+    expect(seenInstructions).toEqual([
+      "unresolved: step 1, step 2",
+      "unresolved: step 2",
+    ]);
+    expect(result.status).toBe("complete");
+  });
+
+  it("preserves the latest checkpoint when the outer ceiling is reached", async () => {
+    const result = await runAgencyToBoundary({
+      maxWindows: 2,
+      initialInput: {
+        state: {
+          goal: "keep going",
+          unresolvedWork: ["window 0"],
+        } as AgencyResult["state"],
+      },
+      run: async (input): Promise<AgencyResult> => ({
+        status: "checkpointed",
+        text: "checkpoint",
+        state: {
+          ...input.state,
+          unresolvedWork: [
+            input.state.unresolvedWork[0] === "window 0"
+              ? "window 1"
+              : "window 2",
+          ],
+        },
+        rounds: 12,
+        toolCalls: 1,
+        researchCalls: 1,
+      }),
+    });
+
+    expect(result.status).toBe("checkpointed");
+    expect(result.state.unresolvedWork).toEqual(["window 2"]);
+    expect(result.rounds).toBe(24);
+    expect(result.toolCalls).toBe(2);
+    expect(result.researchCalls).toBe(2);
+  });
 });
