@@ -22,6 +22,8 @@ on:
       - feat/ark-research-outcome-receipts-20260921
       # Temporary page-image provenance review target; remove before main integration.
       - feat/ark-pdf-batch-plan-20260921
+      # Temporary disposable renderer sandbox review target; remove before main integration.
+      - feat/ark-pdf-page-image-provenance-20260921
   workflow_dispatch:
 
 # CI sentinel: keep this workflow visibly updated when main-push Actions delivery stalls.
@@ -63,6 +65,39 @@ jobs:
         env:
           OPENAI_API_KEY: ci-placeholder-not-a-real-key
         run: pnpm --filter firefly-backend build
+
+  pdf-sandbox:
+    name: Disposable PDF sandbox smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Build digest-pinned non-root Poppler image
+        run: |
+          docker build -t arbor-pdf-sandbox:ci ops/research/pdf-sandbox
+          test "$(docker image inspect --format '{{.Config.User}}' arbor-pdf-sandbox:ci)" = "65532:65532"
+          IMAGE_ID="$(docker image inspect --format '{{.Id}}' arbor-pdf-sandbox:ci)"
+          [[ "$IMAGE_ID" =~ ^sha256:[a-f0-9]{64}$ ]]
+          echo "PDF_SANDBOX_IMAGE_REF=$IMAGE_ID" >> "$GITHUB_ENV"
+
+      - name: Render harmless synthetic fixture under hard isolation
+        run: |
+          mkdir -p "$RUNNER_TEMP/pdf-sandbox-out"
+          chmod 0777 "$RUNNER_TEMP/pdf-sandbox-out"
+          node ops/research/pdf-sandbox/make-harmless-fixture.mjs "$RUNNER_TEMP/harmless.pdf"
+          bash ops/research/pdf-sandbox/run.sh "$RUNNER_TEMP/harmless.pdf" "$RUNNER_TEMP/pdf-sandbox-out"
+          test -s "$RUNNER_TEMP/pdf-sandbox-out/page-1.png"
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("${{ runner.temp }}/pdf-sandbox-out/page-1.png")
+          assert p.read_bytes()[:8] == b"\x89PNG\r\n\x1a\n"
+          PY
 
   control-backend:
     name: Control backend test + build
