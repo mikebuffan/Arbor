@@ -55,6 +55,14 @@ void main() {
       GroveDayPhase.daylight);
     expect(find.textContaining('WINDOW PREVIEW • Daylight'),
       findsOneWidget);
+    expect(find.textContaining(
+      'The sundial previews the displayed window time, not the House Clock.'),
+      findsOneWidget);
+    expect(find.textContaining(
+      'The approved night scene remains visible; daytime artwork is not ready yet.'),
+      findsOneWidget);
+    expect(find.textContaining('The sundial changes only the window artwork'),
+      findsNothing);
     expect(house.localNow, real,
       reason: 'Preview must never change real House Clock');
 
