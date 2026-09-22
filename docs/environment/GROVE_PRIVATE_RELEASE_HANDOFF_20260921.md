@@ -31,11 +31,12 @@ Added `grove_responsive_wrap.dart`, replacing fixed 340–560px panel widths wit
 ## Fix #148 — runtime status project-scope invalidation
 `environment_runtime_host.dart` now clears previous ARK status synchronously on ArborSession context and Supabase auth events, rejects late subscription callbacks by generation, clears on adapter change, and rechecks user/project/conversation after network I/O. Complements #137's existing shelf invalidation; still does not mutate ARK. `grove_runtime_scope_test.dart` covers switching projects, stale previous adapter data and fresh replacement status.
 
-## CI receipts (check current GitHub run state before treating these as passed)
+## Verified GitHub CI receipts
 - Base #138 combined code run `35662005850` passed at `62bf31a216f1ea8b457790df9c1d8eaf8745a4bb`; actual #138 head `8eff7230cb3fbc769c9e7c04af19ecfaa09428c0` differs only in documented post-CI workflow/checklist changes.
-- Portrait branch #145 combined run `35673920381` targets code + temporary workflow SHA `13d4dd2b25b319defb66f0886c26b5cbd2c73cb5`. Do not mark passed until all jobs and both Android debug APK uploads finish.
-- Runtime-scope branch #148 combined run `35674228979` targets code + temporary workflow SHA `778fb4369e5c06b46bd0d8c9af8181c8838b5f78`. Do not mark passed until all jobs and both Android debug APK uploads finish.
-- **Remove temporary Grove-only PR target lines** from `.github/workflows/arbor-ci.yml` after corresponding complete runs. The post-cleanup head changes only workflow/doc if no test failures; record tested SHA.
+- Portrait branch #145 **all three jobs passed** (backend test/build, control backend test/build, Flutter analyze/unit/widget tests and *both* Android debug APK builds/uploads), run [`35673920381`](https://github.com/mikebuffan/Arbor/actions/runs/35673920381) at code SHA `13d4dd2b25b319defb66f0886c26b5cbd2c73cb5`. Temporary CI trigger was removed afterward in workflow-only commit `c9cca268ee931310aa608216c5b7b19a6d210abd`.
+- Runtime-scope branch #148 **all three jobs passed**, run [`35674345524`](https://github.com/mikebuffan/Arbor/actions/runs/35674345524) at code+handoff SHA `a6689fa5a395e00179ebb0639cf7979461c9e07d`. Flutter analyze/tests and original Arbor + distinct Grove Android debug APK builds/uploads passed. An earlier #148 attempt `35674228979` was **cancelled during APK build** when a later documentation commit triggered a replacement run; do not count the canceled attempt as a pass.
+- The #148 Grove APK ZIP is artifact `10672247461`, `the-grove-android-debug`, and the original Arbor APK ZIP is `10672247408`, `arbor-android-debug` (short retention, debug only). The approved Grove ZIP's APK was independently extracted and archive CRC verified. Neither artifact proves device install/auth/backend acceptance.
+- **Temporary stacked Grove PR target lines are removed** from `.github/workflows/arbor-ci.yml` in this handoff branch after passing CI. Post-CI commits change workflow/docs only, not the tested Flutter/backend source.
 
 ## Actual private Android acceptance gates — not yet done
 1. Retrieve CI-built *Grove* debug APK artifact, verify app ID `com.example.arbor.grove` and original Arbor `com.example.arbor` side by side; never call debug APK a signed release.
