@@ -38,6 +38,8 @@ const validateLead = (lead: ResearchLead): ResearchLead => {
  * Collapses only leads carrying the exact same explicit canonical key.
  * It never derives identity from names, URLs, text similarity, or source count.
  * All provenance, reasons, counterevidence and checkpoints survive the collapse.
+ * The representative leadId is the lexicographically smallest merged lead ID so
+ * callers receive the same result regardless of input order.
  */
 export function dedupeResearchLeads(leads: readonly ResearchLead[]): DedupedResearchLead[] {
   const byKey = new Map<string, DedupedResearchLead>();
@@ -54,8 +56,10 @@ export function dedupeResearchLeads(leads: readonly ResearchLead[]): DedupedRese
       continue;
     }
 
+    const mergedLeadIds = clean([...existing.mergedLeadIds, lead.leadId], 'mergedLeadIds');
     byKey.set(lead.canonicalKey, {
       ...existing,
+      leadId: mergedLeadIds[0],
       sourceRefs: clean([...existing.sourceRefs, ...lead.sourceRefs], 'sourceRefs'),
       reasons: clean([...existing.reasons, ...lead.reasons], 'reasons'),
       counterevidenceRefs: clean(
@@ -63,7 +67,7 @@ export function dedupeResearchLeads(leads: readonly ResearchLead[]): DedupedRese
         'counterevidenceRefs',
       ),
       checkpointRefs: clean([...existing.checkpointRefs, ...lead.checkpointRefs], 'checkpointRefs'),
-      mergedLeadIds: clean([...existing.mergedLeadIds, lead.leadId], 'mergedLeadIds'),
+      mergedLeadIds,
     });
   }
 
