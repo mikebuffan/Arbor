@@ -24,11 +24,12 @@ export async function GET(req: Request) {
             .order("id", { ascending: true })
             .range(offset, offset + 499);
           if (readError) throw readError;
-          rows.push(...(page ?? []));
+          const pageRows = (page ?? []) as unknown as Record<string, unknown>[];
+          rows.push(...pageRows);
           if (rows.length > ceiling) {
             throw new PublicAlphaError("export_too_large", 413);
           }
-          if ((page ?? []).length < 500) break;
+          if (pageRows.length < 500) break;
         }
         return rows;
       };
