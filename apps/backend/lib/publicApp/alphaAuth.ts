@@ -19,12 +19,14 @@ export function checkPublicAlphaEnvironment(
   const expectedUrl = "https://" + ref + ".supabase.co";
   const authUrl = env.NEXT_PUBLIC_SUPABASE_URL ?? env.SUPABASE_URL;
   const adminUrl = env.SUPABASE_URL ?? env.NEXT_PUBLIC_SUPABASE_URL;
-  // The production Firefly and private ARK Preview project refs are publicly
-  // discoverable deployment metadata, NOT credentials.
+  // These are existing private provider IDs, NOT credentials. A newly
+  // deployed public alpha must reject every known private Firefly, ARK Preview
+  // and Grove realm even if all of its environment variables match.
   const protectedRefs = new Set([
-    "ncpdlyakrzfvobmwzbon",
-    "tzbpjbhroxiqftqwatnb",
-    "dqvrzgrmorzfjddyozqz",
+    "ncpdlyakrzfvobmwzbon", // Firefly
+    "tzbpjbhroxiqftqwatnb", // ARK Preview
+    "fqjqpuaoifgbweiguacf", // private Grove
+    "dqvrzgrmorzfjddyozqz", // historical private realm
   ]);
   if (
     env.ARBOR_PUBLIC_APP_ENABLED !== "true" ||
