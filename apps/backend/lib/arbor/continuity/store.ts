@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadAgencyState } from "../agency/state";
 import { loadSubsystemState } from "../subsystem/state";
+import { loadRuntimeState } from "../runtime/runtimeStateStore";
 import {
   buildContinuityState,
   type ArborContinuityState,
@@ -13,22 +14,11 @@ type MessageRow = {
 };
 
 const BARE = new Set([
-  "right",
-  "yeah",
-  "yep",
-  "okay",
-  "ok",
-  "exactly",
-  "mm-hmm",
-  "mhm",
+  "right", "yeah", "yep", "okay", "ok", "exactly", "mm-hmm", "mhm",
 ]);
 
 function meaningful(content: string): boolean {
-  const normalized = content
-    .trim()
-    .toLowerCase()
-    .replace(/[.!?]+$/g, "");
-
+  const normalized = content.trim().toLowerCase().replace(/[.!?]+$/g, "");
   return Boolean(normalized) && !BARE.has(normalized);
 }
 
@@ -37,14 +27,10 @@ function lastMeaningful(
   role: "user" | "assistant",
 ): string | null {
   for (const row of rows) {
-    if (
-      row?.role === role &&
-      meaningful(row.content)
-    ) {
+    if (row?.role === role && meaningful(row.content)) {
       return row.content.trim();
     }
   }
-
   return null;
 }
 
@@ -56,37 +42,24 @@ async function recentMessages(input: {
   projectWide: boolean;
 }): Promise<MessageRow[]> {
   const now = new Date().toISOString();
-
   let query = input.supabase
     .from("messages")
     .select("role,content,created_at")
     .eq("user_id", input.userId)
     .eq("project_id", input.projectId)
     .is("deleted_at", null)
-    .or(
-      `expires_at.is.null,expires_at.gt.${now}`,
-    );
+    .or(`expires_at.is.null,expires_at.gt.${now}`);
 
   if (!input.projectWide) {
-    query = query.eq(
-      "conversation_id",
-      input.conversationId,
-    );
+    query = query.eq("conversation_id", input.conversationId);
   }
 
   const result = await query
-    .order("created_at", {
-      ascending: false,
-    })
+    .order("created_at", { ascending: false })
     .limit(50);
 
-  if (result.error) {
-    throw result.error;
-  }
-
-  return (
-    (result.data ?? []) as MessageRow[]
-  );
+  if (result.error) throw result.error;
+  return (result.data ?? []) as MessageRow[];
 }
 
 export async function loadContinuityState(input: {
@@ -97,83 +70,61 @@ export async function loadContinuityState(input: {
   channel: "text" | "voice";
   activeCorrections?: string[];
 }): Promise<ArborContinuityState> {
-  const [
-    agency,
-    subsystem,
-    conversationRows,
-  ] = await Promise.all([
+  const [agency, subsystem, runtime, conversationRows] = await Promise.all([
     loadAgencyState(input),
     loadSubsystemState(input),
-    recentMessages({
-      ...input,
-      projectWide: false,
-    }),
+    loadRuntimeState(input),
+    recentMessages({ ...input, projectWide: false }),
   ]);
 
-  const conversationUser =
-    lastMeaningful(
-      conversationRows,
-      "user",
-    );
+  const conversationUser = lastMeaningful(conversationRows, "user");
+  const conversationArbor = lastMeaningful(conversationRows, "assistant");
+  const needsProjectFallback = !conversationUser || !conversationArbor;
 
-  const conversationArbor =
-    lastMeaningful(
-      conversationRows,
-      "assistant",
-    );
+  const projectRows = needsProjectFallback
+    ? await recentMessages({ ...input, projectWide: true })
+    : [];
 
-  const needsProjectFallback =
-    !conversationUser ||
-    !conversationArbor;
-
-  const projectRows =
-    needsProjectFallback
-      ? await recentMessages({
-          ...input,
-          projectWide: true,
-        })
-      : [];
+  // Runtime is the durable longitudinal carrier. Local agency/messages are
+  // evidence, but a blank/new conversation must not erase an active project
+  // checkpoint recovered by runtime fallback.
+  const continuityAgency =
+    runtime?.agency &&
+    (
+      runtime.agency.goal?.trim() ||
+      runtime.agency.unresolvedWork?.length ||
+      runtime.agency.status === "blocked"
+    )
+      ? runtime.agency
+      : agency;
 
   return buildContinuityState({
-    agency,
-    activeSubsystem:
-      subsystem.activeSubsystem,
+    agency: continuityAgency,
+    activeSubsystem: runtime?.activeSubsystem ?? subsystem.activeSubsystem,
     channel: input.channel,
     lastMeaningfulUserTurn:
-      conversationUser ??
-      lastMeaningful(
-        projectRows,
-        "user",
-      ),
+      runtime?.lastMeaningfulUserTurn?.trim()
+        ? runtime.lastMeaningfulUserTurn
+        : conversationUser ?? lastMeaningful(projectRows, "user"),
     lastMeaningfulArborTurn:
-      conversationArbor ??
-      lastMeaningful(
-        projectRows,
-        "assistant",
-      ),
-    activeCorrections:
-      input.activeCorrections ?? [],
+      runtime?.lastMeaningfulArborTurn?.trim()
+        ? runtime.lastMeaningfulArborTurn
+        : conversationArbor ?? lastMeaningful(projectRows, "assistant"),
+    activeCorrections: input.activeCorrections ?? [],
   });
 }
 
 export async function loadContinuityStateSafe(
-  input: Parameters<
-    typeof loadContinuityState
-  >[0],
+  input: Parameters<typeof loadContinuityState>[0],
 ): Promise<ArborContinuityState> {
   try {
     return await loadContinuityState(input);
   } catch (error) {
-    console.warn(
-      "[arbor:continuity] fallback",
-      error,
-    );
-
+    console.warn("[arbor:continuity] fallback", error);
     return buildContinuityState({
       activeSubsystem: "arbor",
       channel: input.channel,
-      activeCorrections:
-        input.activeCorrections,
+      activeCorrections: input.activeCorrections,
     });
   }
 }
