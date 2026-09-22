@@ -61,19 +61,22 @@ void main() {
     expect(find.text('PRIVATE HOUSE READY'), findsOneWidget);
   });
 
-  testWidgets('no grants leave the private house inaccessible',
+  testWidgets('invited owner can enter the house without an ARK grant',
       (tester) async {
+    final chosen = <String>[];
     await tester.pumpWidget(MaterialApp(
       home: GrovePrivateProjectGate(
         loadProjects: () async => [],
-        selectProject: (_) async {},
+        selectProject: (id) async { chosen.add(id); },
         child: const Text('PRIVATE HOUSE READY'),
       ),
     ));
     await tester.pumpAndSettle();
+    expect(find.text('PRIVATE HOUSE READY'), findsOneWidget);
+    expect(chosen, isEmpty,
+      reason: 'No ARK project can be fabricated merely to open the house');
     expect(find.textContaining('No private ARK projects are granted yet.'),
-        findsOneWidget);
-    expect(find.text('PRIVATE HOUSE READY'), findsNothing);
+        findsNothing);
   });
 
   testWidgets('failed grant fetch denies access and offers retry',
