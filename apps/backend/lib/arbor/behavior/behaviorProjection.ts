@@ -105,7 +105,6 @@ export function buildArborBehaviorProjection(
     philosophy,
     stableBehaviorMaterial,
     correctionRules,
-    workOrderDisposition: input.workOrderDecision?.disposition ?? null,
   });
 
   const continuityFingerprint = fingerprint({ continuityMaterial });
