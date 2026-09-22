@@ -96,11 +96,16 @@ Arbor LM, the ChatGPT host, a mobile client or ARK workers are connected to it.
    result is **not** a worker lease, authorization, resumability guarantee or
    evidence of a stopped prior process. Reconcile persisted ownership/leases
    with the executing backend before any eventual write-capable crossing.
-6. Arbor LM receives a minimized read-only envelope containing source identity,
-   capture time, authorized objective state, open loops, corrections and explicit
-   evidence limitations. The model may propose safe next steps but cannot
-   mutate ARK, grant itself tool scope, mark objectives complete, deploy,
-   schedule work, or approve high-consequence actions.
+6. The isolated `readArkLayerContext` composition calls the existing
+   owner/conversation checkers, `readArkProjectSnapshot`, runtime-state loader,
+   host projection and behavior projection. It returns an owner/project-scoped,
+   minimized **read-only** LM envelope, with exact/fallback/unavailable
+   continuity source and separate behavioral/acoustic corrections. It intentionally
+   exposes only bounded ARK counts and `activeObjectiveHandoff: not_resolved`
+   until the reviewed PR #125 selector is hooked up; it does not guess an
+   active objective or execute a checkpoint. A model may propose safe next
+   steps but cannot mutate ARK, grant itself tool scope, mark objectives complete,
+   deploy, schedule work, or approve high-consequence actions.
 7. Model-facing reporting distinguishes `persisted_status`,
    `completion_evidence_recorded` and `execution_observed`. A database row
    labeled running is **not** worker liveness. A completed task is **not** a
