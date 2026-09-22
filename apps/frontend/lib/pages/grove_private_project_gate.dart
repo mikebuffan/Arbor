@@ -33,7 +33,7 @@ List<String> parseGroveGrantedProjectIds(Map<String, dynamic>? payload) {
 
 /// Runs only inside the verified Grove invitation gate. A signed-in token
 /// does not imply a Firefly project grant. Never restore an arbitrary
-/// installation-local ARK project before the private broker lists active grants.
+/// installation-local ARK project before the private broker lists active grants.\n/// The house itself can open after invite verification with *zero* grants,\n/// but prior local ARK selection is cleared and no ARK snapshot is retrieved.
 class GrovePrivateProjectGate extends StatefulWidget {
   const GrovePrivateProjectGate({
     super.key,
@@ -110,6 +110,25 @@ class _GrovePrivateProjectGateState extends State<GrovePrivateProjectGate> {
       final parsed = parseGroveGrantedProjectIds(
         {'ok': true, 'projects': projects},
       );
+      if (parsed.isEmpty) {
+        // The invitation grants access to the PRIVATE HOUSE, not to ARK.
+        // Do not let an old local project survive if every ARK grant is gone.
+        // The room remains available with an unavailable, no-demo ARK shelf.
+        if (widget.loadProjects == null) {
+          final userId = _userId;
+          if (userId == null || !_sameSession()) {
+            throw StateError('Private Grove session changed');
+          }
+          await ArborSession.instance.clearStoredUser(userId);
+        }
+        if (!mounted || generation != _generation || !_sameSession()) return;
+        setState(() {
+          _projects = const [];
+          _approved = true;
+          _busy = false;
+        });
+        return;
+      }
       setState(() {
         _projects = parsed;
         _busy = false;
