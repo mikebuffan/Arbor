@@ -33,6 +33,7 @@ function fakeQuery(result: unknown) {
     eq: vi.fn(),
     order: vi.fn(),
     limit: vi.fn().mockResolvedValue({ data: result, error: null }),
+    range: vi.fn().mockResolvedValue({ data: result, error: null }),
     maybeSingle: vi.fn().mockResolvedValue({ data: result, error: null }),
   };
   query.select.mockReturnValue(query);
@@ -114,10 +115,52 @@ describe("public conversation route ownership", () => {
     expect(messages.select).toHaveBeenCalledWith(
       "id,turn_id,role,content,created_at",
     );
+    expect(messages.range).toHaveBeenCalledWith(0, 100);
     expect((await response.json()).messages[0].turn_id).toBe(
       "22222222-2222-4222-8222-222222222222",
     );
   });
+
+  it("pages newest first and reports earlier history without leaking owner scope", async () => {
+    const conversation = fakeQuery({ id: foreignConversation });
+    const recent = Array.from({ length: 101 }, (_, i) => ({
+      id: String(i),
+      role: i % 2 ? "user" : "assistant",
+      content: "message " + i,
+    }));
+    const page = fakeQuery(recent);
+    mocks.from.mockReturnValueOnce(conversation).mockReturnValueOnce(page);
+    const response = await getConversation(
+      new Request("https://alpha.example.test/api/public/conversations/" +
+        foreignConversation + "?offset=200"),
+      { params: Promise.resolve({ id: foreignConversation }) },
+    );
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.messages).toHaveLength(100);
+    expect(body.messages[0].content).toBe("message 99");
+    expect(body.messages[99].content).toBe("message 0");
+    expect(body.hasMore).toBe(true);
+    expect(body.nextOffset).toBe(300);
+    expect(page.range).toHaveBeenCalledWith(200, 300);
+    expect(page.eq).toHaveBeenCalledWith("user_id", "signed-in-user-a");
+    expect(page.eq).toHaveBeenCalledWith("conversation_id", foreignConversation);
+  });
+
+  it.each(["-1", "10001", "1.5", "1 OR true"])(
+    "rejects malformed history offset %s before reading messages", async (offset) => {
+      const conversation = fakeQuery({ id: foreignConversation });
+      mocks.from.mockReturnValueOnce(conversation);
+      const response = await getConversation(
+        new Request("https://alpha.example.test/api/public/conversations/" +
+          foreignConversation + "?offset=" + encodeURIComponent(offset)),
+        { params: Promise.resolve({ id: foreignConversation }) },
+      );
+      expect(response.status).toBe(400);
+      expect((await response.json()).error).toBe("invalid_history_offset");
+      expect(mocks.from).toHaveBeenCalledTimes(1);
+    },
+  );
 
   it("cannot delete a foreign or missing conversation", async () => {
     const lookup = fakeQuery(null);
