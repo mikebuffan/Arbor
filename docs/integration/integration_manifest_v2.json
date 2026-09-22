@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "as_of": "2026-09-22 PDT (refresh: research #158 current head)",
+  "as_of": "2026-09-22 PDT (pinned 5-job component CI and LM offline verification)",
   "repository": "mikebuffan/Arbor",
   "main_sha": "d46f6b46fc51ac3db4e158cddfc592c52cc2b5ef",
   "product_separation": [
@@ -16,7 +16,7 @@
     "integration": "Cross-lane integration"
   },
   "tip_pr_by_lane": {
-    "grove": 156,
+    "grove": 161,
     "ark_layer": 160,
     "public_app": 159,
     "research": 158
@@ -187,7 +187,8 @@
       "draft": true,
       "merged": false,
       "owner": "grove",
-      "branch": "deploy/grove-private-api-20260921"
+      "branch": "deploy/grove-private-api-20260921",
+      "stacked_into": 161
     },
     {
       "number": 157,
@@ -214,7 +215,7 @@
     },
     {
       "number": 159,
-      "sha": "663c5db87d61c3781527911941187532443ab7f7",
+      "sha": "1a6a6cc7eb682059b47f0638aaf5f5dedb907be1",
       "base": "arbor/public-alpha-continuity-privacy-20260921",
       "base_sha": "aea0318d9ff07d9c6e22d0627d3582325053b320",
       "state": "open",
@@ -233,6 +234,17 @@
       "merged": false,
       "owner": "ark_layer",
       "branch": "fix/ark-layer-selected-attachment-conversation-20260922"
+    },
+    {
+      "number": 161,
+      "sha": "e946d9f7be2e0ce85701dbe92b9b804e960956fc",
+      "base": "deploy/grove-private-api-20260921",
+      "base_sha": "8999a570cf20b8496f984f62a298a58ef67d7217",
+      "state": "open",
+      "draft": true,
+      "merged": false,
+      "owner": "grove",
+      "branch": "fix/grove-window-preview-truth-20260922"
     }
   ],
   "external_bases": [
@@ -344,16 +356,50 @@
     {
       "id": "public_alpha_excludes_grove_provider",
       "owner": "public_app",
-      "stage": "implemented",
+      "stage": "tested",
       "ref_pr": 159,
-      "pending": "Exact-head CI + public app owner review; no live public alpha hosted receipt."
+      "pending": "Owner review, public host and separate consent/retention, real model and two-user acceptance",
+      "proof": {
+        "sha": "1a6a6cc7eb682059b47f0638aaf5f5dedb907be1",
+        "run_id": 35762754152,
+        "scope": "Pinned checkout of public-alpha #159: backend tests/build, Flutter config tests and static analysis passed; not a public hosted release"
+      }
     },
     {
       "id": "ark_layer_selected_attachment_conversation_binding",
       "owner": "ark_layer",
-      "stage": "implemented",
+      "stage": "tested",
       "ref_pr": 160,
-      "pending": "Exact-head backend CI + ARK/Layer review; no live Grove host-to-Layer conversation endpoint."
+      "pending": "Owner review, safe branch reconciliation and live scoped host acceptance",
+      "proof": {
+        "sha": "fc58351e9ae8416c3d28d3c398d4126387310bf0",
+        "run_id": 35762754152,
+        "scope": "Pinned checkout ARK/Layer #160: backend tests/build passed; no worker authorization or Grove hosted read"
+      }
+    },
+    {
+      "id": "grove_preview_and_private_talk_truth",
+      "owner": "grove",
+      "stage": "tested",
+      "ref_pr": 161,
+      "proof": {
+        "sha": "e946d9f7be2e0ce85701dbe92b9b804e960956fc",
+        "run_id": 35762754152,
+        "scope": "Pinned checkout Grove #161: Flutter sundial and private Talk widget tests, Flutter static analysis passed; no private LM Text/Voice host"
+      },
+      "pending": "Physical-device/owner review, approved day artwork and actual private scoped conversation route"
+    },
+    {
+      "id": "research_canonical_lead_dedupe",
+      "owner": "research",
+      "stage": "tested",
+      "ref_pr": 158,
+      "proof": {
+        "sha": "4025a6e334234b3000a2d467d19ea55e067129dc",
+        "run_id": 35762754152,
+        "scope": "Pinned checkout research #158: full backend tests/build on CI with Poppler fixture parser installed; no real case ingestion"
+      },
+      "pending": "Research owner acceptance, separate benign third-party PDF manual sandbox fidelity and durable worker proof"
     }
   ],
   "exclusive_path_prefixes": {
@@ -405,5 +451,5 @@
     "rollback_proof",
     "owner_approval"
   ],
-  "notes": "2026-09-22 PDT: Grove #156 credential-free CI 35696240828 passed at 8999a570...; separate Grove Vercel project and seven production settings confirmed in Danelle's UI (connected Vercel project-list is incomplete), next deploy is rate-limited per dated GitHub status. Existing two bridge tables applied manually but no migration ledger; all grants 0. Actual owner invited, actual private live API and model/phone unverified. Research #152 doc-only head moved 303b5e..., not exact-code CI. Refresh all observations for promotion. | 2026-09-22 later: research #157/#158 already existed in its owner lane; not rebuilt. Public alpha #159 excludes Grove project in provider guard, ARK/Layer #160 requires selected file in requested conversation; both draft IMPLEMENTED with regression tests committed, NO exact-head CI. Still no Grove live deploy/real owner/phone or private LM inference. | Latest research #158 draft tip moved from a8f16fcf4c928110b8886b8f18434ab4e8f72d70 to 4025a6e334234b3000a2d467d19ea55e067129dc (metadata refresh only; no new test/deployment claim)."
+  "notes": "2026-09-22 PDT: Grove #156 credential-free CI 35696240828 passed at 8999a570...; separate Grove Vercel project and seven production settings confirmed in Danelle's UI (connected Vercel project-list is incomplete), next deploy is rate-limited per dated GitHub status. Existing two bridge tables applied manually but no migration ledger; all grants 0. Actual owner invited, actual private live API and model/phone unverified. Research #152 doc-only head moved 303b5e..., not exact-code CI. Refresh all observations for promotion. | 2026-09-22 later: research #157/#158 already existed in its owner lane; not rebuilt. Public alpha #159 excludes Grove project in provider guard, ARK/Layer #160 requires selected file in requested conversation; both draft IMPLEMENTED with regression tests committed, NO exact-head CI. Still no Grove live deploy/real owner/phone or private LM inference. | Latest research #158 draft tip moved from a8f16fcf4c928110b8886b8f18434ab4e8f72d70 to 4025a6e334234b3000a2d467d19ea55e067129dc (metadata refresh only; no new test/deployment claim). | CI Actions 35762754152: five pinned source jobs green (public backend+Flutter #159, ARK #160, Grove #161 Flutter, research #158 backend+Poppler). Local LM v0.3.5 package 61 manifest entries verified; 77 passed/1 skipped in offline Python tests and synthetic host demo HTTP 200; NO real model/GPU, Grove chat or production deploy."
 }
