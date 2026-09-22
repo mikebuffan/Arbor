@@ -104,8 +104,12 @@ describe("ARK x Arbor Layer work-order boundary", () => {
   });
 
   it("distinguishes unassigned, completed, cancelled and absent objectives", () => {
-    expect(decide({}, { ...active, assignedThreadId: null }).disposition)
+    expect(decide({}, { ...active, assignedThreadId: null, status: "queued" }).disposition)
       .toBe("resume_unassigned");
+    expect(decide({}, { ...active, assignedThreadId: null, status: "running" }).disposition)
+      .toBe("concurrent_thread_conflict");
+    expect(decide({}, { ...active, assignedThreadId: null, status: "awaiting_verification" }).disposition)
+      .toBe("concurrent_thread_conflict");
     expect(decide({ objectiveId: "other" }, { ...active, status: "completed" })
       .disposition).toBe("prior_objective_terminal");
     expect(decide({ objectiveId: "other" }, { ...active, status: "cancelled" })
