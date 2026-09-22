@@ -37,9 +37,11 @@ describe("private Grove host isolation", () => {
 
   it("allows only the separately authorized private status route", () => {
     vi.stubEnv("GROVE_API_ENABLED", "true");
-    const response = middleware(request("/api/grove/ark/status"));
-    expect(response.headers.get("x-middleware-next")).toBe("1");
-    expect(response.headers.get("access-control-allow-origin")).toBeNull();
+    for (const route of ["/api/grove/ark/status", "/api/grove/ark/projects"]) {
+      const response = middleware(request(route));
+      expect(response.headers.get("x-middleware-next")).toBe("1");
+      expect(response.headers.get("access-control-allow-origin")).toBeNull();
+    }
   });
 
   it("never exposes permissive public CORS preflight in Grove mode", () => {
