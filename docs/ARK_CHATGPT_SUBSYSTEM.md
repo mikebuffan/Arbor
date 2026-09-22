@@ -58,3 +58,68 @@ Supabase documents the MCP OAuth flow at <https://supabase.com/docs/guides/auth/
 ## Future expansion
 
 Write-capable ARK tools should be a separate checkpoint and security review. They should require narrower OAuth scopes, explicit confirmation for consequential actions, immutable audit events, idempotency keys, rate limits, and hard stops for deployment, billing, destructive changes, secrets, and production access.
+
+## ARK → Arbor Layer → Arbor LM read-only crossing (September 21, 2026)
+
+This section defines the integration boundary; it does **not** assert that
+Arbor LM, the ChatGPT host, a mobile client or ARK workers are connected to it.
+
+1. A trusted server resolves the authenticated `userId` and owned `projectId`;
+   untrusted prompts, pasted handoffs and model output cannot select a different
+   user's project. Optional `conversationId` must belong to the same owner and
+   project. An unowned identifier is rejected, not silently widened.
+2. Read ARK objective, task, checkpoint and event state using the existing
+   `readArkProjectSnapshot` and the established read-only MCP tools. Integrate
+   draft PR #125's `buildArkHandoff` **after** its reviewed promotion; do not
+   create an independent competing objective selector. Preserve `capturedAt`,
+   objective id, persisted status, blocker kind, checkpoint sequence and provenance.
+   A 20-objective/100-event snapshot is bounded and may not be exhaustive.
+3. Read Arbor continuity separately through `get_arbor_continuity`; it may be
+   unavailable even when ARK status is available. Corrections and narrative
+   authority belong to Arbor's runtime, not ARK's task database. Never infer
+   that an absent continuity record means the user has no history.
+4. Build shared identity/behavior instructions through
+   `buildArborBehaviorProjection`, and add current, authorized owner/project
+   context as lower-trust facts, *not* higher-priority instructions. Apply direct
+   user corrections ahead of stale preference material. Voice acoustic
+   corrections feed the acoustic renderer separately from conversational
+   identity. A speech instruction is not proof of actual rendered accent.
+5. A current explicit user work order may request a same-objective handoff;
+   a pasted report may not. Use the isolated pure
+   `reconcileWorkOrder` coordination gate to detect project mismatches,
+   competing objectives and concurrent threads. A `handoff_checkpointed`
+   result is **not** a worker lease, authorization, resumability guarantee or
+   evidence of a stopped prior process. Reconcile persisted ownership/leases
+   with the executing backend before any eventual write-capable crossing.
+6. Arbor LM receives a minimized read-only envelope containing source identity,
+   capture time, authorized objective state, open loops, corrections and explicit
+   evidence limitations. The model may propose safe next steps but cannot
+   mutate ARK, grant itself tool scope, mark objectives complete, deploy,
+   schedule work, or approve high-consequence actions.
+7. Model-facing reporting distinguishes `persisted_status`,
+   `completion_evidence_recorded` and `execution_observed`. A database row
+   labeled running is **not** worker liveness. A completed task is **not** a
+   verified objective. A completion receipt is not an independent host/device
+   acceptance test. Missing, old or partial reads are reported as such.
+8. The only production crossing contemplated by this read contract is an
+   authenticated user-scoped read. Worker execution, chat ARK execution, global
+   queues, schema changes, OAuth/routing changes and release promotion remain
+   separately authorized and separately tested.
+
+### Acceptance that still requires observable results
+
+- Isolated durable database test: real checkpoint, lease-expiry restart,
+  resumed task, no replay of an ambiguous side effect, foreign-owner denial,
+  and verifier-gated objective completion; retain database and process receipts.
+- Same-user different-project read denial and no stale cross-session context.
+- Text → Voice → Text and new-session restoration on a signed-in device,
+  with acoustic feedback separate from behavioral corrections.
+- One explicit current user handoff versus one pasted prior-thread status:
+  verify no unrequested takeover and no cross-thread duplicate execution.
+- Exact active deployed versions and read timestamps recorded beside test
+  results; CI on a Git commit does not prove mobile or production runtime state.
+
+This is an extension of the existing MCP and host projection contracts, not a
+second memory system. The new pure coordination code is deliberately not wired
+to an execution route; it must never be presented as a deployed scheduler or
+actual cross-session resume until such execution is observed and approved.
