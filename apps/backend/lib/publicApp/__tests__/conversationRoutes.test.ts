@@ -197,6 +197,60 @@ describe("public conversation route ownership", () => {
     );
   });
 
+  it("exports only public-alpha rows scoped to synthetic user A", async () => {
+    const conv = fakeQuery([{ id: foreignConversation, title: "A only" }]);
+    const messages = fakeQuery([{ role: "user", content: "A turn" }]);
+    mocks.from.mockReturnValueOnce(conv).mockReturnValueOnce(messages);
+    const response = await listConversations(
+      new Request("https://alpha.example.test/api/public/conversations?export=1"),
+    );
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.format).toBe("arbor-public-alpha-v1");
+    expect(body.conversations).toHaveLength(1);
+    expect(body.messages).toHaveLength(1);
+    for (const scope of [conv, messages]) {
+      expect(scope.eq).toHaveBeenCalledWith("user_id", "signed-in-user-a");
+      expect(scope.range).toHaveBeenCalledWith(0, 499);
+    }
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+  });
+
+  it("exports user B only after authenticating as user B", async () => {
+    mocks.requirePublicAlphaUser.mockResolvedValueOnce({
+      userId: "signed-in-user-b",
+      db: { from: mocks.from },
+    });
+    const conv = fakeQuery([]);
+    const messages = fakeQuery([]);
+    mocks.from.mockReturnValueOnce(conv).mockReturnValueOnce(messages);
+    const response = await listConversations(
+      new Request("https://alpha.example.test/api/public/conversations?export=1"),
+    );
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.conversations).toEqual([]);
+    expect(body.messages).toEqual([]);
+    expect(conv.eq).toHaveBeenCalledWith("user_id", "signed-in-user-b");
+    expect(messages.eq).toHaveBeenCalledWith("user_id", "signed-in-user-b");
+    expect(conv.eq).not.toHaveBeenCalledWith("user_id", "signed-in-user-a");
+  });
+
+  it("does not label a capped archive as complete", async () => {
+    const conv = fakeQuery([]);
+    const largeMessages = fakeQuery([]);
+    largeMessages.range.mockImplementation(async () => ({
+      error: null,
+      data: Array.from({ length: 500 }, () => ({ role: "user" })),
+    }));
+    mocks.from.mockReturnValueOnce(conv).mockReturnValueOnce(largeMessages);
+    const response = await listConversations(
+      new Request("https://alpha.example.test/api/public/conversations?export=1"),
+    );
+    expect(response.status).toBe(413);
+    expect((await response.json()).error).toBe("export_too_large");
+  });
+
   it("scopes the conversation list to the authenticated user", async () => {
     const list = fakeQuery([]);
     mocks.from.mockReturnValueOnce(list);
