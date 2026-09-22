@@ -53,7 +53,9 @@ void main() {
         findsOneWidget);
     expect(find.text('PRIVATE HOUSE READY'), findsNothing);
     expect(chosen, isEmpty);
-    await tester.tap(find.text('Project 00000000…').last);
+    expect(find.text('Project 00000000…0003'), findsOneWidget);
+    expect(find.text('Project 00000000…0004'), findsOneWidget);
+    await tester.tap(find.text('Project 00000000…0004'));
     await tester.pumpAndSettle();
     expect(chosen, [projectB]);
     expect(find.text('PRIVATE HOUSE READY'), findsOneWidget);
