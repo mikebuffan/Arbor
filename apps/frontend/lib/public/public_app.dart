@@ -163,7 +163,9 @@ class _ConversationHomeState extends State<_ConversationHome> {
   final scroll = ScrollController();
   List<Map<String, dynamic>> history = [], messages = [];
   String? conversationId, pendingTurnId, pendingUserText, error;
-  bool busy = false, loading = true;
+  bool busy = false, loading = true, hasOlder = false, loadingOlder = false;
+  int? nextHistoryOffset;
+  int _viewRevision = 0;
   @override
   void initState() {
     super.initState();
@@ -224,9 +226,10 @@ class _ConversationHomeState extends State<_ConversationHome> {
     }
   }
   Future<void> open(String id) async {
+    final revision = ++_viewRevision;
     try {
       final json = await api.get('/api/public/conversations/' + id);
-      if (!mounted) return;
+      if (!mounted || revision != _viewRevision) return;
       final restored = (json?['messages'] as List<dynamic>? ?? [])
           .whereType<Map<String, dynamic>>().toList();
       // A model outage can leave a durable user turn without an assistant turn.
@@ -237,6 +240,8 @@ class _ConversationHomeState extends State<_ConversationHome> {
       setState(() {
         conversationId = id;
         messages = restored;
+        hasOlder = json?['hasMore'] == true;
+        nextHistoryOffset = json?['nextOffset'] as int?;
         pendingTurnId = unfinished ? last!['turn_id'] as String : null;
         pendingUserText = unfinished ? last!['content'] as String : null;
         draft.text = pendingUserText ?? '';
@@ -248,14 +253,49 @@ class _ConversationHomeState extends State<_ConversationHome> {
         if (scroll.hasClients) scroll.jumpTo(scroll.position.maxScrollExtent);
       });
     } catch (e) {
-      if (mounted) setState(() => error = explain(e));
+      if (mounted && revision == _viewRevision) {
+        setState(() => error = explain(e));
+      }
     }
   }
+
+  Future<void> loadOlder() async {
+    final id = conversationId;
+    final offset = nextHistoryOffset;
+    if (loadingOlder || !hasOlder || id == null || offset == null) return;
+    final revision = _viewRevision;
+    setState(() => loadingOlder = true);
+    try {
+      final json = await api.get('/api/public/conversations/' + id,
+        queryParameters: {'offset': offset.toString()});
+      if (!mounted || revision != _viewRevision) return;
+      final earlier = (json?['messages'] as List<dynamic>? ?? [])
+          .whereType<Map<String, dynamic>>().toList();
+      final existingIds = messages.map((m) => m['id']).toSet();
+      setState(() {
+        messages = [
+          ...earlier.where((m) => !existingIds.contains(m['id'])),
+          ...messages,
+        ];
+        hasOlder = json?['hasMore'] == true;
+        nextHistoryOffset = json?['nextOffset'] as int?;
+      });
+    } catch (e) {
+      if (mounted && revision == _viewRevision) {
+        setState(() => error = explain(e));
+      }
+    } finally {
+      if (mounted) setState(() => loadingOlder = false);
+    }
+  }
+
   void newThread() {
+    ++_viewRevision;
     if (mounted) setState(() {
       conversationId = null; pendingTurnId = null;
       pendingUserText = null; draft.clear();
-      messages = []; error = null;
+      messages = []; error = null; hasOlder = false;
+      nextHistoryOffset = null;
     });
   }
   Future<void> send() async {
@@ -408,6 +448,12 @@ class _ConversationHomeState extends State<_ConversationHome> {
           actions: [TextButton(onPressed: refresh,
             child: const Text('Reload'))],
         ),
+        if (hasOlder && messages.isNotEmpty)
+          TextButton(
+            onPressed: loadingOlder ? null : loadOlder,
+            child: Text(loadingOlder ? 'Loading earlier messages…'
+              : 'Load earlier messages'),
+          ),
         Expanded(child: messages.isEmpty
           ? const Center(child: Column(
               mainAxisSize: MainAxisSize.min, children: [
