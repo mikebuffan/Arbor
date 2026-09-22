@@ -73,37 +73,155 @@ class GrovePrivateAuthGate extends StatefulWidget {
   State<GrovePrivateAuthGate> createState() => _GrovePrivateAuthGateState();
 }
 
+/// This is a UI gate only. The Grove API MUST separately validate the JWT
+/// signature/issuer/audience/expiry and the active owner grant on every request.
+/// RLS hides revoked or other users' grants, while the backend enforces access.
+bool grovePrivateOwnerGrantMatches({
+  required Map<String, dynamic>? grant,
+  required String userId,
+}) =>
+    grant != null &&
+    grant['user_id'] == userId &&
+    grant['revoked_at'] == null;
+
 class _GrovePrivateAuthGateState extends State<GrovePrivateAuthGate> {
   StreamSubscription<AuthState>? _subscription;
-  late bool _authenticated;
+  bool _authenticated = false;
+  bool _checking = false;
+  bool _signedInPrivateRealm = false;
+  int _accessGeneration = 0;
 
   @override
   void initState() {
     super.initState();
     final auth = Supabase.instance.client.auth;
-    _authenticated = GrovePrivateSession.belongsToRealm(
+    _signedInPrivateRealm = GrovePrivateSession.belongsToRealm(
       token: auth.currentSession?.accessToken,
       authUrl: GrovePrivateConfig.fromBuild.authUrl,
     );
-    _subscription = auth.onAuthStateChange.listen((state) {
-      if (mounted) {
-        setState(() => _authenticated = GrovePrivateSession.belongsToRealm(
-          token: state.session?.accessToken,
-          authUrl: GrovePrivateConfig.fromBuild.authUrl,
-        ));
-      }
+    _checking = _signedInPrivateRealm;
+    _subscription = auth.onAuthStateChange.listen((_) => _refreshAccess());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _refreshAccess();
+    });
+  }
+
+  void _refreshAccess() {
+    final generation = ++_accessGeneration;
+    final client = Supabase.instance.client;
+    final session = client.auth.currentSession;
+    final inRealm = GrovePrivateSession.belongsToRealm(
+      token: session?.accessToken,
+      authUrl: GrovePrivateConfig.fromBuild.authUrl,
+    );
+    if (!mounted) return;
+    setState(() {
+      _authenticated = false;
+      _signedInPrivateRealm = inRealm;
+      _checking = inRealm;
+    });
+    if (!inRealm || session == null) return;
+    unawaited(_loadAccess(session, generation));
+  }
+
+  Future<void> _loadAccess(Session session, int generation) async {
+    bool granted = false;
+    try {
+      // Query uses the signed-in Grove user's RLS scope, not a service key.
+      // No owner row means access is denied even if the JWT issuer matches.
+      final row = await Supabase.instance.client
+          .from('grove_private_owner_access')
+          .select('user_id,revoked_at')
+          .eq('user_id', session.user.id)
+          .maybeSingle();
+      granted = grovePrivateOwnerGrantMatches(
+        grant: row,
+        userId: session.user.id,
+      );
+    } catch (_) {
+      // A network/policy/provider error is not an implicit invitation.
+      granted = false;
+    }
+    if (!mounted || generation != _accessGeneration) return;
+    final stillSameToken =
+        Supabase.instance.client.auth.currentSession?.accessToken ==
+            session.accessToken;
+    setState(() {
+      _authenticated = granted && stillSameToken;
+      _checking = false;
     });
   }
 
   @override
   void dispose() {
+    ++_accessGeneration;
     _subscription?.cancel();
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) =>
-      _authenticated ? widget.child : const _GrovePrivateSignIn();
+  Widget build(BuildContext context) {
+    if (_authenticated) return widget.child;
+    if (_checking) {
+      return const _GrovePrivateAccessNotice(
+        message: 'Checking your private Grove invitation…',
+      );
+    }
+    if (_signedInPrivateRealm) {
+      return const _GrovePrivateAccessNotice(
+        message: 'Your private Grove access has not been activated or '
+            'could not be verified. A sign-in token alone cannot open '
+            'the house. Contact the owner of this Grove invitation.',
+        allowSignOut: true,
+      );
+    }
+    return const _GrovePrivateSignIn();
+  }
+}
+
+class _GrovePrivateAccessNotice extends StatelessWidget {
+  const _GrovePrivateAccessNotice({
+    required this.message,
+    this.allowSignOut = false,
+  });
+
+  final String message;
+  final bool allowSignOut;
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        backgroundColor: const Color(0xFF0A1819),
+        body: SafeArea(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.forest_outlined,
+                      color: Color(0xFF91DAD2), size: 44),
+                  const SizedBox(height: 16),
+                  const Text('THE GROVE',
+                      style: TextStyle(color: Color(0xFF91DAD2),
+                          fontSize: 24, letterSpacing: 2)),
+                  const SizedBox(height: 18),
+                  Text(message, textAlign: TextAlign.center,
+                      style: const TextStyle(color: Colors.white70,
+                          fontSize: 16, height: 1.45)),
+                  if (allowSignOut) ...[
+                    const SizedBox(height: 18),
+                    TextButton(
+                      onPressed: () =>
+                          Supabase.instance.client.auth.signOut(),
+                      child: const Text('Use another invited account'),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
 }
 
 class _GrovePrivateSignIn extends StatefulWidget {

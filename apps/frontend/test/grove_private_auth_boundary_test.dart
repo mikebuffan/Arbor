@@ -121,4 +121,36 @@ void main() {
         findsOneWidget);
     expect(find.text('Signed in'), findsNothing);
   });
+  test('grant must match the exact signed-in owner', () {
+    expect(grovePrivateOwnerGrantMatches(
+      grant: {'user_id': 'synthetic-owner', 'revoked_at': null},
+      userId: 'synthetic-owner',
+    ), isTrue);
+    expect(grovePrivateOwnerGrantMatches(
+      grant: {'user_id': 'another-owner', 'revoked_at': null},
+      userId: 'synthetic-owner',
+    ), isFalse);
+  });
+
+  test('missing Grove grant never authorizes an otherwise valid JWT', () {
+    expect(grovePrivateOwnerGrantMatches(
+      grant: null,
+      userId: 'synthetic-owner',
+    ), isFalse);
+  });
+
+  test('revoked Grove invitation cannot open the house', () {
+    expect(grovePrivateOwnerGrantMatches(
+      grant: {'user_id': 'synthetic-owner',
+          'revoked_at': '2026-09-22T01:00:00Z'},
+      userId: 'synthetic-owner',
+    ), isFalse);
+  });
+
+  test('malformed grant without an owner identifier denies access', () {
+    expect(grovePrivateOwnerGrantMatches(
+      grant: {'revoked_at': null},
+      userId: 'synthetic-owner',
+    ), isFalse);
+  });
 }
