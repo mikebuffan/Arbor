@@ -17,6 +17,7 @@ import 'grove_house_room.dart';
 import 'grove_world_panel.dart';
 import 'grove_room_inventory_panel.dart';
 import 'grove_app_mode.dart';
+import 'grove_responsive_wrap.dart';
 import 'annabelle_kitchen_view.dart';
 import 'benchmark_view.dart';
 import 'project_view.dart';
@@ -427,11 +428,9 @@ class _Home extends StatelessWidget {
           const SizedBox(height: 16),
           const GroveLivingWindowPanel(),
           const SizedBox(height: 16),
-          Wrap(
-            spacing: 16,
-            runSpacing: 16,
-            children: [
-              SizedBox(width: 520, child: EnvironmentPanel(child: Column(
+          GroveResponsiveWrap(
+            panels: [
+              GrovePanel(preferredWidth: 520, child: EnvironmentPanel(child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text('CURRENT OBJECTIVE', style: TextStyle(color: ArborEnvironmentTokens.cyan, fontSize: 11, letterSpacing: 1.4)),
@@ -445,7 +444,7 @@ class _Home extends StatelessWidget {
                   ],
                 ],
               ))),
-              SizedBox(width: 340, child: EnvironmentPanel(child: Column(
+              GrovePanel(preferredWidth: 340, child: EnvironmentPanel(child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text('HOUSE STATUS', style: TextStyle(color: ArborEnvironmentTokens.violet, fontSize: 11, letterSpacing: 1.4)),
