@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'public_app.dart';
+import 'public_alpha_config.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -9,20 +10,13 @@ Future<void> main() async {
   const publishableKey = String.fromEnvironment('SUPABASE_ANON_KEY');
   const apiUrl = String.fromEnvironment('ARBOR_PUBLIC_API_URL');
 
-  // Prevent an accidental alpha build that authenticates against the Grove's
-  // existing Firefly or ARK Preview installations.
-  const protectedUrls = <String>{
-    'https://ncpdlyakrzfvobmwzbon.supabase.co',
-    'https://tzbpjbhroxiqftqwatnb.supabase.co',
-    'https://dqvrzgrmorzfjddyozqz.supabase.co',
-  };
-  final authUri = Uri.tryParse(supabaseUrl);
-  final apiUri = Uri.tryParse(apiUrl);
-  if (supabaseUrl.isEmpty ||
-      protectedUrls.contains(supabaseUrl) ||
-      authUri?.scheme != 'https' ||
-      publishableKey.isEmpty ||
-      apiUri?.scheme != 'https') {
+  // The backend has its own separate guard. Check the APK configuration
+  // too, before Supabase initialization or any network client is constructed.
+  if (!PublicAlphaConfig.ready(
+    authUrl: supabaseUrl,
+    publishableKey: publishableKey,
+    apiUrl: apiUrl,
+  )) {
     runApp(const MaterialApp(
       home: Scaffold(
         body: SafeArea(
