@@ -2,7 +2,7 @@
 
 Updated 2026-09-22. **One ARK lineage. No second engine.** Source-first public-document research only. Draft code is not deployment, authorization, verified research, or a finding. Use only lawful public material; never publish victim/private-person identifiers.
 
-**Research stack:** #123 → #131 → #134 → #135 → #136 → #139 → #141 → #142 → #144 → #152 → #157 → item-50 draft branch. Grove/public-app work is separate.
+**Research stack:** #123 → #131 → #134 → #135 → #136 → #139 → #141 → #142 → #144 → #152 → #157 → #158 → #163. Grove/public-app work is separate.
 
 Legend: [x] draft code plus relevant exact-head CI evidence exists; [~] partial/CI pending; [ ] required; **BLOCKED** names an intentionally gated dependency.
 
@@ -10,7 +10,7 @@ Legend: [x] draft code plus relevant exact-head CI evidence exists; [~] partial/
 1. [x] Inventory/synchronize worker-v5 source on isolated #123 without deployment.
 2. [x] Preserve research/Grove/app branch lineage.
 3. [x] Preserve original-byte SHA and physical PDF page separately from printed folio.
-4. [x] Review parent heads/open PRs before each child; current research top before item 50 is draft #157 head `0b5f64a722cbf319ea8633a41cf76942481af06e`, stacked on #152.
+4. [x] Review parent heads/open PRs before each child; current research top is draft #163 head `b164d2f4d3cc402939f32f19f0c82e2a6987c4a8` before this documentation-only handoff commit.
 5. [ ] **BLOCKED — live integration approval:** worker-v5 deployment backup + rollback receipt.
 6. [ ] **BLOCKED — live integration approval:** deployed Vercel roots/cron/Firefly auth review.
 7. [x] #152 pinned disposable renderer image/package; verified CI run `35680347043`.
@@ -43,7 +43,7 @@ Legend: [x] draft code plus relevant exact-head CI evidence exists; [~] partial/
 30. [~] #136 content identity vs URL/local ID; durable canonical index/final redirect/cross-project persistence remain.
 31. [x] #139 typed one-step evidence promotion; CI `35663024929`.
 32. [~] Original-page/context review contract exists; real workflow remains.
-33. [~] Privacy/publication gates exist; new synthetic-only `publicationPreflight.ts` requires explicit review receipts and unresolved-flag clearance but always retains release-authorization HOLD. No automatic PII detection or real-data redaction claim; exact-head `62832f6d5d2a75e5b4f5fa38999993bc41c61706` CI `35785427853` passed backend/control/Flutter/disposable PDF smoke.
+33. [~] Privacy/publication gates exist; synthetic-only `publicationPreflight.ts` requires explicit review receipts and unresolved-flag clearance but always retains release-authorization HOLD. No automatic PII detection or real-data redaction claim; exact-head `62832f6d5d2a75e5b4f5fa38999993bc41c61706` CI `35785427853` passed backend/control/Flutter/disposable PDF smoke.
 34. [x] #141 immutable rejected-hypothesis/missing-data/failure receipts.
 35. [~] Byte-identical mirrors do not count as independent corroboration; source-chain independence proof remains.
 
@@ -79,32 +79,16 @@ Legend: [x] draft code plus relevant exact-head CI evidence exists; [~] partial/
 60. [~] Synthetic-only review preflight drafted; actual victim/private-person detection, redaction, human verification and release workflow remain BLOCKED on approved privacy workflow. No real private data processed.
 61. [x] Pure synthetic-only classification in draft #163 (observation/conflict/missing context/insufficient evidence/extraction error/unresolved/finding), fail-closed source/context checks and permanent review/privacy HOLD; exact-head CI `57c48a873280f7e358625799b995ee4adfb27998` backend/control/Flutter and real disposable PDF sandbox smoke passed. Workflow integration and real finding review remain separate.
 62. [x] Mention/allegation alone is never evidence of a crime.
-63. [~] Synthetic-only dated HOLD report draft implemented on #163; retains source record IDs, counterevidence, limitations, unresolved questions and separate release authorization. Real original-page citation verification, redaction and publication workflow pending; exact-head CI pending.
+63. [x] Synthetic-only dated HOLD report draft implemented on #163; retains source record IDs, counterevidence, limitations, unresolved questions and separate release authorization. Exact-head `b164d2f4d3cc402939f32f19f0c82e2a6987c4a8` CI run `35790795485` passed backend/control/Flutter/disposable PDF sandbox smoke. This verifies the formatter/tests only; real original-page citation verification, redaction and publication workflow remain pending.
 64. [x] No automatic publication; published discrepancies remain distinct from novel research discoveries.
 
-## Current handoff
-Verified lineage remains #123 → #131 → #134 → #135 → #136 → #139 → #141 → #142 → #144 → #152 → #157. #157 is open/draft/unmerged at head `0b5f64a722cbf319ea8633a41cf76942481af06e`; its item-46 implementation was verified at `db29abb...` by CI `35694800621`. Source inspection found no existing lead-dedupe implementation in the research lane, so item 50 was started once, on a child branch from #157.
+## Current handoff — 2026-09-22
+Verified lineage: #123 → #131 → #134 → #135 → #136 → #139 → #141 → #142 → #144 → #152 → #157 → #158 → #163. #163 is open/draft/unmerged. Its pre-documentation exact head `b164d2f4d3cc402939f32f19f0c82e2a6987c4a8` is fully green in Arbor Integration run `35790795485`: backend test/build, control backend test/build, Flutter analyze/test, and disposable PDF sandbox smoke all succeeded. Supabase Preview was skipped and is not DB evidence.
 
-**Next numbered gate:** 18 remains blocked on a permissible independently published benign PDF being run through the verified sandbox and manually reviewed. **Current safe independent item:** item 50 implementation is exact-head CI verified at `8097fd63f8b8e7cea375a40bd3b1cff83bd0f00f`; further independent synthetic-only evidence-integrity/privacy work may proceed without treating external-source or DB gates as satisfied. No external/Epstein/EFTA PDF, production DB, live worker, scheduler, deployment, paid API, private/victim data, merge or publication was touched.
+**Next numbered gate:** item 18 remains BLOCKED on an authorized independently published benign PDF plus manual rendered-page/line-order/page-count/hash review. **Next safe independent work:** item 35 source-chain independence proof/tests, then item 30 durable canonical-index design that does not require DB execution. Items 40–45 remain BLOCKED on explicit disposable DB/cost approval; 47 live worker; 51 scheduler; 58 EFTA source authorization. No external/Epstein/EFTA PDF, production DB, live worker, scheduler, deployment, paid API, private/victim data, merge or publication was touched.
 
-
-## 2026-09-22 exact-head verification addendum
-- Draft #158 and verification bridge draft #162 both pointed to `8097fd63f8b8e7cea375a40bd3b1cff83bd0f00f` when checked. #162 is a CI-only bridge; do not merge it.
-- Runs `35781224058` and `35781257390`: backend test/build, control backend test/build, Flutter analyze/test, and disposable PDF sandbox smoke all completed successfully on that SHA. Supabase Preview was skipped; a skipped preview is not DB verification.
-- Item 50 is complete as a **pure dedupe implementation** only. Upstream tenant scoping, durable persistence, and independent corroboration remain separate work.
-- Item 18 still requires approved independently published benign PDF and manual original-page, line-order, physical-page-count and original-byte-hash review. Item 40 still requires disposable DB/cost approval. No external/Epstein PDF, production DB, live worker, scheduler, deployment, paid API, victim data, merge or publication authorized by this update.
-
-
-## 2026-09-22 synthetic classification handoff
-- New isolated child draft #163 of #158, `feat/ark-research-outcome-classification-20260922`; #164 is CI-only bridge against #152, DO NOT MERGE.
-- Reused existing `researchOutcomeReceipt.ts` and `evidenceStage.ts`; new `researchFindingClassification.ts` is a separate review-disposition contract, not a duplicate of immutable failure receipts or evidence promotion.
-- Local Node 22 type-stripping smoke: 12 synthetic assertions passed, covering all seven kinds remaining HOLD, missing proof, missing counterevidence, duplicate/overlapping refs and invalid review flag. Added dedicated Vitest tests; repo CI pending. Do not mark item 61 [x] until exact-head CI and integration acceptance.
-- Next numbered gate remains #18 independently published benign PDF review; #40 disposable DB; #47 live worker. Independent safe next: item 33/60 synthetic privacy gate and item 35 source-chain independence tests. No real private/victim data, external PDFs, paid API, live worker, DB, scheduler, merge, deployment or publication.
-
-- Exact-head `57c48a873280f7e358625799b995ee4adfb27998` CI later completed successfully for backend/control/Flutter and real disposable PDF sandbox smoke; item 61 **pure module** now [x]. Supabase Preview skipped, not DB verification.
-
-- Draft #163 subsequent independent synthetic `publicationPreflight.ts` + Vitest tests: requires source/page review, privacy/publication receipts, no unresolved flags, and NEVER grants automatic sharing. At new head, exact-head CI pending. This is not automated redaction or publication approval.
-
-- Exact-head `62832f6d5d2a75e5b4f5fa38999993bc41c61706` CI `35785427853` PASS on four engineering jobs for synthetic publication preflight; item 33/60 remain partial because this is review receipt gating, not automatic redaction or real-data workflow.
-
-- Added `researchReportDraft.ts` and focused synthetic Vitest tests on #163 for item 63; it formats HOLD-only reports, not verified source citations or published findings. Exact-head CI pending; no release or real-world claims.
+### Exact-head evidence recorded this run
+- `57c48a873280f7e358625799b995ee4adfb27998`: item 61 classifier CI green.
+- `62832f6d5d2a75e5b4f5fa38999993bc41c61706`: publication-preflight CI `35785427853` green.
+- `b164d2f4d3cc402939f32f19f0c82e2a6987c4a8`: report-draft correction CI `35790795485` green across all four engineering jobs.
+- #164 remains CI-only bridge; DO NOT MERGE.
