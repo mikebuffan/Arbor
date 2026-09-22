@@ -1,0 +1,80 @@
+name: ARK Layer isolated continuity acceptance
+
+on:
+  push:
+    branches:
+      - arbor/ark-layer-handoff-boundary-20260921
+    paths:
+      - supabase/tests/database/ark_layer_continuity_smoke.sql
+      - .github/workflows/ark-layer-isolated-acceptance.yml
+      - supabase/migrations/20260918143000_create_ark_autonomous_work_runner.sql
+      - supabase/migrations/20260918203000_ark_targeted_objective_claim.sql
+      - supabase/migrations/20260918210000_ark_owner_integrity.sql
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ark-layer-disposable-db-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  isolated-ark-postgres:
+    name: ARK x Layer disposable Postgres continuity
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ark_layer_disposable
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d ark_layer_disposable"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: ark_layer_disposable
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Seed minimal owner/auth schema in disposable Postgres
+        run: |
+          psql -X -v ON_ERROR_STOP=1 <<'SQL'
+          create role anon nologin;
+          create role authenticated nologin;
+          create role service_role nologin bypassrls;
+          create schema auth;
+          create function auth.uid() returns uuid
+          language sql stable as $$
+            select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid
+          $$;
+          create table auth.users (id uuid primary key);
+          create table public.projects (
+            id uuid primary key,
+            user_id uuid not null references auth.users(id) on delete cascade
+          );
+          grant usage on schema public, auth to anon, authenticated, service_role;
+          grant select on public.projects to authenticated, service_role;
+          SQL
+
+      - name: Apply existing ARK migrations, never production
+        run: |
+          psql -X -v ON_ERROR_STOP=1 --single-transaction \
+            -f supabase/migrations/20260918143000_create_ark_autonomous_work_runner.sql \
+            -f supabase/migrations/20260918203000_ark_targeted_objective_claim.sql \
+            -f supabase/migrations/20260918210000_ark_owner_integrity.sql
+
+      - name: Verify owner isolation, idempotency, checkpoint resume, and completion
+        run: |
+          psql -X -v ON_ERROR_STOP=1 \
+            -f supabase/tests/database/ark_layer_continuity_smoke.sql
