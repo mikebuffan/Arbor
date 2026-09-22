@@ -3,6 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../config/grove_private_config.dart';
+import '../config/grove_private_session.dart';
+
 /// A readable, fail-closed screen while a dedicated Grove owner realm / API
 /// has not yet been provisioned. Never asks for existing public-app passwords.
 class GrovePrivateSetupPage extends StatelessWidget {
@@ -78,11 +81,16 @@ class _GrovePrivateAuthGateState extends State<GrovePrivateAuthGate> {
   void initState() {
     super.initState();
     final auth = Supabase.instance.client.auth;
-    _authenticated = auth.currentSession?.accessToken != null;
+    _authenticated = GrovePrivateSession.belongsToRealm(
+      token: auth.currentSession?.accessToken,
+      authUrl: GrovePrivateConfig.fromBuild.authUrl,
+    );
     _subscription = auth.onAuthStateChange.listen((state) {
       if (mounted) {
-        setState(() => _authenticated =
-            state.session?.accessToken != null);
+        setState(() => _authenticated = GrovePrivateSession.belongsToRealm(
+          token: state.session?.accessToken,
+          authUrl: GrovePrivateConfig.fromBuild.authUrl,
+        ));
       }
     });
   }
