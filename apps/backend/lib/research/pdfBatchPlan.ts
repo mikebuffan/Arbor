@@ -57,6 +57,11 @@ export function validateCompletePdfBatchPlan(
 ): void {
   if (!batches.length) throw new Error("incomplete_pdf_batch_plan");
   const limit = batches[0].batchPageLimit;
+  // Mixed limits are a corrupted plan, not a missing set of batches.
+  // Check before deriving the expected count from batch zero's limit.
+  if (batches.some((batch) => batch.batchPageLimit !== limit)) {
+    throw new Error("invalid_pdf_batch_plan");
+  }
   const expected = planPdfPageBatches(original, limit);
   if (batches.length !== expected.length) throw new Error("incomplete_pdf_batch_plan");
   for (let index = 0; index < batches.length; index += 1) {
