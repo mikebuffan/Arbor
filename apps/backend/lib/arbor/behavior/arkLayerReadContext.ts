@@ -39,7 +39,7 @@ export type ArkLayerReadContext = {
   };
   continuity: {
     available: boolean;
-    source: "exact" | "project_fallback" | "unavailable";
+    source: "requested_conversation" | "project_latest" | "project_fallback" | "unavailable";
     currentGoal: string | null;
     unresolvedWork: string[];
     acousticCorrections: string[];
@@ -126,8 +126,9 @@ export async function readArkLayerContext(input: {
     continuity: {
       available: Boolean(state),
       source: !state ? "unavailable" :
-        input.conversationId && state.conversationId !== input.conversationId
-          ? "project_fallback" : "exact",
+        !input.conversationId ? "project_latest" :
+        state.conversationId !== input.conversationId
+          ? "project_fallback" : "requested_conversation",
       currentGoal: state?.currentGoal ?? null,
       unresolvedWork: state?.agency?.unresolvedWork ?? [],
       acousticCorrections: startup?.acousticCorrections ?? [],
