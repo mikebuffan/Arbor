@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../api/arbor_api_client.dart';
@@ -327,6 +328,40 @@ class _ConversationHomeState extends State<_ConversationHome> {
       if (mounted) setState(() => busy = false);
     }
   }
+  Future<void> exportHistory() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialog) => AlertDialog(
+        title: const Text('Copy your conversation archive?'),
+        content: const Text('Your public-alpha chats will be copied as JSON. '
+          'Other apps or someone using this device may be able to access '
+          'clipboard contents. Do not use this on a shared device. '
+          'Private Grove and ARK data are never included.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialog, false),
+            child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(dialog, true),
+            child: const Text('Copy archive')),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      final snapshot = await api.get('/api/public/conversations',
+        queryParameters: {'export': '1'});
+      if (!mounted) return;
+      if (snapshot?['ok'] != true) throw StateError('Export not ready');
+      await Clipboard.setData(ClipboardData(text: jsonEncode(snapshot)));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Public-alpha conversation JSON copied. '
+          'Paste it somewhere private, then clear your clipboard.'),
+      ));
+    } catch (e) {
+      if (mounted) setState(() => error = explain(e));
+    }
+  }
+
   Future<void> removeThread() async {
     final id = conversationId;
     if (id == null) return;
@@ -368,8 +403,9 @@ class _ConversationHomeState extends State<_ConversationHome> {
       'Voice': 'Voice is not enabled in this private alpha. '
         'The existing private voice route is deliberately not connected.',
       'Settings': 'Your chats are stored per account. Delete a '
-        'conversation from the menu. Long-term memory controls, '
-        'account deletion and export are still being built.',
+        'conversation or explicitly copy your conversation archive '
+        'from the menu. Long-term memory and account deletion controls '
+        'are still being built.',
       'Privacy': 'This alpha uses a dedicated test database and sends '
         'authorized chat content to Arbor LM inference. Do not enter '
         'sensitive data until retention and consent terms are finalized.',
@@ -418,6 +454,7 @@ class _ConversationHomeState extends State<_ConversationHome> {
           onSelected: (value) async {
             if (value == 'new') newThread();
             else if (value == 'delete') await removeThread();
+            else if (value == 'export') await exportHistory();
             else if (value == 'signout') {
               await Supabase.instance.client.auth.signOut();
             } else showInfo(value);
@@ -428,6 +465,8 @@ class _ConversationHomeState extends State<_ConversationHome> {
             if (conversationId != null)
               const PopupMenuItem(value: 'delete',
                 child: Text('Delete conversation')),
+            const PopupMenuItem(value: 'export',
+              child: Text('Copy conversation archive')),
             const PopupMenuItem(value: 'Settings',
               child: Text('Settings')),
             const PopupMenuItem(value: 'Privacy',
