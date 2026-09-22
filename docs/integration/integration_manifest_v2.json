@@ -16,7 +16,7 @@
     "integration": "Cross-lane integration"
   },
   "tip_pr_by_lane": {
-    "grove": 151,
+    "grove": 153,
     "ark_layer": 147,
     "public_app": 146,
     "research": 152
@@ -125,7 +125,8 @@
       "draft": true,
       "merged": false,
       "owner": "grove",
-      "branch": "feat/grove-private-auth-boundary-20260921"
+      "branch": "feat/grove-private-auth-boundary-20260921",
+      "stacked_into": 153
     },
     {
       "number": 152,
@@ -137,6 +138,17 @@
       "merged": false,
       "owner": "research",
       "branch": "feat/ark-pdf-disposable-sandbox-20260921"
+    },
+    {
+      "number": 153,
+      "sha": "399c92505b0ed1fec831dac78d2b662ae8f5fb2f",
+      "base": "feat/grove-private-auth-boundary-20260921",
+      "base_sha": "6f7627432c25bcc9dac8ba47283f12fa3026034d",
+      "state": "open",
+      "draft": true,
+      "merged": false,
+      "owner": "grove",
+      "branch": "fix/grove-private-no-demo-fallback-20260921"
     }
   ],
   "external_bases": [
@@ -210,6 +222,13 @@
       "stage": "planned",
       "ref": "not authorized",
       "pending": "Separate public tenancy, explicit release decision"
+    },
+    {
+      "id": "grove_private_ark_no_demo_fallback",
+      "owner": "grove",
+      "stage": "implemented",
+      "ref_pr": 153,
+      "pending": "Run Flutter analyze/tests on new child branch; physical private Grove and dedicated API still not deployed"
     }
   ],
   "exclusive_path_prefixes": {
@@ -261,5 +280,5 @@
     "rollback_proof",
     "owner_approval"
   ],
-  "notes": "Dated cross-lane manifest; PR #149 is intentionally not self-pinned (its own SHA changes when this file changes). Refresh exact heads and run checker against a newly fetched observed snapshot. Status 'implemented' with prior_tested_sha is NOT tested current head or a production receipt."
+  "notes": "Dated cross-lane manifest updated with new stacked Grove #153. PR #149 intentionally not self-pinned. Re-fetch exact heads and run checker with fresh --observed before approval. Offline synthetic tests are not CI or production receipts."
 }
