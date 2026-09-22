@@ -46,6 +46,9 @@ export async function GET(req: Request, context: Context) {
       .range(offset, offset + 100);
     if (messageError) throw messageError;
     const page = messages ?? [];
+    if (page.length > 100 && offset >= 10000) {
+      return publicJson(req, { ok: false, error: "history_page_limit" }, 413);
+    }
     const hasMore = page.length > 100 && offset + 100 <= 10000;
     return publicJson(req, {
       ok: true,
