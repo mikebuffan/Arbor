@@ -27,6 +27,9 @@
 - [ ] Review whether a dedicated CI workflow should run the checker; `.github/workflows/` is shared and must be cross-reviewed, not modified unilaterally here.
 
 ## Phase 4 — private Grove integration dependency order
+- [x] Refresh Grove release tip to stacked private child [#153](https://github.com/mikebuffan/Arbor/pull/153): private ARK fallback now stays unavailable instead of demo; five synthetic Flutter regression cases committed, **not yet Flutter-CI verified**. Parent #151 unchanged.
+- [x] Recheck connected Supabase organization: Aurixus Studios is **Pro** and Supabase quotes **+$10/month** for a new project; two existing active projects remain Firefly and ARK Preview, no Grove project yet.
+- [ ] Receive Danelle's explicit organization/region and +$10/month project confirmation; follow Supabase cost-confirmation flow before creating new private Grove project.
 - [x] Verify code-path *shape*: #151 boot requires dedicated Grove config; Grove API client reads Grove Supabase token; #147 scoped ARK/Layer broker assumes separately authorized Firefly context; LM signed receiver remains isolated prototype.
 - [ ] Grove lane + ARK/Layer lane review owner-approved cross-provider user/project mapping, issuer/audience/signature validation, revoke and late-response handling.
 - [ ] Grove lane + LM lane review signed bounded per-request context transport; no client-authored project ID or fake task receipt.
@@ -51,4 +54,4 @@
 - No independent merges of superseded stacked source branches, no invented model/worker receipt, no live Epstein/EFTA PDF ingestion from a synthetic sandbox pass.
 - After interruption, refresh live heads, exact proof and ownership before resuming. This queue is a **checkpoint**, not evidence of asynchronous work.
 
-**Next safe integration-only action:** execute the committed checker suite in Node where available; refresh the owner PRs and route any cross-lane contract discrepancy to its owner. The first provider-provisioning gate is an owner decision, not automatically a Mike task.
+**Next safe integration-only action:** refresh PR heads and rerun the dated manifest against newly fetched observations at release time; integrate new owner-lane handoffs. The next real-world provisioning gate is explicit owner approval of Aurixus Studios plus $10/month and region, not automatically a Mike task.
