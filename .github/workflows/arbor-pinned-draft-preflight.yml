@@ -7,6 +7,8 @@ on:
   push:
     branches:
       - docs/arbor-master-integration-20260921
+    paths:
+      - .github/workflows/arbor-pinned-draft-preflight.yml
   workflow_dispatch:
 
 permissions:
