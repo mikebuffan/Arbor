@@ -24,7 +24,6 @@
   "pull_requests": [
     {
       "number": 125,
-      "head": "feat/ark-continuity-handoff-20260921",
       "sha": "71a5836883313d1d49d025e46e19a3a78cdf4e08",
       "base": "main",
       "base_sha": "d46f6b46fc51ac3db4e158cddfc592c52cc2b5ef",
@@ -32,11 +31,11 @@
       "draft": true,
       "merged": false,
       "owner": "ark_layer",
-      "incorporated_by": 138
+      "incorporated_by": 138,
+      "branch": "feat/ark-continuity-handoff-20260921"
     },
     {
       "number": 137,
-      "head": "fix/grove-shelf-session-invalidation-20260921",
       "sha": "6c9be6cd78963838da39eff7490e19eeb0412ea1",
       "base": "feat/grove-document-shelf-20260921",
       "base_sha": "a2f8d44bf0c04a602043605f6ad09027da3f74fb",
@@ -44,11 +43,11 @@
       "draft": true,
       "merged": false,
       "owner": "grove",
-      "stacked_into": 138
+      "stacked_into": 138,
+      "branch": "fix/grove-shelf-session-invalidation-20260921"
     },
     {
       "number": 138,
-      "head": "feat/grove-release-candidate-20260921",
       "sha": "8eff7230cb3fbc769c9e7c04af19ecfaa09428c0",
       "base": "fix/grove-shelf-session-invalidation-20260921",
       "base_sha": "6c9be6cd78963838da39eff7490e19eeb0412ea1",
@@ -56,11 +55,11 @@
       "draft": true,
       "merged": false,
       "owner": "grove",
-      "stacked_into": 151
+      "stacked_into": 151,
+      "branch": "feat/grove-release-candidate-20260921"
     },
     {
       "number": 140,
-      "head": "arbor/public-app-alpha-20260921",
       "sha": "87a989423450c035125e241032430ca9b9014344",
       "base": "main",
       "base_sha": "d46f6b46fc51ac3db4e158cddfc592c52cc2b5ef",
@@ -68,11 +67,11 @@
       "draft": true,
       "merged": false,
       "owner": "public_app",
-      "stacked_into": 146
+      "stacked_into": 146,
+      "branch": "arbor/public-app-alpha-20260921"
     },
     {
       "number": 144,
-      "head": "feat/ark-pdf-page-image-provenance-20260921",
       "sha": "fec26c3e6006a895e04042b47ed97167e220c227",
       "base": "feat/ark-pdf-batch-plan-20260921",
       "base_sha": "d623dbc7281f518b74f0330e63228fdf92b7999d",
@@ -80,33 +79,33 @@
       "draft": true,
       "merged": false,
       "owner": "research",
-      "stacked_into": 152
+      "stacked_into": 152,
+      "branch": "feat/ark-pdf-page-image-provenance-20260921"
     },
     {
       "number": 146,
-      "head": "arbor/public-alpha-continuity-privacy-20260921",
       "sha": "aea0318d9ff07d9c6e22d0627d3582325053b320",
       "base": "arbor/public-app-alpha-20260921",
       "base_sha": "87a989423450c035125e241032430ca9b9014344",
       "state": "open",
       "draft": true,
       "merged": false,
-      "owner": "public_app"
+      "owner": "public_app",
+      "branch": "arbor/public-alpha-continuity-privacy-20260921"
     },
     {
       "number": 147,
-      "head": "arbor/ark-layer-handoff-boundary-20260921",
       "sha": "ce70f72287e172e7650604e47872c6facdfd3107",
       "base": "main",
       "base_sha": "d46f6b46fc51ac3db4e158cddfc592c52cc2b5ef",
       "state": "open",
       "draft": true,
       "merged": false,
-      "owner": "ark_layer"
+      "owner": "ark_layer",
+      "branch": "arbor/ark-layer-handoff-boundary-20260921"
     },
     {
       "number": 150,
-      "head": "fix/grove-private-phone-ui-20260921",
       "sha": "8673f186f2acca7ccab6e32aa982833ee59cbd72",
       "base": "fix/grove-runtime-scope-20260921",
       "base_sha": "e4d15fa04057af49d687d5be35113c794244c95c",
@@ -114,29 +113,30 @@
       "draft": true,
       "merged": false,
       "owner": "grove",
-      "stacked_into": 151
+      "stacked_into": 151,
+      "branch": "fix/grove-private-phone-ui-20260921"
     },
     {
       "number": 151,
-      "head": "feat/grove-private-auth-boundary-20260921",
       "sha": "6f7627432c25bcc9dac8ba47283f12fa3026034d",
       "base": "fix/grove-private-phone-ui-20260921",
       "base_sha": "8673f186f2acca7ccab6e32aa982833ee59cbd72",
       "state": "open",
       "draft": true,
       "merged": false,
-      "owner": "grove"
+      "owner": "grove",
+      "branch": "feat/grove-private-auth-boundary-20260921"
     },
     {
       "number": 152,
-      "head": "feat/ark-pdf-disposable-sandbox-20260921",
       "sha": "d049301558a2129cbb5d38f88fa7a407b0822dc5",
       "base": "feat/ark-pdf-page-image-provenance-20260921",
       "base_sha": "fec26c3e6006a895e04042b47ed97167e220c227",
       "state": "open",
       "draft": true,
       "merged": false,
-      "owner": "research"
+      "owner": "research",
+      "branch": "feat/ark-pdf-disposable-sandbox-20260921"
     }
   ],
   "external_bases": [
