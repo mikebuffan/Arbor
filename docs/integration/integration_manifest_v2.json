@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "as_of": "2026-09-22 PDT (Grove source tip #174 verified by pinned CI; production unchanged)",
+  "as_of": "2026-09-22 PDT (Grove current #174 exact-head verified in 6-job preflight)",
   "repository": "mikebuffan/Arbor",
   "main_sha": "d46f6b46fc51ac3db4e158cddfc592c52cc2b5ef",
   "product_separation": [
@@ -297,7 +297,7 @@
     },
     {
       "number": 174,
-      "sha": "affdba67ea131ebad802ae5261145b6123bf6fb8",
+      "sha": "20c2235b37a7121393026a504f275246dc0d80cf",
       "base": "fix/grove-private-projects-truth-20260922",
       "base_sha": "7c0fea8aced8dcbf3836f9cadd4473e958536043",
       "state": "open",
@@ -510,11 +510,11 @@
       "stage": "tested",
       "ref_pr": 174,
       "proof": {
-        "sha": "affdba67ea131ebad802ae5261145b6123bf6fb8",
-        "run_id": 35797522733,
-        "scope": "Pinned checkout of latest Grove child tip: backend tests/build and Flutter project picker/room tests/analyze; zero ARK grants leaves private invited house available, no ARK data claim"
+        "sha": "20c2235b37a7121393026a504f275246dc0d80cf",
+        "run_id": 35797949608,
+        "scope": "Six pinned exact-source jobs green: Grove backend tests/build plus Flutter picker test/analyze; zero-grants local ARK scope-clearing ordering regression covered. No live account/provider or Android proof."
       },
-      "pending": "Owner review, physical-device acceptance and live host. Prior children #166/#167 were cut before parent #165 advanced; do not merge them as though they include its latest fix."
+      "pending": "Owner review and physical device/live private host acceptance; do not infer a real ARK grant or independent LM inference."
     }
   ],
   "exclusive_path_prefixes": {
@@ -566,5 +566,5 @@
     "rollback_proof",
     "owner_approval"
   ],
-  "notes": "2026-09-22 PDT: Grove #156 credential-free CI 35696240828 passed at 8999a570...; separate Grove Vercel project and seven production settings confirmed in Danelle's UI (connected Vercel project-list is incomplete), next deploy is rate-limited per dated GitHub status. Existing two bridge tables applied manually but no migration ledger; all grants 0. Actual owner invited, actual private live API and model/phone unverified. Research #152 doc-only head moved 303b5e..., not exact-code CI. Refresh all observations for promotion. | 2026-09-22 later: research #157/#158 already existed in its owner lane; not rebuilt. Public alpha #159 excludes Grove project in provider guard, ARK/Layer #160 requires selected file in requested conversation; both draft IMPLEMENTED with regression tests committed, NO exact-head CI. Still no Grove live deploy/real owner/phone or private LM inference. | Latest research #158 draft tip moved from a8f16fcf4c928110b8886b8f18434ab4e8f72d70 to 4025a6e334234b3000a2d467d19ea55e067129dc (metadata refresh only; no new test/deployment claim). | CI Actions 35762754152: five pinned source jobs green (public backend+Flutter #159, ARK #160, Grove #161 Flutter, research #158 backend+Poppler). Local LM v0.3.5 package 61 manifest entries verified; 77 passed/1 skipped in offline Python tests and synthetic host demo HTTP 200; NO real model/GPU, Grove chat or production deploy. | Grove #165 c426683... pinned backend+Flutter CI 35790450802; Grove #166 da071d... pinned backend CI 35790928512. Private text/voice still disabled, host transport not imported into route, Python adapter real inference unverified. Research #158 revised d6dd... exact-head CI 35784260966 and #163 new synthetic classification in owner lane (do not alter/merge #164 CI-only alias). | Grove #167 exact-source CI 35791592394 green: private Projects screen no longer shows hard-coded queued investigation/ARK as live owner projects; selected grant is device local and real ARK status must be read via broker. No hosted owner/device receipt. | Grove project discovery #165 moved to a903277... (CI 35797117926 passed); #166/#167 were cut at c426683... and do not contain the no-ARK-grants House fix. Child #174 affdba... mirrors the fix at current #167 tip, pinned matrix Actions 35797522733 all 6 jobs passed. No deployed/private owner/real LM inference receipt. Do not blindly merge the split Grove stacks; reconcile code into one final promotion branch."
+  "notes": "2026-09-22 PDT: Grove #156 credential-free CI 35696240828 passed at 8999a570...; separate Grove Vercel project and seven production settings confirmed in Danelle's UI (connected Vercel project-list is incomplete), next deploy is rate-limited per dated GitHub status. Existing two bridge tables applied manually but no migration ledger; all grants 0. Actual owner invited, actual private live API and model/phone unverified. Research #152 doc-only head moved 303b5e..., not exact-code CI. Refresh all observations for promotion. | 2026-09-22 later: research #157/#158 already existed in its owner lane; not rebuilt. Public alpha #159 excludes Grove project in provider guard, ARK/Layer #160 requires selected file in requested conversation; both draft IMPLEMENTED with regression tests committed, NO exact-head CI. Still no Grove live deploy/real owner/phone or private LM inference. | Latest research #158 draft tip moved from a8f16fcf4c928110b8886b8f18434ab4e8f72d70 to 4025a6e334234b3000a2d467d19ea55e067129dc (metadata refresh only; no new test/deployment claim). | CI Actions 35762754152: five pinned source jobs green (public backend+Flutter #159, ARK #160, Grove #161 Flutter, research #158 backend+Poppler). Local LM v0.3.5 package 61 manifest entries verified; 77 passed/1 skipped in offline Python tests and synthetic host demo HTTP 200; NO real model/GPU, Grove chat or production deploy. | Grove #165 c426683... pinned backend+Flutter CI 35790450802; Grove #166 da071d... pinned backend CI 35790928512. Private text/voice still disabled, host transport not imported into route, Python adapter real inference unverified. Research #158 revised d6dd... exact-head CI 35784260966 and #163 new synthetic classification in owner lane (do not alter/merge #164 CI-only alias). | Grove #167 exact-source CI 35791592394 green: private Projects screen no longer shows hard-coded queued investigation/ARK as live owner projects; selected grant is device local and real ARK status must be read via broker. No hosted owner/device receipt. | Grove project discovery #165 moved to a903277... (CI 35797117926 passed); #166/#167 were cut at c426683... and do not contain the no-ARK-grants House fix. Child #174 affdba... mirrors the fix at current #167 tip, pinned matrix Actions 35797522733 all 6 jobs passed. No deployed/private owner/real LM inference receipt. Do not blindly merge the split Grove stacks; reconcile code into one final promotion branch. | Grove #174 final no-grants stale-scope clearing regression at 20c2235... passed all six pinned matrix jobs 35797949608; no Vercel deployment or live owner access verified."
 }
