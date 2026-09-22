@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import '../api/arbor_api_client.dart';
 import 'environment_state.dart';
+import 'grove_app_mode.dart';
 import 'activity_view.dart';
 import 'work_queue.dart';
 
@@ -10,6 +11,9 @@ abstract interface class EnvironmentRuntimeAdapter {
   Future<EnvironmentSnapshot> snapshot();
   Stream<EnvironmentSnapshot> watch();
 }
+
+String arkStatusPath({required bool privateGrove}) =>
+    privateGrove ? '/api/grove/ark/status' : '/api/ark/status';
 
 abstract interface class ArkStatusReader {
   Future<Map<String, dynamic>?> read(String projectId);
@@ -22,7 +26,9 @@ class ArborApiArkStatusReader implements ArkStatusReader {
 
   @override
   Future<Map<String, dynamic>?> read(String projectId) =>
-      apiClient.get('/api/ark/status', queryParameters: {
+      apiClient.get(
+        arkStatusPath(privateGrove: groveStandalone),
+        queryParameters: {
         'projectId': projectId,
       });
 }
