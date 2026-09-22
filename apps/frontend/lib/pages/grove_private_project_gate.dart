@@ -40,6 +40,7 @@ class GrovePrivateProjectGate extends StatefulWidget {
     required this.child,
     this.loadProjects,
     this.selectProject,
+    this.clearSelection,
   });
 
   final Widget child;
@@ -47,6 +48,9 @@ class GrovePrivateProjectGate extends StatefulWidget {
   final Future<List<String>> Function()? loadProjects;
   /// Synthetic test seam. Real builds write only the selected grant.
   final Future<void> Function(String projectId)? selectProject;
+  /// Synthetic seam: no-grant path must clear old device-local ARK scope
+  /// before opening the already invited private house.
+  final Future<void> Function()? clearSelection;
 
   @override
   State<GrovePrivateProjectGate> createState() =>
@@ -114,7 +118,9 @@ class _GrovePrivateProjectGateState extends State<GrovePrivateProjectGate> {
         // Invited owner may enter the private HOUSE with no ARK grant.
         // Drop a stale on-device project/thread before constructing the room:
         // the ARK shelf stays unavailable and never falls back to demo data.
-        if (widget.loadProjects == null) {
+        if (widget.clearSelection != null) {
+          await widget.clearSelection!();
+        } else if (widget.loadProjects == null) {
           final userId = _userId;
           if (userId == null || !_sameSession()) {
             throw StateError('Private Grove session changed');
