@@ -2,7 +2,7 @@
 
 **Status:** documentation-only, review-only; no merge, migration, production change, worker activation, deployment, new service, or reassignment of the separate build lanes. **Observed repository main:** `d46f6b46fc51ac3db4e158cddfc592c52cc2b5ef` (refresh before acting).
 
-This index points to existing authoritative architecture documents rather than replacing or cloning their implementation. A fuller seven-file working package (master handoff, interface design, dated owner/ref manifest, checkpoint template, offline collision checker and its 10 regression tests) is preserved in Danelle's ChatGPT Library at `/Arbor Integration/arbor_master_integration_20260921.zip`. Library access is independent of GitHub; the file name is an archive locator, **not** a downloadable repository file. The source-controlled index is not a deployment receipt.
+This index points to existing authoritative architecture documents rather than replacing or cloning their implementation. The [refreshed September 21 assembly handoff](CURRENT_ASSEMBLY_HANDOFF_20260921.md) records the latest reviewed heads, exact test receipts and who actually needs to act; this file's historical PR descriptions below are preserved for lineage. A fuller seven-file working package (master handoff, interface design, dated owner/ref manifest, checkpoint template, offline collision checker and its 10 regression tests) is preserved in Danelle's ChatGPT Library at `/Arbor Integration/arbor_master_integration_20260921.zip`. Library access is independent of GitHub; the file name is an archive locator, **not** a downloadable repository file. The source-controlled index is not a deployment receipt.
 
 ## Authority and lane ownership
 
@@ -16,13 +16,13 @@ This index points to existing authoritative architecture documents rather than r
 
 Authoritative source anchors: [ARK architecture](../architecture/ARK.md), [ARK verification](../architecture/ARK_INTEGRATION_VERIFICATION.md), [Environment→ARK read boundary](../environment/ARK_READONLY_INTEGRATION.md), [Firefly migration canon](../migrations/firefly-migration-canon-bootstrap.md), [ARK production reconciliation](../operations/ARK_PRODUCTION_RECONCILIATION_20260920.md). The July 2026 Engineering Handbook is a **working-draft historical umbrella**, not proof of the live database. The September 21 two-app correction in the Library supersedes the older description of Grove as a room inside a public Firefly app; historical naming still remains provenance.
 
-## Exact current PR seams to refresh
+## Historical PR seams (superseded as current-status list by linked assembly handoff)
 
-- **Grove candidate:** [#138](https://github.com/mikebuffan/Arbor/pull/138) `feat/grove-release-candidate-20260921`, stacked #137→#133→#132→#130→#129→#122. #129 already consolidated #124, #126 and #128. Do not independently merge source branches after review of #138.
+- **Historical Grove candidate (now followed by #145 → #148 → #150 → #151):** [#138](https://github.com/mikebuffan/Arbor/pull/138) `feat/grove-release-candidate-20260921`, stacked #137→#133→#132→#130→#129→#122. #129 already consolidated #124, #126 and #128. Do not independently merge source branches after review of #138.
 - **ARK handoff:** [#125](https://github.com/mikebuffan/Arbor/pull/125) `feat/ark-continuity-handoff-20260921`. #138 **already incorporates** its read-only source plus project scope binding. Do not create a replacement gateway or blindly merge the original handoff branch after the Grove copy.
-- **Public alpha:** [#140](https://github.com/mikebuffan/Arbor/pull/140) `arbor/public-app-alpha-20260921`, a separate draft on `main`. Implemented source is not a hosted inference/deployed alpha or accepted user-isolation test.
+- **Public alpha foundation (now followed by #146):** [#140](https://github.com/mikebuffan/Arbor/pull/140) `arbor/public-app-alpha-20260921`, a separate draft on `main`. Implemented source is not a hosted inference/deployed alpha or accepted user-isolation test.
 - **ARK release work:** [#114](https://github.com/mikebuffan/Arbor/pull/114) isolated execution proof; [#117](https://github.com/mikebuffan/Arbor/pull/117) production reconciliation was merged into an ARK *release branch*, NOT necessarily main or production.
-- **Research:** [#143](https://github.com/mikebuffan/Arbor/pull/143) in a separate stacked investigation lane, out of scope here.
+- **Historical research checkpoint (now followed by #144 → #152):** [#143](https://github.com/mikebuffan/Arbor/pull/143) in a separate stacked investigation lane, out of scope here.
 
 ## Shared-contract review
 
@@ -38,7 +38,7 @@ A capability moves PLANNED→IMPLEMENTED→TESTED→DEPLOYED→ACCEPTED only wit
 
 Before any future write: refresh `main`, current owner PR heads, bases and changed files. Compare overlapping patch hunks and public interfaces. If a path belongs to another lane, **stop and route to its owner**; if shared, request a joint review. Preserve the known-good rollback SHA and migration/feature-flag state. Never force-push/rebase an active lane, merge source and consolidated PR independently, or replay an uncertain side effect without idempotency proof.
 
-**First Grove acceptance:** synthetic A/P/C1 vs B/Q isolation, signed-in physical Android standalone Grove and original Talk, Living Window→Return to Now, Moss hard-relaunch state, read-only ARK evidence/currentness, immediate shelf blank on auth/project switch, reject late responses, unavailable model/ARK states, and Text↔Voice continuity. No genuine owner private data in the public repo.
+**First Grove acceptance (requires a dedicated private Grove account/provider, not just a separate Android flavor):** synthetic A/P/C1 vs B/Q isolation, signed-in physical Android standalone Grove and original Talk, Living Window→Return to Now, Moss hard-relaunch state, read-only ARK evidence/currentness, immediate shelf blank on auth/project switch, reject late responses, unavailable model/ARK states, and Text↔Voice continuity. No genuine owner private data in the public repo.
 
 **Public alpha acceptance:** dedicated alpha Supabase/Vercel/GPU host; real v0.3 inference response; synthetic A/B account isolation and guessed-conversation denial; T1/restart/T2 history; retry/duplicate-turn/timeout behavior, retention/export/delete, consent/accessibility, crisis behavior, security and clinical-claims review. No silent ingestion of private Grove data.
 
