@@ -178,3 +178,18 @@ has exact-head CI receipts; child PR #146 needs its own exact-head receipts.
 `not passed`: real users, real device, cross-user Postgres RLS and model
 conversation end-to-end. `not implemented`: long-term public memory,
 user-wide deletion, ARK attachment, clinical/wellness evaluation.
+
+### Separate alpha API host route gate
+
+When `ARBOR_PUBLIC_APP_ENABLED=true`, backend middleware accepts only
+`/api/public/*` and rejects other API, administrative, ARK, and root paths
+with 404. Browser OPTIONS uses the explicit alpha origin allowlist instead
+of the legacy middleware's reflected origin. When the alpha flag is off,
+the existing private Firefly middleware behavior remains unchanged.
+
+Do not use this switch on Firefly. The isolated alpha Vercel deployment
+must also **exclude or disable inherited heartbeat Cron configuration**
+from `apps/backend/vercel.json` (and any root `vercel.json`) and verify
+the resulting deployment configuration before alpha testing. A denied
+Cron HTTP request is not equivalent to an absent scheduled invocation.
+No deployment or Cron setting has been changed by this draft.
