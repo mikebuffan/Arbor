@@ -41,6 +41,11 @@ jobs:
       - run: corepack enable
       - run: corepack prepare pnpm@10.30.3 --activate
       - run: pnpm install --frozen-lockfile
+      - name: Install fixture PDF parser for research tests
+        if: matrix.lane == 'research-158'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y poppler-utils
       - name: Verify exact-head backend tests
         env:
           OPENAI_API_KEY: ci-placeholder-not-a-real-key
@@ -62,7 +67,7 @@ jobs:
             sha: 1a6a6cc7eb682059b47f0638aaf5f5dedb907be1
             tests: test/public_alpha_config_test.dart
           - lane: private-grove-161
-            sha: 469d95490b14fa7b01c07958bad46517c4f16673
+            sha: e946d9f7be2e0ce85701dbe92b9b804e960956fc
             tests: test/grove_talk_private_boundary_test.dart test/grove_sundial_room_integration_test.dart
     defaults:
       run:
