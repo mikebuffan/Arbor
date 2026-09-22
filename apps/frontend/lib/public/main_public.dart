@@ -14,6 +14,7 @@ Future<void> main() async {
   const protectedUrls = <String>{
     'https://ncpdlyakrzfvobmwzbon.supabase.co',
     'https://tzbpjbhroxiqftqwatnb.supabase.co',
+    'https://dqvrzgrmorzfjddyozqz.supabase.co',
   };
   final authUri = Uri.tryParse(supabaseUrl);
   final apiUri = Uri.tryParse(apiUrl);
