@@ -125,11 +125,9 @@ async function requiredRecord<T extends Record<string, unknown>>(
   return data as unknown as T;
 }
 
-/** No scope or owner identity is accepted from request JSON. */
-export async function readPrivateGroveArk(
-  req: Request,
-  projectId: string,
-) {
+/** Shared owner+bridge validation: Grove Auth is verified before any service
+ * key; no user identity or Firefly scope comes from caller-controlled JSON. */
+async function authorizedPrivateGroveBridge(req: Request) {
   const config = privateGroveReadConfig();
   if (new URL(req.url).origin !== config.apiOrigin) {
     throw new RouteAccessError(404, "grove_route_not_found");
@@ -167,10 +165,62 @@ export async function readPrivateGroveArk(
       typeof bridge.firefly_user_id !== "string") {
     throw new RouteAccessError(403, "grove_bridge_not_granted");
   }
+  return {
+    config,
+    groveUserId: user.id,
+    fireflyUserId: bridge.firefly_user_id,
+    groveAdmin,
+  };
+}
+
+/** Only explicit ACTIVE grants backed by Firefly project ownership are
+ * discoverable. This returns IDs, never arbitrary metadata from the other
+ * user's/project's records. No private owner account means no discovery. */
+export async function readPrivateGroveProjects(req: Request): Promise<string[]> {
+  const { config, groveUserId, fireflyUserId, groveAdmin } =
+    await authorizedPrivateGroveBridge(req);
+  const { data, error } = await groveAdmin
+    .from("grove_private_ark_project_grants")
+    .select("grove_user_id,firefly_project_id")
+    .eq("grove_user_id", groveUserId)
+    .is("revoked_at", null)
+    .limit(51);
+  if (error || !Array.isArray(data) || data.length > 50) {
+    throw new RouteAccessError(500, "grove_read_bridge_unavailable");
+  }
+
+  const ids = new Set<string>();
+  for (const row of data) {
+    const id = row?.firefly_project_id;
+    if (row?.grove_user_id !== groveUserId ||
+        typeof id !== "string" ||
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id) ||
+        ids.has(id)) {
+      throw new RouteAccessError(500, "grove_read_bridge_unavailable");
+    }
+    ids.add(id);
+  }
+  if (!ids.size) return [];
+  const fireflyAdmin = serverClient(config.fireflyUrl, config.fireflyServiceKey);
+  for (const id of ids) {
+    // Service role bypasses RLS; never expose an authorized Grove grant whose
+    // Firefly ownership changed, even if the old grant is still present.
+    await assertProjectOwnedByUser(fireflyAdmin, fireflyUserId, id);
+  }
+  return [...ids].sort();
+}
+
+/** No scope or owner identity is accepted from request JSON. */
+export async function readPrivateGroveArk(
+  req: Request,
+  projectId: string,
+) {
+  const { config, groveUserId, fireflyUserId, groveAdmin } =
+    await authorizedPrivateGroveBridge(req);
   const grants = await groveAdmin
     .from("grove_private_ark_project_grants")
     .select("grove_user_id,firefly_project_id")
-    .eq("grove_user_id", user.id)
+    .eq("grove_user_id", groveUserId)
     .eq("firefly_project_id", projectId)
     .is("revoked_at", null)
     .maybeSingle();
@@ -178,7 +228,7 @@ export async function readPrivateGroveArk(
     throw new RouteAccessError(500, "grove_read_bridge_unavailable");
   }
   if (!grants.data ||
-      grants.data.grove_user_id !== user.id ||
+      grants.data.grove_user_id !== groveUserId ||
       grants.data.firefly_project_id !== projectId) {
     throw new RouteAccessError(404, "project_not_found");
   }
@@ -188,10 +238,10 @@ export async function readPrivateGroveArk(
   const fireflyAdmin = serverClient(
     config.fireflyUrl, config.fireflyServiceKey,
   );
-  await assertProjectOwnedByUser(fireflyAdmin, bridge.firefly_user_id, projectId);
+  await assertProjectOwnedByUser(fireflyAdmin, fireflyUserId, projectId);
   const snapshot = await readArkProjectSnapshot({
     supabase: fireflyAdmin,
-    userId: bridge.firefly_user_id,
+    userId: fireflyUserId,
     projectId,
     objectiveLimit: 20,
     eventLimit: 100,
