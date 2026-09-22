@@ -92,6 +92,7 @@ describe("Arbor behavior guard requirements", () => {
       mode: "text",
       stableBehaviorMaterial: ["Preserve established conversational humor."],
       continuityMaterial: ["Continue integration test at checkpoint 2."],
+      includeContextInPromptBlock: true,
       correctionRules: ["Correct the speaker immediately when the user recalibrates."],
     });
     expect(projection.promptBlock).toContain("Preserve established conversational humor.");
@@ -104,6 +105,18 @@ describe("Arbor behavior guard requirements", () => {
     );
     expect(projection.promptBlock.indexOf("Active correction rules:"))
       .toBeGreaterThan(projection.promptBlock.indexOf("Continuity context"));
+  });
+
+  it("does not duplicate existing chat memory in the standard behavior projection", () => {
+    const prompt = buildArborBehaviorProjection({
+      mode: "text",
+      stableBehaviorMaterial: ["Unique retained character preference."],
+      continuityMaterial: ["Unique historical memory line."],
+    }).promptBlock;
+    expect(prompt).not.toContain("Unique retained character preference.");
+    expect(prompt).not.toContain("Unique historical memory line.");
+    // The chat prompt constructor already injects these separately.
+    // Standalone Arbor LM callers may set includeContextInPromptBlock: true.
   });
 
   it("renders a scoped conflict decision without treating a handoff as authorization", () => {
