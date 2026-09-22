@@ -56,6 +56,16 @@ import type {
   HostStartupProjection,
   OneArborHostState,
 } from "@/lib/arbor/host/oneArborHostBridge";
+import {
+  beginRuntimeSession,
+} from "@/lib/arbor/runtime/runtimeSession";
+import type {
+  ArborCorrection,
+  ArborRuntimeState,
+} from "@/lib/arbor/runtime/runtimeState";
+import type {
+  AgencyState,
+} from "@/lib/arbor/agency/engine";
 
 export function invalidatePromptCache(params: {
   authedUserId: string;
@@ -75,6 +85,9 @@ type BuildPromptParams = {
   interactionMode?: "text" | "voice";
   hostSessionId?: string | null;
   currentGoal?: string | null;
+  agency?: AgencyState | null;
+  incomingCorrections?: ArborCorrection[];
+  attachRuntimeBeforeProjection?: boolean;
 };
 
 export type BuiltPromptContext = {
@@ -88,6 +101,7 @@ export type BuiltPromptContext = {
   behaviorGuardRequirements: string[];
   hostState: OneArborHostState;
   hostStartup: HostStartupProjection;
+  runtimeSession: ArborRuntimeState | null;
 };
 
 function isTruthyAnchor(v: unknown): boolean {
@@ -173,6 +187,9 @@ export async function buildPromptContext({
   interactionMode = "text",
   hostSessionId = null,
   currentGoal = null,
+  agency = null,
+  incomingCorrections = [],
+  attachRuntimeBeforeProjection = false,
 }: BuildPromptParams): Promise<BuiltPromptContext> {
   const { data: project, error: projectError } = await supabase
     .from("projects")
@@ -351,15 +368,35 @@ export async function buildPromptContext({
         systemInjection: "",
       };
 
+  // Runtime attachment must happen before prompt projection. Otherwise a
+  // correction received on this turn is persisted only after generation and
+  // cannot govern the response it was meant to correct.
+  const attachedRuntime =
+    attachRuntimeBeforeProjection && projectId && conversationId
+      ? await beginRuntimeSession({
+          supabase,
+          userId: authedUserId,
+          projectId,
+          conversationId,
+          channel: interactionMode,
+          activeSubsystem: arbor.activeSubsystem,
+          currentGoal,
+          lastMeaningfulUserTurn: latestUserText,
+          agency,
+          corrections: incomingCorrections,
+          now: new Date().toISOString(),
+        })
+      : null;
+
   const conversationRuntime =
-    projectId && conversationId
+    attachedRuntime ?? (projectId && conversationId
       ? await loadRuntimeState({
           supabase,
           userId: authedUserId,
           projectId,
           conversationId,
         })
-      : null;
+      : null);
 
   const runtimeHost =
     conversationRuntime
@@ -555,5 +592,7 @@ export async function buildPromptContext({
     },
     hostStartup:
       host.startup,
+    runtimeSession:
+      conversationRuntime,
   };
 }
