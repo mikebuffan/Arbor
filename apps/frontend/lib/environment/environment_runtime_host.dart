@@ -67,6 +67,20 @@ Stream<EnvironmentSnapshot> retryingEnvironmentSnapshots({
   }
 }
 
+/// A private home must never substitute a demo objective for inaccessible ARK.
+/// The older Firefly/demo flavor keeps its independently labeled fallback.
+Future<EnvironmentSnapshot> readPrivateGroveArkSnapshot({
+  required EnvironmentRuntimeAdapter primary,
+}) async {
+  try {
+    return await primary.snapshot();
+  } catch (_) {
+    return const UnavailableEnvironmentAdapter(
+      'Private Grove ARK read failed. Retrying automatically.',
+    ).snapshot();
+  }
+}
+
 class _SessionAwareEnvironmentAdapter implements EnvironmentRuntimeAdapter {
   _SessionAwareEnvironmentAdapter(this.apiClient);
 
@@ -89,13 +103,16 @@ class _SessionAwareEnvironmentAdapter implements EnvironmentRuntimeAdapter {
       ).snapshot();
     }
 
-    final result = await FallbackEnvironmentAdapter(
-      primary: ArkEnvironmentAdapter(
-        reader: ArborApiArkStatusReader(apiClient),
-        projectId: session.projectId,
-      ),
-      fallback: DemoEnvironmentAdapter(),
-    ).snapshot();
+    final primary = ArkEnvironmentAdapter(
+      reader: ArborApiArkStatusReader(apiClient),
+      projectId: session.projectId,
+    );
+    final result = groveStandalone
+        ? await readPrivateGroveArkSnapshot(primary: primary)
+        : await FallbackEnvironmentAdapter(
+            primary: primary,
+            fallback: DemoEnvironmentAdapter(),
+          ).snapshot();
 
     // A request started for the previous account/project must never repopulate
     // the Grove after the visitor switches context while I/O is in flight.
