@@ -1,0 +1,48 @@
+# Arbor — one consolidated open-work list
+
+**Snapshot:** September 22, 2026 (PDT). **Owner:** integration coordination only. **Status:** documentation checkpoint, not a running worker, release authorization, or proof of production service. For changes, refresh exact PR heads, source code and receipts first. This list supersedes stale dates in the older assembly queue for owner-facing action planning; it does not supersede source code or each lane's authoritative handoff.
+
+## North star and collision rules
+
+One coherent **private Grove** shell with ARK durable user/project continuity, Arbor Layer correction/agency behavior, private Arbor LM and Text/Voice continuity; the **official public Arbor App is independent** and receives no private Grove/Firefly data; the **Epstein Evidence Project** has its own evidence pipeline, only entering the private environment through separately approved, scoped interfaces. The cross-lane index coordinates ownership and proof, not component code.
+
+Never rebuild a tested component because it is unhosted; never infer deployment from CI, a phone screenshot from a debug APK, a running ARK worker from a persisted objective, or a model inference receipt from fake-model tests. Do not merge stacked parent PRs as independent releases. Do not copy Firefly keys to clients or public-app services, replay a manually executed SQL migration, commit model weights/user records/keys, silently create paid resources or switch on ARK execution.
+
+## Actual immediate critical path — private Grove
+
+- [x] Separate Grove Supabase project provisioned; private owner/mapping/project-grant tables applied and RLS verified. Both bridge tables applied through manual SQL Editor rather than migration ledger. Most recent observed rows: **0 owner grants, 0 account mappings, 0 project grants**. Two no-policy INFO notices are intentional client deny-all.
+- [x] Dedicated private API read-broker and Grove-only Flutter route written and CI tested in [Grove #155](https://github.com/mikebuffan/Arbor/pull/155); private Grove branch stack preserved.
+- [x] New `grove-private-api` Vercel project and production env configuration visibly confirmed by owner in Vercel UI. Connected Vercel project-list integration still reports Firefly only; its stale/incomplete inventory **does not negate the direct Vercel UI evidence**.
+- [x] Branch [Grove deployment #156](https://github.com/mikebuffan/Arbor/pull/156) `deploy/grove-private-api-20260921` adds `crons: []`, defers unrelated legacy OpenAI SDK initialization until actual model use, and tests missing-credential behavior. **At exact head `8999a570cf20b8496f984f62a298a58ef67d7217`, [GitHub Actions 35696240828](https://github.com/mikebuffan/Arbor/actions/runs/35696240828) passed backend tests, TypeScript and Next.js backend build with `OPENAI_API_KEY` empty.** Do not add OpenAI credentials merely to make private read-only ARK route build.
+- [ ] **Vercel host deployment:** GitHub status at that same head reported `Deployment rate limited — retry in 24 hours` for Grove as of 2026-09-22 06:44 UTC. This is a dated observation, not a continuously monitored or verified current limit. After capacity returns, deploy **current branch head**, not old failed missing-key deployment. No upgrade or billing change is authorized. Establish actual deployed commit and stable production hostname.
+- [ ] **Live API acceptance:** test unauthenticated denial, non-Grove token denial, revoked-owner denial, wrong-user/project denial, wrong-host/other-route denial, and no Firefly cron/endpoint exposure. CI on fake contexts does not replace actual-host verification.
+- [ ] **Owner identity/provider:** configure invite-only Grove OTP delivery; provision owner grant and explicit revocable owner-approved Grove-to-Firefly account/project mapping only after real authenticated IDs, no guessed UUIDs. Keep all privileged credentials server-only, no screenshots of values.
+- [ ] **Manual SQL migration ledger:** reconcile the already-applied bridge SQL Editor DDL with migration record before any automated release replay; do not rerun DDL blindly.
+- [ ] **Physical Android acceptance:** actual private Grove sign-in, house visual/window/sundial/clock, Moss persistence, ARK read for approved scope, fast A/P→B/Q and sign-out clearing, stale late-response rejection, unavailable state, restart, Text→Voice→Text same conversation and private/public app isolation. Source UI and debug APK are not signed-off device acceptance.
+- [ ] **Controlled release:** exact branch promotion/rollback and release signing only after access/proof checks and owner approval. Mike only for an exact inaccessible local key/device/host/release action.
+
+## Unblocked engineering work Arbor can do while the Vercel build limit holds
+
+- [ ] **Cross-lane contract/reconciliation:** compare present #156 Grove broker/interface to [ARK × Layer #147](https://github.com/mikebuffan/Arbor/pull/147) scoped context and #125/#138 selected objective, and to LM v0.3.5 signed read-context receiver. Record concrete gaps without unilaterally rewriting owning lanes. Refresh cross-lane collision manifest #149 at release/promotion time (existing 20-case offline validator has prior passing receipt).
+- [ ] **Synthetic security and continuity test design:** account A/project P/conversation C vs B/Q, invite revocation, expired token, cross-product token, project switch while calls in flight, retry/duplicate turns, stale ARK status, and model/tool-completion misclaims. Implement any fix in the correct component draft and rerun exact-head CI.
+- [ ] **Grove UI/source work owned by Grove lane:** verify against approved nighttime wooden studio composition; code-review responsive house/Living Window and Return to Now/sundial/Moss behavior; preserve existing draft implementation, change only verified defects. Real device acceptance remains owner-dependent.
+- [ ] **LM lane:** reconcile original v0.3 LoRA adapter, v0.3.4 runtime correction, v0.3.5 signed host-context receiver and acceptance cases; run a real-model transcript when private adapter/runtime is accessible. Synthetic receiver test does **not** establish privately hosted independent model. No weights in public repository and no client-supplied signed context.
+- [ ] **ARK × Layer lane:** audit durable objective selection, checkpoint/restoration, bounded owner/project context, identity/correction and truthful task evidence; tests and draft source-level contract fixes remain independent of Grove's Vercel quota. **Do not enable live ARK execution or claim workers running.**
+- [ ] **Public app lane:** separately review existing [#140](https://github.com/mikebuffan/Arbor/pull/140) → [#146](https://github.com/mikebuffan/Arbor/pull/146) alpha code; prepare synthetic two-user isolation/retention/export/delete and consent/safety acceptance, host/provider/model gates. Do not provision a new paid service or treat private Grove deployment as the public app deployment.
+- [ ] **Epstein Evidence Project lane:** separately inspect [#152](https://github.com/mikebuffan/Arbor/pull/152) and synthetic disposable offline PDF sandbox receipt; review page fidelity/original-source provenance, sandbox no-egress, privacy and resumable bounded processing. No claim of processing millions of pages or automatic untrusted-document release.
+- [ ] **Integration ledger:** keep one dated set of source heads/proof stages and record which lane owns each item. This is coordination, not evidence of background execution or a reason to spawn another subsystem.
+
+## Human gates (only when actually reached)
+
+**Danelle:** approved owner account invitation, actual-device observations, any new paid resource/production or public launch/release choice; no more manual “make a new project” chores based on stale state.
+
+**Mike:** only when a signing key, GPU host, protected credential operation or local device action is genuinely inaccessible to connected tools, with an exact request. No “Mike has to do everything” default.
+
+**Arbor:** source inspection, scoped reversible draft PRs/tests, collision analysis, truthful build and security receipts, documentation, and work remaining in *other unblocked lanes*. Not continuous background execution; each chat/tool action must actually run.
+
+## Next return checkpoint
+
+1. Refresh Vercel project UI/deployment receipt through supported access when possible; GitHub's old rate-limited status alone is not a fresh limit check.
+2. Verify the latest exact Grove #156 branch/head and CI before a new production deployment; do not redeploy old failed `main` SHA.
+3. Independently progress ARK × Layer and LM contract testing and the separate public/research review without touching the deployed Firefly or paid resources.
+4. Once Grove host exists, test private owner/auth bridge, then physical Android and actual real-model continuity. Mark each level IMPLEMENTED, TESTED, DEPLOYED, ACCEPTED with separate evidence.
