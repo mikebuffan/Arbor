@@ -11,7 +11,7 @@ Legend: [x] draft code plus relevant exact-head CI evidence exists; [~] partial 
 1. [x] Inventory/synchronize worker-v5 source on isolated #123 without deployment.
 2. [x] Preserve research/Grove/app branch lineage; no research changes to those lanes.
 3. [x] Preserve original-byte SHA and physical PDF page separately from printed folio.
-4. [x] Review parent heads/open PRs before each child; #141 was created from #139 exact head `9699ce8fee510979ffc9909220752f49a968a083`; #142 was created from #141 exact head `a8909b880d4d4ab107244f165a20a51d593b7024`.
+4. [x] Review parent heads/open PRs before each child; #141 from #139 `9699ce8fee510979ffc9909220752f49a968a083`; #142 from #141 `a8909b880d4d4ab107244f165a20a51d593b7024`; #144 from #142 `d623dbc7281f518b74f0330e63228fdf92b7999d`.
 5. [ ] **BLOCKED — live integration approval:** capture reviewed worker-v5 deployment backup + rollback receipt before live changes.
 6. [ ] **BLOCKED — live integration approval:** confirm deployed Vercel roots/cron and Firefly auth immediately before integration.
 7. [~] Poppler is installed in CI for harmless fixture tests; immutable sandbox runtime/image digest still required.
@@ -29,10 +29,10 @@ Legend: [x] draft code plus relevant exact-head CI evidence exists; [~] partial 
 16. [x] Valid generated four-page benign PDF is parsed by real Poppler in CI.
 17. [x] Every page keeps original SHA and independent-review HOLD.
 18. [ ] **BLOCKED — sandbox gate:** independently published benign PDF acceptance + manual rendered-page/line-order verification must wait for executable untrusted-file isolation.
-19. [~] #144 adds pure page-image byte-hash/original-page/renderer metadata receipt and explicit manually attested source-stamp candidate, always HOLD. It does NOT render a PDF, decode PNG pixels, authenticate the renderer/reviewer, or replace independent visual and privacy review.
+19. [x] #144 adds pure page-image byte-hash/original-page/renderer metadata receipt and explicit manually attested source-stamp candidate, always HOLD. Exact-head Arbor Integration CI run 35672651469 passed on `e0805c884a57c79b1d158cafacced7ffd1eb4a97`. It does NOT render a PDF, decode PNG pixels, authenticate the renderer/reviewer, or replace independent visual/privacy review.
 20. [x] #142 adds pure bounded page-batch planning above the 128-page local ceiling while preserving one full-file SHA, original document page count and original physical-page numbering; exact-head CI on `d623dbc7281f518b74f0330e63228fdf92b7999d` passed. Executable byte splitting remains blocked on sandbox design.
-21. [~] #135 specifies disposable non-root/no-egress/read-only-root/resource-capped sandbox requirements; executable pinned sandbox is not implemented.
-22. [ ] Opt-in OCR processor with source-image reference, confidence and mandatory human verification.
+21. [~] #135 specifies disposable non-root/no-egress/read-only-root/resource-capped sandbox requirements; executable pinned sandbox is not implemented. **Next implementation item.**
+22. [ ] Opt-in OCR processor with source-image reference, confidence and mandatory human verification. Depends on item 21 for untrusted inputs.
 23. [ ] Per-page glyph/box geometry only if exact visual highlighting becomes required; extracted UTF-16 offsets are not PDF/image coordinates.
 24. [x] Current contracts keep blank/image-only/encrypted/inaccessible/parser-failed states from supporting absence claims; integration must preserve this.
 
@@ -90,8 +90,8 @@ Legend: [x] draft code plus relevant exact-head CI evidence exists; [~] partial 
 
 ## Current handoff
 
-**Verified through #139:** #139 exact head `9699ce8fee510979ffc9909220752f49a968a083`; Arbor Integration CI run 35663024929 passed. Parent #136 run 35659500799 also passed.
+**Verified research lineage:** #139 exact head `9699ce8fee510979ffc9909220752f49a968a083` passed Arbor Integration CI run 35663024929; #141 exact head `a8909b880d4d4ab107244f165a20a51d593b7024` passed configured CI; #142 exact head `d623dbc7281f518b74f0330e63228fdf92b7999d` passed configured CI; #144 exact head `e0805c884a57c79b1d158cafacced7ffd1eb4a97` passed Arbor Integration CI run 35672651469.
 
-**Current children:** draft #141 `feat/ark-research-outcome-receipts-20260921` and draft #142 `feat/ark-pdf-batch-plan-20260921` have exact-head green CI; #142 first failed one error-category assertion, now corrected on head `d623dbc7281f518b74f0330e63228fdf92b7999d`. Draft #144 `feat/ark-pdf-page-image-provenance-20260921` adds a pure HOLD page-image/source-stamp contract; its own exact-head CI is pending. No real Epstein/EFTA files, network fetch, DB writes, worker/scheduler changes, deployment, merge or paid APIs were used.
+**#144 result:** held page-image/source-stamp provenance contract is now verified at its exact head. This is provenance plumbing only, not evidence that an external PDF was safely rendered or visually verified. No real Epstein/EFTA files, network fetch, DB writes, worker/scheduler changes, deployment, merge or paid APIs were used.
 
-**Next safe order:** finish #144 exact-head CI and address any failures → independently review image/provenance contract → implement a pinned disposable no-egress renderer sandbox only when it can be safely verified using benign fixtures. DB/live-worker/scheduler/public-record analysis remain blocked on their explicit gates above.
+**Next numbered item:** 21 — implement and verify a pinned disposable non-root/no-egress/read-only-root/resource-capped renderer sandbox using harmless synthetic fixtures only. Item 18 (independently published benign PDF acceptance) remains BLOCKED until that sandbox exists. Items 40–45 remain BLOCKED pending explicit disposable-DB/cost approval; live worker, scheduler, deployment and public-record analysis remain separately gated.
