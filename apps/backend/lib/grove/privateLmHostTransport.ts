@@ -74,13 +74,17 @@ function assertBoundContext(
 ): asserts context is Record<string, unknown> {
   const x = context as Record<string, unknown> | null;
   const ark = x?.ark as Record<string, unknown> | undefined;
+  const continuity = x?.continuity as Record<string, unknown> | undefined;
   const behavior = x?.behavior as Record<string, unknown> | undefined;
   const proof = behavior?.proof as Record<string, unknown> | undefined;
   const selected = x?.selectedAttachment as Record<string, unknown> | null;
   if (!x || typeof x !== "object" || Array.isArray(x) ||
       x.access !== "read-only" || x.projectId !== projectId ||
-      !ark || ark.liveExecutionVerified !== false ||
+      !ark || typeof ark.available !== "boolean" ||
+      ark.liveExecutionVerified !== false ||
       ark.activeObjectiveHandoff !== "not_resolved" ||
+      !continuity || typeof continuity.available !== "boolean" ||
+      !Object.prototype.hasOwnProperty.call(x, "selectedAttachment") ||
       !behavior || !proof || proof.schemaVersion !== 1 ||
       proof.contractVersion !== "2026-09-21.1" ||
       proof.mode !== "text" ||
