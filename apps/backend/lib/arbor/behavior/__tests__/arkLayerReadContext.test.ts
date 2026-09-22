@@ -226,6 +226,7 @@ describe("owner-scoped ARK -> Arbor Layer read crossing", () => {
     mock.assertAttachmentOwnedByScope.mockRejectedValueOnce(new Error("attachment_not_found"));
     await expect(readArkLayerContext({
       supabase: {} as never, authenticatedUserId: userId, projectId,
+      conversationId: "foreign-conversation",
       selectedAttachment: { conversationId: "foreign-conversation", attachmentId: "other" },
       mode: "text",
     })).rejects.toThrow("attachment_not_found");
@@ -236,9 +237,36 @@ describe("owner-scoped ARK -> Arbor Layer read crossing", () => {
     });
     await expect(readArkLayerContext({
       supabase: {} as never, authenticatedUserId: userId, projectId,
-      selectedAttachment: { conversationId, attachmentId: "attachment-a" },
+      conversationId, selectedAttachment: { conversationId, attachmentId: "attachment-a" },
       mode: "text",
     })).rejects.toMatchObject({ message: "attachment_not_found", status: 404 });
+  });
+
+  it("rejects selected file from another conversation before any DB read", async () => {
+    await expect(readArkLayerContext({
+      supabase: {} as never, authenticatedUserId: userId, projectId,
+      conversationId,
+      selectedAttachment: {
+        conversationId: "other-owned-conversation", attachmentId: "attachment-a",
+      },
+      mode: "text",
+    })).rejects.toMatchObject({ message: "attachment_not_found", status: 404 });
+    expect(mock.assertProjectOwnedByUser).not.toHaveBeenCalled();
+    expect(mock.assertConversationOwnedByUser).not.toHaveBeenCalled();
+    expect(mock.assertAttachmentOwnedByScope).not.toHaveBeenCalled();
+    expect(mock.readArkProjectSnapshot).not.toHaveBeenCalled();
+    expect(mock.loadRuntimeState).not.toHaveBeenCalled();
+  });
+
+  it("requires an explicit requested conversation for a selected file", async () => {
+    await expect(readArkLayerContext({
+      supabase: {} as never, authenticatedUserId: userId, projectId,
+      selectedAttachment: { conversationId, attachmentId: "attachment-a" },
+      mode: "voice",
+    })).rejects.toMatchObject({ message: "attachment_not_found", status: 404 });
+    expect(mock.assertProjectOwnedByUser).not.toHaveBeenCalled();
+    expect(mock.assertAttachmentOwnedByScope).not.toHaveBeenCalled();
+    expect(mock.loadLatestRuntimeState).not.toHaveBeenCalled();
   });
 
   it("strips hostile control characters from selected file display names", async () => {
@@ -247,7 +275,7 @@ describe("owner-scoped ARK -> Arbor Layer read crossing", () => {
     });
     const result = await readArkLayerContext({
       supabase: {} as never, authenticatedUserId: userId, projectId,
-      selectedAttachment: { conversationId, attachmentId: "attachment-a" },
+      conversationId, selectedAttachment: { conversationId, attachmentId: "attachment-a" },
       mode: "text",
     });
     expect(result.selectedAttachment?.displayName).toBe("controlfilename.pdf");
