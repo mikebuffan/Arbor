@@ -28,3 +28,39 @@ test('matching newly fetched observations pass offline',()=>assert.deepEqual(val
 test('PR updated after snapshot is reported STALE, never counted as current',()=>{const o=observed();o.pull_requests['152'].sha='0'.repeat(40);assert.ok(hits(validate(DATA,{observed:o}),'STALE PR #152'))});
 test('missing observed PR is not silently skipped',()=>{const o=observed();delete o.pull_requests['151'];assert.ok(hits(validate(DATA,{observed:o}),'UNOBSERVED PR #151'))});
 test('missing owner or --changes pair is invalid',()=>assert.ok(hits(validate(DATA,{owner:'integration',changes:[]}), 'changes require owner')));
+
+test('Grove #156 is the consolidated tip with #155 retained as parent',()=>{
+  const m=clone();
+  assert.equal(m.tip_pr_by_lane.grove,156);
+  assert.equal(m.pull_requests.find(p=>p.number===155).stacked_into,156);
+  assert.deepEqual(validate(m),[]);
+});
+test('current Grove credential-free CI proves tested not deployed',()=>{
+  const m=clone();
+  const c=m.capabilities.find(c=>c.id==='grove_private_api_credential_free_build');
+  assert.equal(c.stage,'tested');
+  assert.equal(c.proof.sha,m.pull_requests.find(p=>p.number===156).sha);
+  c.stage='deployed';
+  assert.ok(hits(validate(m),'missing live proof'));
+});
+test('a deployed claim must bind to the exact deployed commit',()=>{
+  const m=clone();
+  const c=m.capabilities.find(c=>c.id==='grove_private_api_credential_free_build');
+  c.stage='deployed';
+  c.live_proof={commit_sha:'0'.repeat(40),url:'https://example.invalid',observed_at:'2026-09-22',scope:'test only'};
+  assert.ok(hits(validate(m),'mismatched live proof SHA'));
+});
+test('owner acceptance cannot be inferred from CI or deployment alone',()=>{
+  const m=clone();
+  const c=m.capabilities.find(c=>c.id==='grove_private_api_credential_free_build');
+  c.stage='accepted';
+  c.live_proof={commit_sha:c.proof.sha,url:'https://example.invalid',observed_at:'2026-09-22',scope:'test only'};
+  assert.ok(hits(validate(m),'missing owner acceptance proof'));
+});
+test('manually applied bridge schema is not mislabeled exact-head tested',()=>{
+  const m=clone();
+  const c=m.capabilities.find(c=>c.id==='grove_manual_mapping_schema');
+  assert.equal(c.stage,'implemented');
+  assert.ok(c.prior_tested_sha);
+  assert.deepEqual(validate(m),[]);
+});
