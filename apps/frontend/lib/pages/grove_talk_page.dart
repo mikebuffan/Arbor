@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'chat_test_page.dart';
 import 'voice_page.dart';
+import '../environment/grove_app_mode.dart';
 
 /// The private Grove host currently exposes only authorized read-only ARK
 /// status. Do not display a fake Text/Voice transport against that host:
