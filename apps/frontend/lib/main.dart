@@ -6,6 +6,7 @@ import 'environment/environment_runtime_host.dart';
 import 'environment/environment_theme.dart';
 import 'environment/grove_app_mode.dart';
 import 'pages/grove_private_access_page.dart';
+import 'pages/grove_private_project_gate.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,7 +29,9 @@ Future<void> main() async {
     );
     runApp(const ArborApp(
       home: GrovePrivateAuthGate(
-        child: EnvironmentRuntimeBootstrap(),
+        child: GrovePrivateProjectGate(
+          child: EnvironmentRuntimeBootstrap(),
+        ),
       ),
     ));
     return;
