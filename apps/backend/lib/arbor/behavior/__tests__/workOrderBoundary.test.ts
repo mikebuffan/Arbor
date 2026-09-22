@@ -4,7 +4,7 @@ import {
   type IncomingWorkOrder,
   type ScopedWork,
   type WorkStatus,
-} from ".../workOrderBoundary";
+} from "../workOrderBoundary";
 
 const scope = { authenticatedOwnerId: "owner-a", selectedProjectId: "project-ark" };
 const active: ScopedWork = {
