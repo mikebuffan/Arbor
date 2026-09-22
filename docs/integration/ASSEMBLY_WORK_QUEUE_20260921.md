@@ -32,6 +32,9 @@
 - [x] Danelle approved Aurixus Studios Pro, US East, +$10/month; Supabase confirmed cost and created the distinct **The Grove** ACTIVE_HEALTHY project; checked empty public schema, publishable key availability and provider isolation.
 - [x] Apply and verify Grove-only migration `20260922035539_grove_private_owner_access`: forced RLS, no anon reads or authenticated writes, only own unrevoked SELECT, **zero grants** and no security advisor lints.
 - [x] Draft [#154](https://github.com/mikebuffan/Arbor/pull/154) on #153: require matching RLS owner grant before showing private house; four pure regression cases committed, Flutter CI still pending.
+- [x] Danelle successfully manually ran Grove-only bridge DDL in Supabase SQL Editor: independently verified both tables exist, forced RLS, anon/authenticated deny all operations, 0 owner/mapping/project grants. **Manual apply is NOT recorded in Supabase migrations list**; see Grove [#155](https://github.com/mikebuffan/Arbor/pull/155) receipt.
+- [ ] Reconcile second migration's manual SQL Editor application with Supabase migration ledger before any automatic migration replay; do not blindly rerun the DDL or claim recorded migration.
+- [ ] Finish and test the private API route and Flutter URL path; connector blocked writing those files. #155 broker source is **draft, untested and not wired**.
 - [ ] Configure provider invite-only email OTP, trusted owner invitation/grant, separate Grove API JWT verification and scoped ARK bridge; no owner is silently authorized.
 - [x] Verify code-path *shape*: #151 boot requires dedicated Grove config; Grove API client reads Grove Supabase token; #147 scoped ARK/Layer broker assumes separately authorized Firefly context; LM signed receiver remains isolated prototype.
 - [ ] Grove lane + ARK/Layer lane review owner-approved cross-provider user/project mapping, issuer/audience/signature validation, revoke and late-response handling.
@@ -57,4 +60,4 @@
 - No independent merges of superseded stacked source branches, no invented model/worker receipt, no live Epstein/EFTA PDF ingestion from a synthetic sandbox pass.
 - After interruption, refresh live heads, exact proof and ownership before resuming. This queue is a **checkpoint**, not evidence of asynchronous work.
 
-**Next safe integration-only action:** refresh PR heads and rerun the dated manifest against newly fetched observations at release time; integrate #154 owner-lane handoffs. The next real-world gates are private owner invitation, verified email-code template, protected Grove API/backend and physical sign-in; original Supabase organization/cost decision is done.
+**Next safe integration-only action:** refresh PR heads and rerun the dated manifest against newly fetched observations at release time; integrate #155 manual application receipt and owner-lane handoffs. The next real-world gates are private owner invitation, verified email-code template, protected Grove API/backend and physical sign-in; original Supabase organization/cost decision is done.
