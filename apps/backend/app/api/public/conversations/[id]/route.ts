@@ -28,19 +28,34 @@ export async function GET(req: Request, context: Context) {
     if (!conversation) {
       return publicJson(req, { ok: false, error: "conversation_not_found" }, 404);
     }
+    // Read the newest page first so reopening a long conversation always
+    // recovers its latest unanswered turn. Fetch one extra row for hasMore.
+    const rawOffset = new URL(req.url).searchParams.get("offset") ?? "0";
+    if (!/^(0|[1-9][0-9]{0,4})$/.test(rawOffset) ||
+        Number(rawOffset) > 10000) {
+      return publicJson(req, { ok: false, error: "invalid_history_offset" }, 400);
+    }
+    const offset = Number(rawOffset);
     const { data: messages, error: messageError } = await db
       .from("public_app_messages")
       .select("id,turn_id,role,content,created_at")
       .eq("user_id", userId)
       .eq("conversation_id", candidate.data)
-      .order("created_at", { ascending: true })
-      .order("id", { ascending: true })
-      .limit(200);
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
+      .range(offset, offset + 100);
     if (messageError) throw messageError;
+    const page = messages ?? [];
+    if (page.length > 100 && offset >= 10000) {
+      return publicJson(req, { ok: false, error: "history_page_limit" }, 413);
+    }
+    const hasMore = page.length > 100 && offset + 100 <= 10000;
     return publicJson(req, {
       ok: true,
       conversation,
-      messages: messages ?? [],
+      messages: page.slice(0, 100).reverse(),
+      hasMore,
+      nextOffset: hasMore ? offset + 100 : null,
     });
   } catch (error) {
     if (error instanceof PublicAlphaError) {

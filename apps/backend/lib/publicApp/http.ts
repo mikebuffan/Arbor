@@ -24,7 +24,11 @@ export function publicJson(
 ): NextResponse {
   return NextResponse.json(body, {
     status,
-    headers: publicCorsHeaders(req),
+    headers: {
+      ...publicCorsHeaders(req),
+      "cache-control": "private, no-store",
+      "x-content-type-options": "nosniff",
+    },
   });
 }
 

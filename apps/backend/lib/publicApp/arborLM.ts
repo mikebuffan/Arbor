@@ -13,7 +13,8 @@ export class ArborLMUnavailable extends Error {
       | "model_not_configured"
       | "model_timeout"
       | "model_unavailable"
-      | "model_bad_response",
+      | "model_bad_response"
+      | "model_context_too_long",
     public readonly httpStatus: number = 503,
   ) {
     super(code);
@@ -93,6 +94,9 @@ export async function generateWithArborLM(
     throw new ArborLMUnavailable("model_unavailable");
   }
 
+  if (response.status === 413) {
+    throw new ArborLMUnavailable("model_context_too_long", 422);
+  }
   if (!response.ok) throw new ArborLMUnavailable("model_unavailable", 503);
 
   let data: unknown;

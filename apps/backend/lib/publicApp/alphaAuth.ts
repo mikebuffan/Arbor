@@ -24,6 +24,7 @@ export function checkPublicAlphaEnvironment(
   const protectedRefs = new Set([
     "ncpdlyakrzfvobmwzbon",
     "tzbpjbhroxiqftqwatnb",
+    "dqvrzgrmorzfjddyozqz",
   ]);
   if (
     env.ARBOR_PUBLIC_APP_ENABLED !== "true" ||

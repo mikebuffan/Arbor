@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../api/arbor_api_client.dart';
@@ -163,7 +164,9 @@ class _ConversationHomeState extends State<_ConversationHome> {
   final scroll = ScrollController();
   List<Map<String, dynamic>> history = [], messages = [];
   String? conversationId, pendingTurnId, pendingUserText, error;
-  bool busy = false, loading = true;
+  bool busy = false, loading = true, hasOlder = false, loadingOlder = false;
+  int? nextHistoryOffset;
+  int _viewRevision = 0;
   @override
   void initState() {
     super.initState();
@@ -184,6 +187,11 @@ class _ConversationHomeState extends State<_ConversationHome> {
       if (code == 'email_confirmation_required') {
         return 'Confirm your email first.';
       }
+      if (code == 'model_context_too_long') {
+        return 'This conversation exceeds Arbor LM’s current context limit. '
+          'Your message was saved. Start a new conversation with a shorter '
+          'message; retrying this turn unchanged will hit the same limit.';
+      }
       if (code.startsWith('model_')) {
         return 'Arbor LM is unavailable. Your message may have been saved. '
           'Retry the same message.';
@@ -202,12 +210,13 @@ class _ConversationHomeState extends State<_ConversationHome> {
     return 'Connection failed. Check your network.';
   }
   Future<void> refresh() async {
+    final revision = _viewRevision;
     if (mounted) setState(() => loading = true);
     try {
       final json = await api.get('/api/public/conversations');
       final list = (json?['conversations'] as List<dynamic>? ?? [])
         .whereType<Map<String, dynamic>>().toList();
-      if (!mounted) return;
+      if (!mounted || revision != _viewRevision) return;
       setState(() { history = list; error = null; });
       final currentExists = list.any((c) => c['id'] == conversationId);
       if (currentExists) {
@@ -218,15 +227,18 @@ class _ConversationHomeState extends State<_ConversationHome> {
         newThread();
       }
     } catch (e) {
-      if (mounted) setState(() => error = explain(e));
+      if (mounted && revision == _viewRevision) {
+        setState(() => error = explain(e));
+      }
     } finally {
       if (mounted) setState(() => loading = false);
     }
   }
   Future<void> open(String id) async {
+    final revision = ++_viewRevision;
     try {
       final json = await api.get('/api/public/conversations/' + id);
-      if (!mounted) return;
+      if (!mounted || revision != _viewRevision) return;
       final restored = (json?['messages'] as List<dynamic>? ?? [])
           .whereType<Map<String, dynamic>>().toList();
       // A model outage can leave a durable user turn without an assistant turn.
@@ -237,6 +249,8 @@ class _ConversationHomeState extends State<_ConversationHome> {
       setState(() {
         conversationId = id;
         messages = restored;
+        hasOlder = json?['hasMore'] == true;
+        nextHistoryOffset = json?['nextOffset'] as int?;
         pendingTurnId = unfinished ? last!['turn_id'] as String : null;
         pendingUserText = unfinished ? last!['content'] as String : null;
         draft.text = pendingUserText ?? '';
@@ -248,24 +262,60 @@ class _ConversationHomeState extends State<_ConversationHome> {
         if (scroll.hasClients) scroll.jumpTo(scroll.position.maxScrollExtent);
       });
     } catch (e) {
-      if (mounted) setState(() => error = explain(e));
+      if (mounted && revision == _viewRevision) {
+        setState(() => error = explain(e));
+      }
     }
   }
+
+  Future<void> loadOlder() async {
+    final id = conversationId;
+    final offset = nextHistoryOffset;
+    if (loadingOlder || !hasOlder || id == null || offset == null) return;
+    final revision = _viewRevision;
+    setState(() => loadingOlder = true);
+    try {
+      final json = await api.get('/api/public/conversations/' + id,
+        queryParameters: {'offset': offset.toString()});
+      if (!mounted || revision != _viewRevision) return;
+      final earlier = (json?['messages'] as List<dynamic>? ?? [])
+          .whereType<Map<String, dynamic>>().toList();
+      final existingIds = messages.map((m) => m['id']).toSet();
+      setState(() {
+        messages = [
+          ...earlier.where((m) => !existingIds.contains(m['id'])),
+          ...messages,
+        ];
+        hasOlder = json?['hasMore'] == true;
+        nextHistoryOffset = json?['nextOffset'] as int?;
+      });
+    } catch (e) {
+      if (mounted && revision == _viewRevision) {
+        setState(() => error = explain(e));
+      }
+    } finally {
+      if (mounted) setState(() => loadingOlder = false);
+    }
+  }
+
   void newThread() {
+    ++_viewRevision;
     if (mounted) setState(() {
       conversationId = null; pendingTurnId = null;
       pendingUserText = null; draft.clear();
-      messages = []; error = null;
+      messages = []; error = null; hasOlder = false;
+      nextHistoryOffset = null;
     });
   }
   Future<void> send() async {
     final content = draft.text.trim();
-    if (busy || content.isEmpty) return;
+    if (busy || loading || content.isEmpty) return;
     if (pendingTurnId != null && content != pendingUserText) {
       setState(() => error =
           'Retry the saved message unchanged, or start a new conversation.');
       return;
     }
+    final revision = _viewRevision;
     final turn = pendingTurnId ?? newTurnId();
     pendingTurnId = turn;
     pendingUserText = content;
@@ -275,18 +325,54 @@ class _ConversationHomeState extends State<_ConversationHome> {
         'turnId': turn, 'userText': content, 'interactionMode': 'text',
         if (conversationId != null) 'conversationId': conversationId,
       });
-      if (!mounted) return;
+      if (!mounted || revision != _viewRevision) return;
       conversationId = answer['conversationId'] as String;
       pendingTurnId = null;
       pendingUserText = null;
       draft.clear();
       await refresh();
     } catch (e) {
-      if (mounted) setState(() => error = explain(e));
+      if (mounted && revision == _viewRevision) {
+        setState(() => error = explain(e));
+      }
     } finally {
       if (mounted) setState(() => busy = false);
     }
   }
+  Future<void> exportHistory() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialog) => AlertDialog(
+        title: const Text('Copy your conversation archive?'),
+        content: const Text('Your public-alpha chats will be copied as JSON. '
+          'Other apps or someone using this device may be able to access '
+          'clipboard contents. Do not use this on a shared device. '
+          'Private Grove and ARK data are never included.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialog, false),
+            child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(dialog, true),
+            child: const Text('Copy archive')),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      final snapshot = await api.get('/api/public/conversations',
+        queryParameters: {'export': '1'});
+      if (!mounted) return;
+      if (snapshot?['ok'] != true) throw StateError('Export not ready');
+      await Clipboard.setData(ClipboardData(text: jsonEncode(snapshot)));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Public-alpha conversation JSON copied. '
+          'Paste it somewhere private, then clear your clipboard.'),
+      ));
+    } catch (e) {
+      if (mounted) setState(() => error = explain(e));
+    }
+  }
+
   Future<void> removeThread() async {
     final id = conversationId;
     if (id == null) return;
@@ -328,8 +414,9 @@ class _ConversationHomeState extends State<_ConversationHome> {
       'Voice': 'Voice is not enabled in this private alpha. '
         'The existing private voice route is deliberately not connected.',
       'Settings': 'Your chats are stored per account. Delete a '
-        'conversation from the menu. Long-term memory controls, '
-        'account deletion and export are still being built.',
+        'conversation or explicitly copy your conversation archive '
+        'from the menu. Long-term memory and account deletion controls '
+        'are still being built.',
       'Privacy': 'This alpha uses a dedicated test database and sends '
         'authorized chat content to Arbor LM inference. Do not enter '
         'sensitive data until retention and consent terms are finalized.',
@@ -378,6 +465,7 @@ class _ConversationHomeState extends State<_ConversationHome> {
           onSelected: (value) async {
             if (value == 'new') newThread();
             else if (value == 'delete') await removeThread();
+            else if (value == 'export') await exportHistory();
             else if (value == 'signout') {
               await Supabase.instance.client.auth.signOut();
             } else showInfo(value);
@@ -388,6 +476,8 @@ class _ConversationHomeState extends State<_ConversationHome> {
             if (conversationId != null)
               const PopupMenuItem(value: 'delete',
                 child: Text('Delete conversation')),
+            const PopupMenuItem(value: 'export',
+              child: Text('Copy conversation archive')),
             const PopupMenuItem(value: 'Settings',
               child: Text('Settings')),
             const PopupMenuItem(value: 'Privacy',
@@ -408,6 +498,12 @@ class _ConversationHomeState extends State<_ConversationHome> {
           actions: [TextButton(onPressed: refresh,
             child: const Text('Reload'))],
         ),
+        if (hasOlder && messages.isNotEmpty)
+          TextButton(
+            onPressed: loadingOlder ? null : loadOlder,
+            child: Text(loadingOlder ? 'Loading earlier messages…'
+              : 'Load earlier messages'),
+          ),
         Expanded(child: messages.isEmpty
           ? const Center(child: Column(
               mainAxisSize: MainAxisSize.min, children: [
@@ -466,7 +562,7 @@ class _ConversationHomeState extends State<_ConversationHome> {
             IconButton.filled(
               tooltip: pendingTurnId == null
                   ? 'Send message' : 'Retry saved message',
-              onPressed: busy ? null : send,
+              onPressed: busy || loading ? null : send,
               icon: const Icon(Icons.arrow_upward),
             ),
           ]),

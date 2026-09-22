@@ -80,6 +80,14 @@ describe("public Arbor LM inference adapter", () => {
     }
   });
 
+  it("maps a provider 413 to context overflow", async () => {
+    const request = vi.fn(async () => new Response("too long", { status: 413 }));
+    await expect(generateWithArborLM(messages, config,
+      request as typeof fetch)).rejects.toMatchObject({
+        code: "model_context_too_long", httpStatus: 422,
+      });
+  });
+
   it("reports timeouts separately", async () => {
     const request = vi.fn(async () => {
       const error = new Error("Timed out");

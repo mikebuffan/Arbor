@@ -17,6 +17,8 @@ import {
   requirePublicAlphaUser,
 } from "../alphaAuth";
 import { publicCorsHeaders, publicPreflight } from "../http";
+import { middleware } from "@/middleware";
+import { NextRequest } from "next/server";
 
 const alphaRef = "aaaaaaaaaaaaaaaaaaaa";
 const alphaUrl = "https://" + alphaRef + ".supabase.co";
@@ -54,6 +56,7 @@ describe("separate public alpha access boundary", () => {
   it.each([
     "ncpdlyakrzfvobmwzbon",
     "tzbpjbhroxiqftqwatnb",
+    "dqvrzgrmorzfjddyozqz",
   ])("refuses private project %s even when configuration matches", (ref) => {
     vi.stubEnv("ARBOR_PUBLIC_APP_SUPABASE_REF", ref);
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://" + ref + ".supabase.co");
@@ -149,5 +152,38 @@ describe("public alpha origin allowlist", () => {
     expect(publicCorsHeaders(req)["access-control-allow-origin"])
       .toBe("https://alpha.example.test");
     expect(publicPreflight(req).status).toBe(204);
+  });
+});
+
+describe("isolated public alpha host middleware", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("blocks legacy and administrative routes only in alpha mode", () => {
+    vi.stubEnv("ARBOR_PUBLIC_APP_ENABLED", "true");
+    for (const path of ["/api/chat", "/api/ark/status",
+      "/api/admin/system/heartbeat", "/"]) {
+      const response = middleware(new NextRequest(
+        "https://alpha.example.test" + path));
+      expect(response.status).toBe(404);
+      expect(response.headers.get("x-middleware-next")).toBeNull();
+    }
+    const publicResponse = middleware(new NextRequest(
+      "https://alpha.example.test/api/public/chat"));
+    expect(publicResponse.headers.get("x-middleware-next")).toBe("1");
+  });
+
+  it("does not reflect unapproved browser origins in alpha preflight", () => {
+    vi.stubEnv("ARBOR_PUBLIC_APP_ENABLED", "true");
+    vi.stubEnv("ARBOR_PUBLIC_APP_ALLOWED_ORIGINS",
+      "https://invited.example.test");
+    const preflight = (origin: string) => middleware(new NextRequest(
+      "https://alpha.example.test/api/public/chat",
+      { method: "OPTIONS", headers: { origin } },
+    ));
+    expect(preflight("https://attacker.example.test").status).toBe(403);
+    const allowed = preflight("https://invited.example.test");
+    expect(allowed.status).toBe(204);
+    expect(allowed.headers.get("access-control-allow-origin")).toBe(
+      "https://invited.example.test");
   });
 });
