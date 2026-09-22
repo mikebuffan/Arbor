@@ -16,7 +16,7 @@
     "integration": "Cross-lane integration"
   },
   "tip_pr_by_lane": {
-    "grove": 154,
+    "grove": 155,
     "ark_layer": 147,
     "public_app": 146,
     "research": 152
@@ -160,7 +160,19 @@
       "draft": true,
       "merged": false,
       "owner": "grove",
-      "branch": "feat/grove-private-owner-access-20260921"
+      "branch": "feat/grove-private-owner-access-20260921",
+      "stacked_into": 155
+    },
+    {
+      "number": 155,
+      "sha": "560ddd42e10ab4ff23bf255a558cb46744ad8a5b",
+      "base": "feat/grove-private-owner-access-20260921",
+      "base_sha": "adb2b475409676307d2e1d375ef9f7fa2f9d589c",
+      "state": "open",
+      "draft": true,
+      "merged": false,
+      "owner": "grove",
+      "branch": "feat/grove-private-read-broker-20260921"
     }
   ],
   "external_bases": [
@@ -248,6 +260,13 @@
       "stage": "implemented",
       "ref_pr": 154,
       "pending": "Supabase dedicated project/migration applied and verified; Flutter CI/owner invitation/provider code/API and physical sign-in not yet verified"
+    },
+    {
+      "id": "grove_manual_mapping_schema",
+      "owner": "grove",
+      "stage": "implemented",
+      "ref_pr": 155,
+      "pending": "Manually applied SQL verified live; migration ledger missing second entry. Read broker draft untested; API route/client wiring blocked, no grants/invite/real reading"
     }
   ],
   "exclusive_path_prefixes": {
@@ -299,5 +318,5 @@
     "rollback_proof",
     "owner_approval"
   ],
-  "notes": "As of September 21 PDT / September 22 UTC: separate private Grove Supabase project ACTIVE_HEALTHY under Aurixus Studios Pro; quote +$10/month approved and created; owner entitlement RLS applied (zero owner rows). PR #154 implements UI grant gate but Flutter CI pending. No standalone Grove API/LM/ARK bridge or owner OTP acceptance. Re-fetch exact PR heads and run checker with freshly fetched --observed before approval."
+  "notes": "September 21 PDT / September 22 UTC: dedicated Grove ACTIVE_HEALTHY; owner gate migration in ledger, mapping/grant schema manually applied via SQL Editor with RLS forced and 0 rows; two intentional RLS no-policy INFO lints. PR #155 contains untested broker source, NOT a mounted Grove API route or complete ARK/Layer/LM integration. Dated manifest only; refresh --observed."
 }
