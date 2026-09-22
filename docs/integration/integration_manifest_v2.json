@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "as_of": "2026-09-22 PDT (2026-09-22 UTC); refreshed tracked PR heads/main",
+  "as_of": "2026-09-22 PDT / 2026-09-22 UTC (tracked current draft tips)",
   "repository": "mikebuffan/Arbor",
   "main_sha": "d46f6b46fc51ac3db4e158cddfc592c52cc2b5ef",
   "product_separation": [
@@ -17,9 +17,9 @@
   },
   "tip_pr_by_lane": {
     "grove": 156,
-    "ark_layer": 147,
-    "public_app": 146,
-    "research": 152
+    "ark_layer": 160,
+    "public_app": 159,
+    "research": 158
   },
   "pull_requests": [
     {
@@ -91,7 +91,8 @@
       "draft": true,
       "merged": false,
       "owner": "public_app",
-      "branch": "arbor/public-alpha-continuity-privacy-20260921"
+      "branch": "arbor/public-alpha-continuity-privacy-20260921",
+      "stacked_into": 159
     },
     {
       "number": 147,
@@ -102,7 +103,8 @@
       "draft": true,
       "merged": false,
       "owner": "ark_layer",
-      "branch": "arbor/ark-layer-handoff-boundary-20260921"
+      "branch": "arbor/ark-layer-handoff-boundary-20260921",
+      "stacked_into": 160
     },
     {
       "number": 150,
@@ -137,7 +139,8 @@
       "draft": true,
       "merged": false,
       "owner": "research",
-      "branch": "feat/ark-pdf-disposable-sandbox-20260921"
+      "branch": "feat/ark-pdf-disposable-sandbox-20260921",
+      "stacked_into": 157
     },
     {
       "number": 153,
@@ -185,6 +188,51 @@
       "merged": false,
       "owner": "grove",
       "branch": "deploy/grove-private-api-20260921"
+    },
+    {
+      "number": 157,
+      "sha": "0b5f64a722cbf319ea8633a41cf76942481af06e",
+      "base": "feat/ark-pdf-disposable-sandbox-20260921",
+      "base_sha": "303b5e74d6dec0dc7737690b7bb53d07e575d705",
+      "state": "open",
+      "draft": true,
+      "merged": false,
+      "owner": "research",
+      "branch": "feat/ark-evidence-completion-verification-20260922",
+      "stacked_into": 158
+    },
+    {
+      "number": 158,
+      "sha": "a8f16fcf4c928110b8886b8f18434ab4e8f72d70",
+      "base": "feat/ark-evidence-completion-verification-20260922",
+      "base_sha": "0b5f64a722cbf319ea8633a41cf76942481af06e",
+      "state": "open",
+      "draft": true,
+      "merged": false,
+      "owner": "research",
+      "branch": "feat/ark-research-lead-dedupe-20260922"
+    },
+    {
+      "number": 159,
+      "sha": "663c5db87d61c3781527911941187532443ab7f7",
+      "base": "arbor/public-alpha-continuity-privacy-20260921",
+      "base_sha": "aea0318d9ff07d9c6e22d0627d3582325053b320",
+      "state": "open",
+      "draft": true,
+      "merged": false,
+      "owner": "public_app",
+      "branch": "fix/public-alpha-exclude-grove-provider-20260922"
+    },
+    {
+      "number": 160,
+      "sha": "fc58351e9ae8416c3d28d3c398d4126387310bf0",
+      "base": "arbor/ark-layer-handoff-boundary-20260921",
+      "base_sha": "ce70f72287e172e7650604e47872c6facdfd3107",
+      "state": "open",
+      "draft": true,
+      "merged": false,
+      "owner": "ark_layer",
+      "branch": "fix/ark-layer-selected-attachment-conversation-20260922"
     }
   ],
   "external_bases": [
@@ -292,6 +340,20 @@
         "scope": "GitHub Actions backend tests, TypeScript and Next.js build with OPENAI_API_KEY empty; NOT Vercel production deploy or owner login"
       },
       "pending": "Vercel release capacity; fresh production deploy commit, origin, owner authentication and actual ARK read. Github commit status rate-limited retry in 24h at 2026-09-22 06:44 UTC."
+    },
+    {
+      "id": "public_alpha_excludes_grove_provider",
+      "owner": "public_app",
+      "stage": "implemented",
+      "ref_pr": 159,
+      "pending": "Exact-head CI + public app owner review; no live public alpha hosted receipt."
+    },
+    {
+      "id": "ark_layer_selected_attachment_conversation_binding",
+      "owner": "ark_layer",
+      "stage": "implemented",
+      "ref_pr": 160,
+      "pending": "Exact-head backend CI + ARK/Layer review; no live Grove host-to-Layer conversation endpoint."
     }
   ],
   "exclusive_path_prefixes": {
@@ -343,5 +405,5 @@
     "rollback_proof",
     "owner_approval"
   ],
-  "notes": "2026-09-22 PDT: Grove #156 credential-free CI 35696240828 passed at 8999a570...; separate Grove Vercel project and seven production settings confirmed in Danelle's UI (connected Vercel project-list is incomplete), next deploy is rate-limited per dated GitHub status. Existing two bridge tables applied manually but no migration ledger; all grants 0. Actual owner invited, actual private live API and model/phone unverified. Research #152 doc-only head moved 303b5e..., not exact-code CI. Refresh all observations for promotion."
+  "notes": "2026-09-22 PDT: Grove #156 credential-free CI 35696240828 passed at 8999a570...; separate Grove Vercel project and seven production settings confirmed in Danelle's UI (connected Vercel project-list is incomplete), next deploy is rate-limited per dated GitHub status. Existing two bridge tables applied manually but no migration ledger; all grants 0. Actual owner invited, actual private live API and model/phone unverified. Research #152 doc-only head moved 303b5e..., not exact-code CI. Refresh all observations for promotion. | 2026-09-22 later: research #157/#158 already existed in its owner lane; not rebuilt. Public alpha #159 excludes Grove project in provider guard, ARK/Layer #160 requires selected file in requested conversation; both draft IMPLEMENTED with regression tests committed, NO exact-head CI. Still no Grove live deploy/real owner/phone or private LM inference."
 }
