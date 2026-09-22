@@ -4,6 +4,8 @@ import {
   assertProjectOwnedByUser,
 } from "@/lib/auth/ownership";
 import { readArkProjectSnapshot } from "@/lib/ark/readModel";
+import { assertAttachmentOwnedByScope } from "@/lib/attachments/scope";
+import { RouteAccessError } from "@/lib/auth/routeAuthorization";
 import {
   loadLatestRuntimeState,
   loadRuntimeState,
@@ -46,6 +48,16 @@ export type ArkLayerReadContext = {
     behavioralCorrections: string[];
     startupPrompt: string | null;
   };
+  /** A selected file is metadata only; actual file bytes require a new brokered read. */
+  selectedAttachment: null | {
+    source: "chat_attachment_metadata";
+    attachmentId: string;
+    projectId: string;
+    conversationId: string;
+    displayName: string;
+    originalBytesRead: false;
+    citationVerified: false;
+  };
   behavior: ArborBehaviorProjection;
 };
 
@@ -55,6 +67,8 @@ export async function readArkLayerContext(input: {
   authenticatedUserId: string;
   projectId: string;
   conversationId?: string | null;
+  /** Only on explicit file selection; omitted for ordinary conversation reads. */
+  selectedAttachment?: { conversationId: string; attachmentId: string } | null;
   mode: ArborInteractionMode;
 }): Promise<ArkLayerReadContext> {
   const { supabase, authenticatedUserId: userId, projectId } = input;
@@ -69,7 +83,7 @@ export async function readArkLayerContext(input: {
   }
 
   // Read state only AFTER checking ownership; both reads remain project-scoped.
-  const [ark, storedState] = await Promise.all([
+  const [ark, storedState, selectedFile] = await Promise.all([
     readArkProjectSnapshot({
       supabase,
       userId,
@@ -85,7 +99,18 @@ export async function readArkLayerContext(input: {
           conversationId: input.conversationId,
         })
       : loadLatestRuntimeState({ supabase, userId, projectId }),
+    input.selectedAttachment
+      ? assertAttachmentOwnedByScope({
+          supabase, userId, projectId,
+          conversationId: input.selectedAttachment.conversationId,
+          attachmentId: input.selectedAttachment.attachmentId,
+        })
+      : Promise.resolve(null),
   ]);
+
+  if (selectedFile && selectedFile.status !== "uploaded") {
+    throw new RouteAccessError(404, "attachment_not_found");
+  }
 
   // Supabase RLS/queries are defenses too, but never trust a corrupted or
   // mis-scoped persisted JSON state simply because it came from a scoped row.
@@ -135,6 +160,18 @@ export async function readArkLayerContext(input: {
       behavioralCorrections: correctionRules,
       startupPrompt: startup?.startup.promptBlock ?? null,
     },
+    selectedAttachment: selectedFile && input.selectedAttachment ? {
+      source: "chat_attachment_metadata",
+      attachmentId: input.selectedAttachment.attachmentId,
+      projectId,
+      conversationId: input.selectedAttachment.conversationId,
+      displayName: selectedFile.storage_path
+        .slice(selectedFile.storage_path.lastIndexOf("/") + 1)
+        .replace(/[\\x00-\\x1f\\x7f]/g, "").trim().slice(0, 120) ||
+        "Unnamed attachment",
+      originalBytesRead: false,
+      citationVerified: false,
+    } : null,
     behavior: buildArborBehaviorProjection({
       mode: input.mode,
       correctionRules,
