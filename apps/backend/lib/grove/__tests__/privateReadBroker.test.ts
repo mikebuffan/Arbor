@@ -24,8 +24,10 @@ import {
   groveTokenClaimsMatch,
   privateGroveReadConfig,
   readPrivateGroveArk,
+  readPrivateGroveProjects,
 } from "@/lib/grove/privateReadBroker";
 import { GET } from "@/app/api/grove/ark/status/route";
+import { GET as GET_PROJECTS } from "@/app/api/grove/ark/projects/route";
 
 const groveUrl = "https://fqjqpuaoifgbweiguacf.supabase.co";
 const fireflyUrl = "https://ncpdlyakrzfvobmwzbon.supabase.co";
@@ -61,6 +63,9 @@ function query(table: string) {
     is: vi.fn(),
     maybeSingle: vi.fn(async () => mocks.lookup.get(table) ?? {
       data: null, error: null,
+    }),
+    limit: vi.fn(async () => mocks.lookup.get(table + ":list") ?? {
+      data: [], error: null,
     }),
   };
   q.select.mockReturnValue(q);
@@ -136,6 +141,27 @@ describe("private Grove provider and token boundaries", () => {
     vi.stubEnv("GROVE_SERVICE_ROLE_KEY", "grove-private-server-test-key");
     vi.stubEnv("GROVE_PUBLIC_API_ORIGIN", "https://firefly-coral.vercel.app");
     expect(() => privateGroveReadConfig()).toThrowError("grove_api_not_configured");
+  });
+
+  it("canonicalizes root-slash provider origins before issuer/origin checks", async () => {
+    vi.stubEnv("GROVE_SUPABASE_URL", groveUrl + "/");
+    vi.stubEnv("GROVE_FIREFLY_SUPABASE_URL", fireflyUrl + "/");
+    vi.stubEnv("GROVE_PUBLIC_API_ORIGIN", origin + "/");
+    const config = privateGroveReadConfig();
+    expect(config.groveUrl).toBe(groveUrl);
+    expect(config.fireflyUrl).toBe(fireflyUrl);
+    expect(config.apiOrigin).toBe(origin);
+    expect((await readPrivateGroveArk(req(), projectId)).available).toBe(true);
+    expect(mocks.clients.map(c => c.url))
+      .toEqual([groveUrl, groveUrl, fireflyUrl]);
+  });
+
+  it("fails closed on malformed not-before claims", () => {
+    for (const nbf of [null, "0", 0.5, now + 3600]) {
+      expect(groveTokenClaimsMatch(
+        jwt({nbf}), groveOwner, groveUrl, now,
+      )).toBe(false);
+    }
   });
 
   it("requires expected issuer, audience, role, subject and unexpired time", () => {
@@ -279,5 +305,89 @@ describe("private Grove status route", () => {
     expect(response.status).toBe(404);
     expect((await response.json()).error).toBe("project_not_found");
     expect(response.headers.get("cache-control")).toBe("no-store");
+  });
+});
+
+describe("private Grove authorized project discovery", () => {
+  const granted = (id = projectId) => ({
+    grove_user_id: groveOwner, firefly_project_id: id,
+  });
+
+  it("rejects anonymous discovery before contacting Grove Auth", async () => {
+    await expect(readPrivateGroveProjects(req(null)))
+      .rejects.toMatchObject({status: 401, code: "grove_auth_required"});
+    expect(mocks.createClient).not.toHaveBeenCalled();
+  });
+
+  it("does not list any grant without verified owner invitation", async () => {
+    mocks.lookup.set("grove_private_owner_access", {
+      data: null, error: null,
+    });
+    await expect(GET_PROJECTS(req())).resolves.toMatchObject({status: 403});
+    expect(mocks.clients).toHaveLength(1);
+    expect(mocks.assertProjectOwnedByUser).not.toHaveBeenCalled();
+  });
+
+  it("returns empty for invited owner with no project grants", async () => {
+    const response = await GET_PROJECTS(req());
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(await response.json()).toEqual({ok: true, projects: []});
+    expect(mocks.clients.map(c => c.url)).toEqual([groveUrl, groveUrl]);
+  });
+
+  it("lists only explicitly granted and Firefly-owned projects", async () => {
+    mocks.lookup.set("grove_private_ark_project_grants:list", {
+      data: [granted(projectId)], error: null,
+    });
+    const response = await GET_PROJECTS(req());
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ok: true, projects: [projectId]});
+    expect(mocks.assertProjectOwnedByUser).toHaveBeenCalledWith(
+      expect.anything(), fireflyOwner, projectId,
+    );
+    expect(mocks.readArkProjectSnapshot).not.toHaveBeenCalled();
+    expect(mocks.clients.map(c => c.url)).toEqual([
+      groveUrl, groveUrl, fireflyUrl,
+    ]);
+  });
+
+  it("fails closed if an old grant outlives Firefly ownership", async () => {
+    mocks.lookup.set("grove_private_ark_project_grants:list", {
+      data: [granted()], error: null,
+    });
+    mocks.assertProjectOwnedByUser.mockRejectedValue(
+      new Error("ownership changed"),
+    );
+    const response = await GET_PROJECTS(req());
+    expect(response.status).toBe(500);
+    expect(JSON.stringify(await response.json()))
+      .not.toContain("ownership changed");
+    expect(mocks.readArkProjectSnapshot).not.toHaveBeenCalled();
+  });
+
+  it("rejects injected foreign grant and bad project identifiers", async () => {
+    for (const value of [
+      [{grove_user_id: fireflyOwner, firefly_project_id: projectId}],
+      [granted("not-a-uuid")],
+      [granted(), granted()],
+      Array.from({length: 51}, () => granted()),
+    ]) {
+      mocks.lookup.set("grove_private_ark_project_grants:list", {
+        data: value, error: null,
+      });
+      const response = await GET_PROJECTS(req());
+      expect(response.status).toBe(500);
+      expect((await response.json()).ok).toBe(false);
+      expect(mocks.readArkProjectSnapshot).not.toHaveBeenCalled();
+      mocks.assertProjectOwnedByUser.mockClear();
+    }
+  });
+
+  it("rejects wrong Grove host before creating provider clients", async () => {
+    await expect(readPrivateGroveProjects(
+      req(jwt(), projectId, "https://firefly-coral.vercel.app"),
+    )).rejects.toMatchObject({status: 404, code: "grove_route_not_found"});
+    expect(mocks.createClient).not.toHaveBeenCalled();
   });
 });

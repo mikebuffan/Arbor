@@ -36,7 +36,8 @@ export function middleware(req: NextRequest) {
   // Private Android sends Bearer tokens natively and does not need browser CORS.
   // This is deployment isolation in addition to the route's own auth checks.
   if (process.env.GROVE_API_ENABLED === "true") {
-    if (pathname !== "/api/grove/ark/status") {
+    if (pathname !== "/api/grove/ark/status" &&
+        pathname !== "/api/grove/ark/projects") {
       return new NextResponse(null, {
         status: 404,
         headers: { "Cache-Control": "no-store" },
