@@ -210,12 +210,13 @@ class _ConversationHomeState extends State<_ConversationHome> {
     return 'Connection failed. Check your network.';
   }
   Future<void> refresh() async {
+    final revision = _viewRevision;
     if (mounted) setState(() => loading = true);
     try {
       final json = await api.get('/api/public/conversations');
       final list = (json?['conversations'] as List<dynamic>? ?? [])
         .whereType<Map<String, dynamic>>().toList();
-      if (!mounted) return;
+      if (!mounted || revision != _viewRevision) return;
       setState(() { history = list; error = null; });
       final currentExists = list.any((c) => c['id'] == conversationId);
       if (currentExists) {
@@ -312,6 +313,7 @@ class _ConversationHomeState extends State<_ConversationHome> {
           'Retry the saved message unchanged, or start a new conversation.');
       return;
     }
+    final revision = _viewRevision;
     final turn = pendingTurnId ?? newTurnId();
     pendingTurnId = turn;
     pendingUserText = content;
@@ -321,7 +323,7 @@ class _ConversationHomeState extends State<_ConversationHome> {
         'turnId': turn, 'userText': content, 'interactionMode': 'text',
         if (conversationId != null) 'conversationId': conversationId,
       });
-      if (!mounted) return;
+      if (!mounted || revision != _viewRevision) return;
       conversationId = answer['conversationId'] as String;
       pendingTurnId = null;
       pendingUserText = null;
