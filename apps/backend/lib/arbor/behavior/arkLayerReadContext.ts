@@ -72,6 +72,14 @@ export async function readArkLayerContext(input: {
   mode: ArborInteractionMode;
 }): Promise<ArkLayerReadContext> {
   const { supabase, authenticatedUserId: userId, projectId } = input;
+  // An explicitly selected file must belong to the CURRENT requested
+  // conversation, not merely another conversation under the same project.
+  // Reject a missing/mismatching conversation before any scoped DB read.
+  if (input.selectedAttachment &&
+      (!input.conversationId ||
+       input.selectedAttachment.conversationId !== input.conversationId)) {
+    throw new RouteAccessError(404, "attachment_not_found");
+  }
   await assertProjectOwnedByUser(supabase, userId, projectId);
   if (input.conversationId) {
     await assertConversationOwnedByUser({
