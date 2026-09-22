@@ -53,25 +53,28 @@ void main() {
         findsOneWidget);
     expect(find.text('PRIVATE HOUSE READY'), findsNothing);
     expect(chosen, isEmpty);
-    await tester.tap(find.text('Project 00000000…').last);
+    expect(find.text('Project 00000000…0003'), findsOneWidget);
+    expect(find.text('Project 00000000…0004'), findsOneWidget);
+    await tester.tap(find.text('Project 00000000…0004'));
     await tester.pumpAndSettle();
     expect(chosen, [projectB]);
     expect(find.text('PRIVATE HOUSE READY'), findsOneWidget);
   });
 
-  testWidgets('no grants leave the private house inaccessible',
+  testWidgets('invited owner can enter house without an ARK grant',
       (tester) async {
+    final chosen = <String>[];
     await tester.pumpWidget(MaterialApp(
       home: GrovePrivateProjectGate(
         loadProjects: () async => [],
-        selectProject: (_) async {},
+        selectProject: (id) async { chosen.add(id); },
         child: const Text('PRIVATE HOUSE READY'),
       ),
     ));
     await tester.pumpAndSettle();
-    expect(find.textContaining('No private ARK projects are granted yet.'),
-        findsOneWidget);
-    expect(find.text('PRIVATE HOUSE READY'), findsNothing);
+    expect(find.text('PRIVATE HOUSE READY'), findsOneWidget);
+    expect(chosen, isEmpty,
+      reason: 'Opening the room cannot manufacture an ARK project grant');
   });
 
   testWidgets('failed grant fetch denies access and offers retry',
