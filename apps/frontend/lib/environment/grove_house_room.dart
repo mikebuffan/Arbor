@@ -7,7 +7,7 @@ import 'grove_window_time_selection.dart';
 
 /// The approved nighttime room is the floor plan: left stairs and shelves,
 /// Moss on left couch, central living window and Arbor, desk on the right.
-/// Daylight is a *preview overlay* on that image, not finished daytime art.
+/// Sundial preview updates the displayed phase/time, not the approved night\n/// painting. Matching daytime art is a separate, unfinished asset.
 enum GroveRoomAction { arbor, desk, shelves, stairs, kitchen, moss, window }
 
 class GroveHouseRoom extends StatefulWidget {
@@ -133,7 +133,7 @@ class _GroveHouseRoomState extends State<GroveHouseRoom> {
       ]),
       const SizedBox(height: 7),
       if (preview) ...[
-        const Text('The sundial changes only the window artwork, not the House Clock.',
+        const Text('The sundial previews the displayed window time, not the House Clock.',
             style: TextStyle(color: ArborEnvironmentTokens.textMuted,
                 fontSize: 11)),
         TextButton(
