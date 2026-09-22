@@ -39,7 +39,10 @@ export type WorkOrderDisposition =
   | "concurrent_thread_conflict"
   | "objective_conflict"
   | "no_active_objective"
-  | "prior_objective_terminal";
+  | "prior_objective_terminal"
+  | "blocked_objective_requires_resolution"
+  | "failed_objective_requires_recovery"
+  | "verification_pending";
 
 export type WorkOrderDecision = {
   disposition: WorkOrderDisposition;
@@ -52,7 +55,8 @@ export type WorkOrderDecision = {
  * A pasted status is evidence, not a new assignment. Explicit takeover of a
  * running objective in another thread remains a conflict because this adapter
  * cannot prove that thread's worker/lease has stopped. Checkpointed or blocked
- * work may be handed off only when objective identity is unchanged.
+ * work may be handed off only when objective identity is unchanged. Blocked,
+ * failed or unverified work additionally requires its original gate to clear.
  */
 export function reconcileWorkOrder(input: {
   authenticatedOwnerId: string;
@@ -91,9 +95,13 @@ export function reconcileWorkOrder(input: {
     return result("objective_conflict", true);
   }
 
+  if (active.status === "blocked") return result("blocked_objective_requires_resolution", true);
+  if (active.status === "failed") return result("failed_objective_requires_recovery", true);
+  if (active.status === "awaiting_verification") return result("verification_pending", true);
+
   if (!active.assignedThreadId) {
     // A missing thread pointer is not proof that a running worker is idle.
-    if (active.status === "running" || active.status === "awaiting_verification") {
+    if (active.status === "running") {
       return result("concurrent_thread_conflict", true);
     }
     return result("resume_unassigned");
@@ -104,7 +112,7 @@ export function reconcileWorkOrder(input: {
 
   if (
     incoming.intent === "take_over" && incoming.explicitTakeover &&
-    (active.status === "checkpointed" || active.status === "blocked")
+    active.status === "checkpointed"
   ) return result("handoff_checkpointed");
 
   return result("concurrent_thread_conflict", true);
