@@ -10,7 +10,6 @@ on:
       - arbor-linear-runtime
       # Temporary integration PR target; remove before merging into main.
       - feature/grove-living-window-foundation-20260920
-      - fix/grove-runtime-scope-20260921
   workflow_dispatch:
 
 # CI sentinel: keep this workflow visibly updated when main-push Actions delivery stalls.
