@@ -54,6 +54,7 @@ describe("separate public alpha access boundary", () => {
   it.each([
     "ncpdlyakrzfvobmwzbon",
     "tzbpjbhroxiqftqwatnb",
+    "dqvrzgrmorzfjddyozqz",
   ])("refuses private project %s even when configuration matches", (ref) => {
     vi.stubEnv("ARBOR_PUBLIC_APP_SUPABASE_REF", ref);
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://" + ref + ".supabase.co");
