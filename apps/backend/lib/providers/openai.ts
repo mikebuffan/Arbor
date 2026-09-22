@@ -32,11 +32,6 @@ export function openAIClientOptions(
   };
 }
 
-export const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY!,
-  ...openAIClientOptions(),
-});
-
 function getClient() {
   const key = process.env.OPENAI_API_KEY;
   if (!key) throw new Error("OPENAI_API_KEY is required");
@@ -46,6 +41,20 @@ function getClient() {
     ...openAIClientOptions(),
   });
 }
+
+// The shared backend bundles legacy OpenAI routes even for the separately
+// hosted read-only Grove. Next.js evaluates their imports during page-data
+// collection, so constructing an SDK client here would make an unrelated
+// Grove ARK deployment require a model credential at build time.
+//
+// Defer client construction until a legacy route actually calls the SDK.
+// Missing credentials still fail closed at the point of use.
+export const openai = new Proxy({} as OpenAI, {
+  get(_target, property) {
+    return Reflect.get(getClient(), property);
+  },
+});
+
 
 export async function generateWithOpenAI(messages: ModelMessage[]) {
   const model = process.env.OPENAI_MODEL ?? "gpt-5";

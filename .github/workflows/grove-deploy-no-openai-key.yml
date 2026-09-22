@@ -1,0 +1,40 @@
+name: Grove deploy builds without model credentials
+
+on:
+  push:
+    branches:
+      - deploy/grove-private-api-20260921
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: grove-deploy-no-openai-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  credential-free-build:
+    name: Backend tests and build without OpenAI credential
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: corepack enable
+      - run: corepack prepare pnpm@10.30.3 --activate
+      - run: pnpm install --frozen-lockfile
+      - name: Backend tests without OPENAI_API_KEY
+        run: pnpm --filter firefly-backend test
+        env:
+          OPENAI_API_KEY: ""
+      - name: Typecheck backend
+        run: pnpm --filter firefly-backend exec tsc --noEmit
+        env:
+          OPENAI_API_KEY: ""
+      - name: Build backend without OPENAI_API_KEY
+        run: pnpm --filter firefly-backend build
+        env:
+          OPENAI_API_KEY: ""
