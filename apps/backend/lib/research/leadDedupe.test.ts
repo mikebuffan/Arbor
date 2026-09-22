@@ -55,6 +55,18 @@ describe('dedupeResearchLeads', () => {
     expect(result.mergedLeadIds).toEqual(['lead-1', 'lead-2']);
   });
 
+  it('is deterministic when exact-key duplicate input order changes', () => {
+    const first = lead({ leadId: 'lead-z', sourceRefs: ['source:z'], checkpointRefs: ['checkpoint:z'] });
+    const second = lead({ leadId: 'lead-a', sourceRefs: ['source:a'], checkpointRefs: ['checkpoint:a'] });
+
+    const forward = dedupeResearchLeads([first, second]);
+    const reverse = dedupeResearchLeads([second, first]);
+
+    expect(reverse).toEqual(forward);
+    expect(forward[0].leadId).toBe('lead-a');
+    expect(forward[0].mergedLeadIds).toEqual(['lead-a', 'lead-z']);
+  });
+
   it('rejects duplicate lead identifiers rather than silently overwriting audit identity', () => {
     expect(() => dedupeResearchLeads([lead(), lead()])).toThrow('duplicate leadId');
   });
