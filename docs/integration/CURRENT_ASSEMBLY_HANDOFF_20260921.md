@@ -28,6 +28,12 @@ Do not treat an APK as a separately authenticated app, a GitHub test as a deploy
 4. **One physical acceptance pass:** sign in to actual separate Grove on Samsung; open nighttime home; Living Window preview→Return to Now; Moss state persists after force-close/relaunch; memory/document/ARK shelves blank immediately when identity changes; Text→Voice→Text continuity; expired or unavailable service shows truthful state; verify sign-out and private-provider isolation. Owner participation is needed for device observation, not general code chores.
 5. **Only after gates:** decide exact branch promotion order and rollback, run deployment and migration preflight for the **chosen** provider and environment, obtain explicit owner authorization for production/paid/irreversible actions. Do not silently flip `ARBOR_ENABLE_ARK_EXECUTION`, replay uncertain research work or claim a hosted model from CI.
 
+## Read-only infrastructure inventory (September 21 local / September 22 UTC)
+
+Connected Supabase listing showed three existing projects: current Firefly, ARK Preview and an inactive older project; **none was a separately provisioned private Grove realm**. Connected Vercel listing showed only the existing `firefly` project, not a distinct Grove API project. These are account-visible inventory observations, not a claim that no other inaccessible provider exists. No project, account, key, deployment, billing or migration was created or modified by this inventory read.
+
+**Next real-world prerequisite:** Danelle chooses the intended Supabase organization and approves the exact quoted creation cost and provider arrangement before a project can be created. Vercel/Grove service isolation and the signed-in cross-provider read-only bridge remain implementation/release work after that. Do not send private credentials through chat and do not assume Mike is required merely because his name owns the existing workspace.
+
 ## Owner-facing handoff: when to ask whom
 
 | Need | Responsible next step |
