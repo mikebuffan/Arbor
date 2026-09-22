@@ -16,7 +16,7 @@
 - Route the grove-flavored Talk destination into Grove-only teal text/voice presentation with the existing underlying text/voice clients. Original arbor-flavored app remains on the classic shell.
 - Change Talk heading to name the private Grove and explain existing Firefly sign-in; hide raw user/project/thread identifiers in Grove display. The original debug Arbor display is unaffected.
 
-## Still blocked / do not tell Danelle it is fixed
+## Still blocked / do not tell the owner it is fixed
 1. Private Grove account provisioning and distinct Grove authentication + API contract if owner requires independence from existing Firefly; no credentials have been created or supplied by these UI changes. Do not mint passwords, simulate a signed-in user, or silently reuse a public alpha provider.
 2. Public alpha needs its **own** dedicated provisioned backend as designed in #140/#146; do not point it at existing Firefly or Grove identities.
 3. Inspect and approve exact visual assets per room (canonical master, then kitchen/desk/observatory); ship actual high-resolution assets as binaries, not HTML mockups/screenshots with phone chrome.
@@ -25,5 +25,10 @@
 
 ## Isolation contract
 The Grove is Danelle's private immersive household. The public Arbor App is a separate product for other users. They may reuse audited *source code*, but must not share app package, account/session storage, conversations, user/project records, secrets or deployment assumptions by accident. No app should silently sign a user into another app. Existing Firefly credentials must not be re-described as public-alpha credentials.
+
+## CI and Android artifact
+- Combined GitHub Actions run [35676266408](https://github.com/mikebuffan/Arbor/actions/runs/35676266408) **passed all three jobs**, including backend/control tests and builds, Flutter analysis and tests, existing Arbor and distinct Grove Android debug APK builds/uploads, at exact tested head `b34328f1e424a3ed50154de552f7fdeb340176c3`.
+- Grove artifact `10673136859` (`the-grove-android-debug`) is from this run; APK ZIP integrity and inner APK ZIP structure checked after extraction. The extracted APK SHA-256 is `af598b5e8de894f86dd5f2128ad64f7fcf1655b0d028d8b4bff41f72f4cb9c48`. The original Arbor APK was built independently in that run.
+- The temporary stacked CI PR-target line was removed in a workflow-only commit after tests. **No physical installation of this new version or independent authentication acceptance is claimed.**
 
 No production service/DB/worker/LM/public branch was changed by this private UI draft.
