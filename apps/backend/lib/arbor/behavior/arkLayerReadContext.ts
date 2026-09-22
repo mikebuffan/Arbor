@@ -167,7 +167,7 @@ export async function readArkLayerContext(input: {
       conversationId: input.selectedAttachment.conversationId,
       displayName: selectedFile.storage_path
         .slice(selectedFile.storage_path.lastIndexOf("/") + 1)
-        .replace(/[\\x00-\\x1f\\x7f]/g, "").trim().slice(0, 120) ||
+        .replace(/[\x00-\x1f\x7f]/g, "").trim().slice(0, 120) ||
         "Unnamed attachment",
       originalBytesRead: false,
       citationVerified: false,
