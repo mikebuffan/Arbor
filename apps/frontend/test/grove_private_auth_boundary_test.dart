@@ -1,6 +1,9 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/config/grove_private_config.dart';
+import 'package:frontend/config/grove_private_session.dart';
 import 'package:frontend/pages/grove_private_access_page.dart';
 
 void main() {
@@ -9,6 +12,48 @@ void main() {
     publishableKey: 'sb_publishable_test-value',
     apiUrl: 'https://grove-private.example.org',
   );
+
+
+  String tokenFor(String issuer, {int expires = 1900000000}) {
+    final payload = base64Url.encode(utf8.encode(jsonEncode({
+      'iss': issuer,
+      'sub': 'synthetic-owner',
+      'exp': expires,
+    })));
+    return 'synthetic.' + payload + '.not-a-real-signature';
+  }
+
+  test('old Firefly session cannot unlock an upgraded private Grove', () {
+    final privateToken = tokenFor(
+      'https://grove-invite-only.supabase.co/auth/v1',
+    );
+    final fireflyToken = tokenFor(
+      'https://ncpdlyakrzfvobmwzbon.supabase.co/auth/v1',
+    );
+    const groveAuth = 'https://grove-invite-only.supabase.co';
+    final knownNow = DateTime.utc(2026, 9, 21);
+    expect(GrovePrivateSession.belongsToRealm(
+      token: privateToken,
+      authUrl: groveAuth,
+      now: knownNow,
+    ), isTrue);
+    expect(GrovePrivateSession.belongsToRealm(
+      token: fireflyToken,
+      authUrl: groveAuth,
+      now: knownNow,
+    ), isFalse);
+    expect(GrovePrivateSession.belongsToRealm(
+      token: tokenFor('https://grove-invite-only.supabase.co/auth/v1',
+          expires: 1600000000),
+      authUrl: groveAuth,
+      now: knownNow,
+    ), isFalse);
+    expect(GrovePrivateSession.belongsToRealm(
+      token: 'garbage',
+      authUrl: groveAuth,
+      now: knownNow,
+    ), isFalse);
+  });
 
   test('private Grove realm requires complete HTTPS independent endpoints', () {
     expect(privateRealm.ready, isTrue);
