@@ -22,6 +22,8 @@ on:
       - feat/ark-research-outcome-receipts-20260921
       # Temporary page-image provenance review target; remove before main integration.
       - feat/ark-pdf-batch-plan-20260921
+      # Temporary disposable renderer sandbox review target; remove before main integration.
+      - feat/ark-pdf-page-image-provenance-20260921
   workflow_dispatch:
 
 # CI sentinel: keep this workflow visibly updated when main-push Actions delivery stalls.
@@ -35,54 +37,73 @@ jobs:
     name: Backend test + build
     runs-on: ubuntu-latest
     timeout-minutes: 20
-
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-
       - run: corepack enable
       - run: corepack prepare pnpm@10.30.3 --activate
       - run: pnpm install --frozen-lockfile
-
       - name: Ensure sandbox Poppler parser tools for harmless PDF fixtures
         run: |
           if ! command -v pdfinfo >/dev/null || ! command -v pdftotext >/dev/null || ! command -v pdfimages >/dev/null; then
             sudo apt-get update
             sudo apt-get install -y poppler-utils
           fi
-
       - name: Run backend tests
         env:
           OPENAI_API_KEY: ci-placeholder-not-a-real-key
         run: pnpm --filter firefly-backend test
-
       - name: Build backend
         env:
           OPENAI_API_KEY: ci-placeholder-not-a-real-key
         run: pnpm --filter firefly-backend build
 
+  pdf-sandbox:
+    name: Disposable PDF sandbox smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build digest-pinned non-root Poppler image
+        run: |
+          docker build -t arbor-pdf-sandbox:ci ops/research/pdf-sandbox
+          test "$(docker image inspect --format '{{.Config.User}}' arbor-pdf-sandbox:ci)" = "65532:65532"
+          IMAGE_ID="$(docker image inspect --format '{{.Id}}' arbor-pdf-sandbox:ci)"
+          [[ "$IMAGE_ID" =~ ^sha256:[a-f0-9]{64}$ ]]
+          echo "PDF_SANDBOX_IMAGE_REF=$IMAGE_ID" >> "$GITHUB_ENV"
+      - name: Render harmless synthetic fixture under hard isolation
+        run: |
+          mkdir -p "$RUNNER_TEMP/pdf-sandbox-out"
+          chmod 0777 "$RUNNER_TEMP/pdf-sandbox-out"
+          node ops/research/pdf-sandbox/make-harmless-fixture.mjs "$RUNNER_TEMP/harmless.pdf"
+          chmod 0444 "$RUNNER_TEMP/harmless.pdf"
+          bash ops/research/pdf-sandbox/run.sh "$RUNNER_TEMP/harmless.pdf" "$RUNNER_TEMP/pdf-sandbox-out"
+          test -s "$RUNNER_TEMP/pdf-sandbox-out/page-1.png"
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("${{ runner.temp }}/pdf-sandbox-out/page-1.png")
+          assert p.read_bytes()[:8] == b"\x89PNG\r\n\x1a\n"
+          PY
+
   control-backend:
     name: Control backend test + build
     runs-on: ubuntu-latest
     timeout-minutes: 20
-
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-
       - run: corepack enable
       - run: corepack prepare pnpm@10.30.3 --activate
       - run: pnpm install --frozen-lockfile
-
       - name: Run control backend tests
         run: pnpm --filter arbor-control-backend test
-
       - name: Build control backend
         run: pnpm --filter arbor-control-backend build
 
@@ -90,36 +111,27 @@ jobs:
     name: Flutter analyze + test
     runs-on: ubuntu-latest
     timeout-minutes: 20
-
     defaults:
       run:
         working-directory: apps/frontend
-
     steps:
       - uses: actions/checkout@v4
-
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
           cache: true
-
       - run: flutter pub get
-
       - name: Verify Flutter generated state is current
         run: git diff --exit-code -- pubspec.lock analysis_options.yaml
-
       - name: Analyze
         run: flutter analyze --no-fatal-infos --no-fatal-warnings
-
       - run: flutter test
-
       - name: Build Android debug APK
         run: >
           flutter build apk --debug
           --dart-define=SUPABASE_URL=https://ncpdlyakrzfvobmwzbon.supabase.co
           --dart-define=SUPABASE_ANON_KEY=sb_publishable_med7aHx1vGlYLih1QbdgtA_zQnRTSrS
           --dart-define=ARBOR_API_URL=https://firefly-coral.vercel.app
-
       - name: Upload Android debug APK
         uses: actions/upload-artifact@v4
         with:
