@@ -43,7 +43,7 @@ Legend: [x] draft code plus relevant exact-head CI evidence exists; [~] partial/
 30. [~] #136 content identity vs URL/local ID; durable canonical index/final redirect/cross-project persistence remain.
 31. [x] #139 typed one-step evidence promotion; CI `35663024929`.
 32. [~] Original-page/context review contract exists; real workflow remains.
-33. [~] Privacy/publication gates exist; new synthetic-only `publicationPreflight.ts` requires explicit review receipts and unresolved-flag clearance but always retains release-authorization HOLD. No automatic PII detection or real-data redaction claim; CI pending.
+33. [~] Privacy/publication gates exist; new synthetic-only `publicationPreflight.ts` requires explicit review receipts and unresolved-flag clearance but always retains release-authorization HOLD. No automatic PII detection or real-data redaction claim; exact-head `62832f6d5d2a75e5b4f5fa38999993bc41c61706` CI `35785427853` passed backend/control/Flutter/disposable PDF smoke.
 34. [x] #141 immutable rejected-hypothesis/missing-data/failure receipts.
 35. [~] Byte-identical mirrors do not count as independent corroboration; source-chain independence proof remains.
 
@@ -104,3 +104,5 @@ Verified lineage remains #123 → #131 → #134 → #135 → #136 → #139 → #
 - Exact-head `57c48a873280f7e358625799b995ee4adfb27998` CI later completed successfully for backend/control/Flutter and real disposable PDF sandbox smoke; item 61 **pure module** now [x]. Supabase Preview skipped, not DB verification.
 
 - Draft #163 subsequent independent synthetic `publicationPreflight.ts` + Vitest tests: requires source/page review, privacy/publication receipts, no unresolved flags, and NEVER grants automatic sharing. At new head, exact-head CI pending. This is not automated redaction or publication approval.
+
+- Exact-head `62832f6d5d2a75e5b4f5fa38999993bc41c61706` CI `35785427853` PASS on four engineering jobs for synthetic publication preflight; item 33/60 remain partial because this is review receipt gating, not automatic redaction or real-data workflow.
