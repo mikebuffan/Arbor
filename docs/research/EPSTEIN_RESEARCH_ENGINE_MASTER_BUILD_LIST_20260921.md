@@ -40,12 +40,12 @@ Legend: [x] draft code plus relevant exact-head CI evidence exists; [~] partial/
 27. [x] Source/excerpt/document/hash substitution detection.
 28. [x] Synthetic bytes → Poppler → page → exact quote → comparison test.
 29. [ ] **BLOCKED — disposable DB first:** immutable evidence persistence.
-30. [~] #136 content identity vs URL/local ID; durable canonical index/final redirect/cross-project persistence remain.
+30. [~] #136 content identity vs URL/local ID; #170 adds pure in-memory content grouping and tenant-scoped aliases with five synthetic tests. Durable index, final redirect capture, authorization-backed access and DB persistence remain; exact-head CI pending.
 31. [x] #139 typed one-step evidence promotion; CI `35663024929`.
 32. [~] Original-page/context review contract exists; real workflow remains.
 33. [~] Privacy/publication gates exist; synthetic-only `publicationPreflight.ts` requires explicit review receipts and unresolved-flag clearance but always retains release-authorization HOLD. No automatic PII detection or real-data redaction claim; exact-head `62832f6d5d2a75e5b4f5fa38999993bc41c61706` CI `35785427853` passed backend/control/Flutter/disposable PDF smoke.
 34. [x] #141 immutable rejected-hypothesis/missing-data/failure receipts.
-35. [~] Byte-identical mirrors do not count as independent corroboration; draft #168 adds pure synthetic source-chain triage for shared upstream, changed same-location versions, missing chain/review receipts, and candidate-only distinct chains. Human independence proof and integration remain pending; exact-head CI pending.
+35. [~] Byte-identical mirrors do not count as independent corroboration; draft #168 adds pure synthetic source-chain triage for shared upstream, changed same-location versions, missing chain/review receipts, and candidate-only distinct chains. Backend/control/disposable PDF sandbox CI passed on `77a62085eda90a146bf0135bb74bcfd283f6157d`; Flutter check cancelled, NOT full green. Human independence proof and integration remain pending.
 
 ## 4. Bounded sessions and database safety
 36. [x] Pure bounded one-unit-per-tick session policy.
@@ -97,3 +97,8 @@ Verified lineage: #123 → #131 → #134 → #135 → #136 → #139 → #141 →
 - Inspected canonical checklist at #163 head `46f78ef2c8b8fd04f80d2db5fd78b60ff92f7ba6` and existing `sourceVersion.ts` + tests; existing `isProvenIndependentCorroboration` remains conservative false, not duplicated.
 - New isolated draft #168 `feat/ark-research-source-chain-review-20260922` stacks on #163. Pure `sourceChainReview.ts` and six synthetic Vitest tests; never returns proven independence. Item 35 remains [~] until CI and independent human chain verification. No real source capture or real-person data.
 - Next numbered gate #18 separately authorized independently published benign PDF/manual hash-page-order review. Next safe item after CI: item 30 canonical-index design, no DB execution. #40 disposable DB/cost, #47 live worker, #51 scheduler, #58 EFTA source all blocked. No merge/deploy/worker/DB/scheduler/paid API/private data/publication.
+
+## 2026-09-22 canonical-index continuation
+- Rechecked #168 exact-head CI: backend/control/disposable PDF sandbox SUCCESS; Flutter CANCELLED, so do not claim all green. #168 remains draft/unmerged. Integration plan saved in `EPSTEIN_RESEARCH_INTEGRATION_READINESS_PLAN_20260922.md`.
+- Created isolated child draft #170 `feat/ark-research-canonical-index-20260922`, pure `canonicalContentIndex.ts` and five synthetic Vitest cases. Same original bytes group globally for content identity but owner/project aliases are only returned under explicit scope; this is NOT a durable DB index, an access-control implementation, or redirect resolution. Item 30 stays [~] pending CI and DB/source gates.
+- Next: check exact-head #170 CI, fix failures; continue item 32 synthetic original-page/context review receipt contract only after inspecting existing implementation. Item 18 approved benign external PDF/manual acceptance remains BLOCKED; item 40 isolated DB/cost approval remains BLOCKED. No merge, deploy, DB provisioning, live worker, scheduler, paid API, private/victim data or publication.
