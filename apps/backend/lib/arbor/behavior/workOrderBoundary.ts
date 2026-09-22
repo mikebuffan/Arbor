@@ -54,8 +54,8 @@ export type WorkOrderDecision = {
 /**
  * A pasted status is evidence, not a new assignment. Explicit takeover of a
  * running objective in another thread remains a conflict because this adapter
- * cannot prove that thread's worker/lease has stopped. Checkpointed or blocked
- * work may be handed off only when objective identity is unchanged. Blocked,
+ * cannot prove that thread's worker/lease has stopped. Checkpointed work
+ * may be handed off only when objective identity is unchanged. Blocked,
  * failed or unverified work additionally requires its original gate to clear.
  */
 export function reconcileWorkOrder(input: {
