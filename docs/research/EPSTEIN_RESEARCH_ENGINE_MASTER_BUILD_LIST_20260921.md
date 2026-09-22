@@ -64,7 +64,7 @@ Legend: [x] draft code plus relevant exact-head CI evidence exists; [~] partial/
 47. [ ] **BLOCKED — live integration approval:** preserve worker v5/review processor diff/rollback.
 48. [ ] **BLOCKED — item 18 + source authorization:** bounded third-party capture/parse executor.
 49. [ ] **BLOCKED — DB items 40–45:** immutable evidence writes + one-step Pattern Hop suggestions.
-50. [~] Pure provenance-preserving lead dedupe implemented on isolated `feat/ark-research-lead-dedupe-20260922`: collapses only identical explicit canonical keys; preserves source refs, reasons, counterevidence, checkpoints and merged lead IDs; rejects duplicate lead IDs/empty references. Five focused tests added. CI pending; no persistence/integration claim.
+50. [x] Pure provenance-preserving lead dedupe implemented on isolated `feat/ark-research-lead-dedupe-20260922`: collapses only identical explicit canonical keys; preserves source refs, reasons, counterevidence, checkpoints and merged lead IDs; rejects duplicate lead IDs/empty references. Focused tests and deterministic representative-ID permutation regression added. Exact-head Arbor Integration CI runs `35781224058` and `35781257390` passed backend/control/Flutter and real disposable PDF sandbox smoke. No persistence/integration claim.
 51. [ ] **BLOCKED — separate scheduler authorization:** default-OFF scoped scheduler.
 52. [ ] Deterministic simulated 60-minute session after safe executor + disposable DB exist.
 53. [ ] **BLOCKED — explicit benign unattended-run approval:** genuine unattended benign-source hour.
@@ -85,4 +85,11 @@ Legend: [x] draft code plus relevant exact-head CI evidence exists; [~] partial/
 ## Current handoff
 Verified lineage remains #123 → #131 → #134 → #135 → #136 → #139 → #141 → #142 → #144 → #152 → #157. #157 is open/draft/unmerged at head `0b5f64a722cbf319ea8633a41cf76942481af06e`; its item-46 implementation was verified at `db29abb...` by CI `35694800621`. Source inspection found no existing lead-dedupe implementation in the research lane, so item 50 was started once, on a child branch from #157.
 
-**Next numbered gate:** 18 remains blocked on a permissible independently published benign PDF being run through the verified sandbox and manually reviewed. **Current safe independent item:** 50 is implemented but CI pending. After CI, correct any failure before changing its status. No external/Epstein/EFTA PDF, production DB, live worker, scheduler, deployment, paid API, private/victim data, merge or publication was touched.
+**Next numbered gate:** 18 remains blocked on a permissible independently published benign PDF being run through the verified sandbox and manually reviewed. **Current safe independent item:** item 50 implementation is exact-head CI verified at `8097fd63f8b8e7cea375a40bd3b1cff83bd0f00f`; further independent synthetic-only evidence-integrity/privacy work may proceed without treating external-source or DB gates as satisfied. No external/Epstein/EFTA PDF, production DB, live worker, scheduler, deployment, paid API, private/victim data, merge or publication was touched.
+
+
+## 2026-09-22 exact-head verification addendum
+- Draft #158 and verification bridge draft #162 both pointed to `8097fd63f8b8e7cea375a40bd3b1cff83bd0f00f` when checked. #162 is a CI-only bridge; do not merge it.
+- Runs `35781224058` and `35781257390`: backend test/build, control backend test/build, Flutter analyze/test, and disposable PDF sandbox smoke all completed successfully on that SHA. Supabase Preview was skipped; a skipped preview is not DB verification.
+- Item 50 is complete as a **pure dedupe implementation** only. Upstream tenant scoping, durable persistence, and independent corroboration remain separate work.
+- Item 18 still requires approved independently published benign PDF and manual original-page, line-order, physical-page-count and original-byte-hash review. Item 40 still requires disposable DB/cost approval. No external/Epstein PDF, production DB, live worker, scheduler, deployment, paid API, victim data, merge or publication authorized by this update.
