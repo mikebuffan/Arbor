@@ -26,6 +26,7 @@ import 'tools_view.dart';
 import 'focus_view.dart';
 import 'attention_banner.dart';
 import '../pages/arbor_shell_page.dart';
+import '../pages/grove_talk_page.dart';
 
 enum EnvironmentDestination { home, conversation, objective, queue, projects, memory, evidence, tools, benchmarks, focus, health, settings, kitchen }
 
@@ -313,7 +314,8 @@ class _Surface extends StatelessWidget {
     // can obscure input on shorter screens.
     if (selected == EnvironmentDestination.conversation) {
       return EnvironmentAtmosphere(
-        child: conversationLayer ?? const ArborShellPage(),
+        child: conversationLayer ??
+            (groveStandalone ? const GroveTalkPage() : const ArborShellPage()),
       );
     }
     return EnvironmentAtmosphere(
