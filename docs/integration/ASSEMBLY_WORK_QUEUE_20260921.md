@@ -23,7 +23,7 @@
 - [x] Exercise 15 validation scenarios in the authoring runtime against the committed v2 manifest.
 - [x] Commit [20-case Node regression suite](check_integration_v2.test.mjs).
 - [x] Run the committed Node suite in Node 22: **20/20 passed, 0 failed**. Git blob-hash verification confirmed the executed checker `94a1e2ed35d37876f09231eb2f916fcf5bdb82db`, test file `7882eb07c678ea064889cdecee54be7d0918a0f1`, and manifest `ad97438be4c3a0976b15004bb3c92a2931cc09e4` exactly matched the committed GitHub files. This is an offline validator test receipt, not a deployment or live GitHub freshness receipt.
-- [ ] Obtain newly fetched observed GitHub metadata at promotion time and run `--observed`. The dated manifest has no ongoing watcher.
+- [x] Obtain fresh connected GitHub main/10-PR metadata and run `--observed`: PASS against this dated manifest on September 21 local. This is a one-time observation, **not** a watcher or future merge approval; rerun at promotion time.
 - [ ] Review whether a dedicated CI workflow should run the checker; `.github/workflows/` is shared and must be cross-reviewed, not modified unilaterally here.
 
 ## Phase 4 — private Grove integration dependency order
