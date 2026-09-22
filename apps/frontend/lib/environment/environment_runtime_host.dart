@@ -89,13 +89,26 @@ class _SessionAwareEnvironmentAdapter implements EnvironmentRuntimeAdapter {
       ).snapshot();
     }
 
-    return FallbackEnvironmentAdapter(
+    final result = await FallbackEnvironmentAdapter(
       primary: ArkEnvironmentAdapter(
         reader: ArborApiArkStatusReader(apiClient),
         projectId: session.projectId,
       ),
       fallback: DemoEnvironmentAdapter(),
     ).snapshot();
+
+    // A request started for the previous account/project must never repopulate
+    // the Grove after the visitor switches context while I/O is in flight.
+    final currentUser = Supabase.instance.client.auth.currentUser?.id;
+    final currentSession = await ArborSession.instance.contextFor(user.id);
+    if (currentUser != user.id ||
+        currentSession?.projectId != session.projectId ||
+        currentSession?.conversationId != session.conversationId) {
+      return const UnavailableEnvironmentAdapter(
+        'Account or project changed during ARK status refresh.',
+      ).snapshot();
+    }
+    return result;
   }
 
   @override
@@ -123,35 +136,61 @@ class EnvironmentRuntimeHost extends StatefulWidget {
 class _EnvironmentRuntimeHostState extends State<EnvironmentRuntimeHost> {
   EnvironmentSnapshot? _snapshot;
   StreamSubscription<EnvironmentSnapshot>? _subscription;
+  StreamSubscription<String>? _sessionChanges;
+  StreamSubscription<dynamic>? _authChanges;
   Object? _streamError;
+  int _generation = 0;
 
   @override
   void initState() {
     super.initState();
-    _subscribe();
+    // The existing context-change stream is synchronous: old project rows
+    // disappear on the same event as an explicit project/thread switch.
+    _sessionChanges =
+        ArborSession.instance.contextChanges.listen((_) => _subscribe());
+    try {
+      _authChanges = Supabase.instance.client.auth.onAuthStateChange
+          .listen((_) => _subscribe());
+    } catch (_) {
+      // Pure widget tests have no Supabase bootstrap. Production initializes
+      // Supabase before constructing the runtime host.
+    }
+    _subscribe(rebuild: false);
   }
 
   @override
   void didUpdateWidget(EnvironmentRuntimeHost oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (!identical(oldWidget.adapter, widget.adapter)) {
-      _subscribe();
+      _subscribe(rebuild: false);
     }
   }
 
-  void _subscribe() {
+  void _subscribe({bool rebuild = true}) {
+    final currentGeneration = ++_generation;
     _subscription?.cancel();
-    _streamError = null;
+
+    void clear() {
+      _snapshot = null;
+      _streamError = null;
+    }
+
+    if (rebuild && mounted) {
+      setState(clear);
+    } else {
+      clear();
+    }
+
     _subscription = widget.adapter.watch().listen(
       (snapshot) {
-        if (!mounted) return;
+        if (!mounted || currentGeneration != _generation) return;
         setState(() {
           _snapshot = snapshot;
           _streamError = null;
         });
       },
       onError: (Object error, StackTrace stackTrace) {
-        if (!mounted) return;
+        if (!mounted || currentGeneration != _generation) return;
         setState(() => _streamError = error);
       },
     );
@@ -159,7 +198,10 @@ class _EnvironmentRuntimeHostState extends State<EnvironmentRuntimeHost> {
 
   @override
   void dispose() {
+    ++_generation;
     _subscription?.cancel();
+    _sessionChanges?.cancel();
+    _authChanges?.cancel();
     super.dispose();
   }
 
