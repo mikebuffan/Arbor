@@ -187,6 +187,11 @@ class _ConversationHomeState extends State<_ConversationHome> {
       if (code == 'email_confirmation_required') {
         return 'Confirm your email first.';
       }
+      if (code == 'model_context_too_long') {
+        return 'This conversation exceeds Arbor LM’s current context limit. '
+          'Your message was saved. Start a new conversation with a shorter '
+          'message; retrying this turn unchanged will hit the same limit.';
+      }
       if (code.startsWith('model_')) {
         return 'Arbor LM is unavailable. Your message may have been saved. '
           'Retry the same message.';
