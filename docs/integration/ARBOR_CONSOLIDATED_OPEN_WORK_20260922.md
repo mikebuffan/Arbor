@@ -83,3 +83,21 @@ The LM-side Library handoff is a description of **tested synthetic service compo
 - [x] Existing research #157/#158 work found and preserved; no duplicate evidence engine built.
 - [x] Added [browser-first Grove Vercel release and live denial acceptance card](GROVE_VERCEL_RELEASE_ACCEPTANCE_20260922.md) for latest correct branch, host isolation, owner invitation/grants, and no credential exposure. **Not a Vercel deployment.**
 - [x] Exact-head PR #159/#160/#158 CI confirmed; private Grove host/live owner/device and model tests remain the actual gates.
+
+
+## Private Grove continuation — newest verified safe-work handoff, September 22
+
+**One Grove tip for the next source audit:** [#174](https://github.com/mikebuffan/Arbor/pull/174), exact `20c2235b37a7121393026a504f275246dc0d80cf`. This is a DRAFT child of #167 → #166 → #165 → #161 → private Grove deployment stack, not a deployed/merged main branch. [Pinned CI run 35797949608](https://github.com/mikebuffan/Arbor/actions/runs/35797949608) has six successful jobs including Grove backend tests/build and Flutter tests/analyze at that exact component SHA.
+
+1. [x] Preserve owner-authenticated, explicitly granted private project discovery via GET `/api/grove/ark/projects`. Only ID values, capped at 50 and checked against real Firefly owner scope before exposing them. Real invitation/real grant verification remains pending.
+2. [x] Add the Android private project picker. One active grant may be selected; multiple require an explicit tap. Distinguish matching project UUID prefixes using the suffix. Failed/malformed discovery must not import old Firefly local project state.
+3. [x] Fix owner/ARK separation: a VERIFIED invited Grove owner with zero granted ARK projects may open their approved room; old device-local ARK project and conversation context is cleared BEFORE access. The ARK shelf remains unavailable, never demo. Deterministic widget test blocks room unlock until the clear operation completes.
+4. [x] Preserve independent Grove LM host transport contract (#166) as tested synthetic signed sender, NOT a private conversation endpoint. #167 keeps private Projects/ARK status UI truthful. #174 includes their source plus the new zero-grants fix.
+5. [x] Detect and record Grove branch stacking drift: #166/#167 were cut at parent #165 commit `c426683...` BEFORE #165 advanced to `a903277...`; #174 carries the missing fix atop current #167. **Do not blindly merge these draft PRs without reconciling the overlapping patch and verifying exact final source.**
+6. [ ] After #147 upstream ARK+Layer read contract and its scope/auth review, implement a separate Grove private chat route. Verify Grove owner → explicit project + conversation ownership → read-only ARK/Layer read → signed LM host request. Keep model text unverified, no work receipts/actions invented. No client-supplied owner/context, no reuse of Firefly JWT as Grove auth.
+7. [ ] Provision/review real private LM host only with owner-approved budget/keys, TLS, shared replay protection and real Qwen+adapter tests; do not infer from synthetic broker passing.
+8. [ ] Verify a NEW private Grove Vercel deployment at the correct owner-screenshot project when available, then live invite/grant/ARK denial cases and physical Android. Current connected Vercel list only returned `firefly`; direct Grove deployment lookup returned not-found. That connector result is incomplete relative to prior owner UI and **does not establish the Grove project was removed or quota reset**. No deployment attempted.
+9. [ ] Later app visuals: approved same composition, real daylight reference/artwork and Moss movement visible in painted scene. Current static night art and local Moss-state controls are not visual day/night or actual painted-dog animation.
+10. [ ] Final integration pass must refresh research owner tip (#173 existed when checked), public #159, ARK/Layer #160, and latest main; do not duplicate research, merge code, or claim production from CI.
+
+**No human action requested by this draft pass.** Production, live account/grant, protected credentials, physical phone and real-model testing remain separately evidenced gates.
