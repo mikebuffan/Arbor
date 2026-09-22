@@ -110,6 +110,25 @@ class _GrovePrivateProjectGateState extends State<GrovePrivateProjectGate> {
       final parsed = parseGroveGrantedProjectIds(
         {'ok': true, 'projects': projects},
       );
+      if (parsed.isEmpty) {
+        // Invited owner may enter the private HOUSE with no ARK grant.
+        // Drop a stale on-device project/thread before constructing the room:
+        // the ARK shelf stays unavailable and never falls back to demo data.
+        if (widget.loadProjects == null) {
+          final userId = _userId;
+          if (userId == null || !_sameSession()) {
+            throw StateError('Private Grove session changed');
+          }
+          await ArborSession.instance.clearStoredUser(userId);
+        }
+        if (!mounted || generation != _generation || !_sameSession()) return;
+        setState(() {
+          _projects = const [];
+          _approved = true;
+          _busy = false;
+        });
+        return;
+      }
       setState(() {
         _projects = parsed;
         _busy = false;
@@ -208,7 +227,7 @@ class _GrovePrivateProjectGateState extends State<GrovePrivateProjectGate> {
                     for (final id in _projects)
                       OutlinedButton(
                         onPressed: () => _choose(id, _generation),
-                        child: Text('Project ${id.substring(0, 8)}…'),
+                        child: Text('Project ${id.substring(0, 8)}…${id.substring(id.length - 4)}'),
                       ),
                   ],
                   if (_error != null)
