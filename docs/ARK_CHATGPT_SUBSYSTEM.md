@@ -80,8 +80,13 @@ Arbor LM, the ChatGPT host, a mobile client or ARK workers are connected to it.
    that an absent continuity record means the user has no history.
 4. Build shared identity/behavior instructions through
    `buildArborBehaviorProjection`, and add current, authorized owner/project
-   context as lower-trust facts, *not* higher-priority instructions. Apply direct
-   user corrections ahead of stale preference material. Voice acoustic
+   context as lower-trust facts, *not* higher-priority instructions. The existing
+   chat prompt already injects memory, anchors and continuity independently:
+   keep `includeContextInPromptBlock` **false** there to prevent duplicate
+   token-heavy blocks. Standalone Arbor LM callers may opt in with
+   `includeContextInPromptBlock: true` when their prompt does not otherwise
+   include that context. Apply direct user corrections ahead of stale
+   preference material. Voice acoustic
    corrections feed the acoustic renderer separately from conversational
    identity. A speech instruction is not proof of actual rendered accent.
 5. A current explicit user work order may request a same-objective handoff;
