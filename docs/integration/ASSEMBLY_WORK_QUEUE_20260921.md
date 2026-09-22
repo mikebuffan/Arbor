@@ -14,6 +14,7 @@
 - [x] Record private Grove vs public app product, auth and provider isolation.
 - [x] Record the private Grove JWT → private API → owner-approved Firefly read broker → #147 Layer context → private LM trust crossing.
 - [x] Record a 10-row synthetic account/project/message/retry acceptance matrix.
+- [x] Compare current top-level #149/#147/#151/#146/#152 changed-file lists: 6/9/7/12/6 files; no exact cross-PR file-path overlap at observed heads. Shared API/behavior/workflow paths are NOT proof of interface compatibility.
 - [x] Create [v2 manifest](integration_manifest_v2.json) with dated exact PR refs, changed heads, base chains, capability proof stages and gated pending work.
 
 ## Phase 3 — executable no-duplicate-work checks
