@@ -158,7 +158,112 @@ class _GrovePrivateSignInState extends State<_GrovePrivateSignIn> {
     if (_busy) return;
     final token = _code.text.trim();
     if (token.length < 6 || token.length > 10 ||
-        !RegExp(r'^\\d+$').hasMatch(token)) {
+        !RegExp(r'^\d+.hasMatch(token)) {
+      setState(() => _notice = 'Enter the numeric code from your Grove email.');
+      return;
+    }
+    setState(() {
+      _busy = true;
+      _notice = null;
+    });
+    try {
+      await Supabase.instance.client.auth.verifyOTP(
+        email: _email.text.trim(),
+        token: token,
+        type: OtpType.email,
+      );
+      if (mounted) setState(() => _notice = null);
+    } on AuthException catch (error) {
+      if (mounted) setState(() => _notice = error.message);
+    } catch (_) {
+      if (mounted) setState(() => _notice = 'The code could not be verified.');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        backgroundColor: const Color(0xFF0A1819),
+        body: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 440),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.forest_outlined,
+                        color: Color(0xFF91DAD2), size: 42),
+                    const SizedBox(height: 10),
+                    const Text('WELCOME TO THE GROVE',
+                        style: TextStyle(color: Color(0xFF91DAD2),
+                            letterSpacing: 1.7, fontSize: 21)),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Private owner access. This is not the public Arbor App.',
+                      style: TextStyle(color: Colors.white70, fontSize: 15),
+                    ),
+                    const SizedBox(height: 24),
+                    TextField(
+                      controller: _email,
+                      enabled: !_busy && !_requested,
+                      keyboardType: TextInputType.emailAddress,
+                      autofillHints: const [AutofillHints.email],
+                      decoration: const InputDecoration(
+                        labelText: 'Invited Grove email',
+                        border: OutlineInputBorder()),
+                    ),
+                    const SizedBox(height: 13),
+                    if (_requested) ...[
+                      TextField(
+                        controller: _code,
+                        keyboardType: TextInputType.number,
+                        autofillHints: const [AutofillHints.oneTimeCode],
+                        decoration: const InputDecoration(
+                          labelText: 'One-time email code',
+                          border: OutlineInputBorder()),
+                      ),
+                      const SizedBox(height: 12),
+                      FilledButton(
+                        onPressed: _busy ? null : _verifyCode,
+                        child: const Text('Enter my Grove'),
+                      ),
+                      TextButton(
+                        onPressed: _busy ? null : () => setState(() {
+                          _requested = false;
+                          _code.clear();
+                          _notice = null;
+                        }),
+                        child: const Text('Use another invited email'),
+                      ),
+                    ] else FilledButton(
+                      onPressed: _busy ? null : _requestCode,
+                      child: Text(_busy ? 'Requesting code…'
+                          : 'Send private sign-in code'),
+                    ),
+                    if (_notice != null) ...[
+                      const SizedBox(height: 12),
+                      Text(_notice!,
+                        style: const TextStyle(color: Color(0xFF91DAD2))),
+                    ],
+                    const SizedBox(height: 20),
+                    const Text(
+                      'Access must be provisioned and restricted to the '
+                      'invited owner on the Grove service. No public account '
+                      'or existing Firefly login is accepted here.',
+                      style: TextStyle(color: Colors.white54, height: 1.45),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+}
+).hasMatch(token)) {
       setState(() => _notice = 'Enter the numeric code from your Grove email.');
       return;
     }
