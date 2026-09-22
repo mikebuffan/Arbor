@@ -165,7 +165,7 @@
     },
     {
       "number": 155,
-      "sha": "560ddd42e10ab4ff23bf255a558cb46744ad8a5b",
+      "sha": "3be700a775f1f514b728a046bfdd54ed5448af4d",
       "base": "feat/grove-private-owner-access-20260921",
       "base_sha": "adb2b475409676307d2e1d375ef9f7fa2f9d589c",
       "state": "open",
@@ -264,9 +264,10 @@
     {
       "id": "grove_manual_mapping_schema",
       "owner": "grove",
-      "stage": "implemented",
+      "stage": "tested",
       "ref_pr": 155,
-      "pending": "Manually applied SQL verified live; migration ledger missing second entry. Read broker draft untested; API route/client wiring blocked, no grants/invite/real reading"
+      "pending": "Exact code SHA passed backend tests/tsc/build and Flutter analyze/tests at run 35687588013; newer docs-only head untested. Live owner invite, protected private API deployment, mapping/proj grants and real bridge acceptance still open; manual SQL schema not in migrations ledger.",
+      "prior_tested_sha": "a39dd78123f8b80d4981c2fd56c079e482e17501"
     }
   ],
   "exclusive_path_prefixes": {
@@ -318,5 +319,5 @@
     "rollback_proof",
     "owner_approval"
   ],
-  "notes": "September 21 PDT / September 22 UTC: dedicated Grove ACTIVE_HEALTHY; owner gate migration in ledger, mapping/grant schema manually applied via SQL Editor with RLS forced and 0 rows; two intentional RLS no-policy INFO lints. PR #155 contains untested broker source, NOT a mounted Grove API route or complete ARK/Layer/LM integration. Dated manifest only; refresh --observed."
+  "notes": "September 21 PDT / September 22 UTC: Grove distinct healthy Pro Supabase. Manual bridge schema applied with forced RLS and zero rows but registry missing second migration. Draft Grove #155 code head a39dd781 CI 35687588013 green (backend+Flutter); later head docs only. Private API is not deployed, no owner invite/grants or model/ARK live acceptance. Re-fetch --observed before merge."
 }
