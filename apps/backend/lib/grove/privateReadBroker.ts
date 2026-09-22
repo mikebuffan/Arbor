@@ -46,7 +46,7 @@ export function privateGroveReadConfig(
   const firefly = exactHttpsOrigin(fireflyUrl);
   const api = exactHttpsOrigin(apiOrigin);
   if (grove.hostname !== `${GROVE_PROJECT_REF}.supabase.co` ||
-      firefly.hostname === grove.hostname ||
+      firefly.hostname !== "ncpdlyakrzfvobmwzbon.supabase.co" ||
       api.hostname === grove.hostname ||
       api.hostname === firefly.hostname ||
       api.hostname === "firefly-coral.vercel.app" ||
