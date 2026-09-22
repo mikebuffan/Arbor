@@ -27,6 +27,11 @@ An Android application ID and icon separate APK files, but the PR #150 debug bui
 ## Art and content design
 Approved exact nighttime room stays authoritative. This branch does not replace it with the other high-resolution reference renders simply because they are larger. The recent owner-supplied kitchen, desk and observatory references are additional room design targets, and need asset-level import/approval and actual navigable room implementation before calling them shipped.
 
+## Verified CI and prototype receipt
+- Initial stacked run [35678185898](https://github.com/mikebuffan/Arbor/actions/runs/35678185898) **FAILED Flutter analysis** on a non-const private API config expression; fixed the compiler error and an OTP numeric-regex typo before retesting. Never count this first run as a pass.
+- Corrected code at commit `23963c2a081f241361212b875863102c291be65d` **PASSED all three jobs** in [run 35678497172](https://github.com/mikebuffan/Arbor/actions/runs/35678497172), including backend tests/build, control tests/build, Flutter analyze and tests, existing Arbor debug APK build, private Grove debug APK build and both artifact uploads.
+- Grove debug artifact ID `10673414771`, extracted APK SHA-256 `58da3b56b0b4bb3d13dcd2d3d6c5094a8f778c965bd3e4f787076c2a0048f834`, 193496571 bytes; artifact and inner APK ZIP CRC passed. Original Arbor artifact ID `10673399919`. Post-pass CI-target removal changes workflow only; this is an **unprovisioned private-auth debug prototype**, not a sign-in-ready release. Do not ask user to install it as a complete Grove.
+
 ## Acceptance still open
 - Actual dedicated private Supabase realm exists; OTP reaches invited owner.
 - Private Grove API verifies owner-issued JWT; ARK read-only bridge returns authentic scoped state.
