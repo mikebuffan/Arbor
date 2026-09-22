@@ -119,7 +119,10 @@ async function requiredRecord<T extends Record<string, unknown>>(
     .maybeSingle();
   if (error) throw new RouteAccessError(500, "grove_read_bridge_unavailable");
   if (!data) throw new RouteAccessError(403, errorCode);
-  return data as T;
+  if (typeof data !== "object" || Array.isArray(data)) {
+    throw new RouteAccessError(500, "grove_read_bridge_unavailable");
+  }
+  return data as unknown as T;
 }
 
 /** No scope or owner identity is accepted from request JSON. */
