@@ -77,7 +77,7 @@ Legend: [x] draft code plus relevant exact-head CI evidence exists; [~] partial/
 58. [ ] **BLOCKED — item 18 + separate source authorization:** specific public EFTA original-page verification.
 59. [ ] Reconcile testimony/logs/timestamps only after original-source capture.
 60. [ ] Redact victim/private-person information before user-visible report/share.
-61. [~] Pure synthetic-only classification implemented in draft #163 (observation/conflict/missing context/insufficient evidence/extraction error/unresolved/finding). Fail-closed original-page/context prerequisites and permanent review/privacy HOLD; focused Vitest added, repository CI pending. Not a real finding or publication approval.
+61. [x] Pure synthetic-only classification in draft #163 (observation/conflict/missing context/insufficient evidence/extraction error/unresolved/finding), fail-closed source/context checks and permanent review/privacy HOLD; exact-head CI `57c48a873280f7e358625799b995ee4adfb27998` backend/control/Flutter and real disposable PDF sandbox smoke passed. Workflow integration and real finding review remain separate.
 62. [x] Mention/allegation alone is never evidence of a crime.
 63. [ ] Dated source-checkable report with counterevidence/limitations/unresolved questions.
 64. [x] No automatic publication; published discrepancies remain distinct from novel research discoveries.
@@ -100,3 +100,5 @@ Verified lineage remains #123 → #131 → #134 → #135 → #136 → #139 → #
 - Reused existing `researchOutcomeReceipt.ts` and `evidenceStage.ts`; new `researchFindingClassification.ts` is a separate review-disposition contract, not a duplicate of immutable failure receipts or evidence promotion.
 - Local Node 22 type-stripping smoke: 12 synthetic assertions passed, covering all seven kinds remaining HOLD, missing proof, missing counterevidence, duplicate/overlapping refs and invalid review flag. Added dedicated Vitest tests; repo CI pending. Do not mark item 61 [x] until exact-head CI and integration acceptance.
 - Next numbered gate remains #18 independently published benign PDF review; #40 disposable DB; #47 live worker. Independent safe next: item 33/60 synthetic privacy gate and item 35 source-chain independence tests. No real private/victim data, external PDFs, paid API, live worker, DB, scheduler, merge, deployment or publication.
+
+- Exact-head `57c48a873280f7e358625799b995ee4adfb27998` CI later completed successfully for backend/control/Flutter and real disposable PDF sandbox smoke; item 61 **pure module** now [x]. Supabase Preview skipped, not DB verification.
