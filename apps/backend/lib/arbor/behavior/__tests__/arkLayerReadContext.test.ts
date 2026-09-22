@@ -243,14 +243,14 @@ describe("owner-scoped ARK -> Arbor Layer read crossing", () => {
 
   it("strips hostile control characters from selected file display names", async () => {
     mock.assertAttachmentOwnedByScope.mockResolvedValueOnce({
-      status: "uploaded", storage_path: "scope/control\\u0000file\\u001fname.pdf",
+      status: "uploaded", storage_path: "scope/control\u0000file\u001fname.pdf",
     });
     const result = await readArkLayerContext({
       supabase: {} as never, authenticatedUserId: userId, projectId,
       selectedAttachment: { conversationId, attachmentId: "attachment-a" },
       mode: "text",
     });
-    expect(result.selectedAttachment?.displayName).toBe("controlfile.name.pdf");
+    expect(result.selectedAttachment?.displayName).toBe("controlfilename.pdf");
     expect(result.selectedAttachment?.originalBytesRead).toBe(false);
   });
 
