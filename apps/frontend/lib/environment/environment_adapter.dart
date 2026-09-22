@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import '../api/arbor_api_client.dart';
 import 'environment_state.dart';
+import 'grove_app_mode.dart';
 import 'activity_view.dart';
 import 'work_queue.dart';
 
@@ -22,7 +23,7 @@ class ArborApiArkStatusReader implements ArkStatusReader {
 
   @override
   Future<Map<String, dynamic>?> read(String projectId) =>
-      apiClient.get('/api/ark/status', queryParameters: {
+      apiClient.get(groveStandalone ? '/api/grove/ark/status' : '/api/ark/status', queryParameters: {
         'projectId': projectId,
       });
 }
