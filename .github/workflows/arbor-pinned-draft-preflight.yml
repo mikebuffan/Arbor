@@ -28,7 +28,7 @@ jobs:
           - lane: ark-layer-160
             sha: fc58351e9ae8416c3d28d3c398d4126387310bf0
           - lane: private-grove-projects-truth
-            sha: 40d7a9652342fe1b247f02c9457760132611d8ec
+            sha: a903277cea21f8d611739f6831c3f64f4ade7ad0
           - lane: research-158
             sha: 4025a6e334234b3000a2d467d19ea55e067129dc
     steps:
@@ -71,7 +71,7 @@ jobs:
             sha: 1a6a6cc7eb682059b47f0638aaf5f5dedb907be1
             tests: test/public_alpha_config_test.dart
           - lane: private-grove-projects-truth
-            sha: 40d7a9652342fe1b247f02c9457760132611d8ec
+            sha: a903277cea21f8d611739f6831c3f64f4ade7ad0
             tests: test/grove_private_project_gate_test.dart test/grove_talk_private_boundary_test.dart test/grove_sundial_room_integration_test.dart
     defaults:
       run:
