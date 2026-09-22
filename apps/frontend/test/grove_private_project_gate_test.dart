@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/pages/grove_private_project_gate.dart';
@@ -75,6 +77,33 @@ void main() {
     expect(find.text('PRIVATE HOUSE READY'), findsOneWidget);
     expect(chosen, isEmpty,
       reason: 'Opening the room cannot manufacture an ARK project grant');
+  });
+
+  testWidgets('zero grants clears old local ARK scope before room opens',
+      (tester) async {
+    final cleared = Completer<void>();
+    var clearCalls = 0;
+    await tester.pumpWidget(MaterialApp(
+      home: GrovePrivateProjectGate(
+        loadProjects: () async => [],
+        clearSelection: () async {
+          clearCalls++;
+          await cleared.future;
+        },
+        selectProject: (_) async {
+          fail('No project may be selected without a verified grant');
+        },
+        child: const Text('PRIVATE HOUSE READY'),
+      ),
+    ));
+    await tester.pump();
+    await tester.pump();
+    expect(clearCalls, 1);
+    expect(find.text('PRIVATE HOUSE READY'), findsNothing,
+      reason: 'Stale device-local ARK context must clear before entry');
+    cleared.complete();
+    await tester.pumpAndSettle();
+    expect(find.text('PRIVATE HOUSE READY'), findsOneWidget);
   });
 
   testWidgets('failed grant fetch denies access and offers retry',
