@@ -58,8 +58,9 @@ export function privateGroveReadConfig(
     throw new RouteAccessError(500, "grove_api_not_configured");
   }
   return {
-    groveUrl, grovePublishableKey, groveServiceKey,
-    fireflyUrl, fireflyServiceKey, apiOrigin,
+    groveUrl: grove.origin, grovePublishableKey, groveServiceKey,
+    fireflyUrl: firefly.origin, fireflyServiceKey,
+    apiOrigin: api.origin,
   };
 }
 
@@ -82,7 +83,8 @@ export function groveTokenClaimsMatch(
       payload.sub === verifiedUserId &&
       Number.isInteger(payload.exp) &&
       payload.exp > nowSeconds &&
-      (!Number.isInteger(payload.nbf) || payload.nbf <= nowSeconds);
+      (payload.nbf === undefined ||
+        (Number.isInteger(payload.nbf) && payload.nbf <= nowSeconds));
   } catch {
     return false;
   }
