@@ -243,7 +243,7 @@ describe("public conversation route ownership", () => {
       error: null,
       data: Array.from({ length: 500 }, () => ({ role: "user" })),
     }));
-    mocks.from.mockReturnValueOnce(conv).mockReturnValueOnce(largeMessages);
+    mocks.from.mockReturnValueOnce(conv).mockReturnValue(largeMessages);
     const response = await listConversations(
       new Request("https://alpha.example.test/api/public/conversations?export=1"),
     );
