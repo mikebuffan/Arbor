@@ -44,6 +44,14 @@ export const validate = function validate(m,{owner=null,changes=[],observed=null
   if(c.ref_pr!=null&&(!p||p.owner!==c.owner))errors.push(`invalid capability ref ${c.id}`);
   if(!c.ref_pr&&!c.ref)errors.push(`unlocated capability ${c.id}`);
   if(["tested","deployed","accepted"].includes(c.stage))if(!p||!c.proof||c.proof.sha!==p.sha||!Number.isInteger(c.proof.run_id)||!c.proof.scope)errors.push(`non-exact proof ${c.id}`);
+  if(["deployed","accepted"].includes(c.stage)) {
+   const lp=c.live_proof;
+   if(!lp||!sha(lp.commit_sha)||!lp.observed_at||!lp.scope||!/^https:\/\//.test(lp.url||""))errors.push(`missing live proof ${c.id}`);
+   else if(p&&lp.commit_sha!==p.sha)errors.push(`mismatched live proof SHA ${c.id}`);
+   // A green CI build proves tested code, never a production deployment or
+   // a successful authenticated owner/device session.
+   if(c.stage==="accepted"&&(!c.acceptance_proof?.accepted_by||!c.acceptance_proof?.observed_at||!c.acceptance_proof?.scope))errors.push(`missing owner acceptance proof ${c.id}`);
+  }
   if(c.prior_tested_sha&&!sha(c.prior_tested_sha))errors.push(`invalid ancestor proof ${c.id}`);
   if(c.prior_tested_sha&&["tested","deployed","accepted"].includes(c.stage))errors.push(`ancestor is not current proof ${c.id}`);
  }
