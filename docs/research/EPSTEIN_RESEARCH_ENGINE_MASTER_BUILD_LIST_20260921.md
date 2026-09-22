@@ -2,7 +2,7 @@
 
 Updated 2026-09-21. **One ARK lineage. No second engine.** Source-first public-document research only. Draft code is not deployment, authorization, verified research, or a finding. Use only lawful public material; never publish victim/private-person identifiers.
 
-**Research stack:** #123 bounded sessions/evidence policy → #131 exact quote bridge/test discovery → #134 local Poppler synthetic-fixture parser → #135 untrusted-PDF threat model → #136 content-first source/version identity → #139 evidence-stage promotion contract → #141 research outcome receipts → #142 bounded PDF batch planning. Grove and public-app PRs are separate lanes. Do not independently merge overlapping stacked PRs or overwrite deployed investigation worker v5.
+**Research stack:** #123 bounded sessions/evidence policy → #131 exact quote bridge/test discovery → #134 local Poppler synthetic-fixture parser → #135 untrusted-PDF threat model → #136 content-first source/version identity → #139 evidence-stage promotion contract → #141 research outcome receipts → #142 bounded PDF batch planning → #143 page-image review packet. Grove and public-app PRs are separate lanes. Do not independently merge overlapping stacked PRs or overwrite deployed investigation worker v5.
 
 Legend: [x] draft code plus relevant exact-head CI evidence exists; [~] partial or CI pending; [ ] required; **BLOCKED** means the named gate is intentionally not authorized in this build lane.
 
@@ -29,8 +29,8 @@ Legend: [x] draft code plus relevant exact-head CI evidence exists; [~] partial 
 16. [x] Valid generated four-page benign PDF is parsed by real Poppler in CI.
 17. [x] Every page keeps original SHA and independent-review HOLD.
 18. [ ] **BLOCKED — sandbox gate:** independently published benign PDF acceptance + manual rendered-page/line-order verification must wait for executable untrusted-file isolation.
-19. [ ] Add page-image rendering provenance and explicit source-stamp capture; never infer stamps from filenames.
-20. [~] #142 adds pure bounded page-batch planning above the 128-page local ceiling while preserving one full-file SHA, original document page count and original physical-page numbering; exact-head CI is pending and executable byte splitting remains blocked on sandbox design.
+19. [~] #143 adds a pure page-image provenance/review packet and explicitly human-reported folio/source-stamp observations. Actual sandboxed PNG rendering, hash verification and visual-review acceptance remain blocked on item 21; never infer stamps from filenames or parser metadata.
+20. [x] #142 adds pure bounded page-batch planning above the 128-page local ceiling while preserving one full-file SHA, original document page count and original physical-page numbering; exact-head CI passed at `d623dbc7281f518b74f0330e63228fdf92b7999d`. Executable byte splitting remains blocked on sandbox design.
 21. [~] #135 specifies disposable non-root/no-egress/read-only-root/resource-capped sandbox requirements; executable pinned sandbox is not implemented.
 22. [ ] Opt-in OCR processor with source-image reference, confidence and mandatory human verification.
 23. [ ] Per-page glyph/box geometry only if exact visual highlighting becomes required; extracted UTF-16 offsets are not PDF/image coordinates.
@@ -47,7 +47,7 @@ Legend: [x] draft code plus relevant exact-head CI evidence exists; [~] partial 
 31. [x] #139 adds typed `source_quote → verified_observation → interpretation → hypothesis → published_finding` one-step promotion; exact-head CI run 35663024929 passed. Persistence/integration remain separately gated.
 32. [~] #139 requires original-page + context review before quote becomes verified observation. Real visual-review workflow remains.
 33. [~] #139 requires privacy + publication review before `published_finding`; actual PII filter/publication-review implementation remains.
-34. [~] #141 adds pure immutable audit contracts for rejected hypotheses, missing data and extraction failures with timestamps/reasons/provenance and no overwrite semantics. Exact-head CI run 35668980141 is in progress; durable persistence remains blocked on item 40.
+34. [x] #141 adds pure immutable audit contracts for rejected hypotheses, missing data and extraction failures with timestamps/reasons/provenance and no overwrite semantics. Exact-head CI passed at `a8909b880d4d4ab107244f165a20a51d593b7024`; durable persistence remains blocked on item 40.
 35. [~] #136 prevents byte-identical mirrored URLs from being counted as independent corroboration; source-chain independence proof still required.
 
 ## 4. Bounded sessions and database safety
@@ -92,6 +92,6 @@ Legend: [x] draft code plus relevant exact-head CI evidence exists; [~] partial 
 
 **Verified through #139:** #139 exact head `9699ce8fee510979ffc9909220752f49a968a083`; Arbor Integration CI run 35663024929 passed. Parent #136 run 35659500799 also passed.
 
-**Current children:** draft #141 `feat/ark-research-outcome-receipts-20260921` adds item 34's pure receipt contract; exact-head CI run 35668980141 is in progress. Draft #142 `feat/ark-pdf-batch-plan-20260921` adds item 20's pure provenance-preserving batch plan; exact-head CI run 35669083343 is queued/running. No real Epstein/EFTA files, network fetch, DB writes, worker/scheduler changes, deployment, merge or paid APIs were used.
+**Current children:** #141 exact-head `a8909b880d4d4ab107244f165a20a51d593b7024` passed all configured CI checks. Draft #142 `feat/ark-pdf-batch-plan-20260921`: mixed-limit error classification fixed at `d623dbc7281f518b74f0330e63228fdf92b7999d`; backend, control-backend, Flutter analyze/test and Android debug APK checks all passed. Draft #143 `feat/ark-page-image-review-contract-20260921`: pure item-19 review packet and tests; exact-head CI is required after this worklist update. No real Epstein/EFTA files, network fetch, DB writes, worker/scheduler changes, deployment, merge or paid APIs were used.
 
-**Next safe order:** finish #141/#142 exact-head CI and fix code failures if any → page-image rendering provenance/source-stamp review contract → executable sandbox only if it can be pinned and tested safely without external untrusted input. DB/live-worker/scheduler/public-record analysis remain blocked on their explicit gates above.
+**Next safe order:** verify #143 exact-head CI → develop a pinned, non-root/no-egress executable sandbox in an isolated reviewed environment → exercise benign published PDF with rendered-page review and parser abuse fixtures. DB/live-worker/scheduler/public-record analysis remain blocked on their explicit gates above. Pure review packet is not a rendered-image receipt and does not authenticate a reviewer or authorize publication.

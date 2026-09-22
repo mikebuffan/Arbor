@@ -20,6 +20,8 @@ on:
       - feat/ark-evidence-stage-contract-20260921
       # Temporary PDF batch-plan review target; remove before main merge.
       - feat/ark-research-outcome-receipts-20260921
+      # Temporary page-image review target; remove before main merge.
+      - feat/ark-pdf-batch-plan-20260921
   workflow_dispatch:
 
 # CI sentinel: keep this workflow visibly updated when main-push Actions delivery stalls.
