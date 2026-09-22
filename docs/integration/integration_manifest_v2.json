@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "as_of": "2026-09-22 PDT / 2026-09-22 UTC (tracked current draft tips)",
+  "as_of": "2026-09-22 PDT (refresh: research #158 current head)",
   "repository": "mikebuffan/Arbor",
   "main_sha": "d46f6b46fc51ac3db4e158cddfc592c52cc2b5ef",
   "product_separation": [
@@ -203,7 +203,7 @@
     },
     {
       "number": 158,
-      "sha": "a8f16fcf4c928110b8886b8f18434ab4e8f72d70",
+      "sha": "4025a6e334234b3000a2d467d19ea55e067129dc",
       "base": "feat/ark-evidence-completion-verification-20260922",
       "base_sha": "0b5f64a722cbf319ea8633a41cf76942481af06e",
       "state": "open",
@@ -405,5 +405,5 @@
     "rollback_proof",
     "owner_approval"
   ],
-  "notes": "2026-09-22 PDT: Grove #156 credential-free CI 35696240828 passed at 8999a570...; separate Grove Vercel project and seven production settings confirmed in Danelle's UI (connected Vercel project-list is incomplete), next deploy is rate-limited per dated GitHub status. Existing two bridge tables applied manually but no migration ledger; all grants 0. Actual owner invited, actual private live API and model/phone unverified. Research #152 doc-only head moved 303b5e..., not exact-code CI. Refresh all observations for promotion. | 2026-09-22 later: research #157/#158 already existed in its owner lane; not rebuilt. Public alpha #159 excludes Grove project in provider guard, ARK/Layer #160 requires selected file in requested conversation; both draft IMPLEMENTED with regression tests committed, NO exact-head CI. Still no Grove live deploy/real owner/phone or private LM inference."
+  "notes": "2026-09-22 PDT: Grove #156 credential-free CI 35696240828 passed at 8999a570...; separate Grove Vercel project and seven production settings confirmed in Danelle's UI (connected Vercel project-list is incomplete), next deploy is rate-limited per dated GitHub status. Existing two bridge tables applied manually but no migration ledger; all grants 0. Actual owner invited, actual private live API and model/phone unverified. Research #152 doc-only head moved 303b5e..., not exact-code CI. Refresh all observations for promotion. | 2026-09-22 later: research #157/#158 already existed in its owner lane; not rebuilt. Public alpha #159 excludes Grove project in provider guard, ARK/Layer #160 requires selected file in requested conversation; both draft IMPLEMENTED with regression tests committed, NO exact-head CI. Still no Grove live deploy/real owner/phone or private LM inference. | Latest research #158 draft tip moved from a8f16fcf4c928110b8886b8f18434ab4e8f72d70 to 4025a6e334234b3000a2d467d19ea55e067129dc (metadata refresh only; no new test/deployment claim)."
 }
