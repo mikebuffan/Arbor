@@ -130,6 +130,10 @@ describe("Arbor behavior guard requirements", () => {
       rule.includes("pasted handoff or status report"))).toBe(true);
     expect(projection.guardRequirements.some((rule) =>
       rule.includes("two threads or objectives"))).toBe(true);
+
+    const clear = buildArborBehaviorProjection({ mode: "voice" });
+    expect(projection.proof.coreFingerprint).toBe(clear.proof.coreFingerprint);
+    expect(projection.proof.projectionFingerprint).not.toBe(clear.proof.projectionFingerprint);
   });
 
 });
