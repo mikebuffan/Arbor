@@ -16,7 +16,7 @@
     "integration": "Cross-lane integration"
   },
   "tip_pr_by_lane": {
-    "grove": 153,
+    "grove": 154,
     "ark_layer": 147,
     "public_app": 146,
     "research": 152
@@ -148,7 +148,19 @@
       "draft": true,
       "merged": false,
       "owner": "grove",
-      "branch": "fix/grove-private-no-demo-fallback-20260921"
+      "branch": "fix/grove-private-no-demo-fallback-20260921",
+      "stacked_into": 154
+    },
+    {
+      "number": 154,
+      "sha": "adb2b475409676307d2e1d375ef9f7fa2f9d589c",
+      "base": "fix/grove-private-no-demo-fallback-20260921",
+      "base_sha": "399c92505b0ed1fec831dac78d2b662ae8f5fb2f",
+      "state": "open",
+      "draft": true,
+      "merged": false,
+      "owner": "grove",
+      "branch": "feat/grove-private-owner-access-20260921"
     }
   ],
   "external_bases": [
@@ -229,6 +241,13 @@
       "stage": "implemented",
       "ref_pr": 153,
       "pending": "Run Flutter analyze/tests on new child branch; physical private Grove and dedicated API still not deployed"
+    },
+    {
+      "id": "grove_private_owner_access_gate",
+      "owner": "grove",
+      "stage": "implemented",
+      "ref_pr": 154,
+      "pending": "Supabase dedicated project/migration applied and verified; Flutter CI/owner invitation/provider code/API and physical sign-in not yet verified"
     }
   ],
   "exclusive_path_prefixes": {
@@ -280,5 +299,5 @@
     "rollback_proof",
     "owner_approval"
   ],
-  "notes": "Dated cross-lane manifest updated with new stacked Grove #153. PR #149 intentionally not self-pinned. Re-fetch exact heads and run checker with fresh --observed before approval. Offline synthetic tests are not CI or production receipts."
+  "notes": "As of September 21 PDT / September 22 UTC: separate private Grove Supabase project ACTIVE_HEALTHY under Aurixus Studios Pro; quote +$10/month approved and created; owner entitlement RLS applied (zero owner rows). PR #154 implements UI grant gate but Flutter CI pending. No standalone Grove API/LM/ARK bridge or owner OTP acceptance. Re-fetch exact PR heads and run checker with freshly fetched --observed before approval."
 }
