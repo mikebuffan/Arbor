@@ -24,6 +24,8 @@ on:
       - feat/ark-pdf-batch-plan-20260921
       # Temporary disposable renderer sandbox review target; remove before main integration.
       - feat/ark-pdf-page-image-provenance-20260921
+      # Temporary evidence-backed completion review target; remove before main integration.
+      - feat/ark-pdf-disposable-sandbox-20260921
   workflow_dispatch:
 
 # CI sentinel: keep this workflow visibly updated when main-push Actions delivery stalls.
