@@ -208,7 +208,7 @@ class _GrovePrivateProjectGateState extends State<GrovePrivateProjectGate> {
                     for (final id in _projects)
                       OutlinedButton(
                         onPressed: () => _choose(id, _generation),
-                        child: Text('Project ${id.substring(0, 8)}…'),
+                        child: Text('Project ${id.substring(0, 8)}…${id.substring(id.length - 4)}'),
                       ),
                   ],
                   if (_error != null)
