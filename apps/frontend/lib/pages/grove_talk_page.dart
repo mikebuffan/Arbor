@@ -90,8 +90,8 @@ class _GrovePrivateTalkUnavailable extends StatelessWidget {
   const _GrovePrivateTalkUnavailable();
 
   @override
-  Widget build(BuildContext context) => const ColoredBox(
-        color: Color(0xFF0A1819),
+  Widget build(BuildContext context) => ColoredBox(
+        color: const Color(0xFF0A1819),
         child: Center(
           child: SingleChildScrollView(
             padding: EdgeInsets.all(22),
