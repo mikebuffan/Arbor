@@ -10,6 +10,8 @@ on:
       - test/grove-private-end-to-end-composite-20260923
       # Isolated source release-readiness verification; NOT production deployment.
       - feature/grove-private-release-readiness-20260923
+      # Proposed claim schema OFF; isolated disposable-only CI.
+      - feature/grove-private-durable-retry-claim-20260923
   pull_request:
     branches:
       - main
@@ -83,6 +85,7 @@ jobs:
           GROVE_PRIVATE_CHAT_PREVIEW_ENABLED: "false"
           GROVE_PRIVATE_MODEL_TURN_ENABLED: "false"
           GROVE_PRIVATE_TRANSCRIPT_ENABLED: "false"
+          GROVE_PRIVATE_CLAIM_ENABLED: "false"
           GROVE_PRIVATE_NEW_CONVERSATION_ENABLED: "false"
           GROVE_COGNITIVE_PREVIEW_ENABLED: "false"
         run: pnpm --filter firefly-backend build
