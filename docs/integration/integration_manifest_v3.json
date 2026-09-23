@@ -145,5 +145,40 @@
   "old_grove_production_branch": "deploy/grove-private-api-20260921",
   "source_ready_for_production": false,
   "integration_source_branch": "docs/arbor-master-integration-20260921",
-  "integration_self_head_unpinned_reason": "this manifest lives on a moving integration branch and cannot pin its own final commit"
+  "integration_self_head_unpinned_reason": "this manifest lives on a moving integration branch and cannot pin its own final commit",
+  "owner_paths": {
+    "integration": [
+      "docs/integration/"
+    ],
+    "grove": [
+      "apps/backend/lib/grove/",
+      "docs/environment/",
+      "ops/grove/",
+      "apps/frontend/lib/environment/",
+      "apps/frontend/lib/config/grove_private_",
+      "apps/frontend/lib/pages/grove_private_"
+    ],
+    "ark_layer": [
+      "apps/arbor-control-backend/",
+      "apps/backend/lib/arbor/behavior/"
+    ],
+    "public": [
+      "apps/backend/lib/publicApp/",
+      "apps/backend/app/api/public/",
+      "apps/frontend/lib/public/"
+    ],
+    "research": [
+      "apps/backend/lib/ark/research/",
+      "ops/research/"
+    ]
+  },
+  "shared_review_paths": [
+    ".github/workflows/",
+    "apps/backend/lib/providers/",
+    "apps/backend/middleware.ts",
+    "apps/frontend/lib/main.dart",
+    "apps/frontend/android/app/build.gradle.kts",
+    "apps/backend/app/api/ark/",
+    "supabase/migrations/"
+  ]
 }
