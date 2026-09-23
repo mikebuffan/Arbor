@@ -32,13 +32,13 @@ export function auditIntegrationV3(m,{observed=null,owner=null,paths=[]}={}){
     byBranch.set(p.branch,p);
     if(!p.base)fail("missing base PR "+p.n);
   }
-  for(const n of [159,160,193,194,196,201,205,206,207,208,209])
+  for(const n of [159,160,193,194,196,201,205,206,207,208,209,210])
     if(!byN.has(n))fail("missing lane PR #"+n);
   for(const n of [195,197,204]){
     if(!m.no_merge?.includes(n))fail("missing CI-only DO NOT MERGE #"+n);
     if(byN.has(n))fail("CI-only mirror cannot be an active lane PR #"+n);
   }
-  const expectedEdges=[[194,193],[205,194],[206,205],[208,206],[209,208],[207,201]];
+  const expectedEdges=[[194,193],[205,194],[206,205],[208,206],[209,208],[210,209],[207,201]];
   for(const [child,parent] of expectedEdges){
     const c=byN.get(child),p=byN.get(parent);
     if(c&&p){
