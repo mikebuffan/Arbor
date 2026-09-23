@@ -66,7 +66,7 @@ Legend: [x] relevant implementation plus exact-head CI evidence exists for the s
 49. [ ] **BLOCKED — live integration approval:** production immutable evidence writes + Pattern Hop suggestions.
 50. [x] Pure provenance-preserving lead dedupe verified; no persistence/integration claim.
 51. [ ] **BLOCKED — separate scheduler authorization:** default-OFF scoped scheduler.
-52. [~] Synthetic one-tick worker rehearsal: one receipt per tick, STOP fencing, crash/lease-expiry recovery, evidence-free completion rejection. Backend CI verified at #181. Deterministic simulated full persisted session remains after item 45 exact-head verification.
+52. [~] Staged disposable SQL `ops/research/disposable-db/70-persisted-session-simulation.sql` on isolated draft child of #200: checkpoint, psql reconnect, retry fence, two evidence-backed unit settlements, persisted receipts/costs, no false completed state. NOT EXECUTED; dependent on item 45 exact-head verification and approved disposable DB acceptance. Existing synthetic one-tick worker rehearsal: one receipt per tick, STOP fencing, crash/lease-expiry recovery, evidence-free completion rejection. Backend CI verified at #181. Deterministic simulated full persisted session remains after item 45 exact-head verification.
 53. [ ] **BLOCKED — explicit benign unattended-run approval:** genuine unattended benign-source hour.
 54. [ ] Same-user project isolation and cross-session handoff before Grove/voice attachment.
 55. [ ] Real phone/operator acceptance; never infer worker liveness from read-only UI.
@@ -102,3 +102,7 @@ Current isolated draft: #189, branch `feat/ark-research-disposable-attempt-matri
 - Item 45 BLOCKED FOR VERIFICATION: needs approved disposable PostgreSQL execution / safe CI-only trigger that does not invoke deployment. Do not use a main-base PR bridge if it triggers preview/deployment. Item 52 remains waiting for verified 45; no mock-only promotion.
 - Item 42 preliminary read-only source audit: proposed SQL enables RLS, revokes table access from anon/authenticated before granting authenticated SELECT, defines three SECURITY DEFINER RPCs with `search_path = public, pg_temp`, and restricts EXECUTE in its final statements. This is **not** a completed security review: check actual function owner, PUBLIC/default privileges and JWT/service-role spoofing in a disposable environment before production application.
 - Item 8 temporary CI base filters and CI-only #198 remain cleanup/review work, not merge authority. All live/source/privacy/publication gates unchanged. Full receipt: `docs/research/EPSTEIN_RESEARCH_ENGINE_HANDOFF_20260923_RUN5.md`.
+
+## Run 6 — staged independent safe work
+- Created isolated item-52 **test draft only**, reusing proposed RPCs; no duplicate runner, adapter, schema, worker, Grove or ARK implementation. SQL stages synthetic checkpoint → reconnect → bounded retry → evidence-backed two-unit settlement → final persisted state and no automatic completion. Not wired into CI or run against any database. This does NOT resolve item 45 or verify item 52.
+- NEXT: item 45 exact-head disposable PostgreSQL CI approval and successful evidence, then run/review item 52 against disposable fixture, fix actual failures, and only then promote checklist status. Preserve independent completion verifier HOLD.
