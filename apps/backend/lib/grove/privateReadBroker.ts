@@ -243,7 +243,7 @@ async function authorizedPrivateGroveProject(req: Request, projectId: string) {
   // Admin bypasses RLS: this proof MUST precede any Firefly conversation,
   // Layer or LM request and must be independently re-checked for live turns.
   await assertProjectOwnedByUser(fireflyAdmin, fireflyUserId, projectId);
-  return { groveUserId, fireflyUserId, projectId, fireflyAdmin };
+  return { groveUserId, fireflyUserId, projectId, groveAdmin, fireflyAdmin };
 }
 
 const validUuid =
