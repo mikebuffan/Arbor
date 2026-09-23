@@ -9,6 +9,7 @@
 3. `commitReviewedCognitiveTurn`: requires authenticated host-scope and conversation+turn match, AND a host callback to independently verify the outcome. Writes the entire snapshot (learner + pathways + receipt + revision) through a single optimistic CAS transaction. Retry is an idempotent no-op, even after the pathway is subsequently held. Stale or conflicting reviews fail closed; failed CAS never returns an invented success.
 4. `supabaseCognitiveStore.ts`: a narrow **optional** host-supplied, authenticated Supabase adapter. Reads only matching owner/project, validates stored row/snapshot revision and scope, and uses one server-side RPC for all-or-nothing CAS. No keys or network calls until a host explicitly constructs and invokes the adapter.
 5. `docs/migrations/PROPOSED_cognitive_project_snapshot_20260923.sql`: proposed owner/project foreign-keyed, RLS-protected table plus invoker CAS RPC, aligned to existing `public.projects(id,user_id)` composite uniqueness. This is intentionally **outside** live `supabase/migrations`, not installed or applied. It still needs a disposable PostgreSQL integration run and owner review before release.
+6. `cognitiveLMProjection.ts`: opt-in, scoped **PRIVATE model data projection** uses the loaded current objective, body hint, learned pathway suggestions and provenance-labelled Pattern Hop trace. Deduplicates by source family and limits evidence to four items. Requires host-approved private-model disclosure and keeps all outputs `grantsExecution:false` and `verifiesCompletion:false`; evidence JSON is untrusted content and no real model is called.
 
 ## Current real boundaries
 
@@ -19,7 +20,7 @@
 
 ## Test grid
 
-12 synthetic session fixtures: feature OFF/unprovisioned, scoped continuity across conversations, authenticated review rejection, success and exactly-once receipt, process restart, corrected-route learning, stale preview, failed atomic write, conversation/owner mismatch, held pathway and corrupt snapshot. Five synthetic Supabase adapter cases: proper scope, matching revision, RPC parameters, denial/malformed response and failure propagation. Parent branch separately tests Pattern Hop, body projection and route evaluation. Local `tsc --strict` + 10-assertion Node smoke executed against matching source with body-shaped test stub. Final exact-head GitHub CI and isolated PostgreSQL integration must be reported separately; local smoke does not prove live Supabase or Grove.
+12 synthetic session fixtures: feature OFF/unprovisioned, scoped continuity across conversations, authenticated review rejection, success and exactly-once receipt, process restart, corrected-route learning, stale preview, failed atomic write, conversation/owner mismatch, held pathway and corrupt snapshot. Five synthetic Supabase adapter cases and four private LM data-projection cases: proper scope, matching revision, RPC parameters, denial/malformed response and failure propagation. Parent branch separately tests Pattern Hop, body projection and route evaluation. Local `tsc --strict` + 10-assertion Node smoke executed against matching source with body-shaped test stub. Final exact-head GitHub CI and isolated PostgreSQL integration must be reported separately; local smoke does not prove live Supabase or Grove.
 
 ## Next work in dependency order
 
