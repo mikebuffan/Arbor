@@ -41,4 +41,4 @@
 
 **Progress addendum:** Isolated math router: 24 synthetic train / 12 frozen whole-utterance-disjoint probes, 10 correct, 2 abstentions; exact sentence baseline 0. Hand-specified relation graph: 11 local Node smoke assertions pass, but the graph does not autonomously interpret pronouns. The experiment remains separate from live app/worker and is not an LLM.
 
-**May source correction:** September #188 is NOT an exact original restoration. The actual May TS module contains a central evaluator, 26 seeds, recommended modes/suppressions and a richer status/action vocabulary; #188 deliberately narrows scope and adds evidence receipt/idempotency controls. Original suggested SQL was optional and is NOT a production migration.
+**May source correction:** September #188 is NOT an exact original restoration. The actual May TS module contains a central evaluator, 25 seeds, recommended modes/suppressions and a richer status/action vocabulary; #188 deliberately narrows scope and adds evidence receipt/idempotency controls. Original suggested SQL was optional and is NOT a production migration.
