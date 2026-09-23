@@ -259,6 +259,7 @@ export async function prepareVerifiedPrivateGroveTurn(input: {
         cognitive.roundabout.requiresReview ||
         cognitive.prepared.cycle.routeAbstained)
       return { scope, userText: input.message, arkLayer, cognitive, transcript,
+        reauthorize,
         status: "held", holdReason: cognitive.roundabout.reason,
         grantsExecution: false, verifiesCompletion: false };
   }
