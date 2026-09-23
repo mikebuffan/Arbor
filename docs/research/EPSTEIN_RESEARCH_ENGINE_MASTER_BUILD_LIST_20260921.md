@@ -95,3 +95,10 @@ Legend: [x] draft code plus relevant exact-head CI evidence exists; [~] partial/
 - Inspected existing `sessionRunner.ts`, `sessionPolicy.ts`, and proposed SQL settlement RPC. SQL already rejects deadline/lease expiry, terminal or paused status, cancellation and revoked authorization under session/unit locks; no duplicate RPC created.
 - Added `lateSettlementPolicy.ts` and five synthetic tests on `feat/ark-research-late-settlement-contract-20260922`, stacked on #175. This is advisory fail-closed preflight, NOT atomic authorization or durable DB proof. Database RPC remains the settlement authority.
 - Next: exact-head CI and correct failures; reconcile sibling #177 without overlapping implementation; item 43 disposable DB race/lease/settlement tests only after separate no-cost isolated DB approval. Item 18 benign external PDF/manual review remains separately gated. No merge, deploy, production DB, worker, scheduler, paid API, real EFTA/private data or publication.
+
+## 2026-09-22 October 19 delivery gate (latest)
+- User target: safely finish research-files workflow by October 19, 2026; target is not implicit approval for external ingestion, disposable DB, live worker, scheduler, expenditure, merge/deployment, private data or publication.
+- Critical path and explicit disposable DB race/security matrix: `docs/research/OCTOBER_19_RESEARCH_DELIVERY_CRITICAL_PATH_20260922.md`.
+- #175 exact-head CI SUCCESS run `35798175895`; sibling #177 exact-head CI SUCCESS run `35799355793`. Combination NOT tested; integration plan in `docs/research/PRIVACY_SIBLING_RECONCILIATION_20260922.md`.
+- #180 late-settlement synthetic tests still have NO associated exact-head CI run at latest inspection. Its code is partial; no SQL concurrency proof. Vercel free daily deployment cap reported on PR, separate from test result.
+- The master list's earlier 'current top #175' and 'CI pending for #175' are historical snapshots, not latest status. Newest working draft is #180 stacked on #175; #177 remains sibling. No merge, deployment, production database, real-source execution or publication performed.
