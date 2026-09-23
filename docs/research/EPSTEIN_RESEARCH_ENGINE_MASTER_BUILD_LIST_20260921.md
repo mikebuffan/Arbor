@@ -102,3 +102,9 @@ Legend: [x] draft code plus relevant exact-head CI evidence exists; [~] partial/
 - #175 exact-head CI SUCCESS run `35798175895`; sibling #177 exact-head CI SUCCESS run `35799355793`. Combination NOT tested; integration plan in `docs/research/PRIVACY_SIBLING_RECONCILIATION_20260922.md`.
 - #180 late-settlement synthetic tests still have NO associated exact-head CI run at latest inspection. Its code is partial; no SQL concurrency proof. Vercel free daily deployment cap reported on PR, separate from test result.
 - The master list's earlier 'current top #175' and 'CI pending for #175' are historical snapshots, not latest status. Newest working draft is #180 stacked on #175; #177 remains sibling. No merge, deployment, production database, real-source execution or publication performed.
+
+## 2026-09-22 privacy integration code checkpoint
+- Created draft #181 stacked on #180 (not a merge). Imported sibling #177 `privacyReviewLedger.ts` and its five tests unchanged alongside #175 `privacyRedactionReview.ts` and existing `publicationPreflight.ts`.
+- Added `privacyContractReconciliation.test.ts` with three synthetic cross-module regressions: declared artifact remains HOLD; withheld/missing artifact flags block preflight; clean ledger without publication review remains HOLD. No real/private data processed.
+- Exact-head #181 CI is PENDING/NO RUN at inspection; #180 parent CI also not yet verified. #175 and #177 individually passed, not the combination. Vercel preview cap is separate from backend test evidence.
+- Remaining: verify #181 exact head, repair failures, then approved benign PDF/manual page acceptance (item 18), disposable DB race/role acceptance (items 40–45), worker integration and explicitly authorized unattended benign test. No merge, deployment, live source ingestion, scheduler, real-file analysis or publication performed.
