@@ -1,7 +1,7 @@
 {
   "schema_version": 3,
   "repository": "mikebuffan/Arbor",
-  "observed_on": "2026-09-23 (after separate Grove retry and pinned research CI changes; snapshot only)",
+  "observed_on": "2026-09-23 (after fenced private retry exact-head CI; historical snapshot only)",
   "scope": "historical source inventory only; re-fetch live PRs before release",
   "main_sha": "d46f6b46fc51ac3db4e158cddfc592c52cc2b5ef",
   "products": [
@@ -93,7 +93,7 @@
     {
       "n": 209,
       "lane": "grove",
-      "sha": "c356f9da25255e5113a752799061f84423eb667a",
+      "sha": "f2229eb321ce84dcbc69af9841c1f6ca4a1f02d0",
       "base": "feature/grove-private-release-readiness-20260923",
       "base_sha": "737833e725238a979630c15a8c83aea40ed4397b",
       "branch": "feature/grove-private-durable-retry-claim-20260923"
@@ -133,6 +133,13 @@
       "sha": "737833e725238a979630c15a8c83aea40ed4397b",
       "run": 35901787836,
       "scope": "5-job synthetic key-free Grove+Arbor APK, private-host boundary and branch filter",
+      "level": "exact_head_ci"
+    },
+    {
+      "pr": 209,
+      "sha": "f2229eb321ce84dcbc69af9841c1f6ca4a1f02d0",
+      "run": 35909314777,
+      "scope": "five-job Grove fenced retry claim SQL PostgreSQL acceptance, key-free backend, both Android synthetic offline builds; NO LIVE MIGRATION",
       "level": "exact_head_ci"
     }
   ],
