@@ -147,6 +147,36 @@ jobs:
           test -s "$RUNNER_TEMP/external-pdf-out/page-1.png"
           echo 'EXTERNAL_BENIGN_PDF_ACCEPTANCE=PASS (page 1 sandbox rendering; 2-page text boundaries)'
 
+  disposable-research-db:
+    name: Disposable synthetic PostgreSQL research RPC acceptance
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: synthetic-ci-only
+          POSTGRES_DB: arbor_synthetic
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d arbor_synthetic"
+          --health-interval 5s --health-timeout 3s --health-retries 12
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: synthetic-ci-only
+      PGDATABASE: arbor_synthetic
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply synthetic auth/project fixture to ephemeral CI container
+        run: psql -v ON_ERROR_STOP=1 -f ops/research/disposable-db/00-fixture.sql
+      - name: Apply proposed research SQL to disposable container ONLY
+        run: psql -v ON_ERROR_STOP=1 -f docs/research/sql/PROPOSED_arbor_research_sessions.sql
+      - name: Exercise claim, settlement, idempotency, owner RLS and STOP
+        run: psql -v ON_ERROR_STOP=1 -f ops/research/disposable-db/10-acceptance.sql
+
   control-backend:
     name: Control backend test + build
     runs-on: ubuntu-latest
