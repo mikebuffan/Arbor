@@ -135,6 +135,36 @@ describe("bounded durable research-session policy", () => {
     expect(store.claimOne).toHaveBeenCalledTimes(1);
     expect(store.settle).toHaveBeenCalledTimes(1);
   });
+  it("does not rewrite an already persisted terminal or blocked status", async () => {
+    for (const terminal of [
+      {status:"cancelled" as const,cancellationRequested:true,reason:"cancelled_by_owner"},
+      {status:"timebox_ended" as const,cancellationRequested:false,reason:"timebox_already_ended"},
+      {status:"blocked" as const,cancellationRequested:false,reason:"session_blocked"},
+    ]) {
+      const session={...baseline(),status:terminal.status,
+        cancellationRequested:terminal.cancellationRequested};
+      const stop=vi.fn(async()=>{});
+      const result=await runResearchSessionTick({
+        sessionId:session.id,at,store:{
+          loadSession:async()=>session,claimOne:vi.fn(),settle:vi.fn(),stop,
+        },executor:vi.fn(),
+      });
+      expect(result).toEqual({status:"stopped",reason:terminal.reason});
+      expect(stop).not.toHaveBeenCalled();
+    }
+  });
+
+  it("does not report a new STOP transition when persistence fails", async () => {
+    const session={...baseline(),cancellationRequested:true};
+    const stop=vi.fn(async()=>{throw new Error("research_stop_not_persisted");});
+    await expect(runResearchSessionTick({
+      sessionId:session.id,at,store:{
+        loadSession:async()=>session,claimOne:vi.fn(),settle:vi.fn(),stop,
+      },executor:vi.fn(),
+    })).rejects.toThrow("research_stop_not_persisted");
+    expect(stop).toHaveBeenCalledTimes(1);
+  });
+
   it("does not claim or execute work once expired", async () => {
     const session=baseline(),claimOne=vi.fn(async()=>null),executor=vi.fn();
     const stop=vi.fn(async()=>{});
