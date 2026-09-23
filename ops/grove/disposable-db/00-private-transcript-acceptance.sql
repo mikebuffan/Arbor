@@ -5,16 +5,23 @@ CREATE ROLE anon NOLOGIN;
 CREATE ROLE authenticated NOLOGIN;
 CREATE ROLE service_role NOLOGIN BYPASSRLS;
 
--- Recreate only a harmless synthetic auth.users identity provider and stub
--- auth.uid() function. Apply the EXACT original Grove owner+bridge migrations
--- before the transcript proposal; this catches real cross-file DDL drift.
--- NEVER apply synthetic auth objects or synthetic identities to live Supabase.
-CREATE SCHEMA auth;
-CREATE TABLE auth.users (id uuid PRIMARY KEY);
-CREATE FUNCTION auth.uid() RETURNS uuid
-  LANGUAGE sql STABLE AS $$ SELECT NULL::uuid $$;
-\ir ../../../supabase/grove/migrations/20260922035539_grove_private_owner_access.sql
-\ir ../../../supabase/grove/migrations/20260922042500_grove_private_firefly_read_grants.sql
+-- Schema shape checked against Grove's read-only live constraint inventory.
+-- The real auth.users and provider mappings must NOT be recreated in production.
+CREATE TABLE public.grove_private_owner_access (
+  user_id uuid PRIMARY KEY, revoked_at timestamptz
+);
+CREATE TABLE public.grove_private_firefly_bridge (
+  grove_user_id uuid PRIMARY KEY REFERENCES
+    public.grove_private_owner_access(user_id) ON DELETE CASCADE,
+  firefly_user_id uuid NOT NULL, revoked_at timestamptz
+);
+CREATE TABLE public.grove_private_ark_project_grants (
+  grove_user_id uuid NOT NULL REFERENCES
+    public.grove_private_firefly_bridge(grove_user_id) ON DELETE CASCADE,
+  firefly_project_id uuid NOT NULL,
+  revoked_at timestamptz,
+  PRIMARY KEY (grove_user_id, firefly_project_id)
+);
 
 -- Run the EXACT proposed migration, not an independently recreated table.
 \ir ../../../docs/migrations/PROPOSED_grove_private_turns_20260923.sql
@@ -52,7 +59,6 @@ BEGIN
     RAISE EXCEPTION 'private transcript exposed to client database roles';
   END IF;
 
-  INSERT INTO auth.users(id) VALUES(alice),(bob);
   INSERT INTO public.grove_private_owner_access(user_id)
     VALUES(alice),(bob);
   INSERT INTO public.grove_private_firefly_bridge(
