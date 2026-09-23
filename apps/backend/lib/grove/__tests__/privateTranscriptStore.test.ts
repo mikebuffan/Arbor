@@ -302,6 +302,33 @@ describe("Grove-only private conversation durability (fixtures, migration OFF)",
       .toMatchObject({persisted:true,replayed:true});
   });
 
+  it("a reclaimed lease fences out the old worker even if its model later responds", async () => {
+    const data=fakeStore();
+    const first=host(data.store);
+    let release!:()=>void;
+    first.sendModel.mockImplementationOnce(() => new Promise(resolve=>{
+      release=()=>resolve(reply("OLD stale model output"));
+    }));
+    const staleRequest=first.respond("Keep this answer canonical",firstId);
+    await vi.waitFor(()=>expect(first.sendModel).toHaveBeenCalledTimes(1));
+    // Represent PostgreSQL's expiry/reclaim by losing the first worker's
+    // token; the new serverless worker has no in-process state from the first.
+    data.claims.clear();
+    const winner=host(data.store);
+    winner.sendModel.mockResolvedValueOnce(reply("NEW fenced answer"));
+    await expect(winner.respond("Keep this answer canonical",firstId))
+      .resolves.toMatchObject({persisted:true,replayed:false});
+    release();
+    await expect(staleRequest).rejects.toThrow("grove_private_claim_lost");
+    expect(data.records.size).toBe(1);
+    expect([...data.records.values()][0].assistant_text).toBe("NEW fenced answer");
+    await expect(host(data.store).respond("Keep this answer canonical",firstId))
+      .resolves.toMatchObject({
+        persisted:true,replayed:true,
+        reply:{reply:"NEW fenced answer",liveExecutionVerified:false},
+      });
+  });
+
   it("HOLDs the model if the proposed claim migration is not enabled", async () => {
     const data = fakeStore();
     const h = host(data.store);
@@ -564,6 +591,48 @@ describe("Private model lease RPC (disposable client mock only)", () => {
     });
     await expect(store.claimPending(input)).rejects.toMatchObject({
       status:409,code:"grove_transcript_claim_invalid",
+    });
+  });
+});
+
+describe("Grove fenced DB completion contract (synthetic mock only)", () => {
+  it("persists only by scoped RPC and never falls back to direct transcript INSERT", async () => {
+    const persisted=row({requestId:firstId,userText:"Private user",
+      assistantText:"Private answer"});
+    const chain={
+      select:vi.fn(),eq:vi.fn(),maybeSingle:vi.fn(async()=>({
+        data:persisted,error:null,
+      })),insert:vi.fn(),
+    };
+    chain.select.mockReturnValue(chain);
+    chain.eq.mockReturnValue(chain);
+    const from=vi.fn(()=>chain);
+    const rpc=vi.fn(async()=>({data:"created",error:null}));
+    const store=createSupabaseGrovePrivateTranscriptStore({from,rpc} as never);
+    await expect(store.persistCompleted({...scope,requestId:firstId,
+      leaseToken:secondId,userText:"Private user",reply:reply("Private answer")}))
+      .resolves.toMatchObject({created:true,row:persisted});
+    expect(rpc).toHaveBeenCalledWith("grove_private_complete_turn",
+      expect.objectContaining({
+        p_grove_user_id:groveUserId,p_project_id:projectId,
+        p_conversation_id:conversationId,p_request_id:firstId,
+        p_lease_token:secondId,p_user_text:"Private user",
+        p_assistant_text:"Private answer",
+      }));
+    expect(chain.insert).not.toHaveBeenCalled();
+  });
+  it("rejected stale token or missing fenced migration returns no saved answer", async()=>{
+    const rpc=vi.fn()
+      .mockResolvedValueOnce({data:"stale",error:null})
+      .mockResolvedValueOnce({data:null,error:{message:"migration absent"}});
+    const store=createSupabaseGrovePrivateTranscriptStore({rpc} as never);
+    const input={...scope,requestId:firstId,leaseToken:secondId,
+      userText:"Blocked",reply:reply("No reply")};
+    await expect(store.persistCompleted(input)).rejects.toMatchObject({
+      status:403,code:"grove_private_claim_lost",
+    });
+    await expect(store.persistCompleted(input)).rejects.toMatchObject({
+      message:"migration absent",
     });
   });
 });
