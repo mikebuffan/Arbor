@@ -41,6 +41,13 @@ export class GroveLmTransportError extends Error {
 const uuid =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+// Pin the actual private receiver r2 and preserved Qwen v0.3 adapter
+// metadata. These fields are host response consistency checks, NOT proof of a
+// real GPU, uploaded weights, live runtime authenticity or completion receipt.
+export const GROVE_EXPECTED_ADAPTER_SHA256 =
+  "5447bc273c11374c73194428825babe22a008b0827e9ef002127a461023402aa";
+export const GROVE_EXPECTED_RECEIVER_CARD = "0.3.3";
+
 export function privateGroveLmHostConfig(
   env: Record<string, string | undefined> = process.env,
 ): GroveLmHostTransportConfig {
@@ -217,6 +224,18 @@ export async function sendPrivateGroveLmTurnFromVerifiedHost(
       typeof data.reply !== "string" || !data.reply.trim() ||
       data.reply.length > 20000 ||
       data.model !== "arbor-lm-v0.3" ||
+      data.adapter_sha256 !== GROVE_EXPECTED_ADAPTER_SHA256 ||
+      data.runtime_card_version !== GROVE_EXPECTED_RECEIVER_CARD ||
+      data.behavior_contract_version !==
+        (input.readContext.behavior as Record<string, unknown> &
+          { proof: Record<string, unknown> }).proof.contractVersion ||
+      data.behavior_projection_fingerprint !==
+        (input.readContext.behavior as Record<string, unknown> &
+          { proof: Record<string, unknown> }).proof.projectionFingerprint ||
+      data.ark_captured_at !==
+        (input.readContext.ark as Record<string, unknown>).capturedAt ||
+      data.continuity_source !==
+        (input.readContext.continuity as Record<string, unknown>).source ||
       data.app !== "the-grove" || data.experimental !== true ||
       data.external_actions_executed !== false ||
       data.live_execution_verified !== false ||
