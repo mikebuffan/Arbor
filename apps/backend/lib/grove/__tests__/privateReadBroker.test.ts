@@ -477,7 +477,7 @@ describe("future private Grove conversation scope (NO chat route)", () => {
 
   it("rejects Firefly JWT and wrong Grove host without Firefly reads", async () => {
     await expect(authorizePrivateGroveConversation(
-      req(jwt({iss: `${fireflyUrl}/auth/v1`}), projectId, conversationId,
+      req(jwt({iss: `${fireflyUrl}/auth/v1`}), projectId), projectId, conversationId,
     )).rejects.toMatchObject({status: 401, code: "grove_invalid_token"});
     await expect(authorizePrivateGroveConversation(
       req(jwt(), projectId, "https://firefly-coral.vercel.app"),
