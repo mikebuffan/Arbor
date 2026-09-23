@@ -18,7 +18,7 @@ on:
       - feat/ark-source-version-identity-20260921
       # Temporary outcome-receipt review target; remove before main merge.
       - feat/ark-evidence-stage-contract-20260921
-      # Temporary PDF batch-plan review target; remove before main merge.
+      # Temporary PDF batch-plan review target; remove before main integration.
       - feat/ark-research-outcome-receipts-20260921
       # Temporary page-image provenance review target; remove before main integration.
       - feat/ark-pdf-batch-plan-20260921
@@ -28,6 +28,8 @@ on:
       - feat/ark-pdf-disposable-sandbox-20260921
       # Temporary lead-dedupe review target; remove before main integration.
       - feat/ark-evidence-completion-verification-20260922
+      # Temporary docs-handoff review target for the item-45 child PR; remove before main integration.
+      - feat/ark-research-handoff-refresh-20260922
   workflow_dispatch:
 
 # CI sentinel: keep this workflow visibly updated when main-push Actions delivery stalls.
