@@ -37,9 +37,14 @@ psql -X -q -v ON_ERROR_STOP=1 -At -c "$settle_sql" > "$workdir/settle-b" &
 pid_b=$!
 wait "$pid_a"
 wait "$pid_b"
-grep -qx committed "$workdir/settle-a" && grep -qx duplicate "$workdir/settle-b" ||
-grep -qx duplicate "$workdir/settle-a" && grep -qx committed "$workdir/settle-b" ||
-{ echo 'Concurrent duplicate settlement violated'; cat "$workdir/settle-a" "$workdir/settle-b"; exit 1; }
+if ! { { grep -qx committed "$workdir/settle-a" &&
+           grep -qx duplicate "$workdir/settle-b"; } ||
+         { grep -qx duplicate "$workdir/settle-a" &&
+           grep -qx committed "$workdir/settle-b"; }; }; then
+  echo 'Concurrent duplicate settlement violated'
+  cat "$workdir/settle-a" "$workdir/settle-b"
+  exit 1
+fi
 receipt_count="$(psql -X -q -v ON_ERROR_STOP=1 -At -c "select count(*) from public.arbor_research_receipts where session_id='$session'")"
 spent="$(psql -X -q -v ON_ERROR_STOP=1 -At -c "select committed_cost_cents from public.arbor_research_sessions where id='$session'")"
 test "$receipt_count" = 1 && test "$spent" = 1 || { echo 'Duplicate spend or receipt'; exit 1; }
