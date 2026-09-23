@@ -27,7 +27,8 @@
 - [ ] Commit experiment as draft child; verify full exact-head GitHub CI on that child.
 - [ ] Recover and compare the *original* May source, not merely names; audit every intended function and source location.
 - [ ] Review cross-module duplicate semantics; decide which system remains authoritative for identity, correction, routing and source evidence.
-- [ ] Build typed, provenance-preserving relation learner with conflicting/hypothetical edges and speaker-owner resolution.
+- [x] Build isolated **typed relation graph prototype** with source assertions, speaker/addressee reference, contest HOLD and provenance (source IDs from a trusted caller). This is **not** relation extraction or a learned graph structure.
+- [ ] Build a genuine learned relation extractor and hypothesis/contradiction resolution with novel phrasings; retain source identity and distinct verified facts.
 - [ ] Versioned durable state, atomic trusted feedback/rollback and no cross-user/project leakage; audited disabling and source deletion.
 - [ ] Freeze prospective hard holdout suite; strong baselines, perturbations, long-horizon correction, negative instructions and confidence calibration.
 - [ ] Demonstrate new relation transfer independently of Qwen. If it fails, record failure and iterate one mechanism at a time.
@@ -36,3 +37,5 @@
 - [ ] Private phone Text/Voice continuity and production gates; public alpha and Epstein evidence lane remain separate.
 
 **User action now:** none required for read-only/source-local prototype; owner approval only at actual sensitive-data, merge, paid service, autonomous work, or production gate.
+
+**Progress addendum:** Isolated math router: 24 synthetic train / 12 frozen whole-utterance-disjoint probes, 10 correct, 2 abstentions; exact sentence baseline 0. Hand-specified relation graph: 11 local Node smoke assertions pass, but the graph does not autonomously interpret pronouns. The experiment remains separate from live app/worker and is not an LLM.
