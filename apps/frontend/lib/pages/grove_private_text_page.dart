@@ -126,7 +126,9 @@ class _GrovePrivateTextHostState extends State<GrovePrivateTextHost> {
       ));
     }
     return GrovePrivateTextPanel(
-      key: ValueKey('$id:$project:$token'),
+      // Do not put a private bearer token in widget keys or diagnostics.
+      // The auth listener unmounts the entire panel on token rotation.
+      key: ValueKey('$id:$project'),
       client: GrovePrivateConversationClient(
         api: api, config: GrovePrivateConfig.fromBuild, enabled: true,
       ),
