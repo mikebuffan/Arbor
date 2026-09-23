@@ -315,7 +315,7 @@ export async function readPrivateGroveConversations(
 ): Promise<GrovePrivateConversationsResult> {
   if (!validUuid.test(projectId))
     throw new RouteAccessError(404, "grove_invalid_project_scope");
-  const { fireflyAdmin, fireflyUserId } =
+  const { fireflyAdmin, fireflyUserId, groveUserId } =
     await authorizedPrivateGroveProject(req, projectId);
   const { data, error } = await fireflyAdmin.from("conversations")
     .select("id,user_id,project_id,created_at,updated_at")
@@ -326,6 +326,13 @@ export async function readPrivateGroveConversations(
     .limit(21);
   if (error || !Array.isArray(data) || data.length > 21)
     throw new RouteAccessError(500, "grove_private_conversations_unavailable");
+  // Grant/bridge/Firefly ownership can change during this service-role read.
+  // Revalidate before exposing even the conversation IDs or timestamps.
+  const current = await authorizedPrivateGroveProject(req, projectId);
+  if (current.groveUserId !== groveUserId ||
+      current.fireflyUserId !== fireflyUserId ||
+      current.projectId !== projectId)
+    throw new RouteAccessError(403, "grove_private_access_changed");
   const seen = new Set<string>();
   const records: GrovePrivateConversationChoice[] = [];
   for (const row of data) {
