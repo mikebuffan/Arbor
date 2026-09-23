@@ -12,6 +12,8 @@ on:
       - feature/grove-private-release-readiness-20260923
       # Proposed claim schema OFF; isolated disposable-only CI.
       - feature/grove-private-durable-retry-claim-20260923
+      # Pinned source-review candidate only; no live deployment authorization.
+      - candidate/grove-private-text-owner-gated-20260923
   pull_request:
     branches:
       - main
