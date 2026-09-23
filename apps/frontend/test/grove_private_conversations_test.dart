@@ -27,6 +27,18 @@ Map<String, dynamic> choices() => {
   'createsConversation': false,
   'grantsExecution': false,
 };
+Map<String, dynamic> created() => {
+  'ok': true,
+  'projectId': project,
+  'conversation': {
+    'conversationId': conversation,
+    'createdAt': '2026-09-23T00:00:00Z',
+    'updatedAt': '2026-09-23T01:00:00Z',
+  },
+  'created': true,
+  'grantsExecution': false,
+  'verifiesCompletion': false,
+};
 Map<String, dynamic> history() => {
   'ok': true,
   'projectId': project,
@@ -127,6 +139,31 @@ void main() {
     expect(empty.conversations, isEmpty);
   });
 
+  test('explicit new private conversation uses database-minted ID and no work authority', () {
+    final parsed = parseGrovePrivateCreatedConversation(
+      created(), projectId: project,
+    );
+    expect(parsed.conversationId, conversation);
+    for (final bad in [
+      {...created(), 'projectId': conversation},
+      {...created(), 'created': false},
+      {...created(), 'grantsExecution': true},
+      {...created(), 'verifiesCompletion': true},
+      {...created(), 'conversation': {
+        ...(created()['conversation'] as Map<String, dynamic>),
+        'conversationId': 'foreign-id',
+      }},
+      {...created(), 'conversation': {
+        ...(created()['conversation'] as Map<String, dynamic>),
+        'createdAt': 'not-a-date',
+      }},
+    ]) {
+      expect(() => parseGrovePrivateCreatedConversation(
+        bad, projectId: project,
+      ), throwsFormatException);
+    }
+  });
+
   test('history accepts only completed bounded pairs and discloses window', () {
     final parsed = parseGrovePrivateHistory(
       history(), projectId: project, conversationId: conversation,
@@ -200,6 +237,7 @@ void main() {
       api: fake, config: config,
     );
     expect(() => off.listExisting(project), throwsStateError);
+    expect(() => off.createNew(project), throwsStateError);
     expect(() => off.loadRecent(
       projectId: project, conversationId: conversation), throwsStateError);
     expect(() => off.send(
@@ -226,6 +264,11 @@ void main() {
       .conversations.single.conversationId, conversation);
     expect(api.path, '/api/grove/chat/conversations');
     expect(api.query, {'projectId': project});
+    api.postResult = created();
+    final newConversation = await client.createNew(project);
+    expect(newConversation.conversationId, conversation);
+    expect(api.path, '/api/grove/chat/conversations');
+    expect(api.sent, {'projectId': project});
     api.getResult = history();
     expect((await client.loadRecent(
       projectId: project, conversationId: conversation))
