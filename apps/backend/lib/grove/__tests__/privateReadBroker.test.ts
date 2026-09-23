@@ -9,6 +9,8 @@ const mocks = vi.hoisted(() => ({
   clients: [] as Array<{ url: string; key: string; options: unknown }>,
   lookup: new Map<string, { data: unknown; error: unknown }>(),
   fromCalls: [] as string[],
+  queryFilters: [] as Array<{ table: string; key: string; value: unknown }>,
+  queryOrders: [] as Array<{ table: string; key: string; ascending: boolean }>,
 }));
 
 vi.mock("@supabase/supabase-js", () => ({
@@ -27,6 +29,7 @@ import {
   privateGroveReadConfig,
   readPrivateGroveArk,
   readPrivateGroveProjects,
+  readPrivateGroveConversations,
   authorizePrivateGroveConversation,
 } from "@/lib/grove/privateReadBroker";
 import { GET } from "@/app/api/grove/ark/status/route";
@@ -65,6 +68,10 @@ function query(table: string) {
     select: vi.fn(),
     eq: vi.fn(),
     is: vi.fn(),
+    order: vi.fn((key: string, options: { ascending: boolean }) => {
+      mocks.queryOrders.push({table, key, ascending: options.ascending});
+      return q;
+    }),
     maybeSingle: vi.fn(async () => mocks.lookup.get(table) ?? {
       data: null, error: null,
     }),
@@ -73,7 +80,10 @@ function query(table: string) {
     }),
   };
   q.select.mockReturnValue(q);
-  q.eq.mockReturnValue(q);
+  q.eq.mockImplementation((key: string, value: unknown) => {
+    mocks.queryFilters.push({ table, key, value });
+    return q;
+  });
   q.is.mockReturnValue(q);
   return q;
 }
@@ -82,6 +92,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.clients.length = 0;
   mocks.fromCalls.length = 0;
+  mocks.queryFilters.length = 0;
+  mocks.queryOrders.length = 0;
   mocks.lookup.clear();
   vi.stubEnv("GROVE_API_ENABLED", "true");
   vi.stubEnv("GROVE_SUPABASE_URL", groveUrl);
@@ -486,5 +498,97 @@ describe("future private Grove conversation scope (NO chat route)", () => {
       status: 404, code: "grove_route_not_found",
     });
     expect(mocks.assertConversationOwnedByUser).not.toHaveBeenCalled();
+  });
+});
+
+
+const ownedConversation = (id = conversationId, overrides: Record<string, unknown> = {}) => ({
+  id, user_id: fireflyOwner, project_id: projectId,
+  created_at: "2026-09-23T00:00:00Z",
+  updated_at: "2026-09-23T01:00:00Z",
+  ...overrides,
+});
+
+describe("existing private Grove conversation discovery", () => {
+  it("reads only existing owner-and-project-scoped Firefly conversation IDs", async () => {
+    mocks.lookup.set("conversations:list", {
+      data: [ownedConversation()], error: null,
+    });
+    const result = await readPrivateGroveConversations(req(), projectId);
+    expect(result).toEqual({
+      projectId, mayBeTruncated: false,
+      conversations: [{
+        conversationId, createdAt: "2026-09-23T00:00:00Z",
+        updatedAt: "2026-09-23T01:00:00Z",
+      }],
+    });
+    expect(mocks.assertProjectOwnedByUser).toHaveBeenCalledWith(
+      expect.anything(), fireflyOwner, projectId,
+    );
+    expect(mocks.queryFilters).toEqual(expect.arrayContaining([
+      { table: "conversations", key: "user_id", value: fireflyOwner },
+      { table: "conversations", key: "project_id", value: projectId },
+    ]));
+    expect(mocks.queryOrders).toEqual(expect.arrayContaining([
+      { table: "conversations", key: "updated_at", ascending: false },
+      { table: "conversations", key: "id", ascending: false },
+    ]));
+    expect(mocks.assertConversationOwnedByUser).not.toHaveBeenCalled();
+  });
+
+  it("cannot list Firefly conversations before an active Grove grant", async () => {
+    mocks.lookup.set("grove_private_ark_project_grants", {
+      data: null, error: null,
+    });
+    await expect(readPrivateGroveConversations(req(), projectId))
+      .rejects.toMatchObject({ status: 404, code: "project_not_found" });
+    expect(mocks.fromCalls).not.toContain("conversations");
+  });
+
+  it("cannot use an expired owner, foreign project or invalid identifier", async () => {
+    await expect(readPrivateGroveConversations(req(), "bad"))
+      .rejects.toMatchObject({status: 404, code: "grove_invalid_project_scope"});
+    expect(mocks.fromCalls).not.toContain("conversations");
+    mocks.assertProjectOwnedByUser.mockRejectedValueOnce(
+      new Error("foreign Firefly project"),
+    );
+    await expect(readPrivateGroveConversations(req(), projectId))
+      .rejects.toThrow("foreign Firefly project");
+    expect(mocks.fromCalls).not.toContain("conversations");
+  });
+
+  it("rejects service-role rows that do not match EXACT verified scope", async () => {
+    for (const list of [
+      [ownedConversation(conversationId, {user_id: groveOwner})],
+      [ownedConversation(conversationId, {project_id: groveOwner})],
+      [ownedConversation("bad-uuid")],
+      [ownedConversation(), ownedConversation()],
+      [ownedConversation(conversationId, {created_at: "bad"})],
+      Array.from({length: 22}, () => ownedConversation()),
+    ]) {
+      mocks.lookup.set("conversations:list", {data: list, error: null});
+      await expect(readPrivateGroveConversations(req(), projectId))
+        .rejects.toMatchObject({
+          status: 500, code: "grove_private_conversations_unavailable",
+        });
+    }
+  });
+
+  it("treats no existing conversation as EMPTY, never as a synthetic chat ID", async () => {
+    mocks.lookup.set("conversations:list", {data: [], error: null});
+    const result = await readPrivateGroveConversations(req(), projectId);
+    expect(result.conversations).toEqual([]);
+    expect(result.mayBeTruncated).toBe(false);
+  });
+
+  it("indicates a 20-result window instead of claiming a complete archive", async () => {
+    const choices = Array.from({length: 21}, (_, i) =>
+      ownedConversation(
+        "00000000-0000-4000-8000-" + (i + 100).toString().padStart(12, "0"),
+      ));
+    mocks.lookup.set("conversations:list", {data: choices, error: null});
+    const result = await readPrivateGroveConversations(req(), projectId);
+    expect(result.conversations).toHaveLength(20);
+    expect(result.mayBeTruncated).toBe(true);
   });
 });
