@@ -151,7 +151,7 @@ export class SupabaseResearchStore implements ResearchStore {
     reason: string;
   }): Promise<void> {
     this.assertScope(input.session);
-    const {error} = await this.db.rpc("arbor_stop_research_session",{
+    const {data,error} = await this.db.rpc("arbor_stop_research_session",{
       p_session_id:input.session.id,
       p_user_id:this.ownerId,
       p_project_id:this.projectId,
@@ -159,5 +159,6 @@ export class SupabaseResearchStore implements ResearchStore {
       p_reason:input.reason,
     });
     if (error) throw error;
+    if (data !== true) throw new Error("research_stop_not_persisted");
   }
 }
