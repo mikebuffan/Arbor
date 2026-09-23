@@ -1,27 +1,41 @@
 import 'package:flutter/material.dart';
 import 'environment_panel.dart';
 import 'environment_tokens.dart';
+import 'grove_room_inventory_panel.dart';
+import 'grove_memory_shelf_view.dart';
+import 'grove_document_shelf_view.dart';
+import 'grove_world_state.dart';
+import 'grove_responsive_wrap.dart';
 
 class MemoryStateView extends StatelessWidget {
   const MemoryStateView({super.key});
 
   @override
-  Widget build(BuildContext context) => const Wrap(
-    spacing: 16,
-    runSpacing: 16,
+  Widget build(BuildContext context) => const Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      SizedBox(width: 380, child: EnvironmentPanel(child: _MemorySection(
-        title: 'CONTINUITY',
-        body: 'Conversation/project continuity is visible as state, not implied by tone. Corrections and unresolved work must remain traceable.',
-      ))),
-      SizedBox(width: 380, child: EnvironmentPanel(child: _MemorySection(
-        title: 'CONTEXT CODEX',
-        body: 'Historical and provenance-sensitive claims require retrieval before assertion. Unknown stays unknown.',
-      ))),
-      SizedBox(width: 380, child: EnvironmentPanel(child: _MemorySection(
-        title: 'PATTERN HOP',
-        body: 'Evidence-driven traversal stays bounded, deduplicated, chronological, and contradiction-aware.',
-      ))),
+      GroveRoomInventoryPanel(initialZone: GroveZone.library),
+      SizedBox(height: 16),
+      GroveMemoryShelfView(),
+      SizedBox(height: 16),
+      GroveDocumentShelfView(),
+      SizedBox(height: 16),
+      GroveResponsiveWrap(
+        panels: [
+          GrovePanel(preferredWidth: 380, child: EnvironmentPanel(child: _MemorySection(
+            title: 'CONTINUITY',
+            body: 'Conversation/project continuity is visible as state, not implied by tone. Corrections and unresolved work must remain traceable.',
+          ))),
+          GrovePanel(preferredWidth: 380, child: EnvironmentPanel(child: _MemorySection(
+            title: 'CONTEXT CODEX',
+            body: 'Historical and provenance-sensitive claims require retrieval before assertion. Unknown stays unknown.',
+          ))),
+          GrovePanel(preferredWidth: 380, child: EnvironmentPanel(child: _MemorySection(
+            title: 'PATTERN HOP',
+            body: 'Evidence-driven traversal stays bounded, deduplicated, chronological, and contradiction-aware.',
+          ))),
+        ],
+      ),
     ],
   );
 }

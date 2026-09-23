@@ -1,7 +1,20 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { openAIClientOptions } from "./openai";
 
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
+
 describe("OpenAI backend request bounds", () => {
+  it("imports safely without a model credential but rejects actual model use", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "");
+    vi.resetModules();
+
+    const provider = await import("./openai");
+    expect(provider.openAIClientOptions({}).maxRetries).toBe(0);
+    expect(() => provider.openai.responses).toThrow("OPENAI_API_KEY is required");
+  });
+
   it("uses a bounded default request timeout and disables hidden SDK retries", () => {
     expect(openAIClientOptions({})).toEqual({
       timeout: 45_000,

@@ -9,6 +9,7 @@ class EnvironmentObjectiveView {
     this.checkpointReceipt,
     this.completionReceipt,
     this.isDemo = false,
+    this.requiresUserAction = false,
     this.updatedAt,
   });
 
@@ -19,6 +20,9 @@ class EnvironmentObjectiveView {
   final String? checkpointReceipt;
   final String? completionReceipt;
   final bool isDemo;
+  /// True only for an explicit persisted decision/authority blocker, never inferred
+  /// from generic failure, a stale snapshot, or a demo fixture.
+  final bool requiresUserAction;
   final DateTime? updatedAt;
 
   bool get hasTruthfulState {

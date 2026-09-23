@@ -2,18 +2,19 @@ import 'package:flutter/material.dart';
 import 'environment_panel.dart';
 import 'environment_state.dart';
 import 'environment_tokens.dart';
+import 'grove_ark_handoff_view.dart';
+import 'grove_responsive_wrap.dart';
 
 class ObjectiveWorkspace extends StatelessWidget {
   const ObjectiveWorkspace({super.key, required this.objective});
   final EnvironmentObjectiveView objective;
 
   @override
-  Widget build(BuildContext context) => Wrap(
-    spacing: 16,
-    runSpacing: 16,
-    children: [
-      SizedBox(
-        width: 560,
+  Widget build(BuildContext context) => GroveResponsiveWrap(
+    panels: [
+      const GrovePanel(preferredWidth: 560, child: GroveArkHandoffView()),
+      GrovePanel(
+        preferredWidth: 560,
         child: EnvironmentPanel(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -40,8 +41,8 @@ class ObjectiveWorkspace extends StatelessWidget {
           ),
         ),
       ),
-      const SizedBox(
-        width: 340,
+      const GrovePanel(
+        preferredWidth: 340,
         child: EnvironmentPanel(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
