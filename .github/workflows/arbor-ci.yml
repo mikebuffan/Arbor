@@ -96,6 +96,34 @@ jobs:
       - name: Build control backend
         run: pnpm --filter arbor-control-backend build
 
+  grove-android-synthetic:
+    name: Grove standalone Android flavor (synthetic, offline-host build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: apps/frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Compile actual Grove-only Android flavor and enabled private Text UI
+        # .invalid HTTPS origins and fake publishable key prevent this artifact
+        # from being mistaken for a deployable owner-configured APK.
+        run: >-
+          flutter build apk --debug --flavor grove
+          --dart-define=GROVE_STANDALONE=true
+          --dart-define=GROVE_PRIVATE_TALK_PREVIEW=true
+          --dart-define=GROVE_PRIVATE_NEW_CONVERSATION_PREVIEW=true
+          --dart-define=GROVE_SUPABASE_URL=https://ci-grove-auth.example.invalid
+          --dart-define=GROVE_SUPABASE_ANON_KEY=sb_publishable_synthetic_ci_only
+          --dart-define=GROVE_API_URL=https://ci-grove-api.example.invalid
+      - name: Verify separate Grove APK exists (never publish synthetic artifact)
+        run: test -s build/app/outputs/flutter-apk/app-grove-debug.apk
+
   flutter:
     name: Flutter analyze + test
     runs-on: ubuntu-latest
