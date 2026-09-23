@@ -38,7 +38,7 @@ describe("local review-only PDF batch staging",()=>{
       const outputDirectory=join(root,"private-results");
       await writeFile(localPath,bytes);
       const item={localPath,sourceUri:"https://example.org/synthetic.pdf",documentId:"SYNTHETIC-1"};
-      const first=await stageLocalPdfPilotBatch({items:[item],outputDirectory});
+      const first=await stageLocalPdfPilotBatch({items:[item],outputDirectory,benignFixtureMode:true});
       expect(first).toMatchObject([{
         index:0,status:"staged_review_only",physicalPages:1,textLayerPages:1,
         imageOnlyPages:0,failedPages:0,
@@ -55,10 +55,10 @@ describe("local review-only PDF batch staging",()=>{
       expect(manifest.pages[0].extractedText).toContain("HARMLESS PILOT");
       expect(manifest.pages[0].reviewStatus).toBe("hold_for_original_page_image_and_privacy_review");
       expect((await stat(join(outputDirectory,"records",filenames[0]))).mode&0o777).toBe(0o600);
-      expect((await stageLocalPdfPilotBatch({items:[item],outputDirectory}))[0].status)
+      expect((await stageLocalPdfPilotBatch({items:[item],outputDirectory,benignFixtureMode:true}))[0].status)
         .toBe("already_staged");
       await writeFile(join(outputDirectory,"records",filenames[0]),"tampered");
-      const afterTamper=await stageLocalPdfPilotBatch({items:[item],outputDirectory});
+      const afterTamper=await stageLocalPdfPilotBatch({items:[item],outputDirectory,benignFixtureMode:true});
       expect(afterTamper).toMatchObject([{status:"held",reason:"pilot_existing_artifact_mismatch"}]);
     } finally { await rm(root,{recursive:true,force:true}); }
   });
@@ -70,7 +70,7 @@ describe("local review-only PDF batch staging",()=>{
       await writeFile(localPath,"<html>age gate</html>");
       const result=await stageLocalPdfPilotBatch({items:[{
         localPath,sourceUri:"https://example.org/age-gate.pdf",documentId:"BLOCKED",
-      }],outputDirectory});
+      }],outputDirectory,benignFixtureMode:true});
       expect(result).toMatchObject([{status:"held",reason:"invalid_pdf_binary_signature"}]);
       expect(await readdir(join(outputDirectory,"records"))).toEqual([]);
     } finally { await rm(root,{recursive:true,force:true}); }
