@@ -213,7 +213,13 @@ export function applyReviewedCognitiveOutcome(input: {
     pathwayId: receipt.pathwayId, ...cycle.scope,
     evidenceRef: receipt.id, at: receipt.at, outcome: receipt.outcome,
   });
-  const nextLearning = receipt.outcome === "verified_helpful"
+  // The original May design weakens a bad road AND learns a corrected road.
+  // A reviewed failure with an explicitly DIFFERENT correct route is supervised
+  // counterexample evidence. A failure without a different reviewed route only
+  // weakens the selected path; it never guesses which replacement is right.
+  const teachesCorrectedRoute = receipt.outcome === "verified_unhelpful" &&
+    cycle.route !== null && receipt.reviewedRoute !== cycle.route;
+  const nextLearning = receipt.outcome === "verified_helpful" || teachesCorrectedRoute
     ? trainVerifiedPathwayExample(learning, {
       ...cycle.scope, text: cycle.cue,
       route: receipt.reviewedRoute, verifiedReceipt: receipt.id,
