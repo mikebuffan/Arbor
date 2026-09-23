@@ -1,0 +1,8 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <!-- Grove is a separate launcher/install from the original Arbor diary UI. -->
+    <application
+        android:label="The Grove"
+        android:icon="@drawable/grove_launcher"
+        tools:replace="android:label,android:icon" />
+</manifest>

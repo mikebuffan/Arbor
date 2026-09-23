@@ -3,12 +3,17 @@ import 'dart:convert';
 
 import '../api/arbor_api_client.dart';
 import 'environment_state.dart';
+import 'grove_app_mode.dart';
+import 'activity_view.dart';
 import 'work_queue.dart';
 
 abstract interface class EnvironmentRuntimeAdapter {
   Future<EnvironmentSnapshot> snapshot();
   Stream<EnvironmentSnapshot> watch();
 }
+
+String arkStatusPath({required bool privateGrove}) =>
+    privateGrove ? '/api/grove/ark/status' : '/api/ark/status';
 
 abstract interface class ArkStatusReader {
   Future<Map<String, dynamic>?> read(String projectId);
@@ -21,7 +26,9 @@ class ArborApiArkStatusReader implements ArkStatusReader {
 
   @override
   Future<Map<String, dynamic>?> read(String projectId) =>
-      apiClient.get('/api/ark/status', queryParameters: {
+      apiClient.get(
+        arkStatusPath(privateGrove: groveStandalone),
+        queryParameters: {
         'projectId': projectId,
       });
 }
@@ -31,12 +38,14 @@ class EnvironmentSnapshot {
     required this.objective,
     required this.workItems,
     required this.source,
+    this.activityEvents = const [],
     required this.capturedAt,
     this.stale = false,
   });
 
   final EnvironmentObjectiveView objective;
   final List<WorkItemView> workItems;
+  final List<ActivityEvent> activityEvents;
   final String source;
   final DateTime capturedAt;
   final bool stale;
@@ -74,6 +83,7 @@ class ArkEnvironmentAdapter implements EnvironmentRuntimeAdapter {
     final objectives = _records(payload['objectives']);
     final tasks = _records(payload['tasks']);
     final checkpoints = _records(payload['checkpoints']);
+    final events = _records(payload['events']);
 
     if (objectives.isEmpty) {
       return EnvironmentSnapshot(
@@ -95,6 +105,13 @@ class ArkEnvironmentAdapter implements EnvironmentRuntimeAdapter {
     final objectiveCheckpoints = checkpoints
         .where((checkpoint) =>
             _string(checkpoint['objective_id']) == objectiveId)
+        .toList(growable: false);
+
+    final objectiveEvents = events
+        .where((event) => _string(event['objective_id']) == objectiveId)
+        .take(10)
+        .map(_activityEvent)
+        .whereType<ActivityEvent>()
         .toList(growable: false);
 
     final status = _string(objective['status']);
@@ -135,9 +152,12 @@ class ArkEnvironmentAdapter implements EnvironmentRuntimeAdapter {
         checkpointReceipt: checkpointReceipt,
         completionReceipt: completionReceipt,
         isDemo: false,
+        requiresUserAction: mappedState == EnvironmentRunState.blocked &&
+            _explicitUserDecision(objective['blocker']),
         updatedAt: _parseDate(objective['updated_at']),
       ),
       workItems: objectiveTasks.map(_workItem).toList(growable: false),
+      activityEvents: objectiveEvents,
       source: 'ARK • READ ONLY',
       capturedAt: capturedAt,
     );
@@ -167,6 +187,19 @@ class ArkEnvironmentAdapter implements EnvironmentRuntimeAdapter {
       }
     }
     return objectives.first;
+  }
+
+  ActivityEvent? _activityEvent(Map<String, dynamic> event) {
+    final type = _string(event['event_type']);
+    final id = _string(event['id']);
+    final recorded = _parseDate(event['created_at']);
+    if (type == null || id == null || recorded == null) return null;
+    return ActivityEvent(
+      title: 'ARK event: $type',
+      detail: 'Recorded: ${recorded.toUtc().toIso8601String()} • Event: $id',
+      kind: type,
+      isDemo: false,
+    );
   }
 
   WorkItemView _workItem(Map<String, dynamic> task) {
@@ -335,6 +368,19 @@ String? _failedTaskError(List<Map<String, dynamic>> tasks) {
     }
   }
   return null;
+}
+
+/// Only a structured ARK blocker can request a decision from the owner.
+/// Error messages, task failure, and keyword matching are insufficient.
+bool _explicitUserDecision(dynamic blocker) {
+  if (blocker is! Map) return false;
+  return switch (blocker['kind']) {
+    'external_authority' ||
+    'missing_preference' ||
+    'high_consequence_fork' ||
+    'irreversible_action' => true,
+    _ => false,
+  };
 }
 
 String? _blockerText(dynamic value) {

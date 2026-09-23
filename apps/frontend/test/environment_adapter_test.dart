@@ -27,6 +27,11 @@ class _SequenceReader implements ArkStatusReader {
 }
 
 void main() {
+  test('private Grove uses its own ARK read route', () {
+    expect(arkStatusPath(privateGrove: true), '/api/grove/ark/status');
+    expect(arkStatusPath(privateGrove: false), '/api/ark/status');
+  });
+
   test('demo adapter identifies itself as fallback data', () async {
     final snapshot = await DemoEnvironmentAdapter().snapshot();
 
