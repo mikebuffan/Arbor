@@ -409,15 +409,15 @@ class _Surface extends StatelessWidget {
 class _Home extends StatefulWidget {
   const _Home({
     required this.objective,
-    required this.widget.runtimeSource,
-    required this.widget.runtimeStale,
-    required this.widget.activityEvents,
+    required this.runtimeSource,
+    required this.runtimeStale,
+    required this.activityEvents,
     required this.onRoomAction,
   });
   final EnvironmentObjectiveView objective;
-  final String widget.runtimeSource;
-  final bool widget.runtimeStale;
-  final List<ActivityEvent> widget.activityEvents;
+  final String runtimeSource;
+  final bool runtimeStale;
+  final List<ActivityEvent> activityEvents;
   final ValueChanged<GroveRoomAction> onRoomAction;
 
   @override
