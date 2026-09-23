@@ -309,6 +309,61 @@ export type GrovePrivateConversationsResult = {
   conversations: GrovePrivateConversationChoice[];
   mayBeTruncated: boolean;
 };
+/**
+ * Explicit NEW-conversation action, not a new conversation or memory system.
+ * Reuses the existing Firefly conversations schema, but ONLY from the verified
+ * Grove host after an active invitation, bridge, grant and Firefly project
+ * ownership check. The browser supplies only the project UUID, never owner
+ * identity, conversation UUID or a Firefly credential.
+ *
+ * This operation is separately feature-gated at its HTTP route. It is not
+ * retry-idempotent: a lost response might leave one empty conversation.
+ * NEVER auto-retry a creation request or claim exactly-once creation.
+ */
+export async function createPrivateGroveConversation(
+  req: Request,
+  projectId: string,
+): Promise<GrovePrivateConversationChoice> {
+  if (!validUuid.test(projectId))
+    throw new RouteAccessError(404, "grove_invalid_project_scope");
+  const authorized = await authorizedPrivateGroveProject(req, projectId);
+  const { data, error } = await authorized.fireflyAdmin
+    .from("conversations")
+    .insert({
+      user_id: authorized.fireflyUserId,
+      project_id: projectId,
+    })
+    .select("id,user_id,project_id,created_at,updated_at")
+    .single();
+  if (error || !data ||
+      data.user_id !== authorized.fireflyUserId ||
+      data.project_id !== projectId ||
+      typeof data.id !== "string" || !validUuid.test(data.id) ||
+      typeof data.created_at !== "string" ||
+      !Number.isFinite(Date.parse(data.created_at)) ||
+      typeof data.updated_at !== "string" ||
+      !Number.isFinite(Date.parse(data.updated_at))) {
+    throw new RouteAccessError(500, "grove_private_conversation_create_unavailable");
+  }
+  // The new ID comes from the database; independently revalidate both the
+  // current Grove grant and Firefly conversation ownership after insertion.
+  // This narrows revocation races but is not cross-database atomicity.
+  const current = await authorizePrivateGroveConversation(
+    req, projectId, data.id,
+  );
+  if (current.groveUserId !== authorized.groveUserId ||
+      current.fireflyUserId !== authorized.fireflyUserId ||
+      current.projectId !== projectId ||
+      current.conversationId !== data.id) {
+    throw new RouteAccessError(403, "grove_private_access_changed");
+  }
+  return {
+    conversationId: data.id,
+    createdAt: data.created_at,
+    updatedAt: data.updated_at,
+  };
+}
+
 export async function readPrivateGroveConversations(
   req: Request,
   projectId: string,
