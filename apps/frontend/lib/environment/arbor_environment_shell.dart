@@ -15,6 +15,7 @@ import 'environment_atmosphere.dart';
 import 'grove_living_window_panel.dart';
 import 'grove_house_room.dart';
 import 'grove_world_panel.dart';
+import 'grove_world_store.dart';
 import 'grove_room_inventory_panel.dart';
 import 'grove_app_mode.dart';
 import 'grove_responsive_wrap.dart';
@@ -405,28 +406,41 @@ class _Surface extends StatelessWidget {
   }
 }
 
-class _Home extends StatelessWidget {
+class _Home extends StatefulWidget {
   const _Home({
     required this.objective,
-    required this.runtimeSource,
-    required this.runtimeStale,
-    required this.activityEvents,
+    required this.widget.runtimeSource,
+    required this.widget.runtimeStale,
+    required this.widget.activityEvents,
     required this.onRoomAction,
   });
   final EnvironmentObjectiveView objective;
-  final String runtimeSource;
-  final bool runtimeStale;
-  final List<ActivityEvent> activityEvents;
+  final String widget.runtimeSource;
+  final bool widget.runtimeStale;
+  final List<ActivityEvent> widget.activityEvents;
   final ValueChanged<GroveRoomAction> onRoomAction;
+
+  @override
+  State<_Home> createState() => _HomeState();
+}
+
+class _HomeState extends State<_Home> {
+  GroveWorldLoad? _worldLoad;
+
   @override
   Widget build(BuildContext context) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          GroveHouseRoom(onOpen: onRoomAction),
+          GroveHouseRoom(
+            onOpen: widget.onRoomAction,
+            worldLoad: _worldLoad,
+          ),
           const SizedBox(height: 16),
           const GroveRoomInventoryPanel(),
           const SizedBox(height: 16),
-          const GroveWorldPanel(),
+          GroveWorldPanel(onLoaded: (loaded) {
+            if (mounted) setState(() => _worldLoad = loaded);
+          }),
           const SizedBox(height: 16),
           const GroveLivingWindowPanel(),
           const SizedBox(height: 16),
@@ -437,10 +451,10 @@ class _Home extends StatelessWidget {
                 children: [
                   const Text('CURRENT OBJECTIVE', style: TextStyle(color: ArborEnvironmentTokens.cyan, fontSize: 11, letterSpacing: 1.4)),
                   const SizedBox(height: 12),
-                  Text(objective.title, style: const TextStyle(color: ArborEnvironmentTokens.textPrimary, fontSize: 20)),
+                  Text(widget.objective.title, style: const TextStyle(color: ArborEnvironmentTokens.textPrimary, fontSize: 20)),
                   const SizedBox(height: 10),
-                  Text(objective.nextAction ?? 'No next action reported.', style: const TextStyle(color: ArborEnvironmentTokens.textMuted)),
-                  if (objective.isDemo) ...[
+                  Text(widget.objective.nextAction ?? 'No next action reported.', style: const TextStyle(color: ArborEnvironmentTokens.textMuted)),
+                  if (widget.objective.isDemo) ...[
                     const SizedBox(height: 16),
                     const Text('DEMO FALLBACK — live ARK state is unavailable.', style: TextStyle(color: ArborEnvironmentTokens.firefly, fontSize: 11)),
                   ],
@@ -451,10 +465,10 @@ class _Home extends StatelessWidget {
                 children: [
                   const Text('HOUSE STATUS', style: TextStyle(color: ArborEnvironmentTokens.violet, fontSize: 11, letterSpacing: 1.4)),
                   const SizedBox(height: 12),
-                  Text(runtimeSource, style: const TextStyle(color: ArborEnvironmentTokens.textPrimary, fontSize: 20)),
+                  Text(widget.runtimeSource, style: const TextStyle(color: ArborEnvironmentTokens.textPrimary, fontSize: 20)),
                   const SizedBox(height: 8),
                   Text(
-                    runtimeStale
+                    widget.runtimeStale
                         ? 'Snapshot is stale/fallback. ARK remains read-only.'
                         : 'Live snapshot is read-only. Environment cannot mutate ARK.',
                     style: const TextStyle(color: ArborEnvironmentTokens.textMuted),
@@ -464,7 +478,7 @@ class _Home extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          ActivityView(events: activityEvents),
+          ActivityView(events: widget.activityEvents),
         ],
       );
 }
