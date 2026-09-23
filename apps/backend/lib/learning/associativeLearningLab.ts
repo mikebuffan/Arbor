@@ -72,14 +72,24 @@ export function predictLearnedRoute(state: PathwayLearningState, input: {
   userId: string; projectId: string; text: string; minProbability?: number; minMargin?: number;
 }): RoutePrediction {
   checkedState(state, input.userId, input.projectId);
-  const probabilities = rawProbabilities(state.weights, extractPathwayFeatures(input.text));
+  const features = extractPathwayFeatures(input.text);
+  const probabilities = rawProbabilities(state.weights, features);
+  // A learned class bias or shared filler word is NOT topical evidence.
+  // Prevent an out-of-vocabulary utterance from inheriting an overconfident
+  // class prior. This is a narrow lexical OOD gate, not semantic safety.
+  const filler = new Set(["a", "an", "the", "is", "of", "to", "in", "on", "and", "over", "with", "for"]);
+  const hasLearnedCue = features.some(feature =>
+    feature !== "bias:1" &&
+    (feature.startsWith("b:") || (feature.startsWith("w:") && !filler.has(feature.slice(2)))) &&
+    ROUTES.some(route => Object.prototype.hasOwnProperty.call(state.weights[route], feature))
+  );
   const ordered = [...ROUTES].sort((a, b) => probabilities[b] - probabilities[a]);
   const margin = probabilities[ordered[0]] - probabilities[ordered[1]];
   const minProbability = input.minProbability ?? 0.55;
   const minMargin = input.minMargin ?? 0.13;
   if (![minProbability, minMargin].every(x => Number.isFinite(x) && x >= 0 && x <= 1))
     throw new Error("learning_threshold_invalid");
-  const abstained = probabilities[ordered[0]] < minProbability || margin < minMargin;
+  const abstained = !hasLearnedCue || probabilities[ordered[0]] < minProbability || margin < minMargin;
   return { route: abstained ? null : ordered[0], probabilities, margin, abstained, grantsExecution: false };
 }
 /**
