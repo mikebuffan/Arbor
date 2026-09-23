@@ -413,6 +413,10 @@ export async function respondToVerifiedPrivateGroveTurn(input: {
       ...transcriptScope, requestId: transcript.requestId,
       leaseToken: claimToken, userText, reply,
     });
+    // Revocation may commit immediately AFTER the fenced DB transaction
+    // releases grant locks. Check again before returning the saved private
+    // reply; a successful write is not a perpetual permission to disclose it.
+    await input.prepared.reauthorize();
     return {
       status: "responded",
       reply: transcriptRowToUnverifiedReply(saved.row, transcriptScope),
