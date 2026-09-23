@@ -94,6 +94,97 @@ jobs:
           assert p.read_bytes()[:8] == b"\x89PNG\r\n\x1a\n"
           PY
 
+  external-benign-pdf:
+    name: External blank IRS PDF acceptance (no private data)
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install harmless PDF inspection tools
+        run: |
+          if ! command -v pdfinfo >/dev/null || ! command -v pdftotext >/dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y poppler-utils
+          fi
+      - name: Fetch independently published blank 2025 IRS form
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --proto '=https' --proto-redir '=https' \
+            --max-redirs 3 --connect-timeout 10 --max-time 45 --retry 2 \
+            --output "$RUNNER_TEMP/blank-1040.pdf" \
+            --write-out 'HTTP=%{http_code} content_type=%{content_type} bytes=%{size_download} final_url=%{url_effective}\n' \
+            'https://www.irs.gov/pub/irs-prior/f1040--2025.pdf'
+          test "$(head -c 5 "$RUNNER_TEMP/blank-1040.pdf")" = '%PDF-'
+          test "$(wc -c < "$RUNNER_TEMP/blank-1040.pdf")" -le 5242880
+          sha256sum "$RUNNER_TEMP/blank-1040.pdf"
+          pdfinfo "$RUNNER_TEMP/blank-1040.pdf" | grep -E '^Pages:[[:space:]]+2$'
+          pdftotext -f 1 -l 1 -layout "$RUNNER_TEMP/blank-1040.pdf" "$RUNNER_TEMP/first.txt"
+          pdftotext -f 2 -l 2 -layout "$RUNNER_TEMP/blank-1040.pdf" "$RUNNER_TEMP/second.txt"
+          test -s "$RUNNER_TEMP/first.txt"
+          test -s "$RUNNER_TEMP/second.txt"
+          ! cmp -s "$RUNNER_TEMP/first.txt" "$RUNNER_TEMP/second.txt"
+          echo 'Page 1 text SHA256:'
+          sha256sum "$RUNNER_TEMP/first.txt"
+          echo 'Page 2 text SHA256:'
+          sha256sum "$RUNNER_TEMP/second.txt"
+          # Blank fillable IRS forms may extract numbered field labels in
+          # a different order/format across Poppler versions. Check page
+          # separation here; original-page line boundaries remain manual HOLD.
+          echo 'TWO_PAGE_TEXT_SEPARATION=PASS; LINE_BOUNDARY_MANUAL_REVIEW=HOLD'
+      - name: Render downloaded public form under existing isolated sandbox
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker build -t arbor-pdf-sandbox:external ops/research/pdf-sandbox
+          PDF_SANDBOX_IMAGE_REF="$(docker image inspect --format '{{.Id}}' arbor-pdf-sandbox:external)"
+          export PDF_SANDBOX_IMAGE_REF
+          [[ "$PDF_SANDBOX_IMAGE_REF" =~ ^sha256:[a-f0-9]{64}$ ]]
+          mkdir -p "$RUNNER_TEMP/external-pdf-out"
+          chmod 0777 "$RUNNER_TEMP/external-pdf-out"
+          chmod 0444 "$RUNNER_TEMP/blank-1040.pdf"
+          bash ops/research/pdf-sandbox/run.sh "$RUNNER_TEMP/blank-1040.pdf" "$RUNNER_TEMP/external-pdf-out"
+          test -s "$RUNNER_TEMP/external-pdf-out/page-1.png"
+          echo 'EXTERNAL_BENIGN_PDF_ACCEPTANCE=PASS (page 1 sandbox rendering; 2-page text boundaries)'
+
+  disposable-research-db:
+    name: Disposable synthetic PostgreSQL research RPC acceptance
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: synthetic-ci-only
+          POSTGRES_DB: arbor_synthetic
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d arbor_synthetic"
+          --health-interval 5s --health-timeout 3s --health-retries 12
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: synthetic-ci-only
+      PGDATABASE: arbor_synthetic
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply synthetic auth/project fixture to ephemeral CI container
+        run: psql -v ON_ERROR_STOP=1 -f ops/research/disposable-db/00-fixture.sql
+      - name: Apply proposed research SQL to disposable container ONLY
+        run: psql -v ON_ERROR_STOP=1 -f docs/research/sql/PROPOSED_arbor_research_sessions.sql
+      - name: Exercise claim, settlement, idempotency, owner RLS and STOP
+        run: psql -v ON_ERROR_STOP=1 -f ops/research/disposable-db/10-acceptance.sql
+      - name: Exercise deadline, expiry, fencing, STOP and revocation boundaries
+        run: psql -v ON_ERROR_STOP=1 -f ops/research/disposable-db/20-boundaries.sql
+      - name: Race independent PostgreSQL connections for claim and settlement
+        run: bash ops/research/disposable-db/30-concurrency.sh
+      - name: Verify lock-wait deadline and lease-expiry fences
+        run: bash ops/research/disposable-db/40-lock-waits.sh
+      - name: Race STOP against settlement in independent connections
+        run: bash ops/research/disposable-db/50-stop-race.sh
+
   control-backend:
     name: Control backend test + build
     runs-on: ubuntu-latest

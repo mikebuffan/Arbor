@@ -102,3 +102,16 @@ Legend: [x] draft code plus relevant exact-head CI evidence exists; [~] partial/
 - #175 exact-head CI SUCCESS run `35798175895`; sibling #177 exact-head CI SUCCESS run `35799355793`. Combination NOT tested; integration plan in `docs/research/PRIVACY_SIBLING_RECONCILIATION_20260922.md`.
 - #180 late-settlement synthetic tests still have NO associated exact-head CI run at latest inspection. Its code is partial; no SQL concurrency proof. Vercel free daily deployment cap reported on PR, separate from test result.
 - The master list's earlier 'current top #175' and 'CI pending for #175' are historical snapshots, not latest status. Newest working draft is #180 stacked on #175; #177 remains sibling. No merge, deployment, production database, real-source execution or publication performed.
+
+## 2026-09-22 privacy integration code checkpoint
+- Created draft #181 stacked on #180 (not a merge). Imported sibling #177 `privacyReviewLedger.ts` and its five tests unchanged alongside #175 `privacyRedactionReview.ts` and existing `publicationPreflight.ts`.
+- Added `privacyContractReconciliation.test.ts` with three synthetic cross-module regressions: declared artifact remains HOLD; withheld/missing artifact flags block preflight; clean ledger without publication review remains HOLD. No real/private data processed.
+- Exact-head #181 CI is PENDING/NO RUN at inspection; #180 parent CI also not yet verified. #175 and #177 individually passed, not the combination. Vercel preview cap is separate from backend test evidence.
+- Remaining: verify #181 exact head, repair failures, then approved benign PDF/manual page acceptance (item 18), disposable DB race/role acceptance (items 40–45), worker integration and explicitly authorized unattended benign test. No merge, deployment, live source ingestion, scheduler, real-file analysis or publication performed.
+
+## 2026-09-22 authorized-test follow-up and race fix
+- User explicitly approved independently published harmless PDF test and isolated no-cost synthetic-only DB testing; NOT live sources, production changes, paid resources, merge/deploy or release.
+- Exact combined CI head `a4666c4d292d87201045d9d59ed2632779129518`, run `35802047490`: backend test/build SUCCESS; control backend test/build SUCCESS; synthetic PDF sandbox smoke SUCCESS; Flutter job CANCELLED during Android debug APK build (not green overall). CI-only bridge #182 DO NOT MERGE; canonical #181.
+- IRS blank 2025 Form 1040 original PDF viewer confirmed 2 physical pages and page 1 line 11a/page 2 line 11b, but engineering runtime DNS failed; no original bytes/hash or ARK external PDF acceptance. See `BENIGN_PDF_AND_DISPOSABLE_DB_ACCEPTANCE_20260922.md`.
+- Supabase ARK Preview read-only inventory: PostgreSQL 17.6, role postgres; NOT treated as disposable; no SQL schema applied. No free isolated DB verified yet.
+- Found and repaired a proposed SQL TOCTOU bug: `v_now` captured before row-lock waits could allow late claim/settle. Proposed claim now samples time after session lock; settle samples time after session+unit locks. Commit `efa4570899e0278bac999df4b46050e07b74d90e`. This is a draft SQL review correction, NOT DB-tested or production-applied. Re-run CI on changed head; DB race matrix still required.
