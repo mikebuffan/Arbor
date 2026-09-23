@@ -111,7 +111,7 @@ create or replace function public.arbor_claim_research_unit(
 ) returns jsonb language plpgsql security definer set search_path = public, pg_temp as $$
 declare v_session public.arbor_research_sessions%rowtype;
         v_unit public.arbor_research_units%rowtype;
-        v_now timestamptz := clock_timestamp();
+        v_now timestamptz;
 begin
   if auth.role() is distinct from 'service_role' then
     raise exception 'research_worker_service_role_required';
@@ -124,6 +124,8 @@ begin
     where id=p_session_id and user_id=p_user_id and project_id=p_project_id
     for update;
   if not found then return null; end if;
+  -- Re-read time AFTER the session row lock, not before waiting on it.
+  v_now := clock_timestamp();
   if v_session.status in ('cancelled','completed','timebox_ended','paused','blocked') then
     return null;
   end if;
@@ -186,7 +188,7 @@ create or replace function public.arbor_settle_research_unit(
 ) returns text language plpgsql security definer set search_path = public, pg_temp as $$
 declare v_session public.arbor_research_sessions%rowtype;
         v_unit public.arbor_research_units%rowtype;
-        v_now timestamptz := clock_timestamp();
+        v_now timestamptz;
         v_status text;
 begin
   if auth.role() is distinct from 'service_role' then
@@ -200,6 +202,8 @@ begin
     where id=p_unit_id and session_id=p_session_id
       and user_id=p_user_id and project_id=p_project_id for update;
   if not found then return 'lease_lost'; end if;
+  -- Re-read time AFTER both row locks; a lock wait must not permit a late settle.
+  v_now := clock_timestamp();
   if exists(select 1 from public.arbor_research_receipts
       where unit_id=p_unit_id and lease_token=p_lease_token) then
     return 'duplicate';
