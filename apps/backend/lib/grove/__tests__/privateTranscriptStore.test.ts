@@ -38,7 +38,9 @@ const row = (input: {
 });
 function fakeStore() {
   const records = new Map<string, GrovePrivateTranscriptRow>();
-  const claims = new Map<string, string>();
+  const claims = new Map<string, {text:string; token:string}>();
+  let claimSequence=0;
+  const nextToken=()=>`00000000-0000-4000-8000-${String(++claimSequence).padStart(12,"0")}`;
   const key = (s: typeof scope, id: string) =>
     [s.groveUserId, s.projectId, s.conversationId, id].join(":");
   const store: GrovePrivateTranscriptStore = {
@@ -47,11 +49,15 @@ function fakeStore() {
     },
     async claimPending(s) {
       const k = key(s, s.requestId);
+      if (records.has(k)) return { status: "completed" as const };
       const found = claims.get(k);
       if (found !== undefined)
-        return found === s.userText ? "in_progress" as const : "conflict" as const;
-      claims.set(k, s.userText);
-      return "claimed" as const;
+        return found.text === s.userText
+          ? { status: "in_progress" as const }
+          : { status: "conflict" as const };
+      const token=nextToken();
+      claims.set(k, {text:s.userText,token});
+      return { status: "claimed" as const, leaseToken:token };
     },
     async listRecent(s) {
       return [...records.values()].filter(r =>
@@ -61,6 +67,8 @@ function fakeStore() {
     },
     async persistCompleted(s) {
       const k = key(s, s.requestId);
+      if (claims.get(k)?.token !== s.leaseToken)
+        throw new Error("grove_private_claim_lost");
       const found = records.get(k);
       if (found) {
         if (found.user_text !== s.userText)
@@ -76,7 +84,7 @@ function fakeStore() {
       return { row: saved, created: true };
     },
   };
-  return { store, records };
+  return { store, records, claims };
 }
 const flags = {
   chatEnabled: true, modelEnabled: true,
@@ -532,7 +540,7 @@ describe("Grove-only private conversation durability (fixtures, migration OFF)",
 
 describe("Private model lease RPC (disposable client mock only)", () => {
   it("passes only scoped IDs + SHA-256, never raw text or browser credentials", async () => {
-    const rpc = vi.fn(async () => ({data:"claimed",error:null}));
+    const rpc = vi.fn(async () => ({data:{status:"claimed",leaseToken:firstId},error:null}));
     const store = createSupabaseGrovePrivateTranscriptStore({rpc} as never);
     expect(await store.claimPending({
       ...scope,requestId:firstId,userText:"A private message",
@@ -548,7 +556,7 @@ describe("Private model lease RPC (disposable client mock only)", () => {
   it("fails closed when SQL migration/RPC is unavailable or returns unknown state", async () => {
     const rpc=vi.fn()
       .mockResolvedValueOnce({data:null,error:{message:"RPC missing"}})
-      .mockResolvedValueOnce({data:"success",error:null});
+      .mockResolvedValueOnce({data:{status:"success"},error:null});
     const store=createSupabaseGrovePrivateTranscriptStore({rpc} as never);
     const input={...scope,requestId:firstId,userText:"Await approval"};
     await expect(store.claimPending(input)).rejects.toMatchObject({
