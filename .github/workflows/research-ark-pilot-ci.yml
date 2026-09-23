@@ -1,0 +1,43 @@
+name: Research ARK PDF pilot — isolated source acceptance
+
+on:
+  push:
+    branches:
+      - feature/research-offline-pdf-batch-pilot-20260923
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: research-ark-pilot-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  research-ark-pilot:
+    name: ARK research bridge and isolated PDF pilot tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      OPENAI_API_KEY: ci-placeholder-not-a-real-key
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: corepack enable
+      - run: corepack prepare pnpm@10.30.3 --activate
+      - run: pnpm install --frozen-lockfile
+      - name: Install Poppler for harmless synthetic fixture test
+        run: |
+          if ! command -v pdfinfo >/dev/null || ! command -v pdftotext >/dev/null || ! command -v pdfimages >/dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y poppler-utils
+          fi
+      - name: Run ARK session bridge, Docker args, and benign PDF tests
+        run: |
+          pnpm --filter firefly-backend exec vitest run             lib/research/registerArkResearchSessionExecutor.test.ts             lib/research/arkResearchHandoff.test.ts             lib/research/isolatedPdfParser.test.ts             lib/research/offlinePdfBatchPilot.test.ts             lib/research/localPdfParser.test.ts
+      - name: Build backend to typecheck new research adapter
+        run: pnpm --filter firefly-backend build
+      - name: Report scope
+        run: echo 'ARK_RESEARCH_PILOT_SOURCE_CI=PASS; NO_LIVE_ARK_WORKER=TRUE; NO_EXTERNAL_EFTA_PDF=TRUE'
