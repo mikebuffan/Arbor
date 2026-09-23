@@ -277,6 +277,7 @@ void main() {
     expect(api.query, {
       'projectId': project, 'conversationId': conversation,
     });
+    api.postResult = reply();
     final result = await client.send(
       projectId: project, conversationId: conversation,
       requestId: requestId, text: 'Continue our work.',
