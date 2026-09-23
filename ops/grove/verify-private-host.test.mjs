@@ -11,7 +11,8 @@ function fixture(changes = {}) {
     const url = new URL(input);
     called.push({path:url.pathname,method:options.method,
       cache:options.cache,redirect:options.redirect});
-    const result = changes[url.pathname] ?? {};
+    const result = changes[url.pathname + "#" + options.method] ??
+      changes[url.pathname] ?? {};
     return new Response(null, {
       status: result.status ??
         (url.pathname === "/api/grove/ark/projects" &&
@@ -72,7 +73,7 @@ test("a public Firefly route or static asset unexpectedly exposed is HOLD", asyn
   }
 });
 test("private host must deny browser preflight and cross-origin CORS", async () => {
-  const f = fixture({"/api/grove/ark/projects":{cors:true}});
+  const f = fixture({"/api/grove/ark/projects#OPTIONS":{cors:true}});
   await assert.rejects(
     verifyPrivateGroveHost(origin,{request:f.request}),
     /grove_host_method_or_cors_failed/,
@@ -81,7 +82,7 @@ test("private host must deny browser preflight and cross-origin CORS", async () 
 
 test("missing authentication cannot return project discovery or server error", async () => {
   for (const status of [200,404,500,302]) {
-    const f = fixture({"/api/grove/ark/projects":{status}});
+    const f = fixture({"/api/grove/ark/projects#GET":{status}});
     await assert.rejects(
       verifyPrivateGroveHost(origin,{request:f.request}),
       /grove_host_auth_boundary_unverified/,
