@@ -39,7 +39,7 @@ import type { ScopedHopEvidence } from "@/lib/learning/cognitiveAssembly";
  */
 
 export class GrovePrivateRequestError extends Error {
-  constructor(readonly status: 400 | 413 | 415, readonly code: string) {
+  constructor(readonly status: 400 | 413 | 415 | 503, readonly code: string) {
     super(code);
     this.name = "GrovePrivateRequestError";
   }
@@ -173,7 +173,7 @@ export async function prepareVerifiedPrivateGroveTurn(input: {
   if (features.cognitivePreviewEnabled) {
     const provider = deps.cognitiveRetrieval;
     if (!provider)
-      throw new RouteAccessError(503, "grove_cognitive_retrieval_not_ready");
+      throw new GrovePrivateRequestError(503, "grove_cognitive_retrieval_not_ready");
     // The cognitive project's stored learning and active conversation context
     // are separately scoped; neither a browser nor model supplies the goal.
     const verified: CognitiveHostReadResult =
