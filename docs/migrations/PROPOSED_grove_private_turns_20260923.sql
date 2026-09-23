@@ -43,6 +43,12 @@ CREATE INDEX IF NOT EXISTS grove_private_turns_recent
 
 ALTER TABLE public.grove_private_turns ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.grove_private_turns FROM anon, authenticated;
+-- Supabase has broad default table grants to service_role. This private
+-- transcript store needs only authenticated-by-host SELECT and INSERT;
+-- revocation uses the project-grant FK's ON DELETE CASCADE, not a direct
+-- client or model-issued DELETE. Keep UPDATE/DELETE unavailable to this role.
+REVOKE ALL ON public.grove_private_turns FROM service_role;
+GRANT SELECT, INSERT ON public.grove_private_turns TO service_role;
 -- No client-facing policy. Only authorized Grove SERVER code using a
 -- server-only service role after Grove JWT+invitation+bridge+explicit grant+
 -- Firefly project+conversation checks can read/write.
