@@ -20,6 +20,16 @@ function number(value: unknown, key: string): number {
   }
   return value;
 }
+function boolean(value: unknown, key: string): boolean {
+  if (typeof value !== "boolean") throw new Error("invalid_research_db_" + key);
+  return value;
+}
+function stringArray(value: unknown, key: string): string[] {
+  if (!Array.isArray(value) || value.some(item => typeof item !== "string" || !item.trim())) {
+    throw new Error("invalid_research_db_" + key);
+  }
+  return [...value];
+}
 function sessionFromRow(value: unknown): ResearchSession {
   const r = row(value);
   const result: ResearchSession = {
@@ -34,11 +44,10 @@ function sessionFromRow(value: unknown): ResearchSession {
     consumedWorkUnits: number(r.consumed_work_units,"consumed_work_units"),
     maxCostCents: number(r.max_cost_cents,"max_cost_cents"),
     committedCostCents: number(r.committed_cost_cents,"committed_cost_cents"),
-    authorized: r.authorized === true,
-    cancellationRequested: r.cancellation_requested === true,
+    authorized: boolean(r.authorized,"authorized"),
+    cancellationRequested: boolean(r.cancellation_requested,"cancellation_requested"),
     unresolvedRequiredWork: number(r.unresolved_required_work,"unresolved_required_work"),
-    completedEvidenceRefs: Array.isArray(r.completed_evidence_refs)
-      ? r.completed_evidence_refs.filter((x):x is string=>typeof x==="string") : [],
+    completedEvidenceRefs: stringArray(r.completed_evidence_refs,"completed_evidence_refs"),
   };
   validateResearchSession(result);
   return result;
