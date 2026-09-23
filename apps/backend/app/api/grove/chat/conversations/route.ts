@@ -3,6 +3,7 @@ import { z } from "zod";
 import { RouteAccessError } from "@/lib/auth/routeAuthorization";
 import {
   readPrivateGroveConversations,
+  createPrivateGroveConversation,
 } from "@/lib/grove/privateReadBroker";
 import { grovePrivateTurnFeatures } from "@/lib/grove/privateConversationLoop";
 
@@ -49,5 +50,44 @@ export async function GET(req: Request) {
     if (error instanceof RouteAccessError)
       return json({ ok: false, error: error.code }, error.status);
     return json({ ok: false, error: "grove_private_conversations_unavailable" }, 500);
+  }
+}
+
+/**
+ * Explicit private owner action; never auto-create on GET, startup or send.
+ * Uses existing Firefly conversations table through Grove's verified broker.
+ * POST is not safe to auto-retry if the response is lost; caller refreshes GET.
+ * Separate Grove deployment + chat preview flags remain OFF by default.
+ */
+export async function POST(req: Request) {
+  if (!grovePrivateTurnFeatures().chatEnabled)
+    return json({ ok: false, error: "grove_private_chat_not_enabled" }, 404);
+  try {
+    if (!(req.headers.get("content-type") ?? "")
+        .toLowerCase().startsWith("application/json"))
+      return json({ ok: false, error: "grove_private_json_required" }, 415);
+    const text = await req.text();
+    if (text.length > 1024)
+      return json({ ok: false, error: "grove_private_create_body_invalid" }, 413);
+    let body: unknown;
+    try { body = JSON.parse(text); } catch {
+      return json({ ok: false, error: "grove_private_create_body_invalid" }, 400);
+    }
+    const { projectId } = paramsSchema.parse(body);
+    const conversation = await createPrivateGroveConversation(req, projectId);
+    return json({
+      ok: true,
+      projectId,
+      conversation,
+      created: true,
+      grantsExecution: false,
+      verifiesCompletion: false,
+    }, 201);
+  } catch (error) {
+    if (error instanceof z.ZodError)
+      return json({ ok: false, error: "grove_private_create_body_invalid" }, 400);
+    if (error instanceof RouteAccessError)
+      return json({ ok: false, error: error.code }, error.status);
+    return json({ ok: false, error: "grove_private_conversation_create_unavailable" }, 500);
   }
 }
