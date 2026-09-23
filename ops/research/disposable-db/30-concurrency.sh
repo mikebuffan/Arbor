@@ -20,27 +20,27 @@ values ('$unit','$session','$user','$project','concurrent-unit','synthetic',1);
 SQL
 claim_sql="set request.jwt.claim.role='service_role'; select coalesce(public.arbor_claim_research_unit('$session','$user','$project','concurrent-worker')::text,'NULL');"
 # Two independent database connections race to claim one unit.
-psql -X -v ON_ERROR_STOP=1 -At -c "$claim_sql" > "$workdir/claim-a" &
+psql -X -q -v ON_ERROR_STOP=1 -At -c "$claim_sql" > "$workdir/claim-a" &
 pid_a=$!
-psql -X -v ON_ERROR_STOP=1 -At -c "$claim_sql" > "$workdir/claim-b" &
+psql -X -q -v ON_ERROR_STOP=1 -At -c "$claim_sql" > "$workdir/claim-b" &
 pid_b=$!
 wait "$pid_a"
 wait "$pid_b"
 claims="$(grep -h -c '"leaseToken"' "$workdir/claim-a" "$workdir/claim-b" | awk '{s+=$1} END {print s+0}')"
 test "$claims" -eq 1 || { echo "Expected one concurrent claim, got $claims"; exit 1; }
-token="$(psql -X -v ON_ERROR_STOP=1 -At -c "select lease_token from public.arbor_research_units where id='$unit'")"
+token="$(psql -X -q -v ON_ERROR_STOP=1 -At -c "select lease_token from public.arbor_research_units where id='$unit'")"
 test -n "$token"
 settle_sql="set request.jwt.claim.role='service_role'; select public.arbor_settle_research_unit('$session','$user','$project','$unit','$token','concurrent-unit','completed',1,array['synthetic:concurrent'],0,'{}'::jsonb);"
-psql -X -v ON_ERROR_STOP=1 -At -c "$settle_sql" > "$workdir/settle-a" &
+psql -X -q -v ON_ERROR_STOP=1 -At -c "$settle_sql" > "$workdir/settle-a" &
 pid_a=$!
-psql -X -v ON_ERROR_STOP=1 -At -c "$settle_sql" > "$workdir/settle-b" &
+psql -X -q -v ON_ERROR_STOP=1 -At -c "$settle_sql" > "$workdir/settle-b" &
 pid_b=$!
 wait "$pid_a"
 wait "$pid_b"
 grep -qx committed "$workdir/settle-a" && grep -qx duplicate "$workdir/settle-b" ||
 grep -qx duplicate "$workdir/settle-a" && grep -qx committed "$workdir/settle-b" ||
 { echo 'Concurrent duplicate settlement violated'; cat "$workdir/settle-a" "$workdir/settle-b"; exit 1; }
-receipt_count="$(psql -X -v ON_ERROR_STOP=1 -At -c "select count(*) from public.arbor_research_receipts where session_id='$session'")"
-spent="$(psql -X -v ON_ERROR_STOP=1 -At -c "select committed_cost_cents from public.arbor_research_sessions where id='$session'")"
+receipt_count="$(psql -X -q -v ON_ERROR_STOP=1 -At -c "select count(*) from public.arbor_research_receipts where session_id='$session'")"
+spent="$(psql -X -q -v ON_ERROR_STOP=1 -At -c "select committed_cost_cents from public.arbor_research_sessions where id='$session'")"
 test "$receipt_count" = 1 && test "$spent" = 1 || { echo 'Duplicate spend or receipt'; exit 1; }
 echo 'DISPOSABLE_DB_TRUE_CONCURRENCY=PASS (two independent claimers, two independent settlers)'
