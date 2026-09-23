@@ -15,6 +15,7 @@ import 'environment_atmosphere.dart';
 import 'grove_living_window_panel.dart';
 import 'grove_house_room.dart';
 import 'grove_world_panel.dart';
+import 'grove_world_store.dart';
 import 'grove_room_inventory_panel.dart';
 import 'grove_app_mode.dart';
 import 'grove_responsive_wrap.dart';
@@ -405,7 +406,7 @@ class _Surface extends StatelessWidget {
   }
 }
 
-class _Home extends StatelessWidget {
+class _Home extends StatefulWidget {
   const _Home({
     required this.objective,
     required this.runtimeSource,
@@ -418,15 +419,66 @@ class _Home extends StatelessWidget {
   final bool runtimeStale;
   final List<ActivityEvent> activityEvents;
   final ValueChanged<GroveRoomAction> onRoomAction;
+
+  @override
+  State<_Home> createState() => _HomeState();
+}
+
+class _HomeState extends State<_Home> {
+  GroveWorldLoad? _worldLoad;
+  int _worldPanelGeneration = 0;
+
+  void _recordWorldLoad(GroveWorldLoad? loaded) {
+    if (mounted) setState(() => _worldLoad = loaded);
+  }
+
+  void _openHouseAction(GroveRoomAction action) {
+    if (action != GroveRoomAction.moss) {
+      widget.onRoomAction(action);
+      return;
+    }
+    // Tapping Moss in the painting opens the ACTUAL local state controls,
+    // not a fake worker task or an inaccessible panel further down the page.
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: ArborEnvironmentTokens.midnight,
+      builder: (sheetContext) => SafeArea(child: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Row(children: [
+            const Expanded(child: Text('Moss · Local scenery',
+                style: TextStyle(color: ArborEnvironmentTokens.textPrimary,
+                    fontSize: 18))),
+            IconButton(
+              tooltip: 'Close Moss controls',
+              onPressed: () => Navigator.pop(sheetContext),
+              icon: const Icon(Icons.close),
+            ),
+          ]),
+          GroveWorldPanel(onLoaded: _recordWorldLoad),
+        ]),
+      )),
+    ).whenComplete(() {
+      if (mounted) setState(() => _worldPanelGeneration++);
+    });
+  }
+
   @override
   Widget build(BuildContext context) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          GroveHouseRoom(onOpen: onRoomAction),
+          GroveHouseRoom(
+            onOpen: _openHouseAction,
+            worldLoad: _worldLoad,
+          ),
           const SizedBox(height: 16),
           const GroveRoomInventoryPanel(),
           const SizedBox(height: 16),
-          const GroveWorldPanel(),
+          GroveWorldPanel(
+            key: ValueKey('grove-moss-panel-$_worldPanelGeneration'),
+            onLoaded: _recordWorldLoad,
+          ),
           const SizedBox(height: 16),
           const GroveLivingWindowPanel(),
           const SizedBox(height: 16),
@@ -437,10 +489,10 @@ class _Home extends StatelessWidget {
                 children: [
                   const Text('CURRENT OBJECTIVE', style: TextStyle(color: ArborEnvironmentTokens.cyan, fontSize: 11, letterSpacing: 1.4)),
                   const SizedBox(height: 12),
-                  Text(objective.title, style: const TextStyle(color: ArborEnvironmentTokens.textPrimary, fontSize: 20)),
+                  Text(widget.objective.title, style: const TextStyle(color: ArborEnvironmentTokens.textPrimary, fontSize: 20)),
                   const SizedBox(height: 10),
-                  Text(objective.nextAction ?? 'No next action reported.', style: const TextStyle(color: ArborEnvironmentTokens.textMuted)),
-                  if (objective.isDemo) ...[
+                  Text(widget.objective.nextAction ?? 'No next action reported.', style: const TextStyle(color: ArborEnvironmentTokens.textMuted)),
+                  if (widget.objective.isDemo) ...[
                     const SizedBox(height: 16),
                     const Text('DEMO FALLBACK — live ARK state is unavailable.', style: TextStyle(color: ArborEnvironmentTokens.firefly, fontSize: 11)),
                   ],
@@ -451,10 +503,10 @@ class _Home extends StatelessWidget {
                 children: [
                   const Text('HOUSE STATUS', style: TextStyle(color: ArborEnvironmentTokens.violet, fontSize: 11, letterSpacing: 1.4)),
                   const SizedBox(height: 12),
-                  Text(runtimeSource, style: const TextStyle(color: ArborEnvironmentTokens.textPrimary, fontSize: 20)),
+                  Text(widget.runtimeSource, style: const TextStyle(color: ArborEnvironmentTokens.textPrimary, fontSize: 20)),
                   const SizedBox(height: 8),
                   Text(
-                    runtimeStale
+                    widget.runtimeStale
                         ? 'Snapshot is stale/fallback. ARK remains read-only.'
                         : 'Live snapshot is read-only. Environment cannot mutate ARK.',
                     style: const TextStyle(color: ArborEnvironmentTokens.textMuted),
@@ -464,7 +516,7 @@ class _Home extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          ActivityView(events: activityEvents),
+          ActivityView(events: widget.activityEvents),
         ],
       );
 }

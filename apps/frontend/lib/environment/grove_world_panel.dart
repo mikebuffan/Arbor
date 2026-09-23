@@ -8,8 +8,11 @@ import 'grove_world_store.dart';
 /// Interactive *local scenery*. Its activity is explicitly visitor-driven,
 /// not evidence that an ARK worker or a synthetic mind has been active.
 class GroveWorldPanel extends StatefulWidget {
-  const GroveWorldPanel({super.key, this.store});
+  const GroveWorldPanel({super.key, this.store, this.onLoaded});
   final GroveWorldStore? store;
+  /// The parent house uses this device-local snapshot for its scenery marker.
+  /// Null means the store could not be read; never keep displaying stale state.
+  final ValueChanged<GroveWorldLoad?>? onLoaded;
 
   @override
   State<GroveWorldPanel> createState() => _GroveWorldPanelState();
@@ -36,12 +39,15 @@ class _GroveWorldPanelState extends State<GroveWorldPanel> {
         _busy = false;
         _error = null;
       });
+      widget.onLoaded?.call(result);
     } catch (error) {
       if (!mounted) return;
       setState(() {
+        _loaded = null;
         _busy = false;
         _error = 'Cannot read this device\'s Grove state.';
       });
+      widget.onLoaded?.call(null);
     }
   }
 
@@ -56,16 +62,20 @@ class _GroveWorldPanelState extends State<GroveWorldPanel> {
       final next = previous.apply(action, zone: zone, at: DateTime.now());
       await _store.save(next, fromRevision: previous.revision);
       if (!mounted) return;
+      final loaded = GroveWorldLoad(GroveWorldLoadStatus.restored, next);
       setState(() {
-        _loaded = GroveWorldLoad(GroveWorldLoadStatus.restored, next);
+        _loaded = loaded;
         _busy = false;
       });
+      widget.onLoaded?.call(loaded);
     } catch (error) {
       if (!mounted) return;
       setState(() {
+        _loaded = null;
         _busy = false;
         _error = 'Change not saved. State left intact; reopen to reload.';
       });
+      widget.onLoaded?.call(null);
     }
   }
 

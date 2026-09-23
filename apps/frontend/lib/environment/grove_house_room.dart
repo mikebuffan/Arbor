@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'environment_tokens.dart';
 import 'grove_astronomy.dart';
 import 'grove_house_clock.dart';
+import 'grove_world_state.dart';
+import 'grove_world_store.dart';
 import 'grove_window_time_selection.dart';
 
 /// The approved nighttime room is the floor plan: left stairs and shelves,
@@ -16,11 +18,14 @@ class GroveHouseRoom extends StatefulWidget {
     required this.onOpen,
     this.clock,
     this.windowPreview,
+    this.worldLoad,
   });
 
   final ValueChanged<GroveRoomAction> onOpen;
   final GroveHouseClock? clock;
   final GroveWindowTimeSelection? windowPreview;
+  /// Visible LOCAL scenery only; never ARK or model-generated activity.
+  final GroveWorldLoad? worldLoad;
 
   @override
   State<GroveHouseRoom> createState() => _GroveHouseRoomState();
@@ -58,6 +63,7 @@ class _GroveHouseRoomState extends State<GroveHouseRoom> {
     final now = _windowPreview.displayedAt(houseNow);
     final preview = _windowPreview.isPreviewing;
     final sky = GroveAstronomy.at(now, location: _clock.location);
+    final moss = widget.worldLoad?.state;
     final phase = switch (sky.phase) {
       GroveDayPhase.daylight => 'Daylight',
       GroveDayPhase.golden =>
@@ -78,6 +84,7 @@ class _GroveHouseRoomState extends State<GroveHouseRoom> {
       LayoutBuilder(builder: (context, bounds) {
         // Keep the original 709:409 composition and scale all hotspots with it.
         final width = bounds.maxWidth;
+        final height = width * 409 / 709;
         return ClipRRect(
           borderRadius: BorderRadius.circular(18),
           child: SizedBox(
@@ -96,6 +103,39 @@ class _GroveHouseRoomState extends State<GroveHouseRoom> {
                   ),
                 ),
               )),
+              // The approved painting remains untouched. The chip is an
+              // explicit local-state overlay, not a repainted dog or ARK event.
+              if (moss != null)
+                Positioned(
+                  right: width * .025,
+                  bottom: height * .035,
+                  child: Semantics(
+                    label: 'Device-local Moss scene: '
+                      '${moss.mossZone.name}, '
+                      '${moss.mossResting ? 'resting' : 'awake'}',
+                    child: Container(
+                      constraints: BoxConstraints(maxWidth: width * .57),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 9, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xE6102022),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: ArborEnvironmentTokens.cyan, width: .8),
+                      ),
+                      child: Text(
+                        '🐾 MOSS · ${moss.mossZone.name.toUpperCase()} · '
+                        '${moss.mossResting ? 'RESTING' : 'AWAKE'}',
+                        maxLines: 2,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: ArborEnvironmentTokens.textPrimary,
+                          fontSize: width < 450 ? 9 : 12,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               // Keep the approved night painting untouched until a matching
               // daylight window asset exists. A flat golden rectangle obscures
               // the view rather than rendering a believable living window.
@@ -118,6 +158,10 @@ class _GroveHouseRoomState extends State<GroveHouseRoom> {
         );
       }),
       const SizedBox(height: 10),
+      if (moss != null)
+        const Text('Moss badge reflects saved device-local scenery; the approved painting stays unchanged.',
+            style: TextStyle(color: ArborEnvironmentTokens.textMuted,
+                fontSize: 11)),
       const Text('Tap a room feature or use the accessible doors below.',
           style: TextStyle(color: ArborEnvironmentTokens.textMuted,
               fontSize: 12)),
