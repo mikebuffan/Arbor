@@ -3,17 +3,19 @@
 Date: 2026-09-23
 Branch: `chore/research-ci-trigger-cleanup-handoff-20260923`
 Base exact head: `d74a107af8eeda30cb1b477bb9fee4122722679a` (draft PR #201)
-Cleanup commit: `a3a756c07f8ef123fd702d2e6f8afda15dc07b08`
+Cleanup branch current reviewed head before this handoff refresh: `7179920ad35a0bc1a518631549e4af5d1f3da860` (draft PR #207)
 
 ## Verified lineage and current evidence
 
-Re-opened the canonical 64-item master list and re-checked #123 (`0158b395...`) → #131 (`cf000dc8...`) → #134 (`2b938069...`) → #201 (`d74a107...`). No newer research implementation superseding #201 was found; newer Grove work is a separate lane.
+Re-opened the canonical 64-item master list and re-checked #123 → #131 → #134 → #201 → #207. No newer research implementation superseding #201/#207 was found; newer Grove work is a separate lane.
 
 Preserved exact-head evidence: disposable PostgreSQL items 42/45/52 passed on `8330d6be2dcc4b4f1e6502a66d2874ce9a6f4eb4`, Actions run `35871998690`; research-side ARK handoff tests passed on exact #201 head `d74a107af8eeda30cb1b477bb9fee4122722679a`, Arbor Integration CI run `35873618991`. This is synthetic/disposable CI evidence only, not live worker/deployment acceptance.
 
+Item 8 now has a separate read-only verification receipt: Integration CI run `35904677599`, job `Pinned research item-8 workflow cleanup (offline; no research data)` SUCCESS. That job read exact Git object `7179920ad35a0bc1a518631549e4af5d1f3da860`, compared it to verified #201 `d74a107af8eeda30cb1b477bb9fee4122722679a`, proved the only changed paths were `.github/workflows/arbor-ci.yml` and this handoff, and verified the pinned workflow retains only `main` / `arbor-linear-runtime` pull-request targets plus main push. It did not fetch PDFs, read EFTA/victim data, apply migrations, run the research worker/scheduler, merge, deploy, or publish. This verifies item 8 cleanup for its exact source scope; it is not a research release receipt.
+
 ## Dependency-ordered remaining checklist
 
-1. **Item 8 — CODE COMPLETE / VERIFICATION HOLD:** removed all temporary stacked research `pull_request` base targets from `.github/workflows/arbor-ci.yml`; retained only `main` and `arbor-linear-runtime`. Because this cleanup deliberately removes the trigger path for this stacked branch, no PR workflow run was created for cleanup commit `a3a756c...`. Do not call item 8 CI-verified until an authorized non-deploying verification path checks the exact cleanup head.
+1. **Item 8 — VERIFIED FOR SOURCE/CLEANUP SCOPE:** temporary stacked research `pull_request` base targets are removed; ordinary `main` and `arbor-linear-runtime` targets remain. Receipt: run `35904677599` against pinned exact object `7179920...`. Preserve this; do not recreate CI bridges.
 2. **Item 18 — PARTIAL / HUMAN HOLD:** engineering acceptance against blank independently published IRS 2025 Form 1040 is green; human rendered-page/line-order fidelity receipt remains missing.
 3. **Item 22 — CONDITIONAL:** opt-in OCR only if manual fidelity review demonstrates it is required.
 4. **Item 23 — CONDITIONAL:** glyph/box geometry only if exact visual highlighting becomes a real requirement.
@@ -31,11 +33,12 @@ Preserved exact-head evidence: disposable PostgreSQL items 42/45/52 passed on `8
 
 ## This run
 
-- Verified canonical master and current research lineage before editing.
-- Removed only temporary research PR base filters; ordinary `main` and `arbor-linear-runtime` CI targets remain.
-- No duplicate engine, runner, schema, parser, adapter, or evidence module created.
+- Re-opened the canonical master from the current research lineage rather than relying on default branch, where it is absent.
+- Reconciled current PR heads and confirmed #207 remains the newest research-specific branch; later PRs are Grove/integration work and do not supersede the research engine.
+- Promoted item 8 from verification HOLD to verified source/cleanup scope only, based on the independent pinned-object CI receipt above.
+- Refreshed this saved handoff without creating a duplicate engine or implementation.
 - No merge, deployment, production DB/migration, live worker change, scheduler activation, paid API use, EFTA/private/victim-data processing, or publication.
 
 ## Next numbered item
 
-**NEXT: item 8 exact-head verification if a safe non-deploying path is available; otherwise item 18 human fidelity review remains the next independent gate.** Live/source/privacy/publication items remain blocked pending explicit authorization.
+**NEXT: item 18 human rendered-page/line-order fidelity review.** This is a human/manual gate and cannot be honestly completed by source CI alone. If that review shows OCR is necessary, proceed to conditional item 22; otherwise skip OCR. Independent safe engineering beyond this point is largely exhausted until explicit authorization for live integration, real-source capture, scheduler/unattended execution, privacy-sensitive processing, or publication.
