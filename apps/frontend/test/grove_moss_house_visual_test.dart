@@ -50,6 +50,40 @@ void main() {
         reason: 'Unknown stored versions must not become invented scenery');
   });
 
+  testWidgets('tapping Moss in the painting opens genuine local controls',
+      (tester) async {
+    tester.view.physicalSize = const Size(1000, 1900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(
+        const MaterialApp(home: ArborEnvironmentShell()));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    await tester.ensureVisible(
+        find.widgetWithText(OutlinedButton, 'Moss'));
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Moss'));
+    await tester.pump();
+    expect(find.text('Moss · Local scenery'), findsOneWidget);
+    final inSheet = find.descendant(
+      of: find.byType(BottomSheet),
+      matching: find.widgetWithText(OutlinedButton, 'Moss on rug'),
+    );
+    expect(inSheet, findsOneWidget);
+    await tester.tap(inSheet);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.text('🐾 MOSS · RUG · RESTING'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Close Moss controls'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('Moss · Local scenery'), findsNothing);
+    final saved = await GroveWorldStore().load();
+    expect(saved.state!.mossZone, GroveZone.rug);
+  });
+
   testWidgets('home updates Moss marker after actual saved panel interaction',
       (tester) async {
     tester.view.physicalSize = const Size(1050, 1900);
