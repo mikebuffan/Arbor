@@ -426,7 +426,7 @@ describe("future private Grove conversation scope (NO chat route)", () => {
       await expect(authorizePrivateGroveConversation(
         req(), project, conversation,
       )).rejects.toMatchObject({
-        status: 400, code: "grove_invalid_conversation_scope",
+        status: 404, code: "grove_invalid_conversation_scope",
       });
     }
     expect(mocks.createClient).not.toHaveBeenCalled();
