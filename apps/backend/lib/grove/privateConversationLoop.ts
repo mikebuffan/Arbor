@@ -61,6 +61,8 @@ export type GrovePrivateTurnFeatures = {
   cognitivePreviewEnabled: boolean;
   /** An independent approval gate; old draft chat behavior remains unchanged. */
   transcriptEnabled?: boolean;
+  /** Separate migration-approved distributed lease gate, DEFAULT OFF. */
+  claimEnabled?: boolean;
 };
 
 export function grovePrivateTurnFeatures(
@@ -71,6 +73,7 @@ export function grovePrivateTurnFeatures(
     modelEnabled: env.GROVE_PRIVATE_MODEL_TURN_ENABLED === "true",
     cognitivePreviewEnabled: env.GROVE_COGNITIVE_PREVIEW_ENABLED === "true",
     transcriptEnabled: env.GROVE_PRIVATE_TRANSCRIPT_ENABLED === "true",
+    claimEnabled: env.GROVE_PRIVATE_CLAIM_ENABLED === "true",
   };
 }
 
@@ -323,6 +326,43 @@ export async function respondToVerifiedPrivateGroveTurn(input: {
         grantsExecution: false, verifiesCompletion: false,
       };
     }
+  }
+  // An active transcript model pilot MUST use the separately reviewed
+  // PostgreSQL claim gate. Without the proposed migration and explicit flag,
+  // fail CLOSED rather than double-charge concurrent serverless requests.
+  if (transcript && transcriptScope) {
+    if (!features.claimEnabled)
+      throw new GrovePrivateRequestError(503, "grove_private_claim_not_enabled");
+    const decision = await transcript.store.claimPending({
+      ...transcriptScope, requestId: transcript.requestId, userText,
+    });
+    // Scope may have been revoked during a contested claim.
+    await input.prepared.reauthorize();
+    if (decision === "no_access")
+      throw new RouteAccessError(403, "grove_private_access_changed");
+    if (decision === "conflict")
+      throw new RouteAccessError(409, "grove_transcript_request_conflict");
+    if (decision === "in_progress") {
+      // A competing worker may have completed between the first read and
+      // this claim. Recover its canonical saved reply if it did.
+      const finished = await transcript.store.getCompleted({
+        ...transcriptScope, requestId: transcript.requestId,
+      });
+      if (finished) {
+        if (finished.user_text !== userText)
+          throw new RouteAccessError(409, "grove_transcript_request_conflict");
+        return {
+          status: "responded",
+          reply: transcriptRowToUnverifiedReply(finished, transcriptScope),
+          persisted: true, replayed: true,
+          requestId: transcript.requestId,
+          grantsExecution: false, verifiesCompletion: false,
+        };
+      }
+      throw new RouteAccessError(409, "grove_private_request_in_progress");
+    }
+    if (decision !== "claimed")
+      throw new RouteAccessError(409, "grove_private_claim_invalid");
   }
   const history = transcript && transcriptScope
     ? selectPrivateModelHistory({
