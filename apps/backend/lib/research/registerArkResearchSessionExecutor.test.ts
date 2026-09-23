@@ -126,6 +126,22 @@ describe("ARK registry -> persisted research tick (source only, no scheduler)",(
     })).rejects.toThrow("research_ark_claim_scope_mismatch");
     expect(forged.resolve).not.toHaveBeenCalled();
   });
+  it("blocks exhausted research pending review instead of endless 60-second ARK checkpoints",async()=>{
+    const b=binding({
+      loadSession:vi.fn(async()=>({...session,unresolvedRequiredWork:0})),
+    });
+    const {executor}=fixture(vi.fn(async()=>b));
+    const result=await executor({claim,heartbeat:async()=>{}});
+    expect(result).toMatchObject({
+      status:"blocked",
+      blocker:{
+        kind:"high_consequence_fork",
+        message:"Research units exhausted; independent source/privacy review required.",
+      },
+    });
+    expect(b.store.claimOne).not.toHaveBeenCalled();
+    expect(b.store.settle).not.toHaveBeenCalled();
+  });
   it("blocks a missing persisted research session without claiming success",async()=>{
     const b=binding({loadSession:async()=>null});
     const {executor}=fixture(vi.fn(async()=>b));
