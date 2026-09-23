@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   flags: vi.fn(),
@@ -25,6 +25,7 @@ const req = (query = "projectId=" + projectId) =>
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.stubEnv("GROVE_PRIVATE_NEW_CONVERSATION_ENABLED", "true");
   mocks.flags.mockReturnValue({
     chatEnabled: true, modelEnabled: false, transcriptEnabled: false,
     cognitivePreviewEnabled: false,
@@ -43,6 +44,8 @@ beforeEach(() => {
     mayBeTruncated: false,
   });
 });
+
+afterEach(() => vi.unstubAllEnvs());
 
 describe("Grove existing-conversation discovery endpoint", () => {
   it("defaults OFF before parsing query or accessing a provider", async () => {
@@ -116,6 +119,13 @@ describe("Grove explicitly requested NEW conversation endpoint", () => {
       "Content-Type": contentType,
     },
     body: typeof body === "string" ? body : JSON.stringify(body),
+  });
+
+  it("separate new-thread write flag defaults OFF even when private Text is ON", async () => {
+    vi.stubEnv("GROVE_PRIVATE_NEW_CONVERSATION_ENABLED", "");
+    const res = await POST(createRequest({ projectId }));
+    expect(res.status).toBe(404);
+    expect(mocks.create).not.toHaveBeenCalled();
   });
 
   it("does not create a conversation when chat preview is OFF", async () => {
