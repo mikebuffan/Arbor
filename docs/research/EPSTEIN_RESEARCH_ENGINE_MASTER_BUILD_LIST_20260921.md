@@ -54,10 +54,10 @@ Legend: [x] relevant implementation plus exact-head CI evidence exists for the s
 39. [x] Research Vitest discovery fixed.
 40. [x] No-cost isolated synthetic PostgreSQL 17 CI service exercises proposed research SQL; no real user data or production DB.
 41. [~] Owner/RLS acceptance is exercised synthetically; full service-role matrix remains before production integration.
-42. [ ] Security review of search_path/SECURITY DEFINER/EXECUTE privileges remains required before any production application.
+42. [x] Disposable PostgreSQL security privilege/SECURITY DEFINER matrix PASS on exact head `8330d6be2dcc4b4f1e6502a66d2874ce9a6f4eb4`, run `35871998690`, receipt `DISPOSABLE_DB_SECURITY_PRIVILEGE_MATRIX=PASS`. Target-production role/owner/security review remains separately gated.
 43. [x] Disposable CI exercises claim/settlement/idempotency/owner RLS/STOP, deadline/expiry/fencing/revocation, independent-connection concurrency, lock-wait fences and STOP-vs-settlement race. Verified run `35806979345`. Disposable DB evidence only.
 44. [x] Advisory late-settlement policy plus SQL lock-time resampling repair verified; database remains authoritative.
-45. [~] **REPAIRED ON #199; EXACT-HEAD CI ABSENT.** Existing cost reservation and bounded receipts are now joined by disposable PostgreSQL coverage for failed receipt + retry delay, terminal `max_attempts`, stalled active-lease fencing, reclaim after expiry, bounded attempt increment, cost accounting and no false completion. #189 exact-head CI failed twice; #199 corrected test isolation. Do not mark [x] until #199 exact-head disposable PostgreSQL acceptance passes.
+45. [x] Corrected attempt/failure/stalled-lease acceptance PASS on exact descendant head `8330d6be2dcc4b4f1e6502a66d2874ce9a6f4eb4`, run `35871998690`, receipt `DISPOSABLE_DB_ATTEMPT_FAILURE_STALL=PASS`. Disposable scope only.
 46. [x] Evidence-backed completion verifier exists; synthetic rehearsal rejects evidence-free completion and never equates budget exhaustion with completed.
 
 ## 5. Worker wiring and unattended acceptance
@@ -66,9 +66,9 @@ Legend: [x] relevant implementation plus exact-head CI evidence exists for the s
 49. [ ] **BLOCKED — live integration approval:** production immutable evidence writes + Pattern Hop suggestions.
 50. [x] Pure provenance-preserving lead dedupe verified; no persistence/integration claim.
 51. [ ] **BLOCKED — separate scheduler authorization:** default-OFF scoped scheduler.
-52. [~] Synthetic one-tick worker rehearsal: one receipt per tick, STOP fencing, crash/lease-expiry recovery, evidence-free completion rejection. Backend CI verified at #181. Deterministic simulated full persisted session remains after item 45 exact-head verification.
+52. [x] Disposable persisted-session simulation PASS on exact head `8330d6be2dcc4b4f1e6502a66d2874ce9a6f4eb4`, run `35871998690`, receipt `DISPOSABLE_PERSISTED_SESSION_SIMULATION=PASS; INDEPENDENT_COMPLETION_REVIEW=HOLD`. This does not verify live unattended execution.
 53. [ ] **BLOCKED — explicit benign unattended-run approval:** genuine unattended benign-source hour.
-54. [ ] Same-user project isolation and cross-session handoff before Grove/voice attachment.
+54. [~] Research-side ARK/Layer compatibility contract prepared against exact #160/#191 heads; same-user project isolation, trusted handoff receipts, restart reload, STOP propagation and no-Grove-transcript boundary specified. Code integration/acceptance remains pending branch reconciliation.
 55. [ ] Real phone/operator acceptance; never infer worker liveness from read-only UI.
 56. [ ] Separate production/deployment/scheduler/expenditure approval.
 
@@ -102,3 +102,26 @@ Current isolated draft: #189, branch `feat/ark-research-disposable-attempt-matri
 - Item 45 BLOCKED FOR VERIFICATION: needs approved disposable PostgreSQL execution / safe CI-only trigger that does not invoke deployment. Do not use a main-base PR bridge if it triggers preview/deployment. Item 52 remains waiting for verified 45; no mock-only promotion.
 - Item 42 preliminary read-only source audit: proposed SQL enables RLS, revokes table access from anon/authenticated before granting authenticated SELECT, defines three SECURITY DEFINER RPCs with `search_path = public, pg_temp`, and restricts EXECUTE in its final statements. This is **not** a completed security review: check actual function owner, PUBLIC/default privileges and JWT/service-role spoofing in a disposable environment before production application.
 - Item 8 temporary CI base filters and CI-only #198 remain cleanup/review work, not merge authority. All live/source/privacy/publication gates unchanged. Full receipt: `docs/research/EPSTEIN_RESEARCH_ENGINE_HANDOFF_20260923_RUN5.md`.
+
+## Run 6 — staged independent safe work
+- Created isolated item-52 **test draft only**, reusing proposed RPCs; no duplicate runner, adapter, schema, worker, Grove or ARK implementation. SQL stages synthetic checkpoint → reconnect → bounded retry → evidence-backed two-unit settlement → final persisted state and no automatic completion. Not wired into CI or run against any database. This does NOT resolve item 45 or verify item 52.
+- NEXT: item 45 exact-head disposable PostgreSQL CI approval and successful evidence, then run/review item 52 against disposable fixture, fix actual failures, and only then promote checklist status. Preserve independent completion verifier HOLD.
+
+## Run 7 — additional safe work staged
+- Item 42: added disposable privilege/security acceptance and source review; not executed, so production security acceptance remains open.
+- Item 54: inspected ARK/Layer #160 and cognitive assembly #191 exact heads and recorded a research-side compatibility contract in `docs/research/ARK_RESEARCH_COMPATIBILITY_CONTRACT_20260923.md`. No Grove/ARK code changed.
+- Item 52 remains staged-only; item 45 exact-head DB verification is still the dependency gate before database promotion.
+
+## Run 8 — research adapter fail-closed hardening
+- Audited inherited `sessionRunner.ts` / `supabaseResearchStore.ts` rather than creating another worker.
+- Persisted DB rows now reject malformed authorization booleans and malformed/blank evidence-ref arrays instead of coercing/filtering them into apparently valid state. Regression tests added.
+- STOP now requires the database RPC to return `true`; false acknowledgements raise `research_stop_not_persisted` instead of being reported as successful persistence.
+- Runner now avoids redundant STOP writes for already-persisted blocked/cancelled/timebox-ended states, while still requiring a real persisted transition when cancellation/deadline/authorization newly changes the state. Regression tests added.
+- Added localhost + exact synthetic DB/user guard runner `ops/research/disposable-db/run-full-safe-suite.sh`; it orchestrates existing disposable tests plus staged 65/70 only and refuses remote/non-synthetic targets. It has NOT been executed here because this runtime has no PostgreSQL/Docker binaries.
+- These code/test changes remain unverified by exact-head CI. No checklist item is promoted to [x] from source review alone.
+
+## Run 9 — 2026-09-23 exact-head verification correction
+- Run `35871998690`, exact head `8330d6be2dcc4b4f1e6502a66d2874ce9a6f4eb4`: all eight disposable research DB receipts PASS, including 42/45/52. Earlier dated status sections above are historical and superseded by this receipt.
+- CI-only #203 closed without merge; #198/#202 previously closed without merge. #201 remains open draft, not merged.
+- Owner explicitly permitted isolated CI-wiring commit and automatic Vercel preview; no production deployment/migration/live worker/source ingestion/publication authorization.
+- Next: research↔ARK integration tests and branch reconciliation, then separately gated live integration.

@@ -64,8 +64,8 @@ export async function runResearchSessionTick(args: {
   const decision = decideResearchSession(session, args.at);
   if (decision.action === "idle") return { status: "idle", reason: decision.reason };
   if (decision.action === "stop") {
-    if (decision.status === "blocked" || decision.status === "cancelled" ||
-      decision.status === "timebox_ended") {
+    if ((decision.status === "blocked" || decision.status === "cancelled" ||
+      decision.status === "timebox_ended") && decision.status !== session.status) {
       await args.store.stop({ session, status: decision.status, reason: decision.reason });
     }
     return { status: "stopped", reason: decision.reason };

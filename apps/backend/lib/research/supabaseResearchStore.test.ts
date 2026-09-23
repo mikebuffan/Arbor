@@ -64,6 +64,33 @@ describe("owner-scoped Supabase research adapter",()=>{
     expect(await store.loadSession("missing")).toBeNull();
   });
 
+  it("fails closed on malformed persisted authorization booleans",async()=>{
+    for (const bad of [
+      {...record,authorized:"true"},
+      {...record,cancellation_requested:0},
+      {...record,authorized:null},
+    ]) {
+      const m=mockDb(bad as unknown as Record<string,unknown>);
+      const store=new SupabaseResearchStore(m.db,"owner-1","project-1","worker-1");
+      await expect(store.loadSession("s1")).rejects.toThrow(/invalid_research_db_(authorized|cancellation_requested)/);
+      expect(m.rpc).not.toHaveBeenCalled();
+    }
+  });
+
+  it("fails closed instead of filtering malformed persisted evidence refs",async()=>{
+    for (const completed_evidence_refs of [
+      ["EFTA00183759",42],
+      ["EFTA00183759"," "],
+      null,
+    ]) {
+      const m=mockDb({...record,completed_evidence_refs} as unknown as Record<string,unknown>);
+      const store=new SupabaseResearchStore(m.db,"owner-1","project-1","worker-1");
+      await expect(store.loadSession("s1")).rejects
+        .toThrow("invalid_research_db_completed_evidence_refs");
+      expect(m.rpc).not.toHaveBeenCalled();
+    }
+  });
+
   it("includes identity, lease, and budget reservation on claims",async()=>{
     const m=mockDb();
     const store=new SupabaseResearchStore(m.db,"owner-1","project-1","worker-1");
@@ -76,6 +103,20 @@ describe("owner-scoped Supabase research adapter",()=>{
     expect(m.rpc).toHaveBeenCalledWith("arbor_claim_research_unit",{
       p_session_id:"s1",p_user_id:"owner-1",p_project_id:"project-1",
       p_worker_id:"worker-1",p_lease_seconds:240,
+    });
+  });
+
+  it("requires the database to acknowledge STOP persistence",async()=>{
+    const m=mockDb();
+    const store=new SupabaseResearchStore(m.db,"owner-1","project-1","worker-1");
+    const session=(await store.loadSession("s1")) as ResearchSession;
+    m.rpc.mockResolvedValueOnce({data:false,error:null});
+    await expect(store.stop({
+      session,status:"cancelled",reason:"synthetic operator stop",
+    })).rejects.toThrow("research_stop_not_persisted");
+    expect(m.rpc).toHaveBeenCalledWith("arbor_stop_research_session",{
+      p_session_id:"s1",p_user_id:"owner-1",p_project_id:"project-1",
+      p_status:"cancelled",p_reason:"synthetic operator stop",
     });
   });
 
