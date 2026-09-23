@@ -36,6 +36,14 @@ describe("synthetic pathway learning lab (not real ARK, LLM, or execution)", () 
     expect(twice.updateCount).toBe(1);
     expect(() => trainVerifiedPathwayExample(once, example({ route: "identity" }))).toThrow("learning_receipt_conflict");
   });
+  it("treats a prototype-like receipt as a real receipt, never an inherited object", () => {
+    const empty = newPathwayLearningState(scope.userId, scope.projectId);
+    const once = trainVerifiedPathwayExample(empty, example({ verifiedReceipt: "__proto__" }));
+    expect(once.updateCount).toBe(1);
+    expect(trainVerifiedPathwayExample(once, example({ verifiedReceipt: "__proto__" }))).toBe(once);
+    expect(() => trainVerifiedPathwayExample(once, example({ verifiedReceipt: "__proto__", route: "identity" })))
+      .toThrow("learning_receipt_conflict");
+  });
   it("rejects another owner or project and does not mutate the input state", () => {
     const empty = newPathwayLearningState(scope.userId, scope.projectId);
     expect(() => trainVerifiedPathwayExample(empty, example({ userId: "other" }))).toThrow("learning_scope_mismatch");
