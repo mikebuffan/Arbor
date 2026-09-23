@@ -106,6 +106,20 @@ describe("owner-scoped Supabase research adapter",()=>{
     });
   });
 
+  it("requires the database to acknowledge STOP persistence",async()=>{
+    const m=mockDb();
+    const store=new SupabaseResearchStore(m.db,"owner-1","project-1","worker-1");
+    const session=(await store.loadSession("s1")) as ResearchSession;
+    m.rpc.mockResolvedValueOnce({data:false,error:null});
+    await expect(store.stop({
+      session,status:"cancelled",reason:"synthetic operator stop",
+    })).rejects.toThrow("research_stop_not_persisted");
+    expect(m.rpc).toHaveBeenCalledWith("arbor_stop_research_session",{
+      p_session_id:"s1",p_user_id:"owner-1",p_project_id:"project-1",
+      p_status:"cancelled",p_reason:"synthetic operator stop",
+    });
+  });
+
   it("rejects an attempt to settle under a different owner",async()=>{
     const m=mockDb();
     const store=new SupabaseResearchStore(m.db,"owner-1","project-1","worker-1");
