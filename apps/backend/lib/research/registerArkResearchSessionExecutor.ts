@@ -81,6 +81,16 @@ export function registerArkResearchSessionExecutor(input: {
       } };
     }
 
+    // No outstanding units is a HUMAN REVIEW gate, not a forever-looping
+    // checkpoint and not a verified finding. The research DB remains source
+    // of truth; manual review can create a new authorized ARK objective.
+    if (result.status === "idle" &&
+        result.reason === "awaiting_completion_verification") {
+      return { status: "blocked", blocker: {
+        kind: "high_consequence_fork",
+        message: "Research units exhausted; independent source/privacy review required.",
+      } };
+    }
     const checkpoint = "checkpoint" in result ? result.checkpoint : null;
     // One research DB-authoritative tick per ARK invocation. Even zero remaining
     // units or a research receipt is NOT independent finding verification.
