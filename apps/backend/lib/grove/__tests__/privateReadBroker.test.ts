@@ -695,7 +695,7 @@ describe("explicit Grove private conversation creation", () => {
 
   it("never issues a Firefly insert for a spoofed Grove token or host", async () => {
     await expect(createPrivateGroveConversation(
-      req(jwt({iss: `${fireflyUrl}/auth/v1`}), projectId,
+      req(jwt({iss: `${fireflyUrl}/auth/v1`}), projectId), projectId,
     )).rejects.toMatchObject({ status: 401, code: "grove_invalid_token" });
     await expect(createPrivateGroveConversation(
       req(jwt(), projectId, "https://firefly-coral.vercel.app"), projectId,
