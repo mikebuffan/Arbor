@@ -11,7 +11,7 @@ import '../config/grove_private_session.dart';
 import '../environment/grove_private_conversations.dart';
 
 /// DRAFT Grove-only Text UI. It does not expose legacy Firefly chat/voice,
-/// create a Firefly conversation, issue project grants, or execute ARK work.
+/// auto-create a Firefly conversation, issue project grants, or execute ARK work.
 /// The caller MUST first pass GrovePrivateAuthGate/ProjectGate and use a
 /// separately configured Grove host. Build flag remains OFF by default.
 class GrovePrivateTextHost extends StatefulWidget {
@@ -285,6 +285,40 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel> {
     }
   }
 
+  Future<void> _createNew() async {
+    if (!_valid || _loading || _sending || _choices == null) return;
+    final generation = ++_generation;
+    setState(() { _loading = true; _error = null; });
+    try {
+      // This is the ONLY path that requests an empty new conversation.
+      // Never auto-retry a POST with an uncertain network response.
+      final created = await widget.client.createNew(widget.projectId);
+      if (!_valid || generation != _generation) return;
+      final current = _choices!;
+      setState(() {
+        _choices = GrovePrivateConversationChoices(
+          projectId: widget.projectId,
+          conversations: [
+            created,
+            ...current.conversations.where(
+              (c) => c.conversationId != created.conversationId,
+            ),
+          ].take(20).toList(growable: false),
+          mayBeTruncated: current.mayBeTruncated ||
+              current.conversations.length >= 20,
+        );
+      });
+      await _choose(created.conversationId, generation: generation);
+    } catch (_) {
+      if (!_valid || generation != _generation) return;
+      setState(() {
+        _loading = false;
+        _error = 'Could not confirm the new private conversation. '
+            'Refresh the list before creating another.';
+      });
+    }
+  }
+
   Future<void> _send() async {
     final id = _selected;
     final message = _input.text.trim();
@@ -388,6 +422,20 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel> {
                 onChanged: _sending ? null : (id) {
                   if (id != null) unawaited(_choose(id));
                 },
+              ),
+            if (!_loading && choices != null)
+              Wrap(
+                spacing: 8,
+                children: [
+                  OutlinedButton(
+                    onPressed: _sending ? null : _createNew,
+                    child: const Text('New private conversation'),
+                  ),
+                  TextButton(
+                    onPressed: _sending ? null : _discover,
+                    child: const Text('Refresh conversations'),
+                  ),
+                ],
               ),
             if (choices?.mayBeTruncated == true)
               const Text('Showing the latest 20 conversations only.',
