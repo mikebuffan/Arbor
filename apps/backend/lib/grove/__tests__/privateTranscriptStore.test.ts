@@ -272,6 +272,42 @@ describe("Grove-only private conversation durability (fixtures, migration OFF)",
     expect(data.records.size).toBe(1);
   });
 
+  it("holds an identical retry WHILE the first model call is still running", async () => {
+    const data = fakeStore();
+    const h = host(data.store);
+    let complete!: () => void;
+    h.sendModel.mockImplementationOnce(() => new Promise(resolve => {
+      complete = () => resolve(reply("Bounded private answer"));
+    }));
+    const first = h.respond("Wait for Arbor", firstId);
+    await vi.waitFor(() => expect(h.sendModel).toHaveBeenCalledTimes(1));
+    await expect(h.respond("Wait for Arbor", firstId))
+      .rejects.toMatchObject({
+        status: 409, code: "grove_private_request_in_progress",
+      });
+    expect(h.sendModel).toHaveBeenCalledTimes(1);
+    complete();
+    await expect(first).resolves.toMatchObject({
+      persisted: true, replayed: false,
+    });
+    expect((await host(data.store).respond("Wait for Arbor", firstId)))
+      .toMatchObject({persisted:true,replayed:true});
+  });
+
+  it("HOLDs the model if the proposed claim migration is not enabled", async () => {
+    const data = fakeStore();
+    const h = host(data.store);
+    const prepared = await h.prepare("Private pilot", firstId);
+    await expect(respondToVerifiedPrivateGroveTurn({
+      prepared, features: {...flags,claimEnabled:false},
+      dependencies: {sendModel:h.sendModel as never},
+    })).rejects.toMatchObject({
+      status:503,code:"grove_private_claim_not_enabled",
+    });
+    expect(h.sendModel).not.toHaveBeenCalled();
+    expect(data.records.size).toBe(0);
+  });
+
   it("racing changed text under the same request ID cannot overwrite the first pair", async () => {
     const data = fakeStore();
     const h = host(data.store);
@@ -473,6 +509,36 @@ describe("Grove-only private conversation durability (fixtures, migration OFF)",
     expect(response).toMatchObject({ status: "responded", persisted: false });
     expect(data.records.size).toBe(0);
     expect(h.sendModel).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("Private model lease RPC (disposable client mock only)", () => {
+  it("passes only scoped IDs + SHA-256, never raw text or browser credentials", async () => {
+    const rpc = vi.fn(async () => ({data:"claimed",error:null}));
+    const store = createSupabaseGrovePrivateTranscriptStore({rpc} as never);
+    expect(await store.claimPending({
+      ...scope,requestId:firstId,userText:"A private message",
+    })).toBe("claimed");
+    expect(rpc).toHaveBeenCalledWith("grove_private_claim_turn",
+      expect.objectContaining({
+        p_grove_user_id:groveUserId,p_project_id:projectId,
+        p_conversation_id:conversationId,p_request_id:firstId,
+        p_user_text_sha256:expect.stringMatching(/^[a-f0-9]{64}$/),
+      }));
+    expect(JSON.stringify(rpc.mock.calls)).not.toContain("A private message");
+  });
+  it("fails closed when SQL migration/RPC is unavailable or returns unknown state", async () => {
+    const rpc=vi.fn()
+      .mockResolvedValueOnce({data:null,error:{message:"RPC missing"}})
+      .mockResolvedValueOnce({data:"success",error:null});
+    const store=createSupabaseGrovePrivateTranscriptStore({rpc} as never);
+    const input={...scope,requestId:firstId,userText:"Await approval"};
+    await expect(store.claimPending(input)).rejects.toMatchObject({
+      message:"RPC missing",
+    });
+    await expect(store.claimPending(input)).rejects.toMatchObject({
+      status:409,code:"grove_transcript_claim_invalid",
+    });
   });
 });
 
