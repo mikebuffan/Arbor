@@ -114,7 +114,9 @@ export type GroveVerifiedTurn = {
   arkLayer: ArkLayerReadContext;
   cognitive: FireflyCognitivePreviewResult | null;
   transcript: { store: GrovePrivateTranscriptStore;
-    groveUserId: string; requestId: string } | null;
+    groveUserId: string; requestId: string;
+    /** Freshly re-check owner, bridge, grant and conversation AFTER inference. */
+    reauthorize: () => Promise<void> } | null;
   /** A hold prevents any model call, even when an objective is still open. */
   status: "ready" | "held";
   holdReason: string | null;
@@ -193,6 +195,20 @@ export async function prepareVerifiedPrivateGroveTurn(input: {
       createSupabaseGrovePrivateTranscriptStore(authorized.groveAdmin),
     groveUserId: authorized.groveUserId,
     requestId: input.requestId ?? randomUUID(),
+    reauthorize: async () => {
+      // An invitation, project grant, account bridge or Firefly conversation
+      // can be revoked WHILE the private LM is generating. A service-role
+      // transcript writer must never outlive that authorization.
+      const current = await (deps.authorize ?? authorizePrivateGroveConversation)(
+        input.request, input.projectId, input.conversationId,
+      );
+      if (current.access !== "read-only" ||
+          current.groveUserId !== authorized.groveUserId ||
+          current.fireflyUserId !== authorized.fireflyUserId ||
+          current.projectId !== input.projectId ||
+          current.conversationId !== input.conversationId)
+        throw new RouteAccessError(403, "grove_private_access_changed");
+    },
   } : null;
   let cognitive: FireflyCognitivePreviewResult | null = null;
   if (features.cognitivePreviewEnabled) {
@@ -322,6 +338,9 @@ export async function respondToVerifiedPrivateGroveTurn(input: {
     messages: history,
   });
   if (transcript && transcriptScope) {
+    // Reauthorization MUST complete before a service-role write. Do not
+    // persist or return a private model reply if access changed mid-turn.
+    await transcript.reauthorize();
     const saved = await transcript.store.persistCompleted({
       ...transcriptScope, requestId: transcript.requestId,
       userText, reply,
