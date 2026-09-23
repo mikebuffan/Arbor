@@ -2,7 +2,7 @@
 
 Updated 2026-09-22. **One ARK lineage. No second engine.** Source-first public-document research only. Draft code is not deployment, authorization, verified research, or a finding. Use only lawful public material; never publish victim/private-person identifiers.
 
-**Verified lineage reviewed this run:** #123 → #131 → #134 → later stacked research drafts → #175 → #180 → #181. Sibling #177 was deliberately reconciled into #181 rather than duplicated. Current verified #181 head before this docs-only handoff is `4ffd760c4113588325352860148b5b9c8ad974cd`; Arbor Integration CI run `35806979345` completed SUCCESS. No merge/deploy occurred.
+**Verified lineage:** #123 → #131 → #134 → later stacked research drafts → #175 → #180 → #181 → docs handoff #187 → item-45 draft #189. Sibling #177 was deliberately reconciled into #181 rather than duplicated. Last fully verified implementation head remains #181 `4ffd760c4113588325352860148b5b9c8ad974cd`, Arbor Integration CI `35806979345` SUCCESS. #187 is docs-only. #189 is current isolated implementation draft and is **pending exact-head CI**.
 
 Legend: [x] relevant implementation plus exact-head CI evidence exists for the stated scope; [~] partial or remaining integration/manual proof; [ ] required; **BLOCKED** names an intentional gate.
 
@@ -10,7 +10,7 @@ Legend: [x] relevant implementation plus exact-head CI evidence exists for the s
 1. [x] Inventory/synchronize worker-v5 source without deployment.
 2. [x] Preserve research/Grove/app branch lineage.
 3. [x] Preserve original-byte SHA and physical PDF page separately from printed folio.
-4. [x] Review parent heads/open PRs before each child; #181 is current canonical research draft, #182 CI-only bridge is not an integration target.
+4. [x] Review parent heads/open PRs before each child; #181 is verified implementation base, #187 docs child, #189 current isolated draft; #182 remains CI-only, not an integration target.
 5. [ ] **BLOCKED — live integration approval:** worker-v5 deployment backup + rollback receipt.
 6. [ ] **BLOCKED — live integration approval:** deployed Vercel roots/cron/Firefly auth review.
 7. [x] Pinned disposable renderer image/package verified.
@@ -26,7 +26,7 @@ Legend: [x] relevant implementation plus exact-head CI evidence exists for the s
 15. [x] Restrictive temporary PDF/random temp directory/cleanup.
 16. [x] Real Poppler parses benign synthetic PDF in CI.
 17. [x] Every page keeps original SHA + independent-review HOLD.
-18. [~] Independently published benign PDF engineering acceptance now runs in CI against blank 2025 IRS Form 1040: HTTPS fetch, `%PDF-`, 5 MiB bound, SHA output, two-page check, page-separated Poppler text, and isolated sandbox render. Exact head `4ffd760c...` run `35806979345` SUCCESS. **Still HOLD:** human rendered-page/line-order review is not automated proof.
+18. [~] Independently published benign PDF engineering acceptance runs in CI against blank 2025 IRS Form 1040: HTTPS fetch, `%PDF-`, 5 MiB bound, SHA output, two-page check, page-separated Poppler text, isolated sandbox render. Verified at `4ffd760c...` run `35806979345`. **Still HOLD:** human rendered-page/line-order review is not automated proof.
 19. [x] Page-image provenance/manual source-stamp HOLD contract.
 20. [x] Bounded page-batch planning preserving full-file provenance.
 21. [x] Executable non-root/no-egress/read-only bounded renderer sandbox; synthetic and benign-public CI paths pass.
@@ -52,13 +52,13 @@ Legend: [x] relevant implementation plus exact-head CI evidence exists for the s
 37. [x] Proposed owner/project SQL + service-role adapter kept outside auto-run migrations.
 38. [x] Start/deadline/authorization guards and distinct non-completion state.
 39. [x] Research Vitest discovery fixed.
-40. [x] No-cost isolated synthetic PostgreSQL 17 CI service now exercises proposed research SQL; no real user data or production DB.
+40. [x] No-cost isolated synthetic PostgreSQL 17 CI service exercises proposed research SQL; no real user data or production DB.
 41. [~] Owner/RLS acceptance is exercised synthetically; full service-role matrix remains before production integration.
 42. [ ] Security review of search_path/SECURITY DEFINER/EXECUTE privileges remains required before any production application.
-43. [x] Disposable CI now exercises claim/settlement/idempotency/owner RLS/STOP, deadline/expiry/fencing/revocation, independent-connection claim/settlement concurrency, lock-wait fences and STOP-vs-settlement race. Run `35806979345` SUCCESS. This is disposable DB evidence, not production proof.
-44. [x] Advisory late-settlement policy plus SQL lock-time resampling repair verified as part of current combined head; database remains authoritative.
-45. [~] Cost reservation and bounded synthetic worker receipts are tested; attempt-cap/failure-receipt/stalled-work-release matrix still needs explicit coverage before worker integration.
-46. [x] Evidence-backed completion verifier exists; current synthetic rehearsal additionally rejects evidence-free completion and never equates budget exhaustion with completed.
+43. [x] Disposable CI exercises claim/settlement/idempotency/owner RLS/STOP, deadline/expiry/fencing/revocation, independent-connection concurrency, lock-wait fences and STOP-vs-settlement race. Verified run `35806979345`. Disposable DB evidence only.
+44. [x] Advisory late-settlement policy plus SQL lock-time resampling repair verified; database remains authoritative.
+45. [~] **IMPLEMENTED ON #189; CI PENDING.** Existing cost reservation and bounded receipts are now joined by disposable PostgreSQL coverage for failed receipt + retry delay, terminal `max_attempts`, stalled active-lease fencing, reclaim after expiry, bounded attempt increment, cost accounting and no false completion. Do not mark [x] until exact-head #189 CI passes.
+46. [x] Evidence-backed completion verifier exists; synthetic rehearsal rejects evidence-free completion and never equates budget exhaustion with completed.
 
 ## 5. Worker wiring and unattended acceptance
 47. [ ] **BLOCKED — live integration approval:** preserve worker-v5/review-processor diff/rollback before wiring.
@@ -66,7 +66,7 @@ Legend: [x] relevant implementation plus exact-head CI evidence exists for the s
 49. [ ] **BLOCKED — live integration approval:** production immutable evidence writes + Pattern Hop suggestions.
 50. [x] Pure provenance-preserving lead dedupe verified; no persistence/integration claim.
 51. [ ] **BLOCKED — separate scheduler authorization:** default-OFF scoped scheduler.
-52. [~] Synthetic one-tick worker rehearsal added at current #181 head: one receipt per tick, STOP fencing, crash/lease-expiry recovery, evidence-free completion rejection. Backend CI SUCCESS. A deterministic simulated full 60-minute persisted session remains.
+52. [~] Synthetic one-tick worker rehearsal: one receipt per tick, STOP fencing, crash/lease-expiry recovery, evidence-free completion rejection. Backend CI verified at #181. Deterministic simulated full persisted session remains after item 45 exact-head verification.
 53. [ ] **BLOCKED — explicit benign unattended-run approval:** genuine unattended benign-source hour.
 54. [ ] Same-user project isolation and cross-session handoff before Grove/voice attachment.
 55. [ ] Real phone/operator acceptance; never infer worker liveness from read-only UI.
@@ -82,18 +82,16 @@ Legend: [x] relevant implementation plus exact-head CI evidence exists for the s
 63. [x] Synthetic-only dated HOLD report draft; real original-page citation verification/redaction/publication remains pending.
 64. [x] No automatic publication; published discrepancies remain distinct from novel research discoveries.
 
-## Current dependency-ordered handoff — 2026-09-22 18:54 PT
-1. [x] Re-opened this master list from the actual current research branch; default branch does not contain it, so branch-qualified retrieval is required.
-2. [x] Re-checked newer research PRs: canonical #181 is open/draft on #180; #177 is reconciled there; #182 is CI-only and DO NOT MERGE.
-3. [x] Verified exact #181 head `4ffd760c4113588325352860148b5b9c8ad974cd` has Arbor Integration CI run `35806979345` **SUCCESS**.
-4. [x] Verified that run covers backend test/build, control backend, disposable synthetic PostgreSQL acceptance, synthetic PDF sandbox, external blank IRS PDF acceptance, and Flutter analyze/test.
-5. [x] Synthetic bounded worker rehearsal exists on that head and passed backend CI; it covers STOP fencing, lease recovery, receipts and evidence-free completion rejection. This is not a live worker.
-6. [~] Item 18 is engineering-pass/manual-HOLD: independently published benign PDF fetch/render/text separation passed CI, but a human rendered-page/line-order fidelity receipt is still missing.
-7. [~] Items 40–44 have meaningful disposable PostgreSQL evidence now. Item 42 full privilege audit and item 45 attempt/failure/stall matrix remain.
-8. [ ] **NEXT SAFE NUMBERED ITEM:** item 45 — extend disposable synthetic acceptance for attempt cap, failure receipts and stalled-work release, without touching production/live worker.
-9. [ ] After 45, item 52 — deterministic persisted simulated-session acceptance using the disposable DB; do not enable scheduler.
-10. [ ] Then reconcile/remove CI-only bridge machinery before any integration review.
-11. [ ] **BLOCKED:** live worker/deploy/production DB (#5/#6/#47/#49/#56), scheduler (#51), unattended benign hour (#53), real EFTA ingestion (#58), privacy-sensitive processing and publication.
+## Current dependency-ordered handoff — 2026-09-22 19:18 PT
+1. [x] Re-opened and verified the master list from #187 head `4d48233e055e9445f0a6239e0ff846f0c329e3e9`; default branch still is not the canonical source for this checklist.
+2. [x] Re-checked open research PRs. No newer implementation draft superseded #181 before this run; #187 was docs-only. Created isolated draft #189 from #187 without touching #181/main.
+3. [x] Preserved last verified baseline: #181 `4ffd760c...`, Integration CI `35806979345` SUCCESS. No mock-only scope was promoted to verified.
+4. [x] Inspected proposed SQL before changing tests: `attempt_count`, `max_attempts`, retry delay, lease expiry reclaim and failed-receipt transitions already existed. No duplicate implementation was added.
+5. [~] Item 45 implementation added on #189: `ops/research/disposable-db/60-attempt-failure-stall.sql`, wired into the existing disposable PostgreSQL 17 job. It tests actual PostgreSQL RPC behavior in an ephemeral service, not an in-memory mock. Exact-head CI is pending.
+6. [ ] **NEXT:** inspect #189 exact-head CI. If failure, correct the SQL/test coherently. If green, mark item 45 verified for disposable-DB scope and proceed to item 52 deterministic persisted simulated-session acceptance.
+7. [ ] After item 52, item 8 cleanup/reconciliation of temporary CI-only bridge/base triggers before any integration review.
+8. [~] Item 18 remains engineering-pass/manual-HOLD; human rendered-page/line-order fidelity receipt is still missing.
+9. [ ] **BLOCKED:** production/live worker/deploy (#5/#6/#47/#49/#56), scheduler (#51), genuine unattended benign hour (#53), EFTA ingestion (#58), privacy-sensitive processing and publication.
 
 ### Saved run receipt
-This handoff refresh is documentation-only on isolated branch `feat/ark-research-handoff-refresh-20260922`, forked from verified #181 head. No merge, deployment, production DB, scheduler, paid API, private/victim data, EFTA source processing or publication was performed. Exact-head implementation evidence remains CI run `35806979345`; this docs-only commit does not broaden what that run proves.
+Current isolated draft: #189, branch `feat/ark-research-disposable-attempt-matrix-20260922`. Code/test commits add only disposable synthetic PostgreSQL acceptance and CI wiring. At handoff time exact-head Actions had not yet appeared, so item 45 remains partial and no success is claimed. No merge, deployment, production DB, live worker, scheduler, paid API, private/victim data, EFTA processing or publication was performed.
