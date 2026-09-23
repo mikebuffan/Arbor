@@ -25,7 +25,7 @@ async function requiredSingle(
   ).eq("id",id).maybeSingle();
   if(error)throw new Error("ark_preview_preflight_read_failed");
   if(!data)throw new Error("ark_preview_preflight_missing_record");
-  return data as Record<string,unknown>;
+  return data as unknown as Record<string,unknown>;
 }
 
 /**
