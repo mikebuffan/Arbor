@@ -571,7 +571,7 @@ describe("Private model lease RPC (disposable client mock only)", () => {
     const store = createSupabaseGrovePrivateTranscriptStore({rpc} as never);
     expect(await store.claimPending({
       ...scope,requestId:firstId,userText:"A private message",
-    })).toBe("claimed");
+    })).toEqual({status:"claimed",leaseToken:firstId});
     expect(rpc).toHaveBeenCalledWith("grove_private_claim_turn",
       expect.objectContaining({
         p_grove_user_id:groveUserId,p_project_id:projectId,
