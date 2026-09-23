@@ -17,6 +17,8 @@ export const OLD_PRODUCTION_BRANCH =
   "deploy/grove-private-api-20260921";
 export const REVIEW_PREVIEW_BRANCH =
   "feature/grove-private-release-readiness-20260923";
+export const FENCED_RETRY_PREVIEW_BRANCH =
+  "feature/grove-private-durable-retry-claim-20260923";
 
 export function grovePrivateBuildDecision(env) {
   const stage = env.VERCEL_ENV;
@@ -25,7 +27,9 @@ export function grovePrivateBuildDecision(env) {
     return {build:false,reason:"unverified_vercel_branch_or_stage"};
   if (stage === "production" && branch === OLD_PRODUCTION_BRANCH)
     return {build:true,reason:"existing_private_production_branch"};
-  if (stage === "preview" && branch === REVIEW_PREVIEW_BRANCH)
+  if (stage === "preview" &&
+      (branch === REVIEW_PREVIEW_BRANCH ||
+       branch === FENCED_RETRY_PREVIEW_BRANCH))
     return {build:true,reason:"approved_preview_candidate_branch"};
   return {build:false,reason:"not_a_private_grove_release_branch"};
 }

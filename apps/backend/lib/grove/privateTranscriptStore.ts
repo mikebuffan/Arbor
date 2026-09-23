@@ -1,5 +1,6 @@
 import "server-only";
 
+import { createHash } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { RouteAccessError } from "@/lib/auth/routeAuthorization";
 import type {
@@ -17,8 +18,8 @@ import type {
  *
  * Writes only COMPLETE pairs after the strict private LM receiver succeeds.
  * This avoids orphaned user turns and never claims an unverified LM response
- * completed an ARK task. Concurrent model calls may occur, but the DB unique
- * key chooses ONE persisted response. Inference itself is not exactly-once.
+ * completed an ARK task. A DB claim and fenced completion prevent stale workers from persisting.
+ * A 240-second lease can be reclaimed, so inference itself is not exactly-once.
  */
 export type GrovePrivateTranscriptScope = {
   groveUserId: string;
@@ -41,9 +42,19 @@ export type GrovePrivateTranscriptStore = {
   getCompleted(input: GrovePrivateTranscriptScope & {
     requestId: string;
   }): Promise<GrovePrivateTranscriptRow | null>;
+  /** Atomic across workers, only after owner/conversation/project verification.
+   * Requires separately approved Grove-only pending-claim migration. */
+  claimPending(input: GrovePrivateTranscriptScope & {
+    requestId: string; userText: string;
+  }): Promise<
+    | { status: "claimed"; leaseToken: string }
+    | { status: "in_progress" | "conflict" | "no_access" | "completed" }
+  >;
   listRecent(scope: GrovePrivateTranscriptScope): Promise<GrovePrivateTranscriptRow[]>;
   persistCompleted(input: GrovePrivateTranscriptScope & {
     requestId: string;
+    /** Must be the current DB-issued claim token; never browser-provided. */
+    leaseToken: string;
     userText: string;
     reply: GroveLmUnverifiedReply;
   }): Promise<{ row: GrovePrivateTranscriptRow; created: boolean }>;
@@ -79,10 +90,6 @@ function assertRow(row: GrovePrivateTranscriptRow, scope: GrovePrivateTranscript
 function conflict(): never {
   throw new RouteAccessError(409, "grove_transcript_request_conflict");
 }
-function isUniqueViolation(error: unknown): boolean {
-  return typeof error === "object" && error !== null &&
-    "code" in error && error.code === "23505";
-}
 function assertSameRequest(
   row: GrovePrivateTranscriptRow, input: { requestId: string; userText: string },
 ): void {
@@ -111,6 +118,38 @@ export function createSupabaseGrovePrivateTranscriptStore(
       assertRow(data as GrovePrivateTranscriptRow, input);
       return data as GrovePrivateTranscriptRow;
     },
+    async claimPending(input) {
+      assertScope(input);
+      assertRequestId(input.requestId);
+      if (typeof input.userText !== "string" ||
+          !input.userText.trim() || input.userText.length > 3000)
+        throw new RouteAccessError(409, "grove_transcript_reply_invalid");
+      const digest = createHash("sha256")
+        .update(input.userText, "utf8").digest("hex");
+      const { data, error } = await groveServiceClient.rpc(
+        "grove_private_claim_turn", {
+          p_grove_user_id: input.groveUserId,
+          p_project_id: input.projectId,
+          p_conversation_id: input.conversationId,
+          p_request_id: input.requestId,
+          p_user_text_sha256: digest,
+        },
+      );
+      if (error) throw error; // Missing live migration fails CLOSED.
+      // Never accept a caller-supplied token or an unknown response from an
+      // unreviewed/stale migration. Only PostgreSQL mints the lease token.
+      if (!data || typeof data !== "object" || Array.isArray(data))
+        throw new RouteAccessError(409, "grove_transcript_claim_invalid");
+      const result = data as Record<string, unknown>;
+      if (result.status === "claimed" && typeof result.leaseToken === "string" &&
+          uuid.test(result.leaseToken))
+        return { status: "claimed", leaseToken: result.leaseToken };
+      if (["in_progress","conflict","no_access","completed"].includes(
+          String(result.status)) && result.leaseToken === undefined)
+        return { status: result.status as
+          "in_progress" | "conflict" | "no_access" | "completed" };
+      throw new RouteAccessError(409, "grove_transcript_claim_invalid");
+    },
     async listRecent(scope) {
       assertScope(scope);
       const { data, error } = await scopedQuery(groveServiceClient, scope)
@@ -126,38 +165,45 @@ export function createSupabaseGrovePrivateTranscriptStore(
     async persistCompleted(input) {
       assertScope(input);
       assertRequestId(input.requestId);
-      if (typeof input.userText !== "string" ||
+      if (typeof input.leaseToken !== "string" ||
+          !uuid.test(input.leaseToken) ||
+          typeof input.userText !== "string" ||
           !input.userText.trim() || input.userText.length > 3000 ||
           !input.reply || typeof input.reply.reply !== "string" ||
           !input.reply.reply.trim() || input.reply.reply.length > 20000 ||
           input.reply.liveExecutionVerified !== false ||
+          !Array.isArray(input.reply.workReceipts) ||
           input.reply.workReceipts.length !== 0 ||
           !["unverified_model_text", "known_action_claim_filtered"]
-            .includes(input.reply.replyVerification))
+            .includes(input.reply.replyVerification) ||
+          typeof input.reply.arkConnected !== "boolean" ||
+          typeof input.reply.continuityFetched !== "boolean")
         throw new RouteAccessError(409, "grove_transcript_reply_invalid");
-      const existing = await store.getCompleted(input);
-      if (existing) {
-        assertSameRequest(existing, input);
-        return { row: existing, created: false };
-      }
-      const { error } = await groveServiceClient.from("grove_private_turns").insert({
-        grove_user_id: input.groveUserId,
-        firefly_project_id: input.projectId,
-        firefly_conversation_id: input.conversationId,
-        request_id: input.requestId,
-        user_text: input.userText,
-        assistant_text: input.reply.reply,
-        reply_verification: input.reply.replyVerification,
-        ark_connected: input.reply.arkConnected,
-        continuity_fetched: input.reply.continuityFetched,
-      });
-      if (error && !isUniqueViolation(error)) throw error;
-      // Even after a successful write, read back the exact scoped record.
-      // A conflicting concurrent writer wins once and both callers converge.
+      const { data, error } = await groveServiceClient.rpc(
+        "grove_private_complete_turn", {
+          p_grove_user_id: input.groveUserId,
+          p_project_id: input.projectId,
+          p_conversation_id: input.conversationId,
+          p_request_id: input.requestId,
+          p_lease_token: input.leaseToken,
+          p_user_text: input.userText,
+          p_assistant_text: input.reply.reply,
+          p_reply_verification: input.reply.replyVerification,
+          p_ark_connected: input.reply.arkConnected,
+          p_continuity_fetched: input.reply.continuityFetched,
+        },
+      );
+      if (error) throw error; // Migration absent = HOLD; never direct INSERT.
+      if (data === "stale" || data === "no_access")
+        throw new RouteAccessError(403, "grove_private_claim_lost");
+      if (data === "conflict")
+        conflict();
+      if (data !== "created" && data !== "replayed")
+        throw new RouteAccessError(409, "grove_transcript_completion_invalid");
       const saved = await store.getCompleted(input);
       if (!saved) throw new Error("grove_transcript_commit_unreadable");
       assertSameRequest(saved, input);
-      return { row: saved, created: !error };
+      return { row: saved, created: data === "created" };
     },
   };
   return store;

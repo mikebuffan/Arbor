@@ -114,6 +114,7 @@ describe("real module composition — LIVE FEATURES STILL OFF", () => {
     expect(grovePrivateTurnFeatures({})).toEqual({
       chatEnabled: false, modelEnabled: false, cognitivePreviewEnabled: false,
       transcriptEnabled: false,
+      claimEnabled: false,
     });
     expect(grovePrivateTurnFeatures({
       GROVE_PRIVATE_CHAT_PREVIEW_ENABLED: "yes",
@@ -122,6 +123,7 @@ describe("real module composition — LIVE FEATURES STILL OFF", () => {
     })).toEqual({
       chatEnabled: false, modelEnabled: false, cognitivePreviewEnabled: true,
       transcriptEnabled: false,
+      claimEnabled: false,
     });
   });
 

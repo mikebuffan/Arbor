@@ -38,11 +38,26 @@ const row = (input: {
 });
 function fakeStore() {
   const records = new Map<string, GrovePrivateTranscriptRow>();
+  const claims = new Map<string, {text:string; token:string}>();
+  let claimSequence=0;
+  const nextToken=()=>`00000000-0000-4000-8000-${String(++claimSequence).padStart(12,"0")}`;
   const key = (s: typeof scope, id: string) =>
     [s.groveUserId, s.projectId, s.conversationId, id].join(":");
   const store: GrovePrivateTranscriptStore = {
     async getCompleted(s) {
       return records.get(key(s, s.requestId)) ?? null;
+    },
+    async claimPending(s) {
+      const k = key(s, s.requestId);
+      if (records.has(k)) return { status: "completed" as const };
+      const found = claims.get(k);
+      if (found !== undefined)
+        return found.text === s.userText
+          ? { status: "in_progress" as const }
+          : { status: "conflict" as const };
+      const token=nextToken();
+      claims.set(k, {text:s.userText,token});
+      return { status: "claimed" as const, leaseToken:token };
     },
     async listRecent(s) {
       return [...records.values()].filter(r =>
@@ -52,6 +67,8 @@ function fakeStore() {
     },
     async persistCompleted(s) {
       const k = key(s, s.requestId);
+      if (claims.get(k)?.token !== s.leaseToken)
+        throw new Error("grove_private_claim_lost");
       const found = records.get(k);
       if (found) {
         if (found.user_text !== s.userText)
@@ -67,11 +84,12 @@ function fakeStore() {
       return { row: saved, created: true };
     },
   };
-  return { store, records };
+  return { store, records, claims };
 }
 const flags = {
   chatEnabled: true, modelEnabled: true,
   cognitivePreviewEnabled: false, transcriptEnabled: true,
+  claimEnabled: true,
 };
 function host(store: GrovePrivateTranscriptStore) {
   const authorize = vi.fn(async () => ({
@@ -235,18 +253,24 @@ describe("Grove-only private conversation durability (fixtures, migration OFF)",
   it("concurrent identical network retries store one complete pair, not exactly-once inference", async () => {
     const data = fakeStore();
     const h = host(data.store);
-    const [a, b] = await Promise.all([
+    const attempts = await Promise.allSettled([
       h.respond("Continue this Grove conversation", firstId),
       h.respond("Continue this Grove conversation", firstId),
     ]);
     expect(data.records.size).toBe(1);
-    expect([a.persisted, b.persisted]).toEqual([true, true]);
-    expect([a.replayed, b.replayed].sort()).toEqual([false, true]);
-    expect(a).toMatchObject({ requestId: firstId, grantsExecution: false });
-    expect(b).toMatchObject({ requestId: firstId, grantsExecution: false });
-    // Both requests may reach the model before the unique store picks one.
-    // A persisted retry receipt must never be sold as an inference-cost lock.
-    expect(h.sendModel).toHaveBeenCalledTimes(2);
+    const completed = attempts.filter(a => a.status === "fulfilled");
+    expect(completed.length).toBeGreaterThanOrEqual(1);
+    for (const attempt of completed) if (attempt.status === "fulfilled")
+      expect(attempt.value).toMatchObject({
+        persisted: true, requestId: firstId, grantsExecution: false,
+      });
+    for (const attempt of attempts) if (attempt.status === "rejected")
+      expect(attempt.reason).toMatchObject({
+        status: 409, code: "grove_private_request_in_progress",
+      });
+    // Durable claim protects simultaneous active model requests, but an
+    // expired 240-second lease may later be reclaimed: NOT exactly-once.
+    expect(h.sendModel).toHaveBeenCalledTimes(1);
     const reopened = await host(data.store).respond(
       "Continue this Grove conversation", firstId,
     );
@@ -254,6 +278,69 @@ describe("Grove-only private conversation durability (fixtures, migration OFF)",
       persisted: true, replayed: true, requestId: firstId,
     });
     expect(data.records.size).toBe(1);
+  });
+
+  it("holds an identical retry WHILE the first model call is still running", async () => {
+    const data = fakeStore();
+    const h = host(data.store);
+    let complete!: () => void;
+    h.sendModel.mockImplementationOnce(() => new Promise(resolve => {
+      complete = () => resolve(reply("Bounded private answer"));
+    }));
+    const first = h.respond("Wait for Arbor", firstId);
+    await vi.waitFor(() => expect(h.sendModel).toHaveBeenCalledTimes(1));
+    await expect(h.respond("Wait for Arbor", firstId))
+      .rejects.toMatchObject({
+        status: 409, code: "grove_private_request_in_progress",
+      });
+    expect(h.sendModel).toHaveBeenCalledTimes(1);
+    complete();
+    await expect(first).resolves.toMatchObject({
+      persisted: true, replayed: false,
+    });
+    expect((await host(data.store).respond("Wait for Arbor", firstId)))
+      .toMatchObject({persisted:true,replayed:true});
+  });
+
+  it("a reclaimed lease fences out the old worker even if its model later responds", async () => {
+    const data=fakeStore();
+    const first=host(data.store);
+    let release!:()=>void;
+    first.sendModel.mockImplementationOnce(() => new Promise(resolve=>{
+      release=()=>resolve(reply("OLD stale model output"));
+    }));
+    const staleRequest=first.respond("Keep this answer canonical",firstId);
+    await vi.waitFor(()=>expect(first.sendModel).toHaveBeenCalledTimes(1));
+    // Represent PostgreSQL's expiry/reclaim by losing the first worker's
+    // token; the new serverless worker has no in-process state from the first.
+    data.claims.clear();
+    const winner=host(data.store);
+    winner.sendModel.mockResolvedValueOnce(reply("NEW fenced answer"));
+    await expect(winner.respond("Keep this answer canonical",firstId))
+      .resolves.toMatchObject({persisted:true,replayed:false});
+    release();
+    await expect(staleRequest).rejects.toThrow("grove_private_claim_lost");
+    expect(data.records.size).toBe(1);
+    expect([...data.records.values()][0].assistant_text).toBe("NEW fenced answer");
+    await expect(host(data.store).respond("Keep this answer canonical",firstId))
+      .resolves.toMatchObject({
+        persisted:true,replayed:true,
+        reply:{reply:"NEW fenced answer",liveExecutionVerified:false},
+      });
+  });
+
+  it("HOLDs the model if the proposed claim migration is not enabled", async () => {
+    const data = fakeStore();
+    const h = host(data.store);
+    const prepared = await h.prepare("Private pilot", firstId);
+    await expect(respondToVerifiedPrivateGroveTurn({
+      prepared, features: {...flags,claimEnabled:false},
+      dependencies: {sendModel:h.sendModel as never},
+    })).rejects.toMatchObject({
+      status:503,code:"grove_private_claim_not_enabled",
+    });
+    expect(h.sendModel).not.toHaveBeenCalled();
+    expect(data.records.size).toBe(0);
   });
 
   it("racing changed text under the same request ID cannot overwrite the first pair", async () => {
@@ -295,7 +382,7 @@ describe("Grove-only private conversation durability (fixtures, migration OFF)",
     expect(data.records.size).toBe(1);
   });
 
-  it("rechecks live owner/grant/conversation access AFTER model inference and BEFORE saving", async () => {
+  it("rechecks owner/grant after obtaining claim BEFORE calling the model", async () => {
     const data = fakeStore();
     const h = host(data.store);
     const prepared = await h.prepare("Remember the context privately", firstId);
@@ -309,9 +396,64 @@ describe("Grove-only private conversation durability (fixtures, migration OFF)",
         transcriptStore: data.store,
       },
     })).rejects.toThrow("owner_access_revoked");
-    expect(h.sendModel).toHaveBeenCalledTimes(1);
+    expect(h.sendModel).not.toHaveBeenCalled();
     expect(h.authorize).toHaveBeenCalledTimes(2);
     expect(data.records.size).toBe(0);
+  });
+
+  it("rechecks revocation AFTER inference and BEFORE saving a reply", async () => {
+    const data = fakeStore();
+    const h = host(data.store);
+    const prepared = await h.prepare("Private reply must not outlive grant", firstId);
+    // The claim-time check passes; the later post-inference check fails.
+    h.authorize.mockResolvedValueOnce(await h.authorize());
+    h.authorize.mockRejectedValueOnce(new Error("revoked_during_inference"));
+    await expect(respondToVerifiedPrivateGroveTurn({
+      prepared, features: flags, dependencies: {
+        authorize: h.authorize as never,
+        sendModel: h.sendModel as never,
+        transcriptStore: data.store,
+      },
+    })).rejects.toThrow("revoked_during_inference");
+    expect(h.sendModel).toHaveBeenCalledTimes(1);
+    expect(data.records.size).toBe(0);
+  });
+
+  it("withholds saved private reply if access is revoked just after fenced commit", async()=>{
+    const data=fakeStore();
+    const h=host(data.store);
+    const prepared=await h.prepare("Reply at revocation boundary",firstId);
+    const original=prepared.transcript!.store;
+    prepared.transcript!.store={
+      ...original,
+      persistCompleted:async input=>{
+        const committed=await original.persistCompleted(input);
+        h.authorize.mockRejectedValueOnce(new Error("revoked_after_db_commit"));
+        return committed;
+      },
+    };
+    await expect(respondToVerifiedPrivateGroveTurn({
+      prepared,features:flags,
+      dependencies:{sendModel:h.sendModel as never},
+    })).rejects.toThrow("revoked_after_db_commit");
+    expect(data.records.size).toBe(1);
+    expect(h.sendModel).toHaveBeenCalledTimes(1);
+    expect(h.authorize).toHaveBeenCalledTimes(4);
+  });
+
+  it("failed inference keeps claim held and never creates a partial transcript", async()=>{
+    const data=fakeStore();
+    const h=host(data.store);
+    h.sendModel.mockRejectedValueOnce(new Error("model_unavailable"));
+    await expect(h.respond("Do not duplicate failed inference",firstId))
+      .rejects.toThrow("model_unavailable");
+    expect(data.records.size).toBe(0);
+    await expect(h.respond("Do not duplicate failed inference",firstId))
+      .rejects.toMatchObject({status:409,
+        code:"grove_private_request_in_progress"});
+    expect(h.sendModel).toHaveBeenCalledTimes(1);
+    // A separately reviewed timeout/reclaim path may retry later; no
+    // automatic immediate duplicate request is authorized here.
   });
 
   it("rejects an account bridge that changes owner while LM is responding", async () => {
@@ -434,6 +576,7 @@ describe("Grove-only private conversation durability (fixtures, migration OFF)",
     const data = fakeStore();
     const untouched: GrovePrivateTranscriptStore = {
       getCompleted: async () => { throw new Error("read_when_off"); },
+      claimPending: async () => { throw new Error("claim_when_off"); },
       listRecent: async () => { throw new Error("list_when_off"); },
       persistCompleted: async () => { throw new Error("write_when_off"); },
     };
@@ -456,6 +599,78 @@ describe("Grove-only private conversation durability (fixtures, migration OFF)",
     expect(response).toMatchObject({ status: "responded", persisted: false });
     expect(data.records.size).toBe(0);
     expect(h.sendModel).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("Private model lease RPC (disposable client mock only)", () => {
+  it("passes only scoped IDs + SHA-256, never raw text or browser credentials", async () => {
+    const rpc = vi.fn(async () => ({data:{status:"claimed",leaseToken:firstId},error:null}));
+    const store = createSupabaseGrovePrivateTranscriptStore({rpc} as never);
+    expect(await store.claimPending({
+      ...scope,requestId:firstId,userText:"A private message",
+    })).toEqual({status:"claimed",leaseToken:firstId});
+    expect(rpc).toHaveBeenCalledWith("grove_private_claim_turn",
+      expect.objectContaining({
+        p_grove_user_id:groveUserId,p_project_id:projectId,
+        p_conversation_id:conversationId,p_request_id:firstId,
+        p_user_text_sha256:expect.stringMatching(/^[a-f0-9]{64}$/),
+      }));
+    expect(JSON.stringify(rpc.mock.calls)).not.toContain("A private message");
+  });
+  it("fails closed when SQL migration/RPC is unavailable or returns unknown state", async () => {
+    const rpc=vi.fn()
+      .mockResolvedValueOnce({data:null,error:{message:"RPC missing"}})
+      .mockResolvedValueOnce({data:{status:"success"},error:null});
+    const store=createSupabaseGrovePrivateTranscriptStore({rpc} as never);
+    const input={...scope,requestId:firstId,userText:"Await approval"};
+    await expect(store.claimPending(input)).rejects.toMatchObject({
+      message:"RPC missing",
+    });
+    await expect(store.claimPending(input)).rejects.toMatchObject({
+      status:409,code:"grove_transcript_claim_invalid",
+    });
+  });
+});
+
+describe("Grove fenced DB completion contract (synthetic mock only)", () => {
+  it("persists only by scoped RPC and never falls back to direct transcript INSERT", async () => {
+    const persisted=row({requestId:firstId,userText:"Private user",
+      assistantText:"Private answer"});
+    const chain={
+      select:vi.fn(),eq:vi.fn(),maybeSingle:vi.fn(async()=>({
+        data:persisted,error:null,
+      })),insert:vi.fn(),
+    };
+    chain.select.mockReturnValue(chain);
+    chain.eq.mockReturnValue(chain);
+    const from=vi.fn(()=>chain);
+    const rpc=vi.fn(async()=>({data:"created",error:null}));
+    const store=createSupabaseGrovePrivateTranscriptStore({from,rpc} as never);
+    await expect(store.persistCompleted({...scope,requestId:firstId,
+      leaseToken:secondId,userText:"Private user",reply:reply("Private answer")}))
+      .resolves.toMatchObject({created:true,row:persisted});
+    expect(rpc).toHaveBeenCalledWith("grove_private_complete_turn",
+      expect.objectContaining({
+        p_grove_user_id:groveUserId,p_project_id:projectId,
+        p_conversation_id:conversationId,p_request_id:firstId,
+        p_lease_token:secondId,p_user_text:"Private user",
+        p_assistant_text:"Private answer",
+      }));
+    expect(chain.insert).not.toHaveBeenCalled();
+  });
+  it("rejected stale token or missing fenced migration returns no saved answer", async()=>{
+    const rpc=vi.fn()
+      .mockResolvedValueOnce({data:"stale",error:null})
+      .mockResolvedValueOnce({data:null,error:{message:"migration absent"}});
+    const store=createSupabaseGrovePrivateTranscriptStore({rpc} as never);
+    const input={...scope,requestId:firstId,leaseToken:secondId,
+      userText:"Blocked",reply:reply("No reply")};
+    await expect(store.persistCompleted(input)).rejects.toMatchObject({
+      status:403,code:"grove_private_claim_lost",
+    });
+    await expect(store.persistCompleted(input)).rejects.toMatchObject({
+      message:"migration absent",
+    });
   });
 });
 
