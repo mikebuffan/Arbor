@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+      # Temporary isolated integration-manifest v3 tests; remove before source promotion.
+      - docs/arbor-master-integration-20260921
   pull_request:
     branches:
       - main
@@ -37,6 +39,11 @@ jobs:
         env:
           OPENAI_API_KEY: ci-placeholder-not-a-real-key
         run: pnpm --filter firefly-backend test
+
+      - name: Verify current integration inventory and negative gates (offline snapshot)
+        run: |
+          node --test docs/integration/check_integration_v3.test.mjs
+          node docs/integration/check_integration_v3.mjs docs/integration/integration_manifest_v3.json
 
       - name: Build backend
         env:
