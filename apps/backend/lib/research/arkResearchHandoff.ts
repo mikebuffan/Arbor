@@ -100,8 +100,7 @@ export async function runTrustedArkResearchTick(args: {
     sessionId: args.handoff.sessionId, store: scopedStore,
     executor: args.executor, at: args.at,
   });
-  if (result.status !== "committed" && result.status !== "duplicate" &&
-      result.status !== "lease_lost") return result;
+  if (!("receipt" in result)) return result;
   return {
     status: result.status,
     checkpoint: {
