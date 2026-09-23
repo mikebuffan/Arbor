@@ -17,6 +17,8 @@ const bodySchema = z.object({
   projectId: z.string().uuid(),
   conversationId: z.string().uuid(),
   message: z.string().trim().min(1).max(3000),
+  /** Retry identifier only. Owner/permissions still come exclusively from auth. */
+  requestId: z.string().uuid().optional(),
 }).strict();
 
 function reply(body: Record<string, unknown>, status: number) {
@@ -76,7 +78,7 @@ export async function POST(req: Request) {
     const prepared = await prepareVerifiedPrivateGroveTurn({
       request: req, projectId: body.projectId,
       conversationId: body.conversationId, message: body.message,
-      features,
+      requestId: body.requestId, features,
     });
     const result = await respondToVerifiedPrivateGroveTurn({
       prepared, features,
@@ -95,7 +97,10 @@ export async function POST(req: Request) {
       workReceipts: [],
       grantsExecution: false,
       verifiesCompletion: false,
-      persisted: false,
+      persisted: result.persisted === true,
+      ...(result.persisted === true ? {
+        requestId: result.requestId, replayed: result.replayed,
+      } : {}),
     }, 200);
   } catch (error) {
     if (error instanceof z.ZodError)
