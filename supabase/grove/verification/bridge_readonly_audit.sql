@@ -50,10 +50,4 @@ from expected e
 left join actual a using (table_name)
 order by e.table_name;
 
--- Check migration ledger separately. The historical bridge DDL was applied
--- manually through SQL Editor, and the ledger did NOT record that migration.
--- Inspect source + schema and obtain review before any ledger reconciliation.
-select version, name
-from supabase_migrations.schema_migrations
-where version in ('20260922035539', '20260922042500')
-order by version;
+-- See migration_ledger_readonly_audit.sql for a separate result set.
