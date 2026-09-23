@@ -33,6 +33,14 @@ Connected account/team “Mike's projects” lists just **firefly** (project `pr
 
 The connected Supabase project **The Grove** remained `ACTIVE_HEALTHY`. The dedicated source-verification queries in `supabase/grove/verification/` were executed against that project, **read-only**: the owner gate and both bridge tables each returned `expected_access_contract = true`, with forced RLS, no anon access, no authenticated writes and no client SELECT on the two admin-only bridge tables. The separate migration-ledger audit returned only `20260922035539_grove_private_owner_access`; `20260922042500_grove_private_firefly_read_grants` is still manually applied but **unrecorded**. All three tables still showed zero rows. These receipts neither provision an owner nor authorize automated schema mutations. Preserve the admin-only/no-policy model for the two bridge tables.
 
+## Phone-controlled independent Arbor LM checkpoint (separate private artifact; not in Git)
+
+The recovered **original** Qwen3-0.6B Arbor v0.3 LoRA archive was independently materialized from Danelle's private Library and fingerprint-verified (`5447bc273c11374c73194428825babe22a008b0827e9ef002127a461023402aa`). The v0.3.5-r2 signed receiver candidate was fingerprint-verified (`dac8851bfb9e85673668943d2282cbf284bbad67985c382b36d534d8667a5929`). A clean re-extraction **from the private phone kit itself** passed all 62 package manifest entries and all **80 local tests** with the real archived adapter available to the suite. This is contract testing, not Qwen inference.
+
+Created private, phone-operable Colab notebook `Arbor_LM_Phone_Colab_v035_2026-09-22.ipynb` (SHA256 `1a94368c984d4c41bfc161f87228595e7a560d740b0b37707fbdacade1a4997a`) and private bundled `Arbor_LM_Phone_Kit_2026-09-22.zip` (SHA256 `bf8cdaf2d7d0cf3a9d58eb38835133600fc792c4f1db8f7570bd11b930a55fc9`). The kit contains the existing untouched adapter, receiver code and notebook, and **must not be committed to this public repository**. The notebook was validated as valid nbformat and all code cells compiled; actual Colab/GPU execution remains **not tested** because the model host has no authorized GPU session. The Colab runtime is temporary; user-triggered private evaluation is a separate gate from independently **hosted** inference.
+
+Dependency path: owner-initiated approved GPU session on phone → checksum verification → real one-seed, three-case Qwen/adapter probe → optional original 18-case/two-seed comparison and private human review → independent private LM host → owner-scoped Grove/ARK/Layer conversation seam → real Text then Voice/restart tests. Do not claim real model output, retraining, deployment, owner grants or OpenAI-free end-to-end operation from this checkpoint.
+
 ## Grove-only finish line, dependency order
 
 1. Review #179 plus #160 exact source and tests. Design the smallest reviewed composition path; keep parent PRs draft and preserve owner boundaries.
