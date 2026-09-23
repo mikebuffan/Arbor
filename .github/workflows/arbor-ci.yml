@@ -110,63 +110,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          curl --fail --location --proto '=https' --proto-redir '=https' \\
-            --max-redirs 3 --connect-timeout 10 --max-time 45 --retry 2 \\
-            --output "$RUNNER_TEMP/blank-1040.pdf" \\
-            --write-out 'HTTP=%{http_code} content_type=%{content_type} bytes=%{size_download} final_url=%{url_effective}\\n' \\
+          curl --fail --location --proto '=https' --proto-redir '=https' \
+            --max-redirs 3 --connect-timeout 10 --max-time 45 --retry 2 \
+            --output "$RUNNER_TEMP/blank-1040.pdf" \
+            --write-out 'HTTP=%{http_code} content_type=%{content_type} bytes=%{size_download} final_url=%{url_effective}\n' \
             'https://www.irs.gov/pub/irs-prior/f1040--2025.pdf'
           test "$(head -c 5 "$RUNNER_TEMP/blank-1040.pdf")" = '%PDF-'
           test "$(wc -c < "$RUNNER_TEMP/blank-1040.pdf")" -le 5242880
           sha256sum "$RUNNER_TEMP/blank-1040.pdf"
-          pdfinfo "$RUNNER_TEMP/blank-1040.pdf" | grep -E '^Pages:[[:space:]]+2    name: Control backend test + build
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-      - run: corepack enable
-      - run: corepack prepare pnpm@10.30.3 --activate
-      - run: pnpm install --frozen-lockfile
-      - name: Run control backend tests
-        run: pnpm --filter arbor-control-backend test
-      - name: Build control backend
-        run: pnpm --filter arbor-control-backend build
-
-  flutter:
-    name: Flutter analyze + test
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    defaults:
-      run:
-        working-directory: apps/frontend
-    steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          cache: true
-      - run: flutter pub get
-      - name: Verify Flutter generated state is current
-        run: git diff --exit-code -- pubspec.lock analysis_options.yaml
-      - name: Analyze
-        run: flutter analyze --no-fatal-infos --no-fatal-warnings
-      - run: flutter test
-      - name: Build Android debug APK
-        run: >
-          flutter build apk --debug
-          --dart-define=SUPABASE_URL=https://ncpdlyakrzfvobmwzbon.supabase.co
-          --dart-define=SUPABASE_ANON_KEY=sb_publishable_med7aHx1vGlYLih1QbdgtA_zQnRTSrS
-          --dart-define=ARBOR_API_URL=https://firefly-coral.vercel.app
-      - name: Upload Android debug APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: arbor-android-debug
-          path: apps/frontend/build/app/outputs/flutter-apk/app-debug.apk
-          if-no-files-found: error
-          retention-days: 7
-
+          pdfinfo "$RUNNER_TEMP/blank-1040.pdf" | grep -E '^Pages:[[:space:]]+2$'
           pdftotext -f 1 -l 1 -layout "$RUNNER_TEMP/blank-1040.pdf" "$RUNNER_TEMP/first.txt"
           pdftotext -f 2 -l 2 -layout "$RUNNER_TEMP/blank-1040.pdf" "$RUNNER_TEMP/second.txt"
           grep -Eq '11a' "$RUNNER_TEMP/first.txt"
