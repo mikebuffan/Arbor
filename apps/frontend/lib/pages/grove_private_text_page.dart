@@ -308,6 +308,18 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel> {
         history = await widget.client.loadRecent(
           projectId: widget.projectId, conversationId: id,
         );
+        // A successful POST is not proof that the reopened phone view
+        // contains THIS turn. Do not clear the draft/retry label when an
+        // authorized history read is stale, truncated, or mismatched.
+        if (history.projectId != widget.projectId ||
+            history.conversationId != id ||
+            reply.requestId != requestId ||
+            !history.turnsNewestFirst.any((turn) =>
+              turn.requestId == requestId &&
+              turn.userText == message &&
+              turn.assistantText == reply.text)) {
+          throw StateError('Saved Grove turn was not recovered');
+        }
       }
       if (!_valid || generation != _generation) return;
       setState(() {
