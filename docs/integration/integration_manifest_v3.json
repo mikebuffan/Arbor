@@ -1,0 +1,155 @@
+{
+  "schema_version": 3,
+  "repository": "mikebuffan/Arbor",
+  "observed_on": "2026-09-23",
+  "scope": "historical source inventory only; re-fetch live PRs before release",
+  "main_sha": "d46f6b46fc51ac3db4e158cddfc592c52cc2b5ef",
+  "products": [
+    "private_grove",
+    "public_arbor_app",
+    "research_engine"
+  ],
+  "prs": [
+    {
+      "n": 149,
+      "lane": "integration",
+      "sha": "fb32c6c44d99974ef1e4ea5cc54df0a5c1b88d71",
+      "base": "main",
+      "base_sha": "d46f6b46fc51ac3db4e158cddfc592c52cc2b5ef",
+      "branch": "docs/arbor-master-integration-20260921"
+    },
+    {
+      "n": 159,
+      "lane": "public",
+      "sha": "1a6a6cc7eb682059b47f0638aaf5f5dedb907be1",
+      "base": "arbor/public-alpha-continuity-privacy-20260921",
+      "base_sha": "aea0318d9ff07d9c6e22d0627d3582325053b320",
+      "branch": "fix/public-alpha-exclude-grove-provider-20260922"
+    },
+    {
+      "n": 160,
+      "lane": "ark_layer",
+      "sha": "fc58351e9ae8416c3d28d3c398d4126387310bf0",
+      "base": "arbor/ark-layer-handoff-boundary-20260921",
+      "base_sha": "ce70f72287e172e7650604e47872c6facdfd3107",
+      "branch": "fix/ark-layer-selected-attachment-conversation-20260922"
+    },
+    {
+      "n": 193,
+      "lane": "ark_layer",
+      "sha": "5cac54dc95ff3d356a0ce29eb6e9c97e9788d751",
+      "base": "main",
+      "base_sha": "d46f6b46fc51ac3db4e158cddfc592c52cc2b5ef",
+      "branch": "feature/grove-firefly-integrated-preflight-20260923"
+    },
+    {
+      "n": 194,
+      "lane": "grove",
+      "sha": "54a836a4012dffb8cce24183f3b9f7c554e06a85",
+      "base": "feature/grove-firefly-integrated-preflight-20260923",
+      "base_sha": "5cac54dc95ff3d356a0ce29eb6e9c97e9788d751",
+      "branch": "feature/grove-private-transcript-durability-20260923"
+    },
+    {
+      "n": 196,
+      "lane": "grove",
+      "sha": "22aad3ede2005318805147bb5efe090a6c7cb8e7",
+      "base": "feat/grove-observatory-room-20260922",
+      "base_sha": "dec5e3f1b8d3b6bd847b828cdcb44284579f8d13",
+      "branch": "feature/grove-private-chat-client-contract-20260923"
+    },
+    {
+      "n": 201,
+      "lane": "research",
+      "sha": "d74a107af8eeda30cb1b477bb9fee4122722679a",
+      "base": "docs/epstein-research-run5-boundary-handoff-20260923",
+      "base_sha": "74de6edbdc82f94773f604c9710a3bb6ca58667c",
+      "branch": "test/ark-research-persisted-session-simulation-20260923"
+    },
+    {
+      "n": 205,
+      "lane": "grove",
+      "sha": "64bf177ac1b2800d1254965bd8b6b1dcb0babfc4",
+      "base": "feature/grove-private-transcript-durability-20260923",
+      "base_sha": "5dba1e6b08b548934961dcd735387bf81f74f681",
+      "branch": "feature/grove-private-release-composite-20260923"
+    },
+    {
+      "n": 206,
+      "lane": "grove",
+      "sha": "2ab4c70dd4c8e57501e0f238a910ece939f7de97",
+      "base": "feature/grove-private-release-composite-20260923",
+      "base_sha": "64bf177ac1b2800d1254965bd8b6b1dcb0babfc4",
+      "branch": "test/grove-private-end-to-end-composite-20260923"
+    },
+    {
+      "n": 207,
+      "lane": "research",
+      "sha": "7179920ad35a0bc1a518631549e4af5d1f3da860",
+      "base": "test/ark-research-persisted-session-simulation-20260923",
+      "base_sha": "d74a107af8eeda30cb1b477bb9fee4122722679a",
+      "branch": "chore/research-ci-trigger-cleanup-handoff-20260923"
+    },
+    {
+      "n": 208,
+      "lane": "grove",
+      "sha": "737833e725238a979630c15a8c83aea40ed4397b",
+      "base": "test/grove-private-end-to-end-composite-20260923",
+      "base_sha": "2ab4c70dd4c8e57501e0f238a910ece939f7de97",
+      "branch": "feature/grove-private-release-readiness-20260923"
+    }
+  ],
+  "proofs": [
+    {
+      "pr": 206,
+      "sha": "2ab4c70dd4c8e57501e0f238a910ece939f7de97",
+      "run": 35893576663,
+      "scope": "5-job synthetic backend+Flutter+both APK+disposable PG",
+      "level": "exact_head_ci"
+    },
+    {
+      "pr": 201,
+      "sha": "d74a107af8eeda30cb1b477bb9fee4122722679a",
+      "run": 35873618991,
+      "scope": "synthetic research handoff",
+      "level": "exact_head_ci"
+    },
+    {
+      "pr": 159,
+      "sha": "1a6a6cc7eb682059b47f0638aaf5f5dedb907be1",
+      "run": 35762754152,
+      "scope": "pinned public alpha code",
+      "level": "exact_head_ci"
+    },
+    {
+      "pr": 160,
+      "sha": "fc58351e9ae8416c3d28d3c398d4126387310bf0",
+      "run": 35762754152,
+      "scope": "pinned ARK/Layer source",
+      "level": "exact_head_ci"
+    }
+  ],
+  "no_merge": [
+    195,
+    197,
+    204
+  ],
+  "blocked_release": [
+    "live_grove_project_id_access",
+    "live_privacy_migration",
+    "real_owner_project_grants",
+    "real_independent_lm_inference",
+    "physical_samsung_acceptance",
+    "real_ark_worker_receipts",
+    "research_source_approval",
+    "public_multi_user_acceptance"
+  ],
+  "forbidden_flows": [
+    "private_grove->public_arbor_app",
+    "public_arbor_app->private_grove",
+    "private_grove->research_engine",
+    "research_engine->private_grove"
+  ],
+  "old_grove_production_branch": "deploy/grove-private-api-20260921",
+  "source_ready_for_production": false
+}
