@@ -20,6 +20,7 @@ import 'grove_room_inventory_panel.dart';
 import 'grove_app_mode.dart';
 import 'grove_responsive_wrap.dart';
 import 'annabelle_kitchen_view.dart';
+import 'grove_observatory_view.dart';
 import 'benchmark_view.dart';
 import 'project_view.dart';
 import 'memory_state_view.dart';
@@ -29,7 +30,7 @@ import 'attention_banner.dart';
 import '../pages/arbor_shell_page.dart';
 import '../pages/grove_talk_page.dart';
 
-enum EnvironmentDestination { home, conversation, objective, queue, projects, memory, evidence, tools, benchmarks, focus, health, settings, kitchen }
+enum EnvironmentDestination { home, conversation, objective, queue, projects, memory, evidence, tools, benchmarks, focus, health, settings, kitchen, observatory }
 
 class ArborEnvironmentShell extends StatefulWidget {
   const ArborEnvironmentShell({
@@ -194,31 +195,7 @@ class _ArborEnvironmentShellState extends State<ArborEnvironmentShell> {
           ),
         );
       case GroveRoomAction.stairs:
-        showModalBottomSheet<void>(
-          context: context,
-          backgroundColor: ArborEnvironmentTokens.midnight,
-          builder: (sheetContext) => SafeArea(child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.restaurant_menu),
-                title: const Text('Annabelle’s Kitchen'),
-                onTap: () {
-                  Navigator.pop(sheetContext);
-                  _select(EnvironmentDestination.kitchen);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.folder_outlined),
-                title: const Text('Projects and work'),
-                onTap: () {
-                  Navigator.pop(sheetContext);
-                  _select(EnvironmentDestination.projects);
-                },
-              ),
-            ],
-          )),
-        );
+        _select(EnvironmentDestination.observatory);
       case GroveRoomAction.moss:
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text('Moss is the head of household. Obviously. 🐾'),
@@ -230,6 +207,7 @@ class _ArborEnvironmentShellState extends State<ArborEnvironmentShell> {
     showEnvironmentCommandPalette(context, [
       EnvironmentCommand('Go Home', () => _select(EnvironmentDestination.home)),
       EnvironmentCommand('Enter Annabelle’s Kitchen', () => _select(EnvironmentDestination.kitchen)),
+      EnvironmentCommand('Enter the Observatory', () => _select(EnvironmentDestination.observatory)),
       EnvironmentCommand('Open Conversation', () => _select(EnvironmentDestination.conversation)),
       EnvironmentCommand('Open Current Objective', () => _select(EnvironmentDestination.objective)),
       EnvironmentCommand('Open Work Queue', () => _select(EnvironmentDestination.queue)),
@@ -267,6 +245,7 @@ class _Navigation extends StatelessWidget {
           NavigationRailDestination(icon: Icon(Icons.monitor_heart_outlined), label: Text('System Health')),
           NavigationRailDestination(icon: Icon(Icons.settings_outlined), label: Text('Settings')),
           NavigationRailDestination(icon: Icon(Icons.restaurant_menu), label: Text('Kitchen')),
+          NavigationRailDestination(icon: Icon(Icons.nights_stay_outlined), label: Text('Observatory')),
         ],
       );
 }
@@ -309,6 +288,7 @@ class _Surface extends StatelessWidget {
       EnvironmentDestination.health => 'System Health',
       EnvironmentDestination.settings => 'Settings',
       EnvironmentDestination.kitchen => 'Annabelle’s Kitchen',
+      EnvironmentDestination.observatory => 'The Observatory',
     };
     // Conversation needs the available phone height for Text, Voice, and the
     // keyboard; a fixed 720px panel nested inside a scrolling dashboard
@@ -348,6 +328,10 @@ class _Surface extends StatelessWidget {
             AnnabelleKitchenView(
               onReturnHome: () => onSelect(EnvironmentDestination.home),
               onOpenConversation: () => onSelect(EnvironmentDestination.conversation),
+            )
+          else if (selected == EnvironmentDestination.observatory)
+            GroveObservatoryView(
+              onReturnHome: () => onSelect(EnvironmentDestination.home),
             )
           else if (selected == EnvironmentDestination.objective)
             ObjectiveWorkspace(objective: objective)
