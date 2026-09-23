@@ -1,5 +1,6 @@
 import "server-only";
 
+import { createHash } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { RouteAccessError } from "@/lib/auth/routeAuthorization";
 import type {
@@ -41,6 +42,11 @@ export type GrovePrivateTranscriptStore = {
   getCompleted(input: GrovePrivateTranscriptScope & {
     requestId: string;
   }): Promise<GrovePrivateTranscriptRow | null>;
+  /** Atomic across workers, only after owner/conversation/project verification.
+   * Requires separately approved Grove-only pending-claim migration. */
+  claimPending(input: GrovePrivateTranscriptScope & {
+    requestId: string; userText: string;
+  }): Promise<"claimed" | "in_progress" | "conflict" | "no_access">;
   listRecent(scope: GrovePrivateTranscriptScope): Promise<GrovePrivateTranscriptRow[]>;
   persistCompleted(input: GrovePrivateTranscriptScope & {
     requestId: string;
@@ -110,6 +116,29 @@ export function createSupabaseGrovePrivateTranscriptStore(
       if (!data) return null;
       assertRow(data as GrovePrivateTranscriptRow, input);
       return data as GrovePrivateTranscriptRow;
+    },
+    async claimPending(input) {
+      assertScope(input);
+      assertRequestId(input.requestId);
+      if (typeof input.userText !== "string" ||
+          !input.userText.trim() || input.userText.length > 3000)
+        throw new RouteAccessError(409, "grove_transcript_reply_invalid");
+      const digest = createHash("sha256")
+        .update(input.userText, "utf8").digest("hex");
+      const { data, error } = await groveServiceClient.rpc(
+        "grove_private_claim_turn", {
+          p_grove_user_id: input.groveUserId,
+          p_project_id: input.projectId,
+          p_conversation_id: input.conversationId,
+          p_request_id: input.requestId,
+          p_user_text_sha256: digest,
+        },
+      );
+      if (error) throw error; // Missing live migration fails CLOSED.
+      if (!["claimed", "in_progress", "conflict", "no_access"]
+          .includes(data as string))
+        throw new RouteAccessError(409, "grove_transcript_claim_invalid");
+      return data as "claimed" | "in_progress" | "conflict" | "no_access";
     },
     async listRecent(scope) {
       assertScope(scope);
