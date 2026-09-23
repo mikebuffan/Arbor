@@ -46,6 +46,12 @@ BEGIN
       WHERE schemaname='public' AND tablename='grove_private_turns') <> 0 THEN
     RAISE EXCEPTION 'unexpected client-facing transcript policy';
   END IF;
+  IF NOT has_table_privilege('service_role','public.grove_private_turns','SELECT')
+    OR NOT has_table_privilege('service_role','public.grove_private_turns','INSERT')
+    OR has_table_privilege('service_role','public.grove_private_turns','UPDATE')
+    OR has_table_privilege('service_role','public.grove_private_turns','DELETE') THEN
+    RAISE EXCEPTION 'service_role should have private transcript SELECT/INSERT only';
+  END IF;
   IF has_table_privilege('anon','public.grove_private_turns','SELECT')
     OR has_table_privilege('anon','public.grove_private_turns','INSERT')
     OR has_table_privilege('authenticated','public.grove_private_turns','SELECT')
