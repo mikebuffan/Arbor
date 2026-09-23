@@ -96,7 +96,7 @@ export function trainVerifiedPathwayExample(state: PathwayLearningState, sample:
   if (!sample.verifiedReceipt.trim()) throw new Error("learning_verified_receipt_required");
   const key = sample.verifiedReceipt.trim();
   const payload = JSON.stringify([sample.text.trim().toLowerCase(), sample.route]);
-  if (state.receipts[key]) {
+  if (Object.prototype.hasOwnProperty.call(state.receipts, key)) {
     if (state.receipts[key] !== payload) throw new Error("learning_receipt_conflict");
     return state;
   }
