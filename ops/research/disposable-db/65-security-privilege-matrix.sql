@@ -12,10 +12,17 @@ begin
    'public.arbor_settle_research_unit(uuid,uuid,uuid,uuid,uuid,text,text,integer,text[],integer,jsonb)',
    'public.arbor_stop_research_session(uuid,uuid,uuid,text,text)'
  ] loop
-   if has_function_privilege('public',sig,'EXECUTE')
-      or has_function_privilege('anon',sig,'EXECUTE')
+   if has_function_privilege('anon',sig,'EXECUTE')
       or has_function_privilege('authenticated',sig,'EXECUTE') then
-     raise exception 'client/PUBLIC execute leaked for %',sig;
+     raise exception 'client execute leaked for %',sig;
+   end if;
+   if exists (
+     select 1
+     from pg_proc p
+     cross join lateral aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) a
+     where p.oid=to_regprocedure(sig) and a.grantee=0 and a.privilege_type='EXECUTE'
+   ) then
+     raise exception 'PUBLIC execute leaked for %',sig;
    end if;
    if not has_function_privilege('service_role',sig,'EXECUTE') then
      raise exception 'service_role execute missing for %',sig;
