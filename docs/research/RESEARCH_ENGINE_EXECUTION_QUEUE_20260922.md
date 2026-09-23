@@ -11,7 +11,7 @@ This is a dependency-ordered engineering queue, not a promise of background exec
 - [x] Run backend, control backend, Flutter/Android, synthetic PDF smoke on same exact head: SUCCESS, run 35803380628.
 - [x] Add synthetic auth/projects fixture and disposable PostgreSQL 17 CI service, no Supabase writes.
 - [x] Write database claim, settle, duplicate, RLS, STOP, grants and deadline/lease/fencing/revocation test cases.
-- [ ] **GATE:** observe disposable DB CI actually execute and pass; latest new-head run pending at writing. Written tests are not passed tests.
+- [x] **GATE:** disposable DB CI executed and passed; run 35806347563, commit c54ca183208c5b09c2454cfbfdf8ee576b956c17, all six jobs SUCCESS.
 
 ## DB acceptance — next safe engineering steps
 
@@ -19,18 +19,18 @@ This is a dependency-ordered engineering queue, not a promise of background exec
 - [ ] Verify PostgreSQL version, role permissions and synthetic fixture isolation in logs.
 - [ ] Record pass/fail for owner A vs owner B under authenticated RLS.
 - [ ] Confirm anon/authenticated cannot execute privileged claim/settle/STOP RPCs.
-- [ ] Verify STOP before claim and after claim; no late settlement.
+- [x] Verify STOP before/after claim and race STOP against settle; no settlement after STOP wins the lock (run 35806347563).
 - [ ] Verify pre-start and expired-deadline claims denied.
 - [ ] Verify lease expiry, reclaimed lease and stale-token fencing.
 - [ ] Verify one receipt and one charge on duplicate settlement.
 - [ ] Verify max cost reservation and cost commitment bounds.
-- [ ] Add true concurrent *separate connections* claim vs claim, claim vs STOP, settle vs STOP and duplicate settle; single-transaction sequential SQL is not a concurrency test.
-- [ ] Test DB lock-wait past deadline, not only already-expired timestamps.
+- [x] Separate-connection claim vs claim, duplicate settle and STOP vs settle; CI synthetic tests PASS (run 35806347563). Claim vs STOP remains a separate test case.
+- [x] Test session row-lock wait past claim deadline and lease expiry during settlement wait (40-lock-waits.sh; run 35806347563).
 - [ ] Test pause, block, authorization revocation, completed/timebox-ended settlement rejection.
 - [ ] Test work-unit attempts exhausted, failure retry and recovery after worker crash.
 - [ ] Test restart with persisted session/unit/receipt state; no phantom completion.
 - [ ] Review SECURITY DEFINER ownership, search_path, grants, role bypass behavior against actual Supabase in an explicitly approved disposable Supabase environment if necessary. CI mock auth is not final Supabase acceptance.
-- [ ] Confirm isolated CI PostgreSQL service destroyed after job; log cleanup outcome, no real secrets.
+- [x] Confirm GitHub Actions disposable PostgreSQL service teardown in job logs; only synthetic credentials/data (run 35806347563).
 
 ## External benign PDF — remaining manual checks
 
@@ -68,4 +68,4 @@ This is a dependency-ordered engineering queue, not a promise of background exec
 
 ## Current stop condition
 
-No shared database, external worker, production deployment or sensitive records are touched. Latest full five-job CI was green. New six-job run is unverified until GitHub actually schedules the disposable DB job and publishes logs.
+No shared database, external worker, production deployment or sensitive records are touched. All six jobs green at commit c54ca183208c5b09c2454cfbfdf8ee576b956c17, run 35806347563. DB acceptance is a disposable PostgreSQL mock-auth proof, NOT final Supabase security acceptance or worker rehearsal.
