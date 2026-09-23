@@ -9,7 +9,8 @@ const SHA=/^[a-f0-9]{40}$/;
 const REQUIRED_GATES=["live_grove_project_id_access","live_privacy_migration",
  "real_owner_project_grants","real_independent_lm_inference",
  "physical_samsung_acceptance","real_ark_worker_receipts",
- "research_source_approval","public_multi_user_acceptance"];
+ "research_source_approval","public_multi_user_acceptance",
+ "live_retry_claim_migration"];
 const FLOWS=["private_grove->public_arbor_app",
  "public_arbor_app->private_grove","private_grove->research_engine",
  "research_engine->private_grove"];
@@ -31,13 +32,13 @@ export function auditIntegrationV3(m,{observed=null,owner=null,paths=[]}={}){
     byBranch.set(p.branch,p);
     if(!p.base)fail("missing base PR "+p.n);
   }
-  for(const n of [159,160,193,194,196,201,205,206,207,208])
+  for(const n of [159,160,193,194,196,201,205,206,207,208,209])
     if(!byN.has(n))fail("missing lane PR #"+n);
   for(const n of [195,197,204]){
     if(!m.no_merge?.includes(n))fail("missing CI-only DO NOT MERGE #"+n);
     if(byN.has(n))fail("CI-only mirror cannot be an active lane PR #"+n);
   }
-  const expectedEdges=[[194,193],[205,194],[206,205],[208,206],[207,201]];
+  const expectedEdges=[[194,193],[205,194],[206,205],[208,206],[209,208],[207,201]];
   for(const [child,parent] of expectedEdges){
     const c=byN.get(child),p=byN.get(parent);
     if(c&&p){
