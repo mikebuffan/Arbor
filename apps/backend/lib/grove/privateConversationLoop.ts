@@ -38,6 +38,13 @@ import type { ScopedHopEvidence } from "@/lib/learning/cognitiveAssembly";
  * authoritative completion receipts exist in this module.
  */
 
+export class GrovePrivateRequestError extends Error {
+  constructor(readonly status: 400 | 413 | 415, readonly code: string) {
+    super(code);
+    this.name = "GrovePrivateRequestError";
+  }
+}
+
 const uuid =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -126,7 +133,7 @@ export async function prepareVerifiedPrivateGroveTurn(input: {
     throw new RouteAccessError(404, "grove_invalid_conversation_scope");
   if (typeof input.message !== "string" ||
       !input.message.trim() || input.message.length > 3000)
-    throw new RouteAccessError(400, "grove_private_message_invalid");
+    throw new GrovePrivateRequestError(400, "grove_private_message_invalid");
   const deps = input.dependencies ?? {};
   const authorized: VerifiedConversation =
     await (deps.authorize ?? authorizePrivateGroveConversation)(
