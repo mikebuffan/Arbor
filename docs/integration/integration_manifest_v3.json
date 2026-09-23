@@ -1,7 +1,7 @@
 {
   "schema_version": 3,
   "repository": "mikebuffan/Arbor",
-  "observed_on": "2026-09-23",
+  "observed_on": "2026-09-23 (after separate Grove retry and pinned research CI changes; snapshot only)",
   "scope": "historical source inventory only; re-fetch live PRs before release",
   "main_sha": "d46f6b46fc51ac3db4e158cddfc592c52cc2b5ef",
   "products": [
@@ -89,6 +89,14 @@
       "base": "test/grove-private-end-to-end-composite-20260923",
       "base_sha": "2ab4c70dd4c8e57501e0f238a910ece939f7de97",
       "branch": "feature/grove-private-release-readiness-20260923"
+    },
+    {
+      "n": 209,
+      "lane": "grove",
+      "sha": "c356f9da25255e5113a752799061f84423eb667a",
+      "base": "feature/grove-private-release-readiness-20260923",
+      "base_sha": "737833e725238a979630c15a8c83aea40ed4397b",
+      "branch": "feature/grove-private-durable-retry-claim-20260923"
     }
   ],
   "proofs": [
@@ -119,6 +127,13 @@
       "run": 35762754152,
       "scope": "pinned ARK/Layer source",
       "level": "exact_head_ci"
+    },
+    {
+      "pr": 208,
+      "sha": "737833e725238a979630c15a8c83aea40ed4397b",
+      "run": 35901787836,
+      "scope": "5-job synthetic key-free Grove+Arbor APK, private-host boundary and branch filter",
+      "level": "exact_head_ci"
     }
   ],
   "no_merge": [
@@ -134,7 +149,8 @@
     "physical_samsung_acceptance",
     "real_ark_worker_receipts",
     "research_source_approval",
-    "public_multi_user_acceptance"
+    "public_multi_user_acceptance",
+    "live_retry_claim_migration"
   ],
   "forbidden_flows": [
     "private_grove->public_arbor_app",
