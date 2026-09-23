@@ -116,7 +116,7 @@ DECLARE
   project_b uuid := '00000000-0000-4000-8000-000000000004';
   conversation uuid := '00000000-0000-4000-8000-000000000005';
   retry_id uuid := '00000000-0000-4000-8000-000000000006';
-  first_hash text := repeat('a',64);
+  first_hash text := encode(sha256(convert_to('Synthetic fenced prompt','UTF8')),'hex');
   result jsonb;
   lease_token uuid;
   saved text;
