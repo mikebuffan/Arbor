@@ -33,7 +33,7 @@ const session:ResearchSession={
   objective:"Benign source pilot",status:"queued",
   startedAt:"2026-09-23T18:40:00.000Z",
   deadlineAt:"2026-09-23T19:40:00.000Z",
-  maxWorkUnits:2,consumedWorkUnits:0,maxCostCents:0,
+  maxWorkUnits:2,consumedWorkUnits:0,maxCostCents:1,
   committedCostCents:0,authorized:true,cancellationRequested:false,
   unresolvedRequiredWork:2,completedEvidenceRefs:[],
 };
