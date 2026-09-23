@@ -31,6 +31,28 @@ function isStaticOrPublicPath(pathname: string) {
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
+  // This same backend source is deployed for two DIFFERENT products. The
+  // dedicated Grove host is deny-by-default, even for static/public pages,
+  // inherited Firefly chat/admin/attachments routes and browser CORS.
+  // Individual Grove handlers independently enforce auth, active grants and
+  // default-OFF chat/model/transcript/new-thread feature flags.
+  if (process.env.GROVE_API_ENABLED === "true") {
+    const allowed: Record<string, readonly string[]> = {
+      "/api/grove/ark/status": ["GET"],
+      "/api/grove/ark/projects": ["GET"],
+      "/api/grove/chat/conversations": ["GET", "POST"],
+      "/api/grove/chat/history": ["GET"],
+      "/api/grove/chat": ["POST"],
+    };
+    if (!allowed[pathname]?.includes(req.method)) {
+      return new NextResponse(null, {
+        status: 404,
+        headers: { "Cache-Control": "no-store" },
+      });
+    }
+    return NextResponse.next();
+  }
+
   if (isStaticOrPublicPath(pathname)) {
     return NextResponse.next();
   }

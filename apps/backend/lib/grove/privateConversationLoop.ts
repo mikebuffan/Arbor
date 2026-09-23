@@ -23,6 +23,12 @@ import {
 } from "@/lib/learning/fireflyCognitiveRoundabout";
 import type { CognitiveSnapshotPort } from "@/lib/learning/cognitiveSessionPort";
 import type { ScopedHopEvidence } from "@/lib/learning/cognitiveAssembly";
+import {
+  createSupabaseGrovePrivateTranscriptStore,
+  selectPrivateModelHistory,
+  transcriptRowToUnverifiedReply,
+  type GrovePrivateTranscriptStore,
+} from "@/lib/grove/privateTranscriptStore";
 
 /**
  * Private Grove -> verified Firefly conversation -> ARK/Layer -> optional
@@ -34,8 +40,9 @@ import type { ScopedHopEvidence } from "@/lib/learning/cognitiveAssembly";
  * cognitive preview is a conservative host-only HOLD/CONTINUE gate; ARK/Layer
  * provides the language model's existing continuity data.
  *
- * NO ARK execution, DB writes, message persistence, user-side tools, or
- * authoritative completion receipts exist in this module.
+ * NO ARK execution, tool receipts or public-Firefly message writes. Optional
+ * Grove-only complete-turn persistence is separately gated and never proves
+ * an ARK objective finished.
  */
 
 export class GrovePrivateRequestError extends Error {
@@ -52,6 +59,8 @@ export type GrovePrivateTurnFeatures = {
   chatEnabled: boolean;
   modelEnabled: boolean;
   cognitivePreviewEnabled: boolean;
+  /** An independent approval gate; old draft chat behavior remains unchanged. */
+  transcriptEnabled?: boolean;
 };
 
 export function grovePrivateTurnFeatures(
@@ -61,12 +70,14 @@ export function grovePrivateTurnFeatures(
     chatEnabled: env.GROVE_PRIVATE_CHAT_PREVIEW_ENABLED === "true",
     modelEnabled: env.GROVE_PRIVATE_MODEL_TURN_ENABLED === "true",
     cognitivePreviewEnabled: env.GROVE_COGNITIVE_PREVIEW_ENABLED === "true",
+    transcriptEnabled: env.GROVE_PRIVATE_TRANSCRIPT_ENABLED === "true",
   };
 }
 
 type VerifiedConversation = {
   access: "read-only";
   fireflyAdmin: SupabaseClient;
+  groveAdmin: SupabaseClient;
   fireflyUserId: string;
   groveUserId: string;
   projectId: string;
@@ -102,6 +113,10 @@ export type GroveVerifiedTurn = {
   userText: string;
   arkLayer: ArkLayerReadContext;
   cognitive: FireflyCognitivePreviewResult | null;
+  transcript: { store: GrovePrivateTranscriptStore;
+    groveUserId: string; requestId: string } | null;
+  /** Recheck revocable scope after a long model or history read. */
+  reauthorize: () => Promise<void>;
   /** A hold prevents any model call, even when an objective is still open. */
   status: "ready" | "held";
   holdReason: string | null;
@@ -116,6 +131,8 @@ export type GroveTurnDeps = {
   previewCognitive?: typeof previewFireflyCognitiveRoundabout;
   sendModel?: typeof sendPrivateGroveLmTurnFromVerifiedHost;
   cognitiveRetrieval?: GroveTrustedCognitiveRetrieval;
+  /** Synthetic/integration substitute; never sourced from a browser. */
+  transcriptStore?: GrovePrivateTranscriptStore;
 };
 
 export async function prepareVerifiedPrivateGroveTurn(input: {
@@ -123,6 +140,8 @@ export async function prepareVerifiedPrivateGroveTurn(input: {
   projectId: string;
   conversationId: string;
   message: string;
+  /** Client-generated retry ID only, NEVER authentication or a model turn ID. */
+  requestId?: string;
   features?: GrovePrivateTurnFeatures;
   dependencies?: GroveTurnDeps;
 }): Promise<GroveVerifiedTurn> {
@@ -134,6 +153,8 @@ export async function prepareVerifiedPrivateGroveTurn(input: {
   if (typeof input.message !== "string" ||
       !input.message.trim() || input.message.length > 3000)
     throw new GrovePrivateRequestError(400, "grove_private_message_invalid");
+  if (input.requestId !== undefined && !uuid.test(input.requestId))
+    throw new GrovePrivateRequestError(400, "grove_private_request_id_invalid");
   const deps = input.dependencies ?? {};
   const authorized: VerifiedConversation =
     await (deps.authorize ?? authorizePrivateGroveConversation)(
@@ -169,6 +190,27 @@ export async function prepareVerifiedPrivateGroveTurn(input: {
     conversationId: input.conversationId,
     turnId,
   };
+  const reauthorize = async () => {
+    // The Grove invitation, bridge or project grant can be revoked WHILE
+    // the model responds. No private reply may be returned or persisted
+    // after this second proof fails. The existing broker rechecks exact
+    // Firefly ownership as well as active Grove grants.
+    const current = await (deps.authorize ?? authorizePrivateGroveConversation)(
+      input.request, input.projectId, input.conversationId,
+    );
+    if (current.access !== "read-only" ||
+        current.groveUserId !== authorized.groveUserId ||
+        current.fireflyUserId !== authorized.fireflyUserId ||
+        current.projectId !== input.projectId ||
+        current.conversationId !== input.conversationId)
+      throw new RouteAccessError(403, "grove_private_access_changed");
+  };
+  const transcript = features.transcriptEnabled ? {
+    store: deps.transcriptStore ??
+      createSupabaseGrovePrivateTranscriptStore(authorized.groveAdmin),
+    groveUserId: authorized.groveUserId,
+    requestId: input.requestId ?? randomUUID(),
+  } : null;
   let cognitive: FireflyCognitivePreviewResult | null = null;
   if (features.cognitivePreviewEnabled) {
     const provider = deps.cognitiveRetrieval;
@@ -208,21 +250,23 @@ export async function prepareVerifiedPrivateGroveTurn(input: {
         ? "unresolved_work" : "retrieval",
     });
     if (cognitive.status !== "ready")
-      return { scope, userText: input.message, arkLayer, cognitive,
+      return { scope, userText: input.message, arkLayer, cognitive, transcript,
+        reauthorize,
         status: "held", holdReason: "cognitive_" + cognitive.status,
         grantsExecution: false, verifiesCompletion: false };
     if (cognitive.roundabout.decision === "hold" ||
         cognitive.roundabout.decision === "escalate" ||
         cognitive.roundabout.requiresReview ||
         cognitive.prepared.cycle.routeAbstained)
-      return { scope, userText: input.message, arkLayer, cognitive,
+      return { scope, userText: input.message, arkLayer, cognitive, transcript,
+        reauthorize,
         status: "held", holdReason: cognitive.roundabout.reason,
         grantsExecution: false, verifiesCompletion: false };
   }
 
   return {
-    scope, userText: input.message, arkLayer, cognitive,
-    status: "ready", holdReason: null,
+    scope, userText: input.message, arkLayer, cognitive, transcript,
+    reauthorize, status: "ready", holdReason: null,
     grantsExecution: false, verifiesCompletion: false,
   };
 }
@@ -231,6 +275,7 @@ export type GrovePrivateTurnResponse =
   | { status: "held"; reason: string; grantsExecution: false;
       verifiesCompletion: false }
   | { status: "responded"; reply: GroveLmUnverifiedReply;
+      persisted: boolean; replayed: boolean; requestId: string | null;
       grantsExecution: false; verifiesCompletion: false };
 
 /** No browser-supplied history or role labels; no implicit model execution. */
@@ -254,6 +299,37 @@ export async function respondToVerifiedPrivateGroveTurn(input: {
       arkLayer.continuity.source === "project_fallback" ||
       arkLayer.continuity.source === "project_latest")
     throw new RouteAccessError(409, "grove_private_turn_scope_rejected");
+  const transcript = features.transcriptEnabled ? input.prepared.transcript : null;
+  if (features.transcriptEnabled && !transcript)
+    throw new RouteAccessError(409, "grove_private_transcript_unavailable");
+  const transcriptScope = transcript ? {
+    groveUserId: transcript.groveUserId,
+    projectId: scope.projectId,
+    conversationId: scope.conversationId,
+  } : null;
+  if (transcript && transcriptScope) {
+    const completed = await transcript.store.getCompleted({
+      ...transcriptScope, requestId: transcript.requestId,
+    });
+    if (completed) {
+      if (completed.user_text !== userText)
+        throw new RouteAccessError(409, "grove_transcript_request_conflict");
+      await input.prepared.reauthorize();
+      return {
+        status: "responded",
+        reply: transcriptRowToUnverifiedReply(completed, transcriptScope),
+        persisted: true, replayed: true,
+        requestId: transcript.requestId,
+        grantsExecution: false, verifiesCompletion: false,
+      };
+    }
+  }
+  const history = transcript && transcriptScope
+    ? selectPrivateModelHistory({
+        completedNewestFirst: await transcript.store.listRecent(transcriptScope),
+        scope: transcriptScope, userText,
+      })
+    : [{ role: "user" as const, content: userText }];
   const reply = await (
     input.dependencies?.sendModel ?? sendPrivateGroveLmTurnFromVerifiedHost
   )({
@@ -263,8 +339,25 @@ export async function respondToVerifiedPrivateGroveTurn(input: {
     readContext: arkLayer,
     // The STRICT v0.3.5 receiver has no trusted cognitive payload field yet.
     // Do not pass it in messages or as a forged Layer/ARK object.
-    messages: [{ role: "user", content: userText }],
+    messages: history,
   });
+  // Reauthorization MUST complete before a service-role write OR an
+  // ephemeral response. A transcript OFF switch does not waive revocation.
+  await input.prepared.reauthorize();
+  if (transcript && transcriptScope) {
+    const saved = await transcript.store.persistCompleted({
+      ...transcriptScope, requestId: transcript.requestId,
+      userText, reply,
+    });
+    return {
+      status: "responded",
+      reply: transcriptRowToUnverifiedReply(saved.row, transcriptScope),
+      persisted: true, replayed: !saved.created,
+      requestId: transcript.requestId,
+      grantsExecution: false, verifiesCompletion: false,
+    };
+  }
   return { status: "responded", reply,
+    persisted: false, replayed: false, requestId: null,
     grantsExecution: false, verifiesCompletion: false };
 }

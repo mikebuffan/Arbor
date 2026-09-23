@@ -9,6 +9,9 @@ const mocks = vi.hoisted(() => ({
   clients: [] as Array<{ url: string; key: string; options: unknown }>,
   lookup: new Map<string, { data: unknown; error: unknown }>(),
   fromCalls: [] as string[],
+  queryFilters: [] as Array<{ table: string; key: string; value: unknown }>,
+  queryOrders: [] as Array<{ table: string; key: string; ascending: boolean }>,
+  insertedRows: [] as Array<{table: string; values: unknown}>,
 }));
 
 vi.mock("@supabase/supabase-js", () => ({
@@ -27,6 +30,8 @@ import {
   privateGroveReadConfig,
   readPrivateGroveArk,
   readPrivateGroveProjects,
+  readPrivateGroveConversations,
+  createPrivateGroveConversation,
   authorizePrivateGroveConversation,
 } from "@/lib/grove/privateReadBroker";
 import { GET } from "@/app/api/grove/ark/status/route";
@@ -65,6 +70,13 @@ function query(table: string) {
     select: vi.fn(),
     eq: vi.fn(),
     is: vi.fn(),
+    order: vi.fn(),
+    insert: vi.fn((values: unknown) => {
+      mocks.insertedRows.push({ table, values }); return q;
+    }),
+    single: vi.fn(async () => mocks.lookup.get(table + ":created") ?? {
+      data: null, error: null,
+    }),
     maybeSingle: vi.fn(async () => mocks.lookup.get(table) ?? {
       data: null, error: null,
     }),
@@ -73,8 +85,15 @@ function query(table: string) {
     }),
   };
   q.select.mockReturnValue(q);
-  q.eq.mockReturnValue(q);
+  q.eq.mockImplementation((key: string, value: unknown) => {
+    mocks.queryFilters.push({ table, key, value });
+    return q;
+  });
   q.is.mockReturnValue(q);
+  q.order.mockImplementation((key: string, options: {ascending: boolean}) => {
+    mocks.queryOrders.push({table, key, ascending: options.ascending});
+    return q;
+  });
   return q;
 }
 
@@ -82,6 +101,9 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.clients.length = 0;
   mocks.fromCalls.length = 0;
+  mocks.queryFilters.length = 0;
+  mocks.queryOrders.length = 0;
+  mocks.insertedRows.length = 0;
   mocks.lookup.clear();
   vi.stubEnv("GROVE_API_ENABLED", "true");
   vi.stubEnv("GROVE_SUPABASE_URL", groveUrl);
@@ -486,5 +508,198 @@ describe("future private Grove conversation scope (NO chat route)", () => {
       status: 404, code: "grove_route_not_found",
     });
     expect(mocks.assertConversationOwnedByUser).not.toHaveBeenCalled();
+  });
+});
+
+
+const ownedConversation = (id = conversationId, overrides: Record<string, unknown> = {}) => ({
+  id, user_id: fireflyOwner, project_id: projectId,
+  created_at: "2026-09-23T00:00:00Z",
+  updated_at: "2026-09-23T01:00:00Z",
+  ...overrides,
+});
+
+describe("existing private Grove conversation discovery", () => {
+  it("reads only existing owner-and-project-scoped Firefly conversation IDs", async () => {
+    mocks.lookup.set("conversations:list", {
+      data: [ownedConversation()], error: null,
+    });
+    const result = await readPrivateGroveConversations(req(), projectId);
+    expect(result).toEqual({
+      projectId, mayBeTruncated: false,
+      conversations: [{
+        conversationId, createdAt: "2026-09-23T00:00:00Z",
+        updatedAt: "2026-09-23T01:00:00Z",
+      }],
+    });
+    expect(mocks.assertProjectOwnedByUser).toHaveBeenCalledWith(
+      expect.anything(), fireflyOwner, projectId,
+    );
+    expect(mocks.queryFilters).toEqual(expect.arrayContaining([
+      { table: "conversations", key: "user_id", value: fireflyOwner },
+      { table: "conversations", key: "project_id", value: projectId },
+    ]));
+    expect(mocks.queryOrders).toEqual(expect.arrayContaining([
+      { table: "conversations", key: "updated_at", ascending: false },
+      { table: "conversations", key: "id", ascending: false },
+    ]));
+    expect(mocks.assertConversationOwnedByUser).not.toHaveBeenCalled();
+  });
+
+  it("cannot list Firefly conversations before an active Grove grant", async () => {
+    mocks.lookup.set("grove_private_ark_project_grants", {
+      data: null, error: null,
+    });
+    await expect(readPrivateGroveConversations(req(), projectId))
+      .rejects.toMatchObject({ status: 404, code: "project_not_found" });
+    expect(mocks.fromCalls).not.toContain("conversations");
+  });
+
+  it("cannot use an expired owner, foreign project or invalid identifier", async () => {
+    await expect(readPrivateGroveConversations(req(), "bad"))
+      .rejects.toMatchObject({status: 404, code: "grove_invalid_project_scope"});
+    expect(mocks.fromCalls).not.toContain("conversations");
+    mocks.assertProjectOwnedByUser.mockRejectedValueOnce(
+      new Error("foreign Firefly project"),
+    );
+    await expect(readPrivateGroveConversations(req(), projectId))
+      .rejects.toThrow("foreign Firefly project");
+    expect(mocks.fromCalls).not.toContain("conversations");
+  });
+
+  it("rejects service-role rows that do not match EXACT verified scope", async () => {
+    for (const list of [
+      [ownedConversation(conversationId, {user_id: groveOwner})],
+      [ownedConversation(conversationId, {project_id: groveOwner})],
+      [ownedConversation("bad-uuid")],
+      [ownedConversation(), ownedConversation()],
+      [ownedConversation(conversationId, {created_at: "bad"})],
+      Array.from({length: 22}, () => ownedConversation()),
+    ]) {
+      mocks.lookup.set("conversations:list", {data: list, error: null});
+      await expect(readPrivateGroveConversations(req(), projectId))
+        .rejects.toMatchObject({
+          status: 500, code: "grove_private_conversations_unavailable",
+        });
+    }
+  });
+
+  it("withholds conversation IDs when Firefly ownership changes during discovery", async () => {
+    mocks.lookup.set("conversations:list", {
+      data: [ownedConversation()], error: null,
+    });
+    mocks.assertProjectOwnedByUser
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error("grant_or_ownership_revoked"));
+    await expect(readPrivateGroveConversations(req(), projectId))
+      .rejects.toThrow("grant_or_ownership_revoked");
+    expect(mocks.assertProjectOwnedByUser).toHaveBeenCalledTimes(2);
+    expect(mocks.fromCalls).toContain("conversations");
+  });
+
+  it("treats no existing conversation as EMPTY, never as a synthetic chat ID", async () => {
+    mocks.lookup.set("conversations:list", {data: [], error: null});
+    const result = await readPrivateGroveConversations(req(), projectId);
+    expect(result.conversations).toEqual([]);
+    expect(result.mayBeTruncated).toBe(false);
+  });
+
+  it("indicates a 20-result window instead of claiming a complete archive", async () => {
+    const choices = Array.from({length: 21}, (_, i) =>
+      ownedConversation(
+        "00000000-0000-4000-8000-" + (i + 100).toString().padStart(12, "0"),
+      ));
+    mocks.lookup.set("conversations:list", {data: choices, error: null});
+    const result = await readPrivateGroveConversations(req(), projectId);
+    expect(result.conversations).toHaveLength(20);
+    expect(result.mayBeTruncated).toBe(true);
+  });
+});
+
+describe("explicit Grove private conversation creation", () => {
+  it("uses the existing Firefly table with a verified mapped owner and grant", async () => {
+    mocks.lookup.set("conversations:created", {
+      data: ownedConversation(), error: null,
+    });
+    const created = await createPrivateGroveConversation(req(), projectId);
+    expect(created).toEqual({
+      conversationId,
+      createdAt: "2026-09-23T00:00:00Z",
+      updatedAt: "2026-09-23T01:00:00Z",
+    });
+    expect(mocks.insertedRows).toEqual([{
+      table: "conversations",
+      values: { user_id: fireflyOwner, project_id: projectId },
+    }]);
+    expect(mocks.assertProjectOwnedByUser).toHaveBeenCalledTimes(2);
+    expect(mocks.assertConversationOwnedByUser).toHaveBeenCalledWith(
+      expect.anything(),
+    );
+    expect(mocks.assertConversationOwnedByUser).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: fireflyOwner, projectId, conversationId,
+      }),
+    );
+    expect(mocks.clients.map(c => c.url)).toEqual([
+      groveUrl, groveUrl, fireflyUrl, groveUrl, groveUrl, fireflyUrl,
+    ]);
+  });
+
+  it("cannot write under absent invitation, bridge, grant or Firefly ownership", async () => {
+    for (const [table, value] of [
+      ["grove_private_owner_access", null],
+      ["grove_private_firefly_bridge", null],
+      ["grove_private_ark_project_grants", null],
+    ] as const) {
+      const previous = mocks.lookup.get(table);
+      mocks.lookup.set(table, { data: value, error: null });
+      await expect(createPrivateGroveConversation(req(), projectId))
+        .rejects.toThrow();
+      expect(mocks.insertedRows).toHaveLength(0);
+      if (previous) mocks.lookup.set(table, previous);
+    }
+    mocks.assertProjectOwnedByUser.mockRejectedValueOnce(
+      new Error("foreign Firefly project"),
+    );
+    await expect(createPrivateGroveConversation(req(), projectId))
+      .rejects.toThrow("foreign Firefly project");
+    expect(mocks.insertedRows).toHaveLength(0);
+  });
+
+  it("never accepts foreign owner/project or malformed database-created IDs", async () => {
+    for (const row of [
+      ownedConversation(conversationId, { user_id: groveOwner }),
+      ownedConversation(conversationId, { project_id: groveOwner }),
+      ownedConversation("not-a-uuid"),
+      ownedConversation(conversationId, { created_at: "invalid" }),
+    ]) {
+      mocks.lookup.set("conversations:created", {data: row,error: null});
+      await expect(createPrivateGroveConversation(req(), projectId))
+        .rejects.toMatchObject({
+          status: 500, code: "grove_private_conversation_create_unavailable",
+        });
+    }
+  });
+
+  it("rechecks the new conversation and Grove authorization after insertion", async () => {
+    mocks.lookup.set("conversations:created", {
+      data: ownedConversation(), error: null,
+    });
+    mocks.assertConversationOwnedByUser.mockRejectedValueOnce(
+      new Error("created_conversation_not_owned"),
+    );
+    await expect(createPrivateGroveConversation(req(), projectId))
+      .rejects.toThrow("created_conversation_not_owned");
+    expect(mocks.insertedRows).toHaveLength(1);
+  });
+
+  it("never issues a Firefly insert for a spoofed Grove token or host", async () => {
+    await expect(createPrivateGroveConversation(
+      req(jwt({iss: `${fireflyUrl}/auth/v1`}), projectId), projectId,
+    )).rejects.toMatchObject({ status: 401, code: "grove_invalid_token" });
+    await expect(createPrivateGroveConversation(
+      req(jwt(), projectId, "https://firefly-coral.vercel.app"), projectId,
+    )).rejects.toMatchObject({ status: 404, code: "grove_route_not_found" });
+    expect(mocks.insertedRows).toHaveLength(0);
   });
 });

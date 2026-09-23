@@ -243,7 +243,7 @@ async function authorizedPrivateGroveProject(req: Request, projectId: string) {
   // Admin bypasses RLS: this proof MUST precede any Firefly conversation,
   // Layer or LM request and must be independently re-checked for live turns.
   await assertProjectOwnedByUser(fireflyAdmin, fireflyUserId, projectId);
-  return { groveUserId, fireflyUserId, projectId, fireflyAdmin };
+  return { groveUserId, fireflyUserId, projectId, groveAdmin, fireflyAdmin };
 }
 
 const validUuid =
@@ -286,4 +286,131 @@ export async function readPrivateGroveArk(req: Request, projectId: string) {
     eventLimit: 100,
   });
   return snapshot;
+}
+
+
+/**
+ * Existing-conversation discovery only. The Grove owner first presents a
+ * verified Grove JWT and an ACTIVE project grant; the mapped Firefly owner is
+ * checked against the project BEFORE reading this service-role table.
+ *
+ * No arbitrary account ID, cross-project conversation, title, transcript,
+ * fallback conversation or newly invented chat ID is returned. The caller
+ * must select an already-existing conversation and each subsequent chat turn
+ * must independently call authorizePrivateGroveConversation().
+ */
+export type GrovePrivateConversationChoice = {
+  conversationId: string;
+  createdAt: string;
+  updatedAt: string;
+};
+export type GrovePrivateConversationsResult = {
+  projectId: string;
+  conversations: GrovePrivateConversationChoice[];
+  mayBeTruncated: boolean;
+};
+/**
+ * Explicit NEW-conversation action, not a new conversation or memory system.
+ * Reuses the existing Firefly conversations schema, but ONLY from the verified
+ * Grove host after an active invitation, bridge, grant and Firefly project
+ * ownership check. The browser supplies only the project UUID, never owner
+ * identity, conversation UUID or a Firefly credential.
+ *
+ * This operation is separately feature-gated at its HTTP route. It is not
+ * retry-idempotent: a lost response might leave one empty conversation.
+ * NEVER auto-retry a creation request or claim exactly-once creation.
+ */
+export async function createPrivateGroveConversation(
+  req: Request,
+  projectId: string,
+): Promise<GrovePrivateConversationChoice> {
+  if (!validUuid.test(projectId))
+    throw new RouteAccessError(404, "grove_invalid_project_scope");
+  const authorized = await authorizedPrivateGroveProject(req, projectId);
+  const { data, error } = await authorized.fireflyAdmin
+    .from("conversations")
+    .insert({
+      user_id: authorized.fireflyUserId,
+      project_id: projectId,
+    })
+    .select("id,user_id,project_id,created_at,updated_at")
+    .single();
+  if (error || !data ||
+      data.user_id !== authorized.fireflyUserId ||
+      data.project_id !== projectId ||
+      typeof data.id !== "string" || !validUuid.test(data.id) ||
+      typeof data.created_at !== "string" ||
+      !Number.isFinite(Date.parse(data.created_at)) ||
+      typeof data.updated_at !== "string" ||
+      !Number.isFinite(Date.parse(data.updated_at))) {
+    throw new RouteAccessError(500, "grove_private_conversation_create_unavailable");
+  }
+  // The new ID comes from the database; independently revalidate both the
+  // current Grove grant and Firefly conversation ownership after insertion.
+  // This narrows revocation races but is not cross-database atomicity.
+  const current = await authorizePrivateGroveConversation(
+    req, projectId, data.id,
+  );
+  if (current.groveUserId !== authorized.groveUserId ||
+      current.fireflyUserId !== authorized.fireflyUserId ||
+      current.projectId !== projectId ||
+      current.conversationId !== data.id) {
+    throw new RouteAccessError(403, "grove_private_access_changed");
+  }
+  return {
+    conversationId: data.id,
+    createdAt: data.created_at,
+    updatedAt: data.updated_at,
+  };
+}
+
+export async function readPrivateGroveConversations(
+  req: Request,
+  projectId: string,
+): Promise<GrovePrivateConversationsResult> {
+  if (!validUuid.test(projectId))
+    throw new RouteAccessError(404, "grove_invalid_project_scope");
+  const { fireflyAdmin, fireflyUserId, groveUserId } =
+    await authorizedPrivateGroveProject(req, projectId);
+  const { data, error } = await fireflyAdmin.from("conversations")
+    .select("id,user_id,project_id,created_at,updated_at")
+    .eq("user_id", fireflyUserId)
+    .eq("project_id", projectId)
+    .order("updated_at", { ascending: false })
+    .order("id", { ascending: false })
+    .limit(21);
+  if (error || !Array.isArray(data) || data.length > 21)
+    throw new RouteAccessError(500, "grove_private_conversations_unavailable");
+  // Grant/bridge/Firefly ownership can change during this service-role read.
+  // Revalidate before exposing even the conversation IDs or timestamps.
+  const current = await authorizedPrivateGroveProject(req, projectId);
+  if (current.groveUserId !== groveUserId ||
+      current.fireflyUserId !== fireflyUserId ||
+      current.projectId !== projectId)
+    throw new RouteAccessError(403, "grove_private_access_changed");
+  const seen = new Set<string>();
+  const records: GrovePrivateConversationChoice[] = [];
+  for (const row of data) {
+    if (!row || row.user_id !== fireflyUserId ||
+        row.project_id !== projectId ||
+        typeof row.id !== "string" || !validUuid.test(row.id) ||
+        seen.has(row.id) ||
+        typeof row.created_at !== "string" ||
+        !Number.isFinite(Date.parse(row.created_at)) ||
+        typeof row.updated_at !== "string" ||
+        !Number.isFinite(Date.parse(row.updated_at)))
+      throw new RouteAccessError(500, "grove_private_conversations_unavailable");
+    seen.add(row.id);
+    if (records.length < 20)
+      records.push({
+        conversationId: row.id,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      });
+  }
+  return {
+    projectId,
+    conversations: records,
+    mayBeTruncated: data.length > 20,
+  };
 }
