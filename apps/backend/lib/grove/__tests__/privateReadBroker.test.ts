@@ -68,10 +68,7 @@ function query(table: string) {
     select: vi.fn(),
     eq: vi.fn(),
     is: vi.fn(),
-    order: vi.fn((key: string, options: { ascending: boolean }) => {
-      mocks.queryOrders.push({table, key, ascending: options.ascending});
-      return q;
-    }),
+    order: vi.fn(),
     maybeSingle: vi.fn(async () => mocks.lookup.get(table) ?? {
       data: null, error: null,
     }),
@@ -85,6 +82,10 @@ function query(table: string) {
     return q;
   });
   q.is.mockReturnValue(q);
+  q.order.mockImplementation((key: string, options: {ascending: boolean}) => {
+    mocks.queryOrders.push({table, key, ascending: options.ascending});
+    return q;
+  });
   return q;
 }
 
