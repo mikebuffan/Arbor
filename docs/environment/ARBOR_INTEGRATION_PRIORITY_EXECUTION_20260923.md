@@ -44,10 +44,10 @@ Last reconciled: 2026-09-23 UTC. This is the canonical **planning/acceptance doc
 - [x] 01.05 Verify exact Firefly conversation ownership/project; reject different conversation fallback. **CODE-DRAFT**.
 - [x] 01.06 Read private transcript only after a fresh owner/bridge/grant/conversation authorization. **CODE-DRAFT**.
 - [x] 01.07 Re-authorize invitation/bridge/project/conversation after private-model inference and before transcript write; changed/revoked scope aborts persistence. **CODE-DRAFT, latest CI pending**.
-- [ ] 01.08 Ensure post-inference reauthorization also gates delivery for responses when transcript is OFF and any future worker/tool, not only transcript writes. **NEXT**.
+- [x] 01.08 Reauthorization gates ephemeral replies and stored retries as well as transcript writes. **VERIFIED-CI at 6d857c1de1a5c2157cd29b4453a8d58584d796f1; worker/tool still HOLD separately**.
 - [ ] 01.09 Add timeout/race tests for token revoked between the last check and commit, including an explicit transaction policy. **NEXT/REVIEW**.
 - [ ] 01.10 Approve real Grove invited owner identity, Firefly mapping and exact ARK project grant. **OWNER**. Current audited active grant/owner/bridge counts were each zero; recheck before setup.
-- [ ] 01.11 Decide how to select/create a legitimate Firefly conversation for Grove; NEVER invent or reuse an unrelated public chat ID. **OWNER/REVIEW**.
+- [ ] 01.11 Existing Firefly-owned conversation discovery is now CODE-DRAFT; an explicitly authorized NEW conversation creation path and Grove UI selection still need review. NEVER invent/reuse an unrelated public ID. **NEXT/OWNER/REVIEW**.
 
 ## Phase 2 — Grove PRIVATE transcript and continuity (requires Phase 1)
 
@@ -107,7 +107,7 @@ Last reconciled: 2026-09-23 UTC. This is the canonical **planning/acceptance doc
 - [x] 06.01 Keep approved house/Living Window/Observatory/Moss assets and private app boundary unmodified. **EXISTING Grove UI drafts**.
 - [x] 06.02 Keep private Talk unavailable instead of silently sending Grove conversations to public Firefly /api/chat. **VERIFIED Grove UI baseline**.
 - [ ] 06.03 Reconcile current Grove Flutter branch with #194 backend contract; avoid overwriting other Grove UI authors' work. **NEXT**.
-- [ ] 06.04 Create a private project/conversation picker that loads only approved scope from live Grove broker; no old public ID. **OWNER/REVIEW**.
+- [ ] 06.04 Backend for listing ONLY existing approved Firefly conversations added (GET /api/grove/chat/conversations; chat feature OFF by default). Flutter private picker and explicit new-thread creation remain **NEXT/OWNER/REVIEW**.
 - [ ] 06.05 Feature-gated private Text view: POST /api/grove/chat and GET /api/grove/chat/history with same project/conversation, Grove JWT. **NEXT after 6.04**.
 - [ ] 06.06 Show bounded saved history, persisted vs not persisted, explicit loading/HOLD/retry/error state, no fake completed work. **NEXT**.
 - [ ] 06.07 Preserve retry request ID across mobile network retry; reject changed text and duplicated submit. **NEXT**.
@@ -149,3 +149,13 @@ Last reconciled: 2026-09-23 UTC. This is the canonical **planning/acceptance doc
 6. If an issue depends on a different lane (LM Flutter ARK), create a precise handoff to that lane, not a competing implementation.
 
 **Current user-visible truth:** source-level connection and simulated pause/return exist; private owner mapping/grants, private DB migration, real cognitive snapshot/retrieval, actual LM host and private phone chat are NOT verified live. “Connected and talking” is only complete after 08.08, and “authorized independent work” after 08.09.
+
+
+### 2026-09-23 follow-up — Existing conversation discovery
+
+- [x] Source addition: existing Grove owner/project broker now lists at most 20 REAL Firefly conversation IDs within a verified grant, separately bounded by mapped Firefly user_id and exact project_id. Returns only IDs/timestamps (not public chat titles or contents), explicitly flags a truncated window and returns empty when none exists.
+- [x] Added default-OFF GET /api/grove/chat/conversations, malformed/duplicate-scope rejection, no-store and sanitized provider errors. No Firefly/public chat fallback, new table, credential, grant, model execution, API deployment or production write.
+- [x] Synthetic tests include no grant, foreign owner/project despite service-role query, invalid row, duplicate IDs, empty list and 20-of-21 partial window. Exact-head CI still required.
+- [ ] Need explicit user-authorized NEW conversation creation policy if owner has no pre-existing Firefly conversation; a read-only picker must not conjure one. Backend discovery DOES NOT yet make Grove phone Text live.
+- [ ] Need actual Grove Flutter picker and approved account/session activation to use this API. Other Grove UI owners' work remains untouched.
+- [ ] Potential security review: revocation between async cross-database checks and final DB operation is not transaction-atomic. The second access check narrows the window but is not an atomic lease. Enforce a documented grant-revision/epoch or short transaction strategy before enabling costly tools or live writes.
