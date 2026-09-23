@@ -29,6 +29,10 @@ Connected account/team “Mike's projects” lists just **firefly** (project `pr
 - **#186** is a temporary **CI-ONLY, DO NOT MERGE** draft from #185 to the existing Grove verification target. GitHub Actions run **35803031084** was in progress on initial observation; check final jobs and exact source before marking verified. The early observed control-backend tests/build passed; Flutter analyzer/tests/APK and backend build were still in flight. #186 must not be used as a canonical implementation PR.
 - No Grove/private API deployment, owner account grants, real standalone LM inference, or production changes were made by these UI drafts. The earlier static-night-window and private Text/Voice limitations remain.
 
+## Live read-only security receipt (September 22 PDT / September 23 UTC)
+
+The connected Supabase project **The Grove** remained `ACTIVE_HEALTHY`. The dedicated source-verification queries in `supabase/grove/verification/` were executed against that project, **read-only**: the owner gate and both bridge tables each returned `expected_access_contract = true`, with forced RLS, no anon access, no authenticated writes and no client SELECT on the two admin-only bridge tables. The separate migration-ledger audit returned only `20260922035539_grove_private_owner_access`; `20260922042500_grove_private_firefly_read_grants` is still manually applied but **unrecorded**. All three tables still showed zero rows. These receipts neither provision an owner nor authorize automated schema mutations. Preserve the admin-only/no-policy model for the two bridge tables.
+
 ## Grove-only finish line, dependency order
 
 1. Review #179 plus #160 exact source and tests. Design the smallest reviewed composition path; keep parent PRs draft and preserve owner boundaries.
