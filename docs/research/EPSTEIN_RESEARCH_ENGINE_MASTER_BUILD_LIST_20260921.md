@@ -54,7 +54,7 @@ Legend: [x] relevant implementation plus exact-head CI evidence exists for the s
 39. [x] Research Vitest discovery fixed.
 40. [x] No-cost isolated synthetic PostgreSQL 17 CI service exercises proposed research SQL; no real user data or production DB.
 41. [~] Owner/RLS acceptance is exercised synthetically; full service-role matrix remains before production integration.
-42. [ ] Security review of search_path/SECURITY DEFINER/EXECUTE privileges remains required before any production application.
+42. [~] Source audit completed and disposable privilege matrix staged in `ops/research/disposable-db/65-security-privilege-matrix.sql`; execution/effective target-role proof remains required before any production application. See `docs/research/RESEARCH_SQL_SECURITY_REVIEW_20260923.md`.
 43. [x] Disposable CI exercises claim/settlement/idempotency/owner RLS/STOP, deadline/expiry/fencing/revocation, independent-connection concurrency, lock-wait fences and STOP-vs-settlement race. Verified run `35806979345`. Disposable DB evidence only.
 44. [x] Advisory late-settlement policy plus SQL lock-time resampling repair verified; database remains authoritative.
 45. [~] **REPAIRED ON #199; EXACT-HEAD CI ABSENT.** Existing cost reservation and bounded receipts are now joined by disposable PostgreSQL coverage for failed receipt + retry delay, terminal `max_attempts`, stalled active-lease fencing, reclaim after expiry, bounded attempt increment, cost accounting and no false completion. #189 exact-head CI failed twice; #199 corrected test isolation. Do not mark [x] until #199 exact-head disposable PostgreSQL acceptance passes.
@@ -68,7 +68,7 @@ Legend: [x] relevant implementation plus exact-head CI evidence exists for the s
 51. [ ] **BLOCKED — separate scheduler authorization:** default-OFF scoped scheduler.
 52. [~] Staged disposable SQL `ops/research/disposable-db/70-persisted-session-simulation.sql` on isolated draft child of #200: checkpoint, psql reconnect, retry fence, two evidence-backed unit settlements, persisted receipts/costs, no false completed state. NOT EXECUTED; dependent on item 45 exact-head verification and approved disposable DB acceptance. Existing synthetic one-tick worker rehearsal: one receipt per tick, STOP fencing, crash/lease-expiry recovery, evidence-free completion rejection. Backend CI verified at #181. Deterministic simulated full persisted session remains after item 45 exact-head verification.
 53. [ ] **BLOCKED — explicit benign unattended-run approval:** genuine unattended benign-source hour.
-54. [ ] Same-user project isolation and cross-session handoff before Grove/voice attachment.
+54. [~] Research-side ARK/Layer compatibility contract prepared against exact #160/#191 heads; same-user project isolation, trusted handoff receipts, restart reload, STOP propagation and no-Grove-transcript boundary specified. Code integration/acceptance remains pending branch reconciliation.
 55. [ ] Real phone/operator acceptance; never infer worker liveness from read-only UI.
 56. [ ] Separate production/deployment/scheduler/expenditure approval.
 
@@ -106,3 +106,8 @@ Current isolated draft: #189, branch `feat/ark-research-disposable-attempt-matri
 ## Run 6 — staged independent safe work
 - Created isolated item-52 **test draft only**, reusing proposed RPCs; no duplicate runner, adapter, schema, worker, Grove or ARK implementation. SQL stages synthetic checkpoint → reconnect → bounded retry → evidence-backed two-unit settlement → final persisted state and no automatic completion. Not wired into CI or run against any database. This does NOT resolve item 45 or verify item 52.
 - NEXT: item 45 exact-head disposable PostgreSQL CI approval and successful evidence, then run/review item 52 against disposable fixture, fix actual failures, and only then promote checklist status. Preserve independent completion verifier HOLD.
+
+## Run 7 — additional safe work staged
+- Item 42: added disposable privilege/security acceptance and source review; not executed, so production security acceptance remains open.
+- Item 54: inspected ARK/Layer #160 and cognitive assembly #191 exact heads and recorded a research-side compatibility contract in `docs/research/ARK_RESEARCH_COMPATIBILITY_CONTRACT_20260923.md`. No Grove/ARK code changed.
+- Item 52 remains staged-only; item 45 exact-head DB verification is still the dependency gate before database promotion.
