@@ -1,6 +1,6 @@
 # Arbor cognitive archaeology — implementation ledger and priority queue
 
-**Snapshot:** 2026-09-22/23 UTC. Based on inspected `main` source tree, selected file bodies, draft #188, and dated master integration handoff #149; it is NOT a full repository execution audit or proof any main module is deployed. Original May design requires historical byte-level verification before it is described as fully recovered.
+**Snapshot:** 2026-09-22/23 UTC. Based on inspected `main` source tree, selected file bodies, draft #188, and dated master integration handoff #149; it is NOT a full repository execution audit or proof any main module is deployed. The **actual May 16 source was found in the private chat archive** during this recovery. Exact source, example tests and full technical explanation have now been saved privately, and the original TypeScript was strictly compiled; do not claim it was deployed or ever committed. See `MAY_SCAFFOLD_COMPATIBILITY_AUDIT_20260922.md` for the complete interface mismatch against #188.
 
 ## Actual recovered items vs source analogues
 
@@ -25,7 +25,8 @@
 - [x] Implement a pure owner/project-scoped learned-route experiment with receipt idempotency; return suggestions only.
 - [x] Freeze and run small synthetic train/holdout comparison; preserve both failures and limits.
 - [ ] Commit experiment as draft child; verify full exact-head GitHub CI on that child.
-- [ ] Recover and compare the *original* May source, not merely names; audit every intended function and source location.
+- [x] Recover the *actual original* May source in the private archive; extract source, original tests, proposed SQL and Mike Notes, compile and run representative seed-route checks.
+- [ ] Finish all-seed May→current routing and source-path parity matrix; no blind schema/application migration.
 - [ ] Review cross-module duplicate semantics; decide which system remains authoritative for identity, correction, routing and source evidence.
 - [x] Build isolated **typed relation graph prototype** with source assertions, speaker/addressee reference, contest HOLD and provenance (source IDs from a trusted caller). This is **not** relation extraction or a learned graph structure.
 - [ ] Build a genuine learned relation extractor and hypothesis/contradiction resolution with novel phrasings; retain source identity and distinct verified facts.
@@ -39,3 +40,5 @@
 **User action now:** none required for read-only/source-local prototype; owner approval only at actual sensitive-data, merge, paid service, autonomous work, or production gate.
 
 **Progress addendum:** Isolated math router: 24 synthetic train / 12 frozen whole-utterance-disjoint probes, 10 correct, 2 abstentions; exact sentence baseline 0. Hand-specified relation graph: 11 local Node smoke assertions pass, but the graph does not autonomously interpret pronouns. The experiment remains separate from live app/worker and is not an LLM.
+
+**May source correction:** September #188 is NOT an exact original restoration. The actual May TS module contains a central evaluator, 26 seeds, recommended modes/suppressions and a richer status/action vocabulary; #188 deliberately narrows scope and adds evidence receipt/idempotency controls. Original suggested SQL was optional and is NOT a production migration.
