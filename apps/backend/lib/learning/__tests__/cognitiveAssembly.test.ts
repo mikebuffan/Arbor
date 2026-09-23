@@ -4,6 +4,7 @@ import {
   type ScopedHopEvidence, type IndependentOutcomeReceipt,
 } from "../cognitiveAssembly";
 import { runAssociativeLearningBenchmark } from "../associativeLearningBenchmark";
+import { predictLearnedRoute } from "../associativeLearningLab";
 import type { NeuralPathway } from "../neuralPathwayNetwork";
 
 const scope = { userId: "synthetic-owner", projectId: "synthetic-project" };
@@ -133,6 +134,26 @@ describe("cognitive assembly — Pattern Hop -> learned pathways -> reviewed fee
     expect(result.pathways[0].strength).toBeCloseTo(0.34);
     expect(result.learning.updateCount).toBe(24);
   });
+  it("verified failure with a different reviewed route weakens the bad road AND teaches the correction", () => {
+    const cycle = assembleCognitiveCycle(setup());
+    const before = predictLearnedRoute(learned, { ...scope, text: cycle.cue });
+    expect(before.route).toBe("objective");
+    const corrected = applyReviewedCognitiveOutcome({ cycle, learning: learned,
+      pathways: [pathway], ledger: { scope, receipts: {} },
+      receipt: receipt({ outcome: "verified_unhelpful", reviewedRoute: "identity" }),
+    });
+    const after = predictLearnedRoute(corrected.learning, { ...scope, text: cycle.cue });
+    expect(corrected.pathways[0].strength).toBeCloseTo(0.34);
+    expect(corrected.learning.updateCount).toBe(25);
+    expect(after.probabilities.identity).toBeGreaterThan(before.probabilities.identity);
+    // The reviewed negative receipt cannot teach a different route a second time.
+    const replay = applyReviewedCognitiveOutcome({ cycle, learning: corrected.learning,
+      pathways: corrected.pathways, ledger: corrected.ledger,
+      receipt: receipt({ outcome: "verified_unhelpful", reviewedRoute: "identity" }),
+    });
+    expect(replay.changed).toBe(false);
+    expect(replay.learning.updateCount).toBe(25);
+  });
   it("refuses a wrong/held pathway and review with inconsistent route", () => {
     const cycle = assembleCognitiveCycle(setup());
     const base = { cycle, learning: learned, pathways: [pathway], ledger: { scope, receipts: {} } };
@@ -142,6 +163,9 @@ describe("cognitive assembly — Pattern Hop -> learned pathways -> reviewed fee
     expect(() => applyReviewedCognitiveOutcome({ ...base,
       receipt: receipt({ reviewedRoute: "identity" }),
     })).toThrow("cognitive_review_disagrees_with_route");
+    expect(() => applyReviewedCognitiveOutcome({ ...base,
+      pathways: [{ ...pathway, status: "suppressed" }], receipt: receipt(),
+    })).toThrow("cognitive_pathway_no_longer_active");
     const held = assembleCognitiveCycle({ ...setup(), pathways: [{ ...pathway, status: "suppressed" }] });
     expect(held.pathwayIds).toEqual([]);
     expect(() => applyReviewedCognitiveOutcome({ ...base, cycle: held,
