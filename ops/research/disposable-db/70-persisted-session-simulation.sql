@@ -44,7 +44,7 @@ begin
 end $$;
 
 -- Simulate a new client process/connection, retaining only database state.
-\connect :PGDATABASE :PGUSER :PGHOST :PGPORT
+\connect arbor_synthetic postgres localhost 5432
 set request.jwt.claim.role = 'service_role';
 set request.jwt.claim.sub = '11111111-1111-4111-8111-111111111111';
 do $$
