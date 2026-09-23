@@ -226,7 +226,7 @@ export function routeFireflyPacket(input: FireflyRoundaboutInput): FireflyRounda
   const correction = input.signal === "correction" ||
     input.signal === "prediction_error";
   const base = routeSignal(contradiction ? "contradiction" : input.signal);
-  const roads = roadsForVaultDomain(input.domain);
+  const roads = [...roadsForVaultDomain(input.domain)];
   // These are EXISTING roads used by the existing routing table.
   if (contradiction) roads.push("attention_workspace", "evidence_world_model");
   if (correction) roads.push("memory_continuity", "attention_workspace");
