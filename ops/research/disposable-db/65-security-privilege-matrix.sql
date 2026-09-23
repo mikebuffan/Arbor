@@ -31,7 +31,7 @@ begin
 end $$;
 
 -- No unexpected overloaded worker RPC may exist under the same public names.
-do $
+do $$
 declare claim_count integer; settle_count integer; stop_count integer;
 begin
  select count(*) into claim_count from pg_proc p join pg_namespace n on n.oid=p.pronamespace
@@ -44,10 +44,10 @@ begin
    raise exception 'unexpected research RPC overload count claim=% settle=% stop=%',
      claim_count,settle_count,stop_count;
  end if;
-end $;
+end $$;
 
 -- Client roles must not be able to create shadow objects in public/auth schemas.
-do $
+do $$
 begin
  if has_schema_privilege('anon','public','CREATE')
     or has_schema_privilege('authenticated','public','CREATE')
@@ -55,7 +55,7 @@ begin
     or has_schema_privilege('authenticated','auth','CREATE') then
    raise exception 'client schema CREATE privilege leaked';
  end if;
-end $;
+end $$;
 
 -- Authenticated clients are read-only at table-grant level; anon has no table access.
 do $$
