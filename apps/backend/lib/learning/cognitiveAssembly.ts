@@ -191,8 +191,10 @@ export function applyReviewedCognitiveOutcome(input: {
     throw new Error("cognitive_receipt_invalid");
   if (!cycle.pathwayIds.includes(receipt.pathwayId))
     throw new Error("cognitive_pathway_not_selected");
-  if (!input.pathways.some(path => path.id === receipt.pathwayId))
-    throw new Error("cognitive_pathway_not_found");
+  const selectedPath = input.pathways.find(path => path.id === receipt.pathwayId);
+  if (!selectedPath) throw new Error("cognitive_pathway_not_found");
+  // A path can be held after exploration; never train through a newer HOLD.
+  if (selectedPath.status !== "active") throw new Error("cognitive_pathway_no_longer_active");
   for (const path of input.pathways) assertScope(cycle.scope, path);
   if (cycle.route && receipt.reviewedRoute !== cycle.route && receipt.outcome === "verified_helpful")
     throw new Error("cognitive_review_disagrees_with_route");
