@@ -163,6 +163,45 @@ describe("Grove transcript REST read — independent private scope", () => {
     expect((await response.json()).historyMayBeTruncated).toBe(true);
   });
 
+  it("withholds private history if access is revoked while rows are read", async () => {
+    mocks.authorize.mockRejectedValueOnce(
+      new Error("invitation_revoked_during_read"),
+    );
+    // The first authorization is still valid; a later one must be checked
+    // after private data has been fetched and BEFORE sending the response.
+    const original = mocks.authorize.getMockImplementation();
+    mocks.authorize.mockImplementationOnce(async () => ({
+      access: "read-only" as const,
+      groveUserId: ids.groveUserId, fireflyUserId: ids.fireflyOwner,
+      projectId: ids.projectId, conversationId: ids.conversationId,
+      groveAdmin: { privateClient: "grove" },
+      fireflyAdmin: { privateClient: "firefly" },
+    }));
+    const res = await GET(req());
+    expect(res.status).toBe(500);
+    expect(mocks.listRecent).toHaveBeenCalledTimes(1);
+    expect(mocks.authorize).toHaveBeenCalledTimes(2);
+    expect(JSON.stringify(await res.json())).not.toContain(row.user_text);
+    expect(original).toBeDefined();
+  });
+
+  it("withholds private history if the mapped Firefly account changes mid-read", async () => {
+    const originalScope = {
+      access: "read-only" as const,
+      groveUserId: ids.groveUserId, fireflyUserId: ids.fireflyOwner,
+      projectId: ids.projectId, conversationId: ids.conversationId,
+      groveAdmin: { privateClient: "grove" },
+      fireflyAdmin: { privateClient: "firefly" },
+    };
+    mocks.authorize.mockResolvedValueOnce(originalScope).mockResolvedValueOnce({
+      ...originalScope, fireflyUserId: ids.groveUserId,
+    });
+    const res = await GET(req());
+    expect(res.status).toBe(403);
+    expect((await res.json()).error).toBe("grove_private_access_changed");
+    expect(mocks.listRecent).toHaveBeenCalledTimes(1);
+  });
+
   it("fails closed if the transcript provider fails without leaking text", async () => {
     mocks.listRecent.mockRejectedValueOnce(
       new Error("secret private sentence in database"),
