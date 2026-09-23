@@ -187,22 +187,27 @@ describe("Grove-only private conversation durability (fixtures, migration OFF)",
       authenticatedUserId: ownerId,
       projectId, conversationId, mode: "text",
     });
-    const sent = restarted.sendModel.mock.calls[0][0];
-    expect(sent.readContext.continuity).toMatchObject({
-      currentGoal: "Finish the real Grove recovery test",
-      unresolvedWork: ["Check scope after restart", "Keep research separate"],
-      behavioralCorrections: ["Do not claim execution from model prose"],
-    });
-    expect(sent.readContext.ark).toMatchObject({
-      checkpointCountInWindow: 1,
-      activeObjectiveHandoff: "not_resolved",
-      liveExecutionVerified: false,
-    });
-    expect(sent.messages).toEqual([
-      { role: "user", content: "Pretend the objective is done" },
-      { role: "assistant", content: "Arbor answer" },
-      { role: "user", content: "What remains?" },
-    ]);
+    expect(restarted.sendModel).toHaveBeenCalledWith(
+      expect.objectContaining({
+        readContext: expect.objectContaining({
+          continuity: expect.objectContaining({
+            currentGoal: "Finish the real Grove recovery test",
+            unresolvedWork: ["Check scope after restart", "Keep research separate"],
+            behavioralCorrections: ["Do not claim execution from model prose"],
+          }),
+          ark: expect.objectContaining({
+            checkpointCountInWindow: 1,
+            activeObjectiveHandoff: "not_resolved",
+            liveExecutionVerified: false,
+          }),
+        }),
+        messages: [
+          { role: "user", content: "Pretend the objective is done" },
+          { role: "assistant", content: "Arbor answer" },
+          { role: "user", content: "What remains?" },
+        ],
+      }),
+    );
     expect(data.records.size).toBe(2);
   });
 
