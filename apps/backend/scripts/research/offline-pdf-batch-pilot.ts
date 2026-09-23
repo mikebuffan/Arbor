@@ -7,7 +7,10 @@ async function main(): Promise<void> {
     throw new Error("usage: tsx scripts/research/offline-pdf-batch-pilot.ts <local-list.json> <private-output-dir>");
   }
   const items = JSON.parse(await readFile(process.argv[2],"utf8")) as LocalPilotInput[];
-  const results = await stageLocalPdfPilotBatch({items,outputDirectory:process.argv[3]});
+  const results = await stageLocalPdfPilotBatch({
+    items,outputDirectory:process.argv[3],
+    sandboxImageRef:process.env.PDF_SANDBOX_IMAGE_REF,
+  });
   // No extracted text, local paths, or source URIs on stdout.
   process.stdout.write(JSON.stringify({
     staged:results.filter(x=>x.status==="staged_review_only").length,
