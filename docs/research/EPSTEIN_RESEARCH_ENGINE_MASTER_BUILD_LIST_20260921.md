@@ -56,7 +56,7 @@ Legend: [x] draft code plus relevant exact-head CI evidence exists; [~] partial/
 41. [ ] **BLOCKED — item 40:** RLS/service-role matrix.
 42. [ ] **BLOCKED — item 40:** search_path/SECURITY DEFINER/EXECUTE privilege audit.
 43. [ ] **BLOCKED — item 40:** concurrency/crash/lease/cancel/restart/deadline/duplicate settlement.
-44. [ ] Resolve late settlement semantics in pure contract; disposable DB validation remains item 43.
+44. [~] Pure advisory late-settlement policy + five synthetic regressions on isolated draft branch; SQL already rejects late/expired/revoked settlement under locks. Exact-head CI pending. Disposable DB concurrency validation remains item 43.
 45. [ ] Verify cost reservation/attempt cap/failure receipts/stalled-work release in disposable environment.
 46. [x] #157 evidence-backed completion verifier; exact verification head `db29abbadcba0ced2acfadabcc3a9d0a3db126c3` passed CI `35694800621`. Durable DB settlement remains separate.
 
@@ -88,3 +88,10 @@ Legend: [x] draft code plus relevant exact-head CI evidence exists; [~] partial/
 - Next safe independent item after #175 CI: item 44 pure late-settlement semantics and tests, after inspecting current session/settlement code to avoid duplication.
 - BLOCKED: #18 independently published benign external PDF/manual rendered-page/hash review; #29/#40–45 disposable DB until explicit no-cost isolated DB approval; #47 live worker; #48 real third-party executor; #51 scheduler; #53 unattended benign hour; #58 EFTA original-source capture; real privacy-sensitive processing and any publication.
 - No merge, deployment, production DB, live worker, scheduler, paid API, real EFTA/Epstein source, private/victim data or publication touched.
+
+## 2026-09-22 late-settlement continuation (isolated draft)
+- #175 exact head `284be7d5e6f5f721f756494f1b66001f5d3469ad` Arbor Integration CI run `35798175895` SUCCESS (workflow conclusion); not real-data privacy acceptance.
+- #177 is a sibling of #175, not merged or silently duplicated. Its privacy ledger and #175 explicit-span redaction remain separate until deliberate integration review.
+- Inspected existing `sessionRunner.ts`, `sessionPolicy.ts`, and proposed SQL settlement RPC. SQL already rejects deadline/lease expiry, terminal or paused status, cancellation and revoked authorization under session/unit locks; no duplicate RPC created.
+- Added `lateSettlementPolicy.ts` and five synthetic tests on `feat/ark-research-late-settlement-contract-20260922`, stacked on #175. This is advisory fail-closed preflight, NOT atomic authorization or durable DB proof. Database RPC remains the settlement authority.
+- Next: exact-head CI and correct failures; reconcile sibling #177 without overlapping implementation; item 43 disposable DB race/lease/settlement tests only after separate no-cost isolated DB approval. Item 18 benign external PDF/manual review remains separately gated. No merge, deploy, production DB, worker, scheduler, paid API, real EFTA/private data or publication.
