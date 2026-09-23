@@ -4,6 +4,7 @@ import { RouteAccessError } from "@/lib/auth/routeAuthorization";
 import { GroveLmTransportError } from "@/lib/grove/privateLmHostTransport";
 import {
   grovePrivateTurnFeatures,
+  GrovePrivateRequestError,
   prepareVerifiedPrivateGroveTurn,
   respondToVerifiedPrivateGroveTurn,
 } from "@/lib/grove/privateConversationLoop";
@@ -28,13 +29,13 @@ function reply(body: Record<string, unknown>, status: number) {
 async function boundedBody(req: Request): Promise<unknown> {
   if (!/^application\/json(?:;|$)/i.test(
     req.headers.get("content-type")?.trim() ?? "",
-  )) throw new RouteAccessError(415, "grove_private_content_type");
+  )) throw new GrovePrivateRequestError(415, "grove_private_content_type");
   if (!req.body)
-    throw new RouteAccessError(400, "grove_private_body_invalid");
+    throw new GrovePrivateRequestError(400, "grove_private_body_invalid");
   const declared = req.headers.get("content-length");
   if (declared !== null && /^\d+$/.test(declared) &&
       Number(declared) > MAX_REQUEST_BYTES)
-    throw new RouteAccessError(413, "grove_private_body_too_large");
+    throw new GrovePrivateRequestError(413, "grove_private_body_too_large");
   const reader = req.body.getReader();
   const chunks: Uint8Array[] = [];
   let byteCount = 0;
@@ -45,14 +46,14 @@ async function boundedBody(req: Request): Promise<unknown> {
       byteCount += chunk.value.byteLength;
       if (byteCount > MAX_REQUEST_BYTES) {
         await reader.cancel();
-        throw new RouteAccessError(413, "grove_private_body_too_large");
+        throw new GrovePrivateRequestError(413, "grove_private_body_too_large");
       }
       chunks.push(chunk.value);
     }
     return JSON.parse(Buffer.concat(chunks).toString("utf8")) as unknown;
   } catch (error) {
     if (error instanceof RouteAccessError) throw error;
-    throw new RouteAccessError(400, "grove_private_body_invalid");
+    throw new GrovePrivateRequestError(400, "grove_private_body_invalid");
   } finally {
     reader.releaseLock();
   }
@@ -98,6 +99,8 @@ export async function POST(req: Request) {
   } catch (error) {
     if (error instanceof z.ZodError)
       return reply({ ok: false, error: "grove_private_body_invalid" }, 400);
+    if (error instanceof GrovePrivateRequestError)
+      return reply({ ok: false, error: error.code }, error.status);
     if (error instanceof RouteAccessError)
       return reply({ ok: false, error: error.code }, error.status);
     if (error instanceof GroveLmTransportError)
