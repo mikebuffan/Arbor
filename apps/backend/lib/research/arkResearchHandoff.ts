@@ -67,8 +67,8 @@ export async function runTrustedArkResearchTick(args: {
   executor: ResearchUnitExecutor;
   at: string;
 }): Promise<
-  | { status: "not_found" | "idle" | "no_claim" | "stopped"; reason?: string }
-  | { status: "committed" | "duplicate" | "lease_lost"; checkpoint: ArkResearchCheckpoint }
+  | { status: "not_found" | "idle" | "no_claim" | "stopped" | "lease_lost"; reason?: string }
+  | { status: "committed" | "duplicate"; checkpoint: ArkResearchCheckpoint }
 > {
   requireTrustedHandoff(args.handoff);
   const session = await args.store.loadSession(args.handoff.sessionId);
@@ -101,6 +101,11 @@ export async function runTrustedArkResearchTick(args: {
     executor: args.executor, at: args.at,
   });
   if (!("receipt" in result)) return result;
+  // A lost lease is NOT a persisted receipt. Never project its uncommitted
+  // evidence or cost into ARK as a checkpoint.
+  if (result.status === "lease_lost") {
+    return { status: "lease_lost", reason: "research_lease_not_committed" };
+  }
   return {
     status: result.status,
     checkpoint: {
