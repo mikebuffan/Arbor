@@ -9,7 +9,7 @@
 | May original | #188 September reconstruction | Required disposition |
 | --- | --- | --- |
 | `evaluateNeuralPathwayNetwork` central evaluator, self-detected signals and input classification | No evaluator or signal detector, exact host-provided cues only | Keep host-side detection separate; no silently replacing earlier interface in app. |
-| 26 in-code seed pathway entries | None | Review old seeds against actual current body-system names; import only safe, tested, non-user-specific routes. |
+| 25 in-code seed pathway entries | None | Review old seeds against actual current body-system names; import only safe, tested, non-user-specific routes. |
 | 20+ named body systems and recommended modes | 9 broad system classes, no modes | Preserve an explicit mapping of old systems/modes to current code; don't invent missing modules. |
 | 12 domain/pathway types, 10 proposed actions, 9 statuses | 4 path types, 2 suggestion actions, 3 statuses | Deliberate *narrow experiment*, not historical API parity. Lock, supersede, quarantine and review need explicit reviewed semantics. |
 | Suggested suppressions, activation rankings, mode recommendations and detailed debug proof | Suggestions and concise trace | Extend only after validating overlap with current runtime/router and safety gates. |
@@ -32,7 +32,7 @@
 - [x] Preserve exact private extraction outside public GitHub.
 - [x] Compile source and run representative deterministic seed-route checks.
 - [x] Identify lost interfaces, changed names and missing historical scope.
-- [ ] Compare all 26 seed routes with current `main` router, body-system modules, source ownership and safety guards; record old → current mapping individually.
+- [ ] Compare all 25 seed routes with current `main` router, body-system modules, source ownership and safety guards; record old → current mapping individually.
 - [ ] Audit May test scenarios against present real capabilities; remove any paths whose source component does not exist or is only a design.
 - [ ] Design an adapter or migration plan explicitly, not a rename of #188 into May's evaluator.
 - [ ] Decide persistence model, SQL/RLS and evidence authorization only after current ARK/Layer and Grove lane review.
