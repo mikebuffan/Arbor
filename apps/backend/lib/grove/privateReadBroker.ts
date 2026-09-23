@@ -2,7 +2,10 @@ import "server-only";
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { RouteAccessError } from "@/lib/auth/routeAuthorization";
-import { assertProjectOwnedByUser } from "@/lib/auth/ownership";
+import {
+  assertProjectOwnedByUser,
+  assertConversationOwnedByUser,
+} from "@/lib/auth/ownership";
 import { readArkProjectSnapshot } from "@/lib/ark/readModel";
 
 const GROVE_PROJECT_REF = "fqjqpuaoifgbweiguacf";
@@ -212,11 +215,10 @@ export async function readPrivateGroveProjects(req: Request): Promise<string[]> 
   return [...ids].sort();
 }
 
-/** No scope or owner identity is accepted from request JSON. */
-export async function readPrivateGroveArk(
-  req: Request,
-  projectId: string,
-) {
+/** Scoped base for BOTH status and a future private chat. A Grove bearer
+ * never becomes a Firefly bearer, and no user identity comes from input JSON.
+ * Service-role access requires the explicit grant + Firefly ownership check. */
+async function authorizedPrivateGroveProject(req: Request, projectId: string) {
   const { config, groveUserId, fireflyUserId, groveAdmin } =
     await authorizedPrivateGroveBridge(req);
   const grants = await groveAdmin
@@ -235,15 +237,50 @@ export async function readPrivateGroveArk(
     throw new RouteAccessError(404, "project_not_found");
   }
 
-  // Firefly's admin key never leaves this private server. Because service
-  // role bypasses RLS, the explicit owner/project assertion is MANDATORY.
   const fireflyAdmin = serverClient(
     config.fireflyUrl, config.fireflyServiceKey,
   );
+  // Admin bypasses RLS: this proof MUST precede any Firefly conversation,
+  // Layer or LM request and must be independently re-checked for live turns.
   await assertProjectOwnedByUser(fireflyAdmin, fireflyUserId, projectId);
+  return { groveUserId, fireflyUserId, projectId, fireflyAdmin };
+}
+
+const validUuid =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+/** READ-AUTHORIZATION SEAM ONLY: no chat endpoint, mutation, LM invocation,
+ * conversation creation or implied permission to execute an ARK objective.
+ * The incoming conversation must exist, belong to the mapped Firefly owner,
+ * and belong to the selected Grove-granted project. */
+export async function authorizePrivateGroveConversation(
+  req: Request,
+  projectId: string,
+  conversationId: string,
+) {
+  if (!validUuid.test(projectId) || !validUuid.test(conversationId)) {
+    throw new RouteAccessError(404, "grove_invalid_conversation_scope");
+  }
+  const authorized = await authorizedPrivateGroveProject(req, projectId);
+  await assertConversationOwnedByUser({
+    supabase: authorized.fireflyAdmin,
+    userId: authorized.fireflyUserId,
+    projectId,
+    conversationId,
+  });
+  return {
+    ...authorized,
+    conversationId,
+    access: "read-only" as const,
+  };
+}
+
+/** No scope or owner identity is accepted from request JSON. */
+export async function readPrivateGroveArk(req: Request, projectId: string) {
+  const authorized = await authorizedPrivateGroveProject(req, projectId);
   const snapshot = await readArkProjectSnapshot({
-    supabase: fireflyAdmin,
-    userId: fireflyUserId,
+    supabase: authorized.fireflyAdmin,
+    userId: authorized.fireflyUserId,
     projectId,
     objectiveLimit: 20,
     eventLimit: 100,
