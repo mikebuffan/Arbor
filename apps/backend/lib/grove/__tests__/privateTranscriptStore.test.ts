@@ -150,6 +150,51 @@ describe("Grove-only private conversation durability (fixtures, migration OFF)",
     expect(data.records.size).toBe(2);
   });
 
+  it("concurrent identical network retries store one complete pair, not exactly-once inference", async () => {
+    const data = fakeStore();
+    const h = host(data.store);
+    const [a, b] = await Promise.all([
+      h.respond("Continue this Grove conversation", firstId),
+      h.respond("Continue this Grove conversation", firstId),
+    ]);
+    expect(data.records.size).toBe(1);
+    expect([a.persisted, b.persisted]).toEqual([true, true]);
+    expect([a.replayed, b.replayed].sort()).toEqual([false, true]);
+    expect(a).toMatchObject({ requestId: firstId, grantsExecution: false });
+    expect(b).toMatchObject({ requestId: firstId, grantsExecution: false });
+    // Both requests may reach the model before the unique store picks one.
+    // A persisted retry receipt must never be sold as an inference-cost lock.
+    expect(h.sendModel).toHaveBeenCalledTimes(2);
+    const reopened = await host(data.store).respond(
+      "Continue this Grove conversation", firstId,
+    );
+    expect(reopened).toMatchObject({
+      persisted: true, replayed: true, requestId: firstId,
+    });
+    expect(data.records.size).toBe(1);
+  });
+
+  it("racing changed text under the same request ID cannot overwrite the first pair", async () => {
+    const data = fakeStore();
+    const h = host(data.store);
+    const attempts = await Promise.allSettled([
+      h.respond("Original private message", firstId),
+      h.respond("Different private message", firstId),
+    ]);
+    expect(attempts.filter(x => x.status === "fulfilled")).toHaveLength(1);
+    expect(attempts.filter(x => x.status === "rejected")).toHaveLength(1);
+    expect(data.records.size).toBe(1);
+    const saved = [...data.records.values()][0];
+    expect(saved.request_id).toBe(firstId);
+    expect(["Original private message", "Different private message"])
+      .toContain(saved.user_text);
+    await expect(host(data.store).respond(
+      saved.user_text === "Original private message"
+        ? "Different private message" : "Original private message",
+      firstId,
+    )).rejects.toThrow("grove_transcript_request_conflict");
+  });
+
   it("replays identical saved reply without another model call, even after restart", async () => {
     const data = fakeStore();
     await host(data.store).respond("One request", firstId);
