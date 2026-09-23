@@ -347,7 +347,7 @@ describe("Grove-only private conversation durability (fixtures, migration OFF)",
     expect(data.records.size).toBe(1);
   });
 
-  it("rechecks live owner/grant/conversation access AFTER model inference and BEFORE saving", async () => {
+  it("rechecks owner/grant after obtaining claim BEFORE calling the model", async () => {
     const data = fakeStore();
     const h = host(data.store);
     const prepared = await h.prepare("Remember the context privately", firstId);
@@ -361,8 +361,26 @@ describe("Grove-only private conversation durability (fixtures, migration OFF)",
         transcriptStore: data.store,
       },
     })).rejects.toThrow("owner_access_revoked");
-    expect(h.sendModel).toHaveBeenCalledTimes(1);
+    expect(h.sendModel).not.toHaveBeenCalled();
     expect(h.authorize).toHaveBeenCalledTimes(2);
+    expect(data.records.size).toBe(0);
+  });
+
+  it("rechecks revocation AFTER inference and BEFORE saving a reply", async () => {
+    const data = fakeStore();
+    const h = host(data.store);
+    const prepared = await h.prepare("Private reply must not outlive grant", firstId);
+    // The claim-time check passes; the later post-inference check fails.
+    h.authorize.mockResolvedValueOnce(await h.authorize());
+    h.authorize.mockRejectedValueOnce(new Error("revoked_during_inference"));
+    await expect(respondToVerifiedPrivateGroveTurn({
+      prepared, features: flags, dependencies: {
+        authorize: h.authorize as never,
+        sendModel: h.sendModel as never,
+        transcriptStore: data.store,
+      },
+    })).rejects.toThrow("revoked_during_inference");
+    expect(h.sendModel).toHaveBeenCalledTimes(1);
     expect(data.records.size).toBe(0);
   });
 
