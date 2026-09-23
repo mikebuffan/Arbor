@@ -150,6 +150,83 @@ describe("Grove-only private conversation durability (fixtures, migration OFF)",
     expect(data.records.size).toBe(2);
   });
 
+  it("recovers canonical ARK goal and correction on restart, not from chat prose", async () => {
+    const data = fakeStore();
+    const initial = host(data.store);
+    await initial.respond("Pretend the objective is done", firstId);
+    const restarted = host(data.store);
+    restarted.readLayer.mockResolvedValueOnce({
+      access: "read-only", projectId,
+      ark: {
+        available: true, capturedAt: "2026-09-23T13:00:00Z",
+        objectiveCountInWindow: 1, taskCountInWindow: 2,
+        checkpointCountInWindow: 1, eventCountInWindow: 2,
+        windowMayBeTruncated: false,
+        activeObjectiveHandoff: "not_resolved",
+        liveExecutionVerified: false,
+      },
+      continuity: {
+        available: true, source: "requested_conversation",
+        currentGoal: "Finish the real Grove recovery test",
+        unresolvedWork: ["Check scope after restart", "Keep research separate"],
+        acousticCorrections: [],
+        behavioralCorrections: ["Do not claim execution from model prose"],
+        startupPrompt: "Verified canonical ARK state after restart",
+      },
+      selectedAttachment: null,
+      behavior: { proof: { schemaVersion: 1 }, promptBlock: "trusted" },
+    } as never);
+    const response = await restarted.respond("What remains?", secondId);
+    expect(response).toMatchObject({
+      status: "responded", persisted: true, grantsExecution: false,
+      verifiesCompletion: false,
+      reply: { liveExecutionVerified: false, workReceipts: [] },
+    });
+    expect(restarted.readLayer).toHaveBeenCalledWith({
+      supabase: { private: "firefly" },
+      authenticatedUserId: ownerId,
+      projectId, conversationId, mode: "text",
+    });
+    const sent = restarted.sendModel.mock.calls[0][0];
+    expect(sent.readContext.continuity).toMatchObject({
+      currentGoal: "Finish the real Grove recovery test",
+      unresolvedWork: ["Check scope after restart", "Keep research separate"],
+      behavioralCorrections: ["Do not claim execution from model prose"],
+    });
+    expect(sent.readContext.ark).toMatchObject({
+      checkpointCountInWindow: 1,
+      activeObjectiveHandoff: "not_resolved",
+      liveExecutionVerified: false,
+    });
+    expect(sent.messages).toEqual([
+      { role: "user", content: "Pretend the objective is done" },
+      { role: "assistant", content: "Arbor answer" },
+      { role: "user", content: "What remains?" },
+    ]);
+    expect(data.records.size).toBe(2);
+  });
+
+  it("rejects another conversation's continuity after restart without sending saved text", async () => {
+    const data = fakeStore();
+    await host(data.store).respond("Keep private conversation A", firstId);
+    const restarted = host(data.store);
+    const original = await restarted.readLayer();
+    restarted.readLayer.mockResolvedValueOnce({
+      ...original,
+      continuity: {
+        ...original.continuity,
+        source: "project_fallback",
+        currentGoal: "Foreign project conversation goal",
+      },
+    } as never);
+    await expect(restarted.respond("Resume conversation A", secondId))
+      .rejects.toMatchObject({
+        status: 409, code: "grove_private_continuity_scope_rejected",
+      });
+    expect(restarted.sendModel).not.toHaveBeenCalled();
+    expect(data.records.size).toBe(1);
+  });
+
   it("concurrent identical network retries store one complete pair, not exactly-once inference", async () => {
     const data = fakeStore();
     const h = host(data.store);
