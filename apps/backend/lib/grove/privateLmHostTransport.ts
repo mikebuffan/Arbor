@@ -167,7 +167,10 @@ export async function sendPrivateGroveLmTurnFromVerifiedHost(
     messages: input.messages,
     max_new_tokens: 170,
   });
-  if (Buffer.byteLength(body, "utf8") > 65536) {
+  // The v0.3.5-r2 receiver enforces a 32 KiB *raw UTF-8 body* cap.
+  // Match its lower ceiling before sending/signing: 12k JS characters can
+  // exceed 32 KiB with multibyte languages even when history is valid.
+  if (Buffer.byteLength(body, "utf8") > 32768) {
     throw new GroveLmTransportError("private_lm_history_rejected");
   }
 
