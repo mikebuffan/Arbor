@@ -198,6 +198,25 @@ describe("trusted Grove LM host envelope", () => {
     expect(request).not.toHaveBeenCalled();
   });
 
+  it("rejects UTF-8 multibyte history exceeding receiver 32 KiB cap before sending", async () => {
+    // Five alternating 2,300-character entries fit the 12k character
+    // budget, but the signed JSON payload exceeds 32 KiB in UTF-8.
+    const request = fakeFetch();
+    const messages: GroveHostVerifiedTurn["messages"] = Array.from(
+      {length: 5}, (_, index) => ({
+        role: (index % 2 === 0 ? "user" : "assistant") as
+          "user" | "assistant",
+        content: "界".repeat(2300),
+      }),
+    );
+    await expect(sendPrivateGroveLmTurnFromVerifiedHost(
+      {...input(), messages}, {
+        config, request: request as unknown as typeof fetch,
+      },
+    )).rejects.toMatchObject({code: "private_lm_history_rejected"});
+    expect(request).not.toHaveBeenCalled();
+  });
+
   it("does not expose credentials or retry after model host failure", async () => {
     const request = fakeFetch({error: "replay"}, 409);
     await expect(sendPrivateGroveLmTurnFromVerifiedHost(input(), {
