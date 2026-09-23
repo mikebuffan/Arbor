@@ -419,6 +419,43 @@ describe("Grove-only private conversation durability (fixtures, migration OFF)",
     expect(data.records.size).toBe(0);
   });
 
+  it("withholds saved private reply if access is revoked just after fenced commit", async()=>{
+    const data=fakeStore();
+    const h=host(data.store);
+    const prepared=await h.prepare("Reply at revocation boundary",firstId);
+    const original=prepared.transcript!.store;
+    prepared.transcript!.store={
+      ...original,
+      persistCompleted:async input=>{
+        const committed=await original.persistCompleted(input);
+        h.authorize.mockRejectedValueOnce(new Error("revoked_after_db_commit"));
+        return committed;
+      },
+    };
+    await expect(respondToVerifiedPrivateGroveTurn({
+      prepared,features:flags,
+      dependencies:{sendModel:h.sendModel as never},
+    })).rejects.toThrow("revoked_after_db_commit");
+    expect(data.records.size).toBe(1);
+    expect(h.sendModel).toHaveBeenCalledTimes(1);
+    expect(h.authorize).toHaveBeenCalledTimes(4);
+  });
+
+  it("failed inference keeps claim held and never creates a partial transcript", async()=>{
+    const data=fakeStore();
+    const h=host(data.store);
+    h.sendModel.mockRejectedValueOnce(new Error("model_unavailable"));
+    await expect(h.respond("Do not duplicate failed inference",firstId))
+      .rejects.toThrow("model_unavailable");
+    expect(data.records.size).toBe(0);
+    await expect(h.respond("Do not duplicate failed inference",firstId))
+      .rejects.toMatchObject({status:409,
+        code:"grove_private_request_in_progress"});
+    expect(h.sendModel).toHaveBeenCalledTimes(1);
+    // A separately reviewed timeout/reclaim path may retry later; no
+    // automatic immediate duplicate request is authorized here.
+  });
+
   it("rejects an account bridge that changes owner while LM is responding", async () => {
     const data = fakeStore();
     const h = host(data.store);
