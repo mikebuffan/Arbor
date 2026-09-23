@@ -17,6 +17,33 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  grove-disposable-transcript:
+    name: Grove disposable private transcript schema acceptance
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    # Disposable synthetic DB only; never points to a hosted project.
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: grove-synthetic-ci-only
+          POSTGRES_DB: grove_synthetic
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d grove_synthetic"
+          --health-interval 5s --health-timeout 3s --health-retries 12
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: grove-synthetic-ci-only
+      PGDATABASE: grove_synthetic
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply proposed Grove transcript SQL and test real PostgreSQL boundaries
+        run: psql -v ON_ERROR_STOP=1 -f ops/grove/disposable-db/00-private-transcript-acceptance.sql
+
   backend:
     name: Backend test + build
     runs-on: ubuntu-latest
