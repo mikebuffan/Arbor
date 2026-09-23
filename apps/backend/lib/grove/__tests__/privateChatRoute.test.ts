@@ -7,6 +7,11 @@ const mock = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/grove/privateConversationLoop", () => ({
+  GrovePrivateRequestError: class GrovePrivateRequestError extends Error {
+    constructor(readonly status: 400 | 413 | 415 | 503, readonly code: string) {
+      super(code);
+    }
+  },
   grovePrivateTurnFeatures: mock.features,
   prepareVerifiedPrivateGroveTurn: mock.prepare,
   respondToVerifiedPrivateGroveTurn: mock.respond,
