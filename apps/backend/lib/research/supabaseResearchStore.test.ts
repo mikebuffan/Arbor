@@ -64,6 +64,33 @@ describe("owner-scoped Supabase research adapter",()=>{
     expect(await store.loadSession("missing")).toBeNull();
   });
 
+  it("fails closed on malformed persisted authorization booleans",async()=>{
+    for (const bad of [
+      {...record,authorized:"true"},
+      {...record,cancellation_requested:0},
+      {...record,authorized:null},
+    ]) {
+      const m=mockDb(bad as unknown as Record<string,unknown>);
+      const store=new SupabaseResearchStore(m.db,"owner-1","project-1","worker-1");
+      await expect(store.loadSession("s1")).rejects.toThrow(/invalid_research_db_(authorized|cancellation_requested)/);
+      expect(m.rpc).not.toHaveBeenCalled();
+    }
+  });
+
+  it("fails closed instead of filtering malformed persisted evidence refs",async()=>{
+    for (const completed_evidence_refs of [
+      ["EFTA00183759",42],
+      ["EFTA00183759"," "],
+      null,
+    ]) {
+      const m=mockDb({...record,completed_evidence_refs} as unknown as Record<string,unknown>);
+      const store=new SupabaseResearchStore(m.db,"owner-1","project-1","worker-1");
+      await expect(store.loadSession("s1")).rejects
+        .toThrow("invalid_research_db_completed_evidence_refs");
+      expect(m.rpc).not.toHaveBeenCalled();
+    }
+  });
+
   it("includes identity, lease, and budget reservation on claims",async()=>{
     const m=mockDb();
     const store=new SupabaseResearchStore(m.db,"owner-1","project-1","worker-1");
