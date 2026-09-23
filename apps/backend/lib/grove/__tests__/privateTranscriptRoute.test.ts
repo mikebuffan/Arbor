@@ -164,25 +164,20 @@ describe("Grove transcript REST read — independent private scope", () => {
   });
 
   it("withholds private history if access is revoked while rows are read", async () => {
-    mocks.authorize.mockRejectedValueOnce(
-      new Error("invitation_revoked_during_read"),
-    );
-    // The first authorization is still valid; a later one must be checked
-    // after private data has been fetched and BEFORE sending the response.
-    const original = mocks.authorize.getMockImplementation();
-    mocks.authorize.mockImplementationOnce(async () => ({
+    // First authorization succeeds; invitation is revoked during provider
+    // read and the second authorization fails before the private response.
+    mocks.authorize.mockResolvedValueOnce({
       access: "read-only" as const,
       groveUserId: ids.groveUserId, fireflyUserId: ids.fireflyOwner,
       projectId: ids.projectId, conversationId: ids.conversationId,
       groveAdmin: { privateClient: "grove" },
       fireflyAdmin: { privateClient: "firefly" },
-    }));
+    }).mockRejectedValueOnce(new Error("invitation_revoked_during_read"));
     const res = await GET(req());
     expect(res.status).toBe(500);
     expect(mocks.listRecent).toHaveBeenCalledTimes(1);
     expect(mocks.authorize).toHaveBeenCalledTimes(2);
     expect(JSON.stringify(await res.json())).not.toContain(row.user_text);
-    expect(original).toBeDefined();
   });
 
   it("withholds private history if the mapped Firefly account changes mid-read", async () => {
