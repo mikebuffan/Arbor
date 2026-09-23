@@ -8,6 +8,8 @@ on:
       - feature/grove-private-release-composite-20260923
       # Disposable source-only GROVE phone + backend composite acceptance; remove before integration.
       - test/grove-private-end-to-end-composite-20260923
+      # Isolated source release-readiness verification; NOT production deployment.
+      - feature/grove-private-release-readiness-20260923
   pull_request:
     branches:
       - main
@@ -72,6 +74,17 @@ jobs:
       - name: Build backend
         env:
           OPENAI_API_KEY: ci-placeholder-not-a-real-key
+        run: pnpm --filter firefly-backend build
+
+      - name: Verify Grove backend builds WITHOUT legacy OpenAI credentials
+        env:
+          OPENAI_API_KEY: ""
+          GROVE_API_ENABLED: "true"
+          GROVE_PRIVATE_CHAT_PREVIEW_ENABLED: "false"
+          GROVE_PRIVATE_MODEL_TURN_ENABLED: "false"
+          GROVE_PRIVATE_TRANSCRIPT_ENABLED: "false"
+          GROVE_PRIVATE_NEW_CONVERSATION_ENABLED: "false"
+          GROVE_COGNITIVE_PREVIEW_ENABLED: "false"
         run: pnpm --filter firefly-backend build
 
   control-backend:
