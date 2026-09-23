@@ -64,7 +64,9 @@ void main() {
     await tester.ensureVisible(
         find.widgetWithText(OutlinedButton, 'Moss'));
     await tester.tap(find.widgetWithText(OutlinedButton, 'Moss'));
-    await tester.pump();
+    // The modal animates in and then loads its local SharedPreferences state.
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.pump(const Duration(milliseconds: 100));
     expect(find.text('Moss · Local scenery'), findsOneWidget);
     final inSheet = find.descendant(
       of: find.byType(BottomSheet),
