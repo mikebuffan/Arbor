@@ -3,15 +3,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   flags: vi.fn(),
   read: vi.fn(),
+  create: vi.fn(),
 }));
 vi.mock("@/lib/grove/privateConversationLoop", () => ({
   grovePrivateTurnFeatures: mocks.flags,
 }));
 vi.mock("@/lib/grove/privateReadBroker", () => ({
   readPrivateGroveConversations: mocks.read,
+  createPrivateGroveConversation: mocks.create,
 }));
 
-import { GET } from "@/app/api/grove/chat/conversations/route";
+import { GET, POST } from "@/app/api/grove/chat/conversations/route";
 
 const projectId = "00000000-0000-4000-8000-000000000003";
 const conversationId = "00000000-0000-4000-8000-000000000004";
@@ -26,6 +28,10 @@ beforeEach(() => {
   mocks.flags.mockReturnValue({
     chatEnabled: true, modelEnabled: false, transcriptEnabled: false,
     cognitivePreviewEnabled: false,
+  });
+  mocks.create.mockResolvedValue({
+    conversationId, createdAt: "2026-09-23T00:00:00Z",
+    updatedAt: "2026-09-23T01:00:00Z",
   });
   mocks.read.mockResolvedValue({
     projectId,
@@ -96,5 +102,76 @@ describe("Grove existing-conversation discovery endpoint", () => {
     expect(res.status).toBe(500);
     expect(JSON.stringify(await res.json()))
       .not.toMatch(/service-role-token|private email/);
+  });
+});
+
+describe("Grove explicitly requested NEW conversation endpoint", () => {
+  const createRequest = (
+    body: unknown,
+    contentType = "application/json",
+  ) => new Request(url, {
+    method: "POST",
+    headers: {
+      Authorization: "Bearer mock-private-owner",
+      "Content-Type": contentType,
+    },
+    body: typeof body === "string" ? body : JSON.stringify(body),
+  });
+
+  it("does not create a conversation when chat preview is OFF", async () => {
+    mocks.flags.mockReturnValueOnce({ chatEnabled: false });
+    const res = await POST(createRequest({ projectId }));
+    expect(res.status).toBe(404);
+    expect(mocks.create).not.toHaveBeenCalled();
+  });
+
+  it("creates only for explicit POST with one project ID, no model/worker grants", async () => {
+    const request = createRequest({ projectId });
+    const res = await POST(request);
+    expect(res.status).toBe(201);
+    expect(res.headers.get("cache-control")).toContain("no-store");
+    expect(mocks.create).toHaveBeenCalledExactlyOnceWith(request, projectId);
+    expect(mocks.read).not.toHaveBeenCalled();
+    expect(await res.json()).toEqual({
+      ok: true, projectId,
+      conversation: {
+        conversationId,
+        createdAt: "2026-09-23T00:00:00Z",
+        updatedAt: "2026-09-23T01:00:00Z",
+      },
+      created: true, grantsExecution: false, verifiesCompletion: false,
+    });
+  });
+
+  it("rejects supplied owner, conversation, context, role, duplicate or malformed ID", async () => {
+    for (const body of [
+      { projectId, fireflyUserId: "foreign" },
+      { projectId, conversationId },
+      { projectId, context: { role: "system" } },
+      { projectId: "invalid-uuid" },
+      { projectId: 123 }, {},
+      '[bad JSON',
+    ]) {
+      expect((await POST(createRequest(body))).status).toBe(400);
+    }
+    expect(mocks.create).not.toHaveBeenCalled();
+  });
+
+  it("requires JSON and limits body size before contacting the broker", async () => {
+    expect((await POST(createRequest({ projectId }, "text/plain"))).status)
+      .toBe(415);
+    expect((await POST(createRequest("x".repeat(1025)))).status)
+      .toBe(413);
+    expect(mocks.create).not.toHaveBeenCalled();
+  });
+
+  it("keeps grant rejection and underlying provider details private", async () => {
+    mocks.create.mockRejectedValueOnce(
+      new Error("private-service-key and user email"),
+    );
+    const res = await POST(createRequest({ projectId }));
+    expect(res.status).toBe(500);
+    expect(JSON.stringify(await res.json()))
+      .not.toMatch(/private-service-key|user email/);
   });
 });
