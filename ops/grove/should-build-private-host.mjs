@@ -16,7 +16,7 @@ import {pathToFileURL} from "node:url";
 export const OLD_PRODUCTION_BRANCH =
   "deploy/grove-private-api-20260921";
 export const REVIEW_PREVIEW_BRANCH =
-  "feature/grove-private-release-readiness-20260923";
+  "release/grove-private-source-candidate-20260923";
 
 export function grovePrivateBuildDecision(env) {
   const stage = env.VERCEL_ENV;
@@ -26,7 +26,7 @@ export function grovePrivateBuildDecision(env) {
   if (stage === "production" && branch === OLD_PRODUCTION_BRANCH)
     return {build:true,reason:"existing_private_production_branch"};
   if (stage === "preview" && branch === REVIEW_PREVIEW_BRANCH)
-    return {build:true,reason:"approved_preview_candidate_branch"};
+    return {build:true,reason:"pinned_private_source_candidate_preview"};
   return {build:false,reason:"not_a_private_grove_release_branch"};
 }
 if (process.argv[1] &&
