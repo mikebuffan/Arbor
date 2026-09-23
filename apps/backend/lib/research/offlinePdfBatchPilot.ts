@@ -8,6 +8,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readFile, writeFile, link, unlink, lstat } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { extractLocalPublicPdf } from "./localPdfParser";
+import { extractIsolatedPublicPdf } from "./isolatedPdfParser";
 import { MAX_PDF_SOURCE_BYTES } from "./pdfPageProvenance";
 
 export type LocalPilotInput = {
@@ -64,10 +65,17 @@ async function writeOnce(path: string, bytes: Uint8Array): Promise<boolean> {
 export async function stageLocalPdfPilotBatch(input: {
   items: LocalPilotInput[];
   outputDirectory: string;
+  /** Docker image ID; required for sources beyond harmless fixtures. */
+  sandboxImageRef?: string;
+  /** Test-only local parser path, limited to example.org and blank IRS 1040. */
+  benignFixtureMode?: boolean;
 }): Promise<LocalPilotResult[]> {
   if (!Array.isArray(input.items) || input.items.length < 1 || input.items.length > 25 ||
       typeof input.outputDirectory !== "string" || !input.outputDirectory.trim()) {
     throw new Error("pilot_invalid_batch");
+  }
+  if (!input.sandboxImageRef && input.benignFixtureMode !== true) {
+    throw new Error("pilot_sandbox_image_required");
   }
   const root = resolve(input.outputDirectory);
   const originals = join(root,"originals");
@@ -88,9 +96,18 @@ export async function stageLocalPdfPilotBatch(input: {
         throw new Error("pilot_invalid_local_source");
       }
       const bytes = await readFile(item.localPath);
-      const parsed = await extractLocalPublicPdf({
-        sourceUri:item.sourceUri, documentId:item.documentId,bytes,
-      });
+      if (input.benignFixtureMode && !input.sandboxImageRef &&
+          !/^https:\/\/example[.]org\//.test(item.sourceUri) &&
+          item.sourceUri !== "https://www.irs.gov/pub/irs-prior/f1040--2025.pdf") {
+        throw new Error("pilot_untrusted_source_requires_isolated_renderer");
+      }
+      const parsed = input.sandboxImageRef
+        ? await extractIsolatedPublicPdf({
+            sourceUri:item.sourceUri,documentId:item.documentId,bytes,
+          },input.sandboxImageRef)
+        : await extractLocalPublicPdf({
+            sourceUri:item.sourceUri,documentId:item.documentId,bytes,
+          });
       const sha = sha256(bytes);
       if (parsed.original.originalBytesSha256 !== sha) throw new Error("pilot_hash_mismatch");
       const sourceKey = sha256(JSON.stringify([item.sourceUri,item.documentId,sha]));
