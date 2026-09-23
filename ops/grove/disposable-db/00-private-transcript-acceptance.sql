@@ -227,6 +227,58 @@ BEGIN
     RAISE EXCEPTION 'completed request was reclaimed: %',result;
   END IF;
 
+  -- A revocation timestamp is meaningful even when the FK row is NOT
+  -- deleted. The fenced completion must recheck owner, bridge and grant
+  -- independently while holding its PostgreSQL claim lock.
+  result := public.grove_private_claim_turn(
+    bob,project_b,conversation,
+    '00000000-0000-4000-8000-000000000008',first_hash);
+  IF result->>'status' <> 'claimed' THEN
+    RAISE EXCEPTION 'synthetic revocation-boundary claim failed: %',result;
+  END IF;
+  lease_token := (result->>'leaseToken')::uuid;
+  UPDATE public.grove_private_ark_project_grants SET
+    revoked_at=clock_timestamp()
+  WHERE grove_user_id=bob AND firefly_project_id=project_b;
+  saved := public.grove_private_complete_turn(
+    bob,project_b,conversation,
+    '00000000-0000-4000-8000-000000000008',lease_token,
+    'Synthetic fenced prompt','Do not save after grant revoked',
+    'unverified_model_text',false,false);
+  IF saved <> 'no_access' THEN
+    RAISE EXCEPTION 'revoked project accepted completion: %',saved;
+  END IF;
+  UPDATE public.grove_private_ark_project_grants SET revoked_at=NULL
+  WHERE grove_user_id=bob AND firefly_project_id=project_b;
+  UPDATE public.grove_private_firefly_bridge SET
+    revoked_at=clock_timestamp() WHERE grove_user_id=bob;
+  saved := public.grove_private_complete_turn(
+    bob,project_b,conversation,
+    '00000000-0000-4000-8000-000000000008',lease_token,
+    'Synthetic fenced prompt','Do not save after bridge revoked',
+    'unverified_model_text',false,false);
+  IF saved <> 'no_access' THEN
+    RAISE EXCEPTION 'revoked bridge accepted completion: %',saved;
+  END IF;
+  UPDATE public.grove_private_firefly_bridge SET revoked_at=NULL
+  WHERE grove_user_id=bob;
+  UPDATE public.grove_private_owner_access SET
+    revoked_at=clock_timestamp() WHERE user_id=bob;
+  saved := public.grove_private_complete_turn(
+    bob,project_b,conversation,
+    '00000000-0000-4000-8000-000000000008',lease_token,
+    'Synthetic fenced prompt','Do not save after owner revoked',
+    'unverified_model_text',false,false);
+  IF saved <> 'no_access' THEN
+    RAISE EXCEPTION 'revoked owner accepted completion: %',saved;
+  END IF;
+  UPDATE public.grove_private_owner_access SET revoked_at=NULL
+  WHERE user_id=bob;
+  IF EXISTS (SELECT 1 FROM public.grove_private_turns WHERE request_id=
+      '00000000-0000-4000-8000-000000000008') THEN
+    RAISE EXCEPTION 'revoked scope saved a pending model reply';
+  END IF;
+
   DELETE FROM public.grove_private_ark_project_grants
     WHERE grove_user_id=bob AND firefly_project_id=project_b;
   IF EXISTS (SELECT 1 FROM public.grove_private_turn_claims
