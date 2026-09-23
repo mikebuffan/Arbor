@@ -63,6 +63,18 @@ export async function GET(req: Request) {
       projectId: scope.projectId,
       conversationId: scope.conversationId,
     });
+    // If the Grove invitation, owner mapping, project grant or Firefly
+    // conversation is revoked WHILE this private read is running, fail closed
+    // rather than return its private content from a stale service-role read.
+    const current = await authorizePrivateGroveConversation(
+      req, scope.projectId, scope.conversationId,
+    );
+    if (current.access !== "read-only" ||
+        current.groveUserId !== authorized.groveUserId ||
+        current.fireflyUserId !== authorized.fireflyUserId ||
+        current.projectId !== scope.projectId ||
+        current.conversationId !== scope.conversationId)
+      throw new RouteAccessError(403, "grove_private_access_changed");
     return json({
       ok: true,
       projectId: scope.projectId,
