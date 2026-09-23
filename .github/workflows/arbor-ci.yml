@@ -178,6 +178,8 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -f ops/research/disposable-db/10-acceptance.sql
       - name: Exercise deadline, expiry, fencing, STOP and revocation boundaries
         run: psql -v ON_ERROR_STOP=1 -f ops/research/disposable-db/20-boundaries.sql
+      - name: Race independent PostgreSQL connections for claim and settlement
+        run: bash ops/research/disposable-db/30-concurrency.sh
 
   control-backend:
     name: Control backend test + build
