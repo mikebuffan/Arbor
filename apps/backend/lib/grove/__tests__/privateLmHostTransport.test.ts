@@ -22,14 +22,16 @@ function context() {
     projectId,
     ark: {
       available: false,
+      capturedAt: "2026-09-23T12:00:00Z",
       activeObjectiveHandoff: "not_resolved",
       liveExecutionVerified: false,
     },
-    continuity: {available: false},
+    continuity: {available: false, source:"unavailable"},
     selectedAttachment: null,
     behavior: {
       proof: {
         schemaVersion: 1, contractVersion: "2026-09-21.1", mode: "text",
+        projectionFingerprint: "a".repeat(64),
       },
     },
   };
@@ -44,6 +46,12 @@ function result(overrides: Record<string, unknown> = {}) {
   return {
     reply: "Hey, Firefly.",
     model: "arbor-lm-v0.3",
+    adapter_sha256: "5447bc273c11374c73194428825babe22a008b0827e9ef002127a461023402aa",
+    runtime_card_version: "0.3.3",
+    behavior_contract_version: "2026-09-21.1",
+    behavior_projection_fingerprint: "a".repeat(64),
+    ark_captured_at: "2026-09-23T12:00:00Z",
+    continuity_source: "unavailable",
     app: "the-grove",
     experimental: true,
     ark_connected: false,
@@ -227,6 +235,13 @@ describe("trusted Grove LM host envelope", () => {
 
   it("rejects fake execution receipts and contradictory read claims", async () => {
     const cases = [
+      result({adapter_sha256:"0".repeat(64)}),
+      result({adapter_sha256:undefined}),
+      result({runtime_card_version:"0.3.4"}),
+      result({behavior_contract_version:"unapproved"}),
+      result({behavior_projection_fingerprint:"b".repeat(64)}),
+      result({ark_captured_at:"2026-09-22T12:00:00Z"}),
+      result({continuity_source:"project_latest"}),
       result({live_execution_verified: true}),
       result({external_actions_executed: true}),
       result({work_receipts: [{verified: true}]}),
