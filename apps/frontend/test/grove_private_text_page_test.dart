@@ -137,6 +137,9 @@ void main() {
     expect(client.discoveries, 1);
     expect(find.textContaining('will not invent one'), findsOneWidget);
     expect(find.text('Send'), findsNothing);
+    expect(find.text('New private conversation'), findsNothing);
+    expect(find.textContaining('not enabled in this Grove build'), findsOneWidget);
+    expect(client.creations, 0);
     expect(client.sends, 0);
   });
 
@@ -147,6 +150,7 @@ void main() {
       home: Scaffold(body: GrovePrivateTextPanel(
         client: client,
         projectId: projectId,
+        allowNewConversations: true,
         sessionStillValid: () => true,
         onConversationSelected: (_) async {},
       )),
