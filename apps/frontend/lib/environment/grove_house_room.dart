@@ -84,6 +84,7 @@ class _GroveHouseRoomState extends State<GroveHouseRoom> {
       LayoutBuilder(builder: (context, bounds) {
         // Keep the original 709:409 composition and scale all hotspots with it.
         final width = bounds.maxWidth;
+        final height = width * 409 / 709;
         return ClipRRect(
           borderRadius: BorderRadius.circular(18),
           child: SizedBox(
