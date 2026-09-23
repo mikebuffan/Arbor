@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
-import { middleware } from "@/middleware";
+import { middleware, config } from "@/middleware";
 
 function request(path: string, method = "GET") {
   return new NextRequest(`https://private-grove.example.org${path}`, {
@@ -33,6 +33,7 @@ describe("integrated private Grove host isolation", () => {
       "/api/chat", "/api/chat/attachments/access",
       "/api/ark/status", "/api/admin/system/heartbeat",
       "/api/public/chat", "/", "/favicon.ico",
+      "/_next/static/chunks/main.js", "/_next/data/private.json",
       "/api/grove/ark/status/other", "/api/grove/chat/foreign",
     ]) {
       const response = middleware(request(path));
@@ -40,6 +41,10 @@ describe("integrated private Grove host isolation", () => {
       expect(response.headers.get("x-middleware-next")).toBeNull();
       expect(response.headers.get("cache-control")).toBe("no-store");
     }
+  });
+
+  it("includes framework asset paths in the private-host security matcher", () => {
+    expect(config.matcher).toEqual(["/:path*"]);
   });
 
   it("denies wrong methods and permissive browser preflight", () => {
@@ -66,5 +71,7 @@ describe("integrated private Grove host isolation", () => {
       .toBe("https://untrusted.example.org");
     const staticAsset = middleware(request("/favicon.ico"));
     expect(staticAsset.headers.get("x-middleware-next")).toBe("1");
+    const nextAsset = middleware(request("/_next/static/chunks/main.js"));
+    expect(nextAsset.headers.get("x-middleware-next")).toBe("1");
   });
 });
