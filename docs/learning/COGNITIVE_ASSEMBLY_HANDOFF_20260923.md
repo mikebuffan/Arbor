@@ -35,3 +35,6 @@ Pure isolated module compiled in strict TypeScript locally (local mirrors of exi
 
 ## Release boundary
 No merges of stacked parents independently; no deploy, payment, production schema/flag, ARK worker activation, original personal material in the public repo, or model-weight upload. The source branch and handoff are a reproducible proof-of-concept, not a claim that everything is finished.
+
+## Body-system connection (follow-up in same isolated draft)
+Existing `lib/arbor/body/bodySystem.ts` already computes a coordinated *ephemeral* nervous/digestive/respiratory/cardiac/immune/skeletal/vestibular/executive state; `functionalSystems.ts` already maps 11 historical organ metaphors to distributed existing code. Do NOT recreate twenty named organs. New `learning/cognitiveBodyPreview.ts` calls `deriveArborBodyState` with the SAME trusted turn cue used by the pathway + Pattern Hop cycle and optionally a host-verified continuity snapshot. It emits the existing body's `continue/respond/clarify` hint and warnings while retaining `grantsExecution:false` and `liveWorkVerified:false`. Synthetic tests cover baseline state, objective hint, and invalid mode. It does NOT verify auth, retrieve ARK, write learning, or call the real LLM.
