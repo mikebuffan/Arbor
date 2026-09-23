@@ -6,6 +6,8 @@ on:
       - main
       # Temporary SAFE source test for isolated Grove release child; remove before integration.
       - feature/grove-private-release-composite-20260923
+      # Disposable source-only GROVE phone + backend composite acceptance; remove before integration.
+      - test/grove-private-end-to-end-composite-20260923
   pull_request:
     branches:
       - main
