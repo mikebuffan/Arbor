@@ -11,14 +11,6 @@
   ],
   "prs": [
     {
-      "n": 149,
-      "lane": "integration",
-      "sha": "fb32c6c44d99974ef1e4ea5cc54df0a5c1b88d71",
-      "base": "main",
-      "base_sha": "d46f6b46fc51ac3db4e158cddfc592c52cc2b5ef",
-      "branch": "docs/arbor-master-integration-20260921"
-    },
-    {
       "n": 159,
       "lane": "public",
       "sha": "1a6a6cc7eb682059b47f0638aaf5f5dedb907be1",
@@ -151,5 +143,7 @@
     "research_engine->private_grove"
   ],
   "old_grove_production_branch": "deploy/grove-private-api-20260921",
-  "source_ready_for_production": false
+  "source_ready_for_production": false,
+  "integration_source_branch": "docs/arbor-master-integration-20260921",
+  "integration_self_head_unpinned_reason": "this manifest lives on a moving integration branch and cannot pin its own final commit"
 }
