@@ -95,9 +95,26 @@ describe("default-OFF private Grove chat endpoint — synthetic contract", () =>
     expect((await POST(request("[]", "text/plain"))).status).toBe(415);
     expect((await POST(request("{invalid"))).status).toBe(400);
     expect((await POST(request({ ...ids, message: "a".repeat(5000) })))
-      .status).toBe(413);
+      .status).toBe(400); // message limit, not total JSON byte limit
+    expect((await POST(request({ ...ids, message: "a".repeat(14000) })))
+      .status).toBe(413); // whole request denied before JSON parsing
     expect(mock.prepare).not.toHaveBeenCalled();
     expect(mock.respond).not.toHaveBeenCalled();
+  });
+
+  it("accepts exactly 3000 multibyte characters within the bounded request", async () => {
+    // The Flutter Text form permits 3,000 characters; earlier 4 KiB JSON
+    // framing rejected this otherwise valid input before project verification.
+    const message = "界".repeat(3000);
+    const req = request({...ids, message});
+    expect(new TextEncoder().encode(await req.clone().text()).length)
+      .toBeGreaterThan(4096);
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+    expect(mock.prepare).toHaveBeenCalledWith(
+      expect.objectContaining({message, projectId: ids.projectId,
+        conversationId: ids.conversationId}),
+    );
   });
 
   it("invokes owner-bound preflight, then returns reply but no work verification or persistence", async () => {

@@ -73,5 +73,7 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/).*)"],
+  // Match Next.js framework assets as well: Grove must deny /_next/*, while
+  // Firefly retains its existing static/public bypass in middleware().
+  matcher: ["/:path*"],
 };
