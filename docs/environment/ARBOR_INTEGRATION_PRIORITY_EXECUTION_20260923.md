@@ -60,7 +60,8 @@ Last reconciled: 2026-09-23 UTC. This is the canonical **planning/acceptance doc
 - [x] 02.07 Draft separate Grove Supabase migration, with proposed RLS+FK; do NOT apply to Firefly. **CODE-DRAFT only**.
 - [ ] 02.08 Add explicit transcript retention, deletion, export and backup policy including user opt-in and revocation behavior. **OWNER/REVIEW**.
 - [ ] 02.09 Trial proposed Grove SQL on a disposable database; verify FK, grants, default RLS deny, service role, delete cascades and data isolation. **REVIEW**.
-- [ ] 02.10 Add bounded paginated full-history UX contract or disclose exactly six-pair latest-only window; do not call six turns full history. **NEXT**.
+- [x] 02.10a Grove history explicitly discloses newest six-pair window + truncation. **VERIFIED-CI on prior head**.
+- [ ] 02.10b Add owner-scoped pagination if users need more than the latest six complete pairs. **NEXT/REVIEW**.
 - [ ] 02.11 Add per-conversation message ordering, concurrent request stability and response-size edge tests with monotonic ordering strategy. **NEXT**.
 - [ ] 02.12 Add durable recovery of *current goal/unfinished work* from canonical ARK/continuity read—not a summary guessed from chat text. **NEXT / depends Phase 3**.
 - [ ] 02.13 Apply reviewed Grove-only migration ONLY after owner approval, test restore/rollback, and verify actual RLS. **OWNER + REVIEW**.
@@ -159,3 +160,11 @@ Last reconciled: 2026-09-23 UTC. This is the canonical **planning/acceptance doc
 - [ ] Need explicit user-authorized NEW conversation creation policy if owner has no pre-existing Firefly conversation; a read-only picker must not conjure one. Backend discovery DOES NOT yet make Grove phone Text live.
 - [ ] Need actual Grove Flutter picker and approved account/session activation to use this API. Other Grove UI owners' work remains untouched.
 - [ ] Potential security review: revocation between async cross-database checks and final DB operation is not transaction-atomic. The second access check narrows the window but is not an atomic lease. Enforce a documented grant-revision/epoch or short transaction strategy before enabling costly tools or live writes.
+
+
+### Post-read private data revocation acceptance
+
+- [x] Added a second exact Grove invitation/bridge/grant/Firefly conversation check after transcript storage read, before returning the six private pairs. Tests cover revoked invitation and changed Firefly owner mapping mid-read.
+- [x] Added a second exact Grove invitation/bridge/grant/Firefly project check after existing-conversation discovery, before returning any IDs or timestamps. Tests cover changed project ownership mid-read.
+- [ ] Security review still required for the residual non-atomic interval between the last authorization check and HTTP delivery/database commit. Never claim that read revalidation gives an atomic revocation fence.
+- [ ] This code does not create new chat IDs, enable live model flags or wire the separate private Grove phone interface. These remain distinct authorized release gates.
