@@ -41,10 +41,10 @@ BEGIN
     RAISE EXCEPTION 'unexpected client-facing transcript policy';
   END IF;
   IF NOT has_table_privilege('service_role','public.grove_private_turns','SELECT')
-    OR NOT has_table_privilege('service_role','public.grove_private_turns','INSERT')
+    OR has_table_privilege('service_role','public.grove_private_turns','INSERT')
     OR has_table_privilege('service_role','public.grove_private_turns','UPDATE')
     OR has_table_privilege('service_role','public.grove_private_turns','DELETE') THEN
-    RAISE EXCEPTION 'service_role should have private transcript SELECT/INSERT only';
+    RAISE EXCEPTION 'service_role must only SELECT private turns; fenced RPC inserts';
   END IF;
   IF has_table_privilege('anon','public.grove_private_turns','SELECT')
     OR has_table_privilege('anon','public.grove_private_turns','INSERT')
@@ -117,7 +117,9 @@ DECLARE
   conversation uuid := '00000000-0000-4000-8000-000000000005';
   retry_id uuid := '00000000-0000-4000-8000-000000000006';
   first_hash text := repeat('a',64);
-  result text;
+  result jsonb;
+  lease_token uuid;
+  saved text;
 BEGIN
   IF to_regclass('public.grove_private_turn_claims') IS NULL
     OR NOT (SELECT relrowsecurity FROM pg_class
@@ -132,6 +134,12 @@ BEGIN
   END IF;
   IF NOT has_function_privilege('service_role',
       'public.grove_private_claim_turn(uuid,uuid,uuid,uuid,text)','EXECUTE')
+    OR NOT has_function_privilege('service_role',
+      'public.grove_private_complete_turn(uuid,uuid,uuid,uuid,uuid,text,text,text,boolean,boolean)','EXECUTE')
+    OR has_function_privilege('anon',
+      'public.grove_private_complete_turn(uuid,uuid,uuid,uuid,uuid,text,text,text,boolean,boolean)','EXECUTE')
+    OR has_function_privilege('authenticated',
+      'public.grove_private_complete_turn(uuid,uuid,uuid,uuid,uuid,text,text,text,boolean,boolean)','EXECUTE')
     OR has_function_privilege('anon',
       'public.grove_private_claim_turn(uuid,uuid,uuid,uuid,text)','EXECUTE')
     OR has_function_privilege('authenticated',
@@ -143,27 +151,36 @@ BEGIN
   -- prove a claim cannot bypass a real revoked owner/project mapping.
   result := public.grove_private_claim_turn(
     alice,project_a,conversation,retry_id,first_hash);
-  IF result <> 'no_access' THEN
+  IF result->>'status' <> 'no_access' THEN
     RAISE EXCEPTION 'deleted project grant allowed model claim: %',result;
   END IF;
   result := public.grove_private_claim_turn(
     bob,project_b,conversation,retry_id,'INVALID');
-  IF result <> 'invalid_hash' THEN
+  IF result->>'status' <> 'invalid_hash' THEN
     RAISE EXCEPTION 'bad text hash accepted: %',result;
   END IF;
   result := public.grove_private_claim_turn(
     bob,project_b,conversation,retry_id,first_hash);
-  IF result <> 'claimed' THEN
+  IF result->>'status' <> 'claimed' THEN
     RAISE EXCEPTION 'first model claim not acquired: %',result;
+  END IF;
+  lease_token := (result->>'leaseToken')::uuid;
+  saved := public.grove_private_complete_turn(
+    bob,project_b,conversation,retry_id,
+    '00000000-0000-4000-8000-000000000099',
+    'Synthetic fenced prompt','Should never save',
+    'unverified_model_text',false,false);
+  IF saved <> 'stale' THEN
+    RAISE EXCEPTION 'wrong token saved a model reply: %',saved;
   END IF;
   result := public.grove_private_claim_turn(
     bob,project_b,conversation,retry_id,first_hash);
-  IF result <> 'in_progress' THEN
+  IF result->>'status' <> 'in_progress' THEN
     RAISE EXCEPTION 'simultaneous duplicate was not held: %',result;
   END IF;
   result := public.grove_private_claim_turn(
     bob,project_b,conversation,retry_id,repeat('b',64));
-  IF result <> 'conflict' THEN
+  IF result->>'status' <> 'conflict' THEN
     RAISE EXCEPTION 'request-ID different text not rejected: %',result;
   END IF;
 
@@ -174,8 +191,40 @@ BEGIN
     AND firefly_conversation_id=conversation AND request_id=retry_id;
   result := public.grove_private_claim_turn(
     bob,project_b,conversation,retry_id,first_hash);
-  IF result <> 'claimed' THEN
+  IF result->>'status' <> 'claimed' THEN
     RAISE EXCEPTION 'expired-lease retry failed closed unexpectedly: %',result;
+  END IF;
+  saved := public.grove_private_complete_turn(
+    bob,project_b,conversation,retry_id,lease_token,
+    'Synthetic fenced prompt','Expired lease worker reply',
+    'unverified_model_text',false,false);
+  IF saved <> 'stale' THEN
+    RAISE EXCEPTION 'superseded worker persisted after reclaim: %',saved;
+  END IF;
+  lease_token := (result->>'leaseToken')::uuid;
+  saved := public.grove_private_complete_turn(
+    bob,project_b,conversation,retry_id,lease_token,
+    'Synthetic fenced prompt','Current lease worker reply',
+    'unverified_model_text',false,false);
+  IF saved <> 'created' THEN
+    RAISE EXCEPTION 'current worker did not persist its reply: %',saved;
+  END IF;
+  saved := public.grove_private_complete_turn(
+    bob,project_b,conversation,retry_id,lease_token,
+    'Synthetic fenced prompt','A different repeated answer',
+    'unverified_model_text',false,false);
+  IF saved <> 'replayed' THEN
+    RAISE EXCEPTION 'canonical persisted reply was overwritten: %',saved;
+  END IF;
+  IF (SELECT assistant_text FROM public.grove_private_turns
+       WHERE grove_user_id=bob AND firefly_project_id=project_b
+         AND request_id=retry_id) <> 'Current lease worker reply' THEN
+    RAISE EXCEPTION 'fenced canonical reply changed';
+  END IF;
+  result := public.grove_private_claim_turn(
+    bob,project_b,conversation,retry_id,first_hash);
+  IF result->>'status' <> 'completed' THEN
+    RAISE EXCEPTION 'completed request was reclaimed: %',result;
   END IF;
 
   DELETE FROM public.grove_private_ark_project_grants
@@ -186,9 +235,9 @@ BEGIN
   END IF;
   result := public.grove_private_claim_turn(
     bob,project_b,conversation,retry_id,first_hash);
-  IF result <> 'no_access' THEN
+  IF result->>'status' <> 'no_access' THEN
     RAISE EXCEPTION 'revoked project grant permitted reclaimed inference';
   END IF;
-  RAISE NOTICE 'GROVE_DISPOSABLE_RETRY_CLAIM=PASS; DISTRIBUTED_EXACTLY_ONCE=NOT_CLAIMED; LIVE_MIGRATION=HOLD';
+  RAISE NOTICE 'GROVE_DISPOSABLE_FENCED_RETRY=PASS; DISTRIBUTED_EXACTLY_ONCE_INFERENCE=NOT_CLAIMED; LIVE_MIGRATION=HOLD';
 END
 $claim_acceptance$;
