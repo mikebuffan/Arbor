@@ -10,6 +10,12 @@ import '../config/grove_private_config.dart';
 import '../config/grove_private_session.dart';
 import '../environment/grove_private_conversations.dart';
 
+/// New-thread WRITE opt-in is separate from read-only private Text. Both are
+/// compile-time OFF in ordinary phone builds, AND server flags are independent.
+const bool _groveNewConversationEnabled = bool.fromEnvironment(
+  'GROVE_PRIVATE_NEW_CONVERSATION_PREVIEW', defaultValue: false,
+);
+
 /// DRAFT Grove-only Text UI. It does not expose legacy Firefly chat/voice,
 /// auto-create a Firefly conversation, issue project grants, or execute ARK work.
 /// The caller MUST first pass GrovePrivateAuthGate/ProjectGate and use a
@@ -133,6 +139,7 @@ class _GrovePrivateTextHostState extends State<GrovePrivateTextHost> {
         api: api, config: GrovePrivateConfig.fromBuild, enabled: true,
       ),
       projectId: project,
+      allowNewConversations: _groveNewConversationEnabled,
       initialConversationId: _selectedId,
       sessionStillValid: () => _sameSession(id, token, project),
       onConversationSelected: (conversationId) async {
@@ -175,11 +182,13 @@ class GrovePrivateTextPanel extends StatefulWidget {
     required this.sessionStillValid,
     required this.onConversationSelected,
     this.initialConversationId,
+    this.allowNewConversations = false,
   });
 
   final GrovePrivateConversationClient client;
   final String projectId;
   final String? initialConversationId;
+  final bool allowNewConversations;
   final bool Function() sessionStillValid;
   final Future<void> Function(String conversationId) onConversationSelected;
 
@@ -286,7 +295,8 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel> {
   }
 
   Future<void> _createNew() async {
-    if (!_valid || _loading || _sending || _choices == null) return;
+    if (!widget.allowNewConversations ||
+        !_valid || _loading || _sending || _choices == null) return;
     final generation = ++_generation;
     setState(() { _loading = true; _error = null; });
     try {
@@ -427,16 +437,23 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel> {
               Wrap(
                 spacing: 8,
                 children: [
-                  OutlinedButton(
-                    onPressed: _sending ? null : _createNew,
-                    child: const Text('New private conversation'),
-                  ),
+                  if (widget.allowNewConversations)
+                    OutlinedButton(
+                      onPressed: _sending ? null : _createNew,
+                      child: const Text('New private conversation'),
+                    ),
                   TextButton(
                     onPressed: _sending ? null : _discover,
                     child: const Text('Refresh conversations'),
                   ),
                 ],
               ),
+            if (!_loading && choices != null &&
+                choices.conversations.isEmpty &&
+                !widget.allowNewConversations)
+              const Text('New private conversations are not enabled in '
+                  'this Grove build.',
+                style: TextStyle(color: Colors.white70)),
             if (choices?.mayBeTruncated == true)
               const Text('Showing the latest 20 conversations only.',
                   style: TextStyle(color: Colors.white70)),
