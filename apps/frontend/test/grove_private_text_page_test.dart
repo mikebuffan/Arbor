@@ -7,6 +7,8 @@ import 'package:frontend/pages/grove_private_text_page.dart';
 
 const projectId = '00000000-0000-4000-8000-000000000003';
 const conversationId = '00000000-0000-4000-8000-000000000004';
+const expectedProjectId = projectId;
+const expectedConversationId = conversationId;
 const requestId = '00000000-0000-4000-8000-000000000005';
 const apiOrigin = 'https://grove-private.example.org';
 const config = GrovePrivateConfig(
@@ -27,7 +29,9 @@ class _FakePrivateClient extends GrovePrivateConversationClient {
   int sends = 0;
   bool empty = false;
   bool failOnce = false;
+  bool staleHistoryOnce = false;
   final retryIds = <String>[];
+  final saved = <GrovePrivateCompleteTurn>[];
 
   @override
   Future<GrovePrivateConversationChoices> listExisting(String projectId) async {
@@ -50,11 +54,14 @@ class _FakePrivateClient extends GrovePrivateConversationClient {
     required String conversationId,
   }) async {
     historyReads++;
+    final showSaved = !staleHistoryOnce || saved.isEmpty;
+    if (saved.isNotEmpty) staleHistoryOnce = false;
     return GrovePrivateHistory(
       projectId: projectId,
       conversationId: conversationId,
       mayBeTruncated: false,
       turnsNewestFirst: [
+        if (showSaved) ...saved.reversed,
         GrovePrivateCompleteTurn(
           requestId: requestId,
           userText: 'Earlier private question',
@@ -73,14 +80,22 @@ class _FakePrivateClient extends GrovePrivateConversationClient {
     required String requestId,
     required String text,
   }) async {
-    expect(projectId, equals(projectId));
-    expect(conversationId, equals(conversationId));
+    expect(projectId, expectedProjectId);
+    expect(conversationId, expectedConversationId);
     expect(text, 'Continue Arbor');
     sends++;
     retryIds.add(requestId);
     if (failOnce) {
       failOnce = false;
       throw StateError('Private provider detail should not reach UI');
+    }
+    if (!saved.any((turn) => turn.requestId == requestId)) {
+      saved.add(GrovePrivateCompleteTurn(
+        requestId: requestId, userText: text,
+        assistantText: 'Ready to continue.',
+        replyVerification: 'unverified_model_text',
+        createdAt: DateTime.utc(2026, 9, 23, 2),
+      ));
     }
     return GrovePrivateReply(
       text: 'Ready to continue.',
@@ -109,6 +124,40 @@ void main() {
     expect(find.textContaining('will not invent one'), findsOneWidget);
     expect(find.text('Send'), findsNothing);
     expect(client.sends, 0);
+  });
+
+  testWidgets('stale reopen history preserves the original draft and retry ID',
+      (tester) async {
+    final client = _FakePrivateClient()..staleHistoryOnce = true;
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(body: GrovePrivateTextPanel(
+        client: client, projectId: projectId,
+        initialConversationId: conversationId,
+        sessionStillValid: () => true,
+        onConversationSelected: (_) async {},
+      )),
+    ));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField), 'Continue Arbor');
+    await tester.tap(find.text('Send'));
+    await tester.pumpAndSettle();
+    expect(client.sends, 1);
+    expect(client.historyReads, 2);
+    expect(find.textContaining('could not confirm that reply'), findsOneWidget);
+    expect(find.text('Continue Arbor'), findsOneWidget);
+    expect(find.text('Ready to continue.'), findsNothing);
+    final originalId = client.retryIds.single;
+
+    // The same persisted request is replayed. Only confirmed history permits
+    // the phone to clear its draft; no second logical turn is created.
+    await tester.tap(find.text('Send'));
+    await tester.pumpAndSettle();
+    expect(client.retryIds, [originalId, originalId]);
+    expect(client.saved, hasLength(1));
+    expect(find.text('Continue Arbor'), findsOneWidget);
+    expect(find.text('Ready to continue.'), findsOneWidget);
+    expect(find.textContaining('could not confirm that reply'), findsNothing);
   });
 
   testWidgets('private Text restores only an approved existing conversation',
