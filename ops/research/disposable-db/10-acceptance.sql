@@ -68,6 +68,20 @@ begin
   then raise exception 'duplicate spend or receipt'; end if;
 end $$;
 
+-- Check grants using PostgreSQL's privilege catalog, not a mocked RPC caller.
+do $
+begin
+ if has_function_privilege('authenticated',
+   'public.arbor_claim_research_unit(uuid,uuid,uuid,text,integer)','EXECUTE')
+ or has_function_privilege('anon',
+   'public.arbor_claim_research_unit(uuid,uuid,uuid,text,integer)','EXECUTE')
+ or has_function_privilege('authenticated',
+   'public.arbor_settle_research_unit(uuid,uuid,uuid,uuid,uuid,text,text,integer,text[],integer,jsonb)','EXECUTE')
+ or has_function_privilege('anon',
+   'public.arbor_stop_research_session(uuid,uuid,uuid,text,text)','EXECUTE')
+ then raise exception 'privileged RPC leaked to client role'; end if;
+end $;
+
 -- Actual RLS check under non-bypass authenticated role.
 set role authenticated;
 set request.jwt.claim.role = 'authenticated';
