@@ -575,6 +575,19 @@ describe("existing private Grove conversation discovery", () => {
     }
   });
 
+  it("withholds conversation IDs when Firefly ownership changes during discovery", async () => {
+    mocks.lookup.set("conversations:list", {
+      data: [ownedConversation()], error: null,
+    });
+    mocks.assertProjectOwnedByUser
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error("grant_or_ownership_revoked"));
+    await expect(readPrivateGroveConversations(req(), projectId))
+      .rejects.toThrow("grant_or_ownership_revoked");
+    expect(mocks.assertProjectOwnedByUser).toHaveBeenCalledTimes(2);
+    expect(mocks.fromCalls).toContain("conversations");
+  });
+
   it("treats no existing conversation as EMPTY, never as a synthetic chat ID", async () => {
     mocks.lookup.set("conversations:list", {data: [], error: null});
     const result = await readPrivateGroveConversations(req(), projectId);
