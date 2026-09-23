@@ -12,20 +12,32 @@ import 'evidence_view.dart';
 import 'system_health_view.dart';
 import 'command_palette.dart';
 import 'environment_atmosphere.dart';
+import 'grove_living_window_panel.dart';
+import 'grove_house_room.dart';
+import 'grove_world_panel.dart';
+import 'grove_world_store.dart';
+import 'grove_room_inventory_panel.dart';
+import 'grove_app_mode.dart';
+import 'grove_responsive_wrap.dart';
+import 'annabelle_kitchen_view.dart';
+import 'grove_observatory_view.dart';
 import 'benchmark_view.dart';
 import 'project_view.dart';
 import 'memory_state_view.dart';
 import 'tools_view.dart';
 import 'focus_view.dart';
+import 'attention_banner.dart';
 import '../pages/arbor_shell_page.dart';
+import '../pages/grove_talk_page.dart';
 
-enum EnvironmentDestination { home, conversation, objective, queue, projects, memory, evidence, tools, benchmarks, focus, health, settings }
+enum EnvironmentDestination { home, conversation, objective, queue, projects, memory, evidence, tools, benchmarks, focus, health, settings, kitchen, observatory }
 
 class ArborEnvironmentShell extends StatefulWidget {
   const ArborEnvironmentShell({
     super.key,
     this.objective,
     this.workItems = const [],
+    this.activityEvents = const [],
     this.runtimeSource = 'DEMO DATA',
     this.runtimeStale = false,
     this.initialDestination = EnvironmentDestination.home,
@@ -33,6 +45,7 @@ class ArborEnvironmentShell extends StatefulWidget {
   });
   final EnvironmentObjectiveView? objective;
   final List<WorkItemView> workItems;
+  final List<ActivityEvent> activityEvents;
   final String runtimeSource;
   final bool runtimeStale;
   final EnvironmentDestination initialDestination;
@@ -79,7 +92,11 @@ class _ArborEnvironmentShellState extends State<ArborEnvironmentShell> {
       backgroundColor: ArborEnvironmentTokens.voidBlack,
       body: SafeArea(
         child: Column(children: [
-          ObjectiveStrip(objective: objective),
+          // The Grove opens on its room even before ARK sign-in; keep the
+          // detailed unavailable truth visible on the status panel below.
+          if (!groveStandalone ||
+              objective.state != EnvironmentRunState.unavailable)
+            ObjectiveStrip(objective: objective, runtimeStale: widget.runtimeStale),
           Expanded(
             child: LayoutBuilder(builder: (context, constraints) {
               final wide = constraints.maxWidth >= 900;
@@ -90,9 +107,12 @@ class _ArborEnvironmentShellState extends State<ArborEnvironmentShell> {
                     selected: selected,
                     objective: objective,
                     workItems: widget.workItems,
+                    activityEvents: widget.activityEvents,
                     runtimeSource: widget.runtimeSource,
                     runtimeStale: widget.runtimeStale,
                     conversationLayer: widget.conversationLayer,
+                    onRoomAction: _openRoom,
+                    onSelect: _select,
                   ),
                 ),
               ]);
@@ -152,9 +172,42 @@ class _ArborEnvironmentShellState extends State<ArborEnvironmentShell> {
 
   void _select(EnvironmentDestination value) => setState(() => selected = value);
 
+  void _openRoom(GroveRoomAction action) {
+    switch (action) {
+      case GroveRoomAction.arbor:
+        _select(EnvironmentDestination.conversation);
+      case GroveRoomAction.desk:
+        _select(EnvironmentDestination.projects);
+      case GroveRoomAction.shelves:
+        _select(EnvironmentDestination.memory);
+      case GroveRoomAction.kitchen:
+        _select(EnvironmentDestination.kitchen);
+      case GroveRoomAction.window:
+        showModalBottomSheet<void>(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: ArborEnvironmentTokens.midnight,
+          builder: (sheetContext) => SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: const GroveLivingWindowPanel(),
+            ),
+          ),
+        );
+      case GroveRoomAction.stairs:
+        _select(EnvironmentDestination.observatory);
+      case GroveRoomAction.moss:
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Moss is the head of household. Obviously. 🐾'),
+        ));
+    }
+  }
+
   void _openPalette(BuildContext context) {
     showEnvironmentCommandPalette(context, [
       EnvironmentCommand('Go Home', () => _select(EnvironmentDestination.home)),
+      EnvironmentCommand('Enter Annabelle’s Kitchen', () => _select(EnvironmentDestination.kitchen)),
+      EnvironmentCommand('Enter the Observatory', () => _select(EnvironmentDestination.observatory)),
       EnvironmentCommand('Open Conversation', () => _select(EnvironmentDestination.conversation)),
       EnvironmentCommand('Open Current Objective', () => _select(EnvironmentDestination.objective)),
       EnvironmentCommand('Open Work Queue', () => _select(EnvironmentDestination.queue)),
@@ -191,6 +244,8 @@ class _Navigation extends StatelessWidget {
           NavigationRailDestination(icon: Icon(Icons.center_focus_strong_outlined), label: Text('Focus')),
           NavigationRailDestination(icon: Icon(Icons.monitor_heart_outlined), label: Text('System Health')),
           NavigationRailDestination(icon: Icon(Icons.settings_outlined), label: Text('Settings')),
+          NavigationRailDestination(icon: Icon(Icons.restaurant_menu), label: Text('Kitchen')),
+          NavigationRailDestination(icon: Icon(Icons.nights_stay_outlined), label: Text('Observatory')),
         ],
       );
 }
@@ -200,16 +255,22 @@ class _Surface extends StatelessWidget {
     required this.selected,
     required this.objective,
     required this.workItems,
+    required this.activityEvents,
     required this.runtimeSource,
     required this.runtimeStale,
     this.conversationLayer,
+    required this.onRoomAction,
+    required this.onSelect,
   });
   final EnvironmentDestination selected;
   final EnvironmentObjectiveView objective;
   final List<WorkItemView> workItems;
+  final List<ActivityEvent> activityEvents;
   final String runtimeSource;
   final bool runtimeStale;
   final Widget? conversationLayer;
+  final ValueChanged<GroveRoomAction> onRoomAction;
+  final ValueChanged<EnvironmentDestination> onSelect;
 
   @override
   Widget build(BuildContext context) {
@@ -226,13 +287,16 @@ class _Surface extends StatelessWidget {
       EnvironmentDestination.focus => 'Focus',
       EnvironmentDestination.health => 'System Health',
       EnvironmentDestination.settings => 'Settings',
+      EnvironmentDestination.kitchen => 'Annabelle’s Kitchen',
+      EnvironmentDestination.observatory => 'The Observatory',
     };
     // Conversation needs the available phone height for Text, Voice, and the
     // keyboard; a fixed 720px panel nested inside a scrolling dashboard
     // can obscure input on shorter screens.
     if (selected == EnvironmentDestination.conversation) {
       return EnvironmentAtmosphere(
-        child: conversationLayer ?? const ArborShellPage(),
+        child: conversationLayer ??
+            (groveStandalone ? const GroveTalkPage() : const ArborShellPage()),
       );
     }
     return EnvironmentAtmosphere(
@@ -247,11 +311,27 @@ class _Surface extends StatelessWidget {
             style: const TextStyle(color: ArborEnvironmentTokens.textMuted, fontSize: 11, letterSpacing: 1.6),
           ),
           const SizedBox(height: 24),
+          if (selected == EnvironmentDestination.home ||
+              selected == EnvironmentDestination.objective) ...[
+            AttentionBanner(objective: objective, runtimeStale: runtimeStale),
+            const SizedBox(height: 16),
+          ],
           if (selected == EnvironmentDestination.home)
             _Home(
               objective: objective,
               runtimeSource: runtimeSource,
               runtimeStale: runtimeStale,
+              activityEvents: activityEvents,
+              onRoomAction: onRoomAction,
+            )
+          else if (selected == EnvironmentDestination.kitchen)
+            AnnabelleKitchenView(
+              onReturnHome: () => onSelect(EnvironmentDestination.home),
+              onOpenConversation: () => onSelect(EnvironmentDestination.conversation),
+            )
+          else if (selected == EnvironmentDestination.observatory)
+            GroveObservatoryView(
+              onReturnHome: () => onSelect(EnvironmentDestination.home),
             )
           else if (selected == EnvironmentDestination.objective)
             ObjectiveWorkspace(objective: objective)
@@ -310,46 +390,107 @@ class _Surface extends StatelessWidget {
   }
 }
 
-class _Home extends StatelessWidget {
+class _Home extends StatefulWidget {
   const _Home({
     required this.objective,
     required this.runtimeSource,
     required this.runtimeStale,
+    required this.activityEvents,
+    required this.onRoomAction,
   });
   final EnvironmentObjectiveView objective;
   final String runtimeSource;
   final bool runtimeStale;
+  final List<ActivityEvent> activityEvents;
+  final ValueChanged<GroveRoomAction> onRoomAction;
+
+  @override
+  State<_Home> createState() => _HomeState();
+}
+
+class _HomeState extends State<_Home> {
+  GroveWorldLoad? _worldLoad;
+  int _worldPanelGeneration = 0;
+
+  void _recordWorldLoad(GroveWorldLoad? loaded) {
+    if (mounted) setState(() => _worldLoad = loaded);
+  }
+
+  void _openHouseAction(GroveRoomAction action) {
+    if (action != GroveRoomAction.moss) {
+      widget.onRoomAction(action);
+      return;
+    }
+    // Tapping Moss in the painting opens the ACTUAL local state controls,
+    // not a fake worker task or an inaccessible panel further down the page.
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: ArborEnvironmentTokens.midnight,
+      builder: (sheetContext) => SafeArea(child: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Row(children: [
+            const Expanded(child: Text('Moss · Local scenery',
+                style: TextStyle(color: ArborEnvironmentTokens.textPrimary,
+                    fontSize: 18))),
+            IconButton(
+              tooltip: 'Close Moss controls',
+              onPressed: () => Navigator.pop(sheetContext),
+              icon: const Icon(Icons.close),
+            ),
+          ]),
+          GroveWorldPanel(onLoaded: _recordWorldLoad),
+        ]),
+      )),
+    ).whenComplete(() {
+      if (mounted) setState(() => _worldPanelGeneration++);
+    });
+  }
+
   @override
   Widget build(BuildContext context) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Wrap(
-            spacing: 16,
-            runSpacing: 16,
-            children: [
-              SizedBox(width: 520, child: EnvironmentPanel(child: Column(
+          GroveHouseRoom(
+            onOpen: _openHouseAction,
+            worldLoad: _worldLoad,
+          ),
+          const SizedBox(height: 16),
+          const GroveRoomInventoryPanel(),
+          const SizedBox(height: 16),
+          GroveWorldPanel(
+            key: ValueKey('grove-moss-panel-$_worldPanelGeneration'),
+            onLoaded: _recordWorldLoad,
+          ),
+          const SizedBox(height: 16),
+          const GroveLivingWindowPanel(),
+          const SizedBox(height: 16),
+          GroveResponsiveWrap(
+            panels: [
+              GrovePanel(preferredWidth: 520, child: EnvironmentPanel(child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text('CURRENT OBJECTIVE', style: TextStyle(color: ArborEnvironmentTokens.cyan, fontSize: 11, letterSpacing: 1.4)),
                   const SizedBox(height: 12),
-                  Text(objective.title, style: const TextStyle(color: ArborEnvironmentTokens.textPrimary, fontSize: 20)),
+                  Text(widget.objective.title, style: const TextStyle(color: ArborEnvironmentTokens.textPrimary, fontSize: 20)),
                   const SizedBox(height: 10),
-                  Text(objective.nextAction ?? 'No next action reported.', style: const TextStyle(color: ArborEnvironmentTokens.textMuted)),
-                  if (objective.isDemo) ...[
+                  Text(widget.objective.nextAction ?? 'No next action reported.', style: const TextStyle(color: ArborEnvironmentTokens.textMuted)),
+                  if (widget.objective.isDemo) ...[
                     const SizedBox(height: 16),
                     const Text('DEMO FALLBACK — live ARK state is unavailable.', style: TextStyle(color: ArborEnvironmentTokens.firefly, fontSize: 11)),
                   ],
                 ],
               ))),
-              SizedBox(width: 340, child: EnvironmentPanel(child: Column(
+              GrovePanel(preferredWidth: 340, child: EnvironmentPanel(child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text('HOUSE STATUS', style: TextStyle(color: ArborEnvironmentTokens.violet, fontSize: 11, letterSpacing: 1.4)),
                   const SizedBox(height: 12),
-                  Text(runtimeSource, style: const TextStyle(color: ArborEnvironmentTokens.textPrimary, fontSize: 20)),
+                  Text(widget.runtimeSource, style: const TextStyle(color: ArborEnvironmentTokens.textPrimary, fontSize: 20)),
                   const SizedBox(height: 8),
                   Text(
-                    runtimeStale
+                    widget.runtimeStale
                         ? 'Snapshot is stale/fallback. ARK remains read-only.'
                         : 'Live snapshot is read-only. Environment cannot mutate ARK.',
                     style: const TextStyle(color: ArborEnvironmentTokens.textMuted),
@@ -359,26 +500,7 @@ class _Home extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          ActivityView(events: [
-            const ActivityEvent(
-              title: 'Environment branch isolated',
-              detail: 'No production mutation.',
-              kind: 'boundary',
-              isDemo: false,
-            ),
-            ActivityEvent(
-              title: 'Runtime snapshot',
-              detail: '$runtimeSource${runtimeStale ? ' • stale/fallback' : ''}',
-              kind: 'runtime',
-              isDemo: objective.isDemo,
-            ),
-            const ActivityEvent(
-              title: 'Read-only boundary active',
-              detail: 'Environment observes ARK but has no execution controls.',
-              kind: 'safety',
-              isDemo: false,
-            ),
-          ]),
+          ActivityView(events: widget.activityEvents),
         ],
       );
 }

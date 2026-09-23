@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'environment_state.dart';
+import 'attention_status.dart';
 import 'environment_tokens.dart';
 
 class ObjectiveStrip extends StatelessWidget {
-  const ObjectiveStrip({super.key, required this.objective});
+  const ObjectiveStrip({super.key, required this.objective, this.runtimeStale = false});
   final EnvironmentObjectiveView objective;
+  final bool runtimeStale;
 
   String get _label => switch (objective.state) {
         EnvironmentRunState.unavailable => 'UNAVAILABLE',
@@ -16,11 +18,19 @@ class ObjectiveStrip extends StatelessWidget {
         EnvironmentRunState.degraded => 'DEGRADED',
       };
 
+  String get _visibleLabel {
+    if (attentionForObjective(
+      objective: objective,
+      runtimeStale: runtimeStale,
+    ).level == AttentionLevel.needsYou) return 'NEEDS YOU';
+    return _label;
+  }
+
   @override
   Widget build(BuildContext context) {
     final truthful = objective.hasTruthfulState;
     return Semantics(
-      label: 'Current objective: ${objective.title}. Status $_label.',
+      label: 'Current objective: ${objective.title}. Status $_visibleLabel.',
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
@@ -38,7 +48,7 @@ class ObjectiveStrip extends StatelessWidget {
                 style: const TextStyle(color: ArborEnvironmentTokens.textPrimary)),
           ),
           const SizedBox(width: 12),
-          _Tag(truthful ? _label : 'INVALID STATE',
+          _Tag(truthful ? _visibleLabel : 'INVALID STATE',
               truthful ? ArborEnvironmentTokens.cyan : ArborEnvironmentTokens.danger),
         ]),
       ),

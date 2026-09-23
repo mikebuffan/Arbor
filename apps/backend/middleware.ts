@@ -31,6 +31,21 @@ function isStaticOrPublicPath(pathname: string) {
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
+  // A separately hosted private Grove API must never serve the old Firefly
+  // routes, public pages, scheduled heartbeat or attachment write endpoints.
+  // Private Android sends Bearer tokens natively and does not need browser CORS.
+  // This is deployment isolation in addition to the route's own auth checks.
+  if (process.env.GROVE_API_ENABLED === "true") {
+    if (pathname !== "/api/grove/ark/status" &&
+        pathname !== "/api/grove/ark/projects") {
+      return new NextResponse(null, {
+        status: 404,
+        headers: { "Cache-Control": "no-store" },
+      });
+    }
+    return NextResponse.next();
+  }
+
   if (isStaticOrPublicPath(pathname)) {
     return NextResponse.next();
   }
