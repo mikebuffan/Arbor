@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+      # Temporary SAFE source test for isolated Grove release child; remove before integration.
+      - feature/grove-private-release-composite-20260923
   pull_request:
     branches:
       - main
