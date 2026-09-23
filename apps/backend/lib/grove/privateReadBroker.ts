@@ -259,7 +259,7 @@ export async function authorizePrivateGroveConversation(
   conversationId: string,
 ) {
   if (!validUuid.test(projectId) || !validUuid.test(conversationId)) {
-    throw new RouteAccessError(400, "grove_invalid_conversation_scope");
+    throw new RouteAccessError(404, "grove_invalid_conversation_scope");
   }
   const authorized = await authorizedPrivateGroveProject(req, projectId);
   await assertConversationOwnedByUser({
