@@ -54,10 +54,10 @@ Legend: [x] relevant implementation plus exact-head CI evidence exists for the s
 39. [x] Research Vitest discovery fixed.
 40. [x] No-cost isolated synthetic PostgreSQL 17 CI service exercises proposed research SQL; no real user data or production DB.
 41. [~] Owner/RLS acceptance is exercised synthetically; full service-role matrix remains before production integration.
-42. [~] Source audit completed and disposable privilege matrix staged in `ops/research/disposable-db/65-security-privilege-matrix.sql`; execution/effective target-role proof remains required before any production application. See `docs/research/RESEARCH_SQL_SECURITY_REVIEW_20260923.md`.
+42. [x] Disposable PostgreSQL security privilege/SECURITY DEFINER matrix PASS on exact head `8330d6be2dcc4b4f1e6502a66d2874ce9a6f4eb4`, run `35871998690`, receipt `DISPOSABLE_DB_SECURITY_PRIVILEGE_MATRIX=PASS`. Target-production role/owner/security review remains separately gated.
 43. [x] Disposable CI exercises claim/settlement/idempotency/owner RLS/STOP, deadline/expiry/fencing/revocation, independent-connection concurrency, lock-wait fences and STOP-vs-settlement race. Verified run `35806979345`. Disposable DB evidence only.
 44. [x] Advisory late-settlement policy plus SQL lock-time resampling repair verified; database remains authoritative.
-45. [~] **REPAIRED ON #199; EXACT-HEAD CI ABSENT.** Existing cost reservation and bounded receipts are now joined by disposable PostgreSQL coverage for failed receipt + retry delay, terminal `max_attempts`, stalled active-lease fencing, reclaim after expiry, bounded attempt increment, cost accounting and no false completion. #189 exact-head CI failed twice; #199 corrected test isolation. Do not mark [x] until #199 exact-head disposable PostgreSQL acceptance passes.
+45. [x] Corrected attempt/failure/stalled-lease acceptance PASS on exact descendant head `8330d6be2dcc4b4f1e6502a66d2874ce9a6f4eb4`, run `35871998690`, receipt `DISPOSABLE_DB_ATTEMPT_FAILURE_STALL=PASS`. Disposable scope only.
 46. [x] Evidence-backed completion verifier exists; synthetic rehearsal rejects evidence-free completion and never equates budget exhaustion with completed.
 
 ## 5. Worker wiring and unattended acceptance
@@ -66,7 +66,7 @@ Legend: [x] relevant implementation plus exact-head CI evidence exists for the s
 49. [ ] **BLOCKED — live integration approval:** production immutable evidence writes + Pattern Hop suggestions.
 50. [x] Pure provenance-preserving lead dedupe verified; no persistence/integration claim.
 51. [ ] **BLOCKED — separate scheduler authorization:** default-OFF scoped scheduler.
-52. [~] Staged disposable SQL `ops/research/disposable-db/70-persisted-session-simulation.sql` on isolated draft child of #200: checkpoint, psql reconnect, retry fence, two evidence-backed unit settlements, persisted receipts/costs, no false completed state. NOT EXECUTED; dependent on item 45 exact-head verification and approved disposable DB acceptance. Existing synthetic one-tick worker rehearsal: one receipt per tick, STOP fencing, crash/lease-expiry recovery, evidence-free completion rejection. Backend CI verified at #181. Deterministic simulated full persisted session remains after item 45 exact-head verification.
+52. [x] Disposable persisted-session simulation PASS on exact head `8330d6be2dcc4b4f1e6502a66d2874ce9a6f4eb4`, run `35871998690`, receipt `DISPOSABLE_PERSISTED_SESSION_SIMULATION=PASS; INDEPENDENT_COMPLETION_REVIEW=HOLD`. This does not verify live unattended execution.
 53. [ ] **BLOCKED — explicit benign unattended-run approval:** genuine unattended benign-source hour.
 54. [~] Research-side ARK/Layer compatibility contract prepared against exact #160/#191 heads; same-user project isolation, trusted handoff receipts, restart reload, STOP propagation and no-Grove-transcript boundary specified. Code integration/acceptance remains pending branch reconciliation.
 55. [ ] Real phone/operator acceptance; never infer worker liveness from read-only UI.
@@ -119,3 +119,9 @@ Current isolated draft: #189, branch `feat/ark-research-disposable-attempt-matri
 - Runner now avoids redundant STOP writes for already-persisted blocked/cancelled/timebox-ended states, while still requiring a real persisted transition when cancellation/deadline/authorization newly changes the state. Regression tests added.
 - Added localhost + exact synthetic DB/user guard runner `ops/research/disposable-db/run-full-safe-suite.sh`; it orchestrates existing disposable tests plus staged 65/70 only and refuses remote/non-synthetic targets. It has NOT been executed here because this runtime has no PostgreSQL/Docker binaries.
 - These code/test changes remain unverified by exact-head CI. No checklist item is promoted to [x] from source review alone.
+
+## Run 9 — 2026-09-23 exact-head verification correction
+- Run `35871998690`, exact head `8330d6be2dcc4b4f1e6502a66d2874ce9a6f4eb4`: all eight disposable research DB receipts PASS, including 42/45/52. Earlier dated status sections above are historical and superseded by this receipt.
+- CI-only #203 closed without merge; #198/#202 previously closed without merge. #201 remains open draft, not merged.
+- Owner explicitly permitted isolated CI-wiring commit and automatic Vercel preview; no production deployment/migration/live worker/source ingestion/publication authorization.
+- Next: research↔ARK integration tests and branch reconciliation, then separately gated live integration.
