@@ -24,6 +24,18 @@ test("fresh exact observations suppress historical-only HOLD but do not authoriz
   assert.ok(!hit(x.holds,"HISTORICAL_SNAPSHOT_ONLY"));
   assert.ok(hit(x.holds,"OWNER_GATE"));
 });
+test("new #210 release source cannot escape parent or CI exact-head proof",()=>{
+  const o=observations();
+  o.prs["210"].sha="0".repeat(40);
+  assert.ok(hit(auditIntegrationV3(M,{observed:o}).errors,"STALE PR #210 sha"));
+  const m=copy();
+  m.prs.find(x=>x.n===210).base_sha="0".repeat(40);
+  assert.ok(hit(auditIntegrationV3(m).holds,"STALE_STACK_BASE #210 parent #209"));
+  const n=copy();
+  n.proofs.find(x=>x.pr===210).sha="0".repeat(40);
+  assert.ok(hit(auditIntegrationV3(n).errors,"invalid exact-head source proof #210"));
+});
+
 test("new #208 commit fails freshness instead of claiming old CI applies",()=>{
   const o=observations();o.prs["208"].sha="0".repeat(40);
   assert.ok(hit(auditIntegrationV3(M,{observed:o}).errors,"STALE PR #208 sha"));
