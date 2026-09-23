@@ -27,6 +27,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: 7179920ad35a0bc1a518631549e4af5d1f3da860
+          fetch-depth: 0
           persist-credentials: false
       - name: Prove exact research source commit and workflow cleanup
         shell: bash
