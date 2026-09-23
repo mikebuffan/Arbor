@@ -128,9 +128,6 @@ jobs:
           sha256sum "$RUNNER_TEMP/first.txt"
           echo 'Page 2 text SHA256:'
           sha256sum "$RUNNER_TEMP/second.txt"
-          # Blank fillable IRS forms may extract numbered field labels in
-          # a different order/format across Poppler versions. Check page
-          # separation here; original-page line boundaries remain manual HOLD.
           echo 'TWO_PAGE_TEXT_SEPARATION=PASS; LINE_BOUNDARY_MANUAL_REVIEW=HOLD'
       - name: Render downloaded public form under existing isolated sandbox
         shell: bash
@@ -184,6 +181,8 @@ jobs:
         run: bash ops/research/disposable-db/40-lock-waits.sh
       - name: Race STOP against settlement in independent connections
         run: bash ops/research/disposable-db/50-stop-race.sh
+      - name: Exercise attempt cap, failure receipts and stalled lease recovery
+        run: psql -v ON_ERROR_STOP=1 -f ops/research/disposable-db/60-attempt-failure-stall.sql
 
   control-backend:
     name: Control backend test + build
