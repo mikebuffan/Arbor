@@ -2,7 +2,7 @@
 
 Updated 2026-09-22. **One ARK lineage. No second engine.** Source-first public-document research only. Draft code is not deployment, authorization, verified research, or a finding. Use only lawful public material; never publish victim/private-person identifiers.
 
-**Verified lineage:** #123 → #131 → #134 → later stacked research drafts → #175 → #180 → #181 → docs handoff #187 → item-45 draft #189. Sibling #177 was deliberately reconciled into #181 rather than duplicated. Last fully verified implementation head remains #181 `4ffd760c4113588325352860148b5b9c8ad974cd`, Arbor Integration CI `35806979345` SUCCESS. #187 is docs-only. #189 is current isolated implementation draft and is **pending exact-head CI**.
+**Verified lineage:** #123 → #131 → #134 → later stacked research drafts → #175 → #180 → #181 → docs handoff #187 → item-45 draft #189 → deterministic acceptance repair #199 → run-5 documentation child. Sibling #177 was deliberately reconciled into #181 rather than duplicated. Last fully verified implementation head remains #181 `4ffd760c4113588325352860148b5b9c8ad974cd`, Arbor Integration CI `35806979345` SUCCESS. #187 is docs-only. #199 is the current isolated item-45 repair draft at `b99068a39645708ea6df0e28575e8d3511b8c4ed`; exact-head CI has no returned run. #189's two exact-head attempts failed at item 45. Do not promote item 45.
 
 Legend: [x] relevant implementation plus exact-head CI evidence exists for the stated scope; [~] partial or remaining integration/manual proof; [ ] required; **BLOCKED** names an intentional gate.
 
@@ -57,7 +57,7 @@ Legend: [x] relevant implementation plus exact-head CI evidence exists for the s
 42. [ ] Security review of search_path/SECURITY DEFINER/EXECUTE privileges remains required before any production application.
 43. [x] Disposable CI exercises claim/settlement/idempotency/owner RLS/STOP, deadline/expiry/fencing/revocation, independent-connection concurrency, lock-wait fences and STOP-vs-settlement race. Verified run `35806979345`. Disposable DB evidence only.
 44. [x] Advisory late-settlement policy plus SQL lock-time resampling repair verified; database remains authoritative.
-45. [~] **IMPLEMENTED ON #189; CI PENDING.** Existing cost reservation and bounded receipts are now joined by disposable PostgreSQL coverage for failed receipt + retry delay, terminal `max_attempts`, stalled active-lease fencing, reclaim after expiry, bounded attempt increment, cost accounting and no false completion. Do not mark [x] until exact-head #189 CI passes.
+45. [~] **REPAIRED ON #199; EXACT-HEAD CI ABSENT.** Existing cost reservation and bounded receipts are now joined by disposable PostgreSQL coverage for failed receipt + retry delay, terminal `max_attempts`, stalled active-lease fencing, reclaim after expiry, bounded attempt increment, cost accounting and no false completion. #189 exact-head CI failed twice; #199 corrected test isolation. Do not mark [x] until #199 exact-head disposable PostgreSQL acceptance passes.
 46. [x] Evidence-backed completion verifier exists; synthetic rehearsal rejects evidence-free completion and never equates budget exhaustion with completed.
 
 ## 5. Worker wiring and unattended acceptance
@@ -95,3 +95,10 @@ Legend: [x] relevant implementation plus exact-head CI evidence exists for the s
 
 ### Saved run receipt
 Current isolated draft: #189, branch `feat/ark-research-disposable-attempt-matrix-20260922`. Code/test commits add only disposable synthetic PostgreSQL acceptance and CI wiring. At handoff time exact-head Actions had not yet appeared, so item 45 remains partial and no success is claimed. No merge, deployment, production DB, live worker, scheduler, paid API, private/victim data, EFTA processing or publication was performed.
+
+## Run 5 — 2026-09-23, coordination and verification boundary
+- Re-read this exact master, #123/#131/#134 and #181/#187/#189/#199 PR heads; Grove backend #194 and phone #196 remain separately owned, unmerged draft work. Research owns no Grove private transcript, grant, or UI implementation.
+- #199 head `b99068a39645708ea6df0e28575e8d3511b8c4ed` returned **zero** PR-triggered Actions runs on inspection. Its stacked base is not a listed `arbor-ci.yml` PR target. No test pass is inferred. Prior #189 exact-head runs `35841150124` and `35841178422` failed at item 45.
+- Item 45 BLOCKED FOR VERIFICATION: needs approved disposable PostgreSQL execution / safe CI-only trigger that does not invoke deployment. Do not use a main-base PR bridge if it triggers preview/deployment. Item 52 remains waiting for verified 45; no mock-only promotion.
+- Item 42 preliminary read-only source audit: proposed SQL enables RLS, revokes table access from anon/authenticated before granting authenticated SELECT, defines three SECURITY DEFINER RPCs with `search_path = public, pg_temp`, and restricts EXECUTE in its final statements. This is **not** a completed security review: check actual function owner, PUBLIC/default privileges and JWT/service-role spoofing in a disposable environment before production application.
+- Item 8 temporary CI base filters and CI-only #198 remain cleanup/review work, not merge authority. All live/source/privacy/publication gates unchanged. Full receipt: `docs/research/EPSTEIN_RESEARCH_ENGINE_HANDOFF_20260923_RUN5.md`.
