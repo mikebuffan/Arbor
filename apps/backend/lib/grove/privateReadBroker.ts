@@ -287,3 +287,68 @@ export async function readPrivateGroveArk(req: Request, projectId: string) {
   });
   return snapshot;
 }
+
+
+/**
+ * Existing-conversation discovery only. The Grove owner first presents a
+ * verified Grove JWT and an ACTIVE project grant; the mapped Firefly owner is
+ * checked against the project BEFORE reading this service-role table.
+ *
+ * No arbitrary account ID, cross-project conversation, title, transcript,
+ * fallback conversation or newly invented chat ID is returned. The caller
+ * must select an already-existing conversation and each subsequent chat turn
+ * must independently call authorizePrivateGroveConversation().
+ */
+export type GrovePrivateConversationChoice = {
+  conversationId: string;
+  createdAt: string;
+  updatedAt: string;
+};
+export type GrovePrivateConversationsResult = {
+  projectId: string;
+  conversations: GrovePrivateConversationChoice[];
+  mayBeTruncated: boolean;
+};
+export async function readPrivateGroveConversations(
+  req: Request,
+  projectId: string,
+): Promise<GrovePrivateConversationsResult> {
+  if (!validUuid.test(projectId))
+    throw new RouteAccessError(404, "grove_invalid_project_scope");
+  const { fireflyAdmin, fireflyUserId } =
+    await authorizedPrivateGroveProject(req, projectId);
+  const { data, error } = await fireflyAdmin.from("conversations")
+    .select("id,user_id,project_id,created_at,updated_at")
+    .eq("user_id", fireflyUserId)
+    .eq("project_id", projectId)
+    .order("updated_at", { ascending: false })
+    .order("id", { ascending: false })
+    .limit(21);
+  if (error || !Array.isArray(data) || data.length > 21)
+    throw new RouteAccessError(500, "grove_private_conversations_unavailable");
+  const seen = new Set<string>();
+  const records: GrovePrivateConversationChoice[] = [];
+  for (const row of data) {
+    if (!row || row.user_id !== fireflyUserId ||
+        row.project_id !== projectId ||
+        typeof row.id !== "string" || !validUuid.test(row.id) ||
+        seen.has(row.id) ||
+        typeof row.created_at !== "string" ||
+        !Number.isFinite(Date.parse(row.created_at)) ||
+        typeof row.updated_at !== "string" ||
+        !Number.isFinite(Date.parse(row.updated_at)))
+      throw new RouteAccessError(500, "grove_private_conversations_unavailable");
+    seen.add(row.id);
+    if (records.length < 20)
+      records.push({
+        conversationId: row.id,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      });
+  }
+  return {
+    projectId,
+    conversations: records,
+    mayBeTruncated: data.length > 20,
+  };
+}
