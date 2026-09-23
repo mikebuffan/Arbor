@@ -3,11 +3,16 @@ import 'package:flutter/material.dart';
 import 'chat_test_page.dart';
 import 'voice_page.dart';
 import '../environment/grove_app_mode.dart';
+import '../config/grove_private_config.dart';
+import 'grove_private_text_page.dart';
 
-/// The private Grove host currently exposes only authorized read-only ARK
-/// status. Do not display a fake Text/Voice transport against that host:
-/// /api/chat and voice routes are intentionally 404 until a separately
-/// authorized, tested Grove conversation bridge is implemented.
+/// Independent compile-time opt-in, intentionally OFF for ordinary builds.
+const bool _grovePrivateTextEnabled =
+    bool.fromEnvironment('GROVE_PRIVATE_TALK_PREVIEW', defaultValue: false);
+
+/// The private Grove Text view is behind an independent build-time flag
+/// and a separately configured Grove host. Default OFF. Never mount legacy
+/// public Firefly chat/voice inside the private Grove standalone house.
 /// The original Firefly-flavor chat/voice views remain unchanged.
 class GroveTalkPage extends StatefulWidget {
   const GroveTalkPage({
@@ -28,7 +33,9 @@ class _GroveTalkPageState extends State<GroveTalkPage> {
 
   @override
   Widget build(BuildContext context) => widget.privateHostMode
-      ? const _GrovePrivateTalkUnavailable()
+      ? (_grovePrivateTextEnabled && GrovePrivateConfig.fromBuild.ready
+          ? const GrovePrivateTextHost()
+          : const _GrovePrivateTalkUnavailable())
       : ColoredBox(
         color: const Color(0xFF0A1819),
         child: Column(
