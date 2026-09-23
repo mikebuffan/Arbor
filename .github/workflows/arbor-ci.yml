@@ -87,8 +87,10 @@ jobs:
           GROVE_COGNITIVE_PREVIEW_ENABLED: "false"
         run: pnpm --filter firefly-backend build
 
-      - name: Test read-only Grove host preflight (synthetic, NO external requests)
-        run: node --test ops/grove/verify-private-host.test.mjs
+      - name: Test private-host preflight and Vercel branch isolation (offline)
+        run: >-
+          node --test ops/grove/verify-private-host.test.mjs
+          ops/grove/should-build-private-host.test.mjs
 
   control-backend:
     name: Control backend test + build
