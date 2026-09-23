@@ -168,6 +168,47 @@ describe("Grove-only private conversation durability (fixtures, migration OFF)",
     expect(data.records.size).toBe(1);
   });
 
+  it("rechecks live owner/grant/conversation access AFTER model inference and BEFORE saving", async () => {
+    const data = fakeStore();
+    const h = host(data.store);
+    const prepared = await h.prepare("Remember the context privately", firstId);
+    // The FIRST authorization succeeded; it can be revoked or changed while
+    // the external model generates a response.
+    h.authorize.mockRejectedValueOnce(new Error("owner_access_revoked"));
+    await expect(respondToVerifiedPrivateGroveTurn({
+      prepared, features: flags, dependencies: {
+        authorize: h.authorize as never,
+        sendModel: h.sendModel as never,
+        transcriptStore: data.store,
+      },
+    })).rejects.toThrow("owner_access_revoked");
+    expect(h.sendModel).toHaveBeenCalledTimes(1);
+    expect(h.authorize).toHaveBeenCalledTimes(2);
+    expect(data.records.size).toBe(0);
+  });
+
+  it("rejects an account bridge that changes owner while LM is responding", async () => {
+    const data = fakeStore();
+    const h = host(data.store);
+    const prepared = await h.prepare("Finish the saved task", firstId);
+    h.authorize.mockResolvedValueOnce({
+      groveUserId, fireflyUserId: groveUserId,
+      projectId, conversationId,
+      fireflyAdmin: {}, groveAdmin: {},
+      access: "read-only" as const,
+    } as never);
+    await expect(respondToVerifiedPrivateGroveTurn({
+      prepared, features: flags, dependencies: {
+        authorize: h.authorize as never,
+        sendModel: h.sendModel as never,
+        transcriptStore: data.store,
+      },
+    })).rejects.toMatchObject({
+      status: 403, code: "grove_private_access_changed",
+    });
+    expect(data.records.size).toBe(0);
+  });
+
   it("never returns persistence success if the Grove write fails", async () => {
     const data = fakeStore();
     const failed: GrovePrivateTranscriptStore = {
