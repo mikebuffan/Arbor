@@ -138,6 +138,10 @@ class _GrovePrivateTextHostState extends State<GrovePrivateTextHost> {
           throw StateError('Private scope changed');
         }
         // The panel only passes IDs returned by the approved Grove API.
+        // Avoid a session-change/list-reload loop for an already-adopted ID.
+        if (ArborSession.instance.peek(id)?.conversationId == conversationId) {
+          return;
+        }
         // The backend checks ownership AGAIN for every private model turn.
         await ArborSession.instance.adopt(
           userId: id, projectId: project,
