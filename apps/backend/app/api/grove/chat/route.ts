@@ -12,7 +12,9 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const MAX_REQUEST_BYTES = 4096;
+// The JSON framing and 3,000-character message can exceed 4 KiB in UTF-8.
+// Cap the whole request at 12 KiB while keeping the stricter message limit.
+const MAX_REQUEST_BYTES = 12 * 1024;
 const bodySchema = z.object({
   projectId: z.string().uuid(),
   conversationId: z.string().uuid(),
