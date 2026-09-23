@@ -93,6 +93,32 @@ GrovePrivateConversationChoices parseGrovePrivateConversations(
   );
 }
 
+/// Explicit owner-initiated creation. This NEVER accepts a chosen owner or ID:
+/// the Grove host obtains the new conversation UUID from Firefly after scope
+/// verification. An uncertain POST must NOT be automatically retried.
+GrovePrivateConversationChoice parseGrovePrivateCreatedConversation(
+  Map<String, dynamic>? payload, {
+  required String projectId,
+}) {
+  if (!_validId(projectId) || payload?['ok'] != true ||
+      payload?['projectId'] != projectId ||
+      payload?['created'] != true ||
+      payload?['grantsExecution'] != false ||
+      payload?['verifiesCompletion'] != false) {
+    throw const FormatException('Private Grove creation not verified');
+  }
+  final record = _object(payload!['conversation']);
+  final id = record['conversationId'];
+  if (id is! String || !_validId(id)) {
+    throw const FormatException('Private Grove created ID invalid');
+  }
+  return GrovePrivateConversationChoice(
+    conversationId: id,
+    createdAt: _date(record['createdAt']),
+    updatedAt: _date(record['updatedAt']),
+  );
+}
+
 class GrovePrivateCompleteTurn {
   const GrovePrivateCompleteTurn({
     required this.requestId,
@@ -258,6 +284,23 @@ class GrovePrivateConversationClient {
     final payload = await _api.get('/api/grove/chat/conversations',
         queryParameters: {'projectId': projectId});
     return parseGrovePrivateConversations(payload, projectId: projectId);
+  }
+
+  /// Called ONLY on an explicit user action, never automatically on empty
+  /// discovery/restart or as a retry. A lost response may have created a
+  /// conversation, so callers must refresh listExisting before trying again.
+  Future<GrovePrivateConversationChoice> createNew(String projectId) async {
+    _requireReady();
+    if (!_validId(projectId)) {
+      throw const FormatException('Invalid Grove project');
+    }
+    final payload = await _api.post(
+      '/api/grove/chat/conversations',
+      body: {'projectId': projectId},
+    );
+    return parseGrovePrivateCreatedConversation(
+      payload, projectId: projectId,
+    );
   }
 
   Future<GrovePrivateHistory> loadRecent({
