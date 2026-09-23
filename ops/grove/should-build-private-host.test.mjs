@@ -15,14 +15,16 @@ test("owner-confirmed older private production ref remains allowed", () => {
 test("only current reviewed Grove preview branch builds", () => {
   assert.deepEqual(grovePrivateBuildDecision({
     VERCEL_ENV:"preview",VERCEL_GIT_COMMIT_REF:REVIEW_PREVIEW_BRANCH,
-  }),{build:true,reason:"approved_preview_candidate_branch"});
+  }),{build:true,reason:"pinned_private_source_candidate_preview"});
 });
 test("research, main, public alpha, old CI-only and unknown stages SKIP", () => {
   for(const stage of ["preview","production","development"]){
     for(const branch of ["chore/research-ci-trigger-cleanup-handoff-20260923",
       "test/ark-research-persisted-session-simulation-20260923",
       "main","fix/public-alpha-exclude-grove-provider-20260922",
-      "test/grove-private-end-to-end-composite-20260923"]) {
+      "test/grove-private-end-to-end-composite-20260923",
+      "feature/grove-private-release-readiness-20260923",
+      "feature/grove-private-durable-retry-claim-20260923"]) {
       assert.equal(grovePrivateBuildDecision({
         VERCEL_ENV:stage,VERCEL_GIT_COMMIT_REF:branch,
       }).build,false,stage+" "+branch);

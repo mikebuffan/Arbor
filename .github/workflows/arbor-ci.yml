@@ -12,6 +12,8 @@ on:
       - feature/grove-private-release-readiness-20260923
       # Proposed claim schema OFF; isolated disposable-only CI.
       - feature/grove-private-durable-retry-claim-20260923
+      # Isolated pinned source candidate, review-only, NOT live Vercel release.
+      - release/grove-private-source-candidate-20260923
   pull_request:
     branches:
       - main
@@ -94,6 +96,11 @@ jobs:
         run: >-
           node --test ops/grove/verify-private-host.test.mjs
           ops/grove/should-build-private-host.test.mjs
+
+      - name: Reject unsafe Grove release source (offline-only proof)
+        run: |
+          node --test ops/grove/verify-private-release-source.test.mjs
+          node ops/grove/verify-private-release-source.mjs
 
   control-backend:
     name: Control backend test + build
