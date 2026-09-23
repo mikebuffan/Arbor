@@ -114,9 +114,9 @@ export type GroveVerifiedTurn = {
   arkLayer: ArkLayerReadContext;
   cognitive: FireflyCognitivePreviewResult | null;
   transcript: { store: GrovePrivateTranscriptStore;
-    groveUserId: string; requestId: string;
-    /** Freshly re-check owner, bridge, grant and conversation AFTER inference. */
-    reauthorize: () => Promise<void> } | null;
+    groveUserId: string; requestId: string } | null;
+  /** Recheck revocable scope after a long model or history read. */
+  reauthorize: () => Promise<void>;
   /** A hold prevents any model call, even when an objective is still open. */
   status: "ready" | "held";
   holdReason: string | null;
@@ -190,25 +190,26 @@ export async function prepareVerifiedPrivateGroveTurn(input: {
     conversationId: input.conversationId,
     turnId,
   };
+  const reauthorize = async () => {
+    // The Grove invitation, bridge or project grant can be revoked WHILE
+    // the model responds. No private reply may be returned or persisted
+    // after this second proof fails. The existing broker rechecks exact
+    // Firefly ownership as well as active Grove grants.
+    const current = await (deps.authorize ?? authorizePrivateGroveConversation)(
+      input.request, input.projectId, input.conversationId,
+    );
+    if (current.access !== "read-only" ||
+        current.groveUserId !== authorized.groveUserId ||
+        current.fireflyUserId !== authorized.fireflyUserId ||
+        current.projectId !== input.projectId ||
+        current.conversationId !== input.conversationId)
+      throw new RouteAccessError(403, "grove_private_access_changed");
+  };
   const transcript = features.transcriptEnabled ? {
     store: deps.transcriptStore ??
       createSupabaseGrovePrivateTranscriptStore(authorized.groveAdmin),
     groveUserId: authorized.groveUserId,
     requestId: input.requestId ?? randomUUID(),
-    reauthorize: async () => {
-      // An invitation, project grant, account bridge or Firefly conversation
-      // can be revoked WHILE the private LM is generating. A service-role
-      // transcript writer must never outlive that authorization.
-      const current = await (deps.authorize ?? authorizePrivateGroveConversation)(
-        input.request, input.projectId, input.conversationId,
-      );
-      if (current.access !== "read-only" ||
-          current.groveUserId !== authorized.groveUserId ||
-          current.fireflyUserId !== authorized.fireflyUserId ||
-          current.projectId !== input.projectId ||
-          current.conversationId !== input.conversationId)
-        throw new RouteAccessError(403, "grove_private_access_changed");
-    },
   } : null;
   let cognitive: FireflyCognitivePreviewResult | null = null;
   if (features.cognitivePreviewEnabled) {
@@ -250,6 +251,7 @@ export async function prepareVerifiedPrivateGroveTurn(input: {
     });
     if (cognitive.status !== "ready")
       return { scope, userText: input.message, arkLayer, cognitive, transcript,
+        reauthorize,
         status: "held", holdReason: "cognitive_" + cognitive.status,
         grantsExecution: false, verifiesCompletion: false };
     if (cognitive.roundabout.decision === "hold" ||
@@ -263,7 +265,7 @@ export async function prepareVerifiedPrivateGroveTurn(input: {
 
   return {
     scope, userText: input.message, arkLayer, cognitive, transcript,
-    status: "ready", holdReason: null,
+    reauthorize, status: "ready", holdReason: null,
     grantsExecution: false, verifiesCompletion: false,
   };
 }
@@ -311,6 +313,7 @@ export async function respondToVerifiedPrivateGroveTurn(input: {
     if (completed) {
       if (completed.user_text !== userText)
         throw new RouteAccessError(409, "grove_transcript_request_conflict");
+      await input.prepared.reauthorize();
       return {
         status: "responded",
         reply: transcriptRowToUnverifiedReply(completed, transcriptScope),
@@ -337,10 +340,10 @@ export async function respondToVerifiedPrivateGroveTurn(input: {
     // Do not pass it in messages or as a forged Layer/ARK object.
     messages: history,
   });
+  // Reauthorization MUST complete before a service-role write OR an
+  // ephemeral response. A transcript OFF switch does not waive revocation.
+  await input.prepared.reauthorize();
   if (transcript && transcriptScope) {
-    // Reauthorization MUST complete before a service-role write. Do not
-    // persist or return a private model reply if access changed mid-turn.
-    await transcript.reauthorize();
     const saved = await transcript.store.persistCompleted({
       ...transcriptScope, requestId: transcript.requestId,
       userText, reply,
