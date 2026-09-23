@@ -38,11 +38,20 @@ const row = (input: {
 });
 function fakeStore() {
   const records = new Map<string, GrovePrivateTranscriptRow>();
+  const claims = new Map<string, string>();
   const key = (s: typeof scope, id: string) =>
     [s.groveUserId, s.projectId, s.conversationId, id].join(":");
   const store: GrovePrivateTranscriptStore = {
     async getCompleted(s) {
       return records.get(key(s, s.requestId)) ?? null;
+    },
+    async claimPending(s) {
+      const k = key(s, s.requestId);
+      const found = claims.get(k);
+      if (found !== undefined)
+        return found === s.userText ? "in_progress" as const : "conflict" as const;
+      claims.set(k, s.userText);
+      return "claimed" as const;
     },
     async listRecent(s) {
       return [...records.values()].filter(r =>
@@ -72,6 +81,7 @@ function fakeStore() {
 const flags = {
   chatEnabled: true, modelEnabled: true,
   cognitivePreviewEnabled: false, transcriptEnabled: true,
+  claimEnabled: true,
 };
 function host(store: GrovePrivateTranscriptStore) {
   const authorize = vi.fn(async () => ({
@@ -235,18 +245,24 @@ describe("Grove-only private conversation durability (fixtures, migration OFF)",
   it("concurrent identical network retries store one complete pair, not exactly-once inference", async () => {
     const data = fakeStore();
     const h = host(data.store);
-    const [a, b] = await Promise.all([
+    const attempts = await Promise.allSettled([
       h.respond("Continue this Grove conversation", firstId),
       h.respond("Continue this Grove conversation", firstId),
     ]);
     expect(data.records.size).toBe(1);
-    expect([a.persisted, b.persisted]).toEqual([true, true]);
-    expect([a.replayed, b.replayed].sort()).toEqual([false, true]);
-    expect(a).toMatchObject({ requestId: firstId, grantsExecution: false });
-    expect(b).toMatchObject({ requestId: firstId, grantsExecution: false });
-    // Both requests may reach the model before the unique store picks one.
-    // A persisted retry receipt must never be sold as an inference-cost lock.
-    expect(h.sendModel).toHaveBeenCalledTimes(2);
+    const completed = attempts.filter(a => a.status === "fulfilled");
+    expect(completed.length).toBeGreaterThanOrEqual(1);
+    for (const attempt of completed) if (attempt.status === "fulfilled")
+      expect(attempt.value).toMatchObject({
+        persisted: true, requestId: firstId, grantsExecution: false,
+      });
+    for (const attempt of attempts) if (attempt.status === "rejected")
+      expect(attempt.reason).toMatchObject({
+        status: 409, code: "grove_private_request_in_progress",
+      });
+    // Durable claim protects simultaneous active model requests, but an
+    // expired 240-second lease may later be reclaimed: NOT exactly-once.
+    expect(h.sendModel).toHaveBeenCalledTimes(1);
     const reopened = await host(data.store).respond(
       "Continue this Grove conversation", firstId,
     );
@@ -434,6 +450,7 @@ describe("Grove-only private conversation durability (fixtures, migration OFF)",
     const data = fakeStore();
     const untouched: GrovePrivateTranscriptStore = {
       getCompleted: async () => { throw new Error("read_when_off"); },
+      claimPending: async () => { throw new Error("claim_when_off"); },
       listRecent: async () => { throw new Error("list_when_off"); },
       persistCompleted: async () => { throw new Error("write_when_off"); },
     };
