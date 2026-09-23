@@ -426,21 +426,59 @@ class _Home extends StatefulWidget {
 
 class _HomeState extends State<_Home> {
   GroveWorldLoad? _worldLoad;
+  int _worldPanelGeneration = 0;
+
+  void _recordWorldLoad(GroveWorldLoad? loaded) {
+    if (mounted) setState(() => _worldLoad = loaded);
+  }
+
+  void _openHouseAction(GroveRoomAction action) {
+    if (action != GroveRoomAction.moss) {
+      widget.onRoomAction(action);
+      return;
+    }
+    // Tapping Moss in the painting opens the ACTUAL local state controls,
+    // not a fake worker task or an inaccessible panel further down the page.
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: ArborEnvironmentTokens.midnight,
+      builder: (sheetContext) => SafeArea(child: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Row(children: [
+            const Expanded(child: Text('Moss · Local scenery',
+                style: TextStyle(color: ArborEnvironmentTokens.textPrimary,
+                    fontSize: 18))),
+            IconButton(
+              tooltip: 'Close Moss controls',
+              onPressed: () => Navigator.pop(sheetContext),
+              icon: const Icon(Icons.close),
+            ),
+          ]),
+          GroveWorldPanel(onLoaded: _recordWorldLoad),
+        ]),
+      )),
+    ).whenComplete(() {
+      if (mounted) setState(() => _worldPanelGeneration++);
+    });
+  }
 
   @override
   Widget build(BuildContext context) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           GroveHouseRoom(
-            onOpen: widget.onRoomAction,
+            onOpen: _openHouseAction,
             worldLoad: _worldLoad,
           ),
           const SizedBox(height: 16),
           const GroveRoomInventoryPanel(),
           const SizedBox(height: 16),
-          GroveWorldPanel(onLoaded: (loaded) {
-            if (mounted) setState(() => _worldLoad = loaded);
-          }),
+          GroveWorldPanel(
+            key: ValueKey('grove-moss-panel-$_worldPanelGeneration'),
+            onLoaded: _recordWorldLoad,
+          ),
           const SizedBox(height: 16),
           const GroveLivingWindowPanel(),
           const SizedBox(height: 16),
