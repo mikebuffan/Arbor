@@ -4,6 +4,7 @@ import {
   grovePrivateBuildDecision,
   OLD_PRODUCTION_BRANCH,
   REVIEW_PREVIEW_BRANCH,
+  FENCED_RETRY_PREVIEW_BRANCH,
 } from "./should-build-private-host.mjs";
 
 test("owner-confirmed older private production ref remains allowed", () => {
@@ -16,6 +17,16 @@ test("only current reviewed Grove preview branch builds", () => {
   assert.deepEqual(grovePrivateBuildDecision({
     VERCEL_ENV:"preview",VERCEL_GIT_COMMIT_REF:REVIEW_PREVIEW_BRANCH,
   }),{build:true,reason:"approved_preview_candidate_branch"});
+});
+test("reviewed fenced-retry child is preview-only; cannot become production", () => {
+  assert.deepEqual(grovePrivateBuildDecision({
+    VERCEL_ENV:"preview",VERCEL_GIT_COMMIT_REF:FENCED_RETRY_PREVIEW_BRANCH,
+  }),{build:true,reason:"approved_preview_candidate_branch"});
+  for (const stage of ["production","development"]) {
+    assert.equal(grovePrivateBuildDecision({
+      VERCEL_ENV:stage,VERCEL_GIT_COMMIT_REF:FENCED_RETRY_PREVIEW_BRANCH,
+    }).build,false);
+  }
 });
 test("research, main, public alpha, old CI-only and unknown stages SKIP", () => {
   for(const stage of ["preview","production","development"]){
