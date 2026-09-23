@@ -62,6 +62,10 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   if (!grovePrivateTurnFeatures().chatEnabled)
     return json({ ok: false, error: "grove_private_chat_not_enabled" }, 404);
+  // Read-only chat pilot does not authorize creating Firefly records.
+  // Owner must separately enable the new-thread action on the private host.
+  if (process.env.GROVE_PRIVATE_NEW_CONVERSATION_ENABLED !== "true")
+    return json({ ok: false, error: "grove_private_creation_not_enabled" }, 404);
   try {
     if (!(req.headers.get("content-type") ?? "")
         .toLowerCase().startsWith("application/json"))
