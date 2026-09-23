@@ -27,6 +27,8 @@ class _FakePrivateClient extends GrovePrivateConversationClient {
   int discoveries = 0;
   int historyReads = 0;
   int sends = 0;
+  int creations = 0;
+  bool created = false;
   bool empty = false;
   bool failOnce = false;
   bool staleHistoryOnce = false;
@@ -38,13 +40,25 @@ class _FakePrivateClient extends GrovePrivateConversationClient {
     discoveries++;
     return GrovePrivateConversationChoices(
       projectId: projectId, mayBeTruncated: false,
-      conversations: empty ? [] : [
+      conversations: empty && !created ? [] : [
         GrovePrivateConversationChoice(
           conversationId: conversationId,
           createdAt: DateTime.utc(2026, 9, 23),
           updatedAt: DateTime.utc(2026, 9, 23, 1),
         ),
       ],
+    );
+  }
+
+  @override
+  Future<GrovePrivateConversationChoice> createNew(String projectId) async {
+    expect(projectId, expectedProjectId);
+    creations++;
+    created = true;
+    return GrovePrivateConversationChoice(
+      conversationId: conversationId,
+      createdAt: DateTime.utc(2026, 9, 23),
+      updatedAt: DateTime.utc(2026, 9, 23, 1),
     );
   }
 
@@ -124,6 +138,39 @@ void main() {
     expect(find.textContaining('will not invent one'), findsOneWidget);
     expect(find.text('Send'), findsNothing);
     expect(client.sends, 0);
+  });
+
+  testWidgets('creates a real approved new private thread only after user taps',
+      (tester) async {
+    final client = _FakePrivateClient()..empty = true;
+    Widget phone() => MaterialApp(
+      home: Scaffold(body: GrovePrivateTextPanel(
+        client: client,
+        projectId: projectId,
+        sessionStillValid: () => true,
+        onConversationSelected: (_) async {},
+      )),
+    );
+    await tester.pumpWidget(phone());
+    await tester.pumpAndSettle();
+    expect(client.creations, 0);
+    expect(client.sends, 0);
+    expect(find.text('Send'), findsNothing);
+    await tester.tap(find.text('New private conversation'));
+    await tester.pumpAndSettle();
+    expect(client.creations, 1);
+    expect(client.historyReads, 1);
+    expect(find.text('Send'), findsOneWidget);
+
+    // Reopening discovers the same database-provided conversation ID and
+    // never generates another one on startup.
+    await tester.pumpWidget(const MaterialApp(home: SizedBox()));
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(phone());
+    await tester.pumpAndSettle();
+    expect(client.creations, 1);
+    expect(client.discoveries, 2);
+    expect(find.text('Send'), findsOneWidget);
   });
 
   testWidgets('leaving and reopening private Text restores the saved pair',
