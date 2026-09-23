@@ -36,16 +36,16 @@ jobs:
           # #201 already passed backend and research synthetic CI. #207 MUST
           # change only workflow filters / own handoff, never research engine.
           git diff --name-only d74a107af8eeda30cb1b477bb9fee4122722679a HEAD | sort > "$RUNNER_TEMP/research-changed.txt"
-          printf '%s\\n' '.github/workflows/arbor-ci.yml' 'docs/research/EPSTEIN_RESEARCH_ENGINE_HANDOFF_20260923_RUN10.md' | sort > "$RUNNER_TEMP/research-allowed.txt"
+          printf '%s\n' '.github/workflows/arbor-ci.yml' 'docs/research/EPSTEIN_RESEARCH_ENGINE_HANDOFF_20260923_RUN10.md' | sort > "$RUNNER_TEMP/research-allowed.txt"
           diff -u "$RUNNER_TEMP/research-allowed.txt" "$RUNNER_TEMP/research-changed.txt"
           node --input-type=module <<'NODE'
           import {readFileSync} from "node:fs";
           import assert from "node:assert/strict";
           const src=readFileSync(".github/workflows/arbor-ci.yml","utf8");
-          assert.match(src,/pull_request:\\s*\\n\\s*branches:\\s*\\n\\s*- main\\s*\\n\\s*- arbor-linear-runtime\\s*\\n/);
-          assert.match(src,/push:\\s*\\n\\s*branches:\\s*\\n\\s*- main\\s*\\n/);
+          assert.match(src,/pull_request:\s*\n\s*branches:\s*\n\s*- main\s*\n\s*- arbor-linear-runtime\s*\n/);
+          assert.match(src,/push:\s*\n\s*branches:\s*\n\s*- main\s*\n/);
           const block=src.split("pull_request:")[1].split("workflow_dispatch:")[0];
-          const targets=[...block.matchAll(/^\\s+- ([^\\s#]+)\\s*$/gm)].map(m=>m[1]);
+          const targets=[...block.matchAll(/^\s+- ([^\s#]+)\s*$/gm)].map(m=>m[1]);
           assert.deepEqual(targets,["main","arbor-linear-runtime"]);
           assert.ok(!src.includes("Temporary stacked research review CI"));
           console.log("PASS: exact PR #207 research item 8 workflow cleanup, no ingestion, no merge or deploy");
