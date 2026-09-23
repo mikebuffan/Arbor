@@ -126,6 +126,37 @@ void main() {
     expect(client.sends, 0);
   });
 
+  testWidgets('leaving and reopening private Text restores the saved pair',
+      (tester) async {
+    final client = _FakePrivateClient();
+    Widget phone() => MaterialApp(
+      home: Scaffold(body: GrovePrivateTextPanel(
+        client: client, projectId: projectId,
+        initialConversationId: conversationId,
+        sessionStillValid: () => true,
+        onConversationSelected: (_) async {},
+      )),
+    );
+    await tester.pumpWidget(phone());
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'Continue Arbor');
+    await tester.tap(find.text('Send'));
+    await tester.pumpAndSettle();
+    expect(client.saved, hasLength(1));
+    expect(client.sends, 1);
+
+    // Destroy the screen as if leaving Grove, then construct a fresh one.
+    // Only the fake server-side store survives, not widget-local chat state.
+    await tester.pumpWidget(const MaterialApp(home: SizedBox()));
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(phone());
+    await tester.pumpAndSettle();
+    expect(client.historyReads, 3);
+    expect(find.text('Continue Arbor'), findsOneWidget);
+    expect(find.text('Ready to continue.'), findsOneWidget);
+    expect(client.sends, 1);
+  });
+
   testWidgets('stale reopen history preserves the original draft and retry ID',
       (tester) async {
     final client = _FakePrivateClient()..staleHistoryOnce = true;
