@@ -52,7 +52,8 @@ async function boundedBody(req: Request): Promise<unknown> {
     }
     return JSON.parse(Buffer.concat(chunks).toString("utf8")) as unknown;
   } catch (error) {
-    if (error instanceof RouteAccessError) throw error;
+    if (error instanceof GrovePrivateRequestError ||
+        error instanceof RouteAccessError) throw error;
     throw new GrovePrivateRequestError(400, "grove_private_body_invalid");
   } finally {
     reader.releaseLock();
