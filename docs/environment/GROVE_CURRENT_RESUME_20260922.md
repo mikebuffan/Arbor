@@ -22,6 +22,13 @@ Connected account/team “Mike's projects” lists just **firefly** (project `pr
 - `annabelle_kitchen_view.dart`: separate room and shared clock, **visit-only** scratchpad/copy; no manuscript persistence or model-side writing-mode switch.
 - Observatory is not a proven complete interactive room; physical Android owner sign-in and Text→Voice→Text are not verified.
 
+## Post-recovery Grove work (isolated draft stack)
+
+- **#184**, branch `feat/grove-moss-visual-state-20260922`, exact initial test-source head `7051e604bba87e0726a9aa392dd88a4129bbce7f`: The house displays an explicitly **device-local** sofa/rug and resting/awake Moss marker without changing the approved painting. Tapping the Moss door opens the existing real saved-state controls. Failed reads/writes no longer leave the scene chip showing a possibly stale state. New Flutter widget tests were committed; no physical device or final visual acceptance yet.
+- **#185**, branch `feat/grove-observatory-room-20260922`, head `ce4db85be3be25cdfef7645c01981a3de01276e1`: navigable Observatory view from the staircase/rail/command palette, with illustrative sky card driven by the shared House Clock, existing approximate moon/solar model and reversible Living Window sundial. **This is not** the final illustrated Observatory walkway and does not execute research. New Flutter widget tests committed.
+- **#186** is a temporary **CI-ONLY, DO NOT MERGE** draft from #185 to the existing Grove verification target. GitHub Actions run **35803031084** was in progress on initial observation; check final jobs and exact source before marking verified. The early observed control-backend tests/build passed; Flutter analyzer/tests/APK and backend build were still in flight. #186 must not be used as a canonical implementation PR.
+- No Grove/private API deployment, owner account grants, real standalone LM inference, or production changes were made by these UI drafts. The earlier static-night-window and private Text/Voice limitations remain.
+
 ## Grove-only finish line, dependency order
 
 1. Review #179 plus #160 exact source and tests. Design the smallest reviewed composition path; keep parent PRs draft and preserve owner boundaries.
