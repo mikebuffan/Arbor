@@ -153,7 +153,18 @@ void main() {
 
     // The private transcript disappears immediately when owner scope changes.
     stillOwner = false;
-    await tester.pump();
+    // In production a Supabase auth event rebuilds/unmounts the host.
+    // Mirror that change here; changing a captured bool alone does not
+    // schedule a Flutter frame.
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(body: GrovePrivateTextPanel(
+        client: client,
+        projectId: projectId,
+        initialConversationId: conversationId,
+        sessionStillValid: () => stillOwner,
+        onConversationSelected: (id) async { selected.add(id); },
+      )),
+    ));
     expect(find.text('Earlier private answer'), findsNothing);
     expect(find.textContaining('Private Grove access changed'), findsOneWidget);
     expect(client.sends, 2);
