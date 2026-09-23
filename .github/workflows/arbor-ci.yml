@@ -180,6 +180,10 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -f ops/research/disposable-db/20-boundaries.sql
       - name: Race independent PostgreSQL connections for claim and settlement
         run: bash ops/research/disposable-db/30-concurrency.sh
+      - name: Verify lock-wait deadline and lease-expiry fences
+        run: bash ops/research/disposable-db/40-lock-waits.sh
+      - name: Race STOP against settlement in independent connections
+        run: bash ops/research/disposable-db/50-stop-race.sh
 
   control-backend:
     name: Control backend test + build
