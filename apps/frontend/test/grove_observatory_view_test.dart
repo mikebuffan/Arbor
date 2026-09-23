@@ -69,10 +69,6 @@ void main() {
         find.widgetWithText(OutlinedButton, 'Stairs'));
     await tester.tap(find.widgetWithText(OutlinedButton, 'Stairs'));
     await tester.pump(const Duration(milliseconds: 350));
-    await tester.ensureVisible(find.text('The Observatory'));
-    await tester.pump();
-    await tester.tap(find.text('The Observatory'));
-    await tester.pump(const Duration(milliseconds: 350));
     expect(find.text('THE GROVE / OBSERVATORY'), findsOneWidget);
     expect(find.text('THE LIVING WINDOW'), findsOneWidget);
 
