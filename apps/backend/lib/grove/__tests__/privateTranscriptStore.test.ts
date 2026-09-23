@@ -262,6 +262,47 @@ describe("Grove-only private conversation durability (fixtures, migration OFF)",
     );
   });
 
+  it("cannot return an ephemeral reply after revocation while storage is OFF", async () => {
+    const data = fakeStore();
+    const h = host(data.store);
+    const off = { ...flags, transcriptEnabled: false };
+    const prepared = await prepareVerifiedPrivateGroveTurn({
+      request: new Request("https://private-grove.example.org/api/grove/chat"),
+      projectId, conversationId, message: "No transcript but still private",
+      requestId: firstId, features: off,
+      dependencies: {
+        authorize: h.authorize as never,
+        readLayer: h.readLayer as never,
+        sendModel: h.sendModel as never,
+        transcriptStore: data.store,
+      },
+    });
+    h.authorize.mockRejectedValueOnce(new Error("grant_revoked_during_inference"));
+    await expect(respondToVerifiedPrivateGroveTurn({
+      prepared, features: off,
+      dependencies: { authorize: h.authorize as never,
+        sendModel: h.sendModel as never },
+    })).rejects.toThrow("grant_revoked_during_inference");
+    expect(h.authorize).toHaveBeenCalledTimes(2);
+    expect(h.sendModel).toHaveBeenCalledTimes(1);
+    expect(data.records.size).toBe(0);
+  });
+
+  it("cannot replay a stored reply after the checked scope changes mid-request", async () => {
+    const data = fakeStore();
+    await host(data.store).respond("One request", firstId);
+    const h = host(data.store);
+    const prepared = await h.prepare("One request", firstId);
+    h.authorize.mockRejectedValueOnce(new Error("owner_revoked_on_retry"));
+    await expect(respondToVerifiedPrivateGroveTurn({
+      prepared, features: flags,
+      dependencies: { authorize: h.authorize as never,
+        sendModel: h.sendModel as never, transcriptStore: data.store },
+    })).rejects.toThrow("owner_revoked_on_retry");
+    expect(h.sendModel).not.toHaveBeenCalled();
+    expect(data.records.size).toBe(1);
+  });
+
   it("never touches transcript when feature is OFF", async () => {
     const data = fakeStore();
     const untouched: GrovePrivateTranscriptStore = {
