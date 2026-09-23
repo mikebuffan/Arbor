@@ -111,3 +111,11 @@ Current isolated draft: #189, branch `feat/ark-research-disposable-attempt-matri
 - Item 42: added disposable privilege/security acceptance and source review; not executed, so production security acceptance remains open.
 - Item 54: inspected ARK/Layer #160 and cognitive assembly #191 exact heads and recorded a research-side compatibility contract in `docs/research/ARK_RESEARCH_COMPATIBILITY_CONTRACT_20260923.md`. No Grove/ARK code changed.
 - Item 52 remains staged-only; item 45 exact-head DB verification is still the dependency gate before database promotion.
+
+## Run 8 — research adapter fail-closed hardening
+- Audited inherited `sessionRunner.ts` / `supabaseResearchStore.ts` rather than creating another worker.
+- Persisted DB rows now reject malformed authorization booleans and malformed/blank evidence-ref arrays instead of coercing/filtering them into apparently valid state. Regression tests added.
+- STOP now requires the database RPC to return `true`; false acknowledgements raise `research_stop_not_persisted` instead of being reported as successful persistence.
+- Runner now avoids redundant STOP writes for already-persisted blocked/cancelled/timebox-ended states, while still requiring a real persisted transition when cancellation/deadline/authorization newly changes the state. Regression tests added.
+- Added localhost + exact synthetic DB/user guard runner `ops/research/disposable-db/run-full-safe-suite.sh`; it orchestrates existing disposable tests plus staged 65/70 only and refuses remote/non-synthetic targets. It has NOT been executed here because this runtime has no PostgreSQL/Docker binaries.
+- These code/test changes remain unverified by exact-head CI. No checklist item is promoted to [x] from source review alone.
