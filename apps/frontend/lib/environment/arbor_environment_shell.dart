@@ -195,39 +195,7 @@ class _ArborEnvironmentShellState extends State<ArborEnvironmentShell> {
           ),
         );
       case GroveRoomAction.stairs:
-        showModalBottomSheet<void>(
-          context: context,
-          backgroundColor: ArborEnvironmentTokens.midnight,
-          builder: (sheetContext) => SafeArea(child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.nights_stay_outlined),
-                title: const Text('The Observatory'),
-                onTap: () {
-                  Navigator.pop(sheetContext);
-                  _select(EnvironmentDestination.observatory);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.restaurant_menu),
-                title: const Text('Annabelle’s Kitchen'),
-                onTap: () {
-                  Navigator.pop(sheetContext);
-                  _select(EnvironmentDestination.kitchen);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.folder_outlined),
-                title: const Text('Projects and work'),
-                onTap: () {
-                  Navigator.pop(sheetContext);
-                  _select(EnvironmentDestination.projects);
-                },
-              ),
-            ],
-          )),
-        );
+        _select(EnvironmentDestination.observatory);
       case GroveRoomAction.moss:
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text('Moss is the head of household. Obviously. 🐾'),
