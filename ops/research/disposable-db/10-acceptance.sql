@@ -69,7 +69,7 @@ begin
 end $$;
 
 -- Check grants using PostgreSQL's privilege catalog, not a mocked RPC caller.
-do $
+do $$
 begin
  if has_function_privilege('authenticated',
    'public.arbor_claim_research_unit(uuid,uuid,uuid,text,integer)','EXECUTE')
@@ -80,7 +80,7 @@ begin
  or has_function_privilege('anon',
    'public.arbor_stop_research_session(uuid,uuid,uuid,text,text)','EXECUTE')
  then raise exception 'privileged RPC leaked to client role'; end if;
-end $;
+end $$;
 
 -- Actual RLS check under non-bypass authenticated role.
 set role authenticated;
