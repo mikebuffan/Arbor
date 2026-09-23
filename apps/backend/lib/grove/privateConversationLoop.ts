@@ -330,6 +330,7 @@ export async function respondToVerifiedPrivateGroveTurn(input: {
   // An active transcript model pilot MUST use the separately reviewed
   // PostgreSQL claim gate. Without the proposed migration and explicit flag,
   // fail CLOSED rather than double-charge concurrent serverless requests.
+  let claimToken: string | null = null;
   if (transcript && transcriptScope) {
     if (!features.claimEnabled)
       throw new GrovePrivateRequestError(503, "grove_private_claim_not_enabled");
@@ -338,11 +339,11 @@ export async function respondToVerifiedPrivateGroveTurn(input: {
     });
     // Scope may have been revoked during a contested claim.
     await input.prepared.reauthorize();
-    if (decision === "no_access")
+    if (decision.status === "no_access")
       throw new RouteAccessError(403, "grove_private_access_changed");
-    if (decision === "conflict")
+    if (decision.status === "conflict")
       throw new RouteAccessError(409, "grove_transcript_request_conflict");
-    if (decision === "in_progress") {
+    if (decision.status === "in_progress" || decision.status === "completed") {
       // A competing worker may have completed between the first read and
       // this claim. Recover its canonical saved reply if it did.
       const finished = await transcript.store.getCompleted({
@@ -351,6 +352,7 @@ export async function respondToVerifiedPrivateGroveTurn(input: {
       if (finished) {
         if (finished.user_text !== userText)
           throw new RouteAccessError(409, "grove_transcript_request_conflict");
+        await input.prepared.reauthorize();
         return {
           status: "responded",
           reply: transcriptRowToUnverifiedReply(finished, transcriptScope),
@@ -361,8 +363,28 @@ export async function respondToVerifiedPrivateGroveTurn(input: {
       }
       throw new RouteAccessError(409, "grove_private_request_in_progress");
     }
-    if (decision !== "claimed")
+    if (decision.status !== "claimed")
       throw new RouteAccessError(409, "grove_private_claim_invalid");
+    // Even if the lease expires and a second worker starts inference, only
+    // this DB-issued token can persist; no caller/browser can select it.
+    claimToken = decision.leaseToken;
+    // If the first worker committed during lease conflict lock acquisition,
+    // do not waste a new independent-model call on an already saved request.
+    const finished = await transcript.store.getCompleted({
+      ...transcriptScope, requestId: transcript.requestId,
+    });
+    if (finished) {
+      if (finished.user_text !== userText)
+        throw new RouteAccessError(409, "grove_transcript_request_conflict");
+      await input.prepared.reauthorize();
+      return {
+        status: "responded",
+        reply: transcriptRowToUnverifiedReply(finished, transcriptScope),
+        persisted: true, replayed: true,
+        requestId: transcript.requestId,
+        grantsExecution: false, verifiesCompletion: false,
+      };
+    }
   }
   const history = transcript && transcriptScope
     ? selectPrivateModelHistory({
@@ -385,9 +407,11 @@ export async function respondToVerifiedPrivateGroveTurn(input: {
   // ephemeral response. A transcript OFF switch does not waive revocation.
   await input.prepared.reauthorize();
   if (transcript && transcriptScope) {
+    if (!claimToken)
+      throw new RouteAccessError(409, "grove_private_claim_invalid");
     const saved = await transcript.store.persistCompleted({
       ...transcriptScope, requestId: transcript.requestId,
-      userText, reply,
+      leaseToken: claimToken, userText, reply,
     });
     return {
       status: "responded",
