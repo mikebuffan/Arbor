@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { isPreviewMcpOnlyDeployment, rejectPreviewMcpOnlyPath } from "./lib/mcp/previewHostRoutes";
 
 const attachmentBrokerPaths = new Set([
   "/api/chat/attachments/access",
@@ -30,6 +31,12 @@ function isStaticOrPublicPath(pathname: string) {
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+
+  // The dedicated Preview MCP host exposes NO Firefly/Grove/backend routes.
+  // Evaluate before static, preflight or attachment-broker exemptions.
+  if (rejectPreviewMcpOnlyPath(pathname, isPreviewMcpOnlyDeployment(process.env.ARK_PREVIEW_MCP_READONLY_HOST))) {
+    return new NextResponse(null, { status: 404 });
+  }
 
   if (isStaticOrPublicPath(pathname)) {
     return NextResponse.next();
