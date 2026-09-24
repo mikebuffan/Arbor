@@ -28,7 +28,7 @@ jobs:
       - run: corepack prepare pnpm@10.30.3 --activate
       - run: pnpm install --frozen-lockfile
       - name: Verify wrong-issuer and open-MCP gates
-        run: corepack pnpm --filter firefly-backend exec vitest run lib/mcp/__tests__/previewHostAcceptance.test.ts lib/mcp/__tests__/auth.test.ts lib/mcp/__tests__/routes.test.ts lib/mcp/__tests__/registerArkReadTools.test.ts lib/mcp/__tests__/fullStackCanary.test.ts
+        run: corepack pnpm --filter firefly-backend exec vitest run lib/mcp/__tests__/previewHostAcceptance.test.ts lib/mcp/__tests__/previewHostRoutes.test.ts lib/mcp/__tests__/auth.test.ts lib/mcp/__tests__/routes.test.ts lib/mcp/__tests__/registerArkReadTools.test.ts lib/mcp/__tests__/fullStackCanary.test.ts
       - name: Build backend (source only)
         run: corepack pnpm --filter firefly-backend build
       - name: Explicit scope
