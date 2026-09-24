@@ -6,7 +6,7 @@ const scope={
   ownerId:"owner",projectId:"project",objectiveId:"objective",
   taskId:"task",workerId:"canary-test",
 };
-function previewFixture(input?:{kind?:string;goal?:string;owner?:string}){
+function previewFixture(input?:{kind?:string;goal?:string;owner?:string;badEvidence?:boolean;badReceipt?:boolean}){
   const project={id:"project",user_id:input?.owner??"owner"};
   const objective={
     id:"objective",user_id:"owner",project_id:"project",
@@ -39,14 +39,14 @@ function previewFixture(input?:{kind?:string;goal?:string;owner?:string}){
     }
     if(name==="ark_heartbeat_task")return {data:true,error:null};
     if(name==="ark_complete_task"){
-      task.result=args.p_result as never;
+      task.result=(input?.badReceipt ? {...args.p_result as Record<string,unknown>,capability:'unexpected.write'} : args.p_result) as never;
       task.status="completed";task.lease_owner=null;task.lease_token=null;
       objective.status="awaiting_verification";
       return {data:{objective:{...objective},task:{...task}},error:null};
     }
     if(name==="ark_verify_objective"){
       objective.status="completed";
-      objective.completion_evidence=args.p_evidence;
+      objective.completion_evidence=input?.badEvidence?{gate:'unverified'}:args.p_evidence;
       return {data:{...objective},error:null};
     }
     throw new Error("unexpected_rpc:"+name);
@@ -104,6 +104,18 @@ describe("live-preview canary preflight (mock DB only, NEVER an actual deploymen
       "ark_claim_next_task","ark_heartbeat_task",
       "ark_complete_task","ark_verify_objective",
     ]);
+  });
+  it("never marks live canary receipt verified when persisted result or objective evidence is altered",async()=>{
+    for(const variation of [{badReceipt:true},{badEvidence:true}]){
+      const f=previewFixture(variation);
+      const result=await runApprovedArkPreviewCanary({
+        db:f.db,scope,now:()=>new Date(NOW),
+      });
+      expect(result).toMatchObject({
+        claimed:1,completed:1,verifiedObjectives:1,
+        receiptVerified:false,
+      });
+    }
   });
   it("refuses unknown task kind or mismatched owner before any claim",async()=>{
     for(const variant of [{kind:"arbor.agency-tool"},{owner:"wrong-owner"},
