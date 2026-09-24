@@ -87,6 +87,17 @@ describe("research-side ARK boundary (synthetic, no live integration)",()=>{
     expect(result).toEqual({status:"lease_lost",reason:"research_lease_not_committed"});
     expect(JSON.stringify(result)).not.toContain("synthetic-sha:page-1");
   });
+  it("never promotes a duplicate settlement's new proposed evidence refs without persisted receipt readback",async()=>{
+    const f=fixture();
+    f.settle.mockResolvedValueOnce("duplicate" as never);
+    const result=await runTrustedArkResearchTick({
+      handoff:handoff(),store:f.store,executor:f.executor,at,
+    });
+    expect(result).toEqual({
+      status:"no_claim",reason:"research_duplicate_requires_receipt_readback",
+    });
+    expect(JSON.stringify(result)).not.toContain("synthetic-sha:page-1");
+  });
   it("reloads STOP from persisted state instead of trusting a stale handoff",async()=>{
     const f=fixture({...session(),status:"cancelled",cancellationRequested:true});
     const result=await runTrustedArkResearchTick({
