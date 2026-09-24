@@ -68,6 +68,21 @@ export async function runApprovedArkPreviewCanary(input:{
      tasks[0].attempt_count!==0){
     throw new Error("ark_preview_task_scope_mismatch");
   }
+  // IMPORTANT: the existing ark_claim_next_task SQL expires leases globally,
+  // even when p_only_objective_id is provided. In the synthetic Preview
+  // project we deliberately fail BEFORE claiming if any other task exists.
+  // A future multi-project research worker needs a separately reviewed,
+  // genuinely scoped lease-sweep migration, not this canary exemption.
+  const {data:allTasks,error:allTasksError}=await db.from("ark_tasks")
+    .select("id,objective_id,project_id,user_id,status");
+  if(allTasksError||!Array.isArray(allTasks)||
+     allTasks.length!==1||allTasks[0].id!==scope.taskId||
+     allTasks[0].objective_id!==scope.objectiveId||
+     allTasks[0].project_id!==scope.projectId||
+     allTasks[0].user_id!==scope.ownerId||
+     allTasks[0].status!=="queued"){
+    throw new Error("ark_preview_database_not_exclusive");
+  }
   const registry=new ArkExecutorRegistry().register("canary.read",async({claim,heartbeat})=>{
     if(claim.objective.id!==scope.objectiveId||
        claim.task.id!==scope.taskId||
