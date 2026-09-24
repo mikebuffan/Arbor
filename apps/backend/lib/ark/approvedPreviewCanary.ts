@@ -21,7 +21,7 @@ async function requiredSingle(
   id:string,
 ):Promise<Record<string,unknown>>{
   const {data,error}=await db.from(table).select(
-    table==="projects"?"id,user_id":"id,user_id,project_id,goal,status",
+    table==="projects"?"id,user_id":"id,user_id,project_id,goal,status,completion_evidence",
   ).eq("id",id).maybeSingle();
   if(error)throw new Error("ark_preview_preflight_read_failed");
   if(!data)throw new Error("ark_preview_preflight_missing_record");
@@ -108,9 +108,25 @@ export async function runApprovedArkPreviewCanary(input:{
   const receiptVerified=cycle.claimed===1&&cycle.completed===1&&
     cycle.verifiedObjectives===1&&task.id===scope.taskId&&
     task.status==="completed"&&task.lease_owner===null&&
+    task.attempt_count===1&&
     result?.verified===true&&result?.previewOnly===true&&
+    result?.capability==="canary.read"&&
+    result?.source==="read_only_ark_preview_objective"&&
     afterObjective.status==="completed"&&
-    afterObjective.project_id===scope.projectId;
+    afterObjective.project_id===scope.projectId&&
+    afterObjective.user_id===scope.ownerId&&
+    (() => {
+      const evidence=afterObjective.completion_evidence;
+      if(!evidence||typeof evidence!=="object"||Array.isArray(evidence))return false;
+      const packet=evidence as Record<string,unknown>;
+      const tasks=packet.tasks;
+      return packet.gate==="all_tasks_completed_with_executor_verification"&&
+        Array.isArray(tasks)&&tasks.length===1&&
+        tasks[0]?.taskKey==="inspect-preview"&&
+        tasks[0]?.status==="completed"&&
+        tasks[0]?.verified===true&&
+        tasks[0]?.capability==="canary.read";
+    })();
   return{
     claimed:cycle.claimed,completed:cycle.completed,
     verifiedObjectives:cycle.verifiedObjectives,
