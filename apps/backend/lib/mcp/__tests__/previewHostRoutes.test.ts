@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { isPreviewMcpOnlyDeployment, rejectPreviewMcpOnlyPath } from "../previewHostRoutes";
+import { isPreviewMcpOnlyDeployment, rejectPreviewMcpOnlyPath, isCorrectPreviewMcpSupabaseEnvironment } from "../previewHostRoutes";
 
 describe("dedicated ARK Preview MCP ingress", () => {
+  it("requires both Supabase URL env values to equal dedicated Preview", () => {
+    const good = "https://tzbpjbhroxiqftqwatnb.supabase.co";
+    const primary = "https://ncpdlyakrzfvobmwzbon.supabase.co";
+    expect(isCorrectPreviewMcpSupabaseEnvironment({ NEXT_PUBLIC_SUPABASE_URL: good, SUPABASE_URL: good })).toBe(true);
+    expect(isCorrectPreviewMcpSupabaseEnvironment({ NEXT_PUBLIC_SUPABASE_URL: primary, SUPABASE_URL: good })).toBe(false);
+    expect(isCorrectPreviewMcpSupabaseEnvironment({ NEXT_PUBLIC_SUPABASE_URL: good })).toBe(false);
+    expect(isCorrectPreviewMcpSupabaseEnvironment({})).toBe(false);
+  });
   it("enables isolation only on an explicit true flag", () => {
     expect(isPreviewMcpOnlyDeployment(undefined)).toBe(false);
     expect(isPreviewMcpOnlyDeployment("false")).toBe(false);
