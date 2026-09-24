@@ -1,5 +1,7 @@
 # ARK Preview: first genuine one-shot canary — operator runbook
 
+> **EXECUTED — DO NOT RERUN THIS CANARY.** Mike ran the approved one-shot from a clean Windows checkout on 2026-09-23. Independent ARK Preview readback verified exactly one completed task, attempt_count=1, released lease, persisted `canary.read` result, completed objective and completion evidence; event trail: enqueued → claimed → completed → objective_completed. PR #212 conversation has the receipt. This file is retained as the historical operator procedure, not a next-action instruction. The remaining gates are a separately hosted Preview-only MCP readback, separately approved durable worker, and reviewed research multi-tick/RPC/source-privacy changes. No external EFTA ingestion or unattended worker was demonstrated.
+
 **Purpose:** consume ONLY the existing synthetic `canary.read` smoke task in **ARK Preview**, using the real `SupabaseArkStore` and `runArkWorkerCycle`; independently read back task result and objective completion. **Not** a research PDF run, not a scheduler, not production.
 
 **Source:** draft research PR #212, branch `feature/research-offline-pdf-batch-pilot-20260923`. Before running, verify the computer's `git rev-parse HEAD` matches the newest PR head and its exact-head CI run has succeeded; this document deliberately does not pin an outdated SHA. Reference green integration run on prior head `300511a2ef3b8cd74b9feb88a98498fcc45b4f6d`: https://github.com/mikebuffan/Arbor/actions/runs/35940392322. Newer commits must be retested before use.
@@ -17,7 +19,7 @@ From the repo root at the reviewed branch, **first run** `git status --short`, `
 
 ```powershell
 node --version  # Node 22 recommended
-corepack enable
+corepack pnpm --version
 corepack pnpm install --frozen-lockfile
 $env:SUPABASE_URL='https://tzbpjbhroxiqftqwatnb.supabase.co'
 $env:ARK_PREVIEW_EXPECTED_REF='tzbpjbhroxiqftqwatnb'
@@ -32,7 +34,7 @@ corepack pnpm --filter firefly-backend exec tsx scripts/ark/run-approved-preview
 Remove-Item Env:SUPABASE_SERVICE_ROLE_KEY,Env:ARK_PREVIEW_CANARY_APPROVED -ErrorAction SilentlyContinue
 ```
 
-**Never paste the key into any terminal command, screenshot, chat, repository, or console transcript.** The script prints only counts/status/receiptVerified and redacts unexpected errors.
+**Windows:** do not use `corepack enable` if a regular terminal gets EPERM writing under Program Files; `corepack pnpm` works without enabling global shims. **Never paste the key into any terminal command, screenshot, chat, repository, or console transcript.** The script prints only counts/status/receiptVerified and redacts unexpected errors.
 
 ## Expected receipt and independent verification
 
