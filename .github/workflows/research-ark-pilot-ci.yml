@@ -1,0 +1,64 @@
+name: Research ARK PDF pilot — isolated source acceptance
+
+on:
+  push:
+    branches:
+      - feature/research-offline-pdf-batch-pilot-20260923
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: research-ark-pilot-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  research-ark-pilot:
+    name: ARK research bridge and isolated PDF pilot tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      OPENAI_API_KEY: ci-placeholder-not-a-real-key
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: corepack enable
+      - run: corepack prepare pnpm@10.30.3 --activate
+      - run: pnpm install --frozen-lockfile
+      - name: Install Poppler for harmless synthetic fixture test
+        run: |
+          if ! command -v pdfinfo >/dev/null || ! command -v pdftotext >/dev/null || ! command -v pdfimages >/dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y poppler-utils
+          fi
+      - name: Run ARK session bridge, Docker args, and benign PDF tests
+        run: |
+          pnpm --filter firefly-backend exec vitest run             lib/research/registerArkResearchSessionExecutor.test.ts lib/research/arkResearchWorkerCycle.test.ts lib/research/arkPdfEvidenceRehearsal.test.ts lib/mcp/__tests__/auth.test.ts lib/mcp/__tests__/routes.test.ts lib/mcp/__tests__/registerArkReadTools.test.ts lib/mcp/__tests__/fullStackCanary.test.ts lib/ark/__tests__/readModel.test.ts lib/ark/approvedPreviewCanary.test.ts             lib/research/arkResearchHandoff.test.ts             lib/research/isolatedPdfParser.test.ts             lib/research/offlinePdfBatchPilot.test.ts             lib/research/localPdfParser.test.ts
+      - name: Build backend to typecheck new research adapter
+        run: pnpm --filter firefly-backend build
+      - name: Build digest-pinned non-root PDF parser sandbox
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker build -t arbor-research-pilot:ci ops/research/pdf-sandbox
+          PDF_SANDBOX_IMAGE_REF="$(docker image inspect --format '{{.Id}}' arbor-research-pilot:ci)"
+          [[ "$PDF_SANDBOX_IMAGE_REF" =~ ^sha256:[a-f0-9]{64}$ ]]
+          test "$(docker image inspect --format '{{.Config.User}}' arbor-research-pilot:ci)" = "65532:65532"
+          echo "PDF_SANDBOX_IMAGE_REF=$PDF_SANDBOX_IMAGE_REF" >> "$GITHUB_ENV"
+      - name: Real isolated benign PDF staging and idempotent return
+        shell: bash
+        run: |
+          set -euo pipefail
+          node ops/research/pdf-sandbox/make-harmless-fixture.mjs "$RUNNER_TEMP/harmless.pdf"
+          node -e 'const fs=require("fs");fs.writeFileSync(process.argv[1],JSON.stringify([{localPath:process.argv[2],sourceUri:"https://example.org/benign-fixture.pdf",documentId:"BENIGN-CI-PILOT"}]));' "$RUNNER_TEMP/manifest.json" "$RUNNER_TEMP/harmless.pdf"
+          pnpm --filter firefly-backend exec tsx scripts/research/offline-pdf-batch-pilot.ts "$RUNNER_TEMP/manifest.json" "$RUNNER_TEMP/private-output" > "$RUNNER_TEMP/first.json"
+          pnpm --filter firefly-backend exec tsx scripts/research/offline-pdf-batch-pilot.ts "$RUNNER_TEMP/manifest.json" "$RUNNER_TEMP/private-output" > "$RUNNER_TEMP/second.json"
+          node -e 'const fs=require("fs");const [a,b]=process.argv.slice(1).map(p=>JSON.parse(fs.readFileSync(p)));if(a.staged!==1||a.held!==0||b.alreadyStaged!==1||b.held!==0||a.results[0].physicalPages!==1||a.results[0].textLayerPages!==1)process.exit(1);' "$RUNNER_TEMP/first.json" "$RUNNER_TEMP/second.json"
+          test "$(find "$RUNNER_TEMP/private-output/originals" -name '*.pdf' | wc -l)" = "1"
+          test "$(find "$RUNNER_TEMP/private-output/records" -name '*.json' | wc -l)" = "1"
+          echo 'ISOLATED_PDF_STAGE_RESTART=PASS (harmless source; no external EFTA data)'
+      - name: Report scope
+        run: echo 'ARK_RESEARCH_PILOT_SOURCE_CI=PASS; NO_LIVE_ARK_WORKER=TRUE; NO_EXTERNAL_EFTA_PDF=TRUE'
