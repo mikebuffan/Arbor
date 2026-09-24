@@ -36,7 +36,7 @@ jobs:
           fi
       - name: Run ARK session bridge, Docker args, and benign PDF tests
         run: |
-          pnpm --filter firefly-backend exec vitest run             lib/research/registerArkResearchSessionExecutor.test.ts lib/research/arkResearchWorkerCycle.test.ts lib/research/arkPdfEvidenceRehearsal.test.ts lib/ark/approvedPreviewCanary.test.ts             lib/research/arkResearchHandoff.test.ts             lib/research/isolatedPdfParser.test.ts             lib/research/offlinePdfBatchPilot.test.ts             lib/research/localPdfParser.test.ts
+          pnpm --filter firefly-backend exec vitest run             lib/research/registerArkResearchSessionExecutor.test.ts lib/research/arkResearchWorkerCycle.test.ts lib/research/arkPdfEvidenceRehearsal.test.ts lib/mcp/__tests__/auth.test.ts lib/mcp/__tests__/routes.test.ts lib/mcp/__tests__/registerArkReadTools.test.ts lib/mcp/__tests__/fullStackCanary.test.ts lib/ark/__tests__/readModel.test.ts lib/ark/approvedPreviewCanary.test.ts             lib/research/arkResearchHandoff.test.ts             lib/research/isolatedPdfParser.test.ts             lib/research/offlinePdfBatchPilot.test.ts             lib/research/localPdfParser.test.ts
       - name: Build backend to typecheck new research adapter
         run: pnpm --filter firefly-backend build
       - name: Build digest-pinned non-root PDF parser sandbox
