@@ -32,9 +32,10 @@ export function openAIClientOptions(
   };
 }
 
-export const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY!,
-  ...openAIClientOptions(),
+export const openai = new Proxy({} as OpenAI, {
+  get(_target, property) {
+    return Reflect.get(getClient(), property);
+  },
 });
 
 function getClient() {
