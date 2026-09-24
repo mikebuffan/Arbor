@@ -134,6 +134,7 @@ function createClient(options: ClientOptions = {}) {
 describe("fireflyHeartbeat live-schema alignment", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    delete process.env.ARBOR_ARK_ENABLE_DEDICATED_HEARTBEAT;
     process.env.ARBOR_ARK_ENABLE_LIVE_EXECUTION = "true";
     process.env.ARBOR_ENABLE_ARK_EXECUTION = "true";
     process.env.ARBOR_ARK_CANARY_OBJECTIVE_ID =
@@ -359,5 +360,17 @@ describe("fireflyHeartbeat live-schema alignment", () => {
     expect(calls.heartbeats).not.toContainEqual(
       expect.objectContaining({ status: "completed" }),
     );
+  });
+
+
+  it("does not invoke ARK from shared heartbeat when a dedicated trigger is selected", async () => {
+    process.env.ARBOR_ARK_ENABLE_DEDICATED_HEARTBEAT = "true";
+    const { client } = createClient();
+    mocks.supabaseAdmin.mockReturnValue(client);
+    const result = await fireflyHeartbeat();
+    expect(mocks.runDefaultArkWorkerCycle).not.toHaveBeenCalled();
+    expect(result.tasks.ark).toMatchObject({
+      status: "skipped", reason: "ark_routed_to_dedicated_heartbeat",
+    });
   });
 });
