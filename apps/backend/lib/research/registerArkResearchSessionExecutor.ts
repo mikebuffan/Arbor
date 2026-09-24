@@ -81,6 +81,14 @@ export function registerArkResearchSessionExecutor(input: {
       } };
     }
 
+    // A lost research lease means its proposed receipt was NOT committed.
+    // Do not checkpoint a normal-looking ARK progress event over it.
+    if (result.status === "lease_lost") {
+      return { status: "blocked", blocker: {
+        kind: "external_authority",
+        message: "Research unit lost its lease; inspect persisted receipt and retry policy.",
+      } };
+    }
     // No outstanding units is a HUMAN REVIEW gate, not a forever-looping
     // checkpoint and not a verified finding. The research DB remains source
     // of truth; manual review can create a new authorized ARK objective.
