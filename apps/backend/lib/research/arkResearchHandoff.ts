@@ -101,10 +101,15 @@ export async function runTrustedArkResearchTick(args: {
     executor: args.executor, at: args.at,
   });
   if (!("receipt" in result)) return result;
-  // A lost lease is NOT a persisted receipt. Never project its uncommitted
-  // evidence or cost into ARK as a checkpoint.
+  // A lost lease is NOT a persisted receipt. Neither is a duplicate
+  // settlement proof that *this invocation's* proposed receipt matches the
+  // earlier one. A trusted readback of the original persisted receipt would
+  // be required before exposing its evidence refs to ARK.
   if (result.status === "lease_lost") {
     return { status: "lease_lost", reason: "research_lease_not_committed" };
+  }
+  if (result.status === "duplicate") {
+    return { status: "no_claim", reason: "research_duplicate_requires_receipt_readback" };
   }
   return {
     status: result.status,
