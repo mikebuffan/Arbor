@@ -6,7 +6,7 @@ const scope={
   ownerId:"owner",projectId:"project",objectiveId:"objective",
   taskId:"task",workerId:"canary-test",
 };
-function previewFixture(input?:{kind?:string;goal?:string;owner?:string;badEvidence?:boolean;badReceipt?:boolean}){
+function previewFixture(input?:{kind?:string;goal?:string;owner?:string;badEvidence?:boolean;badReceipt?:boolean;extraTask?:boolean}){
   const project={id:"project",user_id:input?.owner??"owner"};
   const objective={
     id:"objective",user_id:"owner",project_id:"project",
@@ -75,8 +75,10 @@ function previewFixture(input?:{kind?:string;goal?:string;owner?:string;badEvide
         ok?:((value:{data:unknown;error:null})=>TResult1|PromiseLike<TResult1>)|null,
         fail?:((reason:unknown)=>TResult2|PromiseLike<TResult2>)|null,
       )=>Promise.resolve({
-        data:table==="ark_tasks"&&where.get("objective_id")===scope.objectiveId
-          ?[{...task}]:[],error:null,
+        data:table==="ark_tasks"&&
+          (!where.has("objective_id")||where.get("objective_id")===scope.objectiveId)
+          ?[{...task},...(input?.extraTask&&!where.has("objective_id")
+            ?[{...task,id:"another-task",status:"running"}]:[])]:[],error:null,
       }).then(ok,fail),
     };
     return query;
@@ -116,6 +118,14 @@ describe("live-preview canary preflight (mock DB only, NEVER an actual deploymen
         receiptVerified:false,
       });
     }
+  });
+  it("refuses to claim when another Preview task exists because current ARK SQL has global lease cleanup",async()=>{
+    const f=previewFixture({extraTask:true});
+    await expect(runApprovedArkPreviewCanary({
+      db:f.db,scope,now:()=>new Date(NOW),
+    })).rejects.toThrow("ark_preview_database_not_exclusive");
+    expect(f.getClaimed()).toBe(0);
+    expect(f.rpc).not.toHaveBeenCalled();
   });
   it("refuses unknown task kind or mismatched owner before any claim",async()=>{
     for(const variant of [{kind:"arbor.agency-tool"},{owner:"wrong-owner"},
