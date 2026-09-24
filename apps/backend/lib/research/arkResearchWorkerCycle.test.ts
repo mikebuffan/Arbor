@@ -34,6 +34,8 @@ describe("EXISTING ARK worker -> research persistence across invocations (synthe
     const arkStore={
       claimNextTask:vi.fn(async ({workerId}:{workerId:string})=>{
         if(task.status!=="queued"&&task.status!=="checkpointed") return null;
+        // Match the deployed ARK SQL claim predicate, not a permissive mock.
+        if(task.attemptCount>=task.maxAttempts) return null;
         if(Date.parse(task.availableAt)>clock) return null;
         task.status="running";task.attemptCount++;
         task.leaseOwner=workerId;task.leaseToken="lease-"+task.attemptCount;
@@ -138,5 +140,6 @@ describe("EXISTING ARK worker -> research persistence across invocations (synthe
     expect(arkStore.completeTask).not.toHaveBeenCalled();
     expect(arkStore.verifyObjective).not.toHaveBeenCalled();
     expect(objective.status).toBe("checkpointed");
+    expect(task.attemptCount).toBe(2);
   });
 });
