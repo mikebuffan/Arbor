@@ -19,3 +19,12 @@ export function rejectPreviewMcpOnlyPath(
 ): boolean {
   return previewOnly && !allowed.has(pathname);
 }
+
+export function isCorrectPreviewMcpSupabaseEnvironment(env: {
+  NEXT_PUBLIC_SUPABASE_URL?: string;
+  SUPABASE_URL?: string;
+}): boolean {
+  const previewUrl = "https://tzbpjbhroxiqftqwatnb.supabase.co";
+  return env.NEXT_PUBLIC_SUPABASE_URL === previewUrl &&
+    env.SUPABASE_URL === previewUrl;
+}
