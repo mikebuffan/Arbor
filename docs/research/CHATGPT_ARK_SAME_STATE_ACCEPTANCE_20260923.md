@@ -1,6 +1,6 @@
 # ChatGPT ↔ ARK acceptance — same durable state, not just the worker
 
-Status: source acceptance plan. **No ChatGPT app installation, live worker invocation, OAuth connection or research-source access is performed by this document.**
+Status (2026-09-23): **The one-shot worker gate PASSED in real ARK Preview and was independently DB-verified.** The ChatGPT same-state gate remains BLOCKED pending a separately deployed Preview MCP host and an eligible authenticated custom-app connection. No unattended worker, app installation, OAuth connection or research-source access has been performed.
 
 ## Existing source — reuse, do not rebuild
 
@@ -13,7 +13,7 @@ Status: source acceptance plan. **No ChatGPT app installation, live worker invoc
 
 ## The TWO independent tonight gates
 
-**Worker gate:** on operator-approved ARK Preview, exact one-shot `canary.read` task is claimed, heartbeated, completed and independently read back with stored objective verification/evidence/events.
+**Worker gate — PASSED:** Mike ran the operator-approved one-shot against ARK Preview. Independent readback confirmed `inspect-preview` completed, `attempt_count=1`, `lease_owner=null`, saved `{verified:true,capability:'canary.read',previewOnly:true,source:'read_only_ark_preview_objective',attempts:1}`, objective completed with `all_tasks_completed_with_executor_verification` evidence, and event sequence `objective_enqueued`, `task_claimed`, `task_completed`, `objective_completed`. **Never rerun the consumed canary.**
 
 **ChatGPT gate:** through an authenticated ARK MCP app whose Supabase OAuth issuer is the **same Preview project and owner** as the worker, this ChatGPT conversation can invoke `list_arbor_projects`, `get_ark_status` and `get_arbor_continuity` for the owned project and show the *same* task status, attempt count, completion evidence and timestamps observed directly via the Preview SQL readback. If the ARK app/connector is not installed or is connected to Firefly PRIMARY, then the Preview canary is invisible to that connection and ChatGPT gate is still BLOCKED. A successful CI fixture does not satisfy it.
 
@@ -22,8 +22,8 @@ Test with no secrets in chat:
 1. Verify actual deployed MCP host URL, git SHA, and `/.well-known/oauth-protected-resource` announces correct `/api/mcp` resource and **Preview** Supabase OAuth issuer. Do not assume a Vercel project exists because code exists.
 2. Connect that reviewed host as a ChatGPT app/plugin with user OAuth, not service-role credentials. The app must be visible to the ChatGPT session and permitted by the account. If not exposed, ask owner to connect it; do not claim chat runtime is automatically wired.
 3. Call `get_arbor_profile` to confirm correct owner and read-only authority, then `list_arbor_projects` and select the verified ARK Preview Smoke Test project.
-4. Before worker, call `get_ark_status`: single queued `canary.read`, zero attempts, no completion receipt; `get_arbor_continuity` can accurately return unavailable if no continuity state exists.
-5. After the one-shot worker is approved and run, call `get_ark_status` again in ChatGPT and compare with the independent database readback: one completed task, exactly one attempt, actual `canary.read` stored result, completed objective and completion evidence, relevant claimed/completed/objective events, non-stale `capturedAt`. Don't invent a checkpoint if the canary completed directly.
+4. The first worker has **already run**. Call `get_ark_status` through the installed ChatGPT custom app and compare it with the independent DB receipt: one completed task, exactly one attempt, actual `canary.read` stored result, completed objective and completion evidence, relevant claimed/completed/objective events, non-stale `capturedAt`. Don't invent a checkpoint if the canary completed directly. `get_arbor_continuity` can accurately return unavailable if no continuity state exists.
+5. If an additional before/after UI demonstration is desired, it requires a separately approved **new synthetic objective and safe executor**—not replaying the consumed one-shot.
 6. If the app shows queued after DB completed, diagnose wrong Supabase environment/owner, stale app authorization, or host build; do not label it eventual consistency and silently pass.
 7. Test a *new ChatGPT thread* in the same connected context. It must retrieve the same persisted state by ID rather than relying on previous thread memory.
 
