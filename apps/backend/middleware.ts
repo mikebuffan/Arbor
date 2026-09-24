@@ -34,7 +34,10 @@ export function middleware(req: NextRequest) {
 
   // The dedicated Preview MCP host cannot silently bind to Firefly PRIMARY.
   const previewOnly = isPreviewMcpOnlyDeployment(process.env.ARK_PREVIEW_MCP_READONLY_HOST);
-  if (previewOnly && !isCorrectPreviewMcpSupabaseEnvironment(process.env)) {
+  if (previewOnly && !isCorrectPreviewMcpSupabaseEnvironment({
+    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    SUPABASE_URL: process.env.SUPABASE_URL,
+  })) {
     return new NextResponse(null, { status: 503 });
   }
   // Evaluate before static, preflight or attachment-broker exemptions.
