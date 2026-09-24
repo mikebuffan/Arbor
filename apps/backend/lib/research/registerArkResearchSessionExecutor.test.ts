@@ -126,6 +126,18 @@ describe("ARK registry -> persisted research tick (source only, no scheduler)",(
     })).rejects.toThrow("research_ark_claim_scope_mismatch");
     expect(forged.resolve).not.toHaveBeenCalled();
   });
+  it("does not checkpoint uncommitted evidence when research lease is lost",async()=>{
+    const b=binding({settle:vi.fn(async()=> "lease_lost" as const)});
+    const {executor}=fixture(vi.fn(async()=>b));
+    const result=await executor({claim,heartbeat:async()=>{}});
+    expect(result).toEqual({
+      status:"blocked",blocker:{
+        kind:"external_authority",
+        message:"Research unit lost its lease; inspect persisted receipt and retry policy.",
+      },
+    });
+    expect(JSON.stringify(result)).not.toContain("synthetic:page:1");
+  });
   it("blocks exhausted research pending review instead of endless 60-second ARK checkpoints",async()=>{
     const b=binding({
       loadSession:vi.fn(async()=>({...session,unresolvedRequiredWork:0})),
