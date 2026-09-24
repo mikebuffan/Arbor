@@ -2,7 +2,7 @@
 
 **Purpose:** consume ONLY the existing synthetic `canary.read` smoke task in **ARK Preview**, using the real `SupabaseArkStore` and `runArkWorkerCycle`; independently read back task result and objective completion. **Not** a research PDF run, not a scheduler, not production.
 
-**Source:** draft research PR #212, branch `feature/research-offline-pdf-batch-pilot-20260923`, exact reviewed starting head `bdc15d9238d172c14f52d169cb1e0bcdf35846dc` (update head + confirm CI again if branch changes). Latest source-only CI at that head: 20/20 tests, backend build, isolated harmless PDF stage/resume PASS.
+**Source:** draft research PR #212, branch `feature/research-offline-pdf-batch-pilot-20260923`. Before running, verify the computer's `git rev-parse HEAD` matches the newest PR head and its exact-head CI run has succeeded; this document deliberately does not pin an outdated SHA. Reference green integration run on prior head `300511a2ef3b8cd74b9feb88a98498fcc45b4f6d`: https://github.com/mikebuffan/Arbor/actions/runs/35940392322. Newer commits must be retested before use.
 
 ## Preconditions
 
@@ -13,7 +13,7 @@
 
 ## Run on Windows PowerShell
 
-From the repo root at the reviewed branch:
+From the repo root at the reviewed branch, **first run** `git status --short`, `git branch --show-current`, and `git rev-parse HEAD`. If Mike's working tree contains unfinished work or the branch is different, do not switch/reset/overwrite it: use a separate clean worktree or clone at the reviewed PR head. The local machine must have the current one-shot script; don't execute an older local checkout merely because GitHub CI is green.
 
 ```powershell
 node --version  # Node 22 recommended
