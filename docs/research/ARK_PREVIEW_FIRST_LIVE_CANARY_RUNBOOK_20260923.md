@@ -9,7 +9,7 @@
 - Danelle approves consuming **one** queued synthetic ARK Preview smoke test (not permission to ingest, deploy, change Firefly/Grove, or spend money).
 - Trusted operator computer; Node 22, Corepack/pnpm; repo checked out at exact reviewed PR source. Use a separate clone/worktree instead of switching a dirty current branch.
 - Supabase **ARK Preview** project's service-role key available from its dashboard, **entered locally only**. Never commit a key, paste it into ChatGPT, or use the Firefly primary project service role.
-- Live read-only confirmation via ARK Preview SQL editor that the intended project owns exactly one queued `canary.read` task, `attempt_count=0`, and objective status queued. Privately capture exact owner/project/objective/task UUIDs. Do not put UUIDs in public PR comments.
+- Live read-only confirmation via ARK Preview SQL editor that the **ENTIRE ARK Preview database contains exactly one ARK task** (this queued `canary.read` task), `attempt_count=0`, and its objective is queued. Existing `ark_claim_next_task` sweeps expired leases across the entire database even when a specific objective is selected; the canary command now refuses to run if any other task exists. Preview should be isolated from any other work until the live test completes. Privately capture exact owner/project/objective/task UUIDs. Do not put UUIDs in public PR comments.
 
 ## Run on Windows PowerShell
 
