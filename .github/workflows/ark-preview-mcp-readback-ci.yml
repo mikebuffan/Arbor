@@ -1,0 +1,35 @@
+name: ARK Preview MCP host gate — source only
+
+on:
+  push:
+    branches:
+      - feature/ark-preview-mcp-readback-gate-20260923
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ark-preview-mcp-readback-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  preview-mcp-readback:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      OPENAI_API_KEY: ci-placeholder-not-a-real-key
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: corepack enable
+      - run: corepack prepare pnpm@10.30.3 --activate
+      - run: pnpm install --frozen-lockfile
+      - name: Verify wrong-issuer and open-MCP gates
+        run: corepack pnpm --filter firefly-backend exec vitest run lib/mcp/__tests__/previewHostAcceptance.test.ts lib/mcp/__tests__/previewHostRoutes.test.ts lib/mcp/__tests__/auth.test.ts lib/mcp/__tests__/routes.test.ts lib/mcp/__tests__/registerArkReadTools.test.ts lib/mcp/__tests__/fullStackCanary.test.ts
+      - name: Build backend (source only)
+        run: corepack pnpm --filter firefly-backend build
+      - name: Explicit scope
+        run: echo 'PREVIEW_MCP_SOURCE_CI=PASS; NO_DEPLOYED_MCP_HOST=TRUE; NO_CHATGPT_CUSTOM_APP=TRUE'
