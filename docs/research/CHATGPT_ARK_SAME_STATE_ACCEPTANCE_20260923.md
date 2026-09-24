@@ -1,6 +1,6 @@
 # ChatGPT ↔ ARK acceptance — same durable state, not just the worker
 
-Status (2026-09-23): **The one-shot worker gate PASSED in real ARK Preview and was independently DB-verified.** The ChatGPT same-state gate remains BLOCKED pending a separately deployed Preview MCP host and an eligible authenticated custom-app connection. No unattended worker, app installation, OAuth connection or research-source access has been performed.
+Status (2026-09-23): **The one-shot worker gate PASSED in real ARK Preview and was independently DB-verified. The separately deployed Preview MCP host and private ChatGPT custom app are now authenticated and can read the owned Preview project.** The full same-state receipt comparison remains PARTIAL because the demonstrated ChatGPT request called `get_arbor_profile` and `list_arbor_projects`, but not yet `get_ark_status` for the consumed canary. No unattended worker or research-source access has been performed.
 
 ## Existing source — reuse, do not rebuild
 
@@ -15,7 +15,7 @@ Status (2026-09-23): **The one-shot worker gate PASSED in real ARK Preview and w
 
 **Worker gate — PASSED:** Mike ran the operator-approved one-shot against ARK Preview. Independent readback confirmed `inspect-preview` completed, `attempt_count=1`, `lease_owner=null`, saved `{verified:true,capability:'canary.read',previewOnly:true,source:'read_only_ark_preview_objective',attempts:1}`, objective completed with `all_tasks_completed_with_executor_verification` evidence, and event sequence `objective_enqueued`, `task_claimed`, `task_completed`, `objective_completed`. **Never rerun the consumed canary.**
 
-**ChatGPT gate:** through an authenticated ARK MCP app whose Supabase OAuth issuer is the **same Preview project and owner** as the worker, this ChatGPT conversation can invoke `list_arbor_projects`, `get_ark_status` and `get_arbor_continuity` for the owned project and show the *same* task status, attempt count, completion evidence and timestamps observed directly via the Preview SQL readback. If the ARK app/connector is not installed or is connected to Firefly PRIMARY, then the Preview canary is invisible to that connection and ChatGPT gate is still BLOCKED. A successful CI fixture does not satisfy it.
+**ChatGPT gate — PARTIAL PASS:** the Preview-only host is deployed and the private custom app authenticated with normal user OAuth. A real Work request successfully called `get_arbor_profile` (ARK, read-only) and `list_arbor_projects` (owned `ARK Preview Smoke Test`) with no authentication error. The remaining acceptance step is `get_ark_status` on that project and comparison to the independently verified DB receipt: task completed, exactly one attempt, persisted `canary.read` result, objective completion evidence and event trail. A project-list success alone does not prove the same task receipt.
 
 Test with no secrets in chat:
 
