@@ -43,7 +43,10 @@ async function main():Promise<void>{
 }
 void main().catch((error:unknown)=>{
   // Never print arbitrary Supabase error objects or secret-bearing stack.
-  const safe=error instanceof Error&&error.message.startsWith("preview_canary_")
+  // Report only fixed, code-generated preflight errors. Never echo raw
+  // Supabase errors, stack traces, keys, tokens, or arbitrary source text.
+  const safe=error instanceof Error&&
+    /^(?:preview_canary_|ark_preview_)[a-z_]+$/.test(error.message)
     ?error.message:"preview_canary_execution_or_readback_failed";
   process.stderr.write(safe+"\n");
   process.exitCode=1;
