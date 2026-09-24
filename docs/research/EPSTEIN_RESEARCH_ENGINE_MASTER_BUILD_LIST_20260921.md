@@ -22,7 +22,7 @@ Legend: [x] relevant implementation plus exact-head CI evidence exists for the s
 15. [x] Restrictive temporary PDF/random temp directory/cleanup.
 16. [x] Real Poppler parses benign synthetic PDF in CI.
 17. [x] Every page keeps original SHA + independent-review HOLD.
-18. [~] Independently published benign IRS PDF engineering acceptance passed previously; **HOLD:** human rendered-page/line-order fidelity review is still missing.
+18. [x] Human rendered-page/line-order fidelity review completed against the independently published benign IRS 2025 Form 1040 source. Physical page identity and major section/line sequencing matched the rendered pages; complex form/table columns can interleave labels and therefore remain unsuitable for unreviewed semantic-order claims. Exact passages still require original-page review.
 19. [x] Page-image provenance/manual source-stamp HOLD contract.
 20. [x] Bounded page-batch planning preserving full-file provenance.
 21. [x] Executable non-root/no-egress/read-only bounded renderer sandbox; synthetic and benign-public CI paths previously passed.
@@ -86,3 +86,12 @@ Legend: [x] relevant implementation plus exact-head CI evidence exists for the s
 - **ChatGPT same-state: NOT YET VERIFIED.** Existing authenticated read-only `/api/mcp` source remains reuse target. No independently deployed Preview MCP host or installed ChatGPT ARK app verified; the visible Vercel account contains only `firefly`. Never point the production Firefly project at ARK Preview as a shortcut. Next: separate reviewed Preview MCP host, verify issuer + 401 denial, connect with normal user OAuth (not service-role key), invoke actual `get_ark_status` here and compare DB receipt. See `CHATGPT_ARK_SAME_STATE_ACCEPTANCE_20260923.md`.
 - **Unattended research: NOT YET VERIFIED.** No durable worker/scheduler. Actual `ark_claim_next_task` has global expired-lease sweep and checkpointed ticks count against max attempts. Shared ARK owner must approve narrow corrections, then 4+-tick/restart/failure/STOP persisted-Postgres acceptance before unattended multi-document work. Preview smoke cannot be used as research evidence.
 - Branch remains draft. No merger, production deploy/DB, new spend, external EFTA intake or publication.
+
+
+## Run 13 — ChatGPT read connection and benign human page-fidelity review (2026-09-23)
+- **ChatGPT → ARK Preview authentication/listing: PASS.** The private custom MCP app connected through the separately deployed Preview-only host using normal user OAuth. In a fresh Work request, `get_arbor_profile` returned ARK read-only authority and `list_arbor_projects` returned the owned `ARK Preview Smoke Test` project with no authentication error. No write occurred.
+- **Full same-state task receipt comparison remains PARTIAL.** The demonstrated request did not invoke `get_ark_status`, so the worker's saved `canary.read` task result/attempt/evidence has not yet been compared through ChatGPT to the independently verified DB receipt. Do not relabel the full same-state gate complete until that call matches.
+- **Item 18 human benign-PDF review: PASS with limits.** Reviewed both rendered pages of the official 2025 IRS Form 1040 against extracted page text. Physical page separation, headings, numbered lines and major section progression were faithful. Dense form/table regions can produce non-semantic column ordering, so the engine must keep original-page HOLD for exact claims and must not infer narrative order from form columns alone.
+- **OCR decision:** item 22 remains conditional. This text-layer IRS source did not demonstrate a need for OCR; scanned/image-only sources still require a separately reviewed OCR path before they can support quotes or absence claims.
+- **Next engineering gate before unattended research:** repair the shared ARK multi-tick budget/global lease-sweep behavior in source only, then prove 4+ persisted ticks + restart + injected failure + STOP no-settle in disposable PostgreSQL. After that, complete the read-only `get_ark_status` same-state comparison and prepare the separately authorized 1–3 public DOJ source pilot.
+- No merge, production DB/migration, scheduler, unattended worker, external EFTA intake, private/victim-data processing or publication was performed by this run.
