@@ -11,7 +11,7 @@ export type ArkCompletionVerifier = (
 ) => Promise<ArkVerification>;
 
 export type ArkWorkerCycleResult = {
-  status: "completed" | "idle" | "budget_exhausted";
+  status: "completed" | "waiting" | "idle" | "budget_exhausted";
   claimed: number;
   completed: number;
   checkpointed: number;
@@ -89,7 +89,16 @@ export async function runArkWorkerCycle(input: {
       onlyObjectiveId: input.objectiveId,
     });
     if (!claim) {
-      result.status = result.claimed > 0 ? "completed" : "idle";
+      // For a pinned objective, a normal end to this *cycle* is not proof
+      // the objective finished. A future checkpoint, retry, blocked task or
+      // absent verifier can leave no claimable task right now.
+      result.status = input.objectiveId
+        ? result.verifiedObjectives > 0
+          ? "completed"
+          : result.claimed > 0
+            ? "waiting"
+            : "idle"
+        : result.claimed > 0 ? "completed" : "idle";
       return result;
     }
     result.claimed += 1;
@@ -212,12 +221,21 @@ export async function runArkWorkerCycle(input: {
       input.verifyCompletion
     ) {
       const verification = await input.verifyCompletion(completion.objective);
-      await input.store.verifyObjective({
+      const verifiedObjective = await input.store.verifyObjective({
         objectiveId: completion.objective.id,
         verification,
         now: now().toISOString(),
       });
       if (verification.ok) result.verifiedObjectives += 1;
+      // A pinned objective can finish on the exact maxTasks boundary. Do not
+      // report budget exhaustion after the store verifies it as completed.
+      if (
+        input.objectiveId === completion.objective.id &&
+        verifiedObjective.status === "completed"
+      ) {
+        result.status = "completed";
+        return result;
+      }
     }
   }
 

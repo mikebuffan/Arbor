@@ -188,12 +188,21 @@ export async function fireflyHeartbeat(): Promise<HeartbeatResult> {
     const validCanaryId = canaryId
       ? /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(canaryId)
       : false;
+    // When the separately reviewed dedicated ARK trigger is selected, do not
+    // invoke ARK a second time from this memory-maintenance heartbeat.
+    const routedToDedicated = process.env.ARBOR_ARK_ENABLE_DEDICATED_HEARTBEAT === "true";
     const executionEnabled =
       isArkLiveExecutionUnlocked(process.env.ARBOR_ARK_ENABLE_LIVE_EXECUTION) &&
       process.env.ARBOR_ENABLE_ARK_EXECUTION === "true";
     const globalEnabled = process.env.ARBOR_ARK_ALLOW_GLOBAL_EXECUTION === "true";
     const ark =
-      !executionEnabled
+      routedToDedicated
+        ? ({
+            status: "skipped",
+            reason: "ark_routed_to_dedicated_heartbeat",
+            processed: 0,
+          } satisfies SkippedTask)
+      : !executionEnabled
         ? ({
             status: "skipped",
             reason: "ark_execution_disabled",

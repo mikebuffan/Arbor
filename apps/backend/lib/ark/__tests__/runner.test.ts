@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ArkExecutorRegistry } from "@/lib/ark/executorRegistry";
+import { registerArkCheckpointCanaryExecutor } from "@/lib/ark/checkpointCanaryExecutor";
 import { runArkWorkerCycle } from "@/lib/ark/runner";
 import type { ArkStore, ArkTaskCompletion } from "@/lib/ark/store";
 import type {
@@ -245,6 +246,82 @@ describe("ARK autonomous work runner", () => {
     });
   });
 
+  it("recovers two dependent Preview canaries across independent bounded invocations", async () => {
+    const store = new MemoryArkStore();
+    const objective = await store.enqueueObjective({
+      ...draft(),
+      budget: {
+        maxTasksPerCycle: 2, maxRuntimeMs: 10_000, maxAttemptsPerTask: 3,
+      },
+      tasks: [
+        {
+          taskKey: "checkpoint-a",
+          kind: "ark.preview-checkpoint",
+          description: "A",
+          idempotencyKey: "preview-a",
+          maxAttempts: 3,
+        },
+        {
+          taskKey: "checkpoint-b",
+          kind: "ark.preview-checkpoint",
+          description: "B",
+          idempotencyKey: "preview-b",
+          dependencies: ["checkpoint-a"],
+          maxAttempts: 3,
+        },
+      ],
+    });
+    let current = START;
+    const registry = new ArkExecutorRegistry();
+    registerArkCheckpointCanaryExecutor({
+      registry, pinnedObjectiveId: objective.id,
+      now: () => new Date(current),
+    });
+    const run = (workerId: string) => runArkWorkerCycle({
+      store, executors: registry, workerId, objectiveId: objective.id,
+      now: () => new Date(current), maxTasks: 2, maxRuntimeMs: 10_000,
+      verifyCompletion: async () => {
+        const tasks = [...store.tasks.values()].filter(
+          (task) => task.objectiveId === objective.id,
+        );
+        return {
+          ok: tasks.length === 2 && tasks.every(
+            (task) => task.status === "completed" &&
+              (task.result as { verified?: boolean } | null)?.verified === true,
+          ),
+          evidence: ["both dependent checkpoint tasks verified"],
+        };
+      },
+    });
+
+    const first = await run("first-worker");
+    expect(first).toMatchObject({
+      status: "waiting", claimed: 1, checkpointed: 1, completed: 0,
+    });
+    expect(store.checkpoints).toHaveLength(1);
+    expect([...store.tasks.values()].find((t) => t.taskKey === "checkpoint-b"))
+      .toMatchObject({ status: "queued", attemptCount: 0 });
+    expect(store.objectives.get(objective.id)?.status).not.toBe("completed");
+
+    current += 60_000;
+    const second = await run("second-worker");
+    expect(second).toMatchObject({ claimed: 2, completed: 1, checkpointed: 1 });
+    expect(store.checkpoints).toHaveLength(2);
+    expect(store.objectives.get(objective.id)?.status).not.toBe("completed");
+
+    current += 60_000;
+    const third = await run("third-worker");
+    expect(third).toMatchObject({
+      status: "completed", claimed: 1, completed: 1, verifiedObjectives: 1,
+    });
+    expect(store.objectives.get(objective.id)?.status).toBe("completed");
+    for (const task of store.tasks.values()) {
+      expect(task).toMatchObject({
+        status: "completed", attemptCount: 2, checkpointSequence: 1,
+      });
+    }
+  });
+
   it("checkpoints at an executor boundary and resumes after the declared time", async () => {
     const store = new MemoryArkStore();
     await store.enqueueObjective({ ...draft(), tasks: [draft().tasks[0]] });
@@ -267,13 +344,33 @@ describe("ARK autonomous work runner", () => {
       return { status: "completed", result: { verified: true } };
     });
 
-    const first = await runArkWorkerCycle({ store, executors: registry, workerId: "worker-1", now: () => new Date(current) });
+    const first = await runArkWorkerCycle({ store, executors: registry, workerId: "worker-1", objectiveId: [...store.objectives.keys()][0], now: () => new Date(current) });
+    expect(first.status).toBe("waiting");
     expect(first.checkpointed).toBe(1);
     expect(calls).toBe(1);
     current += 10_000;
     const second = await runArkWorkerCycle({ store, executors: registry, workerId: "worker-2", now: () => new Date(current) });
     expect(second.completed).toBe(1);
     expect(store.checkpoints).toHaveLength(1);
+  });
+
+  it("does not report a pinned objective complete when independent verification is absent", async () => {
+    const store = new MemoryArkStore();
+    const objective = await store.enqueueObjective({
+      ...draft(), tasks: [draft().tasks[0]],
+    });
+    const registry = new ArkExecutorRegistry().register("test", async () => ({
+      status: "completed", result: { verified: true },
+    }));
+    const cycle = await runArkWorkerCycle({
+      store, executors: registry, workerId: "awaiting-verifier",
+      objectiveId: objective.id, maxTasks: 2,
+      now: () => new Date(START),
+    });
+    expect(cycle).toMatchObject({
+      status: "waiting", claimed: 1, completed: 1, verifiedObjectives: 0,
+    });
+    expect(store.objectives.get(objective.id)?.status).toBe("awaiting_verification");
   });
 
   it("recovers an expired claimed lease after a worker interruption", async () => {
@@ -531,5 +628,43 @@ describe("ARK autonomous work runner", () => {
     expect(second.completed).toBe(1);
     expect(order).toEqual(["act", "verify"]);
     expect(store.objectives.get(objective.id)?.status).toBe("completed");
+  });
+
+
+  it("reports completed when a pinned objective verifies on its exact final task budget", async () => {
+    const store = new MemoryArkStore();
+    const objective = await store.enqueueObjective({
+      ...draft(), tasks: [{ ...draft().tasks[0] }],
+    });
+    const registry = new ArkExecutorRegistry().register("test", async () => ({
+      status: "completed", result: { verified: true },
+    }));
+    const result = await runArkWorkerCycle({
+      store, executors: registry, workerId: "budget-final",
+      objectiveId: objective.id, maxTasks: 1,
+      now: () => new Date(START),
+      verifyCompletion: async () => ({ ok: true, evidence: ["completed"] }),
+    });
+    expect(result).toMatchObject({ status: "completed", completed: 1, verifiedObjectives: 1 });
+    expect(store.objectives.get(objective.id)?.status).toBe("completed");
+  });
+
+  it("never marks an unverified final task complete solely because the budget ended", async () => {
+    const store = new MemoryArkStore();
+    const objective = await store.enqueueObjective({
+      ...draft(), tasks: [{ ...draft().tasks[0] }],
+    });
+    const registry = new ArkExecutorRegistry().register("test", async () => ({
+      status: "completed", result: { verified: true },
+    }));
+    const result = await runArkWorkerCycle({
+      store, executors: registry, workerId: "budget-no-approval",
+      objectiveId: objective.id, maxTasks: 1,
+      now: () => new Date(START),
+      verifyCompletion: async () => ({ ok: false, evidence: ["not accepted"] }),
+    });
+    expect(result.status).not.toBe("completed");
+    expect(result.verifiedObjectives).toBe(0);
+    expect(store.objectives.get(objective.id)?.status).toBe("blocked");
   });
 });
