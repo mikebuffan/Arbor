@@ -22,6 +22,8 @@ async function handler(req: Request) {
       ARBOR_ENABLE_ARK_EXECUTION: process.env.ARBOR_ENABLE_ARK_EXECUTION,
       ARBOR_ARK_CANARY_OBJECTIVE_ID: process.env.ARBOR_ARK_CANARY_OBJECTIVE_ID,
       ARBOR_ARK_ALLOW_GLOBAL_EXECUTION: process.env.ARBOR_ARK_ALLOW_GLOBAL_EXECUTION,
+      SUPABASE_URL: process.env.SUPABASE_URL,
+      NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
     };
     const result = await runDedicatedArkHeartbeat({
       flags,
