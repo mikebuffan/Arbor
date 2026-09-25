@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ArkExecutorRegistry } from "@/lib/ark/executorRegistry";
+import { registerArkCheckpointCanaryExecutor } from "@/lib/ark/checkpointCanaryExecutor";
 import { runArkWorkerCycle } from "@/lib/ark/runner";
 import type { ArkStore, ArkTaskCompletion } from "@/lib/ark/store";
 import type {
@@ -243,6 +244,82 @@ describe("ARK autonomous work runner", () => {
       status: "completed",
       completionEvidence: ["both tasks completed"],
     });
+  });
+
+  it("recovers two dependent Preview canaries across independent bounded invocations", async () => {
+    const store = new MemoryArkStore();
+    const objective = await store.enqueueObjective({
+      ...draft(),
+      budget: {
+        maxTasksPerCycle: 2, maxRuntimeMs: 10_000, maxAttemptsPerTask: 3,
+      },
+      tasks: [
+        {
+          taskKey: "checkpoint-a",
+          kind: "ark.preview-checkpoint",
+          description: "A",
+          idempotencyKey: "preview-a",
+          maxAttempts: 3,
+        },
+        {
+          taskKey: "checkpoint-b",
+          kind: "ark.preview-checkpoint",
+          description: "B",
+          idempotencyKey: "preview-b",
+          dependencies: ["checkpoint-a"],
+          maxAttempts: 3,
+        },
+      ],
+    });
+    let current = START;
+    const registry = new ArkExecutorRegistry();
+    registerArkCheckpointCanaryExecutor({
+      registry, pinnedObjectiveId: objective.id,
+      now: () => new Date(current),
+    });
+    const run = (workerId: string) => runArkWorkerCycle({
+      store, executors: registry, workerId, objectiveId: objective.id,
+      now: () => new Date(current), maxTasks: 2, maxRuntimeMs: 10_000,
+      verifyCompletion: async () => {
+        const tasks = [...store.tasks.values()].filter(
+          (task) => task.objectiveId === objective.id,
+        );
+        return {
+          ok: tasks.length === 2 && tasks.every(
+            (task) => task.status === "completed" &&
+              (task.result as { verified?: boolean } | null)?.verified === true,
+          ),
+          evidence: ["both dependent checkpoint tasks verified"],
+        };
+      },
+    });
+
+    const first = await run("first-worker");
+    expect(first).toMatchObject({
+      status: "waiting", claimed: 1, checkpointed: 1, completed: 0,
+    });
+    expect(store.checkpoints).toHaveLength(1);
+    expect([...store.tasks.values()].find((t) => t.taskKey === "checkpoint-b"))
+      .toMatchObject({ status: "queued", attemptCount: 0 });
+    expect(store.objectives.get(objective.id)?.status).not.toBe("completed");
+
+    current += 60_000;
+    const second = await run("second-worker");
+    expect(second).toMatchObject({ claimed: 2, completed: 1, checkpointed: 1 });
+    expect(store.checkpoints).toHaveLength(2);
+    expect(store.objectives.get(objective.id)?.status).not.toBe("completed");
+
+    current += 60_000;
+    const third = await run("third-worker");
+    expect(third).toMatchObject({
+      status: "completed", claimed: 1, completed: 1, verifiedObjectives: 1,
+    });
+    expect(store.objectives.get(objective.id)?.status).toBe("completed");
+    for (const task of store.tasks.values()) {
+      expect(task).toMatchObject({
+        status: "completed", attemptCount: 2, checkpointSequence: 1,
+      });
+    }
   });
 
   it("checkpoints at an executor boundary and resumes after the declared time", async () => {
