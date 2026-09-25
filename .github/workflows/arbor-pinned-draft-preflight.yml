@@ -1,0 +1,95 @@
+name: Arbor pinned draft preflight
+
+# This runs only on the unmerged integration coordination branch.
+# Every job checks out a pinned component draft SHA; no production deploy,
+# Supabase connection, real model, user data or privileged credentials.
+on:
+  push:
+    branches:
+      - docs/arbor-master-integration-20260921
+    paths:
+      - .github/workflows/arbor-pinned-draft-preflight.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend tests / ${{ matrix.lane }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - lane: public-alpha-159
+            sha: 1a6a6cc7eb682059b47f0638aaf5f5dedb907be1
+          - lane: ark-layer-160
+            sha: fc58351e9ae8416c3d28d3c398d4126387310bf0
+          - lane: private-grove-projects-truth
+            sha: 38b9fd401e367df8c7cef240f4e07bf264e04d1a
+          - lane: research-158
+            sha: 4025a6e334234b3000a2d467d19ea55e067129dc
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.sha }}
+      - name: Show tested component head
+        run: |
+          test "$(git rev-parse HEAD)" = "${{ matrix.sha }}"
+          git rev-parse HEAD
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: corepack enable
+      - run: corepack prepare pnpm@10.30.3 --activate
+      - run: pnpm install --frozen-lockfile
+      - name: Install fixture PDF parser for research tests
+        if: matrix.lane == 'research-158'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y poppler-utils
+      - name: Verify exact-head backend tests
+        env:
+          OPENAI_API_KEY: ci-placeholder-not-a-real-key
+        run: pnpm --filter firefly-backend test
+      - name: Verify exact-head backend build
+        env:
+          OPENAI_API_KEY: ci-placeholder-not-a-real-key
+        run: pnpm --filter firefly-backend build
+
+  flutter:
+    name: Flutter tests / ${{ matrix.lane }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - lane: public-alpha-159
+            sha: 1a6a6cc7eb682059b47f0638aaf5f5dedb907be1
+            tests: test/public_alpha_config_test.dart
+          - lane: private-grove-projects-truth
+            sha: 38b9fd401e367df8c7cef240f4e07bf264e04d1a
+            tests: test/grove_private_project_gate_test.dart test/grove_talk_private_boundary_test.dart test/grove_sundial_room_integration_test.dart
+    defaults:
+      run:
+        working-directory: apps/frontend
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.sha }}
+      - name: Show tested component head
+        run: |
+          test "$(git rev-parse HEAD)" = "${{ matrix.sha }}"
+          git rev-parse HEAD
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Verify exact-head relevant Flutter tests
+        run: flutter test ${{ matrix.tests }}
+      - name: Static analysis
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
