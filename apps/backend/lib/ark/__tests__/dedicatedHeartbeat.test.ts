@@ -7,6 +7,7 @@ const valid = {
   ARBOR_ARK_ENABLE_LIVE_EXECUTION: "true",
   ARBOR_ENABLE_ARK_EXECUTION: "true",
   ARBOR_ARK_CANARY_OBJECTIVE_ID: OBJECTIVE,
+  SUPABASE_URL: "https://tzbpjbhroxiqftqwatnb.supabase.co",
 };
 
 describe("dedicated ARK heartbeat is explicitly scoped and bounded", () => {
@@ -41,6 +42,63 @@ describe("dedicated ARK heartbeat is explicitly scoped and bounded", () => {
     expect(await runDedicatedArkHeartbeat({ flags, workerId: "w", runCycle }))
       .toMatchObject({ status: "skipped", reason: "ark_canary_objective_required" });
     expect(runCycle).not.toHaveBeenCalled();
+  });
+
+  it("fails closed if the Preview URL is missing even with all execution switches on", async () => {
+    const runCycle = vi.fn();
+    const { SUPABASE_URL: _url, ...flags } = valid;
+    expect(await runDedicatedArkHeartbeat({ flags, workerId: "w", runCycle }))
+      .toMatchObject({ status: "skipped", reason: "ark_preview_database_required" });
+    expect(runCycle).not.toHaveBeenCalled();
+  });
+
+  it("rejects Firefly, Grove, and lookalike database hosts", async () => {
+    const runCycle = vi.fn();
+    for (const url of [
+      "https://ncpdlyakrzfvobmwzbon.supabase.co",
+      "https://fqjqpuaoifgbweiguacf.supabase.co",
+      "https://tzbpjbhroxiqftqwatnb.supabase.co.evil.example",
+      "http://tzbpjbhroxiqftqwatnb.supabase.co",
+      "https://tzbpjbhroxiqftqwatnb.supabase.co/other-path",
+      "garbage",
+    ]) {
+      const result = await runDedicatedArkHeartbeat({
+        flags: { ...valid, SUPABASE_URL: url },
+        workerId: "w",
+        runCycle,
+      });
+      expect(result).toMatchObject({
+        status: "skipped", reason: "ark_preview_database_required",
+      });
+    }
+    expect(runCycle).not.toHaveBeenCalled();
+  });
+
+  it("rejects conflicting admin and client database configuration", async () => {
+    const runCycle = vi.fn();
+    expect(await runDedicatedArkHeartbeat({
+      flags: {
+        ...valid,
+        NEXT_PUBLIC_SUPABASE_URL: "https://ncpdlyakrzfvobmwzbon.supabase.co",
+      },
+      workerId: "w", runCycle,
+    })).toMatchObject({
+      status: "skipped", reason: "ark_preview_database_required",
+    });
+    expect(runCycle).not.toHaveBeenCalled();
+  });
+
+  it("accepts the preview public URL fallback when no admin URL is present", async () => {
+    const runCycle = vi.fn().mockResolvedValue({ status: "idle" });
+    const { SUPABASE_URL: _url, ...flags } = valid;
+    expect(await runDedicatedArkHeartbeat({
+      flags: {
+        ...flags,
+        NEXT_PUBLIC_SUPABASE_URL: "https://tzbpjbhroxiqftqwatnb.supabase.co",
+      },
+      workerId: "w", runCycle,
+    })).toMatchObject({ status: "invoked", objectiveId: OBJECTIVE });
+    expect(runCycle).toHaveBeenCalledTimes(1);
   });
 
   it("invokes a specific objective with strict task and time limits", async () => {
