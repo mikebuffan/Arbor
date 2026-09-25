@@ -5,7 +5,7 @@
  * ARK's database store remains responsible for atomic task claim/fencing.
  */
 export type DedicatedHeartbeatResult =
-  | { status: "skipped"; reason: "ark_dedicated_disabled" | "ark_execution_disabled" | "ark_canary_objective_required" | "ark_invalid_canary_objective_id" }
+  | { status: "skipped"; reason: "ark_dedicated_disabled" | "ark_execution_disabled" | "ark_canary_objective_required" | "ark_invalid_canary_objective_id" | "ark_preview_database_required" }
   | { status: "invoked"; objectiveId: string; result: unknown };
 
 export type DedicatedHeartbeatFlags = {
@@ -14,9 +14,40 @@ export type DedicatedHeartbeatFlags = {
   ARBOR_ENABLE_ARK_EXECUTION?: string;
   ARBOR_ARK_CANARY_OBJECTIVE_ID?: string;
   ARBOR_ARK_ALLOW_GLOBAL_EXECUTION?: string;
+  SUPABASE_URL?: string;
+  NEXT_PUBLIC_SUPABASE_URL?: string;
 };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const ARK_PREVIEW_HOST = "tzbpjbhroxiqftqwatnb.supabase.co";
+
+/**
+ * The dedicated checkpoint canary must never connect to Firefly or Grove.
+ * supabaseAdmin() uses SUPABASE_URL, falling back to NEXT_PUBLIC_SUPABASE_URL;
+ * check both whenever present to reject conflicting deployment configuration.
+ * The project URL contains no credential and is safe to compare here.
+ */
+function configuredForArkPreview(flags: DedicatedHeartbeatFlags): boolean {
+  const urls = [flags.SUPABASE_URL, flags.NEXT_PUBLIC_SUPABASE_URL]
+    .filter((url): url is string => typeof url === "string" && url.trim().length > 0);
+  if (urls.length === 0) return false;
+  return urls.every((value) => {
+    try {
+      const url = new URL(value);
+      return url.protocol === "https:" &&
+        url.hostname === ARK_PREVIEW_HOST &&
+        url.port === "" &&
+        url.username === "" &&
+        url.password === "" &&
+        url.pathname === "/" &&
+        url.search === "" &&
+        url.hash === "";
+    } catch {
+      return false;
+    }
+  });
+}
 
 export async function runDedicatedArkHeartbeat(input: {
   flags: DedicatedHeartbeatFlags;
@@ -35,6 +66,9 @@ export async function runDedicatedArkHeartbeat(input: {
   }
   if (flags.ARBOR_ARK_ENABLE_LIVE_EXECUTION !== "true" || flags.ARBOR_ENABLE_ARK_EXECUTION !== "true") {
     return { status: "skipped", reason: "ark_execution_disabled" };
+  }
+  if (!configuredForArkPreview(flags)) {
+    return { status: "skipped", reason: "ark_preview_database_required" };
   }
   const objectiveId = flags.ARBOR_ARK_CANARY_OBJECTIVE_ID?.trim();
   if (!objectiveId) return { status: "skipped", reason: "ark_canary_objective_required" };
