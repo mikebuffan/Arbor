@@ -4,12 +4,19 @@
  * The trusted route authenticates callers before constructing runCycle.
  * ARK's database store remains responsible for atomic task claim/fencing.
  */
+import { ARK_PREVIEW_WORKER_BRANCH, ARK_PREVIEW_WORKER_PROJECT_ID } from "./previewWorkerHost";
+
 export type DedicatedHeartbeatResult =
-  | { status: "skipped"; reason: "ark_dedicated_disabled" | "ark_execution_disabled" | "ark_canary_objective_required" | "ark_invalid_canary_objective_id" | "ark_preview_database_required" }
+  | { status: "skipped"; reason: "ark_dedicated_disabled" | "ark_execution_disabled" | "ark_canary_objective_required" | "ark_invalid_canary_objective_id" | "ark_preview_database_required" | "ark_readonly_mcp_host" | "ark_worker_host_required" }
   | { status: "invoked"; objectiveId: string; result: unknown };
 
 export type DedicatedHeartbeatFlags = {
   ARBOR_ARK_ENABLE_DEDICATED_HEARTBEAT?: string;
+  ARK_PREVIEW_MCP_READONLY_HOST?: string;
+  ARK_PREVIEW_WORKER_ONLY_HOST?: string;
+  VERCEL_ENV?: string;
+  VERCEL_PROJECT_ID?: string;
+  VERCEL_GIT_COMMIT_REF?: string;
   ARBOR_ARK_ENABLE_LIVE_EXECUTION?: string;
   ARBOR_ENABLE_ARK_EXECUTION?: string;
   ARBOR_ARK_CANARY_OBJECTIVE_ID?: string;
@@ -63,6 +70,20 @@ export async function runDedicatedArkHeartbeat(input: {
   // Dedicated switch is independent; existing flags must ALSO be enabled.
   if (flags.ARBOR_ARK_ENABLE_DEDICATED_HEARTBEAT !== "true") {
     return { status: "skipped", reason: "ark_dedicated_disabled" };
+  }
+  // Reader deployments must never execute tasks, even if execution flags leak into them.
+  if (flags.ARK_PREVIEW_MCP_READONLY_HOST === "true") {
+    return { status: "skipped", reason: "ark_readonly_mcp_host" };
+  }
+  // Default OFF on all other deployments, including Firefly production and MCP.
+  // The approved worker code must come from this exact Preview source branch.
+  if (
+    flags.ARK_PREVIEW_WORKER_ONLY_HOST !== "true" ||
+    flags.VERCEL_ENV !== "preview" ||
+    flags.VERCEL_PROJECT_ID !== ARK_PREVIEW_WORKER_PROJECT_ID ||
+    flags.VERCEL_GIT_COMMIT_REF !== ARK_PREVIEW_WORKER_BRANCH
+  ) {
+    return { status: "skipped", reason: "ark_worker_host_required" };
   }
   if (flags.ARBOR_ARK_ENABLE_LIVE_EXECUTION !== "true" || flags.ARBOR_ENABLE_ARK_EXECUTION !== "true") {
     return { status: "skipped", reason: "ark_execution_disabled" };
