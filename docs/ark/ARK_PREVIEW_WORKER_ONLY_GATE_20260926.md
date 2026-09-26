@@ -31,5 +31,9 @@ Status: review-only, default OFF. Builds do not authorize execution. This child 
 - Re-read actual database `ark_objectives`, `ark_tasks`, `ark_checkpoints`, `ark_events`, then compare with ChatGPT `get_ark_status`. Report failures precisely; do not claim objective completed from HTTP 200, build green, or a single task result.
 - After acceptance switch execution OFF/revoke the temporary machine credential if not needed, and decide on a separate scheduler authorization. Real research ingestion is a different gate.
 
-## Known unresolved engineering concern
-The existing `ark_claim_next_task` SQL global expired-lease sweep was reported to affect other objectives even when a pinned objective is requested; the research team's proposed fix is not applied. The current synthetic canary is low-risk but this needs disposable PostgreSQL regression and reviewed correction before unattended multi-objective research work.
+## Persisted SQL acceptance — independently verified in disposable CI
+- Dedicated Postgres 17 with the three existing version-controlled ARK migrations, synthetic owner/project and **three distinct `psql` processes**. No live Preview/Firefly/Grove database access.
+- A checkpointed first, worker 2 resumed A and checkpointed dependent B, worker 3 resumed B and independently verified the objective. Both tasks have two attempts and checkpoint sequence 1; immutable evidence/events and no duplicate claim were asserted.
+- An expired lease belonging to an unrelated synthetic objective remained unchanged by the pinned target's recovery cycles. The actual ARK Preview `pg_get_functiondef(ark_claim_next_task)` read on 2026-09-26 also shows the targeted cleanup and failed-objective filters **already scoped by `p_only_objective_id`**. Previous investigation handoff saying this specific live function is unscoped was stale; no migration is needed for this particular fix.
+- The independent Postgres acceptance is a DB contract test, not proof that Vercel can invoke a real authorized backend worker. Do not promote it to the live worker gate.
+- Multi-tick research checkpoint budgets, private-source handling and safe unattended processing remain separate gated research acceptance.
