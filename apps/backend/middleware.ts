@@ -67,5 +67,6 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/).*)"],
+  // The worker-only host must also intercept /_next assets, not just API paths.
+  matcher: ["/:path*"],
 };
