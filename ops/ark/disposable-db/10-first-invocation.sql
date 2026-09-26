@@ -7,6 +7,8 @@ declare
  target jsonb; unrelated jsonb; claim jsonb; other_claim jsonb; result jsonb;
  task_a uuid;
 begin
+ -- Synthetic clock is intentionally ahead of creation timestamps, so new task rows are eligible.
+ update public.ark_disposable_recovery_clock set t0 = clock_timestamp() + interval '10 seconds';
  select c.t0 into strict t0 from public.ark_disposable_recovery_clock c;
  target := public.ark_enqueue_objective(
   u,p,'Disposable dependent checkpoint recovery',0,
