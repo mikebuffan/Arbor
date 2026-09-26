@@ -5,12 +5,15 @@
  * ARK's database store remains responsible for atomic task claim/fencing.
  */
 export type DedicatedHeartbeatResult =
-  | { status: "skipped"; reason: "ark_dedicated_disabled" | "ark_execution_disabled" | "ark_canary_objective_required" | "ark_invalid_canary_objective_id" | "ark_preview_database_required" | "ark_readonly_mcp_host" }
+  | { status: "skipped"; reason: "ark_dedicated_disabled" | "ark_execution_disabled" | "ark_canary_objective_required" | "ark_invalid_canary_objective_id" | "ark_preview_database_required" | "ark_readonly_mcp_host" | "ark_worker_host_required" }
   | { status: "invoked"; objectiveId: string; result: unknown };
 
 export type DedicatedHeartbeatFlags = {
   ARBOR_ARK_ENABLE_DEDICATED_HEARTBEAT?: string;
   ARK_PREVIEW_MCP_READONLY_HOST?: string;
+  ARK_PREVIEW_WORKER_ONLY_HOST?: string;
+  VERCEL_ENV?: string;
+  VERCEL_GIT_COMMIT_REF?: string;
   ARBOR_ARK_ENABLE_LIVE_EXECUTION?: string;
   ARBOR_ENABLE_ARK_EXECUTION?: string;
   ARBOR_ARK_CANARY_OBJECTIVE_ID?: string;
@@ -68,6 +71,15 @@ export async function runDedicatedArkHeartbeat(input: {
   // Reader deployments must never execute tasks, even if execution flags leak into them.
   if (flags.ARK_PREVIEW_MCP_READONLY_HOST === "true") {
     return { status: "skipped", reason: "ark_readonly_mcp_host" };
+  }
+  // Default OFF on all other deployments, including Firefly production and MCP.
+  // The approved worker code must come from this exact Preview source branch.
+  if (
+    flags.ARK_PREVIEW_WORKER_ONLY_HOST !== "true" ||
+    flags.VERCEL_ENV !== "preview" ||
+    flags.VERCEL_GIT_COMMIT_REF !== "feature/ark-mcp-reader-execution-deny-20260926"
+  ) {
+    return { status: "skipped", reason: "ark_worker_host_required" };
   }
   if (flags.ARBOR_ARK_ENABLE_LIVE_EXECUTION !== "true" || flags.ARBOR_ENABLE_ARK_EXECUTION !== "true") {
     return { status: "skipped", reason: "ark_execution_disabled" };

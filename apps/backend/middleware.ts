@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { correctWorkerHostEnvironment, isWorkerOnlyDeployment, rejectWorkerOnlyRequest } from "./lib/ark/previewWorkerHost";
 
 const attachmentBrokerPaths = new Set([
   "/api/chat/attachments/access",
@@ -30,6 +31,21 @@ function isStaticOrPublicPath(pathname: string) {
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+
+  // Worker-only Preview ingress is evaluated BEFORE static, CORS and attachment exemptions.
+  const workerEnv = {
+    ARK_PREVIEW_WORKER_ONLY_HOST: process.env.ARK_PREVIEW_WORKER_ONLY_HOST,
+    ARK_PREVIEW_MCP_READONLY_HOST: process.env.ARK_PREVIEW_MCP_READONLY_HOST,
+    VERCEL_ENV: process.env.VERCEL_ENV,
+    VERCEL_GIT_COMMIT_REF: process.env.VERCEL_GIT_COMMIT_REF,
+    SUPABASE_URL: process.env.SUPABASE_URL,
+    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+  };
+  if (isWorkerOnlyDeployment(workerEnv)) {
+    if (!correctWorkerHostEnvironment(workerEnv)) return new NextResponse(null, { status: 503 });
+    if (rejectWorkerOnlyRequest(pathname, req.method)) return new NextResponse(null, { status: 404 });
+    return NextResponse.next(); // Route still requires machine Bearer CRON_SECRET.
+  }
 
   if (isStaticOrPublicPath(pathname)) {
     return NextResponse.next();
