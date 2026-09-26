@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { correctWorkerHostEnvironment, isWorkerOnlyDeployment, rejectWorkerOnlyRequest } from "./lib/ark/previewWorkerHost";
+import { isPreviewMcpOnlyDeployment, rejectPreviewMcpOnlyPath, isCorrectPreviewMcpSupabaseEnvironment } from "./lib/mcp/previewHostRoutes";
 
 const attachmentBrokerPaths = new Set([
   "/api/chat/attachments/access",
@@ -45,6 +46,17 @@ export function middleware(req: NextRequest) {
     if (!correctWorkerHostEnvironment(workerEnv)) return new NextResponse(null, { status: 503 });
     if (rejectWorkerOnlyRequest(pathname, req.method)) return new NextResponse(null, { status: 404 });
     return NextResponse.next(); // Route still requires machine Bearer CRON_SECRET.
+  }
+
+  // Reuse the existing #213 read-only MCP ingress for any Preview deployments of this branch.
+  // Never expose full app routes merely because another project auto-deployed our worker source.
+  const mcpReadOnly = isPreviewMcpOnlyDeployment(process.env.ARK_PREVIEW_MCP_READONLY_HOST);
+  if (mcpReadOnly) {
+    if (!isCorrectPreviewMcpSupabaseEnvironment({
+      SUPABASE_URL: process.env.SUPABASE_URL,
+      NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    })) return new NextResponse(null, { status: 503 });
+    if (rejectPreviewMcpOnlyPath(pathname, mcpReadOnly)) return new NextResponse(null, { status: 404 });
   }
 
   if (isStaticOrPublicPath(pathname)) {
