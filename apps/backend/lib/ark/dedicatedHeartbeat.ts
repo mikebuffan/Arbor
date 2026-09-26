@@ -5,11 +5,12 @@
  * ARK's database store remains responsible for atomic task claim/fencing.
  */
 export type DedicatedHeartbeatResult =
-  | { status: "skipped"; reason: "ark_dedicated_disabled" | "ark_execution_disabled" | "ark_canary_objective_required" | "ark_invalid_canary_objective_id" | "ark_preview_database_required" }
+  | { status: "skipped"; reason: "ark_dedicated_disabled" | "ark_execution_disabled" | "ark_canary_objective_required" | "ark_invalid_canary_objective_id" | "ark_preview_database_required" | "ark_readonly_mcp_host" }
   | { status: "invoked"; objectiveId: string; result: unknown };
 
 export type DedicatedHeartbeatFlags = {
   ARBOR_ARK_ENABLE_DEDICATED_HEARTBEAT?: string;
+  ARK_PREVIEW_MCP_READONLY_HOST?: string;
   ARBOR_ARK_ENABLE_LIVE_EXECUTION?: string;
   ARBOR_ENABLE_ARK_EXECUTION?: string;
   ARBOR_ARK_CANARY_OBJECTIVE_ID?: string;
@@ -63,6 +64,10 @@ export async function runDedicatedArkHeartbeat(input: {
   // Dedicated switch is independent; existing flags must ALSO be enabled.
   if (flags.ARBOR_ARK_ENABLE_DEDICATED_HEARTBEAT !== "true") {
     return { status: "skipped", reason: "ark_dedicated_disabled" };
+  }
+  // Reader deployments must never execute tasks, even if execution flags leak into them.
+  if (flags.ARK_PREVIEW_MCP_READONLY_HOST === "true") {
+    return { status: "skipped", reason: "ark_readonly_mcp_host" };
   }
   if (flags.ARBOR_ARK_ENABLE_LIVE_EXECUTION !== "true" || flags.ARBOR_ENABLE_ARK_EXECUTION !== "true") {
     return { status: "skipped", reason: "ark_execution_disabled" };

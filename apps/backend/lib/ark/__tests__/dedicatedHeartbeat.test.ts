@@ -18,6 +18,16 @@ describe("dedicated ARK heartbeat is explicitly scoped and bounded", () => {
     expect(runCycle).not.toHaveBeenCalled();
   });
 
+  it("never runs work on a read-only MCP host even with all execution flags set", async () => {
+    const runCycle = vi.fn();
+    const result = await runDedicatedArkHeartbeat({
+      flags: { ...valid, ARK_PREVIEW_MCP_READONLY_HOST: "true" },
+      workerId: "reader-host", runCycle,
+    });
+    expect(result).toEqual({ status: "skipped", reason: "ark_readonly_mcp_host" });
+    expect(runCycle).not.toHaveBeenCalled();
+  });
+
   it("requires both existing live-execution flags", async () => {
     const runCycle = vi.fn();
     const result = await runDedicatedArkHeartbeat({
