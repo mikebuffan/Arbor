@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  ARK_PREVIEW_DB, ARK_PREVIEW_WORKER_BRANCH,
+  ARK_PREVIEW_DB, ARK_PREVIEW_WORKER_BRANCH, ARK_PREVIEW_WORKER_PROJECT_ID,
   correctWorkerHostEnvironment, isWorkerOnlyDeployment,
   rejectWorkerOnlyRequest,
 } from "@/lib/ark/previewWorkerHost";
@@ -9,6 +9,7 @@ const valid = {
   ARK_PREVIEW_WORKER_ONLY_HOST: "true",
   ARK_PREVIEW_MCP_READONLY_HOST: "false",
   VERCEL_ENV: "preview",
+  VERCEL_PROJECT_ID: ARK_PREVIEW_WORKER_PROJECT_ID,
   VERCEL_GIT_COMMIT_REF: ARK_PREVIEW_WORKER_BRANCH,
   SUPABASE_URL: ARK_PREVIEW_DB,
   NEXT_PUBLIC_SUPABASE_URL: ARK_PREVIEW_DB,
@@ -27,6 +28,8 @@ describe("ARK Preview worker-only host", () => {
       { ARK_PREVIEW_MCP_READONLY_HOST: "true" },
       { VERCEL_ENV: "production" },
       { VERCEL_ENV: undefined },
+      { VERCEL_PROJECT_ID: "prj_JArYlugmdFovY10CxZ0LEJmcrsKC" },
+      { VERCEL_PROJECT_ID: undefined },
       { VERCEL_GIT_COMMIT_REF: "main" },
       { VERCEL_GIT_COMMIT_REF: undefined },
       { SUPABASE_URL: "https://ncpdlyakrzfvobmwzbon.supabase.co" },

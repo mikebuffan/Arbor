@@ -9,10 +9,11 @@ Status: review-only, default OFF. Builds do not authorize execution. This child 
 - The read-only MCP host is **not** the worker; do not put execution secrets or routes there.
 
 ## Worker source boundary
+- Exact Vercel worker project ID: `prj_OHM6b4QpfGZGNWpx4hSPkgHCuyzp` (`firefly-ark-sandbox`). Source refuses execution in Firefly, Grove or MCP project even if the same Preview branch and flags are present.
 - Exact source branch: `feature/ark-mcp-reader-execution-deny-20260926` in `mikebuffan/Arbor`, root `apps/backend`.
 - Worker deployment's `apps/backend/vercel.json` has `"crons": []`; trigger is **manual POST** only, not any existing system/memory heartbeat.
 - `ARK_PREVIEW_WORKER_ONLY_HOST=true` makes middleware allow only POST `/api/admin/ark/heartbeat`. Every unrelated route returns 404, and invalid Preview environment returns 503. That route separately validates the machine Bearer token.
-- Running the executor also independently demands dedicated-worker flag, `VERCEL_ENV=preview`, exact Git branch, exact Preview database, three existing execution switches, and a pinned objective; read-only MCP flag forbids execution. The code's two-task/10-second bound remains.
+- Running the executor also independently demands dedicated-worker flag, `VERCEL_ENV=preview`, exact Vercel project ID, exact Git branch, exact Preview database, three existing execution switches, and a pinned objective; read-only MCP flag forbids execution. The code's two-task/10-second bound remains.
 - Ordinary Preview branches stay default OFF. These source guards do not certify Vercel project permissions, correct service-role credential identity, or a successful live worker.
 
 ## Independent owner/operator approval gate — no secret values in chat

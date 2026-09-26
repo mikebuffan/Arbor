@@ -4,6 +4,8 @@
  * The trusted route authenticates callers before constructing runCycle.
  * ARK's database store remains responsible for atomic task claim/fencing.
  */
+import { ARK_PREVIEW_WORKER_BRANCH, ARK_PREVIEW_WORKER_PROJECT_ID } from "./previewWorkerHost";
+
 export type DedicatedHeartbeatResult =
   | { status: "skipped"; reason: "ark_dedicated_disabled" | "ark_execution_disabled" | "ark_canary_objective_required" | "ark_invalid_canary_objective_id" | "ark_preview_database_required" | "ark_readonly_mcp_host" | "ark_worker_host_required" }
   | { status: "invoked"; objectiveId: string; result: unknown };
@@ -13,6 +15,7 @@ export type DedicatedHeartbeatFlags = {
   ARK_PREVIEW_MCP_READONLY_HOST?: string;
   ARK_PREVIEW_WORKER_ONLY_HOST?: string;
   VERCEL_ENV?: string;
+  VERCEL_PROJECT_ID?: string;
   VERCEL_GIT_COMMIT_REF?: string;
   ARBOR_ARK_ENABLE_LIVE_EXECUTION?: string;
   ARBOR_ENABLE_ARK_EXECUTION?: string;
@@ -77,7 +80,8 @@ export async function runDedicatedArkHeartbeat(input: {
   if (
     flags.ARK_PREVIEW_WORKER_ONLY_HOST !== "true" ||
     flags.VERCEL_ENV !== "preview" ||
-    flags.VERCEL_GIT_COMMIT_REF !== "feature/ark-mcp-reader-execution-deny-20260926"
+    flags.VERCEL_PROJECT_ID !== ARK_PREVIEW_WORKER_PROJECT_ID ||
+    flags.VERCEL_GIT_COMMIT_REF !== ARK_PREVIEW_WORKER_BRANCH
   ) {
     return { status: "skipped", reason: "ark_worker_host_required" };
   }

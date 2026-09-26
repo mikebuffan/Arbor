@@ -10,6 +10,7 @@ const valid = {
   SUPABASE_URL: "https://tzbpjbhroxiqftqwatnb.supabase.co",
   ARK_PREVIEW_WORKER_ONLY_HOST: "true",
   VERCEL_ENV: "preview",
+  VERCEL_PROJECT_ID: "prj_OHM6b4QpfGZGNWpx4hSPkgHCuyzp",
   VERCEL_GIT_COMMIT_REF: "feature/ark-mcp-reader-execution-deny-20260926",
 };
 
@@ -36,6 +37,8 @@ describe("dedicated ARK heartbeat is explicitly scoped and bounded", () => {
     { ARK_PREVIEW_WORKER_ONLY_HOST: undefined },
     { VERCEL_ENV: "production" },
     { VERCEL_ENV: undefined },
+    { VERCEL_PROJECT_ID: "prj_JArYlugmdFovY10CxZ0LEJmcrsKC" },
+    { VERCEL_PROJECT_ID: undefined },
     { VERCEL_GIT_COMMIT_REF: "main" },
     { VERCEL_GIT_COMMIT_REF: undefined },
   ])("rejects a non-worker environment without calling the worker: %o", async (change) => {
