@@ -7,12 +7,13 @@
 import { ARK_PREVIEW_WORKER_BRANCH, ARK_PREVIEW_WORKER_PROJECT_ID } from "./previewWorkerHost";
 
 export type DedicatedHeartbeatResult =
-  | { status: "skipped"; reason: "ark_dedicated_disabled" | "ark_execution_disabled" | "ark_canary_objective_required" | "ark_invalid_canary_objective_id" | "ark_preview_database_required" | "ark_readonly_mcp_host" | "ark_worker_host_required" }
+  | { status: "skipped"; reason: "ark_dedicated_disabled" | "ark_execution_disabled" | "ark_canary_objective_required" | "ark_invalid_canary_objective_id" | "ark_preview_database_required" | "ark_mcp_host" | "ark_worker_host_required" }
   | { status: "invoked"; objectiveId: string; result: unknown };
 
 export type DedicatedHeartbeatFlags = {
   ARBOR_ARK_ENABLE_DEDICATED_HEARTBEAT?: string;
   ARK_PREVIEW_MCP_READONLY_HOST?: string;
+  ARK_PREVIEW_MCP_SUBMIT_HOST?: string;
   ARK_PREVIEW_WORKER_ONLY_HOST?: string;
   VERCEL_ENV?: string;
   VERCEL_PROJECT_ID?: string;
@@ -72,8 +73,11 @@ export async function runDedicatedArkHeartbeat(input: {
     return { status: "skipped", reason: "ark_dedicated_disabled" };
   }
   // Reader deployments must never execute tasks, even if execution flags leak into them.
-  if (flags.ARK_PREVIEW_MCP_READONLY_HOST === "true") {
-    return { status: "skipped", reason: "ark_readonly_mcp_host" };
+  if (
+    flags.ARK_PREVIEW_MCP_READONLY_HOST === "true" ||
+    flags.ARK_PREVIEW_MCP_SUBMIT_HOST === "true"
+  ) {
+    return { status: "skipped", reason: "ark_mcp_host" };
   }
   // Default OFF on all other deployments, including Firefly production and MCP.
   // The approved worker code must come from this exact Preview source branch.

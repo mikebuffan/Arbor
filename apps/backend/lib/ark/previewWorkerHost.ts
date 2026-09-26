@@ -7,6 +7,7 @@ export const ARK_PREVIEW_WORKER_ROUTE = "/api/admin/ark/heartbeat";
 export type WorkerHostEnvironment = {
   ARK_PREVIEW_WORKER_ONLY_HOST?: string;
   ARK_PREVIEW_MCP_READONLY_HOST?: string;
+  ARK_PREVIEW_MCP_SUBMIT_HOST?: string;
   VERCEL_ENV?: string;
   VERCEL_PROJECT_ID?: string;
   VERCEL_GIT_COMMIT_REF?: string;
@@ -21,6 +22,7 @@ export function isWorkerOnlyDeployment(env: WorkerHostEnvironment): boolean {
 export function correctWorkerHostEnvironment(env: WorkerHostEnvironment): boolean {
   return env.ARK_PREVIEW_WORKER_ONLY_HOST === "true" &&
     env.ARK_PREVIEW_MCP_READONLY_HOST !== "true" &&
+    env.ARK_PREVIEW_MCP_SUBMIT_HOST !== "true" &&
     env.VERCEL_ENV === "preview" &&
     env.VERCEL_PROJECT_ID === ARK_PREVIEW_WORKER_PROJECT_ID &&
     env.VERCEL_GIT_COMMIT_REF === ARK_PREVIEW_WORKER_BRANCH &&

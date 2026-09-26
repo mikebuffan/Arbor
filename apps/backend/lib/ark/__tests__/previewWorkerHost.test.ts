@@ -26,6 +26,7 @@ describe("ARK Preview worker-only host", () => {
     for (const change of [
       { ARK_PREVIEW_WORKER_ONLY_HOST: "false" },
       { ARK_PREVIEW_MCP_READONLY_HOST: "true" },
+      { ARK_PREVIEW_MCP_SUBMIT_HOST: "true" },
       { VERCEL_ENV: "production" },
       { VERCEL_ENV: undefined },
       { VERCEL_PROJECT_ID: "prj_JArYlugmdFovY10CxZ0LEJmcrsKC" },

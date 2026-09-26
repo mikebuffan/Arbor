@@ -24,13 +24,24 @@ Status: review-only, default OFF. Builds do not authorize execution. This child 
 5. Only on the approved worker branch Preview, configure `SUPABASE_SERVICE_ROLE_KEY` (verified Preview key), `CRON_SECRET` (fresh random machine token), `ARBOR_ARK_ENABLE_DEDICATED_HEARTBEAT=true`, `ARBOR_ARK_ENABLE_LIVE_EXECUTION=true`, `ARBOR_ENABLE_ARK_EXECUTION=true`, `ARBOR_ARK_PREVIEW_CHECKPOINT_CANARY=true`, `ARBOR_ARK_CANARY_OBJECTIVE_ID=e994f040-4fab-4d59-ae5b-df882579e410`. Keep `ARBOR_ARK_ALLOW_GLOBAL_EXECUTION` unset/false, `ARK_PREVIEW_MCP_READONLY_HOST` unset/false, and every schedule/cron disabled. Do not paste keys, token or headers into messages/screenshots.
 6. Redeploy the exact worker Preview branch after scoped settings, verify its settings/ingress without sending machine credentials to unrelated URLs, and separately authorize one bounded **POST** to this host. Do not invoke the existing read-only MCP host for execution.
 
-## Live acceptance (not yet done)
+## Live acceptance (completed 2026-09-26)
 - Independently read target objective before every invocation; abort if it is not queued/checkpointed as expected. Never reuse the already completed `canary.read` objective.
 - First independent invocation: A checkpoint sequence 1, A attempt 1, B still queued (0 attempts). Confirm durable checkpoint and lease cleared.
 - At least 60 seconds after A checkpoint: independent second invocation: A completes after resume (attempt 2), B checkpoints (attempt 1). Confirm evidence and sequence.
 - At least 60 seconds later: third independent invocation: B completes after resume (attempt 2), whole objective independently verified with no missing work.
 - Re-read actual database `ark_objectives`, `ark_tasks`, `ark_checkpoints`, `ark_events`, then compare with ChatGPT `get_ark_status`. Report failures precisely; do not claim objective completed from HTTP 200, build green, or a single task result.
 - After acceptance switch execution OFF/revoke the temporary machine credential if not needed, and decide on a separate scheduler authorization. Real research ingestion is a different gate.
+
+Accepted against objective `e994f040-4fab-4d59-ae5b-df882579e410` in the existing ARK Preview database:
+
+- pulse 1 checkpointed `checkpoint-a` at sequence 1 / attempt 1 while `checkpoint-b` remained queued;
+- pulse 2 resumed and completed `checkpoint-a` at attempt 2, then checkpointed `checkpoint-b` at sequence 1 / attempt 1;
+- pulse 3 resumed and completed `checkpoint-b` at attempt 2, then independently verified the objective with `all_tasks_completed_with_executor_verification`;
+- the final objective and both tasks were re-read from the Preview database, including checkpoint receipts and causal events;
+- execution was switched back off (`ARBOR_ARK_ENABLE_LIVE_EXECUTION=false`, `ARBOR_ENABLE_ARK_EXECUTION=false`, `ARBOR_ARK_PREVIEW_CHECKPOINT_CANARY=false`), the shutdown deployment became Ready, and Vercel deployment protection was restored to people with project access;
+- `ARK_PREVIEW_WORKER_ONLY_HOST=true` remains restricted to the exact Preview branch. Production was not modified and no PR was merged.
+
+The acceptance proves the bounded checkpoint/recovery worker path only. It does not authorize a scheduler, general research execution, Production changes, or a write-capable MCP connection.
 
 ## Persisted SQL acceptance — independently verified in disposable CI
 - Dedicated Postgres 17 with the three existing version-controlled ARK migrations, synthetic owner/project and **three distinct `psql` processes**. No live Preview/Firefly/Grove database access.

@@ -14,6 +14,7 @@ describe("dedicated ARK Preview MCP ingress", () => {
     expect(isPreviewMcpOnlyDeployment(undefined)).toBe(false);
     expect(isPreviewMcpOnlyDeployment("false")).toBe(false);
     expect(isPreviewMcpOnlyDeployment("true")).toBe(true);
+    expect(isPreviewMcpOnlyDeployment("false", "true")).toBe(true);
   });
   it.each([
     "/api/mcp",

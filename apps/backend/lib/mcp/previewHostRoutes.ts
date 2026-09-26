@@ -9,8 +9,11 @@ const allowed = new Set([
   "/.well-known/oauth-protected-resource/api/mcp",
 ]);
 
-export function isPreviewMcpOnlyDeployment(value: string | undefined): boolean {
-  return value === "true";
+export function isPreviewMcpOnlyDeployment(
+  readOnlyValue: string | undefined,
+  submitValue?: string,
+): boolean {
+  return readOnlyValue === "true" || submitValue === "true";
 }
 
 export function rejectPreviewMcpOnlyPath(

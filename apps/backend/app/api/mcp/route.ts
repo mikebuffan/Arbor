@@ -1,15 +1,19 @@
 import { createMcpHandler, withMcpAuth } from "mcp-handler";
 import { registerArkReadTools } from "@/lib/mcp/registerArkReadTools";
+import { registerArkSubmissionTool } from "@/lib/mcp/registerArkSubmissionTool";
 import { verifyArkMcpToken } from "@/lib/mcp/auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const mcpHandler = createMcpHandler(
-  (server) => registerArkReadTools(server),
+  (server) => {
+    registerArkReadTools(server);
+    registerArkSubmissionTool(server);
+  },
   {
-    serverInfo: { name: "arbor-ark", version: "0.1.0" },
-    instructions: "Authenticated, user-scoped, read-only access to Arbor's ARK status and continuity. Never imply that these tools can mutate state or execute work.",
+    serverInfo: { name: "arbor-ark", version: "0.2.0" },
+    instructions: "Authenticated, user-scoped access to Arbor's ARK status and continuity. A separately gated Preview tool may enqueue bounded research, but it never starts execution.",
     maxSubscriptions: 0,
   },
 );

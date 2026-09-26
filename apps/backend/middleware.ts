@@ -37,6 +37,7 @@ export function middleware(req: NextRequest) {
   const workerEnv = {
     ARK_PREVIEW_WORKER_ONLY_HOST: process.env.ARK_PREVIEW_WORKER_ONLY_HOST,
     ARK_PREVIEW_MCP_READONLY_HOST: process.env.ARK_PREVIEW_MCP_READONLY_HOST,
+    ARK_PREVIEW_MCP_SUBMIT_HOST: process.env.ARK_PREVIEW_MCP_SUBMIT_HOST,
     VERCEL_ENV: process.env.VERCEL_ENV,
     VERCEL_PROJECT_ID: process.env.VERCEL_PROJECT_ID,
     VERCEL_GIT_COMMIT_REF: process.env.VERCEL_GIT_COMMIT_REF,
@@ -51,13 +52,16 @@ export function middleware(req: NextRequest) {
 
   // Reuse the existing #213 read-only MCP ingress for any Preview deployments of this branch.
   // Never expose full app routes merely because another project auto-deployed our worker source.
-  const mcpReadOnly = isPreviewMcpOnlyDeployment(process.env.ARK_PREVIEW_MCP_READONLY_HOST);
-  if (mcpReadOnly) {
+  const mcpOnly = isPreviewMcpOnlyDeployment(
+    process.env.ARK_PREVIEW_MCP_READONLY_HOST,
+    process.env.ARK_PREVIEW_MCP_SUBMIT_HOST,
+  );
+  if (mcpOnly) {
     if (!isCorrectPreviewMcpSupabaseEnvironment({
       SUPABASE_URL: process.env.SUPABASE_URL,
       NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
     })) return new NextResponse(null, { status: 503 });
-    if (rejectPreviewMcpOnlyPath(pathname, mcpReadOnly)) return new NextResponse(null, { status: 404 });
+    if (rejectPreviewMcpOnlyPath(pathname, mcpOnly)) return new NextResponse(null, { status: 404 });
   }
 
   if (isStaticOrPublicPath(pathname)) {
