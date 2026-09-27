@@ -14,7 +14,7 @@ const valid: ArkSubmissionEnvironment = {
   ARK_PREVIEW_MCP_READONLY_HOST: "false",
   ARK_PREVIEW_WORKER_ONLY_HOST: "false",
   VERCEL_ENV: "preview",
-  VERCEL_PROJECT_ID: "prj_OHM6b4QpfGZGNWpx4hSPkgHCuyzp",
+  VERCEL_PROJECT_ID: "prj_JArYlugmdFovY10CxZ0LEJmcrsKC",
   VERCEL_GIT_COMMIT_REF: "feature/ark-mcp-reader-execution-deny-20260926",
   SUPABASE_URL: "https://tzbpjbhroxiqftqwatnb.supabase.co",
   NEXT_PUBLIC_SUPABASE_URL: "https://tzbpjbhroxiqftqwatnb.supabase.co",
