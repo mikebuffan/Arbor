@@ -6,9 +6,10 @@ describe("ARK MCP tool boundary", () => {
     const registerTool = vi.fn();
     registerArkReadTools({ registerTool } as never);
 
-    expect(registerTool).toHaveBeenCalledTimes(4);
+    expect(registerTool).toHaveBeenCalledTimes(5);
     expect(registerTool.mock.calls.map(([name]) => name)).toEqual([
       "get_arbor_profile",
+      "get_ark_submission_gate_status",
       "list_arbor_projects",
       "get_ark_status",
       "get_arbor_continuity",
