@@ -122,4 +122,74 @@ describe("ARK MCP research submission tool", () => {
       executionStarted: false,
     });
   });
+
+  it("never enqueues for an unauthorized user or OAuth client", async () => {
+    setValidEnvironment();
+    const registerTool = vi.fn();
+    registerArkSubmissionTool({ registerTool } as never);
+    const [, , handler] = registerTool.mock.calls[0];
+    const request = {
+      projectId: PROJECT,
+      clientRequestId: REQUEST,
+      seed: "synthetic research only",
+      maxDepth: 2,
+      maxHopsPerAttempt: 2,
+    };
+
+    await expect(handler(request, {
+      http: { authInfo: { clientId: "chatgpt-client", extra: { userId: PROJECT } } },
+    })).rejects.toThrow("ark_submission_user_denied");
+
+    await expect(handler(request, {
+      http: { authInfo: { clientId: "other-client", extra: { userId: USER } } },
+    })).rejects.toThrow("ark_submission_client_denied");
+
+    expect(mocks.assertProject).not.toHaveBeenCalled();
+    expect(mocks.assertConversation).not.toHaveBeenCalled();
+    expect(mocks.enqueue).not.toHaveBeenCalled();
+  });
+
+  it("never enqueues if project ownership is rejected", async () => {
+    setValidEnvironment();
+    mocks.assertProject.mockRejectedValueOnce(new Error("ark_project_owner_mismatch"));
+    const registerTool = vi.fn();
+    registerArkSubmissionTool({ registerTool } as never);
+    const [, , handler] = registerTool.mock.calls[0];
+
+    await expect(handler({
+      projectId: PROJECT,
+      clientRequestId: REQUEST,
+      seed: "synthetic research only",
+      maxDepth: 2,
+      maxHopsPerAttempt: 2,
+    }, {
+      http: { authInfo: { clientId: "chatgpt-client", extra: { userId: USER } } },
+    })).rejects.toThrow("ark_project_owner_mismatch");
+
+    expect(mocks.assertConversation).not.toHaveBeenCalled();
+    expect(mocks.enqueue).not.toHaveBeenCalled();
+  });
+
+  it("never enqueues if conversation ownership is rejected", async () => {
+    setValidEnvironment();
+    mocks.assertConversation.mockRejectedValueOnce(new Error("ark_conversation_owner_mismatch"));
+    const registerTool = vi.fn();
+    registerArkSubmissionTool({ registerTool } as never);
+    const [, , handler] = registerTool.mock.calls[0];
+
+    await expect(handler({
+      projectId: PROJECT,
+      conversationId: CONVERSATION,
+      clientRequestId: REQUEST,
+      seed: "synthetic research only",
+      maxDepth: 2,
+      maxHopsPerAttempt: 2,
+    }, {
+      http: { authInfo: { clientId: "chatgpt-client", extra: { userId: USER } } },
+    })).rejects.toThrow("ark_conversation_owner_mismatch");
+
+    expect(mocks.assertProject).toHaveBeenCalledTimes(1);
+    expect(mocks.enqueue).not.toHaveBeenCalled();
+  });
+
 });
