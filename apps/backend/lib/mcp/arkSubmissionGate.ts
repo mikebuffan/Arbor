@@ -3,8 +3,9 @@ import type { ServerContext } from "@modelcontextprotocol/server";
 import {
   ARK_PREVIEW_DB,
   ARK_PREVIEW_WORKER_BRANCH,
-  ARK_PREVIEW_WORKER_PROJECT_ID,
 } from "@/lib/ark/previewWorkerHost";
+
+export const ARK_PREVIEW_MCP_SUBMIT_PROJECT_ID = "prj_JArYlugmdFovY10CxZ0LEJmcrsKC";
 
 export type ArkSubmissionEnvironment = {
   ARK_PREVIEW_MCP_SUBMIT_HOST?: string;
@@ -51,7 +52,7 @@ export function isArkSubmissionHost(env: ArkSubmissionEnvironment): boolean {
     env.ARK_PREVIEW_MCP_READONLY_HOST !== "true" &&
     env.ARK_PREVIEW_WORKER_ONLY_HOST !== "true" &&
     env.VERCEL_ENV === "preview" &&
-    env.VERCEL_PROJECT_ID === ARK_PREVIEW_WORKER_PROJECT_ID &&
+    env.VERCEL_PROJECT_ID === ARK_PREVIEW_MCP_SUBMIT_PROJECT_ID &&
     env.VERCEL_GIT_COMMIT_REF === ARK_PREVIEW_WORKER_BRANCH &&
     env.SUPABASE_URL === ARK_PREVIEW_DB &&
     env.NEXT_PUBLIC_SUPABASE_URL === ARK_PREVIEW_DB &&
