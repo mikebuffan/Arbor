@@ -25,6 +25,26 @@ export type ArkSubmissionEnvironment = {
   ARBOR_ARK_PREVIEW_RESEARCH?: string;
 };
 
+export const ArkSubmissionGateCheck = [
+  "submit_host",
+  "readonly_host",
+  "worker_only_host",
+  "vercel_environment",
+  "vercel_project",
+  "git_branch",
+  "server_database",
+  "public_database",
+  "submit_user",
+  "submit_client",
+  "dedicated_heartbeat_disabled",
+  "live_execution_disabled",
+  "execution_disabled",
+  "checkpoint_canary_disabled",
+  "preview_research_execution_disabled",
+] as const;
+
+export type ArkSubmissionGateCheckName = typeof ArkSubmissionGateCheck[number];
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export function arkSubmissionEnvironment(): ArkSubmissionEnvironment {
@@ -47,22 +67,33 @@ export function arkSubmissionEnvironment(): ArkSubmissionEnvironment {
   };
 }
 
+export function arkSubmissionGateStatus(env: ArkSubmissionEnvironment): {
+  enabled: boolean;
+  failedChecks: ArkSubmissionGateCheckName[];
+} {
+  const checks: Array<[ArkSubmissionGateCheckName, boolean]> = [
+    ["submit_host", env.ARK_PREVIEW_MCP_SUBMIT_HOST === "true"],
+    ["readonly_host", env.ARK_PREVIEW_MCP_READONLY_HOST !== "true"],
+    ["worker_only_host", env.ARK_PREVIEW_WORKER_ONLY_HOST !== "true"],
+    ["vercel_environment", env.VERCEL_ENV === "preview"],
+    ["vercel_project", env.VERCEL_PROJECT_ID === ARK_PREVIEW_WORKER_PROJECT_ID],
+    ["git_branch", env.VERCEL_GIT_COMMIT_REF === ARK_PREVIEW_WORKER_BRANCH],
+    ["server_database", env.SUPABASE_URL === ARK_PREVIEW_DB],
+    ["public_database", env.NEXT_PUBLIC_SUPABASE_URL === ARK_PREVIEW_DB],
+    ["submit_user", UUID.test(env.ARK_PREVIEW_MCP_SUBMIT_USER_ID ?? "")],
+    ["submit_client", Boolean(env.ARK_PREVIEW_MCP_SUBMIT_CLIENT_ID?.trim())],
+    ["dedicated_heartbeat_disabled", env.ARBOR_ARK_ENABLE_DEDICATED_HEARTBEAT !== "true"],
+    ["live_execution_disabled", env.ARBOR_ARK_ENABLE_LIVE_EXECUTION !== "true"],
+    ["execution_disabled", env.ARBOR_ENABLE_ARK_EXECUTION !== "true"],
+    ["checkpoint_canary_disabled", env.ARBOR_ARK_PREVIEW_CHECKPOINT_CANARY !== "true"],
+    ["preview_research_execution_disabled", env.ARBOR_ARK_PREVIEW_RESEARCH !== "true"],
+  ];
+  const failedChecks = checks.filter(([, passed]) => !passed).map(([name]) => name);
+  return { enabled: failedChecks.length === 0, failedChecks };
+}
+
 export function isArkSubmissionHost(env: ArkSubmissionEnvironment): boolean {
-  return env.ARK_PREVIEW_MCP_SUBMIT_HOST === "true" &&
-    env.ARK_PREVIEW_MCP_READONLY_HOST !== "true" &&
-    env.ARK_PREVIEW_WORKER_ONLY_HOST !== "true" &&
-    env.VERCEL_ENV === "preview" &&
-    env.VERCEL_PROJECT_ID === ARK_PREVIEW_WORKER_PROJECT_ID &&
-    env.VERCEL_GIT_COMMIT_REF === ARK_PREVIEW_WORKER_BRANCH &&
-    env.SUPABASE_URL === ARK_PREVIEW_DB &&
-    env.NEXT_PUBLIC_SUPABASE_URL === ARK_PREVIEW_DB &&
-    UUID.test(env.ARK_PREVIEW_MCP_SUBMIT_USER_ID ?? "") &&
-    Boolean(env.ARK_PREVIEW_MCP_SUBMIT_CLIENT_ID?.trim()) &&
-    env.ARBOR_ARK_ENABLE_DEDICATED_HEARTBEAT !== "true" &&
-    env.ARBOR_ARK_ENABLE_LIVE_EXECUTION !== "true" &&
-    env.ARBOR_ENABLE_ARK_EXECUTION !== "true" &&
-    env.ARBOR_ARK_PREVIEW_CHECKPOINT_CANARY !== "true" &&
-    env.ARBOR_ARK_PREVIEW_RESEARCH !== "true";
+  return arkSubmissionGateStatus(env).enabled;
 }
 
 export function assertArkSubmissionCaller(
