@@ -49,3 +49,14 @@ The acceptance proves the bounded checkpoint/recovery worker path only. It does 
 - An expired lease belonging to an unrelated synthetic objective remained unchanged by the pinned target's recovery cycles. The actual ARK Preview `pg_get_functiondef(ark_claim_next_task)` read on 2026-09-26 also shows the targeted cleanup and failed-objective filters **already scoped by `p_only_objective_id`**. Previous investigation handoff saying this specific live function is unscoped was stale; no migration is needed for this particular fix.
 - The independent Postgres acceptance is a DB contract test, not proof that Vercel can invoke a real authorized backend worker. Do not promote it to the live worker gate.
 - Multi-tick research checkpoint budgets, private-source handling and safe unattended processing remain separate gated research acceptance.
+
+## Research submission checkpoint (source-ready, default OFF — 2026-09-27)
+
+- `submit_ark_research` enqueues exactly one `ark.preview-research` task. It cannot invoke a worker, enable execution, select another task kind, or carry an arbitrary agency capability.
+- Submission requires its own Preview host role, exact Vercel project and branch, exact ARK Preview database, approved user and OAuth client, and all execution/canary/research switches OFF.
+- The dedicated worker has mutually exclusive `preview-checkpoint` and `preview-research` modes. Neither mode registers the general `arbor.agency-tool` executor.
+- Research execution is pinned to one objective, revalidates the bounded payload server-side, processes at most one task per pulse, and checkpoints only the protected run ID plus progress counts. Evidence content remains in the scoped Preview database.
+- `ARBOR_ARK_PREVIEW_RESEARCH` is a new independent switch and remains unset/false. It must never be enabled together with `ARBOR_ARK_PREVIEW_CHECKPOINT_CANARY`.
+- Source verification passed: 542 backend tests, TypeScript, and targeted ESLint (zero errors; two pre-existing unused-variable warnings in the heartbeat test).
+
+Before any live research pulse: deploy this exact branch with execution still OFF, validate submission/worker host separation and OAuth identity, queue one bounded owned objective, independently read it from the Preview database, then pin only that objective. Only after those checks may the worker role use `ARBOR_ARK_PREVIEW_RESEARCH=true` with both existing live-execution switches for a single manual pulse. Re-disable all three switches after each pulse and re-read objective, task, checkpoint, and event receipts. Production, cron/scheduler, global execution, and PR merge remain out of scope.

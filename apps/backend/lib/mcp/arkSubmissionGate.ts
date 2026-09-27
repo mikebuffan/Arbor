@@ -21,6 +21,7 @@ export type ArkSubmissionEnvironment = {
   ARBOR_ARK_ENABLE_LIVE_EXECUTION?: string;
   ARBOR_ENABLE_ARK_EXECUTION?: string;
   ARBOR_ARK_PREVIEW_CHECKPOINT_CANARY?: string;
+  ARBOR_ARK_PREVIEW_RESEARCH?: string;
 };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -41,6 +42,7 @@ export function arkSubmissionEnvironment(): ArkSubmissionEnvironment {
     ARBOR_ARK_ENABLE_LIVE_EXECUTION: process.env.ARBOR_ARK_ENABLE_LIVE_EXECUTION,
     ARBOR_ENABLE_ARK_EXECUTION: process.env.ARBOR_ENABLE_ARK_EXECUTION,
     ARBOR_ARK_PREVIEW_CHECKPOINT_CANARY: process.env.ARBOR_ARK_PREVIEW_CHECKPOINT_CANARY,
+    ARBOR_ARK_PREVIEW_RESEARCH: process.env.ARBOR_ARK_PREVIEW_RESEARCH,
   };
 }
 
@@ -58,7 +60,8 @@ export function isArkSubmissionHost(env: ArkSubmissionEnvironment): boolean {
     env.ARBOR_ARK_ENABLE_DEDICATED_HEARTBEAT !== "true" &&
     env.ARBOR_ARK_ENABLE_LIVE_EXECUTION !== "true" &&
     env.ARBOR_ENABLE_ARK_EXECUTION !== "true" &&
-    env.ARBOR_ARK_PREVIEW_CHECKPOINT_CANARY !== "true";
+    env.ARBOR_ARK_PREVIEW_CHECKPOINT_CANARY !== "true" &&
+    env.ARBOR_ARK_PREVIEW_RESEARCH !== "true";
 }
 
 export function assertArkSubmissionCaller(

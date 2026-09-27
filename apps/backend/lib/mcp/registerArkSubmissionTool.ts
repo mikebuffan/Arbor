@@ -3,7 +3,7 @@ import "server-only";
 import type { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
 
-import { enqueueArkAgencyToolPlan } from "@/lib/ark/agencyBridge";
+import { enqueueArkResearchObjective } from "@/lib/ark/researchBridge";
 import { assertConversationOwnedByUser, assertProjectOwnedByUser } from "@/lib/auth/ownership";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { arkMcpUserContext } from "./context";
@@ -71,33 +71,16 @@ export function registerArkSubmissionTool(server: McpServer): void {
         });
       }
 
-      const planId = `mcp-research:${input.clientRequestId}`;
-      const objective = await enqueueArkAgencyToolPlan({
+      const objective = await enqueueArkResearchObjective({
         supabase: supabaseAdmin(),
         userId,
         projectId: input.projectId,
         conversationId: input.conversationId ?? null,
-        turnId: input.clientRequestId,
-        goal: input.objective ?? `Research: ${input.seed}`,
-        planId,
-        budget: {
-          maxTasksPerCycle: 1,
-          maxRuntimeMs: 20_000,
-          maxAttemptsPerTask: 12,
-        },
-        steps: [{
-          id: "research",
-          description: "Run or resume bounded Arbor project-history pattern-hop research",
-          capability: "arbor_pattern_hop_research",
-          arguments: {
-            seed: input.seed,
-            objective: input.objective ?? null,
-            runId: null,
-            maxDepth: input.maxDepth,
-            maxHops: input.maxHopsPerAttempt,
-          },
-          maxAttempts: 12,
-        }],
+        clientRequestId: input.clientRequestId,
+        seed: input.seed,
+        objective: input.objective ?? null,
+        maxDepth: input.maxDepth,
+        maxHopsPerAttempt: input.maxHopsPerAttempt,
       });
 
       return result({

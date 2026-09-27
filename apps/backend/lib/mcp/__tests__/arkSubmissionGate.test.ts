@@ -22,6 +22,7 @@ const valid: ArkSubmissionEnvironment = {
   ARBOR_ARK_ENABLE_LIVE_EXECUTION: "false",
   ARBOR_ENABLE_ARK_EXECUTION: "false",
   ARBOR_ARK_PREVIEW_CHECKPOINT_CANARY: "false",
+  ARBOR_ARK_PREVIEW_RESEARCH: "false",
 };
 
 describe("ARK MCP submission gate", () => {
@@ -42,6 +43,7 @@ describe("ARK MCP submission gate", () => {
     { ARBOR_ARK_ENABLE_LIVE_EXECUTION: "true" },
     { ARBOR_ENABLE_ARK_EXECUTION: "true" },
     { ARBOR_ARK_PREVIEW_CHECKPOINT_CANARY: "true" },
+    { ARBOR_ARK_PREVIEW_RESEARCH: "true" },
   ])("fails closed for %o", (change) => {
     expect(isArkSubmissionHost({ ...valid, ...change })).toBe(false);
   });

@@ -7,8 +7,10 @@
 import { ARK_PREVIEW_WORKER_BRANCH, ARK_PREVIEW_WORKER_PROJECT_ID } from "./previewWorkerHost";
 
 export type DedicatedHeartbeatResult =
-  | { status: "skipped"; reason: "ark_dedicated_disabled" | "ark_execution_disabled" | "ark_canary_objective_required" | "ark_invalid_canary_objective_id" | "ark_preview_database_required" | "ark_mcp_host" | "ark_worker_host_required" }
-  | { status: "invoked"; objectiveId: string; result: unknown };
+  | { status: "skipped"; reason: "ark_dedicated_disabled" | "ark_execution_disabled" | "ark_worker_mode_required" | "ark_canary_objective_required" | "ark_invalid_canary_objective_id" | "ark_preview_database_required" | "ark_mcp_host" | "ark_worker_host_required" }
+  | { status: "invoked"; objectiveId: string; mode: DedicatedArkMode; result: unknown };
+
+export type DedicatedArkMode = "preview-checkpoint" | "preview-research";
 
 export type DedicatedHeartbeatFlags = {
   ARBOR_ARK_ENABLE_DEDICATED_HEARTBEAT?: string;
@@ -21,6 +23,8 @@ export type DedicatedHeartbeatFlags = {
   ARBOR_ARK_ENABLE_LIVE_EXECUTION?: string;
   ARBOR_ENABLE_ARK_EXECUTION?: string;
   ARBOR_ARK_CANARY_OBJECTIVE_ID?: string;
+  ARBOR_ARK_PREVIEW_CHECKPOINT_CANARY?: string;
+  ARBOR_ARK_PREVIEW_RESEARCH?: string;
   ARBOR_ARK_ALLOW_GLOBAL_EXECUTION?: string;
   SUPABASE_URL?: string;
   NEXT_PUBLIC_SUPABASE_URL?: string;
@@ -64,6 +68,7 @@ export async function runDedicatedArkHeartbeat(input: {
     workerId: string;
     maxTasks: number;
     maxRuntimeMs: number;
+    mode: DedicatedArkMode;
   }) => Promise<unknown>;
   workerId: string;
 }): Promise<DedicatedHeartbeatResult> {
@@ -95,6 +100,14 @@ export async function runDedicatedArkHeartbeat(input: {
   if (!configuredForArkPreview(flags)) {
     return { status: "skipped", reason: "ark_preview_database_required" };
   }
+  const checkpointMode = flags.ARBOR_ARK_PREVIEW_CHECKPOINT_CANARY === "true";
+  const researchMode = flags.ARBOR_ARK_PREVIEW_RESEARCH === "true";
+  if (checkpointMode === researchMode) {
+    return { status: "skipped", reason: "ark_worker_mode_required" };
+  }
+  const mode: DedicatedArkMode = researchMode
+    ? "preview-research"
+    : "preview-checkpoint";
   const objectiveId = flags.ARBOR_ARK_CANARY_OBJECTIVE_ID?.trim();
   if (!objectiveId) return { status: "skipped", reason: "ark_canary_objective_required" };
   if (!UUID.test(objectiveId)) return { status: "skipped", reason: "ark_invalid_canary_objective_id" };
@@ -103,8 +116,9 @@ export async function runDedicatedArkHeartbeat(input: {
   const result = await input.runCycle({
     objectiveId,
     workerId: input.workerId,
-    maxTasks: 2,
+    maxTasks: mode === "preview-research" ? 1 : 2,
     maxRuntimeMs: 10_000,
+    mode,
   });
-  return { status: "invoked", objectiveId, result };
+  return { status: "invoked", objectiveId, mode, result };
 }

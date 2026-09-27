@@ -7,6 +7,8 @@ const valid = {
   ARBOR_ARK_ENABLE_LIVE_EXECUTION: "true",
   ARBOR_ENABLE_ARK_EXECUTION: "true",
   ARBOR_ARK_CANARY_OBJECTIVE_ID: OBJECTIVE,
+  ARBOR_ARK_PREVIEW_CHECKPOINT_CANARY: "true",
+  ARBOR_ARK_PREVIEW_RESEARCH: "false",
   SUPABASE_URL: "https://tzbpjbhroxiqftqwatnb.supabase.co",
   ARK_PREVIEW_WORKER_ONLY_HOST: "true",
   VERCEL_ENV: "preview",
@@ -147,6 +149,37 @@ describe("dedicated ARK heartbeat is explicitly scoped and bounded", () => {
     expect(result).toMatchObject({ status: "invoked", objectiveId: OBJECTIVE });
     expect(runCycle).toHaveBeenCalledExactlyOnceWith({
       objectiveId: OBJECTIVE, workerId: "w", maxTasks: 2, maxRuntimeMs: 10_000,
+      mode: "preview-checkpoint",
+    });
+  });
+
+  it("requires exactly one isolated worker mode", async () => {
+    const runCycle = vi.fn();
+    for (const flags of [
+      { ...valid, ARBOR_ARK_PREVIEW_CHECKPOINT_CANARY: "false" },
+      { ...valid, ARBOR_ARK_PREVIEW_RESEARCH: "true" },
+    ]) {
+      expect(await runDedicatedArkHeartbeat({ flags, workerId: "w", runCycle }))
+        .toMatchObject({ status: "skipped", reason: "ark_worker_mode_required" });
+    }
+    expect(runCycle).not.toHaveBeenCalled();
+  });
+
+  it("runs research with one task and an explicit research-only mode", async () => {
+    const runCycle = vi.fn().mockResolvedValue({ status: "waiting" });
+    const flags = {
+      ...valid,
+      ARBOR_ARK_PREVIEW_CHECKPOINT_CANARY: "false",
+      ARBOR_ARK_PREVIEW_RESEARCH: "true",
+    };
+    expect(await runDedicatedArkHeartbeat({ flags, workerId: "w", runCycle }))
+      .toMatchObject({ status: "invoked", mode: "preview-research" });
+    expect(runCycle).toHaveBeenCalledExactlyOnceWith({
+      objectiveId: OBJECTIVE,
+      workerId: "w",
+      maxTasks: 1,
+      maxRuntimeMs: 10_000,
+      mode: "preview-research",
     });
   });
 

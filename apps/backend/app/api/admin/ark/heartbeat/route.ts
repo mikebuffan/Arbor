@@ -27,6 +27,8 @@ async function handler(req: Request) {
       ARBOR_ARK_ENABLE_LIVE_EXECUTION: process.env.ARBOR_ARK_ENABLE_LIVE_EXECUTION,
       ARBOR_ENABLE_ARK_EXECUTION: process.env.ARBOR_ENABLE_ARK_EXECUTION,
       ARBOR_ARK_CANARY_OBJECTIVE_ID: process.env.ARBOR_ARK_CANARY_OBJECTIVE_ID,
+      ARBOR_ARK_PREVIEW_CHECKPOINT_CANARY: process.env.ARBOR_ARK_PREVIEW_CHECKPOINT_CANARY,
+      ARBOR_ARK_PREVIEW_RESEARCH: process.env.ARBOR_ARK_PREVIEW_RESEARCH,
       ARBOR_ARK_ALLOW_GLOBAL_EXECUTION: process.env.ARBOR_ARK_ALLOW_GLOBAL_EXECUTION,
       SUPABASE_URL: process.env.SUPABASE_URL,
       NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -34,15 +36,14 @@ async function handler(req: Request) {
     const result = await runDedicatedArkHeartbeat({
       flags,
       workerId: `dedicated-ark:${randomUUID()}`,
-      runCycle: ({ objectiveId, workerId, maxTasks, maxRuntimeMs }) =>
+      runCycle: ({ objectiveId, workerId, maxTasks, maxRuntimeMs, mode }) =>
         runDefaultArkWorkerCycle({
           supabase: supabaseAdmin(),
           objectiveId,
           workerId,
           maxTasks,
           maxRuntimeMs,
-          enableCheckpointCanary:
-            process.env.ARBOR_ARK_PREVIEW_CHECKPOINT_CANARY === "true",
+          mode,
         }),
     });
     return NextResponse.json({ ok: true, ...result });

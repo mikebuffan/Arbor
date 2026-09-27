@@ -8,8 +8,8 @@ const mocks = vi.hoisted(() => ({
   adminClient: {},
 }));
 
-vi.mock("@/lib/ark/agencyBridge", () => ({
-  enqueueArkAgencyToolPlan: mocks.enqueue,
+vi.mock("@/lib/ark/researchBridge", () => ({
+  enqueueArkResearchObjective: mocks.enqueue,
 }));
 vi.mock("@/lib/auth/ownership", () => ({
   assertProjectOwnedByUser: mocks.assertProject,
@@ -48,6 +48,7 @@ function setValidEnvironment() {
   vi.stubEnv("ARBOR_ARK_ENABLE_LIVE_EXECUTION", "false");
   vi.stubEnv("ARBOR_ENABLE_ARK_EXECUTION", "false");
   vi.stubEnv("ARBOR_ARK_PREVIEW_CHECKPOINT_CANARY", "false");
+  vi.stubEnv("ARBOR_ARK_PREVIEW_RESEARCH", "false");
 }
 
 describe("ARK MCP research submission tool", () => {
@@ -103,17 +104,11 @@ describe("ARK MCP research submission tool", () => {
       supabase: mocks.adminClient,
       userId: USER,
       projectId: PROJECT,
-      planId: `mcp-research:${REQUEST}`,
-      budget: {
-        maxTasksPerCycle: 1,
-        maxRuntimeMs: 20_000,
-        maxAttemptsPerTask: 12,
-      },
-      steps: [expect.objectContaining({
-        id: "research",
-        capability: "arbor_pattern_hop_research",
-        maxAttempts: 12,
-      })],
+      clientRequestId: REQUEST,
+      seed: "trace the recovery decision",
+      objective: "Build an evidence-backed recovery timeline",
+      maxDepth: 4,
+      maxHopsPerAttempt: 4,
     }));
     expect(response.structuredContent).toEqual({
       accepted: true,
@@ -139,7 +134,6 @@ describe("ARK MCP research submission tool", () => {
     await expect(handler(request, {
       http: { authInfo: { clientId: "chatgpt-client", extra: { userId: PROJECT } } },
     })).rejects.toThrow("ark_submission_user_denied");
-
     await expect(handler(request, {
       http: { authInfo: { clientId: "other-client", extra: { userId: USER } } },
     })).rejects.toThrow("ark_submission_client_denied");
@@ -191,5 +185,4 @@ describe("ARK MCP research submission tool", () => {
     expect(mocks.assertProject).toHaveBeenCalledTimes(1);
     expect(mocks.enqueue).not.toHaveBeenCalled();
   });
-
 });
