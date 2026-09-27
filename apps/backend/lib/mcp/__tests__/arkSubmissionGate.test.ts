@@ -74,7 +74,7 @@ describe("ARK MCP submission gate", () => {
       http: { authInfo: { clientId: "other", extra: { userId: USER } } },
     } as never, valid)).toThrow("ark_submission_client_denied");
     expect(() => assertArkSubmissionCaller({
-      http: { authInfo: { clientId: "chatgpt-client", extra: { userId: "22222222-2222-4222-8222-222222222222" } },
+      http: { authInfo: { clientId: "chatgpt-client", extra: { userId: "22222222-2222-4222-8222-222222222222" } } },
     } as never, valid)).toThrow("ark_submission_user_denied");
   });
 });
