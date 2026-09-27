@@ -40,7 +40,7 @@ export function registerArkSubmissionTool(server: McpServer): void {
     {
       title: "Submit ARK Research",
       description:
-        "Queue one bounded, resumable ARK historical-research objective for an owned Preview project. This does not start execution.",
+        "Queue one bounded Arbor project-history pattern-hop objective for an owned Preview project. This does not ingest external documents, invoke the Epstein evidence engine, or start execution.",
       inputSchema: z.object({
         projectId: z.string().uuid(),
         conversationId: z.string().uuid().optional(),
@@ -87,7 +87,7 @@ export function registerArkSubmissionTool(server: McpServer): void {
         },
         steps: [{
           id: "research",
-          description: "Run or resume bounded pattern-hop research",
+          description: "Run or resume bounded Arbor project-history pattern-hop research",
           capability: "arbor_pattern_hop_research",
           arguments: {
             seed: input.seed,
