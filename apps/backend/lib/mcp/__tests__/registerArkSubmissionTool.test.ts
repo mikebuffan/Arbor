@@ -40,7 +40,7 @@ function setValidEnvironment() {
   vi.stubEnv("ARK_PREVIEW_MCP_READONLY_HOST", "false");
   vi.stubEnv("ARK_PREVIEW_WORKER_ONLY_HOST", "false");
   vi.stubEnv("VERCEL_ENV", "preview");
-  vi.stubEnv("VERCEL_PROJECT_ID", "prj_JArYlugmdFovY10CxZ0LEJmcrsKC");
+  vi.stubEnv("VERCEL_PROJECT_ID", "prj_OHM6b4QpfGZGNWpx4hSPkgHCuyzp");
   vi.stubEnv("VERCEL_GIT_COMMIT_REF", "feature/ark-mcp-reader-execution-deny-20260926");
   vi.stubEnv("SUPABASE_URL", "https://tzbpjbhroxiqftqwatnb.supabase.co");
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://tzbpjbhroxiqftqwatnb.supabase.co");
