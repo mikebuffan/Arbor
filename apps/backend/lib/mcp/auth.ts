@@ -47,6 +47,7 @@ export async function verifyArkMcpToken(
     extra: {
       userId: user.id,
       email: user.email ?? null,
+      verifiedClientId: typeof claims.client_id === "string" ? claims.client_id : null,
     },
   };
 }
