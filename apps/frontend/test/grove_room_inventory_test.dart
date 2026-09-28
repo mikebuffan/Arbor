@@ -25,6 +25,8 @@ void main() {
   test('default house is an inventory of scenery, not invented documents', () {
     final inventory = GroveRoomInventory.starter();
     expect(inventory.find('observatory-desk')?.zone, GroveZone.observatory);
+    expect(inventory.find('guest-room-bed')?.zone, GroveZone.guestRoom);
+    expect(inventory.find('guest-room-nightstand')?.zone, GroveZone.guestRoom);
     expect(inventory.find('moss-sofa')?.kind, GroveInventoryKind.mossPlace);
     expect(inventory.items, isNotEmpty);
     expect(inventory.items.where((e) => e.kind == GroveInventoryKind.source),
