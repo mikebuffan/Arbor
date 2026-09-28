@@ -213,10 +213,23 @@ export async function runResearchControllerPulse(input: {
     };
   }
 
-  const plan = await input.planner.plan({
-    goal: context.session.objective,
-    context,
-  });
+  const hasPersistedRunnableUnit = context.units.some(
+    (unit) => unit.status === "queued" || unit.status === "leased",
+  );
+
+  // A durable already-planned unit does not need another model decision just
+  // to continue. Re-plan only when the persisted queue itself needs a new
+  // decision. This keeps multi-hour runs bounded in model calls while ARK
+  // remains responsible for resuming the current durable unit.
+  const plan: ResearchControllerPlan = hasPersistedRunnableUnit
+    ? {
+        action: "run_next",
+        rationale: "Continue the existing persisted bounded research unit.",
+      }
+    : await input.planner.plan({
+        goal: context.session.objective,
+        context,
+      });
 
   if (plan.action === "await_review" || plan.action === "blocked") {
     return {
