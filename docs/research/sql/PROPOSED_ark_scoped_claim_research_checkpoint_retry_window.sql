@@ -115,11 +115,14 @@ set search_path = public, pg_temp
 as $$
 declare v_task public.ark_tasks;
 begin
-  select * into v_task from public.ark_tasks
-  where id = p_task_id and status = 'running'
-    and lease_owner = p_worker_id and lease_token = p_lease_token
-    and lease_expires_at > p_now
-  for update;
+  select t.* into v_task
+  from public.ark_tasks t
+  join public.ark_objectives o on o.id = t.objective_id
+  where t.id = p_task_id and t.status = 'running'
+    and t.lease_owner = p_worker_id and t.lease_token = p_lease_token
+    and t.lease_expires_at > p_now
+    and o.status in ('queued', 'running', 'checkpointed')
+  for update of t;
   if v_task.id is null then raise exception 'ark_lease_lost' using errcode = '40001'; end if;
   if p_sequence <> v_task.checkpoint_sequence + 1 then
     raise exception 'ark_checkpoint_sequence_conflict' using errcode = '40001';
@@ -154,3 +157,179 @@ begin
 end;
 $$;
 
+
+
+-- Proposed terminal-objective settlement guard.
+-- Once an objective is completed/failed/cancelled/blocked, a stale leased worker
+-- must not heartbeat, checkpoint, complete, block, or fail-settle over the
+-- authoritative terminal/STOP state. These replacements preserve the existing
+-- ARK semantics and only add the active-objective fence.
+create or replace function public.ark_heartbeat_task(
+  p_task_id uuid,
+  p_worker_id text,
+  p_lease_token uuid,
+  p_lease_ms integer,
+  p_now timestamptz
+) returns boolean
+language plpgsql
+security invoker
+set search_path = public, pg_temp
+as $$
+declare v_count integer;
+begin
+  if p_lease_ms < 1000 or p_lease_ms > 3600000 then
+    raise exception 'ark_invalid_lease_duration' using errcode = '22023';
+  end if;
+  update public.ark_tasks
+  set heartbeat_at = p_now,
+      lease_expires_at = p_now + make_interval(secs => p_lease_ms::double precision / 1000),
+      version = version + 1,
+      updated_at = p_now
+  where id = p_task_id and status = 'running'
+    and lease_owner = p_worker_id and lease_token = p_lease_token
+    and lease_expires_at > p_now
+    and exists (
+      select 1 from public.ark_objectives o
+      where o.id = public.ark_tasks.objective_id
+        and o.status in ('queued', 'running', 'checkpointed')
+    );
+  get diagnostics v_count = row_count;
+  return v_count = 1;
+end;
+$$;
+
+create or replace function public.ark_complete_task(
+  p_task_id uuid,
+  p_worker_id text,
+  p_lease_token uuid,
+  p_result jsonb,
+  p_now timestamptz
+) returns jsonb
+language plpgsql
+security invoker
+set search_path = public, pg_temp
+as $$
+declare
+  v_task public.ark_tasks;
+  v_objective public.ark_objectives;
+begin
+  update public.ark_tasks
+  set status = 'completed', result = p_result, last_error = null,
+      lease_owner = null, lease_token = null, lease_expires_at = null, heartbeat_at = null,
+      version = version + 1, updated_at = p_now
+  where id = p_task_id and status = 'running'
+    and lease_owner = p_worker_id and lease_token = p_lease_token
+    and lease_expires_at > p_now
+    and exists (
+      select 1 from public.ark_objectives o
+      where o.id = public.ark_tasks.objective_id
+        and o.status in ('queued', 'running', 'checkpointed')
+    )
+  returning * into v_task;
+  if v_task.id is null then raise exception 'ark_lease_lost' using errcode = '40001'; end if;
+
+  update public.ark_objectives o
+  set status = case
+        when not exists (select 1 from public.ark_tasks t where t.objective_id = o.id and t.status <> 'completed')
+          then 'awaiting_verification'
+        else 'running'
+      end,
+      version = version + 1,
+      updated_at = p_now
+  where o.id = v_task.objective_id
+  returning * into v_objective;
+
+  insert into public.ark_events (objective_id, task_id, event_type, payload)
+  values (v_task.objective_id, v_task.id, 'task_completed', jsonb_build_object('attempt', v_task.attempt_count));
+  return jsonb_build_object('objective', to_jsonb(v_objective), 'task', to_jsonb(v_task));
+end;
+$$;
+
+create or replace function public.ark_block_task(
+  p_task_id uuid,
+  p_worker_id text,
+  p_lease_token uuid,
+  p_blocker jsonb,
+  p_now timestamptz
+) returns jsonb
+language plpgsql
+security invoker
+set search_path = public, pg_temp
+as $$
+declare
+  v_task public.ark_tasks;
+  v_objective public.ark_objectives;
+begin
+  update public.ark_tasks
+  set status = 'blocked', result = jsonb_build_object('blocker', p_blocker),
+      lease_owner = null, lease_token = null, lease_expires_at = null, heartbeat_at = null,
+      version = version + 1, updated_at = p_now
+  where id = p_task_id and status = 'running'
+    and lease_owner = p_worker_id and lease_token = p_lease_token
+    and lease_expires_at > p_now
+    and exists (
+      select 1 from public.ark_objectives o
+      where o.id = public.ark_tasks.objective_id
+        and o.status in ('queued', 'running', 'checkpointed')
+    )
+  returning * into v_task;
+  if v_task.id is null then raise exception 'ark_lease_lost' using errcode = '40001'; end if;
+
+  update public.ark_objectives
+  set status = 'blocked', blocker = p_blocker, version = version + 1, updated_at = p_now
+  where id = v_task.objective_id returning * into v_objective;
+
+  insert into public.ark_events (objective_id, task_id, event_type, payload)
+  values (v_task.objective_id, v_task.id, 'task_blocked', p_blocker);
+  return jsonb_build_object('objective', to_jsonb(v_objective), 'task', to_jsonb(v_task));
+end;
+$$;
+
+create or replace function public.ark_fail_task(
+  p_task_id uuid,
+  p_worker_id text,
+  p_lease_token uuid,
+  p_error text,
+  p_retry_at timestamptz,
+  p_now timestamptz
+) returns jsonb
+language plpgsql
+security invoker
+set search_path = public, pg_temp
+as $$
+declare
+  v_task public.ark_tasks;
+  v_objective public.ark_objectives;
+  v_retry boolean;
+begin
+  select t.* into v_task
+  from public.ark_tasks t
+  join public.ark_objectives o on o.id = t.objective_id
+  where t.id = p_task_id and t.status = 'running'
+    and t.lease_owner = p_worker_id and t.lease_token = p_lease_token
+    and t.lease_expires_at > p_now
+    and o.status in ('queued', 'running', 'checkpointed')
+  for update of t;
+  if v_task.id is null then raise exception 'ark_lease_lost' using errcode = '40001'; end if;
+  v_retry := p_retry_at is not null and v_task.attempt_count < v_task.max_attempts;
+
+  update public.ark_tasks
+  set status = case when v_retry then 'queued' else 'failed' end,
+      last_error = left(coalesce(p_error, 'ark_executor_failed'), 1000),
+      available_at = case when v_retry then p_retry_at else available_at end,
+      lease_owner = null, lease_token = null, lease_expires_at = null, heartbeat_at = null,
+      version = version + 1, updated_at = p_now
+  where id = p_task_id returning * into v_task;
+
+  update public.ark_objectives
+  set status = case when v_retry then 'queued' else 'failed' end,
+      blocker = case when v_retry then null else jsonb_build_object('kind', 'task_failed', 'message', 'ARK task attempts exhausted') end,
+      version = version + 1, updated_at = p_now
+  where id = v_task.objective_id returning * into v_objective;
+
+  insert into public.ark_events (objective_id, task_id, event_type, payload)
+  values (v_task.objective_id, v_task.id, case when v_retry then 'task_retry_scheduled' else 'task_failed' end,
+    jsonb_build_object('attempt', v_task.attempt_count, 'retryAt', p_retry_at));
+  return jsonb_build_object('objective', to_jsonb(v_objective), 'task', to_jsonb(v_task));
+end;
+$$;
