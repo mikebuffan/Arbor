@@ -76,6 +76,21 @@ jobs:
           [[ "$PDF_SANDBOX_IMAGE_REF" =~ ^sha256:[a-f0-9]{64}$ ]]
           test "$(docker image inspect --format '{{.Config.User}}' arbor-research-pilot:ci)" = "65532:65532"
           echo "PDF_SANDBOX_IMAGE_REF=$PDF_SANDBOX_IMAGE_REF" >> "$GITHUB_ENV"
+      - name: Build harmless human-fidelity review packet
+        shell: bash
+        run: |
+          set -euo pipefail
+          node ops/research/pdf-sandbox/make-harmless-fixture.mjs "$RUNNER_TEMP/fidelity.pdf"
+          mkdir "$RUNNER_TEMP/fidelity-packet"
+          bash ops/research/pdf-sandbox/build-fidelity-packet.sh \
+            "$RUNNER_TEMP/fidelity.pdf" \
+            "$RUNNER_TEMP/fidelity-packet" \
+            "https://example.org/benign-fidelity-fixture.pdf" \
+            "BENIGN-FIDELITY-CI"
+          test -s "$RUNNER_TEMP/fidelity-packet/page-0001.png"
+          test -f "$RUNNER_TEMP/fidelity-packet/page-0001.txt"
+          node -e 'const fs=require("fs");const m=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));if(m.physicalPages!==1||m.reviewStatus!=="HOLD_HUMAN_COMPARISON_REQUIRED"||m.extraction.ocr!==false||m.pages.length!==1)process.exit(1);' "$RUNNER_TEMP/fidelity-packet/manifest.json"
+          echo 'PDF_FIDELITY_PACKET=PASS; HUMAN_COMPARISON=HOLD'
       - name: Real isolated benign PDF staging and idempotent return
         shell: bash
         run: |
