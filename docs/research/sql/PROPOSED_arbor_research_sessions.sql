@@ -26,7 +26,7 @@ create table if not exists public.arbor_research_sessions (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint arbor_research_session_duration_check
-    check (deadline_at > started_at and deadline_at <= started_at + interval '1 hour'),
+    check (deadline_at > started_at and deadline_at <= started_at + interval '4 hours'),
   constraint arbor_research_session_project_owner_fk
     foreign key (project_id,user_id) references public.projects(id,user_id) on delete cascade,
   constraint arbor_research_session_identity_uniq unique (id,user_id,project_id)
@@ -258,12 +258,13 @@ begin
   return 'committed';
 end $$;
 
+
 -- Service-role-only controller append. Arbor may refresh the durable task
 -- graph, but it may create research descriptors only; this RPC grants no tool
 -- authority and does not execute a unit.
 create or replace function public.arbor_append_research_units(
   p_session_id uuid,p_user_id uuid,p_project_id uuid,p_units jsonb
-) returns jsonb language plpgsql security definer set search_path = public, pg_temp as $
+) returns jsonb language plpgsql security definer set search_path = public, pg_temp as $$
 declare v_session public.arbor_research_sessions%rowtype;
         v_unit jsonb;
         v_now timestamptz;
@@ -303,9 +304,6 @@ begin
     raise exception 'research_controller_session_not_active';
   end if;
 
-  -- Reject duplicate keys inside one planner response. Replaying a prior
-  -- planner response remains safe because existing persisted keys are handled
-  -- idempotently below.
   if exists (
     select 1
     from jsonb_array_elements(p_units) u
@@ -315,12 +313,12 @@ begin
     raise exception 'research_controller_duplicate_unit_key';
   end if;
 
-  -- Validate the complete request before any insert.
   for v_unit in select value from jsonb_array_elements(p_units)
   loop
     if jsonb_typeof(v_unit) is distinct from 'object' then
       raise exception 'research_controller_invalid_planned_unit';
     end if;
+
     v_unit_key := btrim(coalesce(v_unit->>'unitKey',''));
     v_kind := btrim(coalesce(v_unit->>'kind',''));
     v_description := btrim(coalesce(v_unit->>'description',''));
@@ -331,79 +329,14 @@ begin
        or v_kind not like 'research.%'
        or length(v_description) not between 1 and 2000
        or jsonb_typeof(v_payload) is distinct from 'object'
-       or coalesce(v_unit->>'maxCostReservationCents','') !~ '^[0-9]+  p_session_id uuid,p_user_id uuid,p_project_id uuid,p_status text,p_reason text
-) returns boolean language plpgsql security definer set search_path = public, pg_temp as $$
-begin
-  if auth.role() is distinct from 'service_role' then
-    raise exception 'research_worker_service_role_required';
-  end if;
-  if p_status not in ('blocked','timebox_ended','cancelled') then
-    raise exception 'invalid_research_stop_status';
-  end if;
-  update public.arbor_research_sessions
-    set status=p_status,status_reason=left(coalesce(p_reason,''),500),
-      cancellation_requested=cancellation_requested or p_status='cancelled',
-      updated_at=clock_timestamp()
-    where id=p_session_id and user_id=p_user_id and project_id=p_project_id
-      and status not in ('completed','cancelled','timebox_ended');
-  return found;
-end $$;
-revoke all on function public.arbor_claim_research_unit(uuid,uuid,uuid,text,integer)
-  from public,anon,authenticated;
-revoke all on function public.arbor_settle_research_unit
-  (uuid,uuid,uuid,uuid,uuid,text,text,integer,text[],integer,jsonb)
-  from public,anon,authenticated;
-revoke all on function public.arbor_append_research_units
-  (uuid,uuid,uuid,jsonb) from public,anon,authenticated;
-revoke all on function public.arbor_stop_research_session
-  (uuid,uuid,uuid,text,text) from public,anon,authenticated;
-grant execute on function public.arbor_claim_research_unit(uuid,uuid,uuid,text,integer)
-  to service_role;
-grant execute on function public.arbor_settle_research_unit
-  (uuid,uuid,uuid,uuid,uuid,text,text,integer,text[],integer,jsonb)
-  to service_role;
-grant execute on function public.arbor_append_research_units
-  (uuid,uuid,uuid,jsonb) to service_role;
-grant execute on function public.arbor_stop_research_session
-  (uuid,uuid,uuid,text,text) to service_role;
-
-       or coalesce(v_unit->>'maxAttempts','') !~ '^[0-9]+  p_session_id uuid,p_user_id uuid,p_project_id uuid,p_status text,p_reason text
-) returns boolean language plpgsql security definer set search_path = public, pg_temp as $$
-begin
-  if auth.role() is distinct from 'service_role' then
-    raise exception 'research_worker_service_role_required';
-  end if;
-  if p_status not in ('blocked','timebox_ended','cancelled') then
-    raise exception 'invalid_research_stop_status';
-  end if;
-  update public.arbor_research_sessions
-    set status=p_status,status_reason=left(coalesce(p_reason,''),500),
-      cancellation_requested=cancellation_requested or p_status='cancelled',
-      updated_at=clock_timestamp()
-    where id=p_session_id and user_id=p_user_id and project_id=p_project_id
-      and status not in ('completed','cancelled','timebox_ended');
-  return found;
-end $$;
-revoke all on function public.arbor_claim_research_unit(uuid,uuid,uuid,text,integer)
-  from public,anon,authenticated;
-revoke all on function public.arbor_settle_research_unit
-  (uuid,uuid,uuid,uuid,uuid,text,text,integer,text[],integer,jsonb)
-  from public,anon,authenticated;
-revoke all on function public.arbor_stop_research_session
-  (uuid,uuid,uuid,text,text) from public,anon,authenticated;
-grant execute on function public.arbor_claim_research_unit(uuid,uuid,uuid,text,integer)
-  to service_role;
-grant execute on function public.arbor_settle_research_unit
-  (uuid,uuid,uuid,uuid,uuid,text,text,integer,text[],integer,jsonb)
-  to service_role;
-grant execute on function public.arbor_stop_research_session
-  (uuid,uuid,uuid,text,text) to service_role;
- then
+       or coalesce(v_unit->>'maxCostReservationCents','') !~ '^[0-9]+$'
+       or coalesce(v_unit->>'maxAttempts','') !~ '^[0-9]+$' then
       raise exception 'research_controller_invalid_planned_unit';
     end if;
 
     v_cost := (v_unit->>'maxCostReservationCents')::integer;
     v_attempts := (v_unit->>'maxAttempts')::integer;
+
     if v_cost not between 0 and 1000000
        or v_cost > v_session.max_cost_cents-v_session.committed_cost_cents
        or v_attempts not between 1 and 20 then
@@ -472,7 +405,7 @@ grant execute on function public.arbor_stop_research_session
     'appended',v_appended,
     'existing',v_existing
   );
-end $;
+end $$;
 
 create or replace function public.arbor_stop_research_session(
   p_session_id uuid,p_user_id uuid,p_project_id uuid,p_status text,p_reason text
@@ -497,6 +430,8 @@ revoke all on function public.arbor_claim_research_unit(uuid,uuid,uuid,text,inte
 revoke all on function public.arbor_settle_research_unit
   (uuid,uuid,uuid,uuid,uuid,text,text,integer,text[],integer,jsonb)
   from public,anon,authenticated;
+revoke all on function public.arbor_append_research_units
+  (uuid,uuid,uuid,jsonb) from public,anon,authenticated;
 revoke all on function public.arbor_stop_research_session
   (uuid,uuid,uuid,text,text) from public,anon,authenticated;
 grant execute on function public.arbor_claim_research_unit(uuid,uuid,uuid,text,integer)
@@ -504,5 +439,7 @@ grant execute on function public.arbor_claim_research_unit(uuid,uuid,uuid,text,i
 grant execute on function public.arbor_settle_research_unit
   (uuid,uuid,uuid,uuid,uuid,text,text,integer,text[],integer,jsonb)
   to service_role;
+grant execute on function public.arbor_append_research_units
+  (uuid,uuid,uuid,jsonb) to service_role;
 grant execute on function public.arbor_stop_research_session
   (uuid,uuid,uuid,text,text) to service_role;
