@@ -366,4 +366,97 @@ begin
   end if;
 end $$;
 
-select 'DISPOSABLE_ARK_MULTITICK_RESEARCH=PASS; TICKS=5+; RESTART=PASS; TARGET_SCOPE=PASS; RETRY_BUDGET=PASS; STOP_NO_SETTLE=PASS' as receipt;
+
+-- Controller checkpoints receive a fresh retry window ONLY after a persisted
+-- research receipt. Wait/no-claim controller checkpoints keep cumulative attempts.
+insert into public.ark_objectives
+(id,user_id,project_id,goal,status,priority,budget,idempotency_key,request_hash)
+values
+('85858585-8585-4585-8585-858585858585',
+ '11111111-1111-4111-8111-111111111111',
+ 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+ 'synthetic controller retry-window acceptance',
+ 'queued',0,
+ '{"maxTasksPerCycle":1,"maxRuntimeMs":20000,"maxAttemptsPerTask":2}'::jsonb,
+ 'synthetic-controller-retry-objective',
+ '55555555555555555555555555555555');
+
+insert into public.ark_tasks
+(id,objective_id,user_id,project_id,task_key,kind,description,status,max_attempts,idempotency_key,available_at)
+values
+('85555555-5555-4555-8555-555555555555',
+ '85858585-8585-4585-8585-858585858585',
+ '11111111-1111-4111-8111-111111111111',
+ 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+ 'controller','research.controller.tick',
+ 'Synthetic Arbor reins controller pulse',
+ 'queued',2,'synthetic-controller-retry-task',
+ clock_timestamp()-interval '1 second');
+
+do $
+declare c jsonb; lease uuid; n timestamptz;
+begin
+  n:=clock_timestamp();
+  c:=public.ark_claim_next_task(
+    'controller-progress-worker',30000,n,'{}'::uuid[],
+    '85858585-8585-4585-8585-858585858585'::uuid
+  );
+  if c is null or (c->'task'->>'attempt_count')::integer <> 1 then
+    raise exception 'controller progress claim failed %',c;
+  end if;
+  lease:=(c->'task'->>'lease_token')::uuid;
+
+  perform public.ark_checkpoint_task(
+    '85555555-5555-4555-8555-555555555555'::uuid,
+    'controller-progress-worker',lease,1,
+    '{
+      "kind":"research_controller_reference",
+      "authorizationVersion":"synthetic-v1",
+      "receiptPersisted":true,
+      "latestEvidenceRefs":["synthetic:controller:evidence"],
+      "unresolvedRequiredWork":3,
+      "independentReviewVerified":false
+    }'::jsonb,
+    'Resume controller after persisted research receipt',
+    'executor',n,n
+  );
+
+  if (select attempt_count from public.ark_tasks
+      where id='85555555-5555-4555-8555-555555555555') <> 0
+  then raise exception 'persisted controller progress did not reopen retry window'; end if;
+end $;
+
+do $
+declare c jsonb; lease uuid; n timestamptz;
+begin
+  n:=clock_timestamp();
+  c:=public.ark_claim_next_task(
+    'controller-wait-worker',30000,n,'{}'::uuid[],
+    '85858585-8585-4585-8585-858585858585'::uuid
+  );
+  if c is null or (c->'task'->>'attempt_count')::integer <> 1 then
+    raise exception 'controller wait claim failed %',c;
+  end if;
+  lease:=(c->'task'->>'lease_token')::uuid;
+
+  perform public.ark_checkpoint_task(
+    '85555555-5555-4555-8555-555555555555'::uuid,
+    'controller-wait-worker',lease,2,
+    '{
+      "kind":"research_controller_wait_reference",
+      "authorizationVersion":"synthetic-v1",
+      "receiptPersisted":false,
+      "latestEvidenceRefs":[],
+      "unresolvedRequiredWork":3,
+      "independentReviewVerified":false
+    }'::jsonb,
+    'Wait before another controller attempt',
+    'dependency',n,n
+  );
+
+  if (select attempt_count from public.ark_tasks
+      where id='85555555-5555-4555-8555-555555555555') <> 1
+  then raise exception 'controller no-progress checkpoint incorrectly reset attempts'; end if;
+end $;
+
+select 'DISPOSABLE_ARK_MULTITICK_RESEARCH=PASS; TICKS=5+; RESTART=PASS; TARGET_SCOPE=PASS; RETRY_BUDGET=PASS; STOP_NO_SETTLE=PASS; CONTROLLER_RETRY_WINDOW=PASS' as receipt;
