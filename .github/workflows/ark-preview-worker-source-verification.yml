@@ -1,0 +1,75 @@
+name: ARK Preview worker-only source verification
+
+on:
+  push:
+    branches:
+      - feature/ark-mcp-reader-execution-deny-20260926
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ark-preview-worker-source-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend worker boundary tests + build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: corepack enable
+      - run: corepack prepare pnpm@10.30.3 --activate
+      - run: pnpm install --frozen-lockfile
+      - name: Run backend tests
+        env:
+          OPENAI_API_KEY: ci-placeholder-not-a-real-key
+        run: pnpm --filter firefly-backend test
+      - name: Build backend
+        env:
+          OPENAI_API_KEY: ci-placeholder-not-a-real-key
+        run: pnpm --filter firefly-backend build
+
+  persisted-recovery:
+    name: Disposable Postgres three-process recovery acceptance
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ark_recovery_disposable
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d ark_recovery_disposable"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: ark_recovery_disposable
+    steps:
+      - uses: actions/checkout@v4
+      - name: Seed synthetic isolated database
+        run: psql -X -v ON_ERROR_STOP=1 -f ops/ark/disposable-db/00-seed.sql
+      - name: Install existing version-controlled ARK schema
+        run: |
+          psql -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260918143000_create_ark_autonomous_work_runner.sql
+          psql -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260918203000_ark_targeted_objective_claim.sql
+          psql -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260918210000_ark_owner_integrity.sql
+      - name: Process one checkpoints A; B cannot start
+        run: psql -X -v ON_ERROR_STOP=1 -f ops/ark/disposable-db/10-first-invocation.sql
+      - name: Independent process two resumes A then checkpoints B
+        run: psql -X -v ON_ERROR_STOP=1 -f ops/ark/disposable-db/20-second-invocation.sql
+      - name: Independent process three resumes B and verifies objective exactly once
+        run: psql -X -v ON_ERROR_STOP=1 -f ops/ark/disposable-db/30-third-invocation.sql

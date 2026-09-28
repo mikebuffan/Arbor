@@ -6,6 +6,11 @@ import { assertConversationOwnedByUser, assertProjectOwnedByUser } from "@/lib/a
 import { readArkProjectSnapshot } from "@/lib/ark/readModel";
 import { projectRuntimeStartup } from "@/lib/arbor/runtime/hostProjection";
 import { loadLatestRuntimeState, loadRuntimeState } from "@/lib/arbor/runtime/runtimeStateStore";
+import {
+  ArkSubmissionGateCheck,
+  arkSubmissionEnvironment,
+  arkSubmissionGateStatus,
+} from "./arkSubmissionGate";
 import { arkMcpUserContext } from "./context";
 
 const ReadOnlyAnnotations = {
@@ -43,6 +48,27 @@ export function registerArkReadTools(server: McpServer): void {
     async (_input, ctx) => {
       const { userId, email } = arkMcpUserContext(ctx);
       return result({ userId, email, subsystem: "ARK" as const, access: "read-only" as const });
+    },
+  );
+
+  server.registerTool(
+    "get_ark_submission_gate_status",
+    {
+      title: "Get ARK Submission Gate Status",
+      description:
+        "Read which non-secret Preview host checks prevent the bounded ARK submission tool from being exposed. This cannot submit, start, or modify work.",
+      inputSchema: z.object({}),
+      outputSchema: z.object({
+        enabled: z.boolean(),
+        failedChecks: z.array(z.enum(ArkSubmissionGateCheck)),
+        executionStarted: z.literal(false),
+      }),
+      annotations: ReadOnlyAnnotations,
+    },
+    async (_input, ctx) => {
+      arkMcpUserContext(ctx);
+      const status = arkSubmissionGateStatus(arkSubmissionEnvironment());
+      return result({ ...status, executionStarted: false as const });
     },
   );
 

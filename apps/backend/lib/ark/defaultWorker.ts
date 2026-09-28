@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { registerArkAgencyToolExecutor } from "./agencyToolExecutor";
 import { ArkExecutorRegistry } from "./executorRegistry";
 import { registerArkCheckpointCanaryExecutor } from "./checkpointCanaryExecutor";
+import { registerArkPreviewResearchExecutor } from "./previewResearchExecutor";
 import { runArkWorkerCycle, type ArkWorkerCycleResult } from "./runner";
 import { SupabaseArkStore } from "./supabaseStore";
 
@@ -12,18 +13,21 @@ export async function runDefaultArkWorkerCycle(input: {
   maxTasks?: number;
   maxRuntimeMs?: number;
   objectiveId?: string;
-  enableCheckpointCanary?: boolean;
+  mode?: "agency" | "preview-checkpoint" | "preview-research";
 }): Promise<ArkWorkerCycleResult> {
   const registry = new ArkExecutorRegistry();
-  registerArkAgencyToolExecutor({
-    registry,
-    supabase: input.toolSupabase ?? input.supabase,
-  });
+  const mode = input.mode ?? "agency";
+  if (mode === "agency") {
+    registerArkAgencyToolExecutor({
+      registry,
+      supabase: input.toolSupabase ?? input.supabase,
+    });
+  }
 
   // The ordinary memory heartbeat and chat dispatcher cannot register this.
   // The dedicated Preview route must explicitly opt in, with a pinned objective.
   if (
-    input.enableCheckpointCanary === true &&
+    mode === "preview-checkpoint" &&
     process.env.ARBOR_ARK_PREVIEW_CHECKPOINT_CANARY === "true" &&
     process.env.ARBOR_ARK_ENABLE_DEDICATED_HEARTBEAT === "true" &&
     input.objectiveId &&
@@ -31,6 +35,20 @@ export async function runDefaultArkWorkerCycle(input: {
   ) {
     registerArkCheckpointCanaryExecutor({
       registry,
+      pinnedObjectiveId: input.objectiveId,
+    });
+  }
+
+  if (
+    mode === "preview-research" &&
+    process.env.ARBOR_ARK_PREVIEW_RESEARCH === "true" &&
+    process.env.ARBOR_ARK_ENABLE_DEDICATED_HEARTBEAT === "true" &&
+    input.objectiveId &&
+    input.objectiveId === process.env.ARBOR_ARK_CANARY_OBJECTIVE_ID?.trim()
+  ) {
+    registerArkPreviewResearchExecutor({
+      registry,
+      supabase: input.toolSupabase ?? input.supabase,
       pinnedObjectiveId: input.objectiveId,
     });
   }

@@ -7,7 +7,13 @@ const valid = {
   ARBOR_ARK_ENABLE_LIVE_EXECUTION: "true",
   ARBOR_ENABLE_ARK_EXECUTION: "true",
   ARBOR_ARK_CANARY_OBJECTIVE_ID: OBJECTIVE,
+  ARBOR_ARK_PREVIEW_CHECKPOINT_CANARY: "true",
+  ARBOR_ARK_PREVIEW_RESEARCH: "false",
   SUPABASE_URL: "https://tzbpjbhroxiqftqwatnb.supabase.co",
+  ARK_PREVIEW_WORKER_ONLY_HOST: "true",
+  VERCEL_ENV: "preview",
+  VERCEL_PROJECT_ID: "prj_OHM6b4QpfGZGNWpx4hSPkgHCuyzp",
+  VERCEL_GIT_COMMIT_REF: "feature/ark-mcp-reader-execution-deny-20260926",
 };
 
 describe("dedicated ARK heartbeat is explicitly scoped and bounded", () => {
@@ -15,6 +21,42 @@ describe("dedicated ARK heartbeat is explicitly scoped and bounded", () => {
     const runCycle = vi.fn();
     expect(await runDedicatedArkHeartbeat({ flags: {}, workerId: "w", runCycle }))
       .toMatchObject({ status: "skipped", reason: "ark_dedicated_disabled" });
+    expect(runCycle).not.toHaveBeenCalled();
+  });
+
+  it("never runs work on a read-only MCP host even with all execution flags set", async () => {
+    const runCycle = vi.fn();
+    const result = await runDedicatedArkHeartbeat({
+      flags: { ...valid, ARK_PREVIEW_MCP_READONLY_HOST: "true" },
+      workerId: "reader-host", runCycle,
+    });
+    expect(result).toEqual({ status: "skipped", reason: "ark_mcp_host" });
+    expect(runCycle).not.toHaveBeenCalled();
+  });
+
+  it("never runs work on a submission MCP host", async () => {
+    const runCycle = vi.fn();
+    const result = await runDedicatedArkHeartbeat({
+      flags: { ...valid, ARK_PREVIEW_MCP_SUBMIT_HOST: "true" },
+      workerId: "submit-host", runCycle,
+    });
+    expect(result).toEqual({ status: "skipped", reason: "ark_mcp_host" });
+    expect(runCycle).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { ARK_PREVIEW_WORKER_ONLY_HOST: "false" },
+    { ARK_PREVIEW_WORKER_ONLY_HOST: undefined },
+    { VERCEL_ENV: "production" },
+    { VERCEL_ENV: undefined },
+    { VERCEL_PROJECT_ID: "prj_JArYlugmdFovY10CxZ0LEJmcrsKC" },
+    { VERCEL_PROJECT_ID: undefined },
+    { VERCEL_GIT_COMMIT_REF: "main" },
+    { VERCEL_GIT_COMMIT_REF: undefined },
+  ])("rejects a non-worker environment without calling the worker: %o", async (change) => {
+    const runCycle = vi.fn();
+    const result = await runDedicatedArkHeartbeat({ flags: { ...valid, ...change }, workerId: "w", runCycle });
+    expect(result).toEqual({ status: "skipped", reason: "ark_worker_host_required" });
     expect(runCycle).not.toHaveBeenCalled();
   });
 
@@ -107,6 +149,37 @@ describe("dedicated ARK heartbeat is explicitly scoped and bounded", () => {
     expect(result).toMatchObject({ status: "invoked", objectiveId: OBJECTIVE });
     expect(runCycle).toHaveBeenCalledExactlyOnceWith({
       objectiveId: OBJECTIVE, workerId: "w", maxTasks: 2, maxRuntimeMs: 10_000,
+      mode: "preview-checkpoint",
+    });
+  });
+
+  it("requires exactly one isolated worker mode", async () => {
+    const runCycle = vi.fn();
+    for (const flags of [
+      { ...valid, ARBOR_ARK_PREVIEW_CHECKPOINT_CANARY: "false" },
+      { ...valid, ARBOR_ARK_PREVIEW_RESEARCH: "true" },
+    ]) {
+      expect(await runDedicatedArkHeartbeat({ flags, workerId: "w", runCycle }))
+        .toMatchObject({ status: "skipped", reason: "ark_worker_mode_required" });
+    }
+    expect(runCycle).not.toHaveBeenCalled();
+  });
+
+  it("runs research with one task and an explicit research-only mode", async () => {
+    const runCycle = vi.fn().mockResolvedValue({ status: "waiting" });
+    const flags = {
+      ...valid,
+      ARBOR_ARK_PREVIEW_CHECKPOINT_CANARY: "false",
+      ARBOR_ARK_PREVIEW_RESEARCH: "true",
+    };
+    expect(await runDedicatedArkHeartbeat({ flags, workerId: "w", runCycle }))
+      .toMatchObject({ status: "invoked", mode: "preview-research" });
+    expect(runCycle).toHaveBeenCalledExactlyOnceWith({
+      objectiveId: OBJECTIVE,
+      workerId: "w",
+      maxTasks: 1,
+      maxRuntimeMs: 10_000,
+      mode: "preview-research",
     });
   });
 
