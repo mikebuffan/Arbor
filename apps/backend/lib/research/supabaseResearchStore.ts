@@ -1,6 +1,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { validateResearchSession, type ResearchSession } from "./sessionPolicy";
-import type { ResearchClaim } from "./sessionRunner";\nimport type {\n  PlannedResearchUnit,\n  ResearchControllerContext,\n  ResearchControllerStore,\n} from "./researchController";
+import type { ResearchClaim } from "./sessionRunner";
+import type {
+  PlannedResearchUnit,
+  ResearchControllerContext,
+  ResearchControllerStore,
+} from "./researchController";
 
 type JsonRow = Record<string, unknown>;
 
