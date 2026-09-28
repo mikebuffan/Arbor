@@ -123,6 +123,20 @@ class GroveRoomInventory {
       visibility: GroveInventoryVisibility.sharedScenery,
     ),
     GroveInventoryItem(
+      id: 'guest-room-bed',
+      label: 'Guest room bed',
+      zone: GroveZone.guestRoom,
+      kind: GroveInventoryKind.furnishing,
+      visibility: GroveInventoryVisibility.sharedScenery,
+    ),
+    GroveInventoryItem(
+      id: 'guest-room-nightstand',
+      label: 'Guest room nightstand',
+      zone: GroveZone.guestRoom,
+      kind: GroveInventoryKind.furnishing,
+      visibility: GroveInventoryVisibility.sharedScenery,
+    ),
+    GroveInventoryItem(
       id: 'library-shelves',
       label: 'Library shelves',
       zone: GroveZone.library,
