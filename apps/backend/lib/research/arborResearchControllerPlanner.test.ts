@@ -226,4 +226,35 @@ describe("canonical Arbor research controller planner adapter", () => {
       context,
     })).rejects.toThrow("research_controller_planner_multiple_selections");
   });
+  it("restricts dynamic planner units to kinds actually registered by the host", async () => {
+    const runAgent = agentSelecting("research_controller_append_then_run", {
+      rationale: "Try an unavailable handler.",
+      units: [{
+        unitKey: "timeline-b",
+        kind: "research.timeline",
+        description: "This handler is not registered in the first host.",
+        payload: {},
+        maxCostReservationCents: 0,
+        maxAttempts: 1,
+      }],
+    });
+    const planner = buildArborResearchControllerPlanner({
+      instructions: "CANONICAL ARBOR",
+      context: {
+        userId: "owner",
+        projectId: "project",
+        turnId: "background-turn",
+      },
+      allowedUnitKinds: ["research.pattern_hop"],
+      runAgent: runAgent as any,
+    });
+
+    await expect(planner.plan({
+      goal: context.session.objective,
+      context,
+    })).rejects.toThrow(
+      "research_controller_planner_unregistered_unit_kind",
+    );
+  });
+
 });
