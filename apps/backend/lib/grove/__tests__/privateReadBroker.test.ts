@@ -152,6 +152,20 @@ describe("private Grove provider and token boundaries", () => {
     expect(() => privateGroveReadConfig()).toThrowError("grove_api_not_enabled");
   });
 
+  it("rejects Vercel execution outside the dedicated Grove project", () => {
+    vi.stubEnv("VERCEL", "1");
+    vi.stubEnv("VERCEL_PROJECT_ID", "prj_firefly_not_grove");
+    expect(() => privateGroveReadConfig())
+      .toThrowError("grove_api_not_configured");
+
+    vi.stubEnv("VERCEL_PROJECT_ID", "");
+    expect(() => privateGroveReadConfig())
+      .toThrowError("grove_api_not_configured");
+
+    vi.stubEnv("VERCEL_PROJECT_ID", "prj_nw2X0SyLn4e8CXWZ83MEs4jwn1JN");
+    expect(privateGroveReadConfig().groveUrl).toBe(groveUrl);
+  });
+
   it("rejects existing Firefly realm in place of Grove", () => {
     vi.stubEnv("GROVE_SUPABASE_URL", fireflyUrl);
     expect(() => privateGroveReadConfig()).toThrowError("grove_api_not_configured");
