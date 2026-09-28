@@ -90,9 +90,9 @@ class _GroveTalkPageState extends State<GroveTalkPage> {
 }
 
  
-/// Read-only until the authenticated, owner-scoped Grove conversation
-/// endpoint exists. Showing the old transport here would suggest Text/Voice
-/// works even though the private host correctly denies those routes.
+/// Fail closed when this build has not explicitly enabled private Text.
+//// The authenticated owner-scoped Text path exists; Voice remains a later gate.
+/// Never fall back to the legacy Firefly/public chat transport.
 class _GrovePrivateTalkUnavailable extends StatelessWidget {
   const _GrovePrivateTalkUnavailable();
 
@@ -114,16 +114,16 @@ class _GrovePrivateTalkUnavailable extends StatelessWidget {
                       style: TextStyle(color: Color(0xFF91DAD2),
                           fontWeight: FontWeight.w600, letterSpacing: 1.1)),
                   SizedBox(height: 16),
-                  Text('Private conversation isn’t connected yet.',
+                  Text('Private Text isn’t enabled in this Grove build.',
                       textAlign: TextAlign.center,
                       style: TextStyle(color: Colors.white, fontSize: 20)),
                   SizedBox(height: 12),
                   Text(
-                    'The private Grove API currently supports authorized '
-                    'read-only ARK status. Text and Voice need their own '
-                    'verified, owner-scoped conversation endpoint. '
-                    'This private sign-in will not be sent to the old '
-                    'Firefly or public-app chat service.',
+                    'The owner-scoped private Text path is built, but this '
+                    'APK did not opt into it or is missing its approved Grove '
+                    'configuration. Voice remains off until private Text passes '
+                    'real device acceptance. This private sign-in will never '
+                    'fall back to the old Firefly or public-app chat service.',
                     textAlign: TextAlign.center,
                     style: TextStyle(color: Colors.white70, height: 1.5),
                   ),
