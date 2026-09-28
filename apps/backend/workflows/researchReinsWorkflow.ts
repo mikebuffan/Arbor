@@ -80,7 +80,7 @@ export async function researchReinsWorkflow(
       300,
       Math.max(1, lastPulse.delaySeconds ?? 30),
     );
-    await sleep(delaySeconds + " seconds");
+    await sleep(delaySeconds * 1000);
   }
 
   return {
