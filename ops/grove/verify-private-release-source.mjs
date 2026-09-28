@@ -15,6 +15,11 @@ export function verifyGroveSource(read=(p)=>readFileSync(p,"utf8")) {
     if(!Array.isArray(config.crons)||config.crons.length)
       violations.push(path+":inherited_cron");
   }
+  const privateConfig=load("apps/frontend/lib/config/grove_private_config.dart");
+  if(!privateConfig.includes("'fqjqpuaoifgbweiguacf.supabase.co'") ||
+     !privateConfig.includes("auth.host.toLowerCase() == expectedAuthHost"))
+    violations.push("grove_auth_realm_not_pinned");
+
   const android=load("apps/frontend/android/app/build.gradle.kts");
   for(const marker of [
     "GROVE_ANDROID_KEYSTORE_PATH",
