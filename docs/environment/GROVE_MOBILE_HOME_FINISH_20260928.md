@@ -12,6 +12,7 @@
 - Private Text already supports existing-conversation discovery, explicit new-thread creation, durable complete-turn transcript semantics, deterministic request-ID retry, and leave/reopen recovery in source tests.
 - Grove backend pins the Grove auth project to `fqjqpuaoifgbweiguacf`, maps only an invited Grove owner to an explicitly bridged Firefly owner/project/conversation, and denies legacy Firefly/public/admin routes on the private host.
 - The Grove Supabase project exists and is healthy. Live owner/bridge/project-grant rows are still zero. Transcript + claim proposals are not live.
+- The manually applied owner→Firefly bridge/project-grant schema is now reconciled by live assertion-only migration `20260928231600_reconcile_grove_private_firefly_read_grants`. It did **not** replay DDL or seed identities; it verified forced RLS, client deny-all, service-role privileges, primary keys, and cascade FKs.
 - Dedicated Vercel project identity is known from GitHub/Vercel receipts, but the current connected Vercel API cannot list its deployments (403). Do not create a duplicate project.
 
 ## Completed in this finish lane
