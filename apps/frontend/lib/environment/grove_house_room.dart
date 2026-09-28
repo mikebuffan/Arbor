@@ -10,7 +10,7 @@ import 'grove_window_time_selection.dart';
 /// The approved nighttime room is the floor plan: left stairs and shelves,
 /// Moss on left couch, central living window and Arbor, desk on the right.
 /// Sundial preview updates the displayed phase/time, not the approved night\n/// painting. Matching daytime art is a separate, unfinished asset.
-enum GroveRoomAction { arbor, desk, shelves, stairs, kitchen, moss, window }
+enum GroveRoomAction { arbor, desk, shelves, stairs, kitchen, guestRoom, moss, window }
 
 class GroveHouseRoom extends StatefulWidget {
   const GroveHouseRoom({
@@ -169,12 +169,17 @@ class _GroveHouseRoomState extends State<GroveHouseRoom> {
       Wrap(spacing: 6, runSpacing: 6, children: [
         _door(Icons.chat_outlined, 'Arbor', GroveRoomAction.arbor),
         _door(Icons.restaurant_menu, 'Kitchen', GroveRoomAction.kitchen),
+        _door(Icons.bed_outlined, 'Guest Room', GroveRoomAction.guestRoom),
         _door(Icons.desktop_mac_outlined, 'Desk', GroveRoomAction.desk),
         _door(Icons.auto_stories_outlined, 'Shelves', GroveRoomAction.shelves),
         _door(Icons.stairs_outlined, 'Stairs', GroveRoomAction.stairs),
         _door(Icons.wb_twilight_outlined, 'Window', GroveRoomAction.window),
         _door(Icons.pets_outlined, 'Moss', GroveRoomAction.moss),
       ]),
+      const SizedBox(height: 7),
+      const Text('The Guest Room is off the upstairs hall; it has an accessible door here until the house artwork includes it.',
+          style: TextStyle(color: ArborEnvironmentTokens.textMuted,
+              fontSize: 11)),
       const SizedBox(height: 7),
       if (preview) ...[
         const Text('The sundial previews the displayed window time, not the House Clock.',
