@@ -219,4 +219,88 @@ describe("owner-scoped Supabase research adapter",()=>{
     });
   });
 
+  it("returns the prior structured unit result on a resumed claim",async()=>{
+    const m=mockDb();
+    const store=new SupabaseResearchStore(m.db,"owner-1","project-1","worker-1");
+    const session=(await store.loadSession("s1")) as ResearchSession;
+
+    m.rpc.mockResolvedValueOnce({
+      data:{
+        unitId:"unit-1",
+        leaseToken:"lease-2",
+        idempotencyKey:"unit-1",
+        kind:"research.pattern_hop",
+        payload:{seed:"synthetic"},
+        maxCostReservationCents:0,
+        lastResult:{
+          patternHopRunId:"pattern-run-1",
+          patternHopStatus:"active",
+        },
+      },
+      error:null,
+    });
+
+    expect(await store.claimOne({
+      session,
+      at:"2026-09-20T12:21:00Z",
+      leaseSeconds:240,
+    })).toMatchObject({
+      kind:"research.pattern_hop",
+      lastResult:{
+        patternHopRunId:"pattern-run-1",
+        patternHopStatus:"active",
+      },
+    });
+  });
+
+  it("persists structured executor resume state alongside the receipt timestamp",async()=>{
+    const m=mockDb();
+    const store=new SupabaseResearchStore(m.db,"owner-1","project-1","worker-1");
+    const session=(await store.loadSession("s1")) as ResearchSession;
+
+    await expect(store.settle({
+      session,
+      claim:{
+        unitId:"unit-1",
+        leaseToken:"lease-1",
+        idempotencyKey:"unit-1",
+        kind:"research.pattern_hop",
+        payload:{seed:"synthetic"},
+        maxCostReservationCents:0,
+      },
+      receipt:{
+        sessionId:"s1",
+        unitId:"unit-1",
+        idempotencyKey:"unit-1",
+        status:"checkpointed",
+        recordedAt:"2026-09-20T12:20:00Z",
+        costCents:0,
+        evidenceRefs:["synthetic:evidence"],
+        unresolvedRequiredWork:5,
+        result:{
+          patternHopRunId:"pattern-run-1",
+          patternHopStatus:"active",
+        },
+      },
+    })).resolves.toBe("committed");
+
+    expect(m.rpc).toHaveBeenCalledWith("arbor_settle_research_unit",{
+      p_session_id:"s1",
+      p_user_id:"owner-1",
+      p_project_id:"project-1",
+      p_unit_id:"unit-1",
+      p_lease_token:"lease-1",
+      p_idempotency_key:"unit-1",
+      p_status:"checkpointed",
+      p_cost_cents:0,
+      p_evidence_refs:["synthetic:evidence"],
+      p_unresolved_required_work:5,
+      p_result:{
+        patternHopRunId:"pattern-run-1",
+        patternHopStatus:"active",
+        receipt_recorded_at:"2026-09-20T12:20:00Z",
+      },
+    });
+  });
+
 });
