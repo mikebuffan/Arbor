@@ -29,7 +29,7 @@ export type ResearchSessionDecision =
   | { action: "stop"; status: Exclude<ResearchSessionStatus, "queued" | "running">; reason: string }
   | { action: "idle"; reason: string };
 
-export const MAX_SESSION_DURATION_MS = 60 * 60 * 1000;
+export const MAX_SESSION_DURATION_MS = 4 * 60 * 60 * 1000;
 
 function milliseconds(iso: string): number {
   const value = Date.parse(iso);
