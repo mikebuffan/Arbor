@@ -102,7 +102,7 @@ function fixture(input?: {
 }
 
 describe("research controller pulse", () => {
-  it("lets Arbor choose the next existing unit, commits one trusted tick, then yields checkpointed", async () => {
+  it("continues an already-persisted unit without another planner model call", async () => {
     const f = fixture();
     const planner = {
       plan: vi.fn(async () => ({
@@ -119,7 +119,7 @@ describe("research controller pulse", () => {
       at: AT,
     });
 
-    expect(planner.plan).toHaveBeenCalledOnce();
+    expect(planner.plan).not.toHaveBeenCalled();
     expect(f.store.appendPlannedUnits).not.toHaveBeenCalled();
     expect(f.store.claimOne).toHaveBeenCalledOnce();
     expect(f.store.settle).toHaveBeenCalledOnce();
