@@ -67,6 +67,16 @@ jobs:
             sudo apt-get install -y postgresql-client
           fi
           bash ops/research/disposable-ark-db/run-multitick-safe-suite.sh
+      - name: Disposable PostgreSQL research controller/store acceptance
+        env:
+          PGHOST: 127.0.0.1
+          PGPORT: 5432
+          PGUSER: postgres
+          PGDATABASE: arbor_synthetic
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          bash ops/research/disposable-db/run-full-safe-suite.sh
       - name: Build digest-pinned non-root PDF parser sandbox
         shell: bash
         run: |
