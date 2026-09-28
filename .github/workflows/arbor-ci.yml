@@ -14,6 +14,8 @@ on:
       - feature/grove-private-durable-retry-claim-20260923
       # Isolated pinned source candidate, review-only, NOT live Vercel release.
       - release/grove-private-source-candidate-20260923
+      # Private mobile-home finish branch; source/CI only, no deployment.
+      - finish/grove-mobile-home-20260928
   pull_request:
     branches:
       - main
