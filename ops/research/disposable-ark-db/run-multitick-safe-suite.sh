@@ -25,6 +25,9 @@ fi
 export PGHOST PGPORT PGUSER PGDATABASE
 
 psql -X -v ON_ERROR_STOP=1 -f ops/research/disposable-db/00-fixture.sql
+# The shared research fixture keys projects by (id,user_id); the real ARK
+# migration also has a direct project_id FK and therefore requires id uniqueness.
+psql -X -v ON_ERROR_STOP=1 -c 'create unique index projects_id_ark_fixture_unique on public.projects(id);'
 psql -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260918143000_create_ark_autonomous_work_runner.sql
 psql -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260918203000_ark_targeted_objective_claim.sql
 psql -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260918210000_ark_owner_integrity.sql
