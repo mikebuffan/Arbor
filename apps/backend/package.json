@@ -25,6 +25,7 @@
     "react-dom": "19.2.3",
     "stream-chain": "^3.4.0",
     "stripe": "^20.1.1",
+    "workflow": "^4.8.9",
     "yaml": "^2.8.2",
     "zod": "^4.2.1"
   },
