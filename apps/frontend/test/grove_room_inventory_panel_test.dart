@@ -56,6 +56,15 @@ void main() {
     expect(find.textContaining('No items invented'), findsOneWidget);
   });
 
+  testWidgets('guest room is visible as house scenery, not user data',
+      (tester) async {
+    await showInventory(tester, initialZone: GroveZone.guestRoom);
+    expect(find.text('Guest room bed'), findsOneWidget);
+    expect(find.text('Guest room nightstand'), findsOneWidget);
+    expect(find.text('Guest Room · 2 listed'), findsOneWidget);
+    expect(find.textContaining('SOURCE REFERENCE'), findsNothing);
+  });
+
   testWidgets('unauthenticated shelf never displays project sources', (tester) async {
     final registry = GroveRoomInventory([
       GroveInventoryItem(
