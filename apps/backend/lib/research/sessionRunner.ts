@@ -12,6 +12,7 @@ export type ResearchClaim = {
   kind: string;
   payload: Record<string, unknown>;
   maxCostReservationCents?: number;
+  lastResult?: Record<string, unknown> | null;
 };
 
 /**
