@@ -22,6 +22,7 @@ export function verifyGroveSource(read=(p)=>readFileSync(p,"utf8")) {
 
   const android=load("apps/frontend/android/app/build.gradle.kts");
   for(const marker of [
+    "GROVE_ANDROID_APPLICATION_ID",
     "GROVE_ANDROID_KEYSTORE_PATH",
     "GROVE_ANDROID_KEYSTORE_PASSWORD",
     "GROVE_ANDROID_KEY_ALIAS",
