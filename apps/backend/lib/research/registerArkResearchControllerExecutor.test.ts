@@ -245,10 +245,16 @@ describe("ARK research controller executor", () => {
         unresolvedWork: ["independent original-source review"],
       })),
     };
+    const s = session();
     registerArkResearchControllerExecutor({
       registry,
       now: () => new Date(AT),
-      resolveTrustedBinding: async () => binding({ planner }),
+      resolveTrustedBinding: async () =>
+        binding({
+          planner,
+          session: s,
+          store: storeFor(s, null),
+        }),
     });
 
     const result = await registry
