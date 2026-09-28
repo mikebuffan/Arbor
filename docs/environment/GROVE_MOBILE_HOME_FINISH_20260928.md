@@ -23,6 +23,10 @@
 - Setup copy now treats the Grove as Arbor's house rather than labeling it the visitor's house.
 - Added an explicit **Guest Room** to the house geography, inventory, accessible navigation, command palette, and tests without pretending the existing house painting already contains new artwork.
 - Entering the Guest Room persists no note, task, presence, location, memory, or ARK claim.
+- Grove Android flavor now disables OS backup and cleartext traffic in its private manifest; release signing material is git-ignored and documented outside the repository.
+- The finish branch now carries a project-aware Vercel ignored-build gate: on this branch only the known `grove-private-api` project ID is allowed to build; unrelated Firefly/ARK projects should skip once Vercel quota permits the gate to run.
+- The private Grove backend now also checks `VERCEL_PROJECT_ID` at runtime/build configuration and refuses to initialize service credentials on any Vercel project except `prj_nw2X0SyLn4e8CXWZ83MEs4jwn1JN`. Local source tests remain possible without Vercel metadata.
+- Disabled private Talk copy now states the actual boundary: owner-scoped private Text exists, but a build must explicitly opt in; Voice remains gated and there is never a fallback to legacy Firefly/public chat.
 
 ## Remaining live gates — do not invent around these
 
