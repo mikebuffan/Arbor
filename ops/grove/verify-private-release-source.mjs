@@ -14,6 +14,11 @@ export function verifyGroveSource(read=(p)=>readFileSync(p,"utf8")) {
     catch {violations.push(path+":invalid_config");continue;}
     if(!Array.isArray(config.crons)||config.crons.length)
       violations.push(path+":inherited_cron");
+    const ignore=String(config.ignoreCommand||"");
+    if(!ignore.includes("finish/grove-mobile-home-20260928") ||
+       !ignore.includes("prj_nw2X0SyLn4e8CXWZ83MEs4jwn1JN") ||
+       !ignore.includes("VERCEL_PROJECT_ID"))
+      violations.push(path+":grove_project_build_filter_missing");
   }
   const privateConfig=load("apps/frontend/lib/config/grove_private_config.dart");
   if(!privateConfig.includes("'fqjqpuaoifgbweiguacf.supabase.co'") ||
