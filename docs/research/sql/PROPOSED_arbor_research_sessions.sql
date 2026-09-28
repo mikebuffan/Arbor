@@ -96,6 +96,12 @@ grant select on public.arbor_research_receipts to authenticated;
 grant all on public.arbor_research_sessions to service_role;
 grant all on public.arbor_research_units to service_role;
 grant all on public.arbor_research_receipts to service_role;
+drop policy if exists arbor_research_sessions_owner_read
+  on public.arbor_research_sessions;
+drop policy if exists arbor_research_units_owner_read
+  on public.arbor_research_units;
+drop policy if exists arbor_research_receipts_owner_read
+  on public.arbor_research_receipts;
 create policy arbor_research_sessions_owner_read on public.arbor_research_sessions
   for select to authenticated using (user_id = (select auth.uid()));
 create policy arbor_research_units_owner_read on public.arbor_research_units
