@@ -91,7 +91,7 @@ class _GroveTalkPageState extends State<GroveTalkPage> {
 
  
 /// Fail closed when this build has not explicitly enabled private Text.
-//// The authenticated owner-scoped Text path exists; Voice remains a later gate.
+/// The authenticated owner-scoped Text path exists; Voice remains a later gate.
 /// Never fall back to the legacy Firefly/public chat transport.
 class _GrovePrivateTalkUnavailable extends StatelessWidget {
   const _GrovePrivateTalkUnavailable();
