@@ -255,6 +255,7 @@ begin
     'projectId',v_run.project_id,
     'sessionId',v_run.session_id,
     'objectiveId',v_run.ark_objective_id,
+    'goal',v_session.objective,
     'taskId',v_task.id,
     'taskStatus',v_task.status,
     'objectiveStatus',v_objective.status,
