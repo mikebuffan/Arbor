@@ -95,6 +95,10 @@ export function verifyGroveSource(read=(p)=>readFileSync(p,"utf8")) {
      !pipeline.includes('GROVE_PRIVATE_CLAIM_ENABLED: "false"') ||
      !pipeline.includes("Grove disposable private transcript schema acceptance"))
     violations.push("key_free_and_disposable_db_ci_missing");
+  if(!pipeline.includes(
+    "--dart-define=GROVE_SUPABASE_URL=https://fqjqpuaoifgbweiguacf.supabase.co"
+  ))
+    violations.push("grove_ci_auth_realm_not_pinned");
   const filter=load("ops/grove/should-build-private-host.mjs");
   if(!filter.includes('"release/grove-private-source-candidate-20260923"')||
      !filter.includes('"deploy/grove-private-api-20260921"')||
