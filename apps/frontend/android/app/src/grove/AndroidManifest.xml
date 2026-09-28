@@ -4,5 +4,8 @@
     <application
         android:label="The Grove"
         android:icon="@drawable/grove_launcher"
-        tools:replace="android:label,android:icon" />
+        android:allowBackup="false"
+        android:fullBackupContent="false"
+        android:usesCleartextTraffic="false"
+        tools:replace="android:label,android:icon,android:allowBackup,android:fullBackupContent,android:usesCleartextTraffic" />
 </manifest>
