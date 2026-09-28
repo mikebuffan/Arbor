@@ -4,6 +4,7 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+val groveApplicationId = System.getenv("GROVE_ANDROID_APPLICATION_ID")?.trim().orEmpty()
 val groveKeystorePath = System.getenv("GROVE_ANDROID_KEYSTORE_PATH")?.trim().orEmpty()
 val groveKeystorePassword = System.getenv("GROVE_ANDROID_KEYSTORE_PASSWORD")?.trim().orEmpty()
 val groveKeyAlias = System.getenv("GROVE_ANDROID_KEY_ALIAS")?.trim().orEmpty()
@@ -19,6 +20,12 @@ val groveReleaseRequested = gradle.startParameter.taskNames.any {
         it.contains("release", ignoreCase = true)
 }
 
+if (groveReleaseRequested && groveApplicationId.isEmpty()) {
+    throw GradleException(
+        "Grove release application ID is not configured. " +
+            "Set GROVE_ANDROID_APPLICATION_ID to the owner-approved package ID."
+    )
+}
 if (groveReleaseRequested && !groveSigningReady) {
     throw GradleException(
         "Grove release signing is not configured. " +
@@ -72,7 +79,13 @@ android {
         }
         create("grove") {
             dimension = "experience"
-            applicationIdSuffix = ".grove"
+            if (groveApplicationId.isNotEmpty()) {
+                applicationId = groveApplicationId
+            } else {
+                // Debug/test builds keep an independent install ID. A real
+                // release is blocked above until an owner-approved ID exists.
+                applicationIdSuffix = ".grove"
+            }
             versionNameSuffix = "-grove"
             if (groveSigningReady) {
                 signingConfig = signingConfigs.getByName("groveRelease")
