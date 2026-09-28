@@ -123,11 +123,13 @@ fs.writeFileSync(outPath,JSON.stringify(manifest,null,2)+"\n",{mode:0o600});
 NODE
 
 rm -f "$HASH_TSV"
-find "$STAGE" -type f -exec chmod 0600 {} +
+# Sandbox outputs are owned by numeric uid 65532. Do not weaken the sandbox by
+# running it as the host user or attempting host-side chmod/chown. Copy each
+# readable artifact into a new host-owned private file, then delete the stage.
 for item in "$STAGE"/*; do
-  mv -- "$item" "$OUT_ABS/"
+  install -m 0600 -- "$item" "$OUT_ABS/$(basename "$item")"
 done
-rmdir "$STAGE"
+rm -rf "$STAGE"
 STAGE=""
 
 echo "FIDELITY_PACKET=READY; HUMAN_REVIEW=HOLD; PAGES=$PAGES; SOURCE_SHA256=$SOURCE_SHA"
