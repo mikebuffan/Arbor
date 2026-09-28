@@ -33,9 +33,12 @@ describe("bounded durable research-session policy", () => {
       ...baseline(), completedEvidenceRefs: ["EFTA00183759", " "],
     })).toThrow("invalid_research_session_evidence_refs");
   });
-  it("rejects >60-minute and reversed timeboxes", () => {
+  it("allows multi-hour sessions but rejects >4-hour and reversed timeboxes", () => {
     expect(() => validateResearchSession({
-      ...baseline(), deadlineAt: "2026-09-20T19:00:00.001Z",
+      ...baseline(), deadlineAt: "2026-09-20T21:00:00.000Z",
+    })).not.toThrow();
+    expect(() => validateResearchSession({
+      ...baseline(), deadlineAt: "2026-09-20T22:00:00.001Z",
     })).toThrow("invalid_research_session_duration");
     expect(() => validateResearchSession({
       ...baseline(), deadlineAt: "2026-09-20T17:00:00.000Z",
