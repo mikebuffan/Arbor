@@ -1,0 +1,594 @@
+{
+  "schema_version": 2,
+  "as_of": "2026-09-22 PDT (current Grove conversation-owner seam exact-source CI verified)",
+  "repository": "mikebuffan/Arbor",
+  "main_sha": "d46f6b46fc51ac3db4e158cddfc592c52cc2b5ef",
+  "product_separation": [
+    "private_grove",
+    "public_arbor_app"
+  ],
+  "owners": {
+    "lm": "Independent Arbor LM",
+    "ark_layer": "ARK and Arbor Layer",
+    "grove": "Private Grove",
+    "public_app": "Official public Arbor App",
+    "research": "Epstein Evidence Project",
+    "integration": "Cross-lane integration"
+  },
+  "tip_pr_by_lane": {
+    "grove": 179,
+    "ark_layer": 160,
+    "public_app": 159,
+    "research": 163
+  },
+  "pull_requests": [
+    {
+      "number": 125,
+      "sha": "71a5836883313d1d49d025e46e19a3a78cdf4e08",
+      "base": "main",
+      "base_sha": "d46f6b46fc51ac3db4e158cddfc592c52cc2b5ef",
+      "state": "open",
+      "draft": true,
+      "merged": false,
+      "owner": "ark_layer",
+      "incorporated_by": 138,
+      "branch": "feat/ark-continuity-handoff-20260921"
+    },
+    {
+      "number": 137,
+      "sha": "6c9be6cd78963838da39eff7490e19eeb0412ea1",
+      "base": "feat/grove-document-shelf-20260921",
+      "base_sha": "a2f8d44bf0c04a602043605f6ad09027da3f74fb",
+      "state": "open",
+      "draft": true,
+      "merged": false,
+      "owner": "grove",
+      "stacked_into": 138,
+      "branch": "fix/grove-shelf-session-invalidation-20260921"
+    },
+    {
+      "number": 138,
+      "sha": "8eff7230cb3fbc769c9e7c04af19ecfaa09428c0",
+      "base": "fix/grove-shelf-session-invalidation-20260921",
+      "base_sha": "6c9be6cd78963838da39eff7490e19eeb0412ea1",
+      "state": "open",
+      "draft": true,
+      "merged": false,
+      "owner": "grove",
+      "stacked_into": 151,
+      "branch": "feat/grove-release-candidate-20260921"
+    },
+    {
+      "number": 140,
+      "sha": "87a989423450c035125e241032430ca9b9014344",
+      "base": "main",
+      "base_sha": "d46f6b46fc51ac3db4e158cddfc592c52cc2b5ef",
+      "state": "open",
+      "draft": true,
+      "merged": false,
+      "owner": "public_app",
+      "stacked_into": 146,
+      "branch": "arbor/public-app-alpha-20260921"
+    },
+    {
+      "number": 144,
+      "sha": "fec26c3e6006a895e04042b47ed97167e220c227",
+      "base": "feat/ark-pdf-batch-plan-20260921",
+      "base_sha": "d623dbc7281f518b74f0330e63228fdf92b7999d",
+      "state": "open",
+      "draft": true,
+      "merged": false,
+      "owner": "research",
+      "stacked_into": 152,
+      "branch": "feat/ark-pdf-page-image-provenance-20260921"
+    },
+    {
+      "number": 146,
+      "sha": "aea0318d9ff07d9c6e22d0627d3582325053b320",
+      "base": "arbor/public-app-alpha-20260921",
+      "base_sha": "87a989423450c035125e241032430ca9b9014344",
+      "state": "open",
+      "draft": true,
+      "merged": false,
+      "owner": "public_app",
+      "branch": "arbor/public-alpha-continuity-privacy-20260921",
+      "stacked_into": 159
+    },
+    {
+      "number": 147,
+      "sha": "ce70f72287e172e7650604e47872c6facdfd3107",
+      "base": "main",
+      "base_sha": "d46f6b46fc51ac3db4e158cddfc592c52cc2b5ef",
+      "state": "open",
+      "draft": true,
+      "merged": false,
+      "owner": "ark_layer",
+      "branch": "arbor/ark-layer-handoff-boundary-20260921",
+      "stacked_into": 160
+    },
+    {
+      "number": 150,
+      "sha": "8673f186f2acca7ccab6e32aa982833ee59cbd72",
+      "base": "fix/grove-runtime-scope-20260921",
+      "base_sha": "e4d15fa04057af49d687d5be35113c794244c95c",
+      "state": "open",
+      "draft": true,
+      "merged": false,
+      "owner": "grove",
+      "stacked_into": 151,
+      "branch": "fix/grove-private-phone-ui-20260921"
+    },
+    {
+      "number": 151,
+      "sha": "6f7627432c25bcc9dac8ba47283f12fa3026034d",
+      "base": "fix/grove-private-phone-ui-20260921",
+      "base_sha": "8673f186f2acca7ccab6e32aa982833ee59cbd72",
+      "state": "open",
+      "draft": true,
+      "merged": false,
+      "owner": "grove",
+      "branch": "feat/grove-private-auth-boundary-20260921",
+      "stacked_into": 153
+    },
+    {
+      "number": 152,
+      "sha": "303b5e74d6dec0dc7737690b7bb53d07e575d705",
+      "base": "feat/ark-pdf-page-image-provenance-20260921",
+      "base_sha": "fec26c3e6006a895e04042b47ed97167e220c227",
+      "state": "open",
+      "draft": true,
+      "merged": false,
+      "owner": "research",
+      "branch": "feat/ark-pdf-disposable-sandbox-20260921",
+      "stacked_into": 157
+    },
+    {
+      "number": 153,
+      "sha": "399c92505b0ed1fec831dac78d2b662ae8f5fb2f",
+      "base": "feat/grove-private-auth-boundary-20260921",
+      "base_sha": "6f7627432c25bcc9dac8ba47283f12fa3026034d",
+      "state": "open",
+      "draft": true,
+      "merged": false,
+      "owner": "grove",
+      "branch": "fix/grove-private-no-demo-fallback-20260921",
+      "stacked_into": 154
+    },
+    {
+      "number": 154,
+      "sha": "adb2b475409676307d2e1d375ef9f7fa2f9d589c",
+      "base": "fix/grove-private-no-demo-fallback-20260921",
+      "base_sha": "399c92505b0ed1fec831dac78d2b662ae8f5fb2f",
+      "state": "open",
+      "draft": true,
+      "merged": false,
+      "owner": "grove",
+      "branch": "feat/grove-private-owner-access-20260921",
+      "stacked_into": 155
+    },
+    {
+      "number": 155,
+      "sha": "951c41e17fff5d49c4c498d8a709fabbe7f4ee3d",
+      "base": "feat/grove-private-owner-access-20260921",
+      "base_sha": "adb2b475409676307d2e1d375ef9f7fa2f9d589c",
+      "state": "open",
+      "draft": true,
+      "merged": false,
+      "owner": "grove",
+      "branch": "feat/grove-private-read-broker-20260921",
+      "stacked_into": 156
+    },
+    {
+      "number": 156,
+      "sha": "8999a570cf20b8496f984f62a298a58ef67d7217",
+      "base": "feat/grove-private-read-broker-20260921",
+      "base_sha": "951c41e17fff5d49c4c498d8a709fabbe7f4ee3d",
+      "state": "open",
+      "draft": true,
+      "merged": false,
+      "owner": "grove",
+      "branch": "deploy/grove-private-api-20260921",
+      "stacked_into": 161
+    },
+    {
+      "number": 157,
+      "sha": "0b5f64a722cbf319ea8633a41cf76942481af06e",
+      "base": "feat/ark-pdf-disposable-sandbox-20260921",
+      "base_sha": "303b5e74d6dec0dc7737690b7bb53d07e575d705",
+      "state": "open",
+      "draft": true,
+      "merged": false,
+      "owner": "research",
+      "branch": "feat/ark-evidence-completion-verification-20260922",
+      "stacked_into": 158
+    },
+    {
+      "number": 158,
+      "sha": "d6dd049c0f126e12dc8e32e0ae76e02f8fe612b2",
+      "base": "feat/ark-evidence-completion-verification-20260922",
+      "base_sha": "0b5f64a722cbf319ea8633a41cf76942481af06e",
+      "state": "open",
+      "draft": true,
+      "merged": false,
+      "owner": "research",
+      "branch": "feat/ark-research-lead-dedupe-20260922",
+      "stacked_into": 163
+    },
+    {
+      "number": 159,
+      "sha": "1a6a6cc7eb682059b47f0638aaf5f5dedb907be1",
+      "base": "arbor/public-alpha-continuity-privacy-20260921",
+      "base_sha": "aea0318d9ff07d9c6e22d0627d3582325053b320",
+      "state": "open",
+      "draft": true,
+      "merged": false,
+      "owner": "public_app",
+      "branch": "fix/public-alpha-exclude-grove-provider-20260922"
+    },
+    {
+      "number": 160,
+      "sha": "fc58351e9ae8416c3d28d3c398d4126387310bf0",
+      "base": "arbor/ark-layer-handoff-boundary-20260921",
+      "base_sha": "ce70f72287e172e7650604e47872c6facdfd3107",
+      "state": "open",
+      "draft": true,
+      "merged": false,
+      "owner": "ark_layer",
+      "branch": "fix/ark-layer-selected-attachment-conversation-20260922"
+    },
+    {
+      "number": 161,
+      "sha": "e946d9f7be2e0ce85701dbe92b9b804e960956fc",
+      "base": "deploy/grove-private-api-20260921",
+      "base_sha": "8999a570cf20b8496f984f62a298a58ef67d7217",
+      "state": "open",
+      "draft": true,
+      "merged": false,
+      "owner": "grove",
+      "branch": "fix/grove-window-preview-truth-20260922",
+      "stacked_into": 165
+    },
+    {
+      "number": 163,
+      "sha": "b164d2f4d3cc402939f32f19f0c82e2a6987c4a8",
+      "base": "feat/ark-research-lead-dedupe-20260922",
+      "base_sha": "d6dd049c0f126e12dc8e32e0ae76e02f8fe612b2",
+      "state": "open",
+      "draft": true,
+      "merged": false,
+      "owner": "research",
+      "branch": "feat/ark-research-outcome-classification-20260922"
+    },
+    {
+      "number": 165,
+      "sha": "a903277cea21f8d611739f6831c3f64f4ade7ad0",
+      "base": "fix/grove-window-preview-truth-20260922",
+      "base_sha": "e946d9f7be2e0ce85701dbe92b9b804e960956fc",
+      "state": "open",
+      "draft": true,
+      "merged": false,
+      "owner": "grove",
+      "branch": "feat/grove-authorized-project-discovery-20260922",
+      "stacked_into": 166
+    },
+    {
+      "number": 166,
+      "sha": "da071d7f72ea7c353cf326355678b8ad1b10029b",
+      "base": "feat/grove-authorized-project-discovery-20260922",
+      "base_sha": "c426683cf1e1b481443d56d02d976757258f48db",
+      "state": "open",
+      "draft": true,
+      "merged": false,
+      "owner": "grove",
+      "branch": "feat/grove-signed-independent-lm-transport-20260922",
+      "stacked_into": 167
+    },
+    {
+      "number": 167,
+      "sha": "7c0fea8aced8dcbf3836f9cadd4473e958536043",
+      "base": "feat/grove-signed-independent-lm-transport-20260922",
+      "base_sha": "da071d7f72ea7c353cf326355678b8ad1b10029b",
+      "state": "open",
+      "draft": true,
+      "merged": false,
+      "owner": "grove",
+      "branch": "fix/grove-private-projects-truth-20260922",
+      "stacked_into": 174
+    },
+    {
+      "number": 174,
+      "sha": "20c2235b37a7121393026a504f275246dc0d80cf",
+      "base": "fix/grove-private-projects-truth-20260922",
+      "base_sha": "7c0fea8aced8dcbf3836f9cadd4473e958536043",
+      "state": "open",
+      "draft": true,
+      "merged": false,
+      "owner": "grove",
+      "branch": "fix/grove-room-without-ark-grant-20260922",
+      "stacked_into": 179
+    },
+    {
+      "number": 179,
+      "sha": "38b9fd401e367df8c7cef240f4e07bf264e04d1a",
+      "base": "fix/grove-room-without-ark-grant-20260922",
+      "base_sha": "20c2235b37a7121393026a504f275246dc0d80cf",
+      "state": "open",
+      "draft": true,
+      "merged": false,
+      "owner": "grove",
+      "branch": "feat/grove-verified-conversation-scope-20260922"
+    }
+  ],
+  "external_bases": [
+    {
+      "branch": "fix/grove-runtime-scope-20260921",
+      "sha": "e4d15fa04057af49d687d5be35113c794244c95c",
+      "owner": "grove"
+    },
+    {
+      "branch": "feat/grove-document-shelf-20260921",
+      "sha": "a2f8d44bf0c04a602043605f6ad09027da3f74fb",
+      "owner": "grove"
+    },
+    {
+      "branch": "feat/ark-pdf-batch-plan-20260921",
+      "sha": "d623dbc7281f518b74f0330e63228fdf92b7999d",
+      "owner": "research"
+    }
+  ],
+  "capabilities": [
+    {
+      "id": "grove_private_auth_config",
+      "owner": "grove",
+      "stage": "implemented",
+      "ref_pr": 151,
+      "prior_tested_sha": "23963c2a081f241361212b875863102c291be65d",
+      "pending": "Dedicated private provider, API, phone login and exact-head CI before release"
+    },
+    {
+      "id": "ark_layer_scoped_read",
+      "owner": "ark_layer",
+      "stage": "tested",
+      "ref_pr": 147,
+      "proof": {
+        "sha": "ce70f72287e172e7650604e47872c6facdfd3107",
+        "run_id": 35678320547,
+        "scope": "synthetic read and CI only"
+      },
+      "pending": "Real Grove host binding and cross-account acceptance"
+    },
+    {
+      "id": "public_alpha_code",
+      "owner": "public_app",
+      "stage": "tested",
+      "ref_pr": 146,
+      "proof": {
+        "sha": "aea0318d9ff07d9c6e22d0627d3582325053b320",
+        "run_id": 35674855296,
+        "scope": "code tests, not deployed public service"
+      },
+      "pending": "Dedicated public infra, real model, privacy review"
+    },
+    {
+      "id": "research_pdf_sandbox",
+      "owner": "research",
+      "stage": "implemented",
+      "ref_pr": 152,
+      "prior_tested_sha": "cb1cfe133e00e46dc497a4c9f75933b2baa37dd8",
+      "pending": "Independently published benign PDF manual acceptance before untrusted PDFs"
+    },
+    {
+      "id": "private_lm_host_broker",
+      "owner": "lm",
+      "stage": "implemented",
+      "ref": "Library /Arbor Integration/Arbor_LM_Broker_Handoff_2026-09-21.md",
+      "pending": "Private GPU real adapter inference, hosted auth, scoped broker E2E"
+    },
+    {
+      "id": "public_ark",
+      "owner": "public_app",
+      "stage": "planned",
+      "ref": "not authorized",
+      "pending": "Separate public tenancy, explicit release decision"
+    },
+    {
+      "id": "grove_private_ark_no_demo_fallback",
+      "owner": "grove",
+      "stage": "implemented",
+      "ref_pr": 153,
+      "pending": "Run Flutter analyze/tests on new child branch; physical private Grove and dedicated API still not deployed"
+    },
+    {
+      "id": "grove_private_owner_access_gate",
+      "owner": "grove",
+      "stage": "implemented",
+      "ref_pr": 154,
+      "pending": "Supabase dedicated project/migration applied and verified; Flutter CI/owner invitation/provider code/API and physical sign-in not yet verified"
+    },
+    {
+      "id": "grove_manual_mapping_schema",
+      "owner": "grove",
+      "stage": "implemented",
+      "ref_pr": 155,
+      "pending": "Schema and deny-all RLS inspected, exact implementation tests were run at prior 9f363f...; #155 latest head only handoff docs. Manual DDL missing migration ledger. Live invitation/ARK bridge and standalone Grove host pending.",
+      "prior_tested_sha": "9f363f989ed42dbc66dee4eeda5cf37f0c371787"
+    },
+    {
+      "id": "grove_private_api_credential_free_build",
+      "owner": "grove",
+      "stage": "tested",
+      "ref_pr": 156,
+      "proof": {
+        "sha": "8999a570cf20b8496f984f62a298a58ef67d7217",
+        "run_id": 35696240828,
+        "scope": "GitHub Actions backend tests, TypeScript and Next.js build with OPENAI_API_KEY empty; NOT Vercel production deploy or owner login"
+      },
+      "pending": "Vercel release capacity; fresh production deploy commit, origin, owner authentication and actual ARK read. Github commit status rate-limited retry in 24h at 2026-09-22 06:44 UTC."
+    },
+    {
+      "id": "public_alpha_excludes_grove_provider",
+      "owner": "public_app",
+      "stage": "tested",
+      "ref_pr": 159,
+      "pending": "Owner review, public host and separate consent/retention, real model and two-user acceptance",
+      "proof": {
+        "sha": "1a6a6cc7eb682059b47f0638aaf5f5dedb907be1",
+        "run_id": 35762754152,
+        "scope": "Pinned checkout of public-alpha #159: backend tests/build, Flutter config tests and static analysis passed; not a public hosted release"
+      }
+    },
+    {
+      "id": "ark_layer_selected_attachment_conversation_binding",
+      "owner": "ark_layer",
+      "stage": "tested",
+      "ref_pr": 160,
+      "pending": "Owner review, safe branch reconciliation and live scoped host acceptance",
+      "proof": {
+        "sha": "fc58351e9ae8416c3d28d3c398d4126387310bf0",
+        "run_id": 35762754152,
+        "scope": "Pinned checkout ARK/Layer #160: backend tests/build passed; no worker authorization or Grove hosted read"
+      }
+    },
+    {
+      "id": "grove_preview_and_private_talk_truth",
+      "owner": "grove",
+      "stage": "tested",
+      "ref_pr": 161,
+      "proof": {
+        "sha": "e946d9f7be2e0ce85701dbe92b9b804e960956fc",
+        "run_id": 35762754152,
+        "scope": "Pinned checkout Grove #161: Flutter sundial and private Talk widget tests, Flutter static analysis passed; no private LM Text/Voice host"
+      },
+      "pending": "Physical-device/owner review, approved day artwork and actual private scoped conversation route"
+    },
+    {
+      "id": "research_canonical_lead_dedupe",
+      "owner": "research",
+      "stage": "tested",
+      "ref_pr": 158,
+      "proof": {
+        "sha": "d6dd049c0f126e12dc8e32e0ae76e02f8fe612b2",
+        "run_id": 35784260966,
+        "scope": "Exact research #158 source checkout: backend tests/build, synthetic disposable PDF smoke and Flutter checks passed; not real-case data or production"
+      },
+      "pending": "Owner review, benign public-PDF manual fidelity gate, provenance independence and real worker proof."
+    },
+    {
+      "id": "grove_private_authorized_project_discovery",
+      "owner": "grove",
+      "stage": "tested",
+      "ref_pr": 165,
+      "proof": {
+        "sha": "a903277cea21f8d611739f6831c3f64f4ade7ad0",
+        "run_id": 35797117926,
+        "scope": "Pinned exact-source backend tests/build and Flutter project gate tests/analyze including home access without ARK grants; NO live owner/token or actual private host"
+      },
+      "pending": "Owner review, live grants/host and Android; #166/#167 branched from earlier #165, fix also preserved at #174."
+    },
+    {
+      "id": "grove_private_signed_lm_transport",
+      "owner": "grove",
+      "stage": "tested",
+      "ref_pr": 166,
+      "proof": {
+        "sha": "da071d7f72ea7c353cf326355678b8ad1b10029b",
+        "run_id": 35790928512,
+        "scope": "Pinned source backend tests/build, synthetic signed host HMAC and scope rejection; no Python real GPU/model or live Grove chat route"
+      },
+      "pending": "Grove host owner+conversation verification, reconcile ARK Layer code, real private LM runtime and multi-instance replay store, privacy/consent, actual deployment/owner acceptance."
+    },
+    {
+      "id": "research_synthetic_outcome_classification",
+      "owner": "research",
+      "stage": "implemented",
+      "ref_pr": 163,
+      "pending": "Owner review and exact-head CI completion, no real finding publication or raw external case processing."
+    },
+    {
+      "id": "grove_private_projects_no_fake_status",
+      "owner": "grove",
+      "stage": "tested",
+      "ref_pr": 167,
+      "proof": {
+        "sha": "7c0fea8aced8dcbf3836f9cadd4473e958536043",
+        "run_id": 35791592394,
+        "scope": "Pinned Grove Flutter project-view, auth-gate, sundial and Talk tests + analyze, backend tests/build; not owner device/host verification"
+      },
+      "pending": "Physical Android check after current Grove deploy, real owner grant/map and live read-only snapshot."
+    },
+    {
+      "id": "grove_invited_house_without_ark_grant",
+      "owner": "grove",
+      "stage": "tested",
+      "ref_pr": 174,
+      "proof": {
+        "sha": "20c2235b37a7121393026a504f275246dc0d80cf",
+        "run_id": 35797949608,
+        "scope": "Six pinned exact-source jobs green: Grove backend tests/build plus Flutter picker test/analyze; zero-grants local ARK scope-clearing ordering regression covered. No live account/provider or Android proof."
+      },
+      "pending": "Owner review and physical device/live private host acceptance; do not infer a real ARK grant or independent LM inference."
+    },
+    {
+      "id": "grove_private_conversation_owner_scope",
+      "owner": "grove",
+      "stage": "tested",
+      "ref_pr": 179,
+      "proof": {
+        "sha": "38b9fd401e367df8c7cef240f4e07bf264e04d1a",
+        "run_id": 35800510842,
+        "scope": "Pinned exact-source Grove backend tests/build plus Flutter and related lane matrix; private invite/project/conversation checks; NO public chat route, model inference or live owner access"
+      },
+      "pending": "Review parent stacks and ARK/Layer #160, implement authenticated Grove chat+durable turn history and LM connection; actual private host, owner mappings and physical Android acceptance"
+    }
+  ],
+  "exclusive_path_prefixes": {
+    "integration": [
+      "docs/integration/"
+    ],
+    "grove": [
+      "apps/frontend/lib/environment/",
+      "apps/frontend/lib/config/grove_private_",
+      "apps/frontend/lib/pages/grove_private_"
+    ],
+    "ark_layer": [
+      "apps/arbor-control-backend/",
+      "apps/backend/app/api/ark/"
+    ],
+    "public_app": [
+      "apps/backend/lib/publicApp/",
+      "apps/backend/app/api/public/",
+      "apps/frontend/lib/public/",
+      "supabase/public-app/"
+    ],
+    "research": [
+      "apps/backend/lib/ark/research/",
+      "ops/research/pdf-sandbox/"
+    ],
+    "lm": [
+      "services/public-arbor-lm/"
+    ]
+  },
+  "shared_review_paths": [
+    "apps/frontend/lib/config/arbor_config.dart",
+    "apps/frontend/lib/api/arbor_session.dart",
+    "apps/frontend/lib/main.dart",
+    "apps/frontend/android/app/build.gradle.kts",
+    ".github/workflows/",
+    "apps/backend/lib/auth/",
+    "apps/backend/lib/arbor/",
+    "apps/backend/lib/ark/",
+    "supabase/migrations/"
+  ],
+  "forbidden_cross_product_data_flow": [
+    "private_grove->public_arbor_app",
+    "public_arbor_app->private_grove"
+  ],
+  "release_requires": [
+    "exact_head_ci",
+    "synthetic_cross_user_isolation",
+    "product_specific_live_receipt",
+    "rollback_proof",
+    "owner_approval"
+  ],
+  "notes": "2026-09-22 PDT: Grove #156 credential-free CI 35696240828 passed at 8999a570...; separate Grove Vercel project and seven production settings confirmed in Danelle's UI (connected Vercel project-list is incomplete), next deploy is rate-limited per dated GitHub status. Existing two bridge tables applied manually but no migration ledger; all grants 0. Actual owner invited, actual private live API and model/phone unverified. Research #152 doc-only head moved 303b5e..., not exact-code CI. Refresh all observations for promotion. | 2026-09-22 later: research #157/#158 already existed in its owner lane; not rebuilt. Public alpha #159 excludes Grove project in provider guard, ARK/Layer #160 requires selected file in requested conversation; both draft IMPLEMENTED with regression tests committed, NO exact-head CI. Still no Grove live deploy/real owner/phone or private LM inference. | Latest research #158 draft tip moved from a8f16fcf4c928110b8886b8f18434ab4e8f72d70 to 4025a6e334234b3000a2d467d19ea55e067129dc (metadata refresh only; no new test/deployment claim). | CI Actions 35762754152: five pinned source jobs green (public backend+Flutter #159, ARK #160, Grove #161 Flutter, research #158 backend+Poppler). Local LM v0.3.5 package 61 manifest entries verified; 77 passed/1 skipped in offline Python tests and synthetic host demo HTTP 200; NO real model/GPU, Grove chat or production deploy. | Grove #165 c426683... pinned backend+Flutter CI 35790450802; Grove #166 da071d... pinned backend CI 35790928512. Private text/voice still disabled, host transport not imported into route, Python adapter real inference unverified. Research #158 revised d6dd... exact-head CI 35784260966 and #163 new synthetic classification in owner lane (do not alter/merge #164 CI-only alias). | Grove #167 exact-source CI 35791592394 green: private Projects screen no longer shows hard-coded queued investigation/ARK as live owner projects; selected grant is device local and real ARK status must be read via broker. No hosted owner/device receipt. | Grove project discovery #165 moved to a903277... (CI 35797117926 passed); #166/#167 were cut at c426683... and do not contain the no-ARK-grants House fix. Child #174 affdba... mirrors the fix at current #167 tip, pinned matrix Actions 35797522733 all 6 jobs passed. No deployed/private owner/real LM inference receipt. Do not blindly merge the split Grove stacks; reconcile code into one final promotion branch. | Grove #174 final no-grants stale-scope clearing regression at 20c2235... passed all six pinned matrix jobs 35797949608; no Vercel deployment or live owner access verified. | Grove #179 38b9fd40 includes tested server-only Firefly conversation authorization (CI 35800510842 6/6); the private Grove Supabase database has three RLS-protected tables but 0 active owner grants, bridges, project grants; only owner_access migration in ledger, bridge tables manually applied; Grove Vercel connector does not expose separate project deployment and no live host receipt was obtained. No release."
+}
