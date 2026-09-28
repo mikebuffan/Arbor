@@ -7,9 +7,9 @@ do $$
 declare first jsonb;
         replay jsonb;
         binding jsonb;
-        run_id uuid;
-        session_id uuid;
-        objective_id uuid;
+        v_run_id uuid;
+        v_session_id uuid;
+        v_objective_id uuid;
 begin
   first:=public.arbor_start_research_reins_run(
     '11111111-1111-4111-8111-111111111111',
@@ -30,12 +30,12 @@ begin
     raise exception 'first reins run receipt invalid: %',first;
   end if;
 
-  run_id:=(first->>'runId')::uuid;
-  session_id:=(first->>'sessionId')::uuid;
-  objective_id:=(first->>'objectiveId')::uuid;
+  v_run_id:=(first->>'runId')::uuid;
+  v_session_id:=(first->>'sessionId')::uuid;
+  v_objective_id:=(first->>'objectiveId')::uuid;
 
   if (select count(*) from public.arbor_research_sessions
-      where id=session_id
+      where id=v_session_id
         and user_id='11111111-1111-4111-8111-111111111111'
         and project_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
         and authorized
@@ -45,24 +45,24 @@ begin
   then raise exception 'bounded research session not created'; end if;
 
   if (select count(*) from public.ark_objectives
-      where id=objective_id
+      where id=v_objective_id
         and user_id='11111111-1111-4111-8111-111111111111'
         and project_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
         and status='queued') <> 1
   then raise exception 'ARK reins objective not created'; end if;
 
   if (select count(*) from public.ark_tasks
-      where objective_id=objective_id
+      where v_objective_id=v_objective_id
         and task_key='controller'
         and kind='research.controller.tick'
         and status='queued'
         and attempt_count=0
         and max_attempts=12
-        and payload->>'sessionId'=session_id::text) <> 1
+        and payload->>'sessionId'=v_session_id::text) <> 1
   then raise exception 'exactly one queued ARK controller task not created'; end if;
 
   if (select count(*) from public.ark_checkpoints
-      where objective_id=objective_id) <> 0
+      where v_objective_id=v_objective_id) <> 0
   then raise exception 'starting a reins run unexpectedly began execution'; end if;
 
   replay:=public.arbor_start_research_reins_run(
@@ -76,20 +76,20 @@ begin
   );
 
   if replay->>'replayed' <> 'true'
-     or (replay->>'runId')::uuid <> run_id
-     or (replay->>'sessionId')::uuid <> session_id
-     or (replay->>'objectiveId')::uuid <> objective_id
+     or (replay->>'runId')::uuid <> v_run_id
+     or (replay->>'sessionId')::uuid <> v_session_id
+     or (replay->>'objectiveId')::uuid <> v_objective_id
      or (select count(*) from public.arbor_research_reins_runs
          where client_request_id='90909090-9090-4090-8090-909090909090') <> 1
      or (select count(*) from public.ark_tasks
-         where objective_id=objective_id) <> 1
+         where v_objective_id=v_objective_id) <> 1
   then raise exception 'reins run replay was not idempotent: %',replay; end if;
 
-  binding:=public.arbor_load_research_reins_binding(run_id);
+  binding:=public.arbor_load_research_reins_binding(v_run_id);
   if binding->>'userId' <> '11111111-1111-4111-8111-111111111111'
      or binding->>'projectId' <> 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
-     or (binding->>'sessionId')::uuid <> session_id
-     or (binding->>'objectiveId')::uuid <> objective_id
+     or (binding->>'sessionId')::uuid <> v_session_id
+     or (binding->>'objectiveId')::uuid <> v_objective_id
      or binding->>'taskStatus' <> 'queued'
      or binding->>'objectiveStatus' <> 'queued'
      or binding->>'sourceScope' <> 'project_history'
