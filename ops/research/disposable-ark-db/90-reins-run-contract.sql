@@ -52,7 +52,7 @@ begin
   then raise exception 'ARK reins objective not created'; end if;
 
   if (select count(*) from public.ark_tasks
-      where v_objective_id=v_objective_id
+      where objective_id=v_objective_id
         and task_key='controller'
         and kind='research.controller.tick'
         and status='queued'
@@ -62,7 +62,7 @@ begin
   then raise exception 'exactly one queued ARK controller task not created'; end if;
 
   if (select count(*) from public.ark_checkpoints
-      where v_objective_id=v_objective_id) <> 0
+      where objective_id=v_objective_id) <> 0
   then raise exception 'starting a reins run unexpectedly began execution'; end if;
 
   replay:=public.arbor_start_research_reins_run(
@@ -82,7 +82,7 @@ begin
      or (select count(*) from public.arbor_research_reins_runs
          where client_request_id='90909090-9090-4090-8090-909090909090') <> 1
      or (select count(*) from public.ark_tasks
-         where v_objective_id=v_objective_id) <> 1
+         where objective_id=v_objective_id) <> 1
   then raise exception 'reins run replay was not idempotent: %',replay; end if;
 
   binding:=public.arbor_load_research_reins_binding(v_run_id);
