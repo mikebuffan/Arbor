@@ -47,7 +47,7 @@ const claim: ResearchClaim = {
   unitId: "unit-1",
   leaseToken: "lease-1",
   idempotencyKey: "unit-key-1",
-  kind: "synthetic_evidence",
+  kind: "research.synthetic",
   payload: { source: "synthetic-only" },
   maxCostReservationCents: 2,
 };
@@ -143,7 +143,7 @@ describe("research controller pulse", () => {
     });
     const unit: PlannedResearchUnit = {
       unitKey: "follow-contradiction-1",
-      kind: "synthetic_evidence",
+      kind: "research.synthetic",
       description: "Follow one synthetic contradiction without widening authority.",
       payload: { lead: "synthetic-only" },
       maxCostReservationCents: 2,
@@ -255,7 +255,7 @@ describe("research controller pulse", () => {
         rationale: "bad synthetic over-expansion",
         units: Array.from({ length: MAX_CONTROLLER_APPEND_PER_PULSE + 1 }, (_, i) => ({
           unitKey: "unit-" + i,
-          kind: "synthetic_evidence",
+          kind: "research.synthetic",
           description: "Synthetic unit " + i,
           payload: {},
           maxCostReservationCents: 0,
