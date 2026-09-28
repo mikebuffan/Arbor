@@ -87,7 +87,7 @@ set role authenticated;
 set request.jwt.claim.role = 'authenticated';
 select set_config('request.jwt.claim.sub',
   '11111111-1111-4111-8111-111111111111',false);
-do $
+do $rls$
 begin
  if (select count(*) from public.arbor_research_sessions
      where id='cccccccc-cccc-4ccc-8ccc-cccccccccccc') <> 1
@@ -102,7 +102,7 @@ begin
  or (select count(*) from public.arbor_research_receipts
      where session_id='dddddddd-dddd-4ddd-8ddd-dddddddddddd') <> 0
  then raise exception 'owner RLS isolation failed'; end if;
-end $;
+end $rls$;
 reset role;
 set request.jwt.claim.role = 'service_role';
 do $$
