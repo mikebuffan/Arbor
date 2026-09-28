@@ -34,5 +34,6 @@ psql -X -v ON_ERROR_STOP=1 -f ops/research/disposable-db/60-attempt-failure-stal
 psql -X -v ON_ERROR_STOP=1 -f ops/research/disposable-db/65-security-privilege-matrix.sql
 psql -X -v ON_ERROR_STOP=1 -f ops/research/disposable-db/70-persisted-session-simulation.sql
 psql -X -v ON_ERROR_STOP=1 -f ops/research/disposable-db/75-controller-append.sql
+psql -X -v ON_ERROR_STOP=1 -f ops/research/disposable-db/80-resumable-unit-result.sql
 
 echo "DISPOSABLE_RESEARCH_FULL_SAFE_SUITE=PASS"
