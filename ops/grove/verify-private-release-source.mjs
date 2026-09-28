@@ -20,6 +20,12 @@ export function verifyGroveSource(read=(p)=>readFileSync(p,"utf8")) {
        !ignore.includes("VERCEL_PROJECT_ID"))
       violations.push(path+":grove_project_build_filter_missing");
   }
+  const gitignore=load(".gitignore");
+  for(const marker of ["*.jks","*.keystore","**/key.properties"]){
+    if(!gitignore.includes(marker))
+      violations.push("grove_signing_material_not_ignored:"+marker);
+  }
+
   const privateConfig=load("apps/frontend/lib/config/grove_private_config.dart");
   if(!privateConfig.includes("'fqjqpuaoifgbweiguacf.supabase.co'") ||
      !privateConfig.includes("auth.host.toLowerCase() == expectedAuthHost"))
