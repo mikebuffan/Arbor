@@ -12,7 +12,7 @@ const expectedConversationId = conversationId;
 const requestId = '00000000-0000-4000-8000-000000000005';
 const apiOrigin = 'https://grove-private.example.org';
 const config = GrovePrivateConfig(
-  authUrl: 'https://synthetic-private.supabase.co',
+  authUrl: 'https://fqjqpuaoifgbweiguacf.supabase.co',
   publishableKey: 'sb_publishable_private_fixture',
   apiUrl: apiOrigin,
 );
