@@ -22,6 +22,7 @@ This section supersedes the older return checkpoint below for **current lane sel
 - ARK Preview contains the verified completed canary and checkpoint/recovery objectives plus the intentionally queued, zero-attempt research smoke task. Durable Arbor continuity is currently readable through the installed ARK connector.
 - GitHub/Vercel receipts prove the dedicated **grove-private-api**, **firefly-ark-sandbox**, and **arbor-ark-preview-mcp** projects/deployments have existed even though the connected Vercel project-list endpoint currently exposes only `firefly`. Treat this as connector inventory/permission drift, not proof of project deletion. A historical Vercel receipt identifies Grove project id `prj_nw2X0SyLn4e8CXWZ83MEs4jwn1JN`; direct deployment listing through the present connector still returns 403.
 - Vercel preview failures on many current research/Grove heads are quota/rate-limit statuses, not source-CI failures. Do not interpret them as product defects without build/runtime evidence.
+- **Quota fan-out remains an open deployment bug:** unrelated branches can still trigger previews across multiple linked Vercel projects. PR #215's Vercel receipt shows the same branch deploying `firefly`, `grove-private-api`, `firefly-ark-sandbox`, and `arbor-ark-preview-mcp`; even this integration-doc branch produced a Firefly preview. Project-specific branch/ignore filters must be reconciled so docs/research/Grove/ARK changes do not burn deployment quota on unrelated hosts.
 
 ### Live Firefly security correction applied during closeout audit
 
