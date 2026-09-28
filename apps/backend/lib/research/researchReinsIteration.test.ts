@@ -51,20 +51,32 @@ const claim: ResearchClaim = {
   maxCostReservationCents: 2,
 };
 
-function storeFor(s: ResearchSession): ResearchControllerStore {
+function storeFor(
+  s: ResearchSession,
+  units: Array<{
+    unitKey: string;
+    kind: string;
+    status: "queued" | "leased" | "completed" | "blocked" | "failed" | "cancelled";
+    attemptCount: number;
+    maxAttempts: number;
+  }> = [{
+    unitKey: "timeline-a",
+    kind: "research.timeline",
+    status: "queued",
+    attemptCount: 0,
+    maxAttempts: 3,
+  }],
+): ResearchControllerStore {
   return {
     loadControllerContext: vi.fn(async () => ({
       session: s,
-      units: [{
-        unitKey: "timeline-a",
-        kind: "research.timeline",
-        status: "queued",
-        attemptCount: 0,
-        maxAttempts: 3,
-      }],
+      units,
       recentReceipts: [],
     })),
-    appendPlannedUnits: vi.fn(async () => ({ appended: 0, existing: 0 })),
+    appendPlannedUnits: vi.fn(async ({ units: planned }) => ({
+      appended: planned.length,
+      existing: 0,
+    })),
     loadSession: vi.fn(async () => s),
     claimOne: vi.fn(async () => claim),
     settle: vi.fn(async () => "committed"),
@@ -72,13 +84,21 @@ function storeFor(s: ResearchSession): ResearchControllerStore {
   };
 }
 
-function plannerSelectingRunNext() {
+function plannerSelectingAppend() {
   return vi.fn(async (input: any): Promise<AgentResult> => {
     await input.hooks?.onToolSelected?.({
       round: 0,
-      name: "research_controller_run_next",
+      name: "research_controller_append_then_run",
       arguments: {
-        rationale: "The queued timeline unit is already the best bounded next step.",
+        rationale: "The empty durable queue needs one bounded next step.",
+        units: [{
+          unitKey: "timeline-a",
+          kind: "research.timeline",
+          description: "Run one synthetic bounded timeline check.",
+          payload: { source: "synthetic" },
+          maxCostReservationCents: 2,
+          maxAttempts: 3,
+        }],
       },
     });
     return {
@@ -93,8 +113,8 @@ function plannerSelectingRunNext() {
 describe("provider-neutral research reins iteration", () => {
   it("uses canonical Arbor planning, commits one ARK-backed unit, then asks the wake layer to resume", async () => {
     const s = session();
-    const store = storeFor(s);
-    const runAgent = plannerSelectingRunNext();
+    const store = storeFor(s, []);
+    const runAgent = plannerSelectingAppend();
     const executor = vi.fn(async () => ({
       sessionId: s.id,
       unitId: claim.unitId,
@@ -130,8 +150,8 @@ describe("provider-neutral research reins iteration", () => {
     expect(store.settle).toHaveBeenCalledOnce();
     expect(result.pulse).toMatchObject({
       status: "checkpointed",
-      plan: "run_next",
-      appendedUnits: 0,
+      plan: "append_then_run",
+      appendedUnits: 1,
       checkpoint: {
         sessionId: "session",
         objectiveId: "ark-objective",
@@ -153,7 +173,7 @@ describe("provider-neutral research reins iteration", () => {
   it("honors STOP before canonical Arbor planning or execution", async () => {
     const s = session({ cancellationRequested: true });
     const store = storeFor(s);
-    const runAgent = plannerSelectingRunNext();
+    const runAgent = plannerSelectingAppend();
     const executor = vi.fn();
 
     const result = await runResearchReinsIteration({
