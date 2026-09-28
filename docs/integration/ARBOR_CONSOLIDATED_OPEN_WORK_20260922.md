@@ -2,6 +2,59 @@
 
 **Snapshot:** September 22, 2026 (PDT). **Owner:** integration coordination only. **Status:** documentation checkpoint, not a running worker, release authorization, or proof of production service. For changes, refresh exact PR heads, source code and receipts first. This list supersedes stale dates in the older assembly queue for owner-facing action planning; it does not supersede source code or each lane's authoritative handoff.
 
+## LIVE RECONCILIATION CHECKPOINT — Sept 28, 2026 PDT
+
+This section supersedes the older return checkpoint below for **current lane selection only**. It is a read/write reconciliation receipt, not merge authorization for product lanes.
+
+### Canonical current lane heads
+
+- **ARK / ChatGPT continuity:** [#215](https://github.com/mikebuffan/Arbor/pull/215) at `ef61f4929f958ec45f9c3a2c09891a5957317ed2`. Live Preview checkpoint→resume, queue-state readback and durable Arbor continuity readback are verified. Execution is default-OFF. Phase-2 hardening remains non-blocking.
+- **Research / evidence engine:** [#212](https://github.com/mikebuffan/Arbor/pull/212) at `ae2dfd31dd6f36293daca3398762b442b531ddd4`, exact isolated workflow **36489573252 SUCCESS** after closeout fixes to stale disposable acceptance assumptions. Item 18 still requires a real human original-render vs extracted-text comparison; OCR remains conditional. No real restricted-source intake or unattended execution is authorized.
+- **Private Grove source review:** [#210](https://github.com/mikebuffan/Arbor/pull/210) at `2b0013665172045cb9b8aeb38d61ab511a56d8aa`, five-job exact-head CI **35914126581 SUCCESS**. #211 is already closed as an accidental duplicate and must stay superseded. Do not blindly merge later-moving #209 into #210.
+- **Cognitive / recovered May pathway work:** [#192](https://github.com/mikebuffan/Arbor/pull/192) at `ce1215036f2cad5a90e0ec8a373159f52b3b8122`. Git ancestry comparison proves Grove #210 is **ahead of #192 with no missing #192 commits**, so do not create a duplicate “brain merge” lane. Cognitive runtime still remains feature-OFF/live-unprovisioned.
+- **Public Arbor alpha:** [#159](https://github.com/mikebuffan/Arbor/pull/159) at `1a6a6cc7eb682059b47f0638aaf5f5dedb907be1`, isolated-provider guards source-verified; no dedicated live public-alpha provider/model release yet.
+- **Integration coordination:** this #149 lane remains the coordination ledger only. Product source must continue to be reviewed in its owning lane.
+
+### Live infrastructure truth
+
+- Supabase projects are present and healthy: **Firefly**, **Firefly ARK Preview**, and **The Grove**.
+- **The Grove** currently has **0 auth users, 0 owner grants, 0 Firefly bridges, and 0 ARK project grants**. Its live migration ledger still contains only the owner-access migration; transcript/claim migrations remain unapplied.
+- ARK Preview contains the verified completed canary and checkpoint/recovery objectives plus the intentionally queued, zero-attempt research smoke task. Durable Arbor continuity is currently readable through the installed ARK connector.
+- GitHub/Vercel receipts prove the dedicated **grove-private-api**, **firefly-ark-sandbox**, and **arbor-ark-preview-mcp** projects/deployments have existed even though the connected Vercel project-list endpoint currently exposes only `firefly`. Treat this as connector inventory/permission drift, not proof of project deletion. A historical Vercel receipt identifies Grove project id `prj_nw2X0SyLn4e8CXWZ83MEs4jwn1JN`; direct deployment listing through the present connector still returns 403.
+- Vercel preview failures on many current research/Grove heads are quota/rate-limit statuses, not source-CI failures. Do not interpret them as product defects without build/runtime evidence.
+
+### Live Firefly security correction applied during closeout audit
+
+Supabase security advisor exposed five investigation read views using definer semantics while client roles still had direct view privileges. A read-only preflight proved the anonymous role could see rows through at least one view.
+
+Owner-approved migration **`20260928220331_harden_investigation_read_views`** was applied to live Firefly. It:
+
+- sets all five investigation read views to `security_invoker=true`;
+- revokes all direct privileges from `public`, `anon`, and `authenticated`;
+- preserves `service_role` SELECT access.
+
+Post-migration verification shows `anon_select=false`, `authenticated_select=false`, `service_select=true` on all five views, and the Supabase **security_definer_view ERROR is gone**. No investigation row content was read or copied during the repair.
+
+Remaining advisor INFO entries for “RLS enabled with no policy” are default-deny tables unless another privileged path is present; do not mass-add client policies merely to silence the linter. Separate WARNs for extensions in `public` and leaked-password protection remain hardening work, not authorization to mutate auth/runtime blindly.
+
+### Repository / migration drift that still must be reconciled
+
+Current GitHub `main` is still `d46f6b46fc51ac3db4e158cddfc592c52cc2b5ef` (Sept 20) and is **not a complete reproducible description of current live Firefly/Preview/Grove state**. Live Firefly includes later memory, Pattern Hop, investigation, vault and ARK migrations that are not represented by matching migration versions on current main. ARK Preview also has five later live Preview/continuity migrations absent from main; Grove has its owner-access migration absent from main.
+
+Therefore:
+1. **Do not reset or rebuild any live database from current main's migration folder.**
+2. Reconstruct a canonical migration ledger from live history + exact source lineage before any fresh environment, merge, or destructive migration cleanup.
+3. Keep live fixes forward-only; do not rename/rewrite already-applied migration history to make counts cosmetically match.
+
+### Current dependency order
+
+1. Finish repository/live migration reconciliation and branch supersession map.
+2. Keep ARK #215 stable; Phase-2 hardening can proceed independently.
+3. Grove: use #210 as source-review anchor, then reconcile dedicated Vercel visibility, owner provisioning/consent, Grove-only transcript+claim migrations, protected independent LM host, and real signed Samsung leave/return acceptance.
+4. Research: keep #212 green; perform item-18 human fidelity review before OCR or restricted-source intake.
+5. Public Arbor remains isolated until its own provider/model/privacy/multi-user acceptance gates are satisfied.
+6. Only after lane ownership is reconciled should obsolete CI-only bridges/ancestor drafts be batch-closed. Do not delete history.
+
 ## LIVE CURRENT RETURN CHECKPOINT — Sept 22, evening PDT
 
 **One Grove source tip:** [#179](https://github.com/mikebuffan/Arbor/pull/179) at `38b9fd401e367df8c7cef240f4e07bf264e04d1a`, child of #174 and all prior Grove layers. Six exact-checkout backend/Flutter jobs passed in [35800510842](https://github.com/mikebuffan/Arbor/actions/runs/35800510842), including the server-only Grove invite → mapped Firefly owner → project grant → project owner → conversation owner check; no user chat route or real model inferencing. Do not deploy/merge parents separately. `deploy/grove-private-api-20260921` remains earlier #156; inspect target branch and promote intentionally rather than assuming current source tip is hosting.
