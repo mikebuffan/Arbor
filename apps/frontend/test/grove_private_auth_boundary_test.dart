@@ -123,7 +123,7 @@ void main() {
       home: GrovePrivateSetupPage(),
     ));
     expect(find.text('THE GROVE'), findsOneWidget);
-    expect(find.text('Your private house is being connected.'),
+    expect(find.text('The Grove is being connected.'),
         findsOneWidget);
     expect(find.textContaining('not configured in this build yet'),
         findsOneWidget);
