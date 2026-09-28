@@ -8,7 +8,7 @@ import 'package:frontend/pages/grove_private_access_page.dart';
 
 void main() {
   const privateRealm = GrovePrivateConfig(
-    authUrl: 'https://grove-invite-only.supabase.co',
+    authUrl: 'https://fqjqpuaoifgbweiguacf.supabase.co',
     publishableKey: 'sb_publishable_test-value',
     apiUrl: 'https://grove-private.example.org',
   );
@@ -25,12 +25,12 @@ void main() {
 
   test('old Firefly session cannot unlock an upgraded private Grove', () {
     final privateToken = tokenFor(
-      'https://grove-invite-only.supabase.co/auth/v1',
+      'https://fqjqpuaoifgbweiguacf.supabase.co/auth/v1',
     );
     final fireflyToken = tokenFor(
       'https://ncpdlyakrzfvobmwzbon.supabase.co/auth/v1',
     );
-    const groveAuth = 'https://grove-invite-only.supabase.co';
+    const groveAuth = 'https://fqjqpuaoifgbweiguacf.supabase.co';
     final knownNow = DateTime.utc(2026, 9, 21);
     expect(GrovePrivateSession.belongsToRealm(
       token: privateToken,
@@ -43,7 +43,7 @@ void main() {
       now: knownNow,
     ), isFalse);
     expect(GrovePrivateSession.belongsToRealm(
-      token: tokenFor('https://grove-invite-only.supabase.co/auth/v1',
+      token: tokenFor('https://fqjqpuaoifgbweiguacf.supabase.co/auth/v1',
           expires: 1600000000),
       authUrl: groveAuth,
       now: knownNow,
@@ -63,14 +63,24 @@ void main() {
       apiUrl: '',
     ).ready, isFalse);
     expect(const GrovePrivateConfig(
-      authUrl: 'http://grove-invite-only.supabase.co',
+      authUrl: 'http://fqjqpuaoifgbweiguacf.supabase.co',
       publishableKey: 'safe-publishable-key',
       apiUrl: 'https://grove-private.example.org',
     ).ready, isFalse);
     expect(const GrovePrivateConfig(
-      authUrl: 'https://grove-invite-only.supabase.co',
+      authUrl: 'https://fqjqpuaoifgbweiguacf.supabase.co',
       publishableKey: 'safe-publishable-key',
       apiUrl: 'http://localhost:3000',
+    ).ready, isFalse);
+  });
+
+  test('private Grove is pinned to the existing Grove realm', () {
+    expect(GrovePrivateConfig.expectedAuthHost,
+        'fqjqpuaoifgbweiguacf.supabase.co');
+    expect(const GrovePrivateConfig(
+      authUrl: 'https://some-other-private.supabase.co',
+      publishableKey: 'safe-publishable-key',
+      apiUrl: 'https://grove-private.example.org',
     ).ready, isFalse);
   });
 
@@ -83,7 +93,7 @@ void main() {
       ).ready, isFalse, reason: host);
     }
     expect(const GrovePrivateConfig(
-      authUrl: 'https://grove-invite-only.supabase.co',
+      authUrl: 'https://fqjqpuaoifgbweiguacf.supabase.co',
       publishableKey: 'safe-publishable-key',
       apiUrl: 'https://firefly-coral.vercel.app',
     ).ready, isFalse);
@@ -91,17 +101,17 @@ void main() {
 
   test('private Grove rejects URL credentials, fake keys and API path tricks', () {
     expect(const GrovePrivateConfig(
-      authUrl: 'https://user:pass@grove-invite-only.supabase.co',
+      authUrl: 'https://user:pass@fqjqpuaoifgbweiguacf.supabase.co',
       publishableKey: 'safe-publishable-key',
       apiUrl: 'https://grove-private.example.org',
     ).ready, isFalse);
     expect(const GrovePrivateConfig(
-      authUrl: 'https://grove-invite-only.supabase.co',
+      authUrl: 'https://fqjqpuaoifgbweiguacf.supabase.co',
       publishableKey: 'placeholder-test',
       apiUrl: 'https://grove-private.example.org',
     ).ready, isFalse);
     expect(const GrovePrivateConfig(
-      authUrl: 'https://grove-invite-only.supabase.co',
+      authUrl: 'https://fqjqpuaoifgbweiguacf.supabase.co',
       publishableKey: 'safe-publishable-key',
       apiUrl: 'https://grove-private.example.org/firefly',
     ).ready, isFalse);
