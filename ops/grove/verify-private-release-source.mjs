@@ -31,6 +31,16 @@ export function verifyGroveSource(read=(p)=>readFileSync(p,"utf8")) {
      !privateConfig.includes("auth.host.toLowerCase() == expectedAuthHost"))
     violations.push("grove_auth_realm_not_pinned");
 
+  const groveManifest=load("apps/frontend/android/app/src/grove/AndroidManifest.xml");
+  for(const marker of [
+    'android:allowBackup="false"',
+    'android:fullBackupContent="false"',
+    'android:usesCleartextTraffic="false"',
+  ]){
+    if(!groveManifest.includes(marker))
+      violations.push("grove_private_manifest_hardening_missing:"+marker);
+  }
+
   const android=load("apps/frontend/android/app/build.gradle.kts");
   for(const marker of [
     "GROVE_ANDROID_APPLICATION_ID",
