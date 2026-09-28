@@ -1,6 +1,6 @@
 -- PROPOSAL ONLY. Not in migrations directory; no automatic production application.
 -- Sandbox DB review/test required. Do not run against original Firefly.
--- Owner-scoped durable 60-minute research sessions. Existing ARK/investigation tables
+-- Owner-scoped durable research sessions, bounded to four hours. Existing ARK/investigation tables
 -- remain unchanged. No worker, cron, or production flag is enabled here.
 create table if not exists public.arbor_research_sessions (
   id uuid primary key default gen_random_uuid(),
