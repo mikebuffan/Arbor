@@ -8,7 +8,7 @@
  */
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -30,7 +30,7 @@ const POPPLER_TIMEOUT_MS = 12_000;
 export type LocalPdfExtraction = {
   original: PdfOriginalCapture;
   pages: PdfPageEvidenceRecord[];
-  parser: "poppler-local-unreviewed";
+  parser: "poppler-local-unreviewed" | "poppler-isolated-unreviewed";
 };
 
 /** No shell, interpolated command, remote fetch or logged document text. */
@@ -63,11 +63,14 @@ async function poppler(command: string, args: string[], operation: string):
  * Page images, folios and claims require independent review; a successful
  * text-layer extraction does not authorize publication or OCR.
  */
+export type PopplerRunner = (command: string, args: string[], operation: string) => Promise<string>;
+
 export async function extractLocalPublicPdf(input: {
   sourceUri: string;
   documentId: string;
   bytes: Uint8Array;
-}): Promise<LocalPdfExtraction> {
+}, options?: { runPoppler?: PopplerRunner }): Promise<LocalPdfExtraction> {
+  const runPoppler = options?.runPoppler ?? poppler;
   if (!(input.bytes instanceof Uint8Array) ||
       input.bytes.byteLength < 8 ||
       input.bytes.byteLength > MAX_PDF_SOURCE_BYTES) {
@@ -85,7 +88,9 @@ export async function extractLocalPublicPdf(input: {
     await writeFile(file, Buffer.from(input.bytes), {
       flag: "wx", mode: 0o600,
     });
-    const info = await poppler("pdfinfo", [file], "metadata");
+    // An isolated non-root parser can read only this bind-mounted file, not its 0700 host parent.
+    if (options?.runPoppler) await chmod(file, 0o444);
+    const info = await runPoppler("pdfinfo", [file], "metadata");
     if (/^Encrypted:\s+yes\b/im.test(info)) {
       throw new Error("pdf_encrypted_source_hold");
     }
@@ -100,7 +105,7 @@ export async function extractLocalPublicPdf(input: {
     const original = await capturePdfOriginalBytes({
       ...input, declaredPageCount,
     });
-    const inventory = await poppler("pdfimages", ["-list", file], "image_inventory");
+    const inventory = await runPoppler("pdfimages", ["-list", file], "image_inventory");
     const imagePages = new Set<number>();
     // Poppler's tabular inventory lines start with physical page number,
     // image number and image type; the two-line header never matches.
@@ -114,7 +119,7 @@ export async function extractLocalPublicPdf(input: {
          physicalPdfPage <= declaredPageCount; physicalPdfPage++) {
       let text: string;
       try {
-        text = await poppler("pdftotext", [
+        text = await runPoppler("pdftotext", [
           "-f", String(physicalPdfPage),
           "-l", String(physicalPdfPage),
           "-enc", "UTF-8",
@@ -123,7 +128,8 @@ export async function extractLocalPublicPdf(input: {
         ], "page_text");
       } catch (err) {
         if (err instanceof Error &&
-            err.message === "pdf_poppler_not_installed") throw err;
+            (err.message === "pdf_poppler_not_installed" ||
+             err.message.startsWith("pdf_sandbox_"))) throw err;
         parsedPages.push({
           physicalPdfPage, extractionStatus: "extraction_failed",
           errorCode: "pdftotext_error_or_timeout",
@@ -155,7 +161,7 @@ export async function extractLocalPublicPdf(input: {
     return {
       original,
       pages: createPdfPageEvidenceRecords(original, parsedPages),
-      parser: "poppler-local-unreviewed",
+      parser: options?.runPoppler ? "poppler-isolated-unreviewed" : "poppler-local-unreviewed",
     };
   } finally {
     await rm(folder, { recursive: true, force: true });

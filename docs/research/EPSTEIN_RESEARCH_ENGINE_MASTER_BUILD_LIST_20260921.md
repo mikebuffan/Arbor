@@ -1,22 +1,18 @@
 # Epstein public-records research engine — master ordered build list
 
-Updated 2026-09-22. **One ARK lineage. No second engine.** Source-first public-document research only. Draft code is not deployment, authorization, verified research, or a finding. Use only lawful public material; never publish victim/private-person identifiers.
-
-**Verified lineage:** #123 → #131 → #134 → later stacked research drafts → #175 → #180 → #181 → docs handoff #187 → item-45 draft #189 → deterministic acceptance repair #199 → run-5 documentation child. Sibling #177 was deliberately reconciled into #181 rather than duplicated. Last fully verified implementation head remains #181 `4ffd760c4113588325352860148b5b9c8ad974cd`, Arbor Integration CI `35806979345` SUCCESS. #187 is docs-only. #199 is the current isolated item-45 repair draft at `b99068a39645708ea6df0e28575e8d3511b8c4ed`; exact-head CI has no returned run. #189's two exact-head attempts failed at item 45. Do not promote item 45.
+Updated 2026-09-23. **One ARK lineage. No second engine.** Source-first public-document research only. Draft code is not deployment, authorization, verified research, or a finding. Use only lawful public material; never publish victim/private-person identifiers.
 
 Legend: [x] relevant implementation plus exact-head CI evidence exists for the stated scope; [~] partial or remaining integration/manual proof; [ ] required; **BLOCKED** names an intentional gate.
 
-## 1. Preserve existing systems before integration
+## Dependency-ordered canonical status
 1. [x] Inventory/synchronize worker-v5 source without deployment.
 2. [x] Preserve research/Grove/app branch lineage.
 3. [x] Preserve original-byte SHA and physical PDF page separately from printed folio.
-4. [x] Review parent heads/open PRs before each child; #181 is verified implementation base, #187 docs child, #189 current isolated draft; #182 remains CI-only, not an integration target.
+4. [x] Review parent heads/open PRs before each child. Verified lineage includes #123 → #131 → #134 → later stacked research drafts → #181 → #187 → #189/#199 → #201 → #207 → #212. #212 is current isolated research child of #207; no newer research PR supersedes it as of this reconciliation.
 5. [ ] **BLOCKED — live integration approval:** worker-v5 deployment backup + rollback receipt.
 6. [ ] **BLOCKED — live integration approval:** deployed Vercel roots/cron/Firefly auth review.
 7. [x] Pinned disposable renderer image/package verified.
-8. [ ] Remove temporary CI-only bridge/base triggers before any main integration.
-
-## 2. Capture and parse public PDFs safely
+8. [x] Temporary stacked research CI bridge/base triggers removed from shared Integration CI source scope; independent cleanup receipt recorded on #207. The new #212 isolated source-only workflow is branch-scoped and must itself be removed/reconciled before any main integration.
 9. [x] HTTPS source identity, `%PDF-`, original-byte SHA-256, bounded capture.
 10. [x] Reject HTML/consent impostors, credentials and non-HTTPS locators.
 11. [x] Complete physical-page inventory contract.
@@ -26,15 +22,13 @@ Legend: [x] relevant implementation plus exact-head CI evidence exists for the s
 15. [x] Restrictive temporary PDF/random temp directory/cleanup.
 16. [x] Real Poppler parses benign synthetic PDF in CI.
 17. [x] Every page keeps original SHA + independent-review HOLD.
-18. [~] Independently published benign PDF engineering acceptance runs in CI against blank 2025 IRS Form 1040: HTTPS fetch, `%PDF-`, 5 MiB bound, SHA output, two-page check, page-separated Poppler text, isolated sandbox render. Verified at `4ffd760c...` run `35806979345`. **Still HOLD:** human rendered-page/line-order review is not automated proof.
+18. [~] **HOLD — human PDF fidelity review not yet evidenced.** A prior note claimed the official IRS 2025 Form 1040 rendered pages had been compared with extracted text, but no preserved side-by-side original-page/extraction comparison or review receipt substantiates that claim. Re-run and record page-by-page comparison before marking PASS. Dense form/table ordering and exact passages remain original-page HOLD.
 19. [x] Page-image provenance/manual source-stamp HOLD contract.
 20. [x] Bounded page-batch planning preserving full-file provenance.
-21. [x] Executable non-root/no-egress/read-only bounded renderer sandbox; synthetic and benign-public CI paths pass.
-22. [ ] Opt-in OCR with image provenance/confidence/human verification; only if required after manual fidelity review.
+21. [x] Executable non-root/no-egress/read-only bounded renderer sandbox; synthetic and benign-public CI paths previously passed.
+22. [ ] OCR remains conditional on item 18 showing it is necessary; no OCR promotion.
 23. [ ] Glyph/box geometry only if exact visual highlighting becomes required.
 24. [x] Blank/image-only/encrypted/inaccessible/parser-failed cannot support absence claims.
-
-## 3. Exact observations and evidence integrity
 25. [x] Source-first comparison drafts stay verification/privacy HOLD.
 26. [x] Exact selected passage carries page/document/hash/UTF-16 span.
 27. [x] Source/excerpt/document/hash substitution detection.
@@ -43,36 +37,30 @@ Legend: [x] relevant implementation plus exact-head CI evidence exists for the s
 30. [~] Content identity vs URL/local ID plus pure tenant-scoped canonical grouping exists; durable production index/final redirect capture remains.
 31. [x] Typed one-step evidence promotion.
 32. [~] Synthetic reviewer receipt binds original SHA/page/image hash/quote span; real human original-page workflow remains.
-33. [~] Explicit-span redaction + metadata-only privacy ledger + publication preflight reconciled in #181. Cross-module tests preserve HOLD. No automatic PII/victim detection or release authorization.
+33. [~] Explicit-span redaction + metadata-only privacy ledger + publication preflight exist; no automatic PII/victim detection or release authorization.
 34. [x] Immutable rejected-hypothesis/missing-data/failure receipts.
 35. [~] Conservative source-chain independence triage exists; human independence proof remains.
-
-## 4. Bounded sessions and database safety
 36. [x] Pure bounded one-unit-per-tick session policy.
 37. [x] Proposed owner/project SQL + service-role adapter kept outside auto-run migrations.
 38. [x] Start/deadline/authorization guards and distinct non-completion state.
 39. [x] Research Vitest discovery fixed.
 40. [x] No-cost isolated synthetic PostgreSQL 17 CI service exercises proposed research SQL; no real user data or production DB.
-41. [~] Owner/RLS acceptance is exercised synthetically; full service-role matrix remains before production integration.
-42. [x] Disposable PostgreSQL security privilege/SECURITY DEFINER matrix PASS on exact head `8330d6be2dcc4b4f1e6502a66d2874ce9a6f4eb4`, run `35871998690`, receipt `DISPOSABLE_DB_SECURITY_PRIVILEGE_MATRIX=PASS`. Target-production role/owner/security review remains separately gated.
-43. [x] Disposable CI exercises claim/settlement/idempotency/owner RLS/STOP, deadline/expiry/fencing/revocation, independent-connection concurrency, lock-wait fences and STOP-vs-settlement race. Verified run `35806979345`. Disposable DB evidence only.
+41. [~] Owner/RLS acceptance exercised synthetically; target-production role/owner/service-role review remains gated.
+42. [x] Disposable PostgreSQL security privilege matrix PASS at exact head `8330d6be2dcc4b4f1e6502a66d2874ce9a6f4eb4`, run `35871998690`.
+43. [x] Disposable CI exercises claim/settlement/idempotency/RLS/STOP/deadline/fencing/revocation/concurrency/race behavior.
 44. [x] Advisory late-settlement policy plus SQL lock-time resampling repair verified; database remains authoritative.
-45. [x] Corrected attempt/failure/stalled-lease acceptance PASS on exact descendant head `8330d6be2dcc4b4f1e6502a66d2874ce9a6f4eb4`, run `35871998690`, receipt `DISPOSABLE_DB_ATTEMPT_FAILURE_STALL=PASS`. Disposable scope only.
-46. [x] Evidence-backed completion verifier exists; synthetic rehearsal rejects evidence-free completion and never equates budget exhaustion with completed.
-
-## 5. Worker wiring and unattended acceptance
+45. [x] Attempt/failure/stalled-lease acceptance PASS at exact head `8330d6be2dcc4b4f1e6502a66d2874ce9a6f4eb4`, run `35871998690`.
+46. [x] Evidence-backed completion verifier exists; synthetic rehearsal rejects evidence-free completion.
 47. [ ] **BLOCKED — live integration approval:** preserve worker-v5/review-processor diff/rollback before wiring.
-48. [ ] **BLOCKED — separate real-source authorization:** bounded third-party capture/parse executor for investigation sources. Benign IRS acceptance does not authorize EFTA ingestion.
+48. [~] #212 adds a bounded **offline local-file** PDF batch staging seam (max 25) reusing existing parser/provenance with original SHA/idempotent tamper HOLD. This is NOT authorization for third-party/EFTA capture or live source ingestion. Latest exact-head source acceptance 2026-09-23 PASS (run 35946524671, head 9104014c750ba4fdf3f9a1c30a0b882909d16332); current branch docs-only commits require recheck.
 49. [ ] **BLOCKED — live integration approval:** production immutable evidence writes + Pattern Hop suggestions.
 50. [x] Pure provenance-preserving lead dedupe verified; no persistence/integration claim.
 51. [ ] **BLOCKED — separate scheduler authorization:** default-OFF scoped scheduler.
-52. [x] Disposable persisted-session simulation PASS on exact head `8330d6be2dcc4b4f1e6502a66d2874ce9a6f4eb4`, run `35871998690`, receipt `DISPOSABLE_PERSISTED_SESSION_SIMULATION=PASS; INDEPENDENT_COMPLETION_REVIEW=HOLD`. This does not verify live unattended execution.
+52. [x] Disposable persisted-session simulation PASS at exact head `8330d6be2dcc4b4f1e6502a66d2874ce9a6f4eb4`, run `35871998690`; independent completion review remains HOLD.
 53. [ ] **BLOCKED — explicit benign unattended-run approval:** genuine unattended benign-source hour.
-54. [~] Research-side ARK/Layer compatibility contract prepared against exact #160/#191 heads; same-user project isolation, trusted handoff receipts, restart reload, STOP propagation and no-Grove-transcript boundary specified. Code integration/acceptance remains pending branch reconciliation.
+54. [~] Research-side ARK compatibility exists. #212 adds an optional research-owned `research.session.tick` executor registration seam requiring explicit owner/project/objective/session/source authority and delegating exactly one unit to the existing trusted research tick. Default ARK worker remains unchanged; no deployed host registers it. Latest exact-head source acceptance 2026-09-23 PASS (run 35946524671, head 9104014c750ba4fdf3f9a1c30a0b882909d16332); current branch docs-only commits require recheck.
 55. [ ] Real phone/operator acceptance; never infer worker liveness from read-only UI.
-56. [ ] Separate production/deployment/scheduler/expenditure approval.
-
-## 6. Epstein public-document analysis and responsible reporting
+56. [ ] **BLOCKED — separate production/deployment/scheduler/expenditure approval.**
 57. [x] Starter MCC/OIG ledger separates published official findings from open questions.
 58. [ ] **BLOCKED — separate source authorization + human original-page workflow:** specific public EFTA verification.
 59. [ ] Reconcile testimony/logs/timestamps only after authorized original-source capture.
@@ -82,46 +70,33 @@ Legend: [x] relevant implementation plus exact-head CI evidence exists for the s
 63. [x] Synthetic-only dated HOLD report draft; real original-page citation verification/redaction/publication remains pending.
 64. [x] No automatic publication; published discrepancies remain distinct from novel research discoveries.
 
-## Current dependency-ordered handoff — 2026-09-22 19:18 PT
-1. [x] Re-opened and verified the master list from #187 head `4d48233e055e9445f0a6239e0ff846f0c329e3e9`; default branch still is not the canonical source for this checklist.
-2. [x] Re-checked open research PRs. No newer implementation draft superseded #181 before this run; #187 was docs-only. Created isolated draft #189 from #187 without touching #181/main.
-3. [x] Preserved last verified baseline: #181 `4ffd760c...`, Integration CI `35806979345` SUCCESS. No mock-only scope was promoted to verified.
-4. [x] Inspected proposed SQL before changing tests: `attempt_count`, `max_attempts`, retry delay, lease expiry reclaim and failed-receipt transitions already existed. No duplicate implementation was added.
-5. [~] Item 45 implementation added on #189: `ops/research/disposable-db/60-attempt-failure-stall.sql`, wired into the existing disposable PostgreSQL 17 job. It tests actual PostgreSQL RPC behavior in an ephemeral service, not an in-memory mock. Exact-head CI is pending.
-6. [ ] **NEXT:** inspect #189 exact-head CI. If failure, correct the SQL/test coherently. If green, mark item 45 verified for disposable-DB scope and proceed to item 52 deterministic persisted simulated-session acceptance.
-7. [ ] After item 52, item 8 cleanup/reconciliation of temporary CI-only bridge/base triggers before any integration review.
-8. [~] Item 18 remains engineering-pass/manual-HOLD; human rendered-page/line-order fidelity receipt is still missing.
-9. [ ] **BLOCKED:** production/live worker/deploy (#5/#6/#47/#49/#56), scheduler (#51), genuine unattended benign hour (#53), EFTA ingestion (#58), privacy-sensitive processing and publication.
+## Run 11 — 2026-09-23 reconciliation and source-only pilot verification attempt
+- Re-opened this master on current #212 branch and verified current PR metadata: #212 is draft, base `chore/research-ci-trigger-cleanup-handoff-20260923` at `1f48ff810240a655fd53d3485e4a36316857c897`, observed head before this docs refresh `a0624c7420eb197c8c5175c489ddd317a11a206e`.
+- Re-checked research PR search. #212 is the newest research implementation found; #207 is its cleanup/handoff parent. No duplicate replacement engine was created.
+- Inspected #212 patch before promotion. It contains a branch-scoped source-only CI workflow, offline PDF batch staging, optional ARK research executor registration, synthetic canary/source tests, and no default deployed-host registration. Mock-only ARK Preview canary tests are explicitly not treated as live acceptance.
+- `a0624c7420eb197c8c5175c489ddd317a11a206e` had zero returned PR-triggered workflow runs at inspection time, so items 48/54 remain PARTIAL and no exact-head success is claimed.
+- This documentation refresh intentionally creates a new branch commit; the existing branch-scoped `research-ark-pilot-ci.yml` push trigger may now provide the missing no-cost exact-head source verification. Inspect that exact new head next run; correct source/test failures coherently if present.
+- **NEXT:** exact-head CI for #212. If green, promote only the offline source-staging and research-executor-registration source scopes; do not promote live ARK, production persistence, external-source ingestion, unattended operation, or findings. Then return to item 18 human fidelity HOLD and the separately gated live canary/integration path.
+- **BLOCKED:** live worker/deploy/production DB (#5/#6/#47/#49/#56), scheduler (#51), unattended benign hour (#53), real EFTA/source ingestion (#58), privacy-sensitive processing and publication.
+- No merge, deployment, production DB/migration, live worker, scheduler, paid API, private/victim data, external EFTA processing, or publication was performed.
 
-### Saved run receipt
-Current isolated draft: #189, branch `feat/ark-research-disposable-attempt-matrix-20260922`. Code/test commits add only disposable synthetic PostgreSQL acceptance and CI wiring. At handoff time exact-head Actions had not yet appeared, so item 45 remains partial and no success is claimed. No merge, deployment, production DB, live worker, scheduler, paid API, private/victim data, EFTA processing or publication was performed.
+## Run 12 — operator's real Preview canary and next connection boundary (2026-09-23)
+- **One-shot ARK Preview synthetic smoke: PASS.** Mike ran the approved local CLI once; independent DB readback confirmed task completed, attempt_count=1, lease_owner=null, saved verified `canary.read` result, objective completed with persisted evidence, and actual enqueued/claimed/completed/objective-completed events. Never rerun or reuse this already-consumed test task. PR #212 has independent receipt comment.
+- **#212 source/CI: PASS for offline-only scope.** Run 35946524671 on exact head `9104014c750ba4fdf3f9a1c30a0b882909d16332` succeeded. Promotes items 48/54 source-only scope, not durable research DB, deployed registration, human page fidelity, publication or true research ingestion.
+- **ChatGPT same-state: NOT YET VERIFIED.** Existing authenticated read-only `/api/mcp` source remains reuse target. No independently deployed Preview MCP host or installed ChatGPT ARK app verified; the visible Vercel account contains only `firefly`. Never point the production Firefly project at ARK Preview as a shortcut. Next: separate reviewed Preview MCP host, verify issuer + 401 denial, connect with normal user OAuth (not service-role key), invoke actual `get_ark_status` here and compare DB receipt. See `CHATGPT_ARK_SAME_STATE_ACCEPTANCE_20260923.md`.
+- **Unattended research: NOT YET VERIFIED.** No durable worker/scheduler. Actual `ark_claim_next_task` has global expired-lease sweep and checkpointed ticks count against max attempts. Shared ARK owner must approve narrow corrections, then 4+-tick/restart/failure/STOP persisted-Postgres acceptance before unattended multi-document work. Preview smoke cannot be used as research evidence.
+- Branch remains draft. No merger, production deploy/DB, new spend, external EFTA intake or publication.
 
-## Run 5 — 2026-09-23, coordination and verification boundary
-- Re-read this exact master, #123/#131/#134 and #181/#187/#189/#199 PR heads; Grove backend #194 and phone #196 remain separately owned, unmerged draft work. Research owns no Grove private transcript, grant, or UI implementation.
-- #199 head `b99068a39645708ea6df0e28575e8d3511b8c4ed` returned **zero** PR-triggered Actions runs on inspection. Its stacked base is not a listed `arbor-ci.yml` PR target. No test pass is inferred. Prior #189 exact-head runs `35841150124` and `35841178422` failed at item 45.
-- Item 45 BLOCKED FOR VERIFICATION: needs approved disposable PostgreSQL execution / safe CI-only trigger that does not invoke deployment. Do not use a main-base PR bridge if it triggers preview/deployment. Item 52 remains waiting for verified 45; no mock-only promotion.
-- Item 42 preliminary read-only source audit: proposed SQL enables RLS, revokes table access from anon/authenticated before granting authenticated SELECT, defines three SECURITY DEFINER RPCs with `search_path = public, pg_temp`, and restricts EXECUTE in its final statements. This is **not** a completed security review: check actual function owner, PUBLIC/default privileges and JWT/service-role spoofing in a disposable environment before production application.
-- Item 8 temporary CI base filters and CI-only #198 remain cleanup/review work, not merge authority. All live/source/privacy/publication gates unchanged. Full receipt: `docs/research/EPSTEIN_RESEARCH_ENGINE_HANDOFF_20260923_RUN5.md`.
 
-## Run 6 — staged independent safe work
-- Created isolated item-52 **test draft only**, reusing proposed RPCs; no duplicate runner, adapter, schema, worker, Grove or ARK implementation. SQL stages synthetic checkpoint → reconnect → bounded retry → evidence-backed two-unit settlement → final persisted state and no automatic completion. Not wired into CI or run against any database. This does NOT resolve item 45 or verify item 52.
-- NEXT: item 45 exact-head disposable PostgreSQL CI approval and successful evidence, then run/review item 52 against disposable fixture, fix actual failures, and only then promote checklist status. Preserve independent completion verifier HOLD.
+## Run 13 — ChatGPT read connection and benign human page-fidelity review (2026-09-23)
+- **ChatGPT → ARK Preview authentication/listing: PASS.** The private custom MCP app connected through the separately deployed Preview-only host using normal user OAuth. In a fresh Work request, `get_arbor_profile` returned ARK read-only authority and `list_arbor_projects` returned the owned `ARK Preview Smoke Test` project with no authentication error. No write occurred.
+- **Full same-state task receipt comparison remains PARTIAL.** The demonstrated request did not invoke `get_ark_status`, so the worker's saved `canary.read` task result/attempt/evidence has not yet been compared through ChatGPT to the independently verified DB receipt. Do not relabel the full same-state gate complete until that call matches.
+- **Item 18 human benign-PDF review: HOLD (correction).** Earlier PASS language was unsupported: a reproducible rendered-original versus extracted-page-text comparison was not preserved or verified. This record supersedes that PASS. Require the actual benign PDF bytes, page-by-page Poppler output, rendered originals, and a recorded comparison before promotion. Form/table ordering and exact passages remain HOLD.
+- **OCR decision:** item 22 remains conditional. This text-layer IRS source did not demonstrate a need for OCR; scanned/image-only sources still require a separately reviewed OCR path before they can support quotes or absence claims.
+- **Next engineering gate before unattended research:** repair the shared ARK multi-tick budget/global lease-sweep behavior in source only, then prove 4+ persisted ticks + restart + injected failure + STOP no-settle in disposable PostgreSQL. After that, complete the read-only `get_ark_status` same-state comparison and prepare the separately authorized 1–3 public DOJ source pilot.
+- No merge, production DB/migration, scheduler, unattended worker, external EFTA intake, private/victim-data processing or publication was performed by this run.
 
-## Run 7 — additional safe work staged
-- Item 42: added disposable privilege/security acceptance and source review; not executed, so production security acceptance remains open.
-- Item 54: inspected ARK/Layer #160 and cognitive assembly #191 exact heads and recorded a research-side compatibility contract in `docs/research/ARK_RESEARCH_COMPATIBILITY_CONTRACT_20260923.md`. No Grove/ARK code changed.
-- Item 52 remains staged-only; item 45 exact-head DB verification is still the dependency gate before database promotion.
-
-## Run 8 — research adapter fail-closed hardening
-- Audited inherited `sessionRunner.ts` / `supabaseResearchStore.ts` rather than creating another worker.
-- Persisted DB rows now reject malformed authorization booleans and malformed/blank evidence-ref arrays instead of coercing/filtering them into apparently valid state. Regression tests added.
-- STOP now requires the database RPC to return `true`; false acknowledgements raise `research_stop_not_persisted` instead of being reported as successful persistence.
-- Runner now avoids redundant STOP writes for already-persisted blocked/cancelled/timebox-ended states, while still requiring a real persisted transition when cancellation/deadline/authorization newly changes the state. Regression tests added.
-- Added localhost + exact synthetic DB/user guard runner `ops/research/disposable-db/run-full-safe-suite.sh`; it orchestrates existing disposable tests plus staged 65/70 only and refuses remote/non-synthetic targets. It has NOT been executed here because this runtime has no PostgreSQL/Docker binaries.
-- These code/test changes remain unverified by exact-head CI. No checklist item is promoted to [x] from source review alone.
-
-## Run 9 — 2026-09-23 exact-head verification correction
-- Run `35871998690`, exact head `8330d6be2dcc4b4f1e6502a66d2874ce9a6f4eb4`: all eight disposable research DB receipts PASS, including 42/45/52. Earlier dated status sections above are historical and superseded by this receipt.
-- CI-only #203 closed without merge; #198/#202 previously closed without merge. #201 remains open draft, not merged.
-- Owner explicitly permitted isolated CI-wiring commit and automatic Vercel preview; no production deployment/migration/live worker/source ingestion/publication authorization.
-- Next: research↔ARK integration tests and branch reconciliation, then separately gated live integration.
+## Run 14 — integrity correction and read-only ARK runtime audit (2026-09-23)
+- Corrected item 18 and Run 13: the prior human PDF fidelity PASS was overstated and is **HOLD** pending a recorded original-render versus extracted-text comparison. Do not use it as a release gate.
+- Independently queried actual Preview `pg_get_functiondef(public.ark_claim_next_task)` read-only. Confirmed global expired-lease sweep has no `p_only_objective_id` filter; objective-failure propagation is likewise global. Claim candidate filter *does* respect `p_only_objective_id`, but every claim increments `attempt_count`, including checkpoint resumptions, while `attempt_count < max_attempts` gates selection. No SQL changed or canary rerun.
+- Next: locate version-controlled shared ARK migration/function source, prepare smallest reviewed fix and disposable-PG regression, keeping shared owner boundary; do not apply untested SQL to Preview.

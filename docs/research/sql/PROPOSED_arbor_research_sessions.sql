@@ -1,6 +1,6 @@
 -- PROPOSAL ONLY. Not in migrations directory; no automatic production application.
 -- Sandbox DB review/test required. Do not run against original Firefly.
--- Owner-scoped durable 60-minute research sessions. Existing ARK/investigation tables
+-- Owner-scoped durable research sessions, bounded to four hours. Existing ARK/investigation tables
 -- remain unchanged. No worker, cron, or production flag is enabled here.
 create table if not exists public.arbor_research_sessions (
   id uuid primary key default gen_random_uuid(),
@@ -26,7 +26,7 @@ create table if not exists public.arbor_research_sessions (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint arbor_research_session_duration_check
-    check (deadline_at > started_at and deadline_at <= started_at + interval '1 hour'),
+    check (deadline_at > started_at and deadline_at <= started_at + interval '4 hours'),
   constraint arbor_research_session_project_owner_fk
     foreign key (project_id,user_id) references public.projects(id,user_id) on delete cascade,
   constraint arbor_research_session_identity_uniq unique (id,user_id,project_id)
@@ -96,6 +96,12 @@ grant select on public.arbor_research_receipts to authenticated;
 grant all on public.arbor_research_sessions to service_role;
 grant all on public.arbor_research_units to service_role;
 grant all on public.arbor_research_receipts to service_role;
+drop policy if exists arbor_research_sessions_owner_read
+  on public.arbor_research_sessions;
+drop policy if exists arbor_research_units_owner_read
+  on public.arbor_research_units;
+drop policy if exists arbor_research_receipts_owner_read
+  on public.arbor_research_receipts;
 create policy arbor_research_sessions_owner_read on public.arbor_research_sessions
   for select to authenticated using (user_id = (select auth.uid()));
 create policy arbor_research_units_owner_read on public.arbor_research_units
@@ -177,7 +183,8 @@ begin
     set status='running',updated_at=v_now where id=p_session_id;
   return jsonb_build_object('unitId',v_unit.id,'leaseToken',v_unit.lease_token,
     'idempotencyKey',v_unit.unit_key,'kind',v_unit.kind,'payload',v_unit.payload,
-    'maxCostReservationCents',v_unit.max_cost_reservation_cents);
+    'maxCostReservationCents',v_unit.max_cost_reservation_cents,
+    'lastResult',v_unit.last_result);
 end $$;
 
 create or replace function public.arbor_settle_research_unit(
@@ -258,6 +265,155 @@ begin
   return 'committed';
 end $$;
 
+
+-- Service-role-only controller append. Arbor may refresh the durable task
+-- graph, but it may create research descriptors only; this RPC grants no tool
+-- authority and does not execute a unit.
+create or replace function public.arbor_append_research_units(
+  p_session_id uuid,p_user_id uuid,p_project_id uuid,p_units jsonb
+) returns jsonb language plpgsql security definer set search_path = public, pg_temp as $$
+declare v_session public.arbor_research_sessions%rowtype;
+        v_unit jsonb;
+        v_now timestamptz;
+        v_pending integer;
+        v_new_count integer;
+        v_appended integer := 0;
+        v_existing integer := 0;
+        v_rows integer;
+        v_cost integer;
+        v_attempts integer;
+        v_payload jsonb;
+        v_description text;
+        v_unit_key text;
+        v_kind text;
+begin
+  if auth.role() is distinct from 'service_role' then
+    raise exception 'research_worker_service_role_required';
+  end if;
+  if jsonb_typeof(p_units) is distinct from 'array'
+     or jsonb_array_length(p_units) not between 1 and 8 then
+    raise exception 'research_controller_invalid_plan_size';
+  end if;
+
+  select * into v_session from public.arbor_research_sessions
+    where id=p_session_id and user_id=p_user_id and project_id=p_project_id
+    for update;
+  if not found then
+    raise exception 'research_controller_session_not_found';
+  end if;
+
+  v_now := clock_timestamp();
+  if v_session.status not in ('queued','running')
+     or not v_session.authorized
+     or v_session.cancellation_requested
+     or v_now < v_session.started_at
+     or v_now >= v_session.deadline_at then
+    raise exception 'research_controller_session_not_active';
+  end if;
+
+  if exists (
+    select 1
+    from jsonb_array_elements(p_units) u
+    group by u->>'unitKey'
+    having count(*) > 1
+  ) then
+    raise exception 'research_controller_duplicate_unit_key';
+  end if;
+
+  for v_unit in select value from jsonb_array_elements(p_units)
+  loop
+    if jsonb_typeof(v_unit) is distinct from 'object' then
+      raise exception 'research_controller_invalid_planned_unit';
+    end if;
+
+    v_unit_key := btrim(coalesce(v_unit->>'unitKey',''));
+    v_kind := btrim(coalesce(v_unit->>'kind',''));
+    v_description := btrim(coalesce(v_unit->>'description',''));
+    v_payload := v_unit->'payload';
+
+    if length(v_unit_key) not between 1 and 200
+       or length(v_kind) not between 1 and 200
+       or v_kind not like 'research.%'
+       or length(v_description) not between 1 and 2000
+       or jsonb_typeof(v_payload) is distinct from 'object'
+       or coalesce(v_unit->>'maxCostReservationCents','') !~ '^[0-9]+$'
+       or coalesce(v_unit->>'maxAttempts','') !~ '^[0-9]+$' then
+      raise exception 'research_controller_invalid_planned_unit';
+    end if;
+
+    v_cost := (v_unit->>'maxCostReservationCents')::integer;
+    v_attempts := (v_unit->>'maxAttempts')::integer;
+
+    if v_cost not between 0 and 1000000
+       or v_cost > v_session.max_cost_cents-v_session.committed_cost_cents
+       or v_attempts not between 1 and 20 then
+      raise exception 'research_controller_invalid_planned_unit';
+    end if;
+  end loop;
+
+  select count(*) into v_pending
+  from public.arbor_research_units
+  where session_id=p_session_id and user_id=p_user_id and project_id=p_project_id
+    and status in ('queued','leased');
+
+  select count(*) into v_new_count
+  from jsonb_array_elements(p_units) u
+  where not exists (
+    select 1 from public.arbor_research_units existing
+    where existing.session_id=p_session_id
+      and existing.unit_key=u->>'unitKey'
+  );
+
+  if v_pending + v_new_count > 256
+     or v_pending + v_new_count >
+        v_session.max_work_units-v_session.consumed_work_units then
+    raise exception 'research_controller_pending_unit_limit';
+  end if;
+
+  for v_unit in select value from jsonb_array_elements(p_units)
+  loop
+    v_unit_key := btrim(v_unit->>'unitKey');
+    v_kind := btrim(v_unit->>'kind');
+    v_description := btrim(v_unit->>'description');
+    v_payload := v_unit->'payload';
+    v_cost := (v_unit->>'maxCostReservationCents')::integer;
+    v_attempts := (v_unit->>'maxAttempts')::integer;
+
+    insert into public.arbor_research_units
+      (session_id,user_id,project_id,unit_key,kind,payload,
+       max_cost_reservation_cents,max_attempts,available_at)
+    values
+      (p_session_id,p_user_id,p_project_id,v_unit_key,v_kind,
+       v_payload || jsonb_build_object(
+         'controllerDescription',v_description,
+         'plannedBy','arbor-agency'
+       ),
+       v_cost,v_attempts,v_now)
+    on conflict (session_id,unit_key) do nothing;
+
+    get diagnostics v_rows = row_count;
+    if v_rows = 1 then
+      v_appended := v_appended + 1;
+    else
+      v_existing := v_existing + 1;
+    end if;
+  end loop;
+
+  if v_appended > 0 then
+    update public.arbor_research_sessions
+      set unresolved_required_work=greatest(
+            unresolved_required_work,v_pending+v_appended
+          ),
+          updated_at=v_now
+      where id=p_session_id;
+  end if;
+
+  return jsonb_build_object(
+    'appended',v_appended,
+    'existing',v_existing
+  );
+end $$;
+
 create or replace function public.arbor_stop_research_session(
   p_session_id uuid,p_user_id uuid,p_project_id uuid,p_status text,p_reason text
 ) returns boolean language plpgsql security definer set search_path = public, pg_temp as $$
@@ -281,6 +437,8 @@ revoke all on function public.arbor_claim_research_unit(uuid,uuid,uuid,text,inte
 revoke all on function public.arbor_settle_research_unit
   (uuid,uuid,uuid,uuid,uuid,text,text,integer,text[],integer,jsonb)
   from public,anon,authenticated;
+revoke all on function public.arbor_append_research_units
+  (uuid,uuid,uuid,jsonb) from public,anon,authenticated;
 revoke all on function public.arbor_stop_research_session
   (uuid,uuid,uuid,text,text) from public,anon,authenticated;
 grant execute on function public.arbor_claim_research_unit(uuid,uuid,uuid,text,integer)
@@ -288,5 +446,7 @@ grant execute on function public.arbor_claim_research_unit(uuid,uuid,uuid,text,i
 grant execute on function public.arbor_settle_research_unit
   (uuid,uuid,uuid,uuid,uuid,text,text,integer,text[],integer,jsonb)
   to service_role;
+grant execute on function public.arbor_append_research_units
+  (uuid,uuid,uuid,jsonb) to service_role;
 grant execute on function public.arbor_stop_research_session
   (uuid,uuid,uuid,text,text) to service_role;

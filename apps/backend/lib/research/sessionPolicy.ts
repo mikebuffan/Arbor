@@ -29,7 +29,7 @@ export type ResearchSessionDecision =
   | { action: "stop"; status: Exclude<ResearchSessionStatus, "queued" | "running">; reason: string }
   | { action: "idle"; reason: string };
 
-export const MAX_SESSION_DURATION_MS = 60 * 60 * 1000;
+export const MAX_SESSION_DURATION_MS = 4 * 60 * 60 * 1000;
 
 function milliseconds(iso: string): number {
   const value = Date.parse(iso);
@@ -126,6 +126,7 @@ export type ResearchUnitReceipt = {
   costCents: number;
   evidenceRefs: string[];
   unresolvedRequiredWork: number;
+  result?: Record<string, unknown>;
 };
 
 /** Adapter must still enforce atomic, idempotent settlement and lease fencing. */
@@ -143,6 +144,10 @@ export function validateResearchUnitReceipt(
   if (!Array.isArray(receipt.evidenceRefs) ||
     receipt.evidenceRefs.some(ref => typeof ref !== "string" || !ref.trim())) {
     throw new Error("invalid_research_evidence_refs");
+  }
+  if (receipt.result !== undefined &&
+      (!receipt.result || typeof receipt.result !== "object" || Array.isArray(receipt.result))) {
+    throw new Error("invalid_research_receipt_result");
   }
   // Failed/blocked/checkpointed receipts must not silently reduce required
   // work merely because the "completed" status was omitted. This is a
