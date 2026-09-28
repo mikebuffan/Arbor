@@ -8,7 +8,7 @@ const conversation = '00000000-0000-4000-8000-000000000004';
 const requestId = '00000000-0000-4000-8000-000000000005';
 const apiUrl = 'https://private-grove.example.org';
 const config = GrovePrivateConfig(
-  authUrl: 'https://synthetic-private.supabase.co',
+  authUrl: 'https://fqjqpuaoifgbweiguacf.supabase.co',
   publishableKey: 'sb_publishable_private_synthetic',
   apiUrl: apiUrl,
 );
