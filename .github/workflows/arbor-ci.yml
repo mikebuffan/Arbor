@@ -14,6 +14,8 @@ on:
       - feature/grove-private-durable-retry-claim-20260923
       # Isolated pinned source candidate, review-only, NOT live Vercel release.
       - release/grove-private-source-candidate-20260923
+      # Private mobile-home finish branch; source/CI only, no deployment.
+      - finish/grove-mobile-home-20260928
   pull_request:
     branches:
       - main
@@ -146,7 +148,7 @@ jobs:
           --dart-define=GROVE_STANDALONE=true
           --dart-define=GROVE_PRIVATE_TALK_PREVIEW=true
           --dart-define=GROVE_PRIVATE_NEW_CONVERSATION_PREVIEW=true
-          --dart-define=GROVE_SUPABASE_URL=https://ci-grove-auth.example.invalid
+          --dart-define=GROVE_SUPABASE_URL=https://fqjqpuaoifgbweiguacf.supabase.co
           --dart-define=GROVE_SUPABASE_ANON_KEY=sb_publishable_synthetic_ci_only
           --dart-define=GROVE_API_URL=https://ci-grove-api.example.invalid
       - name: Verify separate Grove APK exists (never publish synthetic artifact)

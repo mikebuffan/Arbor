@@ -42,6 +42,14 @@ void main() {
     expect(restored.revision, 1);
     expect(restored.events, hasLength(1));
     expect(restored.visitorZone, GroveZone.library);
+
+    final guest = restored.apply(
+      GroveWorldAction.enterRoom,
+      zone: GroveZone.guestRoom,
+      at: t0.add(const Duration(minutes: 5)),
+    );
+    expect(guest.visitorZone, GroveZone.guestRoom);
+    expect(guest.events.last.actor, 'visitor');
   });
 
   test('history bounded while revision remains monotonic', () {

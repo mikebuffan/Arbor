@@ -36,7 +36,7 @@ class GrovePrivateSetupPage extends StatelessWidget {
                           semanticLabel: 'Approved private Grove room with Moss and the living window'),
                     ),
                     const SizedBox(height: 20),
-                    const Text('Your private house is being connected.',
+                    const Text('The Grove is being connected.',
                       style: TextStyle(color: Colors.white, fontSize: 23)),
                     const SizedBox(height: 12),
                     const Text(
@@ -50,7 +50,7 @@ class GrovePrivateSetupPage extends StatelessWidget {
                     const SizedBox(height: 18),
                     const Text(
                       'No password or account action is required on this screen. '
-                      'Your previously installed test build is unchanged.',
+                      'The previously installed test build is unchanged.',
                       style: TextStyle(color: Color(0xFF91DAD2), height: 1.45),
                     ),
                   ],

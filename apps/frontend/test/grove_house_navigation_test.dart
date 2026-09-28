@@ -24,6 +24,26 @@ void main() {
     expect(find.text('THE GROVE • HOME'), findsOneWidget);
   });
 
+  testWidgets('Grove guest-room door opens the visitor room and returns home',
+      (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(home: ArborEnvironmentShell()));
+    await tester.pump(const Duration(milliseconds: 150));
+    await tester.ensureVisible(
+        find.widgetWithText(OutlinedButton, 'Guest Room'));
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Guest Room'));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('THE GROVE / GUEST ROOM'), findsOneWidget);
+    expect(find.textContaining('A room for the person who comes to visit'),
+        findsOneWidget);
+    expect(find.textContaining('saves no note, memory, task, location'),
+        findsOneWidget);
+    await tester.tap(find.text('Back to the Grove'));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('THE GROVE • HOME'), findsOneWidget);
+  });
+
   testWidgets('Grove window door opens live temporal controls',
       (tester) async {
     await tester.pumpWidget(

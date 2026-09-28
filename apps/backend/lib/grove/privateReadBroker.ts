@@ -9,6 +9,7 @@ import {
 import { readArkProjectSnapshot } from "@/lib/ark/readModel";
 
 const GROVE_PROJECT_REF = "fqjqpuaoifgbweiguacf";
+const GROVE_VERCEL_PROJECT_ID = "prj_nw2X0SyLn4e8CXWZ83MEs4jwn1JN";
 const AUTH_AUDIENCE = "authenticated";
 
 export type GrovePrivateReadConfiguration = {
@@ -27,6 +28,17 @@ export function privateGroveReadConfig(
   if (env.GROVE_API_ENABLED !== "true") {
     throw new RouteAccessError(500, "grove_api_not_enabled");
   }
+
+  // Local/source tests need no Vercel metadata, but a Vercel-hosted private
+  // API must prove it is the dedicated Grove project before any service key
+  // is accepted. This prevents a copied GROVE_API_ENABLED flag on Firefly or
+  // ARK Preview from turning another deployment into the private broker.
+  const vercelProjectId = env.VERCEL_PROJECT_ID?.trim() ?? "";
+  if ((env.VERCEL === "1" && vercelProjectId !== GROVE_VERCEL_PROJECT_ID) ||
+      (vercelProjectId && vercelProjectId !== GROVE_VERCEL_PROJECT_ID)) {
+    throw new RouteAccessError(500, "grove_api_not_configured");
+  }
+
   const groveUrl = env.GROVE_SUPABASE_URL?.trim() ?? "";
   const grovePublishableKey =
     env.GROVE_SUPABASE_PUBLISHABLE_KEY?.trim() ?? "";

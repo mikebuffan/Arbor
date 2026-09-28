@@ -14,7 +14,54 @@ export function verifyGroveSource(read=(p)=>readFileSync(p,"utf8")) {
     catch {violations.push(path+":invalid_config");continue;}
     if(!Array.isArray(config.crons)||config.crons.length)
       violations.push(path+":inherited_cron");
+    const ignore=String(config.ignoreCommand||"");
+    if(!ignore.includes("finish/grove-mobile-home-20260928") ||
+       !ignore.includes("prj_nw2X0SyLn4e8CXWZ83MEs4jwn1JN") ||
+       !ignore.includes("VERCEL_PROJECT_ID"))
+      violations.push(path+":grove_project_build_filter_missing");
   }
+  const gitignore=load(".gitignore");
+  for(const marker of ["*.jks","*.keystore","**/key.properties"]){
+    if(!gitignore.includes(marker))
+      violations.push("grove_signing_material_not_ignored:"+marker);
+  }
+
+  const privateConfig=load("apps/frontend/lib/config/grove_private_config.dart");
+  if(!privateConfig.includes("'fqjqpuaoifgbweiguacf.supabase.co'") ||
+     !privateConfig.includes("auth.host.toLowerCase() == expectedAuthHost"))
+    violations.push("grove_auth_realm_not_pinned");
+
+  const groveManifest=load("apps/frontend/android/app/src/grove/AndroidManifest.xml");
+  for(const marker of [
+    'android:allowBackup="false"',
+    'android:fullBackupContent="false"',
+    'android:usesCleartextTraffic="false"',
+  ]){
+    if(!groveManifest.includes(marker))
+      violations.push("grove_private_manifest_hardening_missing:"+marker);
+  }
+
+  const android=load("apps/frontend/android/app/build.gradle.kts");
+  for(const marker of [
+    "GROVE_ANDROID_APPLICATION_ID",
+    "GROVE_ANDROID_KEYSTORE_PATH",
+    "GROVE_ANDROID_KEYSTORE_PASSWORD",
+    "GROVE_ANDROID_KEY_ALIAS",
+    "GROVE_ANDROID_KEY_PASSWORD",
+    "groveReleaseRequested",
+    "groveRelease",
+  ]){
+    if(!android.includes(marker))
+      violations.push("grove_release_signing_gate_missing:"+marker);
+  }
+  if(android.includes('signingConfig = signingConfigs.getByName("debug")'))
+    violations.push("grove_release_uses_debug_signing");
+
+  const broker=load("apps/backend/lib/grove/privateReadBroker.ts");
+  if(!broker.includes('prj_nw2X0SyLn4e8CXWZ83MEs4jwn1JN') ||
+     !broker.includes('VERCEL_PROJECT_ID'))
+    violations.push("grove_backend_vercel_project_not_pinned");
+
   const provider=load("apps/backend/lib/providers/openai.ts");
   if(!provider.includes("export const openai = new Proxy") ||
      !provider.includes("Reflect.get(getClient(), property)"))
@@ -48,6 +95,10 @@ export function verifyGroveSource(read=(p)=>readFileSync(p,"utf8")) {
      !pipeline.includes('GROVE_PRIVATE_CLAIM_ENABLED: "false"') ||
      !pipeline.includes("Grove disposable private transcript schema acceptance"))
     violations.push("key_free_and_disposable_db_ci_missing");
+  if(!pipeline.includes(
+    "--dart-define=GROVE_SUPABASE_URL=https://fqjqpuaoifgbweiguacf.supabase.co"
+  ))
+    violations.push("grove_ci_auth_realm_not_pinned");
   const filter=load("ops/grove/should-build-private-host.mjs");
   if(!filter.includes('"release/grove-private-source-candidate-20260923"')||
      !filter.includes('"deploy/grove-private-api-20260921"')||

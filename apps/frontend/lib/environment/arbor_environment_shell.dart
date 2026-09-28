@@ -21,6 +21,7 @@ import 'grove_app_mode.dart';
 import 'grove_responsive_wrap.dart';
 import 'annabelle_kitchen_view.dart';
 import 'grove_observatory_view.dart';
+import 'grove_guest_room_view.dart';
 import 'benchmark_view.dart';
 import 'project_view.dart';
 import 'memory_state_view.dart';
@@ -30,7 +31,7 @@ import 'attention_banner.dart';
 import '../pages/arbor_shell_page.dart';
 import '../pages/grove_talk_page.dart';
 
-enum EnvironmentDestination { home, conversation, objective, queue, projects, memory, evidence, tools, benchmarks, focus, health, settings, kitchen, observatory }
+enum EnvironmentDestination { home, conversation, objective, queue, projects, memory, evidence, tools, benchmarks, focus, health, settings, kitchen, observatory, guestRoom }
 
 class ArborEnvironmentShell extends StatefulWidget {
   const ArborEnvironmentShell({
@@ -182,6 +183,8 @@ class _ArborEnvironmentShellState extends State<ArborEnvironmentShell> {
         _select(EnvironmentDestination.memory);
       case GroveRoomAction.kitchen:
         _select(EnvironmentDestination.kitchen);
+      case GroveRoomAction.guestRoom:
+        _select(EnvironmentDestination.guestRoom);
       case GroveRoomAction.window:
         showModalBottomSheet<void>(
           context: context,
@@ -208,6 +211,7 @@ class _ArborEnvironmentShellState extends State<ArborEnvironmentShell> {
       EnvironmentCommand('Go Home', () => _select(EnvironmentDestination.home)),
       EnvironmentCommand('Enter Annabelle’s Kitchen', () => _select(EnvironmentDestination.kitchen)),
       EnvironmentCommand('Enter the Observatory', () => _select(EnvironmentDestination.observatory)),
+      EnvironmentCommand('Open the Guest Room', () => _select(EnvironmentDestination.guestRoom)),
       EnvironmentCommand('Open Conversation', () => _select(EnvironmentDestination.conversation)),
       EnvironmentCommand('Open Current Objective', () => _select(EnvironmentDestination.objective)),
       EnvironmentCommand('Open Work Queue', () => _select(EnvironmentDestination.queue)),
@@ -246,6 +250,7 @@ class _Navigation extends StatelessWidget {
           NavigationRailDestination(icon: Icon(Icons.settings_outlined), label: Text('Settings')),
           NavigationRailDestination(icon: Icon(Icons.restaurant_menu), label: Text('Kitchen')),
           NavigationRailDestination(icon: Icon(Icons.nights_stay_outlined), label: Text('Observatory')),
+          NavigationRailDestination(icon: Icon(Icons.bed_outlined), label: Text('Guest Room')),
         ],
       );
 }
@@ -289,6 +294,7 @@ class _Surface extends StatelessWidget {
       EnvironmentDestination.settings => 'Settings',
       EnvironmentDestination.kitchen => 'Annabelle’s Kitchen',
       EnvironmentDestination.observatory => 'The Observatory',
+      EnvironmentDestination.guestRoom => 'Guest Room',
     };
     // Conversation needs the available phone height for Text, Voice, and the
     // keyboard; a fixed 720px panel nested inside a scrolling dashboard
@@ -332,6 +338,12 @@ class _Surface extends StatelessWidget {
           else if (selected == EnvironmentDestination.observatory)
             GroveObservatoryView(
               onReturnHome: () => onSelect(EnvironmentDestination.home),
+            )
+          else if (selected == EnvironmentDestination.guestRoom)
+            GroveGuestRoomView(
+              onReturnHome: () => onSelect(EnvironmentDestination.home),
+              onOpenConversation: () =>
+                  onSelect(EnvironmentDestination.conversation),
             )
           else if (selected == EnvironmentDestination.objective)
             ObjectiveWorkspace(objective: objective)

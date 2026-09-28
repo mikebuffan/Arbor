@@ -22,6 +22,11 @@ class GrovePrivateConfig {
     apiUrl: String.fromEnvironment('GROVE_API_URL'),
   );
 
+  // This private app is pinned to the already-created Grove auth realm.
+  // A build pointing at an arbitrary new Supabase project must fail closed.
+  static const String expectedAuthHost =
+      'fqjqpuaoifgbweiguacf.supabase.co';
+
   // Do not reuse any previous user, project or ARK-preview auth realm.
   static const Set<String> reservedAuthHosts = {
     'ncpdlyakrzfvobmwzbon.supabase.co', // existing private Firefly
@@ -49,6 +54,7 @@ class GrovePrivateConfig {
         api.query.isEmpty &&
         auth.fragment.isEmpty &&
         api.fragment.isEmpty &&
+        auth.host.toLowerCase() == expectedAuthHost &&
         !reservedAuthHosts.contains(auth.host.toLowerCase()) &&
         !reservedApiHosts.contains(api.host.toLowerCase()) &&
         publishableKey.trim().isNotEmpty &&
