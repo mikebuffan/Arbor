@@ -57,6 +57,11 @@ export function verifyGroveSource(read=(p)=>readFileSync(p,"utf8")) {
   if(android.includes('signingConfig = signingConfigs.getByName("debug")'))
     violations.push("grove_release_uses_debug_signing");
 
+  const broker=load("apps/backend/lib/grove/privateReadBroker.ts");
+  if(!broker.includes('prj_nw2X0SyLn4e8CXWZ83MEs4jwn1JN') ||
+     !broker.includes('VERCEL_PROJECT_ID'))
+    violations.push("grove_backend_vercel_project_not_pinned");
+
   const provider=load("apps/backend/lib/providers/openai.ts");
   if(!provider.includes("export const openai = new Proxy") ||
      !provider.includes("Reflect.get(getClient(), property)"))
