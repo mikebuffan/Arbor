@@ -35,6 +35,7 @@ export async function runResearchReinsIteration(input: {
   plannerInstructions: string;
   plannerContext: AgencyToolContext;
   behaviorRequirements?: string[];
+  allowedUnitKinds?: string[];
   wakeState: ResearchWakeState;
   at: string;
   runAgent?: Parameters<
@@ -45,6 +46,7 @@ export async function runResearchReinsIteration(input: {
     instructions: input.plannerInstructions,
     context: input.plannerContext,
     behaviorRequirements: input.behaviorRequirements,
+    allowedUnitKinds: input.allowedUnitKinds,
     runAgent: input.runAgent,
   });
 
