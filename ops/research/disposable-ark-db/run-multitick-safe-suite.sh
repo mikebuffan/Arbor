@@ -33,5 +33,8 @@ psql -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260918203000_ark_targeted_ob
 psql -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260918210000_ark_owner_integrity.sql
 psql -X -v ON_ERROR_STOP=1 -f docs/research/sql/PROPOSED_ark_scoped_claim_research_checkpoint_retry_window.sql
 psql -X -v ON_ERROR_STOP=1 -f ops/research/disposable-ark-db/80-multitick-research-acceptance.sql
+psql -X -v ON_ERROR_STOP=1 -f docs/research/sql/PROPOSED_arbor_research_sessions.sql
+psql -X -v ON_ERROR_STOP=1 -f docs/research/sql/PROPOSED_arbor_research_reins_runs.sql
+psql -X -v ON_ERROR_STOP=1 -f ops/research/disposable-ark-db/90-reins-run-contract.sql
 
 echo "DISPOSABLE_ARK_MULTITICK_SAFE_SUITE=PASS"
