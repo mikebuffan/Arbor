@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { validateResearchSession, type ResearchSession } from "./sessionPolicy";
-import type { ResearchClaim, ResearchStore } from "./sessionRunner";
+import type { ResearchClaim } from "./sessionRunner";\nimport type {\n  PlannedResearchUnit,\n  ResearchControllerContext,\n  ResearchControllerStore,\n} from "./researchController";
 
 type JsonRow = Record<string, unknown>;
 
@@ -61,7 +61,7 @@ function sessionFromRow(value: unknown): ResearchSession {
  * It is intentionally not wired to cron or production until sandbox SQL tests
  * and an explicit deployment decision. No fallback to unscoped queries.
  */
-export class SupabaseResearchStore implements ResearchStore {
+export class SupabaseResearchStore implements ResearchControllerStore {
   constructor(
     private readonly db: SupabaseClient,
     private readonly ownerId: string,
@@ -91,6 +91,87 @@ export class SupabaseResearchStore implements ResearchStore {
     const session = sessionFromRow(data);
     this.assertScope(session);
     return session;
+  }
+
+  async loadControllerContext(sessionId: string): Promise<ResearchControllerContext|null> {
+    const session = await this.loadSession(sessionId);
+    if (!session) return null;
+
+    const unitsQuery = this.db.from("arbor_research_units")
+      .select("unit_key,kind,status,attempt_count,max_attempts")
+      .eq("session_id",session.id)
+      .eq("user_id",this.ownerId)
+      .eq("project_id",this.projectId)
+      .order("created_at",{ascending:true});
+    const {data:unitRows,error:unitError} = await unitsQuery;
+    if (unitError) throw unitError;
+
+    const receiptsQuery = this.db.from("arbor_research_receipts")
+      .select("idempotency_key,status,evidence_refs,recorded_at")
+      .eq("session_id",session.id)
+      .eq("user_id",this.ownerId)
+      .eq("project_id",this.projectId)
+      .order("recorded_at",{ascending:false})
+      .limit(50);
+    const {data:receiptRows,error:receiptError} = await receiptsQuery;
+    if (receiptError) throw receiptError;
+
+    const units = (unitRows ?? []).map((value:unknown) => {
+      const r=row(value);
+      const status=requiredString(r.status,"unit_status");
+      if (!["queued","leased","completed","blocked","failed","cancelled"].includes(status)) {
+        throw new Error("invalid_research_db_unit_status");
+      }
+      return {
+        unitKey:requiredString(r.unit_key,"unit_key"),
+        kind:requiredString(r.kind,"unit_kind"),
+        status:status as ResearchControllerContext["units"][number]["status"],
+        attemptCount:number(r.attempt_count,"unit_attempt_count"),
+        maxAttempts:number(r.max_attempts,"unit_max_attempts"),
+      };
+    });
+
+    const recentReceipts = (receiptRows ?? []).map((value:unknown) => {
+      const r=row(value);
+      const status=requiredString(r.status,"receipt_status");
+      if (!["completed","checkpointed","blocked","failed"].includes(status)) {
+        throw new Error("invalid_research_db_receipt_status");
+      }
+      return {
+        unitKey:requiredString(r.idempotency_key,"receipt_idempotency_key"),
+        status:status as ResearchControllerContext["recentReceipts"][number]["status"],
+        evidenceRefs:stringArray(r.evidence_refs,"receipt_evidence_refs"),
+        recordedAt:requiredString(r.recorded_at,"receipt_recorded_at"),
+      };
+    });
+
+    return {session,units,recentReceipts};
+  }
+
+  async appendPlannedUnits(input: {
+    session: ResearchSession;
+    units: PlannedResearchUnit[];
+  }): Promise<{appended:number;existing:number}> {
+    this.assertScope(input.session);
+    const {data,error} = await this.db.rpc("arbor_append_research_units",{
+      p_session_id:input.session.id,
+      p_user_id:this.ownerId,
+      p_project_id:this.projectId,
+      p_units:input.units.map((unit) => ({
+        unitKey:unit.unitKey,
+        kind:unit.kind,
+        description:unit.description,
+        payload:unit.payload,
+        maxCostReservationCents:unit.maxCostReservationCents,
+        maxAttempts:unit.maxAttempts ?? 3,
+      })),
+    });
+    if (error) throw error;
+    const r=row(data);
+    return {
+      appended:number(r.appended,"controller_appended"),
+      existing:number(r.existing,"controller_existing"),
+    };
   }
 
   async claimOne(input: {
