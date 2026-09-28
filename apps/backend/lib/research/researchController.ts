@@ -285,6 +285,6 @@ export async function runResearchControllerPulse(input: {
     status: "no_claim",
     plan: plan.action,
     appendedUnits,
-    reason: tick.reason,
+    reason: "reason" in tick ? tick.reason : undefined,
   };
 }
