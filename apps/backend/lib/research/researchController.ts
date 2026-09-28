@@ -262,6 +262,14 @@ export async function runResearchControllerPulse(input: {
   }
 
   if (tick.status === "not_found") return { status: "not_found" };
+  if (tick.status === "duplicate") {
+    return {
+      status: "no_claim",
+      plan: plan.action,
+      appendedUnits,
+      reason: "research_duplicate_requires_receipt_readback",
+    };
+  }
   if (tick.status === "stopped") {
     return { status: "stopped", reason: tick.reason ?? "research_session_stopped" };
   }
