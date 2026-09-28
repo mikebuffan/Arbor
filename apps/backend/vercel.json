@@ -4,5 +4,6 @@
       "path": "/api/admin/system/heartbeat",
       "schedule": "0 0 * * *"
     }
-  ]
+  ],
+  "ignoreCommand": "test \"$VERCEL_GIT_COMMIT_REF\" = \"feature/research-offline-pdf-batch-pilot-20260923\""
 }
