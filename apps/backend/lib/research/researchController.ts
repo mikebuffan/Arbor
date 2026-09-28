@@ -120,7 +120,7 @@ function normalizePlannedUnits(units: PlannedResearchUnit[]): PlannedResearchUni
     const description = unit.description?.trim();
 
     if (!unitKey || unitKey.length > 200 || seen.has(unitKey) ||
-        !kind || kind.length > 200 ||
+        !kind || kind.length > 200 || !kind.startsWith("research.") ||
         !description || description.length > 2000 ||
         !unit.payload || typeof unit.payload !== "object" || Array.isArray(unit.payload) ||
         !Number.isSafeInteger(unit.maxCostReservationCents) ||
