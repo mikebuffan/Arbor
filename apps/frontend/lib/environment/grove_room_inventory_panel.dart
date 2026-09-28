@@ -33,6 +33,7 @@ class _GroveRoomInventoryPanelState extends State<GroveRoomInventoryPanel> {
     GroveZone.library,
     GroveZone.workshop,
     GroveZone.kitchen,
+    GroveZone.guestRoom,
     GroveZone.sofa,
     GroveZone.rug,
   ];
@@ -42,6 +43,7 @@ class _GroveRoomInventoryPanelState extends State<GroveRoomInventoryPanel> {
     GroveZone.library => 'Library',
     GroveZone.workshop => 'Workshop',
     GroveZone.kitchen => 'Kitchen',
+    GroveZone.guestRoom => 'Guest Room',
     GroveZone.sofa => 'Sofa',
     GroveZone.rug => 'Rug',
   };
