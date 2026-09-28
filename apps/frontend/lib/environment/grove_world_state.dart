@@ -2,7 +2,7 @@ import 'dart:collection';
 
 /// Local Grove scenery state only. It is NOT ARK memory, a worker heartbeat,
 /// evidence of unattended activity, or an AI's subjective experience.
-enum GroveZone { observatory, library, workshop, kitchen, sofa, rug }
+enum GroveZone { observatory, library, workshop, kitchen, guestRoom, sofa, rug }
 enum GroveWorldAction { enterRoom, moveMoss, settleMoss, wakeMoss }
 
 class GroveWorldEvent {
