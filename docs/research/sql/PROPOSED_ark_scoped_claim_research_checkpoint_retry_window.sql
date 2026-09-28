@@ -136,9 +136,18 @@ begin
       -- Only a persisted, successful research receipt opens a fresh retry window.
       -- Other ARK kinds retain their original cumulative attempt behavior.
       attempt_count = case
-        when kind = 'research.session.tick'
+        when (
+          (
+            kind = 'research.session.tick'
+            and p_state->>'kind' = 'research_session_reference'
+          )
+          or (
+            kind = 'research.controller.tick'
+            and p_state->>'kind' = 'research_controller_reference'
+            and p_state->>'receiptPersisted' = 'true'
+          )
+        )
           and p_reason = 'executor'
-          and p_state->>'kind' = 'research_session_reference'
           and coalesce(p_state->>'authorizationVersion', '') <> ''
           and jsonb_typeof(p_state->'latestEvidenceRefs') = 'array'
         then 0 else attempt_count end,
