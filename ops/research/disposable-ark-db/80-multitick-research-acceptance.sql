@@ -393,7 +393,7 @@ values
  'queued',2,'synthetic-controller-retry-task',
  clock_timestamp()-interval '1 second');
 
-do $
+do $$
 declare c jsonb; lease uuid; n timestamptz;
 begin
   n:=clock_timestamp();
@@ -424,9 +424,9 @@ begin
   if (select attempt_count from public.ark_tasks
       where id='85555555-5555-4555-8555-555555555555') <> 0
   then raise exception 'persisted controller progress did not reopen retry window'; end if;
-end $;
+end $$;
 
-do $
+do $$
 declare c jsonb; lease uuid; n timestamptz;
 begin
   n:=clock_timestamp();
@@ -457,6 +457,6 @@ begin
   if (select attempt_count from public.ark_tasks
       where id='85555555-5555-4555-8555-555555555555') <> 1
   then raise exception 'controller no-progress checkpoint incorrectly reset attempts'; end if;
-end $;
+end $$;
 
 select 'DISPOSABLE_ARK_MULTITICK_RESEARCH=PASS; TICKS=5+; RESTART=PASS; TARGET_SCOPE=PASS; RETRY_BUDGET=PASS; STOP_NO_SETTLE=PASS; CONTROLLER_RETRY_WINDOW=PASS' as receipt;
