@@ -202,6 +202,9 @@ export class SupabaseResearchStore implements ResearchControllerStore {
       kind:requiredString(r.kind,"kind"),
       payload:row(r.payload),
       maxCostReservationCents:number(r.maxCostReservationCents,"maxCostReservationCents"),
+      lastResult:r.lastResult === null || r.lastResult === undefined
+        ? null
+        : row(r.lastResult),
     };
   }
 
@@ -222,7 +225,10 @@ export class SupabaseResearchStore implements ResearchControllerStore {
       p_cost_cents:input.receipt.costCents,
       p_evidence_refs:input.receipt.evidenceRefs,
       p_unresolved_required_work:input.receipt.unresolvedRequiredWork,
-      p_result:{receipt_recorded_at:input.receipt.recordedAt},
+      p_result:{
+        ...(input.receipt.result ?? {}),
+        receipt_recorded_at:input.receipt.recordedAt,
+      },
     });
     if (error) throw error;
     if (data!=="committed"&&data!=="duplicate"&&data!=="lease_lost") {
