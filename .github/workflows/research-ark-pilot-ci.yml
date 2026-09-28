@@ -18,6 +18,20 @@ jobs:
     name: ARK research bridge and isolated PDF pilot tests
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: arbor_synthetic
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d arbor_synthetic"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
     env:
       OPENAI_API_KEY: ci-placeholder-not-a-real-key
     steps:
@@ -39,6 +53,20 @@ jobs:
           pnpm --filter firefly-backend exec vitest run             lib/research/registerArkResearchSessionExecutor.test.ts lib/research/arkResearchWorkerCycle.test.ts lib/research/arkPdfEvidenceRehearsal.test.ts lib/mcp/__tests__/auth.test.ts lib/mcp/__tests__/routes.test.ts lib/mcp/__tests__/registerArkReadTools.test.ts lib/mcp/__tests__/fullStackCanary.test.ts lib/ark/__tests__/readModel.test.ts lib/ark/approvedPreviewCanary.test.ts             lib/research/arkResearchHandoff.test.ts             lib/research/isolatedPdfParser.test.ts             lib/research/offlinePdfBatchPilot.test.ts             lib/research/localPdfParser.test.ts
       - name: Build backend to typecheck new research adapter
         run: pnpm --filter firefly-backend build
+      - name: Disposable PostgreSQL shared-ARK multi-tick acceptance
+        env:
+          PGHOST: 127.0.0.1
+          PGPORT: 5432
+          PGUSER: postgres
+          PGDATABASE: arbor_synthetic
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          if ! command -v psql >/dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client
+          fi
+          bash ops/research/disposable-ark-db/run-multitick-safe-suite.sh
       - name: Build digest-pinned non-root PDF parser sandbox
         shell: bash
         run: |
