@@ -15,6 +15,21 @@ export function verifyGroveSource(read=(p)=>readFileSync(p,"utf8")) {
     if(!Array.isArray(config.crons)||config.crons.length)
       violations.push(path+":inherited_cron");
   }
+  const android=load("apps/frontend/android/app/build.gradle.kts");
+  for(const marker of [
+    "GROVE_ANDROID_KEYSTORE_PATH",
+    "GROVE_ANDROID_KEYSTORE_PASSWORD",
+    "GROVE_ANDROID_KEY_ALIAS",
+    "GROVE_ANDROID_KEY_PASSWORD",
+    "groveReleaseRequested",
+    "groveRelease",
+  ]){
+    if(!android.includes(marker))
+      violations.push("grove_release_signing_gate_missing:"+marker);
+  }
+  if(android.includes('signingConfig = signingConfigs.getByName("debug")'))
+    violations.push("grove_release_uses_debug_signing");
+
   const provider=load("apps/backend/lib/providers/openai.ts");
   if(!provider.includes("export const openai = new Proxy") ||
      !provider.includes("Reflect.get(getClient(), property)"))
