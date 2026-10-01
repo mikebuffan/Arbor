@@ -32,6 +32,8 @@ on:
       - feat/ark-research-handoff-refresh-20260922
       # Temporary corpus-intelligence v2 child review target; remove before main integration.
       - feat/epstein-ingestion-verification-v1-20261001
+      # Temporary investigation-workbench v3 child review target; remove before main integration.
+      - feat/epstein-corpus-intelligence-v2-20261001
   workflow_dispatch:
 
 # CI sentinel: keep this workflow visibly updated when main-push Actions delivery stalls.
@@ -197,6 +199,10 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -f docs/research/sql/PROPOSED_epstein_corpus_intelligence_v2.sql
       - name: Exercise OCR table retrieval and document-family persistence invariants
         run: psql -v ON_ERROR_STOP=1 -f ops/research/disposable-db/90-corpus-intelligence-v2.sql
+      - name: Apply proposed investigation workbench v3 schema to disposable container ONLY
+        run: psql -v ON_ERROR_STOP=1 -f docs/research/sql/PROPOSED_epstein_investigation_workbench_v3.sql
+      - name: Exercise threads visuals coverage priorities and review receipt invariants
+        run: psql -v ON_ERROR_STOP=1 -f ops/research/disposable-db/100-investigation-workbench-v3.sql
 
   control-backend:
     name: Control backend test + build
