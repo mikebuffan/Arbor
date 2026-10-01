@@ -12,6 +12,7 @@ import { buildInvestigationIntegrityUnitHandler } from "./investigationIntegrity
 import type { TrustedInvestigationFindingStore } from "./investigationIntegrityStore";
 import { buildInvestigationDiscoveryUnitHandler } from "./investigationDiscoveryUnit";
 import type { TrustedInvestigationObservationStore } from "./investigationDiscoveryUnit";
+import { buildInvestigationPredictionUnitHandler } from "./investigationPredictionUnit";
 
 export type ResearchUnitHandler = (input: {
   session: ResearchSession;
@@ -173,6 +174,11 @@ export function buildDefaultResearchUnitDispatcher(input: {
         },
       };
     },
+  );
+
+  dispatcher.register(
+    "research.prediction",
+    buildInvestigationPredictionUnitHandler(),
   );
 
   if (input.integrityStore) {
