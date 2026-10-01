@@ -4,9 +4,21 @@ import type { PdfPageEvidenceRecord } from "./pdfPageProvenance";
 export type DateConflictCandidate = {
   eventKey: string;
   dates: readonly string[];
+  eventMentions: readonly EventDateMention[];
+  identityAssessment: "different_described_events" | "same_event_unresolved" | "identity_unresolved";
   comparison: EvidenceComparisonDraft;
   sourceFamilyCount: 1;
   status: "hold_for_original_page_and_instrument_review";
+};
+
+export type EventDateMention = {
+  date: string;
+  eventType: "agreement_execution" | "property_transfer" | "transfer_summary";
+  assertionType: "direct_description" | "retrospective_summary" | "quoted_earlier_finding";
+  documentId: string;
+  pdfPage: number;
+  sourceUrl: string;
+  excerpt: string;
 };
 
 const monthNames = "January|February|March|April|May|June|July|August|September|October|November|December";
@@ -29,6 +41,39 @@ function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+function characterize(excerpt: string, pageText: string): Pick<EventDateMention, "eventType" | "assertionType"> {
+  const quotedFinding = /Luzinski v\. Gosman, Judge Lessen Opinion|C\.P\. 506|Based on the foregoing, the Court finds that the challenged transfers/i.test(pageText);
+  return {
+    eventType: /(?:transfer|convey)/i.test(excerpt) ? "property_transfer" : "transfer_summary",
+    assertionType: quotedFinding ? "quoted_earlier_finding" : "retrospective_summary",
+  };
+}
+
+/** A narrow crosswalk. It reports only language present on the cited page. */
+export function findTransferEventDateMentions(input: {
+  subject: string;
+  pages: readonly PdfPageEvidenceRecord[];
+}): readonly EventDateMention[] {
+  const { subject, pages } = input;
+  if (!subject.trim() || subject.length > 100) throw new Error("invalid_transfer_subject");
+  const escaped = escapeRegex(subject);
+  const execution = new RegExp(`(${datePattern}),?\\s+.{0,100}?executed an amendment.{0,180}?${escaped}`, "gi");
+  const mentions: EventDateMention[] = [];
+  for (const page of pages) {
+    if (page.extractionStatus !== "text_layer" || !page.extractedText) continue;
+    const normalized = page.extractedText.replace(/\s+/g, " ");
+    for (const match of normalized.matchAll(execution)) {
+      mentions.push({
+        date: canonicalDate(match[1]), eventType: "agreement_execution",
+        assertionType: "direct_description", documentId: page.documentId,
+        pdfPage: page.locator.physicalPdfPage, sourceUrl: page.sourceUri,
+        excerpt: match[0].slice(0, 300),
+      });
+    }
+  }
+  return mentions;
+}
+
 /**
  * Bounded candidate scan for a named property/event in an already captured
  * court record. It only matches dates explicitly attached to a transfer or
@@ -49,7 +94,8 @@ export function findSourceAnchoredTransferDateConflicts(input: {
     new RegExp(`(${datePattern})\\s+.{0,50}?(?:transfer|convey)(?:s|red|ance)?\\s+.{0,70}?${escaped}`, "gi"),
     new RegExp(`${escaped}\\s+.{0,50}?(?:transfer|convey)(?:s|red|ance)?\\s+(?:of\\s+)?(${datePattern})`, "gi"),
   ];
-  const hits: { date: string; page: PdfPageEvidenceRecord; excerpt: string }[] = [];
+  const executionMentions = findTransferEventDateMentions({ subject, pages });
+  const hits: { date: string; page: PdfPageEvidenceRecord; excerpt: string; event: EventDateMention }[] = [];
   for (const page of pages) {
     if (page.extractionStatus !== "text_layer" || !page.extractedText) continue;
     const normalized = page.extractedText.replace(/\s+/g, " ");
@@ -58,7 +104,11 @@ export function findSourceAnchoredTransferDateConflicts(input: {
         const date = canonicalDate(match[1]);
         if (!hits.some(h => h.date === date && h.page.documentId === page.documentId &&
           h.page.locator.physicalPdfPage === page.locator.physicalPdfPage)) {
-          hits.push({ date, page, excerpt: match[0].slice(0, 220) });
+          const excerpt = match[0].slice(0, 220);
+          hits.push({ date, page, excerpt, event: {
+            date, ...characterize(excerpt, normalized), documentId: page.documentId,
+            pdfPage: page.locator.physicalPdfPage, sourceUrl: page.sourceUri, excerpt,
+          } });
         }
       }
     }
@@ -81,6 +131,13 @@ export function findSourceAnchoredTransferDateConflicts(input: {
     });
     candidates.push({
       eventKey, dates: [left.date, right.date],
+      eventMentions: [
+        ...executionMentions.filter(e => e.documentId === left.page.documentId || e.documentId === right.page.documentId),
+        left.event, right.event,
+      ],
+      // Both snippets use the word transfer, but a later summary and an
+      // earlier quoted finding do not establish a shared instrument or act.
+      identityAssessment: "identity_unresolved",
       comparison: draftEvidenceComparison({
         id: `${eventKey}:${left.date}:${right.date}`,
         question: `Which instrument and event date govern the ${subject} transfer?`,
