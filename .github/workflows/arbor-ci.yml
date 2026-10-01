@@ -36,6 +36,8 @@ on:
       - feat/epstein-corpus-intelligence-v2-20261001
       # Temporary reproducibility-scale v4 child review target; remove before main integration.
       - feat/epstein-investigation-workbench-v3-20261001
+      # Temporary security-integration v5 child review target; remove before main integration.
+      - feat/epstein-reproducibility-scale-v4-20261001
   workflow_dispatch:
 
 # CI sentinel: keep this workflow visibly updated when main-push Actions delivery stalls.
@@ -209,6 +211,10 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -f docs/research/sql/PROPOSED_epstein_reproducibility_scale_v4.sql
       - name: Exercise replay packets translations backpressure and stopping invariants
         run: psql -v ON_ERROR_STOP=1 -f ops/research/disposable-db/110-reproducibility-scale-v4.sql
+      - name: Apply proposed least-privilege research hardening to disposable container ONLY
+        run: psql -v ON_ERROR_STOP=1 -f docs/research/sql/PROPOSED_epstein_security_hardening_v5.sql
+      - name: Exercise RLS grants invoker RPC and service-role security matrix
+        run: psql -v ON_ERROR_STOP=1 -f ops/research/disposable-db/120-security-hardening-v5.sql
 
   control-backend:
     name: Control backend test + build
