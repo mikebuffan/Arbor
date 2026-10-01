@@ -163,8 +163,9 @@ begin
   end if;
 end $$;
 
--- Append-only records cannot be rewritten or deleted, even by privileged test setup.
-do $$
+-- Append-only records cannot be rewritten, even by privileged test setup.
+-- DELETE is intentionally not trigger-blocked so account/project erasure cascades can work.
+do $
 begin
   begin
     update public.arbor_investigation_evidence
@@ -174,15 +175,32 @@ begin
   exception when others then
     if sqlerrm not like '%investigation_records_are_append_only%' then raise; end if;
   end;
+end $;
 
-  begin
-    delete from public.arbor_investigation_claims
-      where id='87878787-8787-4787-8787-878787878787';
-    raise exception 'immutable claim delete unexpectedly succeeded';
-  exception when others then
-    if sqlerrm not like '%investigation_records_are_append_only%' then raise; end if;
-  end;
-end $$;
+-- Ordinary service/client roles have no UPDATE/DELETE authority on integrity tables.
+do $
+declare rel text;
+begin
+  foreach rel in array array[
+    'public.arbor_investigation_evidence',
+    'public.arbor_investigation_claims',
+    'public.arbor_investigation_claim_evidence',
+    'public.arbor_investigation_contradiction_events',
+    'public.arbor_investigation_falsification_attempts'
+  ] loop
+    if has_table_privilege('service_role',rel,'UPDATE')
+       or has_table_privilege('service_role',rel,'DELETE')
+       or has_table_privilege('authenticated',rel,'UPDATE')
+       or has_table_privilege('authenticated',rel,'DELETE')
+       or has_table_privilege('authenticated',rel,'INSERT')
+       or has_table_privilege('anon',rel,'SELECT')
+       or has_table_privilege('anon',rel,'INSERT')
+       or has_table_privilege('anon',rel,'UPDATE')
+       or has_table_privilege('anon',rel,'DELETE') then
+      raise exception 'integrity mutation privilege leaked for %',rel;
+    end if;
+  end loop;
+end $;
 
 -- Authenticated owner may read only its own rows and cannot invoke the trusted loader or write evidence.
 set role authenticated;
@@ -271,4 +289,4 @@ begin
   end if;
 end $;
 
-select 'DISPOSABLE_INVESTIGATION_INTEGRITY_PERSISTENCE=PASS; APPEND_ONLY=TRUE; OWNER_SCOPED=TRUE; MODEL_EVIDENCE_AUTHORITY=FALSE' as receipt;
+select 'DISPOSABLE_INVESTIGATION_INTEGRITY_PERSISTENCE=PASS; APPEND_ONLY_WRITES=TRUE; ACCOUNT_ERASURE_COMPATIBLE=TRUE; OWNER_SCOPED=TRUE; MODEL_EVIDENCE_AUTHORITY=FALSE' as receipt;
