@@ -282,3 +282,44 @@ comment on table public.arbor_research_expected_record_leads is
   'Absence/missingness research leads only; rows are not evidence of conduct.';
 comment on table public.arbor_research_findings is
   'Versioned review candidates only; no automatic publication authority.';
+
+
+-- Append-only evidence/history guard. This is ordinary invoker-security PL/pgSQL,
+-- not SECURITY DEFINER. Production privilege review is still required.
+create or replace function public.arbor_research_reject_history_mutation()
+returns trigger
+language plpgsql
+set search_path = pg_catalog, public
+as $$
+begin
+  raise exception 'append_only_research_history:%', tg_table_name
+    using errcode = '55000';
+end
+$$;
+
+revoke all on function public.arbor_research_reject_history_mutation() from public;
+
+drop trigger if exists arbor_research_mentions_append_only on public.arbor_research_mentions;
+create trigger arbor_research_mentions_append_only
+before update or delete on public.arbor_research_mentions
+for each row execute function public.arbor_research_reject_history_mutation();
+
+drop trigger if exists arbor_research_identity_decisions_append_only on public.arbor_research_identity_decisions;
+create trigger arbor_research_identity_decisions_append_only
+before update or delete on public.arbor_research_identity_decisions
+for each row execute function public.arbor_research_reject_history_mutation();
+
+drop trigger if exists arbor_research_findings_append_only on public.arbor_research_findings;
+create trigger arbor_research_findings_append_only
+before update or delete on public.arbor_research_findings
+for each row execute function public.arbor_research_reject_history_mutation();
+
+drop trigger if exists arbor_research_finding_dependencies_append_only on public.arbor_research_finding_dependencies;
+create trigger arbor_research_finding_dependencies_append_only
+before update or delete on public.arbor_research_finding_dependencies
+for each row execute function public.arbor_research_reject_history_mutation();
+
+drop trigger if exists arbor_research_evidence_changes_append_only on public.arbor_research_evidence_changes;
+create trigger arbor_research_evidence_changes_append_only
+before update or delete on public.arbor_research_evidence_changes
+for each row execute function public.arbor_research_reject_history_mutation();
