@@ -107,7 +107,7 @@ export function collapseAnomalyDependencies(input: {
       ].sort(),
       note:
         "Dependent anomalies are not counted as independent signals merely because they are numerous.",
-    };
+    } satisfies InvestigationAnomalyRoot;
   }).sort((a, b) =>
     b.descendantIds.length - a.descendantIds.length ||
     a.rootId.localeCompare(b.rootId));
