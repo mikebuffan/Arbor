@@ -94,6 +94,29 @@ function reachablePairs(sizes: number[]): number {
   return sizes.reduce((sum, size) => sum + (size * (size - 1)) / 2, 0);
 }
 
+function componentSizeForNode(
+  nodeId: string,
+  nodeIds: string[],
+  edges: InvestigationGraphEdge[],
+): number {
+  const adjacency = new Map(nodeIds.map((id) => [id, new Set<string>()]));
+  for (const edge of edges) {
+    adjacency.get(edge.leftNodeId)?.add(edge.rightNodeId);
+    adjacency.get(edge.rightNodeId)?.add(edge.leftNodeId);
+  }
+  const visited = new Set<string>([nodeId]);
+  const stack = [nodeId];
+  while (stack.length) {
+    const current = stack.pop()!;
+    for (const next of adjacency.get(current) ?? []) {
+      if (visited.has(next)) continue;
+      visited.add(next);
+      stack.push(next);
+    }
+  }
+  return visited.size;
+}
+
 export function analyzeCounterfactualGraph(input: {
   nodes: InvestigationGraphNode[];
   edges: InvestigationGraphEdge[];
@@ -146,7 +169,13 @@ export function analyzeCounterfactualGraph(input: {
     .map((node) => {
       const afterSizes = componentSizes(nodeIds, edges, node.id);
       const componentsAfterRemoval = afterSizes.length;
-      const remainingBaselinePairs = baselinePairs - (nodeIds.length - 1);
+      const originalComponentSize = componentSizeForNode(
+        node.id,
+        nodeIds,
+        edges,
+      );
+      const remainingBaselinePairs =
+        baselinePairs - Math.max(0, originalComponentSize - 1);
       const pairLoss = Math.max(
         0,
         remainingBaselinePairs - reachablePairs(afterSizes),
