@@ -91,6 +91,9 @@ describe("canonical Arbor research controller planner adapter", () => {
     const call = runAgent.mock.calls[0][0];
     expect(call.instructions).toContain("CANONICAL ARBOR SYSTEM INSTRUCTIONS");
     expect(call.instructions).toContain("same Arbor agency controller");
+    expect(call.instructions).toContain("evidence class is immutable");
+    expect(call.instructions).toContain("attempt to break it");
+    expect(call.instructions).toContain("not-found-in-searched-scope");
     expect(call.allowWebResearch).toBe(false);
     expect(call.verifyCompletion).toBe(false);
     expect(call.maxRounds).toBe(2);
