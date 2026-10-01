@@ -43,6 +43,10 @@ import {
   renderSelfModelProjection,
 } from "./selfModelProjection.js";
 import {
+  reconcileSelfModelClaims,
+  renderSelfModelClaimProjection,
+} from "./selfModelClaims.js";
+import {
   ensureSelfModelIdentity,
   renderSelfModelIdentityAnchor,
 } from "./selfModelState.js";
@@ -565,7 +569,7 @@ export class ArborControlRuntime {
               .acousticCorrections;
 
       const state:
-        ArborState = {
+        ArborState = reconcileSelfModelClaims({
         ...prior,
 
         activeSubsystem,
@@ -581,7 +585,7 @@ export class ArborControlRuntime {
             : request
                 .userText
                 .trim(),
-      };
+      });
 
       await this.record(
         turnId,
@@ -677,6 +681,10 @@ export class ArborControlRuntime {
         buildCarrierInjection(state),
 
         renderSelfModelProjection(),
+
+        renderSelfModelClaimProjection(
+          state,
+        ),
 
         subsystemInjection(
           state,
