@@ -174,6 +174,34 @@ describe("investigation integrity gate", () => {
     expect(result.status).toBe("promotable");
   });
 
+  it("blocks promotion when an adversarial test defeats the current claim", () => {
+    const result = evaluateInvestigationIntegrity(draft({
+      falsificationAttempts: [{
+        id: "break-failed",
+        hypothesis: "Alternative explanation defeats the current claim.",
+        result: "claim_failed",
+        evidenceRefs: ["counter-failure"],
+      }],
+    }));
+
+    expect(result.status).toBe("hold");
+    expect(result.reasons).toContain("falsification_failed_claim");
+  });
+
+  it("keeps inconclusive falsification work unresolved", () => {
+    const result = evaluateInvestigationIntegrity(draft({
+      falsificationAttempts: [{
+        id: "break-inconclusive",
+        hypothesis: "Alternative explanation remains plausible.",
+        result: "inconclusive",
+        evidenceRefs: ["counter-open"],
+      }],
+    }));
+
+    expect(result.status).toBe("hold");
+    expect(result.reasons).toContain("falsification_inconclusive");
+  });
+
   it("requires an attempt to break an established-act hypothesis before promotion", () => {
     const result = evaluateInvestigationIntegrity(draft({
       falsificationAttempts: [],
