@@ -103,7 +103,7 @@ export function compareParallelReconstructions(input: {
         : "single_lens",
     note:
       "Cross-lens convergence shows interpretive robustness, not independent evidentiary corroboration.",
-  })).sort((a, b) => {
+  } satisfies InvestigationCrossLensResult)).sort((a, b) => {
     const delta = b.lenses.length - a.lenses.length;
     return delta || a.eventKey.localeCompare(b.eventKey);
   });
