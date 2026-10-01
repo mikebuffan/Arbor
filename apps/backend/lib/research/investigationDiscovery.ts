@@ -1,3 +1,5 @@
+import { analyzeCounterfactualGraph } from "./investigationCounterfactualGraph";
+
 export type InvestigationEntityKind =
   | "person"
   | "organization"
@@ -41,7 +43,8 @@ export type InvestigationDiscoveryLeadKind =
   | "cross_family_recurrence"
   | "temporal_convergence"
   | "expected_footprint_gap"
-  | "reverse_path_check";
+  | "reverse_path_check"
+  | "counterfactual_bridge";
 
 export type InvestigationDiscoveryLead = {
   id: string;
@@ -473,6 +476,99 @@ function reversePathLeads(
     }));
 }
 
+function counterfactualBridgeLeads(
+  observations: InvestigationObservation[],
+): InvestigationDiscoveryLead[] {
+  const entityById = new Map<string, InvestigationEntityRef>();
+  for (const observation of observations) {
+    for (const entity of observation.entities) {
+      entityById.set(entity.id, entity);
+    }
+  }
+  if (entityById.size < 3) return [];
+
+  const edges: Array<{
+    id: string;
+    leftNodeId: string;
+    rightNodeId: string;
+    evidenceRefs: string[];
+    lineageKeys: string[];
+  }> = [];
+
+  for (const observation of observations) {
+    const entities = [...observation.entities]
+      .sort((a, b) => a.id.localeCompare(b.id));
+    for (let i = 0; i < entities.length; i += 1) {
+      for (let j = i + 1; j < entities.length; j += 1) {
+        edges.push({
+          id:
+            "observation-edge:" +
+            observation.evidenceRef +
+            ":" +
+            entities[i].id +
+            ":" +
+            entities[j].id,
+          leftNodeId: entities[i].id,
+          rightNodeId: entities[j].id,
+          evidenceRefs: [observation.evidenceRef],
+          lineageKeys: [observation.lineageKey],
+        });
+      }
+    }
+  }
+  if (!edges.length) return [];
+
+  const impacts = analyzeCounterfactualGraph({
+    nodes: [...entityById.values()].map((entity) => ({
+      id: entity.id,
+      label: entity.label,
+    })),
+    edges,
+  });
+
+  return impacts.flatMap((impact) => {
+    if (impact.status !== "structural_bridge") return [];
+    const entity = entityById.get(impact.nodeId);
+    if (!entity) return [];
+    const related = observations.filter((observation) =>
+      observation.entities.some((item) => item.id === entity.id),
+    );
+    if (occurrenceLineages(related).length < 2) return [];
+
+    return [basisLead({
+      id: "counterfactual-" + slug(entity.id),
+      kind: "counterfactual_bridge",
+      hypothesis:
+        entity.label +
+        " is structurally important to the observed evidence graph because removing it fragments otherwise connected record clusters; this may reflect an operational, administrative, incidental or data-collection role.",
+      rationale:
+        "Counterfactual removal increases graph fragmentation by " +
+        String(impact.componentIncrease) +
+        " component(s) and removes " +
+        String(impact.reachablePairLoss) +
+        " reachable node-pair connection(s). Structural importance is not evidence of wrongdoing.",
+      basisEvidenceRefs: observationRefs(related),
+      entityIds: [entity.id, ...impact.affectedNeighborIds],
+      independentLineages: occurrenceLineages(related),
+      documentFamilies: occurrenceFamilies(related),
+      occurredAtRange: timeRange(related),
+      predictedFootprints: [
+        "If the bridge reflects a real continuing role, independent records should reproduce at least some connections without starting from this graph path.",
+        "Role-specific primary records may explain why the same intermediary connects separate clusters.",
+      ],
+      falsifiers: [
+        "Identity resolution splits the bridge into different entities.",
+        "Independent reverse searches fail to reproduce the connections.",
+        "The graph fragments only because the corpus selectively sampled records around this entity.",
+      ],
+      searchSeeds: [
+        entity.label + " independent role primary record",
+        entity.label + " reverse path " + impact.affectedNeighborIds.join(" "),
+      ],
+    })];
+  });
+}
+
 function leadScore(lead: InvestigationDiscoveryLead): number {
   const diversity =
     Math.min(4, lead.independentLineages.length) * 3 +
@@ -481,6 +577,7 @@ function leadScore(lead: InvestigationDiscoveryLead): number {
   const novelty =
     lead.kind === "bridge_node" ? 6 :
     lead.kind === "expected_footprint_gap" ? 5 :
+    lead.kind === "counterfactual_bridge" ? 6 :
     lead.kind === "reverse_path_check" ? 4 :
     lead.kind === "temporal_convergence" ? 3 : 2;
   return diversity + evidence + novelty;
@@ -510,6 +607,7 @@ export function discoverInvestigationLeads(input: {
   leads.push(
     ...expectedGapLeads(observations, input.expectations ?? []),
     ...reversePathLeads(observations),
+    ...counterfactualBridgeLeads(observations),
   );
 
   const maxLeads = Math.max(1, Math.min(input.maxLeads ?? 24, 100));
