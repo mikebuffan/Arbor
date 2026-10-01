@@ -27,6 +27,7 @@ This layer exists specifically to stop errors such as:
 - source-lineage identity;
 - primary-source lead generation for secondary evidence;
 - unresolved-contradiction HOLD;
+- counterevidence cannot disappear silently: each counterevidence reference must be carried through an explicit survived falsification attempt before promotion;
 - falsification requirement for established-act, relationship and inference findings;
 - scoped negative-evidence states;
 - fail-closed promotion decisions.
