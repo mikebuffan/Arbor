@@ -30,6 +30,8 @@ on:
       - feat/ark-evidence-completion-verification-20260922
       # Temporary docs-handoff review target for the item-45 child PR; remove before main integration.
       - feat/ark-research-handoff-refresh-20260922
+      # Temporary corpus-intelligence v2 child review target; remove before main integration.
+      - feat/epstein-ingestion-verification-v1-20261001
   workflow_dispatch:
 
 # CI sentinel: keep this workflow visibly updated when main-push Actions delivery stalls.
