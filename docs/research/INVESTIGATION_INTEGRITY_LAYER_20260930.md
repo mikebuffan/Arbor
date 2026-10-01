@@ -77,4 +77,4 @@ Still blocked/separate:
 - finding publication;
 - treating model-planned payloads as evidence.
 
-The next integrity step after exact-head CI is to bind the promotion gate only to **trusted persisted original-source evidence records** so a model cannot manufacture the evidence object it is asking to promote.
+A source-only trusted-store boundary now requires support evidence to be loaded by owner/project/evidence ID from persistence rather than accepted as model-supplied evidence objects. An optional `research.integrity_gate` unit exists, but the default host does not register it without that trusted store. The next integrity step after exact-head CI is a separately reviewed adapter to the future persisted original-source evidence records; no production/external store is wired here.
