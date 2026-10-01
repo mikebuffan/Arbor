@@ -56,7 +56,7 @@ function persistedContext(
     falsificationAttempts: [{
       id: "break-1",
       hypothesis: "The act did not occur.",
-      result: "survived",
+      result: "claim_survived",
       evidenceRefs: ["counter-check-1"],
     }],
     negativeEvidence: null,
