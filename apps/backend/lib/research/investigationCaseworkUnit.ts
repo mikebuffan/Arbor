@@ -1,3 +1,4 @@
+import { planInvestigationFollowups, followupPacketEvidenceRefs } from "./investigationFollowupPlan";
 import { analyzeKnowledgeState } from "./investigationKnowledgeState";
 import { evaluateTemporalConstraints } from "./investigationTemporalConstraints";
 import { inferMissingFunction } from "./investigationMissingFunction";
@@ -13,6 +14,12 @@ import { analyzeDecisionProvenance } from "./investigationDecisionProvenance";
 import type { ResearchUnitHandler } from "./researchUnitDispatcher";
 
 export type InvestigationCaseworkPacket =
+  | {
+      id: string;
+      kind: "followup_plan";
+      evidenceRefs: string[];
+      payload: Parameters<typeof planInvestigationFollowups>[0];
+    }
   | {
       id: string;
       kind: "knowledge_state";
@@ -105,6 +112,8 @@ function text(value: unknown, field: string, max = 1000): string {
 
 function runPacket(packet: InvestigationCaseworkPacket): unknown {
   switch (packet.kind) {
+    case "followup_plan":
+      return planInvestigationFollowups(packet.payload);
     case "knowledge_state":
       return analyzeKnowledgeState(packet.payload);
     case "temporal_constraints":
@@ -162,6 +171,15 @@ export function buildInvestigationCaseworkUnitHandler(
       throw new Error("investigation_casework_untrusted_packet_evidence");
     }
 
+    if (packet.kind === "followup_plan" && followupPacketEvidenceRefs(packet.payload)
+        .some(ref => !packet.evidenceRefs.includes(ref))) {
+      throw new Error("investigation_casework_untrusted_nested_evidence");
+    }
+
+    if (packet.kind === "followup_plan" &&
+        packet.payload.scopeKey !== `${session.userId}/${session.projectId}`) {
+      throw new Error("investigation_casework_followup_scope_mismatch");
+    }
     const output = runPacket(packet);
     return {
       sessionId: session.id,

@@ -1,3 +1,4 @@
+import { selectPersistedFollowupUnits } from "./investigationFollowupPlan";
 import {
   decideResearchSession,
   validateResearchSession,
@@ -222,12 +223,15 @@ export async function runResearchControllerPulse(input: {
   // to continue. Re-plan only when the persisted queue itself needs a new
   // decision. This keeps multi-hour runs bounded in model calls while ARK
   // remains responsible for resuming the current durable unit.
+  const followupUnits = hasPersistedRunnableUnit ? [] : selectPersistedFollowupUnits(context);
   const plan: ResearchControllerPlan = hasPersistedRunnableUnit
     ? {
         action: "run_next",
         rationale: "Continue the existing persisted bounded research unit.",
       }
-    : await input.planner.plan({
+    : followupUnits.length
+      ? { action: "append_then_run", rationale: "Resume ranked source-backed follow-up jobs.", units: followupUnits }
+      : await input.planner.plan({
         goal: context.session.objective,
         context,
       });

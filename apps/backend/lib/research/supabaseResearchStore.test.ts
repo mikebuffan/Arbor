@@ -195,6 +195,30 @@ describe("owner-scoped Supabase research adapter",()=>{
     });
   });
 
+  it("retains the scoped latest follow-up plan outside the recent receipt window",async()=>{
+    const m=mockDb();
+    const plan={idempotency_key:"old-plan",status:"completed",evidence_refs:["basis"],
+      recorded_at:"2026-09-20T12:00:00Z",result:{caseworkKind:"followup_plan",caseworkOutput:{schemaVersion:1}}};
+    const queries:any[]=[];
+    let receiptQueries=0;
+    m.from.mockImplementation((table:string)=>{
+      if(table==="arbor_research_sessions") return m.query;
+      const data=table==="arbor_research_units" ? [] : (++receiptQueries===1
+        ? [{idempotency_key:"recent",status:"completed",evidence_refs:["new"],
+          recorded_at:"2026-09-20T12:20:00Z",result:{}}] : [plan]);
+      const q:any={select:vi.fn(),eq:vi.fn(),order:vi.fn(),limit:vi.fn(),
+        then:(resolve:any,reject:any)=>Promise.resolve({data,error:null}).then(resolve,reject)};
+      q.select.mockReturnValue(q);q.eq.mockReturnValue(q);q.order.mockReturnValue(q);q.limit.mockReturnValue(q);
+      queries.push(q);return q;
+    });
+    const store=new SupabaseResearchStore(m.db,"owner-1","project-1","worker-1");
+    const context=await store.loadControllerContext("s1");
+    expect(context?.recentReceipts.map(r=>r.unitKey)).toEqual(["recent","old-plan"]);
+    expect(queries[2].eq.mock.calls).toEqual([["session_id","s1"],["user_id","owner-1"],
+      ["project_id","project-1"],["status","completed"],["result->>caseworkKind","followup_plan"]]);
+    expect(queries[2].limit).toHaveBeenCalledWith(1);
+  });
+
   it("sends controller-planned units only through the scoped append RPC",async()=>{
     const m=mockDb();
     m.rpc.mockImplementation(async(name:string,args:any)=>{

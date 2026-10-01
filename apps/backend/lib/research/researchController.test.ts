@@ -1,3 +1,4 @@
+import { planInvestigationFollowups } from "./investigationFollowupPlan";
 import { describe, expect, it, vi } from "vitest";
 import type { ResearchSession, ResearchUnitReceipt } from "./sessionPolicy";
 import type { ResearchClaim } from "./sessionRunner";
@@ -135,6 +136,30 @@ describe("research controller pulse", () => {
         completionVerified: false,
       },
     });
+  });
+
+  it("automatically appends persisted ranked follow-ups without calling the model planner", async () => {
+    const output = planInvestigationFollowups({
+      scopeKey: "owner-A/project-A", attempts: [], clocks: [], neighborhoods: [], gaps: [],
+      findings: [], corrections: [], questions: [{ id: "original", question: "Compare synthetic originals",
+        evidenceRefs: ["synthetic:basis"], sourceRevision: "v1", targets: [{
+          targetKey: "scan", seed: "synthetic original scan", completionCondition: "Compare scan",
+          fallback: "Find inventory", disconfirmingSearch: "Check carbon copies",
+          expectedDecisionChange: 5, resolvesUncertainty: 5, addsIndependentLineage: 1,
+          acquisitionEffort: 2, maxCostReservationCents: 2,
+        }] }],
+    });
+    const f = fixture({ session: session({ completedEvidenceRefs: ["synthetic:basis"] }),
+      context: { units: [], recentReceipts: [{ unitKey: "plan", status: "completed",
+        evidenceRefs: ["synthetic:basis"], recordedAt: AT,
+        result: { caseworkKind: "followup_plan", caseworkOutput: output } }] } });
+    const planner = { plan: vi.fn() };
+    const result = await runResearchControllerPulse({ handoff, store: f.store,
+      executor: f.executor, planner, at: AT });
+    expect(planner.plan).not.toHaveBeenCalled();
+    expect(f.store.appendPlannedUnits).toHaveBeenCalledWith({ session: f.s, units: output.proposedUnits });
+    expect(f.store.settle).toHaveBeenCalledOnce();
+    expect(result).toMatchObject({ status: "checkpointed", plan: "append_then_run", appendedUnits: 1 });
   });
 
   it("lets Arbor expand the durable task graph before executing one bounded tick", async () => {
