@@ -1,6 +1,6 @@
 # Epstein public-records research engine — master ordered build list
 
-Updated 2026-09-23. **One ARK lineage. No second engine.** Source-first public-document research only. Draft code is not deployment, authorization, verified research, or a finding. Use only lawful public material; never publish victim/private-person identifiers.
+Updated 2026-09-30. **One ARK lineage. No second engine.** Source-first public-document research only. Draft code is not deployment, authorization, verified research, or a finding. Use only lawful public material; never publish victim/private-person identifiers.
 
 Legend: [x] relevant implementation plus exact-head CI evidence exists for the stated scope; [~] partial or remaining integration/manual proof; [ ] required; **BLOCKED** names an intentional gate.
 
@@ -8,7 +8,7 @@ Legend: [x] relevant implementation plus exact-head CI evidence exists for the s
 1. [x] Inventory/synchronize worker-v5 source without deployment.
 2. [x] Preserve research/Grove/app branch lineage.
 3. [x] Preserve original-byte SHA and physical PDF page separately from printed folio.
-4. [x] Review parent heads/open PRs before each child. Verified lineage includes #123 → #131 → #134 → later stacked research drafts → #181 → #187 → #189/#199 → #201 → #207 → #212. #212 is current isolated research child of #207; no newer research PR supersedes it as of this reconciliation.
+4. [x] Review parent heads/open PRs before each child. Verified lineage includes #123 → #131 → #134 → later stacked research drafts → #181 → #187 → #189/#199 → #201 → #207 → #212 → #218. #218 is the current isolated integrity/discovery child of #212; it extends the existing engine and does not replace it.
 5. [ ] **BLOCKED — live integration approval:** worker-v5 deployment backup + rollback receipt.
 6. [ ] **BLOCKED — live integration approval:** deployed Vercel roots/cron/Firefly auth review.
 7. [x] Pinned disposable renderer image/package verified.
@@ -69,22 +69,22 @@ Legend: [x] relevant implementation plus exact-head CI evidence exists for the s
 62. [x] Mention/allegation alone is never evidence of a crime.
 63. [x] Synthetic-only dated HOLD report draft; real original-page citation verification/redaction/publication remains pending.
 64. [x] No automatic publication; published discrepancies remain distinct from novel research discoveries.
-65. [~] Investigation Integrity Layer source added on child PR #218: explicit evidence classes, assertion kinds, source lineage keys and fail-closed finding promotion. Exact-head CI pending.
-66. [~] Regression fixtures encode two narrative-promotion failures: attributed statement != direct confession; procedural litigation position != personal admission. Exact-head CI pending.
-67. [~] Negative-evidence states distinguish NOT_FOUND_IN_SEARCHED_SCOPE, SOURCE_SILENT, EXPECTED_BUT_MISSING and PROVEN_ABSENT; absence promotion requires explicit proof reference. Exact-head CI pending.
-68. [~] Finding promotion requires unresolved contradictions to be cleared by evidence, not explanation; established-act/relationship/inference claims require at least one falsification attempt. Exact-head CI pending.
-69. [~] Secondary-source evidence emits bounded primary-source leads when no underlying object is attached. Durable external-source retrieval remains separately gated.
-70. [~] Pattern Hop source adds primary_sources, source_lineage, falsification and relationships branches so later runs widen the evidence frontier instead of only resummarizing prior material. Exact-head CI pending.
-71. [~] Canonical Arbor research planner now preserves immutable evidence class during synthesis and explicitly attempts to break load-bearing hypotheses before finding promotion. Exact-head CI pending.
-72. [~] Source-only trusted full-finding-context boundary, strict `SupabaseInvestigationIntegrityStore`, optional `research.integrity_gate`, append-only evidence/claim/contradiction/falsification SQL proposal and disposable PostgreSQL acceptance exist. Planner payload may name only a persisted claim ID; support/counterevidence/contradictions/falsification/absence state come from the scoped trusted store, with evidence content SHA-256 preserved. **BLOCKED — live application/wiring:** do not apply the proposal or register the gate in a live host until the separately authorized original-source persistence/source-review path exists.
-73. [~] Anomaly-driven Investigation Discovery source detects bridge nodes, cross-family recurrence, temporal convergence, expected-footprint gaps and reverse-path checks from trusted observations; every output is hypothesis-only and confidence-capped below finding level. Exact-head CI pending.
-74. [~] Discovery explicitly treats same-lineage copies as one lineage, expected-but-missing records as search leads rather than absence, and reverse reconstruction as a bias test. Exact-head CI pending.
-75. [~] Creative Arbor hypothesis planner can generate novel mechanism hypotheses from grounded discovery leads while forbidding invented entities/evidence/dates/conduct and requiring predicted documentary footprints plus disconfirming evidence. Exact-head CI pending.
-76. [~] Structured research receipt results are now included in controller context so a completed discovery unit can feed the next canonical Arbor planning pass rather than ending as a dead summary. Exact-head CI pending.
-77. [~] Canonical controller is instructed to synthesize small testable questions that a normal name-first search may miss, prefer bridge nodes/edges over saturated famous names, and plan searches that can both support and kill the hypothesis. Exact-head CI pending.
-78. [~] Optional `research.discovery` unit exists behind a trusted observation-store interface and remains disconnected by default. **BLOCKED — live wiring:** production observation/entity persistence and identity-resolution acceptance are required before a live host may supply the store.
-79. [ ] Trusted observation/entity persistence schema must preserve identity-resolution state so names are never silently merged into one bridge node.
-80. [ ] After source acceptance, add disposable persistence acceptance for observation/entity records and prove same-name unresolved identities cannot generate a false bridge-node lead.
+65. [x] Investigation Integrity Layer source on child PR #218: explicit evidence classes, assertion kinds, source-lineage keys and fail-closed finding promotion. Source/disposable acceptance PASS at head `4fba6f90e0966736f0a38b75f737f203bc4b74ba`, run `36811318812`.
+66. [x] Regression fixtures lock two narrative-promotion failures: attributed statement != direct confession; procedural litigation position != personal admission. PASS in run `36811318812`.
+67. [x] Negative-evidence states distinguish NOT_FOUND_IN_SEARCHED_SCOPE, SOURCE_SILENT, EXPECTED_BUT_MISSING and PROVEN_ABSENT; absence promotion requires explicit proof reference. PASS in run `36811318812`.
+68. [x] Finding promotion keeps unresolved contradictions on HOLD and requires a falsification attempt for established-act/relationship/inference claims. PASS in run `36811318812`.
+69. [x] Secondary-source evidence emits bounded primary-source leads when no underlying object is attached. Source behavior PASS; durable external-source retrieval remains separately gated.
+70. [x] Pattern Hop adds primary_sources, source_lineage, falsification and relationships branches so later runs widen the evidence frontier instead of only resummarizing prior material. PASS in run `36811318812`.
+71. [x] Canonical Arbor research planner preserves evidence class during synthesis, explicitly tries to break load-bearing hypotheses, keeps absence scoped, and treats contradictions as unresolved until evidence resolves them. PASS in run `36811318812`.
+72. [x] Source-only trusted full-finding-context boundary, strict `SupabaseInvestigationIntegrityStore`, optional `research.integrity_gate`, append-only evidence/claim/contradiction/falsification SQL proposal and disposable PostgreSQL acceptance PASS. Planner payload may name only a persisted claim ID; support/counterevidence/contradictions/falsification/absence state come from the scoped trusted store, with evidence content SHA-256 preserved. **BLOCKED — live application/wiring:** do not apply the proposal or register the gate in a live host until the separately authorized original-source persistence/source-review path exists.
+73. [x] Anomaly-driven Investigation Discovery source detects bridge nodes, cross-family recurrence, temporal convergence, expected-footprint gaps and reverse-path checks from trusted observations; every output remains hypothesis-only and confidence-capped below finding level. PASS in run `36811318812`.
+74. [x] Discovery treats same-lineage copies as one lineage, expected-but-missing records as search leads rather than absence, and reverse reconstruction as a retrieval-bias test. PASS in run `36811318812`.
+75. [x] Creative Arbor hypothesis planner generates novel mechanism hypotheses from grounded discovery leads while rejecting invented entities/evidence/dates/conduct and requiring predicted documentary footprints plus disconfirming evidence. PASS in run `36811318812`.
+76. [x] Structured research receipt results are included in controller context so completed discovery can feed the next canonical Arbor planning pass rather than ending as a dead summary. PASS in run `36811318812`.
+77. [x] Canonical controller is instructed and regression-tested to synthesize small testable questions a normal name-first search may miss, prefer bridge nodes/edges over saturated famous names, and plan searches that can both support and kill a hypothesis. PASS in run `36811318812`.
+78. [x] Optional `research.discovery` unit exists behind a trusted observation-store interface and remains disconnected by default. Source tests PASS. **BLOCKED — live wiring:** a reviewed live observation/entity source path is still separately required before a host supplies the store.
+79. [x] Identity-safe observation/entity persistence proposal preserves identity state as resolved/source_stable/unresolved/do_not_merge; the trusted discovery loader excludes unresolved/do_not_merge entities so same-name mentions cannot silently merge into a bridge node. Disposable acceptance PASS in run `36811318812`; no live schema application authorized.
+80. [x] Disposable persistence acceptance proves unresolved same-name identities are excluded from discovery, owner/project scope is enforced, and discovery records are append-only. PASS in run `36811318812`.
 
 ## Run 11 — 2026-09-23 reconciliation and source-only pilot verification attempt
 - Re-opened this master on current #212 branch and verified current PR metadata: #212 is draft, base `chore/research-ci-trigger-cleanup-handoff-20260923` at `1f48ff810240a655fd53d3485e4a36316857c897`, observed head before this docs refresh `a0624c7420eb197c8c5175c489ddd317a11a206e`.
@@ -116,3 +116,14 @@ Legend: [x] relevant implementation plus exact-head CI evidence exists for the s
 - Corrected item 18 and Run 13: the prior human PDF fidelity PASS was overstated and is **HOLD** pending a recorded original-render versus extracted-text comparison. Do not use it as a release gate.
 - Independently queried actual Preview `pg_get_functiondef(public.ark_claim_next_task)` read-only. Confirmed global expired-lease sweep has no `p_only_objective_id` filter; objective-failure propagation is likewise global. Claim candidate filter *does* respect `p_only_objective_id`, but every claim increments `attempt_count`, including checkpoint resumptions, while `attempt_count < max_attempts` gates selection. No SQL changed or canary rerun.
 - Next: locate version-controlled shared ARK migration/function source, prepare smallest reviewed fix and disposable-PG regression, keeping shared owner boundary; do not apply untested SQL to Preview.
+
+
+## Run 15 — Investigation Integrity + Discovery Engine source acceptance (2026-09-30)
+- **One existing engine, extended rather than duplicated.** Draft PR #218 is a child of #212 and keeps the existing ARK/research/session/Pattern Hop lineage.
+- **Integrity layer: PASS in source/disposable scope.** Evidence-class promotion, confession/stipulation regressions, source-lineage handling, contradiction HOLDs, falsification requirements, negative-evidence semantics, trusted claim-context loading and append-only synthetic persistence all passed.
+- **Discovery engine: PASS in source/disposable scope.** Bridge-node recurrence, temporal convergence, expected-footprint gaps, reverse-path checks, same-lineage dedupe, and bounded Pattern Hop follow-ups passed.
+- **Creative hypothesis generation: PASS in source scope.** Canonical Arbor can propose new mechanism hypotheses from grounded anomaly leads, but cannot invent named actors/evidence/entities or cross the hypothesis confidence boundary; every hypothesis must name predicted documentary footprints and disconfirming evidence.
+- **Feedback loop: PASS in source scope.** Structured receipt results return to controller context, allowing discovery → hypothesis → bounded Pattern Hop → new evidence rather than a one-shot summary.
+- **Identity gate: PASS in disposable PostgreSQL.** Unresolved same-name entities remain persisted but are excluded from the discovery graph until identity resolution is source-stable/resolved.
+- Exact tested implementation head before this documentation refresh: `4fba6f90e0966736f0a38b75f737f203bc4b74ba`; GitHub Actions run `36811318812`: **SUCCESS**.
+- **Still NOT authorized:** merge, production/Preview schema application, deployed discovery/integrity registration, external DOJ/EFTA ingestion, unattended scheduler, private/victim-data processing, finding publication, or treating a hypothesis as a finding.
