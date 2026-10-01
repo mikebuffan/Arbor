@@ -99,6 +99,13 @@ function evidenceAtom(value: unknown): InvestigationEvidenceAtom {
     sourceRef: text(r.sourceRef, "source_ref", 1, 1000),
     lineageKey: text(r.lineageKey, "lineage_key", 1, 1000),
     content: text(r.content, "evidence_content", 1, 1_000_000),
+    contentSha256: (() => {
+      const hash = text(r.contentSha256, "content_sha256", 64, 64);
+      if (!/^[0-9a-f]{64}$/.test(hash)) {
+        throw new Error("invalid_investigation_integrity_db_content_sha256");
+      }
+      return hash;
+    })(),
     supports: supportKinds(r.supports),
     underlyingSourceRef: nullableText(
       r.underlyingSourceRef,
