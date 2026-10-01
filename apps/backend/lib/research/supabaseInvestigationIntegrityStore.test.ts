@@ -23,7 +23,7 @@ const context = {
   falsificationAttempts: [{
     id: "90909090-9090-4090-8090-909090909090",
     hypothesis: "Counterevidence defeats the claim.",
-    result: "survived",
+    result: "claim_survived",
     evidenceRefs: [
       "85858585-8585-4585-8585-858585858582",
     ],
@@ -64,7 +64,7 @@ describe("Supabase investigation integrity store", () => {
       ],
       unresolvedContradictionIds: ["synthetic-conflict"],
       falsificationAttempts: [{
-        result: "survived",
+        result: "claim_survived",
       }],
     });
 
