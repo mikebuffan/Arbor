@@ -31,7 +31,7 @@ function context(
     falsificationAttempts: [{
       id: "break-1",
       hypothesis: "The act did not occur.",
-      result: "survived",
+      result: "claim_survived",
       evidenceRefs: ["persisted-counter-check"],
     }],
     negativeEvidence: null,
@@ -103,7 +103,7 @@ describe("trusted persisted investigation integrity evaluation", () => {
         falsificationAttempts: [{
           id: "break-other",
           hypothesis: "Different challenge.",
-          result: "survived",
+          result: "claim_survived",
           evidenceRefs: ["different-evidence"],
         }],
       })),
