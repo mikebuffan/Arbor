@@ -1,4 +1,5 @@
 import { analyzeCounterfactualGraph } from "./investigationCounterfactualGraph";
+import { discoverSequenceMotifs } from "./investigationSequenceMotifs";
 
 export type InvestigationEntityKind =
   | "person"
@@ -44,7 +45,8 @@ export type InvestigationDiscoveryLeadKind =
   | "temporal_convergence"
   | "expected_footprint_gap"
   | "reverse_path_check"
-  | "counterfactual_bridge";
+  | "counterfactual_bridge"
+  | "sequence_motif";
 
 export type InvestigationDiscoveryLead = {
   id: string;
@@ -476,6 +478,80 @@ function reversePathLeads(
     }));
 }
 
+function sequenceMotifLeads(
+  observations: InvestigationObservation[],
+): InvestigationDiscoveryLead[] {
+  const entityById = new Map<string, InvestigationEntityRef>();
+  for (const observation of observations) {
+    for (const entity of observation.entities) {
+      entityById.set(entity.id, entity);
+    }
+  }
+
+  const events = observations.flatMap((observation) => {
+    if (!observation.occurredAt) return [];
+    return observation.entities.flatMap((entity) =>
+      observation.eventTags.map((eventTag) => ({
+        entityId: entity.id,
+        occurredAt: observation.occurredAt as string,
+        eventTag,
+        evidenceRef: observation.evidenceRef,
+        lineageKey: observation.lineageKey,
+      })),
+    );
+  });
+  if (events.length < 4) return [];
+
+  const motifs = discoverSequenceMotifs({
+    events,
+    minEntities: 2,
+    minIndependentLineages: 2,
+    minLength: 2,
+    maxLength: 4,
+  });
+
+  return motifs.map((motif) => {
+    const labels = motif.entityIds
+      .map((id) => entityById.get(id)?.label ?? id)
+      .slice(0, 6);
+    const related = observations.filter((observation) =>
+      motif.evidenceRefs.includes(observation.evidenceRef),
+    );
+    return basisLead({
+      id: "motif-" + slug(motif.motifKey),
+      kind: "sequence_motif",
+      hypothesis:
+        "The event sequence " +
+        motif.eventTags.join(" → ") +
+        " recurs across " +
+        String(motif.occurrenceCount) +
+        " resolved entities and may reflect a shared ordinary process, operational workflow, data-collection artifact, or other common mechanism.",
+      rationale:
+        "The same ordered event tags recur across multiple entities and independent source lineages. Repetition of sequence is a lead, not proof of a shared scheme. Example entities: " +
+        labels.join(", ") +
+        ".",
+      basisEvidenceRefs: motif.evidenceRefs,
+      entityIds: motif.entityIds,
+      independentLineages: motif.independentLineages,
+      documentFamilies: occurrenceFamilies(related),
+      occurredAtRange: timeRange(related),
+      predictedFootprints: [
+        "If one common process generates the motif, additional independent entities should show the same transition order.",
+        "The strongest transition should have primary records that explain how one step leads to the next without relying on the motif itself.",
+      ],
+      falsifiers: [
+        "The sequence disappears when timestamps are corrected or document families are separated.",
+        "Each entity has a different ordinary explanation for the same tag order.",
+        "Independent cohorts do not reproduce the sequence above background frequency.",
+      ],
+      searchSeeds: [
+        motif.eventTags.join(" ") + " independent primary records",
+        labels.join(" ") + " " + motif.eventTags.join(" "),
+      ],
+    });
+  });
+}
+
 function counterfactualBridgeLeads(
   observations: InvestigationObservation[],
 ): InvestigationDiscoveryLead[] {
@@ -578,6 +654,7 @@ function leadScore(lead: InvestigationDiscoveryLead): number {
     lead.kind === "bridge_node" ? 6 :
     lead.kind === "expected_footprint_gap" ? 5 :
     lead.kind === "counterfactual_bridge" ? 6 :
+    lead.kind === "sequence_motif" ? 5 :
     lead.kind === "reverse_path_check" ? 4 :
     lead.kind === "temporal_convergence" ? 3 : 2;
   return diversity + evidence + novelty;
@@ -608,6 +685,7 @@ export function discoverInvestigationLeads(input: {
     ...expectedGapLeads(observations, input.expectations ?? []),
     ...reversePathLeads(observations),
     ...counterfactualBridgeLeads(observations),
+    ...sequenceMotifLeads(observations),
   );
 
   const maxLeads = Math.max(1, Math.min(input.maxLeads ?? 24, 100));
