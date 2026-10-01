@@ -26,6 +26,7 @@ export PGHOST PGPORT PGUSER PGDATABASE
 psql -X -v ON_ERROR_STOP=1 -f ops/research/disposable-db/00-fixture.sql
 psql -X -v ON_ERROR_STOP=1 -f docs/research/sql/PROPOSED_arbor_research_sessions.sql
 psql -X -v ON_ERROR_STOP=1 -f docs/research/sql/PROPOSED_arbor_investigation_integrity_evidence.sql
+psql -X -v ON_ERROR_STOP=1 -f docs/research/sql/PROPOSED_arbor_investigation_discovery_observations.sql
 psql -X -v ON_ERROR_STOP=1 -f ops/research/disposable-db/10-acceptance.sql
 psql -X -v ON_ERROR_STOP=1 -f ops/research/disposable-db/20-boundaries.sql
 bash ops/research/disposable-db/30-concurrency.sh
@@ -37,5 +38,6 @@ psql -X -v ON_ERROR_STOP=1 -f ops/research/disposable-db/70-persisted-session-si
 psql -X -v ON_ERROR_STOP=1 -f ops/research/disposable-db/75-controller-append.sql
 psql -X -v ON_ERROR_STOP=1 -f ops/research/disposable-db/80-resumable-unit-result.sql
 psql -X -v ON_ERROR_STOP=1 -f ops/research/disposable-db/85-investigation-integrity-persistence.sql
+psql -X -v ON_ERROR_STOP=1 -f ops/research/disposable-db/86-investigation-discovery-persistence.sql
 
 echo "DISPOSABLE_RESEARCH_FULL_SAFE_SUITE=PASS"
