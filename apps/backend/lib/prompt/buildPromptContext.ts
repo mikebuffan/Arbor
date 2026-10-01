@@ -56,6 +56,14 @@ import type {
   HostStartupProjection,
   OneArborHostState,
 } from "@/lib/arbor/host/oneArborHostBridge";
+import {
+  buildTimeCore,
+  renderTimeCorePromptBlock,
+} from "@/lib/arbor/runtime/timeCore";
+import {
+  bridgeEmbodiedState,
+  embodiedCognitivePromptBlock,
+} from "@/lib/arbor/runtime/cognitiveBridge";
 
 export function invalidatePromptCache(params: {
   authedUserId: string;
@@ -75,6 +83,7 @@ type BuildPromptParams = {
   interactionMode?: "text" | "voice";
   hostSessionId?: string | null;
   currentGoal?: string | null;
+  timeZone?: string | null;
 };
 
 export type BuiltPromptContext = {
@@ -173,6 +182,7 @@ export async function buildPromptContext({
   interactionMode = "text",
   hostSessionId = null,
   currentGoal = null,
+  timeZone = null,
 }: BuildPromptParams): Promise<BuiltPromptContext> {
   const { data: project, error: projectError } = await supabase
     .from("projects")
@@ -444,6 +454,11 @@ export async function buildPromptContext({
   const bodyBlock = arborBodyPromptBlock(bodyState);
   const feltLifeState = inferFeltLife({ text: latestUserText });
   const feltLifeBlock = feltLifePromptBlock(feltLifeState);
+  const embodiedBridge = bridgeEmbodiedState({
+    body: bodyState,
+    felt: feltLifeState,
+  });
+  const embodiedBridgeBlock = embodiedCognitivePromptBlock(embodiedBridge);
 
   const behaviorProjection = buildArborBehaviorProjection({
     mode: behaviorMode,
@@ -482,6 +497,8 @@ export async function buildPromptContext({
     ${bodyBlock}
 
     ${feltLifeBlock}
+
+    ${embodiedBridgeBlock}
 
     ${host.startup.promptBlock}
 
