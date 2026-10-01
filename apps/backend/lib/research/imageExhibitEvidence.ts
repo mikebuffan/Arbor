@@ -76,6 +76,8 @@ export function createLiteralVisualObservation(input:VisualObservation):VisualOb
 
 /** Explicitly excludes biometric or identity inference. */
 export function assertNoBiometricInference(observation:VisualObservation):void{
-  const banned=/(face match|facial recognition|same person|identity match|looks like|appears to be)/i;
-  if(banned.test(observation.literalObservation))throw new Error("visual_identity_inference_not_allowed");
+  const normalized=observation.literalObservation.toLowerCase();
+  const bannedPhrases=["face match","facial recognition","same person","identity match","looks like","appears to be"];
+  if(bannedPhrases.some(phrase=>normalized.includes(phrase)))
+    throw new Error("visual_identity_inference_not_allowed");
 }
