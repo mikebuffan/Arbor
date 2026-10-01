@@ -234,6 +234,7 @@ begin
     'sourceRef',e.source_ref,
     'lineageKey',e.lineage_key,
     'content',e.content,
+    'contentSha256',e.content_sha256,
     'supports',to_jsonb(e.supports),
     'underlyingSourceRef',e.underlying_source_ref
   ) order by e.created_at,e.id),'[]'::jsonb)
@@ -291,6 +292,8 @@ begin
   );
 end $$;
 
+revoke all on function public.arbor_reject_investigation_mutation()
+  from public,anon,authenticated;
 revoke all on function public.arbor_load_investigation_finding_context
   (uuid,uuid,uuid) from public,anon,authenticated;
 grant execute on function public.arbor_load_investigation_finding_context
