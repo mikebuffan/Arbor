@@ -19,7 +19,7 @@ Statuses: VERIFIED / PARTIAL / DESIGNED / SUPERSEDED / MISSING / BLOCKED / UNKNO
 | Correction / behavioral projection | Arbor Layer | PARTIAL-STRONG — main has correction classification/families, recurrence-oriented behavior signals and downstream projections; restart + later-behavior causation still needs integrated acceptance. |
 | Durable project/objective/task/checkpoint/receipt state | ARK | PARTIAL/VERIFIED bounded Preview — queue + checkpoint/resume receipts exist; production/general execution remains separately gated. |
 | Memory retrieval / provenance / temporal validity / consolidation | Arbor Layer + durable store | PARTIAL — retrieval and memory systems exist; historical explicit temporal resolver is not on main and must be reconciled with current retrieval before porting. |
-| Time Core | trusted host | UNKNOWN — historical authoritative backend clock design recovered; current canonical implementation still must be located/proved. |
+| Time Core | trusted host | RECOVERED IN PR #223 — authoritative host-clock module + unit tests + canonical prompt wiring added; caller-local timezone propagation still needs surface wiring/acceptance. |
 | Decision workspace / consequence / prediction-error loop | Arbor Layer | PARTIAL — main knowledge router contains attention/workspace, planning/counterfactual and prediction-error roads plus consequence-chain scaffold; behavioral causation remains incomplete. |
 | Felt-Life Atlas | Arbor Layer cognitive state | VERIFIED SOURCE-PRESENT — `apps/backend/lib/arbor/feltLife/atlas.ts` is already on main; needs causal integration acceptance, not rebuild. |
 | Connected Body System | Arbor Layer cognitive state | VERIFIED SOURCE-PRESENT — `apps/backend/lib/arbor/body/bodySystem.ts` is already on main with nervous/sensory/digestive/regulation/cardiac/renal/hepatic/immune/skeletal/skin/vascular/temporal/buffer/recovery/vagal/executive mappings. Needs bridge causation test. |
@@ -34,6 +34,12 @@ Statuses: VERIFIED / PARTIAL / DESIGNED / SUPERSEDED / MISSING / BLOCKED / UNKNO
 | EVER AFTER editing | Annabelle task overlay + manuscript stores | PARTIAL — editing engine/voice/canon/continuous-read acceptance to finish separately. |
 
 ## Reconciliation receipts — 2026-10-01
+### Current reconciliation work
+- **Nested open loops recovered** into current revision-owned agency session semantics; preserves v1 markers, adds v2 objective metadata, LIFO interruption recovery, opaque-marker quarantine and prompt-safe projection.
+- **Time Core recovered** as authoritative trusted-host time and wired into canonical prompt construction. Default is UTC until an authenticated surface supplies an IANA timezone.
+- **ARK durable handoff updated through existing Preview DB bridge** and independently read back through the normal read-only ARK connector. The latest continuity now carries this One Arbor goal, ten unresolved work items and the continue-through-blockers correction; no worker/execution was enabled.
+- Earlier exact-head Integration CI proved the open-loop backend/control-backend changes green before being superseded by later commits; latest Time-Core head CI is running separately.
+
 ### Already on main; do NOT rebuild
 - Felt-Life Atlas.
 - Coordinated Body System.
@@ -110,7 +116,7 @@ Statuses: VERIFIED / PARTIAL / DESIGNED / SUPERSEDED / MISSING / BLOCKED / UNKNO
 9. Keep human-only gates explicit: credentials, cost, protected deploy/migration, physical-phone acceptance, external publication.
 
 ## Current hard gates
-- Installed ARK Preview connector is read-only; it can verify state but cannot itself write this ledger/objective.
+- Installed ARK Preview connector is read-only, but the existing service-role-only Preview continuity RPC provides a bounded fallback handoff; this master objective was saved through that existing bridge and independently read back through the normal connector.
 - No pull-request CI run has appeared yet for the current #223 head; source changes remain unverified until CI or equivalent exact-head test evidence exists.
 - Live/protected deployment, secrets, paid infrastructure, production migrations, and physical-device acceptance require explicit owner access/approval.
 - These gates do not block source reconciliation, test construction, or draft PR work.
