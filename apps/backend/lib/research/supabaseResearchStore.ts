@@ -112,7 +112,7 @@ export class SupabaseResearchStore implements ResearchControllerStore {
     if (unitError) throw unitError;
 
     const receiptsQuery = this.db.from("arbor_research_receipts")
-      .select("idempotency_key,status,evidence_refs,recorded_at")
+      .select("idempotency_key,status,evidence_refs,recorded_at,result")
       .eq("session_id",session.id)
       .eq("user_id",this.ownerId)
       .eq("project_id",this.projectId)
@@ -147,6 +147,10 @@ export class SupabaseResearchStore implements ResearchControllerStore {
         status:status as ResearchControllerContext["recentReceipts"][number]["status"],
         evidenceRefs:stringArray(r.evidence_refs,"receipt_evidence_refs"),
         recordedAt:requiredString(r.recorded_at,"receipt_recorded_at"),
+        result:
+          r.result === null || r.result === undefined
+            ? null
+            : row(r.result),
       };
     });
 
