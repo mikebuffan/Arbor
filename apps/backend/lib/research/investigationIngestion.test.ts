@@ -18,10 +18,12 @@ describe("investigation ingestion",()=>{
   });
 
   it("extracts deterministic structural formats with offsets",()=>{
-    const text="Email A@EXAMPLE.ORG, call (202) 555-0112, aircraft N550MS, $1,250.00 on January 2, 2004.";
+    const text="Email A@EXAMPLE.ORG, call (202) 555-0112, 123 Main Street, account # AB-12345, aircraft N550MS, $1,250.00 on January 2, 2004.";
     const kinds=extractStructuralEntities(text).map(x=>x.kind);
     expect(kinds).toContain("email");
     expect(kinds).toContain("phone");
+    expect(kinds).toContain("address");
+    expect(kinds).toContain("account_number");
     expect(kinds).toContain("tail_number");
     expect(kinds).toContain("money");
     expect(kinds).toContain("date");
