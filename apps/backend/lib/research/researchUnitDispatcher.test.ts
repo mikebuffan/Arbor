@@ -115,11 +115,11 @@ describe("research unit dispatcher", () => {
     mockPatternHop.mockReset();
   });
 
-  it("registers only the explicitly allowed default pattern-hop kind", () => {
+  it("registers only the safe default pattern-hop and prediction kinds", () => {
     const dispatcher = buildDefaultResearchUnitDispatcher({
       supabase: {} as SupabaseClient,
     });
-    expect(dispatcher.kinds()).toEqual(["research.pattern_hop"]);
+    expect(dispatcher.kinds()).toEqual(["research.pattern_hop", "research.prediction"]);
   });
 
   it("registers the integrity gate only when a trusted evidence store is supplied", () => {
@@ -133,6 +133,7 @@ describe("research unit dispatcher", () => {
     expect(dispatcher.kinds()).toEqual([
       "research.integrity_gate",
       "research.pattern_hop",
+      "research.prediction",
     ]);
   });
 
@@ -147,6 +148,7 @@ describe("research unit dispatcher", () => {
     expect(dispatcher.kinds()).toEqual([
       "research.discovery",
       "research.pattern_hop",
+      "research.prediction",
     ]);
   });
 
@@ -166,6 +168,7 @@ describe("research unit dispatcher", () => {
       "research.discovery",
       "research.integrity_gate",
       "research.pattern_hop",
+      "research.prediction",
     ]);
   });
 
