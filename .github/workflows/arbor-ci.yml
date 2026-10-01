@@ -189,6 +189,8 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -f docs/research/sql/PROPOSED_epstein_ingestion_verification_v1.sql
       - name: Exercise ingestion identity finding and missingness invariants
         run: psql -v ON_ERROR_STOP=1 -f ops/research/disposable-db/70-ingestion-verification-v1.sql
+      - name: Exercise persisted multi-worker full-session restart acceptance
+        run: psql -v ON_ERROR_STOP=1 -f ops/research/disposable-db/80-full-session-restart.sql
 
   control-backend:
     name: Control backend test + build
