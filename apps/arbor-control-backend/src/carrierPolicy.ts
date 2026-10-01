@@ -1,3 +1,4 @@
+import { mergeCognitiveRuntimeState } from "./cognitiveRuntime.js";
 import type { ArborState } from "./types.js";
 
 /**
@@ -71,6 +72,11 @@ export function mergeCarrierState(
     selfModelMigrations:
       projectState.selfModelMigrations ??
       conversationState.selfModelMigrations,
+
+    cognitiveRuntime: mergeCognitiveRuntimeState(
+      projectState.cognitiveRuntime,
+      conversationState.cognitiveRuntime,
+    ),
   };
 }
 
