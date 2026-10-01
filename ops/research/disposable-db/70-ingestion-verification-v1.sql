@@ -69,6 +69,15 @@ values
  'decision-1',:'synthetic_candidate_id',null,'ambiguous',array[(select id from public.arbor_research_mentions limit 1)],
  'synthetic ambiguity preserved',now());
 
+do $
+begin
+  begin
+    update public.arbor_research_mentions set normalized_text='rewritten history' where mention_key='mention-1';
+    raise exception 'append-only mention ledger allowed rewrite';
+  exception when object_not_in_prerequisite_state then null;
+  end;
+end $;
+
 insert into public.arbor_research_expected_record_leads
 (owner_id, project_id, lead_key, expectation_reason, expected_record_kind, supporting_evidence_refs)
 values
