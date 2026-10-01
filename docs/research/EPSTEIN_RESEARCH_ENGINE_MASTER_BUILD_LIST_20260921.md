@@ -85,18 +85,18 @@ Legend: [x] relevant implementation plus exact-head CI evidence exists for the s
 78. [x] Optional `research.discovery` unit exists behind a trusted observation-store interface and remains disconnected by default. Source tests PASS. **BLOCKED — live wiring:** a reviewed live observation/entity source path is still separately required before a host supplies the store.
 79. [x] Identity-safe observation/entity persistence proposal preserves identity state as resolved/source_stable/unresolved/do_not_merge; the trusted discovery loader excludes unresolved/do_not_merge entities so same-name mentions cannot silently merge into a bridge node. Disposable acceptance PASS in run `36811318812`; no live schema application authorized.
 80. [x] Disposable persistence acceptance proves unresolved same-name identities are excluded from discovery, owner/project scope is enforced, and discovery records are append-only. PASS in run `36811318812`.
-81. [~] Prediction-before-search ledger and durable `research.prediction` unit seal concrete documentary predictions before hypothesis searching; model-supplied basis evidence must already exist in persisted session evidence. Exact-head CI pending.
-82. [~] Independent rediscovery source distinguishes genuinely separate starting anchors/source lineages from repeated retrieval of the same underlying evidence and generates reverse-direction search seeds. Exact-head CI pending.
-83. [~] Blind reconstruction planner reconstructs chronology/events from raw record envelopes before seeing any public/prosecutorial/defense/media/user narrative; later narrative comparison records divergence and chronology tensions as leads, never proof. Exact-head CI pending.
-84. [~] Documentary-shadow comparison requires an evidenced comparison cohort before calling a paper trail unusual; missing expected records generate bounded search questions rather than absence claims. Exact-head CI pending.
-85. [~] Unresolved-friction accumulation preserves multi-dimensional anomalies across chronology/identity/ownership/financial/procedural/testimony/relationships and only elevates multi-lineage clusters for further research, never conduct inference. Exact-head CI pending.
-86. [~] Claim-genealogy analysis counts evidentiary origins rather than article/book/podcast repetition and refuses an independence count when provenance is incomplete or cyclic. Exact-head CI pending.
-87. [~] Counterfactual graph analysis removes one node at a time to identify structurally important quiet intermediaries while explicitly separating graph centrality from wrongdoing, authority or intent. Exact-head CI pending.
-88. [~] Canonical Arbor planner now requires a prediction receipt before searching a fresh hypothesis when `research.prediction` is available, then directs the next search to test both the prediction and disconfirming evidence. Exact-head CI pending.
-89. [~] Neutral unresolved-question miner separates public/source questions from inherited proposed answers, preserves source-candidate lineage, forbids invented named entities, and requires primary-source targets plus disconfirming searches. Exact-head CI pending.
-90. [~] Cross-entity sequence-motif discovery detects repeated ordered event patterns only across multiple resolved entities and independent lineages; motifs feed discovery as hypotheses and explicitly do not establish a shared scheme or intent. Exact-head CI pending.
-91. [~] Counterfactual bridge analysis now feeds directly into anomaly discovery so structurally important quiet intermediaries can surface without relying on famous-name search. Exact-head CI pending.
-92. [~] Prediction evaluations can be converted into explicit falsification-attempt receipts for the integrity gate; untested predictions cannot masquerade as falsification. Exact-head CI pending.
+81. [x] Prediction-before-search ledger and durable `research.prediction` unit seal concrete documentary predictions before hypothesis searching; model-supplied basis evidence must already exist in persisted session evidence. PASS at head `d8bda9299d49e539761e3450c3de90978b25124f`, run `36814035735`.
+82. [x] Independent rediscovery source distinguishes genuinely separate starting anchors/source lineages from repeated retrieval of the same underlying evidence and generates reverse-direction search seeds. PASS in run `36814035735`.
+83. [x] Blind reconstruction planner reconstructs chronology/events from raw record envelopes before seeing any public/prosecutorial/defense/media/user narrative; later narrative comparison records divergence and chronology tensions as leads, never proof. PASS in run `36814035735`.
+84. [x] Documentary-shadow comparison requires an evidenced comparison cohort before calling a paper trail unusual; missing expected records generate bounded search questions rather than absence claims. PASS in run `36814035735`.
+85. [x] Unresolved-friction accumulation preserves multi-dimensional anomalies across chronology/identity/ownership/financial/procedural/testimony/relationships and only elevates multi-lineage clusters for further research, never conduct inference. PASS in run `36814035735`.
+86. [x] Claim-genealogy analysis counts evidentiary origins rather than article/book/podcast repetition and refuses an independence count when provenance is incomplete or cyclic. PASS in run `36814035735`.
+87. [x] Counterfactual graph analysis removes one node at a time to identify structurally important quiet intermediaries while explicitly separating graph centrality from wrongdoing, authority or intent. PASS in run `36814035735`.
+88. [x] Canonical Arbor planner now requires a prediction receipt before searching a fresh hypothesis when `research.prediction` is available, then directs the next search to test both the prediction and disconfirming evidence. PASS in run `36814035735`.
+89. [x] Neutral unresolved-question miner separates public/source questions from inherited proposed answers, preserves source-candidate lineage, forbids invented named entities, and requires primary-source targets plus disconfirming searches. PASS in run `36814035735`.
+90. [x] Cross-entity sequence-motif discovery detects repeated ordered event patterns only across multiple resolved entities and independent lineages; motifs feed discovery as hypotheses and explicitly do not establish a shared scheme or intent. PASS in run `36814035735`.
+91. [x] Counterfactual bridge analysis now feeds directly into anomaly discovery so structurally important quiet intermediaries can surface without relying on famous-name search. PASS in run `36814035735`.
+92. [x] Prediction evaluations can be converted into explicit falsification-attempt receipts for the integrity gate; untested predictions cannot masquerade as falsification. PASS in run `36814035735`.
 
 ## Run 11 — 2026-09-23 reconciliation and source-only pilot verification attempt
 - Re-opened this master on current #212 branch and verified current PR metadata: #212 is draft, base `chore/research-ci-trigger-cleanup-handoff-20260923` at `1f48ff810240a655fd53d3485e4a36316857c897`, observed head before this docs refresh `a0624c7420eb197c8c5175c489ddd317a11a206e`.
@@ -139,3 +139,14 @@ Legend: [x] relevant implementation plus exact-head CI evidence exists for the s
 - **Identity gate: PASS in disposable PostgreSQL.** Unresolved same-name entities remain persisted but are excluded from the discovery graph until identity resolution is source-stable/resolved.
 - Exact tested implementation head before this documentation refresh: `4fba6f90e0966736f0a38b75f737f203bc4b74ba`; GitHub Actions run `36811318812`: **SUCCESS**.
 - **Still NOT authorized:** merge, production/Preview schema application, deployed discovery/integrity registration, external DOJ/EFTA ingestion, unattended scheduler, private/victim-data processing, finding publication, or treating a hypothesis as a finding.
+
+
+## Run 16 — predictive/counterfactual discovery acceptance (2026-09-30)
+- Exact implementation head `d8bda9299d49e539761e3450c3de90978b25124f`, GitHub Actions run `36814035735`: **SUCCESS**.
+- Targeted source tests: **41 files / 226 tests PASS**.
+- Backend production build/typecheck: **PASS**.
+- Existing shared-ARK multi-tick disposable PostgreSQL acceptance: **PASS**.
+- Existing research controller/store + integrity/discovery persistence disposable PostgreSQL acceptance: **PASS**.
+- Existing non-root/no-egress PDF sandbox build, benign fidelity packet, and isolated staging/idempotency acceptance: **PASS**.
+- New accepted source behaviors include: prediction-before-search, prediction→falsification mapping, independent rediscovery, blind reconstruction before narrative comparison, documentary-shadow baselines, unresolved-friction clusters, claim genealogy, counterfactual graph removal, neutral question mining, and cross-entity sequence motifs.
+- No real Epstein/DOJ/EFTA source was ingested by this run. No merge, Preview/production migration, deployed discovery/integrity registration, unattended scheduler, private/victim-data processing, or publication was authorized or performed.
