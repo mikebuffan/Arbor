@@ -93,6 +93,10 @@ Legend: [x] relevant implementation plus exact-head CI evidence exists for the s
 86. [~] Claim-genealogy analysis counts evidentiary origins rather than article/book/podcast repetition and refuses an independence count when provenance is incomplete or cyclic. Exact-head CI pending.
 87. [~] Counterfactual graph analysis removes one node at a time to identify structurally important quiet intermediaries while explicitly separating graph centrality from wrongdoing, authority or intent. Exact-head CI pending.
 88. [~] Canonical Arbor planner now requires a prediction receipt before searching a fresh hypothesis when `research.prediction` is available, then directs the next search to test both the prediction and disconfirming evidence. Exact-head CI pending.
+89. [~] Neutral unresolved-question miner separates public/source questions from inherited proposed answers, preserves source-candidate lineage, forbids invented named entities, and requires primary-source targets plus disconfirming searches. Exact-head CI pending.
+90. [~] Cross-entity sequence-motif discovery detects repeated ordered event patterns only across multiple resolved entities and independent lineages; motifs feed discovery as hypotheses and explicitly do not establish a shared scheme or intent. Exact-head CI pending.
+91. [~] Counterfactual bridge analysis now feeds directly into anomaly discovery so structurally important quiet intermediaries can surface without relying on famous-name search. Exact-head CI pending.
+92. [~] Prediction evaluations can be converted into explicit falsification-attempt receipts for the integrity gate; untested predictions cannot masquerade as falsification. Exact-head CI pending.
 
 ## Run 11 — 2026-09-23 reconciliation and source-only pilot verification attempt
 - Re-opened this master on current #212 branch and verified current PR metadata: #212 is draft, base `chore/research-ci-trigger-cleanup-handoff-20260923` at `1f48ff810240a655fd53d3485e4a36316857c897`, observed head before this docs refresh `a0624c7420eb197c8c5175c489ddd317a11a206e`.
