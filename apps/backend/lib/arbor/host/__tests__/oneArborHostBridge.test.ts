@@ -32,6 +32,17 @@ const base: OneArborHostState = {
 };
 
 describe("One Arbor host bridge", () => {
+  it("applies newer calibration in the same family and ignores stale or replayed copies", () => {
+    const first = { id: "behavior:drift", kind: "behavior" as const, text: "Earlier calibration",
+      createdAt: "2026-09-10T20:01:00.000Z" };
+    const second = { ...first, text: "Updated calibration", createdAt: "2026-09-10T22:02:00+02:00" };
+    const prior = applyHostCorrection(base, first);
+    const updated = applyHostCorrection({ ...prior, updatedAt: "2026-09-10T20:05:00.000Z" }, second);
+    expect(updated.updatedAt).toBe("2026-09-10T20:05:00.000Z");
+    expect(projectHostStartup(updated).behavioralCorrections).toEqual(["Updated calibration"]);
+    expect(applyHostCorrection(updated, first)).toBe(updated);
+    expect(applyHostCorrection(updated, second)).toBe(updated);
+  });
   it("moves Text to Voice without resetting continuity", () => {
     const voice = switchHostSurface(
       base,

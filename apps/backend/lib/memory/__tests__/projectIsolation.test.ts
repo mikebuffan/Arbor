@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 const mocks = vi.hoisted(() => ({ logMemoryEvent: vi.fn() }));
+vi.mock("@/lib/providers/openai", () => ({ openAIEmbed: vi.fn(async () => { throw new Error("synthetic embedding failure"); }) }));
 vi.mock("@/lib/memory/logger", () => ({ logMemoryEvent: mocks.logMemoryEvent }));
 vi.mock("@/lib/memory/embeddings", () => ({ embedText: vi.fn(), embedTexts: vi.fn(), memoryToEmbedString: vi.fn() }));
 vi.mock("@/lib/supabase/server", () => ({ getServerSupabase: vi.fn() }));
@@ -40,7 +41,7 @@ describe("memory project isolation", () => {
     expect(isMemoryInProjectScope({ project_id: "project-a", conversation_id: "conversation-b", scope: "conversation" }, "project-a", "conversation-a")).toBe(false);
   });
 
-  it("disables vector RPC use and filters direct retrieval to the authenticated project", async () => {
+  it("falls back to project-scoped direct retrieval when embeddings fail", async () => {
     const response = { data: [
       { id: "memory-a", project_id: "project-a", key: "project-a-key", value: { text: "project A" }, tier: "normal", scope: "project", status: "active", deleted_at: null },
       { id: "memory-b", project_id: "project-b", key: "project-b-key", value: { text: "project B" }, tier: "normal", scope: "project", status: "active", deleted_at: null },

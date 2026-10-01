@@ -1,3 +1,4 @@
 {
+  "git": { "deploymentEnabled": { "fix/arbor-cross-thread-correction-recall-20261001": false } },
   "crons": []
 }

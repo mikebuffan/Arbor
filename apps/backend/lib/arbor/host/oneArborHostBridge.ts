@@ -130,11 +130,13 @@ export function applyHostCorrection(
   state: OneArborHostState,
   correction: ArborHostCorrection,
 ): OneArborHostState {
-  if (state.corrections.some((item) => item.id === correction.id)) return state;
+  const prior = state.corrections.find((item) => item.id === correction.id);
+  if (prior && Date.parse(prior.createdAt) >= Date.parse(correction.createdAt)) return state;
   return {
     ...state,
-    corrections: [...state.corrections, correction],
-    updatedAt: correction.createdAt,
+    corrections: [...state.corrections.filter(item => item.id !== correction.id), correction],
+    updatedAt: Date.parse(state.updatedAt) >= Date.parse(correction.createdAt)
+      ? state.updatedAt : correction.createdAt,
   };
 }
 
