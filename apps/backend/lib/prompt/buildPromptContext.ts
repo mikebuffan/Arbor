@@ -84,6 +84,7 @@ type BuildPromptParams = {
   hostSessionId?: string | null;
   currentGoal?: string | null;
   timeZone?: string | null;
+  timeZoneOffsetMinutes?: number | null;
 };
 
 export type BuiltPromptContext = {
@@ -183,6 +184,7 @@ export async function buildPromptContext({
   hostSessionId = null,
   currentGoal = null,
   timeZone = null,
+  timeZoneOffsetMinutes = null,
 }: BuildPromptParams): Promise<BuiltPromptContext> {
   const { data: project, error: projectError } = await supabase
     .from("projects")
@@ -445,7 +447,10 @@ export async function buildPromptContext({
   const behaviorMode =
     arbor.activeSubsystem === "annabelle" ? "annabelle" : interactionMode;
 
-  const timeCore = buildTimeCore({ timeZone });
+  const timeCore = buildTimeCore({
+    timeZone,
+    utcOffsetMinutes: timeZoneOffsetMinutes,
+  });
   const timeCoreBlock = renderTimeCorePromptBlock(timeCore);
 
   const bodyState = deriveArborBodyState({
