@@ -171,10 +171,25 @@ Implementation branch: `feat/epstein-investigation-workbench-v3-20261001`.
 
 Implementation branch: `feat/epstein-reproducibility-scale-v4-20261001`.
 
-112. [ ] Reproducible investigation replay receipts: corpus snapshots, query, filters, hop directives, resolver decisions, code version, algorithm versions, produced evidence/leads and canonical SHA-256 recipe digest.
-113. [ ] Source-anchored evidence packet builder preserving support, counterevidence, context, original-page hashes, limitations, unresolved questions and permanent human-review HOLD.
-114. [ ] Multilingual evidence lane preserving original text as canonical source plus aligned secondary translations, spans, translator/version, confidence, ambiguity and human-review state.
-115. [ ] Corpus-scale shard/backpressure planner with hard concurrency/batch/storage caps and 3.5M-page deterministic shard acceptance.
-116. [ ] Coverage-aware stopping logic requiring source-family exhaustion, sufficient coverage, stable no-new-evidence/no-new-lead rounds, zero required work and completion evidence; unresolved contradictions/identities force manual HOLD.
-117. [ ] Proposed durable persistence + disposable PostgreSQL acceptance + exact-head CI for items 112–116.
+112. [x] Reproducible investigation replay receipts: corpus snapshots, query, filters, hop directives, resolver decisions, code version, algorithm versions, produced evidence/leads and canonical SHA-256 recipe digest.
+113. [x] Source-anchored evidence packet builder preserving support, counterevidence, context, original-page hashes, limitations, unresolved questions and permanent human-review HOLD.
+114. [x] Multilingual evidence lane preserving original text as canonical source plus aligned secondary translations, spans, translator/version, confidence, ambiguity and human-review state.
+115. [x] Corpus-scale shard/backpressure planner with hard concurrency/batch/storage caps and 3.5M-page deterministic shard acceptance.
+116. [x] Coverage-aware stopping logic requiring source-family exhaustion, sufficient coverage, stable no-new-evidence/no-new-lead rounds, zero required work and completion evidence; unresolved contradictions/identities force manual HOLD.
+117. [x] Proposed durable persistence + disposable PostgreSQL acceptance + exact-head CI for items 112–116. Verified at PR #228 head `d6d531a8d055415cd50b2606c9ff1d1799597fc4`, Integration CI run `36921454577` SUCCESS (131 backend test files / 665 tests, production Next build, v4 PostgreSQL persistence, PDF/control/Flutter regressions green).
 118. [ ] Production/live integration remains gated by items 42, 47–49, 51, 56, 93–96, 103 and 111.
+
+
+## 2026-10-01 security & integration v5 extension
+
+Implementation branch: `feat/epstein-security-integration-v5-20261001`.
+
+119. [ ] Read-only Firefly ARK Preview security baseline: RLS inventory, Supabase Security Advisor, table grants, function ACL/elevation/search_path, anonymous visibility sample, public-schema CREATE privileges.
+120. [ ] Convert proposed bounded research RPCs from SECURITY DEFINER to SECURITY INVOKER and remove deprecated/redundant service-role claim checks.
+121. [ ] Explicit raw-research least-privilege grant matrix: anon none, authenticated only owner-readable session status, service_role writes/RPC execution.
+122. [ ] Remove unnecessary pgcrypto extension creation from research ingestion proposal.
+123. [ ] Catalog-level disposable CI assertions for RLS, grants, SECURITY DEFINER regression, pinned search_path and RPC EXECUTE roles.
+124. [ ] Prove the bounded claim RPC still executes successfully as the actual PostgreSQL service_role after elevation is removed.
+125. [ ] Non-applied Preview legacy grant-hardening candidate for service-only no-policy tables/functions and redundant anon ARK/Pattern-Hop grants.
+126. [ ] Exact-head CI for items 119–125.
+127. [ ] Actual Preview grant/auth/extension changes remain separately approval-gated; no production Firefly/Grove mutation.
