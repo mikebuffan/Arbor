@@ -134,6 +134,53 @@ describe("investigation discovery engine", () => {
     ]));
   });
 
+  it("finds a quiet counterfactual bridge when removing one intermediary fragments independently sourced clusters", () => {
+    const left = { id: "entity:left", label: "Left Node", kind: "person" as const };
+    const bridge = { id: "entity:bridge", label: "Quiet Intermediary", kind: "company" as const };
+    const right = { id: "entity:right", label: "Right Node", kind: "person" as const };
+    const tail = { id: "entity:tail", label: "Tail Node", kind: "address" as const };
+
+    const result = discoverInvestigationLeads({
+      observations: [
+        obs(
+          "e1",
+          "lineage:a",
+          "calendar",
+          "2026-06-01T10:00:00Z",
+          [left, bridge],
+        ),
+        obs(
+          "e2",
+          "lineage:b",
+          "property",
+          "2026-06-02T10:00:00Z",
+          [bridge, right],
+        ),
+        obs(
+          "e3",
+          "lineage:c",
+          "payment",
+          "2026-06-03T10:00:00Z",
+          [bridge, tail],
+        ),
+      ],
+    });
+
+    const lead = result.leads.find((item) =>
+      item.kind === "counterfactual_bridge");
+    expect(lead).toMatchObject({
+      status: "hypothesis",
+      entityIds: expect.arrayContaining(["entity:bridge"]),
+      independentLineages: ["lineage:a", "lineage:b", "lineage:c"],
+    });
+    expect(lead?.rationale).toContain(
+      "Structural importance is not evidence of wrongdoing",
+    );
+    expect(lead?.falsifiers).toContain(
+      "Independent reverse searches fail to reproduce the connections.",
+    );
+  });
+
   it("converts a discovery lead into bounded Pattern Hop searches that explicitly seek disconfirmation", () => {
     const entity = { id: "entity:bridge", label: "Bridge Entity", kind: "company" as const };
     const result = discoverInvestigationLeads({
