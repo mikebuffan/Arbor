@@ -55,7 +55,7 @@ begin
     (owner_id, project_id, decision_key, candidate_id, target_entity_key, status, basis_mention_ids, rationale, decided_at)
     values
     ('11111111-1111-1111-1111-111111111111','22222222-2222-2222-2222-222222222222',
-     'bad-resolved',:'synthetic_candidate_id',null,'resolved',array[(select id from public.arbor_research_mentions limit 1)],
+     'bad-resolved',(select id from public.arbor_research_entity_candidates where candidate_key='candidate-1'),null,'resolved',array[(select id from public.arbor_research_mentions limit 1)],
      'must fail',now());
     raise exception 'resolved identity without target was accepted';
   exception when check_violation then null;
