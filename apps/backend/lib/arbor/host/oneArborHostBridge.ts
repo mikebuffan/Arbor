@@ -3,6 +3,10 @@ import type {
   ArborInteractionMode,
 } from "../behavior/behaviorProjection";
 
+import {
+  renderCanonicalIdentityAnchor,
+} from "../selfModel/canonicalIdentityAnchor";
+
 export type ArborAuthority = "arbor" | "annabelle";
 export type ArborHostSurface = "text" | "voice";
 
@@ -89,6 +93,8 @@ export function projectHostStartup(
     behavioralCorrections,
     acousticCorrections,
     promptBlock: [
+      renderCanonicalIdentityAnchor(),
+      "",
       "ONE ARBOR HOST CONTINUITY",
       `Surface: ${state.surface}`,
       `Authority: ${state.authority}`,
