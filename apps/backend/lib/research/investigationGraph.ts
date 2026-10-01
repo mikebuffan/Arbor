@@ -85,7 +85,17 @@ export function buildSourceOriginFamilies(nodesInput:readonly SourceOriginNode[]
   }));
   if(new Set(nodes.map(n=>n.sourceId)).size!==nodes.length)throw new Error("duplicate_source_id");
   const parent=new Map(nodes.map(n=>[n.sourceId,n.sourceId]));
-  const find=(id:string):string=>{let p=parent.get(id)!;while(parent.get(p)!==p)p=parent.get(p)!;let x=id;while(parent.get(x)!!==p){const q=parent.get(x)!;parent.set(x,p);x=q;}return p;};
+  const find=(id:string):string=>{
+    let p=parent.get(id)!;
+    while(parent.get(p)!==p)p=parent.get(p)!;
+    let x=id;
+    while(parent.get(x)!==p){
+      const q=parent.get(x)!;
+      parent.set(x,p);
+      x=q;
+    }
+    return p;
+  };
   const union=(a:string,b:string)=>{const A=find(a),B=find(b);if(A!==B)parent.set(B,A);};
   const byHash=new Map<string,string>();
   for(const node of nodes){
