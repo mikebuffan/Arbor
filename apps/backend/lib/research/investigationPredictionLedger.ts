@@ -1,3 +1,5 @@
+import type { FalsificationAttempt } from "./investigationIntegrity";
+
 export type InvestigationPredictionKind =
   | "document_family"
   | "event_tag"
@@ -265,5 +267,39 @@ export function evaluatePredictionReceipt(input: {
     requiredPredictionFailures,
     note:
       "Prediction evaluation is a hypothesis test, not a finding promotion.",
+  };
+}
+
+
+export function predictionEvaluationToFalsificationAttempt(input: {
+  receipt: InvestigationPredictionReceipt;
+  evaluation: InvestigationPredictionEvaluation;
+  observations: InvestigationPredictionObservation[];
+}): FalsificationAttempt {
+  if (input.evaluation.hypothesisId !== input.receipt.hypothesisId) {
+    throw new Error("investigation_prediction_evaluation_hypothesis_mismatch");
+  }
+  if (input.evaluation.status === "untested") {
+    throw new Error("investigation_prediction_untested_cannot_be_falsification");
+  }
+
+  const evidenceRefs = [
+    ...new Set(
+      input.observations.flatMap((observation) => observation.evidenceRefs),
+    ),
+  ].sort();
+
+  const result: FalsificationAttempt["result"] =
+    input.evaluation.status === "failed"
+      ? "failed"
+      : input.evaluation.status === "survived"
+        ? "survived"
+        : "inconclusive";
+
+  return {
+    id: "prediction-test:" + input.receipt.hypothesisId,
+    hypothesis: input.receipt.hypothesis,
+    result,
+    evidenceRefs,
   };
 }
