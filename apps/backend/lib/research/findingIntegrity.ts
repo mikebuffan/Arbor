@@ -47,10 +47,10 @@ export function createFindingVersion(input:FindingVersion):FindingVersion{
   const connectionTypes=[...new Set(input.connectionTypes)];
   for(const type of connectionTypes)if(!["documented","temporal","spatial","transactional","linguistic_proximity"].includes(type))throw new Error("invalid_connection_type");
   if(!Array.isArray(input.dependencies)||!input.dependencies.length)throw new Error("finding_requires_dependency");
-  const dependencies=input.dependencies.map(dep=>({
-    evidenceRef:t(dep.evidenceRef,"finding_evidence_ref"),
-    role:(["support","counterevidence","context"].includes(dep.role)?dep.role:(()=>{throw new Error("invalid_dependency_role")})()) as FindingDependency["role"],
-  }));
+  const dependencies=input.dependencies.map(dep=>{
+    if(!["support","counterevidence","context"].includes(dep.role))throw new Error("invalid_dependency_role");
+    return {evidenceRef:t(dep.evidenceRef,"finding_evidence_ref"),role:dep.role};
+  });
   const unresolvedWeaknesses=uniq(input.unresolvedWeaknesses,"unresolved_weakness");
   return {findingId,version:input.version,statement,evidenceStatus:input.evidenceStatus,
     identityStatus:input.identityStatus,connectionTypes,dependencies,unresolvedWeaknesses,
@@ -173,6 +173,5 @@ export function investigationCockpit(input:InvestigationCockpitInput){
   if(input.uniquePages+input.duplicatePages>input.totalPages)throw new Error("invalid_cockpit_page_counts");
   return {...input,coverage:{
     uniqueRatio:input.totalPages?input.uniquePages/input.totalPages:0,
-    processedSignal:input.totalPages?1-input.unprocessedFamilyCount/Math.max(1,input.totalPages):0,
   }};
 }
