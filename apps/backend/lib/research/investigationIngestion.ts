@@ -54,7 +54,7 @@ export function classifyDocumentTypology(input: {
 }): DocumentTypology {
   const haystack = ((input.filename ?? "") + "\n" + input.textSample).toLowerCase();
   const rules: readonly [DocumentTypology, RegExp[]][] = [
-    ["legal_deposition", [/deposition/, /deponent/, /court reporter/, /q\s*[:.]\s+.*a\s*[:.]/s]],
+    ["legal_deposition", [/deposition/, /deponent/, /court reporter/, /q\s*[:.]\s+[\s\S]*a\s*[:.]/]],
     ["interview_transcript", [/interview/, /interviewer/, /transcript/, /question\s*:/]],
     ["flight_manifest", [/manifest/, /tail\s*(number|no\.?)/, /departure/, /arrival/, /passenger/]],
     ["calendar", [/calendar/, /appointment/, /schedule/, /\b(am|pm)\b/]],
