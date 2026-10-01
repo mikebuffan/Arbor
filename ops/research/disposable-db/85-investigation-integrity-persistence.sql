@@ -70,7 +70,7 @@ values
  '11111111-1111-4111-8111-111111111111',
  'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
  'The synthetic counterevidence defeats the claim.',
- 'survived',
+ 'claim_survived',
  array['85858585-8585-4585-8585-858585858582']::text[]
 );
 
@@ -113,7 +113,7 @@ begin
      or jsonb_array_length(r->'unresolvedContradictionIds') <> 1
      or r#>>'{unresolvedContradictionIds,0}' <> 'synthetic-timeline-conflict'
      or jsonb_array_length(r->'falsificationAttempts') <> 1
-     or r#>>'{falsificationAttempts,0,result}' <> 'survived'
+     or r#>>'{falsificationAttempts,0,result}' <> 'claim_survived'
      or not ((r#>'{falsificationAttempts,0,evidenceRefs}')
        @> '["85858585-8585-4585-8585-858585858582"]'::jsonb)
   then
