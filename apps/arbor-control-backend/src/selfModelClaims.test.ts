@@ -65,6 +65,7 @@ describe("falsifiable self-model claims", () => {
     });
     next = reconcileSelfModelClaims(next);
     const candidate = next.selfModelClaims?.at(-1);
+    const candidateId = candidate?.id;
 
     next = addSelfModelObservation(next, {
       targetKind: "pattern",
@@ -76,10 +77,14 @@ describe("falsifiable self-model claims", () => {
     });
     next = reconcileSelfModelClaims(next);
     const active = next.selfModelClaims?.at(-1);
+    const superseded = next.selfModelClaims?.find(
+      (claim) => claim.id === candidateId,
+    );
 
-    expect(candidate?.status).toBe("superseded");
+    expect(candidate?.status).toBe("candidate");
+    expect(superseded?.status).toBe("superseded");
     expect(active?.status).toBe("contested");
-    expect(active?.supersedesClaimId).toBe(candidate?.id);
+    expect(active?.supersedesClaimId).toBe(candidateId);
     expect(active?.confidence).toBeLessThan(candidate?.confidence ?? 1);
   });
 
