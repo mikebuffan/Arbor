@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   assertPredictionPrecedesSearch,
   evaluatePredictionReceipt,
+  predictionEvaluationToFalsificationAttempt,
   sealPredictionReceipt,
 } from "./investigationPredictionLedger";
 
@@ -130,6 +131,48 @@ describe("prediction-before-search ledger", () => {
     });
     expect(result.note).toBe(
       "Prediction evaluation is a hypothesis test, not a finding promotion.",
+    );
+  });
+
+  it("converts a tested prediction receipt into a falsification attempt for the integrity gate", () => {
+    const sealed = receipt();
+    const observations = [{
+      predictionKey: "role-record",
+      outcome: "contradicted" as const,
+      evidenceRefs: ["evidence:counter"],
+      observedAt: "2026-09-30T21:00:00.000Z",
+    }];
+    const evaluation = evaluatePredictionReceipt({
+      receipt: sealed,
+      observations,
+    });
+
+    expect(predictionEvaluationToFalsificationAttempt({
+      receipt: sealed,
+      evaluation,
+      observations,
+    })).toEqual({
+      id: "prediction-test:hypothesis-1",
+      hypothesis:
+        "A shared administrative role may explain the cross-family recurrence.",
+      result: "failed",
+      evidenceRefs: ["evidence:counter"],
+    });
+  });
+
+  it("refuses to create a falsification receipt from an untested prediction", () => {
+    const sealed = receipt();
+    const evaluation = evaluatePredictionReceipt({
+      receipt: sealed,
+      observations: [],
+    });
+
+    expect(() => predictionEvaluationToFalsificationAttempt({
+      receipt: sealed,
+      evaluation,
+      observations: [],
+    })).toThrow(
+      "investigation_prediction_untested_cannot_be_falsification",
     );
   });
 
