@@ -97,21 +97,21 @@ Legend: [x] relevant implementation plus exact-head CI evidence exists for the s
 90. [x] Cross-entity sequence-motif discovery detects repeated ordered event patterns only across multiple resolved entities and independent lineages; motifs feed discovery as hypotheses and explicitly do not establish a shared scheme or intent. PASS in run `36814035735`.
 91. [x] Counterfactual bridge analysis now feeds directly into anomaly discovery so structurally important quiet intermediaries can surface without relying on famous-name search. PASS in run `36814035735`.
 92. [x] Prediction evaluations can be converted into explicit falsification-attempt receipts for the integrity gate; untested predictions cannot masquerade as falsification. PASS in run `36814035735`.
-93. [~] Knowledge-state ledger distinguishes knowledge documented before action, action before earliest documented knowledge, and knowledge not documented; documentation gaps never become mind-reading claims. Exact-head CI pending.
-94. [~] Hard timeline geometry checks event windows against minimum transition durations and flags only impossible documented bounds as hard conflicts. Exact-head CI pending.
-95. [~] Missing-function inference creates anonymous UNKNOWN_FUNCTION_* capability nodes between documented transitions and explicitly forbids inventing a person. Exact-head CI pending.
-96. [~] Ordinary-explanation adversary forces anomalies through strong administrative/clerical/legal/logistical/coincidental alternatives, each with predicted footprints and falsifiers. Exact-head CI pending.
-97. [~] Document version-drift analysis preserves release order, hashes, page-count changes and field changes without treating drift as tampering. Exact-head CI pending.
-98. [~] Decision-provenance analysis separates information documented before a decision from evidence discovered later and preserves cited-basis gaps without motive/competence inference. Exact-head CI pending.
-99. [~] Role/action mismatch analysis compares recurring actions with evidence-backed role baselines and requires independent-lineage recurrence before raising a function question. Exact-head CI pending.
-100. [~] Evidence-temperature labels contemporaneous/near-contemporaneous/retrospective/undated material while explicitly refusing to turn temporal distance into a credibility score. Exact-head CI pending.
-101. [~] Parallel blind-lens comparison tracks convergence across chronology/money/logistics/relationships/institutional-response reconstructions while distinguishing interpretive convergence from independent evidence. Exact-head CI pending.
-102. [~] Competing-theory ledger keeps multiple case theories active/weakened/falsified based on contradictions, unexplained evidence and required prediction failures without forcing a favorite theory. Exact-head CI pending.
-103. [~] Anomaly-dependency tree collapses downstream anomalies under upstream roots and rejects cyclic explanations so one source error cannot masquerade as many independent signals. Exact-head CI pending.
-104. [~] Document-family collision analysis distinguishes cross-purpose convergence from several files produced by one workflow. Exact-head CI pending.
-105. [~] Why-now windows inspect bounded events before/after material changes and generate causal questions while explicitly refusing temporal-proximity causation. Exact-head CI pending.
-106. [~] Canonical Arbor research planner contains explicit Wave 3 investigator-casework rules for knowledge timing, timeline geometry, missing functions, mundane adversaries, version drift, decision provenance, role mismatch, evidence temperature, parallel lenses, competing theories, anomaly dependencies, document-family collisions and why-now analysis. Exact-head CI pending.
-107. [~] Optional `research.casework` unit dispatches Wave 3 pure analyses only from an owner/project-scoped trusted persisted packet store; planner payload may name only a packet ID and packet evidence must already exist in persisted session evidence. The default host does not register this unit. Exact-head CI pending; live casework persistence remains separately gated.
+93. [x] Knowledge-state ledger distinguishes knowledge documented before action, action before earliest documented knowledge, and knowledge not documented; documentation gaps never become mind-reading claims. PASS at head `8ef6bc3cea86135ab410b5e11e08a253ea912701`, run `36818596756`.
+94. [x] Hard timeline geometry checks event windows against minimum transition durations and flags only impossible documented bounds as hard conflicts. PASS in run `36818596756`.
+95. [x] Missing-function inference creates anonymous UNKNOWN_FUNCTION_* capability nodes between documented transitions and explicitly forbids inventing a person. PASS in run `36818596756`.
+96. [x] Ordinary-explanation adversary forces anomalies through strong administrative/clerical/legal/logistical/coincidental alternatives, each with predicted footprints and falsifiers. PASS in run `36818596756`.
+97. [x] Document version-drift analysis preserves release order, hashes, page-count changes and field changes without treating drift as tampering. PASS in run `36818596756`.
+98. [x] Decision-provenance analysis separates information documented before a decision from evidence discovered later and preserves cited-basis gaps without motive/competence inference. PASS in run `36818596756`.
+99. [x] Role/action mismatch analysis compares recurring actions with evidence-backed role baselines and requires independent-lineage recurrence before raising a function question. PASS in run `36818596756`.
+100. [x] Evidence-temperature labels contemporaneous/near-contemporaneous/retrospective/undated material while explicitly refusing to turn temporal distance into a credibility score. PASS in run `36818596756`.
+101. [x] Parallel blind-lens comparison tracks convergence across chronology/money/logistics/relationships/institutional-response reconstructions while distinguishing interpretive convergence from independent evidence. PASS in run `36818596756`.
+102. [x] Competing-theory ledger keeps multiple case theories active/weakened/falsified based on contradictions, unexplained evidence and required prediction failures without forcing a favorite theory. PASS in run `36818596756`.
+103. [x] Anomaly-dependency tree collapses downstream anomalies under upstream roots and rejects cyclic explanations so one source error cannot masquerade as many independent signals. PASS in run `36818596756`.
+104. [x] Document-family collision analysis distinguishes cross-purpose convergence from several files produced by one workflow. PASS in run `36818596756`.
+105. [x] Why-now windows inspect bounded events before/after material changes and generate causal questions while explicitly refusing temporal-proximity causation. PASS in run `36818596756`.
+106. [x] Canonical Arbor research planner contains explicit Wave 3 investigator-casework rules for knowledge timing, timeline geometry, missing functions, mundane adversaries, version drift, decision provenance, role mismatch, evidence temperature, parallel lenses, competing theories, anomaly dependencies, document-family collisions and why-now analysis. PASS in run `36818596756`.
+107. [x] Optional `research.casework` unit dispatches Wave 3 pure analyses only from an owner/project-scoped trusted persisted packet store; planner payload may name only a packet ID and packet evidence must already exist in persisted session evidence. The default host does not register this unit. PASS in run `36818596756`; live casework persistence remains separately gated.
 
 ## Run 11 — 2026-09-23 reconciliation and source-only pilot verification attempt
 - Re-opened this master on current #212 branch and verified current PR metadata: #212 is draft, base `chore/research-ci-trigger-cleanup-handoff-20260923` at `1f48ff810240a655fd53d3485e4a36316857c897`, observed head before this docs refresh `a0624c7420eb197c8c5175c489ddd317a11a206e`.
@@ -165,3 +165,14 @@ Legend: [x] relevant implementation plus exact-head CI evidence exists for the s
 - Existing non-root/no-egress PDF sandbox build, benign fidelity packet, and isolated staging/idempotency acceptance: **PASS**.
 - New accepted source behaviors include: prediction-before-search, prediction→falsification mapping, independent rediscovery, blind reconstruction before narrative comparison, documentary-shadow baselines, unresolved-friction clusters, claim genealogy, counterfactual graph removal, neutral question mining, and cross-entity sequence motifs.
 - No real Epstein/DOJ/EFTA source was ingested by this run. No merge, Preview/production migration, deployed discovery/integrity registration, unattended scheduler, private/victim-data processing, or publication was authorized or performed.
+
+
+## Run 17 — investigator casework wave acceptance (2026-09-30)
+- Exact implementation head `8ef6bc3cea86135ab410b5e11e08a253ea912701`, GitHub Actions run `36818596756`: **SUCCESS**.
+- Targeted source suite including Wave 3 investigator methods: **54 test files / 259 tests PASS** before the final casework-store seam additions; the exact-head run also passed the updated targeted suite including the trusted `research.casework` unit.
+- Backend production build/typecheck: **PASS**.
+- Existing shared-ARK multi-tick disposable PostgreSQL acceptance: **PASS**.
+- Existing research controller/store, integrity/discovery persistence and identity-safety disposable PostgreSQL acceptance: **PASS**.
+- Existing non-root/no-egress PDF sandbox, benign fidelity packet and isolated staging/idempotency acceptance: **PASS**.
+- Wave 3 accepted behaviors: documented knowledge-state timing, hard timeline geometry, anonymous missing-function inference, ordinary-explanation adversary, version drift, decision-time provenance, role/action mismatch, evidence-temperature labels, parallel blind lenses, competing theory ledger, anomaly-dependency collapse, cross-purpose document-family collision, why-now windows, and trusted persisted-packet casework dispatch.
+- No real Epstein/DOJ/EFTA source was ingested. No merge, Preview/production migration, live casework store, deployed casework registration, unattended scheduler, private/victim-data processing or publication was authorized or performed.
