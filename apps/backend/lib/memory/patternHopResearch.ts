@@ -5,7 +5,7 @@ import { classifyHistoricalEvidence, searchHistoricalHopEvidence, searchMemoryHo
 import { patternHopBranchClue } from "@/lib/memory/patternHopClues";
 import { createPatternHopRun, loadPatternHopEdges, loadPatternHopEvidence, loadPatternHopRun, persistPatternHopEdges, persistPatternHopEvidence, savePatternHopRun } from "@/lib/memory/patternHopStore";
 
-export const DEFAULT_PATTERN_HOP_BRANCHES = ["direct_matches","neighboring_concepts","people_entities","terminology_changes","causal_predecessors","consequences","retrospective_references","chronology_anchors","implementation_architecture","behavioral_results","contradictions"] as const;
+export const DEFAULT_PATTERN_HOP_BRANCHES = ["direct_matches","neighboring_concepts","people_entities","terminology_changes","causal_predecessors","consequences","retrospective_references","chronology_anchors","implementation_architecture","behavioral_results","contradictions","primary_sources","source_lineage","falsification","relationships"] as const;
 
 function toEvidence(row: Awaited<ReturnType<typeof searchHistoricalHopEvidence>>[number], branch: string): PatternHopEvidence {
   const classification = classifyHistoricalEvidence(row.role, branch.includes("retrospective_references"), row.content);
@@ -112,7 +112,7 @@ export async function runPatternHopResearch(params:{supabase:SupabaseClient;user
         const step=buildPathStep({candidate,parentEvidenceId:next.evidenceId==="seed"?null:next.evidenceId,depth:next.depth}); path.push(step);
         edges.push({fromEvidenceId:step.parentEvidenceId,toEvidenceId:evidence.id,originatingClue:next.clue,relationship:candidate.relationship,hopDepth:next.depth,confidence:candidate.score,epistemicStatus:evidence.epistemicStatus==="direct"?"direct":evidence.epistemicStatus==="hypothesis"?"hypothesis":"derived",rationale:candidate.relationshipReason});
         if(next.depth+1<=state.maxDepth){
-          for(const branch of ["neighboring_concepts","people_entities","terminology_changes","causal_predecessors","consequences","retrospective_references","chronology_anchors","implementation_architecture","behavioral_results","contradictions"]){
+          for(const branch of ["neighboring_concepts","people_entities","terminology_changes","causal_predecessors","consequences","retrospective_references","chronology_anchors","implementation_architecture","behavioral_results","contradictions","primary_sources","source_lineage","falsification","relationships"]){
             state=enqueueHop(state,{evidenceId:evidence.id,clue:patternHopBranchClue(branch,params.seed,evidence.content),depth:next.depth+1,branch:next.branch+">"+branch});
           }
         }
@@ -137,6 +137,8 @@ export async function runPatternHopResearch(params:{supabase:SupabaseClient;user
     exhaustedBranches:state.exhaustedBranches.length,
     runtimeProjectionCount:runtimeProjection.length,
     absenceSemantics:"An exhausted branch means evidence was not found by the attempted routes; it is not proof that the evidence does not exist.",
+    integrityBranches:["primary_sources","source_lineage","falsification","relationships","contradictions"],
+    findingPromotionVerified:false,
   };
   await savePatternHopRun({supabase:params.supabase,runId:run.id,userId:params.userId,projectId:params.projectId,state,verificationState});
   return {runId:run.id,status:state.status,blocker:state.blocker ?? null,state,evidence:rankEvidence(found),edges,path,runtimeProjection,verificationState};
