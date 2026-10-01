@@ -40,6 +40,8 @@ on:
       - feat/epstein-reproducibility-scale-v4-20261001
       # Temporary preview-integration v6 child review target; remove before main integration.
       - feat/epstein-security-integration-v5-20261001
+      # Temporary source-privacy-ops v7 child review target; remove before main integration.
+      - feat/epstein-preview-integration-v6-20261001
   workflow_dispatch:
 
 # CI sentinel: keep this workflow visibly updated when main-push Actions delivery stalls.
@@ -221,6 +223,10 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -f docs/research/sql/PROPOSED_epstein_preview_integration_v6.sql
       - name: Exercise tenant isolation handoff continuity and fail-closed integration gates
         run: psql -v ON_ERROR_STOP=1 -f ops/research/disposable-db/130-preview-integration-v6.sql
+      - name: Apply proposed source privacy operator controls v7 schema to disposable container ONLY
+        run: psql -v ON_ERROR_STOP=1 -f docs/research/sql/PROPOSED_epstein_source_privacy_ops_v7.sql
+      - name: Exercise capture privacy liveness and structurally disabled scheduler gates
+        run: psql -v ON_ERROR_STOP=1 -f ops/research/disposable-db/140-source-privacy-ops-v7.sql
 
   control-backend:
     name: Control backend test + build
