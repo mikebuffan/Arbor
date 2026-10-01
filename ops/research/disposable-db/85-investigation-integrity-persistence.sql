@@ -106,6 +106,7 @@ begin
      or r#>>'{support,0,evidenceClass}' <> 'PRIMARY_RECORD'
      or r#>>'{support,0,sourceRef}' <> 'synthetic:court-record:1'
      or r#>>'{support,0,lineageKey}' <> 'synthetic:court-record:1'
+     or r#>>'{support,0,contentSha256}' <> repeat('a',64)
      or not ((r#>'{support,0,supports}') @> '["established_act"]'::jsonb)
      or jsonb_array_length(r->'counterEvidenceRefs') <> 1
      or r#>>'{counterEvidenceRefs,0}' <> '85858585-8585-4585-8585-858585858582'
@@ -233,9 +234,11 @@ begin
 end $$;
 reset role;
 
--- PUBLIC/anon/authenticated cannot execute the trusted loader; service_role can.
-do $$
+-- PUBLIC/anon/authenticated cannot execute the trusted loader.
+-- The mutation-rejection trigger function is also not directly client-executable.
+do $
 declare sig text := 'public.arbor_load_investigation_finding_context(uuid,uuid,uuid)';
+        trigger_sig text := 'public.arbor_reject_investigation_mutation()';
 begin
   if has_function_privilege('anon',sig,'EXECUTE')
      or has_function_privilege('authenticated',sig,'EXECUTE') then
@@ -253,6 +256,19 @@ begin
   if not has_function_privilege('service_role',sig,'EXECUTE') then
     raise exception 'service_role execute missing for integrity loader';
   end if;
-end $$;
+  if has_function_privilege('anon',trigger_sig,'EXECUTE')
+     or has_function_privilege('authenticated',trigger_sig,'EXECUTE') then
+    raise exception 'client execute leaked for integrity mutation trigger';
+  end if;
+  if exists (
+    select 1
+    from pg_proc p
+    cross join lateral aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) a
+    where p.oid=to_regprocedure(trigger_sig)
+      and a.grantee=0 and a.privilege_type='EXECUTE'
+  ) then
+    raise exception 'PUBLIC execute leaked for integrity mutation trigger';
+  end if;
+end $;
 
 select 'DISPOSABLE_INVESTIGATION_INTEGRITY_PERSISTENCE=PASS; APPEND_ONLY=TRUE; OWNER_SCOPED=TRUE; MODEL_EVIDENCE_AUTHORITY=FALSE' as receipt;
