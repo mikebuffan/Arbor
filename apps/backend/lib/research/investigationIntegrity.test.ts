@@ -142,6 +142,37 @@ describe("investigation integrity gate", () => {
     expect(result.reasons).toContain("unresolved_contradictions_present");
   });
 
+  it("does not ignore counterevidence that has not been explicitly tested", () => {
+    const result = evaluateInvestigationIntegrity(draft({
+      counterEvidenceRefs: ["counter-1"],
+      falsificationAttempts: [{
+        id: "break-other",
+        hypothesis: "A different challenge.",
+        result: "survived",
+        evidenceRefs: ["other-evidence"],
+      }],
+    }));
+
+    expect(result.status).toBe("hold");
+    expect(result.reasons).toContain(
+      "counterevidence_requires_explicit_resolution",
+    );
+  });
+
+  it("allows counterevidence to be carried through a survived falsification attempt", () => {
+    const result = evaluateInvestigationIntegrity(draft({
+      counterEvidenceRefs: ["counter-1"],
+      falsificationAttempts: [{
+        id: "break-counter-1",
+        hypothesis: "Counterevidence defeats the claim.",
+        result: "survived",
+        evidenceRefs: ["counter-1"],
+      }],
+    }));
+
+    expect(result.status).toBe("promotable");
+  });
+
   it("requires an attempt to break an established-act hypothesis before promotion", () => {
     const result = evaluateInvestigationIntegrity(draft({
       falsificationAttempts: [],
