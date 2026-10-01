@@ -155,16 +155,24 @@ values
 ('11111111-1111-1111-1111-111111111111','22222222-2222-2222-2222-222222222222',
  'review-1','finding-1',1,1,'["search:counter"]'::jsonb,'["shared source"]'::jsonb,'[]'::jsonb,'["candidate-1"]'::jsonb,'hold');
 
-select
-  (select count(*) from public.arbor_research_mentions where mention_key='mention-1') = 1
-  and
-  (select observed_status from public.arbor_research_expected_record_leads where lead_key='lead-1') = 'not_observed_in_current_corpus'
-  and
-  (select review_status from public.arbor_research_findings where finding_key='finding-1' and version=1) = 'hold_for_human_review'
-  and
-  (select count(*) from public.arbor_research_release_deltas where prior_release_key='release-a' and current_release_key='release-b') = 1
-  and
-  (select status from public.arbor_research_replay_queue where replay_key='replay-1') = 'queued'
-  and
-  (select result_status from public.arbor_research_adversarial_reviews where review_key='review-1') = 'hold'
-as ingestion_verification_acceptance_pass;
+do $accept$
+begin
+  if not (
+    (select count(*) from public.arbor_research_mentions where mention_key='mention-1') = 1
+    and
+    (select observed_status from public.arbor_research_expected_record_leads where lead_key='lead-1') = 'not_observed_in_current_corpus'
+    and
+    (select review_status from public.arbor_research_findings where finding_key='finding-1' and version=1) = 'hold_for_human_review'
+    and
+    (select count(*) from public.arbor_research_release_deltas where prior_release_key='release-a' and current_release_key='release-b') = 1
+    and
+    (select status from public.arbor_research_replay_queue where replay_key='replay-1') = 'queued'
+    and
+    (select result_status from public.arbor_research_adversarial_reviews where review_key='review-1') = 'hold'
+  ) then
+    raise exception 'ingestion_verification_acceptance_failed';
+  end if;
+end
+$accept$;
+
+select 'INGESTION_VERIFICATION_ACCEPTANCE=PASS' as result;
