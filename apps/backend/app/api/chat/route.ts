@@ -104,6 +104,7 @@ const Body = z.object({
   turnId: z.string().uuid(),
   userText: z.string().min(1),
   interactionMode: z.enum(["text", "voice"]).default("text"),
+  timeZoneOffsetMinutes: z.number().int().min(-840).max(840).optional(),
 });
 
 export function buildChatSuccessResponse(params: {
@@ -227,6 +228,7 @@ export async function POST(req: Request) {
       turnId,
       userText,
       interactionMode,
+      timeZoneOffsetMinutes,
     } = parsed.data;
 
     const memoryTestMode = detectTestMode(userText);
@@ -334,6 +336,7 @@ export async function POST(req: Request) {
       interactionMode,
       hostSessionId: turnId,
       currentGoal: agencyState.goal,
+      timeZoneOffsetMinutes: timeZoneOffsetMinutes ?? null,
     });
 
     const [history, promptContext] = await Promise.all([
