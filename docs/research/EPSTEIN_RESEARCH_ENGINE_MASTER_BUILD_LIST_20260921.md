@@ -76,7 +76,7 @@ Legend: [x] relevant implementation plus exact-head CI evidence exists for the s
 69. [~] Secondary-source evidence emits bounded primary-source leads when no underlying object is attached. Durable external-source retrieval remains separately gated.
 70. [~] Pattern Hop source adds primary_sources, source_lineage, falsification and relationships branches so later runs widen the evidence frontier instead of only resummarizing prior material. Exact-head CI pending.
 71. [~] Canonical Arbor research planner now preserves immutable evidence class during synthesis and explicitly attempts to break load-bearing hypotheses before finding promotion. Exact-head CI pending.
-72. [ ] **BLOCKED — trusted claim/evidence persistence integration:** wire integrity decisions only to persisted original-source evidence objects; never accept model-invented evidence payloads as promotion authority.
+72. [~] Source-only trusted-evidence-store boundary and optional `research.integrity_gate` unit exist; the unit is not registered unless a trusted persisted evidence store is supplied. **BLOCKED — live original-source adapter:** do not wire production/external evidence until the separately authorized persistence/source-review path exists.
 
 ## Run 11 — 2026-09-23 reconciliation and source-only pilot verification attempt
 - Re-opened this master on current #212 branch and verified current PR metadata: #212 is draft, base `chore/research-ci-trigger-cleanup-handoff-20260923` at `1f48ff810240a655fd53d3485e4a36316857c897`, observed head before this docs refresh `a0624c7420eb197c8c5175c489ddd317a11a206e`.
