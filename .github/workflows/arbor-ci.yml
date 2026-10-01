@@ -191,6 +191,10 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -f ops/research/disposable-db/70-ingestion-verification-v1.sql
       - name: Exercise persisted multi-worker full-session restart acceptance
         run: psql -v ON_ERROR_STOP=1 -f ops/research/disposable-db/80-full-session-restart.sql
+      - name: Apply proposed corpus intelligence v2 schema to disposable container ONLY
+        run: psql -v ON_ERROR_STOP=1 -f docs/research/sql/PROPOSED_epstein_corpus_intelligence_v2.sql
+      - name: Exercise OCR table retrieval and document-family persistence invariants
+        run: psql -v ON_ERROR_STOP=1 -f ops/research/disposable-db/90-corpus-intelligence-v2.sql
 
   control-backend:
     name: Control backend test + build
