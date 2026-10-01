@@ -8,6 +8,8 @@ import type {
   ResearchSession,
   ResearchUnitReceipt,
 } from "./sessionPolicy";
+import { buildInvestigationIntegrityUnitHandler } from "./investigationIntegrityUnit";
+import type { TrustedInvestigationEvidenceStore } from "./investigationIntegrityStore";
 
 export type ResearchUnitHandler = (input: {
   session: ResearchSession;
@@ -90,8 +92,9 @@ function priorRunId(claim: ResearchClaim): string | undefined {
 
 export function buildDefaultResearchUnitDispatcher(input: {
   supabase: SupabaseClient;
+  integrityStore?: TrustedInvestigationEvidenceStore;
 }): ResearchUnitDispatcher {
-  return new ResearchUnitDispatcher().register(
+  const dispatcher = new ResearchUnitDispatcher().register(
     "research.pattern_hop",
     async ({ session, claim, at }) => {
       const seed = text(claim.payload.seed, "seed", 2, 4000);
@@ -168,4 +171,13 @@ export function buildDefaultResearchUnitDispatcher(input: {
       };
     },
   );
+
+  if (input.integrityStore) {
+    dispatcher.register(
+      "research.integrity_gate",
+      buildInvestigationIntegrityUnitHandler(input.integrityStore),
+    );
+  }
+
+  return dispatcher;
 }
