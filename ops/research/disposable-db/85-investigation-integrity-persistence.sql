@@ -165,7 +165,7 @@ end $$;
 
 -- Append-only records cannot be rewritten, even by privileged test setup.
 -- DELETE is intentionally not trigger-blocked so account/project erasure cascades can work.
-do $
+do $$
 begin
   begin
     update public.arbor_investigation_evidence
@@ -175,10 +175,10 @@ begin
   exception when others then
     if sqlerrm not like '%investigation_records_are_append_only%' then raise; end if;
   end;
-end $;
+end $$;
 
 -- Ordinary service/client roles have no UPDATE/DELETE authority on integrity tables.
-do $
+do $$
 declare rel text;
 begin
   foreach rel in array array[
@@ -200,7 +200,7 @@ begin
       raise exception 'integrity mutation privilege leaked for %',rel;
     end if;
   end loop;
-end $;
+end $$;
 
 -- Authenticated owner may read only its own rows and cannot invoke the trusted loader or write evidence.
 set role authenticated;
@@ -254,7 +254,7 @@ reset role;
 
 -- PUBLIC/anon/authenticated cannot execute the trusted loader.
 -- The mutation-rejection trigger function is also not directly client-executable.
-do $
+do $$
 declare sig text := 'public.arbor_load_investigation_finding_context(uuid,uuid,uuid)';
         trigger_sig text := 'public.arbor_reject_investigation_mutation()';
 begin
@@ -287,6 +287,6 @@ begin
   ) then
     raise exception 'PUBLIC execute leaked for integrity mutation trigger';
   end if;
-end $;
+end $$;
 
 select 'DISPOSABLE_INVESTIGATION_INTEGRITY_PERSISTENCE=PASS; APPEND_ONLY_WRITES=TRUE; ACCOUNT_ERASURE_COMPATIBLE=TRUE; OWNER_SCOPED=TRUE; MODEL_EVIDENCE_AUTHORITY=FALSE' as receipt;
