@@ -32,7 +32,7 @@ This layer exists specifically to stop errors such as:
 - scoped negative-evidence states;
 - fail-closed promotion decisions.
 
-The layer intentionally does **not** accept free-form model text as trusted evidence authority.
+The layer intentionally does **not** accept free-form model text as trusted evidence authority. Promotion evidence atoms are content-hash bound, and a planner may submit only a persisted claim ID to the optional integrity-gate unit.
 
 ## Pattern Hop integration
 
@@ -78,4 +78,10 @@ Still blocked/separate:
 - finding publication;
 - treating model-planned payloads as evidence.
 
-A source-only trusted-store boundary now requires support evidence to be loaded by owner/project/evidence ID from persistence rather than accepted as model-supplied evidence objects. An optional `research.integrity_gate` unit exists, but the default host does not register it without that trusted store. The next integrity step after exact-head CI is a separately reviewed adapter to the future persisted original-source evidence records; no production/external store is wired here.
+A source-only trusted-store boundary now requires the **entire finding context**—claim text/type, hash-bound support evidence, counterevidence, current contradiction state, falsification receipts and negative-evidence state—to be loaded from persistence under owner/project scope. The planner supplies only a persisted claim ID.
+
+`SupabaseInvestigationIntegrityStore` is a strict source-only adapter for the proposed loader RPC and fails closed on malformed classes, hashes, assertion kinds, contradiction arrays, falsification state or scope mismatch. An optional `research.integrity_gate` unit exists, but the default host does not register it without a trusted finding store.
+
+`PROPOSED_arbor_investigation_integrity_evidence.sql` adds an append-only **proposal** for immutable evidence/claims, support-vs-counter links, contradiction events and falsification attempts plus a service-role-only scoped loader. `85-investigation-integrity-persistence.sql` exercises it only in disposable PostgreSQL, including owner RLS, client denial, immutable-record enforcement, contradiction open→resolved event history, hashes and full-context loading.
+
+No production/external store is wired or applied here.
