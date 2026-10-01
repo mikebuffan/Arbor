@@ -36,7 +36,7 @@ function draft(
     falsificationAttempts: [{
       id: "break-1",
       hypothesis: "The act did not occur as claimed.",
-      result: "survived",
+      result: "claim_survived",
       evidenceRefs: ["court:exhibit-2"],
     }],
     negativeEvidence: null,
@@ -149,7 +149,7 @@ describe("investigation integrity gate", () => {
       falsificationAttempts: [{
         id: "break-other",
         hypothesis: "A different challenge.",
-        result: "survived",
+        result: "claim_survived",
         evidenceRefs: ["other-evidence"],
       }],
     }));
@@ -166,7 +166,7 @@ describe("investigation integrity gate", () => {
       falsificationAttempts: [{
         id: "break-counter-1",
         hypothesis: "Counterevidence defeats the claim.",
-        result: "survived",
+        result: "claim_survived",
         evidenceRefs: ["counter-1"],
       }],
     }));
