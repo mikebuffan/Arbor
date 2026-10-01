@@ -263,4 +263,91 @@ describe("canonical Arbor research controller planner adapter", () => {
     );
   });
 
+  it("feeds grounded discovery leads back into canonical Arbor so it can create a novel bounded hypothesis search", async () => {
+    const discoveryContext: ResearchControllerContext = {
+      ...context,
+      units: [],
+      recentReceipts: [{
+        unitKey: "discovery-a",
+        status: "completed",
+        evidenceRefs: ["evidence:one", "evidence:two", "evidence:three"],
+        recordedAt: "2026-09-28T19:40:00.000Z",
+        result: {
+          discoveryLeads: [{
+            id: "bridge-entity-a",
+            kind: "bridge_node",
+            status: "hypothesis",
+            hypothesis: "Entity A may bridge separate record clusters.",
+            basisEvidenceRefs: [
+              "evidence:one",
+              "evidence:two",
+              "evidence:three",
+            ],
+            entityIds: ["entity:a"],
+            independentLineages: ["lineage:a", "lineage:b"],
+            documentFamilies: ["calendar", "payment", "property"],
+            predictedFootprints: [
+              "Independent role records should reproduce the bridge.",
+            ],
+            falsifiers: [
+              "Reverse reconstruction does not reproduce the relationship.",
+            ],
+            searchSeeds: ["Entity A calendar payment property"],
+          }],
+          independentlyVerifiedFinding: false,
+        },
+      }],
+    };
+    const runAgent = agentSelecting("research_controller_append_then_run", {
+      rationale:
+        "The bridge anomaly supports one reverse-path hypothesis worth trying from an unsaturated edge.",
+      units: [{
+        unitKey: "hypothesis-bridge-reverse-a",
+        kind: "research.pattern_hop",
+        description:
+          "Hypothesis only: test whether Entity A is a real bridge by reconstructing the relationship backward from property records.",
+        payload: {
+          seed: "Entity A property calendar payment independent record",
+          objective:
+            "Try to disprove the bridge hypothesis using primary records and reverse reconstruction.",
+          maxDepth: 2,
+          maxHopsPerAttempt: 4,
+        },
+        maxCostReservationCents: 0,
+        maxAttempts: 3,
+      }],
+    });
+    const planner = buildArborResearchControllerPlanner({
+      instructions: "CANONICAL ARBOR",
+      context: {
+        userId: "owner",
+        projectId: "project",
+        turnId: "background-turn",
+      },
+      allowedUnitKinds: ["research.pattern_hop"],
+      runAgent: runAgent as any,
+    });
+
+    await expect(planner.plan({
+      goal: discoveryContext.session.objective,
+      context: discoveryContext,
+    })).resolves.toMatchObject({
+      action: "append_then_run",
+      units: [{
+        kind: "research.pattern_hop",
+        payload: {
+          maxDepth: 2,
+          maxHopsPerAttempt: 4,
+        },
+      }],
+    });
+
+    const call = runAgent.mock.calls[0][0];
+    expect(call.userText).toContain("bridge-entity-a");
+    expect(call.userText).toContain("evidence:three");
+    expect(call.userText).toContain("independentlyVerifiedFinding");
+    expect(call.instructions).toContain("Do not merely repeat their search seeds");
+    expect(call.instructions).toContain("prefer bridge nodes/edges");
+  });
+
 });
