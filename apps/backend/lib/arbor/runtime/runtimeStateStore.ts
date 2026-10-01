@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { mergeCorrections, type ArborRuntimeState } from "./runtimeState";
+import { mergeCorrectionSnapshots, type ArborRuntimeState } from "./runtimeState";
 import { isMissingRuntimeTable } from "./missingRuntimeTable";
 
 type RuntimeRow = {
@@ -12,9 +12,21 @@ type RuntimeRow = {
 
 function rowState(
   row: RuntimeRow | null,
+  scope: { userId: string; projectId: string; conversationId?: string },
 ): ArborRuntimeState | null {
-  return row?.state ?? null;
+  if (!row) return null;
+  const state = row.state;
+  if (!state || state.schemaVersion !== 1 ||
+      row.user_id !== scope.userId || row.project_id !== scope.projectId ||
+      state.userId !== scope.userId || state.projectId !== scope.projectId ||
+      state.conversationId !== row.conversation_id ||
+      (scope.conversationId && state.conversationId !== scope.conversationId)) {
+    throw new Error("arbor_runtime_persisted_scope_mismatch");
+  }
+  return state;
 }
+
+export const RUNTIME_RECALL_WINDOW = 50;
 
 export async function loadRuntimeState(input: {
   supabase: SupabaseClient;
@@ -37,28 +49,21 @@ export async function loadRuntimeState(input: {
 
   const exact = rowState(
     (data as RuntimeRow | null) ?? null,
+    input,
   );
-
-  if (!exact) {
-    return loadLatestRuntimeState(input);
-  }
-
-  if (meaningfulRuntimeState(exact)) {
-    return exact;
-  }
-
-  const fallback = await loadLatestRuntimeState({
+  const snapshots = await loadRecentRuntimeStates({
     supabase: input.supabase,
     userId: input.userId,
     projectId: input.projectId,
-    excludeConversationId: exact.conversationId,
+    excludeConversationId: exact?.conversationId,
   });
-
-  if (!fallback || fallback.conversationId === exact.conversationId) {
-    return exact;
-  }
-
-  return mergeRuntimeFallback(fallback, exact);
+  const fallback = snapshots.find(meaningfulRuntimeState) ?? snapshots[0] ?? null;
+  const base = !exact ? fallback : meaningfulRuntimeState(exact) || !fallback
+    ? exact : mergeRuntimeFallback(fallback, exact);
+  if (!base) return null;
+  return { ...base, corrections: mergeCorrectionSnapshots([
+    base.corrections ?? [], ...snapshots.map(state => state.corrections ?? []),
+  ]) };
 }
 
 export async function loadLatestRuntimeState(input: {
@@ -67,6 +72,20 @@ export async function loadLatestRuntimeState(input: {
   projectId: string;
   excludeConversationId?: string;
 }): Promise<ArborRuntimeState | null> {
+  const snapshots = await loadRecentRuntimeStates(input);
+  const base = snapshots.find(meaningfulRuntimeState) ?? snapshots[0] ?? null;
+  if (!base) return null;
+  return { ...base, corrections: mergeCorrectionSnapshots(
+    snapshots.map(state => state.corrections ?? []),
+  ) };
+}
+
+async function loadRecentRuntimeStates(input: {
+  supabase: SupabaseClient;
+  userId: string;
+  projectId: string;
+  excludeConversationId?: string;
+}): Promise<ArborRuntimeState[]> {
   let query = input.supabase
     .from("arbor_conversation_state")
     .select("user_id,project_id,conversation_id,state,updated_at")
@@ -84,17 +103,17 @@ export async function loadLatestRuntimeState(input: {
     .order("updated_at", {
       ascending: false,
     })
-    .limit(1)
-    .maybeSingle();
+    .order("conversation_id", { ascending: true })
+    .limit(RUNTIME_RECALL_WINDOW);
 
   if (error) {
-    if (isMissingRuntimeTable(error)) return null;
+    if (isMissingRuntimeTable(error)) return [];
     throw error;
   }
 
-  return rowState(
-    (data as RuntimeRow | null) ?? null,
-  );
+  return ((data ?? []) as RuntimeRow[]).map(row => rowState(row, {
+    userId: input.userId, projectId: input.projectId,
+  })!);
 }
 
 export async function saveRuntimeState(input: {
@@ -167,10 +186,9 @@ function mergeRuntimeFallback(
       )
         ? exact.agency
         : fallback.agency,
-    corrections: mergeCorrections(
-      fallback.corrections ?? [],
-      exact.corrections ?? [],
-    ),
+    corrections: mergeCorrectionSnapshots([
+      fallback.corrections ?? [], exact.corrections ?? [],
+    ]),
     behaviorProof:
       exact.behaviorProof ??
       fallback.behaviorProof,

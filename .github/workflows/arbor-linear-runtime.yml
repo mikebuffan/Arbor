@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - arbor-linear-runtime
+      - fix/arbor-cross-thread-correction-recall-20261001
   pull_request:
     branches:
       - codex/milestone-1b-live-acceptance-corrections
@@ -30,6 +31,8 @@ jobs:
 
       - name: Backend tests
         run: pnpm --filter firefly-backend test
+        env:
+          OPENAI_API_KEY: "ci-placeholder"
 
       - name: Backend build
         run: pnpm --filter firefly-backend build

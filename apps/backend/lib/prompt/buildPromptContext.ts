@@ -372,9 +372,7 @@ export async function buildPromptContext({
     runtimeHost?.behaviorCorrections ?? [];
 
   const pendingStrategyUnderVerification =
-    conversationRuntime?.currentGoal === currentGoal
-      ? conversationRuntime?.pendingSelfUpdate?.strategy?.trim() || null
-      : null;
+    conversationRuntime?.pendingSelfUpdate?.strategy?.trim() || null;
 
   const runtimeAcousticCorrections =
     runtimeHost?.acousticCorrections ?? [];

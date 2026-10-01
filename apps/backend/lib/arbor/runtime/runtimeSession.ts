@@ -77,9 +77,9 @@ export async function beginRuntimeSession(input: {
     await loadRuntimeState(input);
 
   const currentGoal =
-    input.currentGoal ??
-    prior?.currentGoal ??
-    null;
+    input.currentGoal !== undefined
+      ? input.currentGoal
+      : prior?.currentGoal ?? null;
 
   const state: ArborRuntimeState = {
     schemaVersion: 1,
