@@ -69,6 +69,14 @@ Legend: [x] relevant implementation plus exact-head CI evidence exists for the s
 62. [x] Mention/allegation alone is never evidence of a crime.
 63. [x] Synthetic-only dated HOLD report draft; real original-page citation verification/redaction/publication remains pending.
 64. [x] No automatic publication; published discrepancies remain distinct from novel research discoveries.
+65. [~] Investigation Integrity Layer source added on child PR #218: explicit evidence classes, assertion kinds, source lineage keys and fail-closed finding promotion. Exact-head CI pending.
+66. [~] Regression fixtures encode two narrative-promotion failures: attributed statement != direct confession; procedural litigation position != personal admission. Exact-head CI pending.
+67. [~] Negative-evidence states distinguish NOT_FOUND_IN_SEARCHED_SCOPE, SOURCE_SILENT, EXPECTED_BUT_MISSING and PROVEN_ABSENT; absence promotion requires explicit proof reference. Exact-head CI pending.
+68. [~] Finding promotion requires unresolved contradictions to be cleared by evidence, not explanation; established-act/relationship/inference claims require at least one falsification attempt. Exact-head CI pending.
+69. [~] Secondary-source evidence emits bounded primary-source leads when no underlying object is attached. Durable external-source retrieval remains separately gated.
+70. [~] Pattern Hop source adds primary_sources, source_lineage, falsification and relationships branches so later runs widen the evidence frontier instead of only resummarizing prior material. Exact-head CI pending.
+71. [~] Canonical Arbor research planner now preserves immutable evidence class during synthesis and explicitly attempts to break load-bearing hypotheses before finding promotion. Exact-head CI pending.
+72. [ ] **BLOCKED — trusted claim/evidence persistence integration:** wire integrity decisions only to persisted original-source evidence objects; never accept model-invented evidence payloads as promotion authority.
 
 ## Run 11 — 2026-09-23 reconciliation and source-only pilot verification attempt
 - Re-opened this master on current #212 branch and verified current PR metadata: #212 is draft, base `chore/research-ci-trigger-cleanup-handoff-20260923` at `1f48ff810240a655fd53d3485e4a36316857c897`, observed head before this docs refresh `a0624c7420eb197c8c5175c489ddd317a11a206e`.
