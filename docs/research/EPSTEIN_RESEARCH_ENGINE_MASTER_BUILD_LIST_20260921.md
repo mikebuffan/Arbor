@@ -30,7 +30,7 @@ Legend: [x] relevant implementation plus exact-head CI evidence exists for the s
 19. [x] Page-image provenance/manual source-stamp HOLD contract.
 20. [x] Bounded page-batch planning preserving full-file provenance.
 21. [x] Executable non-root/no-egress/read-only bounded renderer sandbox; synthetic and benign-public CI paths pass.
-22. [ ] Opt-in OCR with image provenance/confidence/human verification; only if required after manual fidelity review.
+22. [~] Opt-in OCR with exact page-image provenance, confidence, token geometry, append-only human correction receipts and CI coverage is implemented/verified in PR #225. Real-source human OCR fidelity review remains required before production use.
 23. [ ] Glyph/box geometry only if exact visual highlighting becomes required.
 24. [x] Blank/image-only/encrypted/inaccessible/parser-failed cannot support absence claims.
 
@@ -66,7 +66,7 @@ Legend: [x] relevant implementation plus exact-head CI evidence exists for the s
 49. [ ] **BLOCKED — live integration approval:** production immutable evidence writes + Pattern Hop suggestions.
 50. [x] Pure provenance-preserving lead dedupe verified; no persistence/integration claim.
 51. [ ] **BLOCKED — separate scheduler authorization:** default-OFF scoped scheduler.
-52. [~] Synthetic one-tick worker rehearsal: one receipt per tick, STOP fencing, crash/lease-expiry recovery, evidence-free completion rejection. Backend CI verified at #181. Deterministic simulated full persisted session remains after item 45 exact-head verification.
+52. [x] Synthetic one-tick worker rehearsal plus deterministic full persisted PostgreSQL session across multiple worker identities, abandoned-lease reclaim, no duplicate receipts/costs, zero-unresolved no-extra-work, and no self-completion. Verified at PR #225 head `9e0dfa50f2ec7278c23b966dcf80658ba2ed710c`, run `36915008724` SUCCESS.
 53. [ ] **BLOCKED — explicit benign unattended-run approval:** genuine unattended benign-source hour.
 54. [ ] Same-user project isolation and cross-session handoff before Grove/voice attachment.
 55. [ ] Real phone/operator acceptance; never infer worker liveness from read-only UI.
@@ -144,10 +144,24 @@ Open the ingestion branch as a draft child against the CI-enabled research hando
 
 Implementation branch: `feat/epstein-corpus-intelligence-v2-20261001`.
 
-97. [ ] Deterministic persisted full-session PostgreSQL acceptance across multiple worker invocations, including abandoned-lease reclaim.
-98. [ ] Opt-in OCR/handwriting review pipeline bound to exact page-image provenance; OCR can never overwrite original text.
-99. [ ] Geometry-preserving table/ledger reconstruction for manifests, banking records, phone records and address books.
-100. [ ] Hybrid corpus retrieval: exact identifiers + lexical ranking + optional precomputed semantic embeddings; all hits source-anchored.
-101. [ ] Document-family reconstruction for email/attachment/reply/forward, calendar/travel, invoice/payment, deposition/exhibit relationships.
-102. [ ] Synthetic acceptance and exact-head CI for items 97–101.
+97. [x] Deterministic persisted full-session PostgreSQL acceptance across multiple worker invocations, including abandoned-lease reclaim.
+98. [x] Opt-in OCR/handwriting review pipeline bound to exact page-image provenance; OCR can never overwrite original text.
+99. [x] Geometry-preserving table/ledger reconstruction for manifests, banking records, phone records and address books.
+100. [x] Hybrid corpus retrieval: exact identifiers + lexical ranking + optional precomputed semantic embeddings; all hits source-anchored.
+101. [x] Document-family reconstruction for email/attachment/reply/forward, calendar/travel, invoice/payment, deposition/exhibit relationships.
+102. [x] Synthetic acceptance and exact-head CI for items 97–101. Verified at PR #225 head `9e0dfa50f2ec7278c23b966dcf80658ba2ed710c`, Integration CI run `36915008724` SUCCESS (129 backend test files / 655 tests, production Next build, persisted restart acceptance, corpus-intelligence persistence, PDF/control/Flutter regressions green).
 103. [ ] Production/live integration remains separately gated by items 42, 47–49, 51, 56, 93–96.
+
+
+## 2026-10-01 investigation workbench v3 extension
+
+Implementation branch: `feat/epstein-investigation-workbench-v3-20261001`.
+
+104. [ ] Explicit-key conversation/thread reconstruction with reply/forward chronology and orphan-reference reporting.
+105. [ ] Visual/image/exhibit evidence layer with source hashes, exhibit/testimony linkage, literal reviewed observations, and explicit no-biometric-inference guard.
+106. [ ] Research Coverage Map across document families, dates, entities, locations and record types; coverage is never equated with truth.
+107. [ ] Neutral Lead Prioritizer using contradiction density, source-independence potential, unresolved identity, missing connective tissue, expected information gain, evidence density and estimated research cost; no person/guilt/suspicion score.
+108. [ ] Human Review Workbench model + synthetic `/research-review` screen with original source, extraction/OCR, identities, contradictions, release deltas, structured tables, visual exhibits and receipt-based review actions.
+109. [ ] Proposed durable persistence for threads, visuals, coverage, lead-priority receipts, review packets and review-action receipts plus disposable PostgreSQL acceptance.
+110. [ ] Exact-head CI for items 104–109.
+111. [ ] Production/live integration remains gated by items 42, 47–49, 51, 56, 93–96 and item 103.
