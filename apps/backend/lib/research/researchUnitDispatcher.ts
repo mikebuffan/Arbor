@@ -13,6 +13,8 @@ import type { TrustedInvestigationFindingStore } from "./investigationIntegrityS
 import { buildInvestigationDiscoveryUnitHandler } from "./investigationDiscoveryUnit";
 import type { TrustedInvestigationObservationStore } from "./investigationDiscoveryUnit";
 import { buildInvestigationPredictionUnitHandler } from "./investigationPredictionUnit";
+import { buildInvestigationCaseworkUnitHandler } from "./investigationCaseworkUnit";
+import type { TrustedInvestigationCaseworkStore } from "./investigationCaseworkUnit";
 
 export type ResearchUnitHandler = (input: {
   session: ResearchSession;
@@ -97,6 +99,7 @@ export function buildDefaultResearchUnitDispatcher(input: {
   supabase: SupabaseClient;
   integrityStore?: TrustedInvestigationFindingStore;
   discoveryStore?: TrustedInvestigationObservationStore;
+  caseworkStore?: TrustedInvestigationCaseworkStore;
 }): ResearchUnitDispatcher {
   const dispatcher = new ResearchUnitDispatcher().register(
     "research.pattern_hop",
@@ -192,6 +195,13 @@ export function buildDefaultResearchUnitDispatcher(input: {
     dispatcher.register(
       "research.discovery",
       buildInvestigationDiscoveryUnitHandler(input.discoveryStore),
+    );
+  }
+
+  if (input.caseworkStore) {
+    dispatcher.register(
+      "research.casework",
+      buildInvestigationCaseworkUnitHandler(input.caseworkStore),
     );
   }
 
