@@ -62,21 +62,21 @@ Legend: [x] relevant implementation plus exact-head CI evidence exists for the s
 
 ## 5. Worker wiring and unattended acceptance
 47. [ ] **BLOCKED — live integration approval:** preserve worker-v5/review-processor diff/rollback before wiring.
-48. [ ] **BLOCKED — separate real-source authorization:** bounded third-party capture/parse executor for investigation sources. Benign IRS acceptance does not authorize EFTA ingestion.
-49. [ ] **BLOCKED — live integration approval:** production immutable evidence writes + Pattern Hop suggestions.
+48. [~] Bounded human-authorized public-source capture contract/plan is implemented in v7 with HTTPS/host/redirect/byte/page/time limits and executionRequested:false. Actual fetch executor and EFTA source authorization remain blocked.
+49. [~] Owner/project-scoped persistence bridge plus default-OFF Pattern Hop persistence candidate bridge are implemented/verified through v6. Live Preview/production immutable writes and Pattern Hop submission remain integration-approval gated.
 50. [x] Pure provenance-preserving lead dedupe verified; no persistence/integration claim.
-51. [ ] **BLOCKED — separate scheduler authorization:** default-OFF scoped scheduler.
+51. [~] Structurally default-OFF scoped scheduler state/gate is implemented in v7; no cron/cadence/execution target exists and actual scheduler activation remains separately authorization-gated.
 52. [x] Synthetic one-tick worker rehearsal plus deterministic full persisted PostgreSQL session across multiple worker identities, abandoned-lease reclaim, no duplicate receipts/costs, zero-unresolved no-extra-work, and no self-completion. Verified at PR #225 head `9e0dfa50f2ec7278c23b966dcf80658ba2ed710c`, run `36915008724` SUCCESS.
 53. [ ] **BLOCKED — explicit benign unattended-run approval:** genuine unattended benign-source hour.
-54. [ ] Same-user project isolation and cross-session handoff before Grove/voice attachment.
-55. [ ] Real phone/operator acceptance; never infer worker liveness from read-only UI.
+54. [x] Same-user/project isolation plus append-only cross-session handoff receipts verified in v6 disposable PostgreSQL with two synthetic owners/projects.
+55. [~] Heartbeat/lease-only worker liveness receipts are implemented in v7 so UI state alone cannot establish liveness. Real phone/operator acceptance remains pending.
 56. [ ] Separate production/deployment/scheduler/expenditure approval.
 
 ## 6. Epstein public-document analysis and responsible reporting
 57. [x] Starter MCC/OIG ledger separates published official findings from open questions.
 58. [ ] **BLOCKED — separate source authorization + human original-page workflow:** specific public EFTA verification.
 59. [ ] Reconcile testimony/logs/timestamps only after authorized original-source capture.
-60. [~] Synthetic privacy contracts remain HOLD; actual victim/private-person detection/human verification/release workflow is not implemented or authorized.
+60. [~] Synthetic privacy candidate + append-only human decision/release-disposition gate is implemented in v7; no automatic victim/private-person classification occurs. Real sensitive-person review remains unexercised/unauthorized.
 61. [x] Pure synthetic-only finding classification; workflow integration and real finding review remain separate.
 62. [x] Mention/allegation alone is never evidence of a crime.
 63. [x] Synthetic-only dated HOLD report draft; real original-page citation verification/redaction/publication remains pending.
@@ -199,13 +199,26 @@ Implementation branch: `feat/epstein-security-integration-v5-20261001`.
 
 Implementation branch: `feat/epstein-preview-integration-v6-20261001`.
 
-128. [ ] Ordered Preview-only research schema application manifest with collision preflight and all execution/scheduler/real-source/publication flags hard OFF.
-129. [ ] Forward-only rollback receipt contract preserving pre-apply migration head, applied migration list, no-data-ingested and never-executed state.
-130. [ ] Default-OFF Preview integration-state table that cannot enable execution, scheduler, real-source ingestion or publication in v6.
-131. [ ] Append-only same-owner/project bounded research session handoff receipts.
-132. [ ] Server-only owner/project-scoped Supabase investigation persistence adapter with allow-listed replay/evidence-packet/handoff writes and fail-closed integration-state read.
-133. [ ] Same-user/project isolation and cross-session handoff acceptance in disposable PostgreSQL using two synthetic owners/projects.
-134. [ ] Default-OFF Pattern Hop persistence candidate bridge; prepared-not-submitted and executionRequested:false.
-135. [ ] Read-only real ARK Preview preflight confirms no existing `arbor_research_*` tables/functions and no research migration collision.
-136. [ ] Exact-head CI for items 128–135.
+128. [x] Ordered Preview-only research schema application manifest with collision preflight and all execution/scheduler/real-source/publication flags hard OFF.
+129. [x] Forward-only rollback receipt contract preserving pre-apply migration head, applied migration list, no-data-ingested and never-executed state.
+130. [x] Default-OFF Preview integration-state table that cannot enable execution, scheduler, real-source ingestion or publication in v6.
+131. [x] Append-only same-owner/project bounded research session handoff receipts.
+132. [x] Server-only owner/project-scoped Supabase investigation persistence adapter with allow-listed replay/evidence-packet/handoff writes and fail-closed integration-state read.
+133. [x] Same-user/project isolation and cross-session handoff acceptance in disposable PostgreSQL using two synthetic owners/projects.
+134. [x] Default-OFF Pattern Hop persistence candidate bridge; prepared-not-submitted and executionRequested:false.
+135. [x] Read-only real ARK Preview preflight confirms no existing `arbor_research_*` tables/functions and no research migration collision.
+136. [x] Exact-head CI for items 128–135. Verified at PR #230 head `8d45ccf01dff9403149bb209f3aefc257fc7077f`, Integration CI run `36924344819` SUCCESS (132 backend test files / 672 tests, production Next build, tenant isolation/handoff acceptance, PDF/control/Flutter regressions green).
 137. [ ] Actual Preview schema application remains separately approval-gated; no production Firefly/Grove mutation or real-source ingestion.
+
+
+## 2026-10-01 source, privacy & operator controls v7 extension
+
+Implementation branch: `feat/epstein-source-privacy-ops-v7-20261001`.
+
+138. [ ] Human-authorized bounded public-source capture receipt/plan: HTTPS-only, no credentials, exact origin host, redirect allowlist, byte/page/time bounds, executionRequested:false.
+139. [ ] Privacy identifier candidate HOLD plus append-only human privacy decisions; no automatic victim/private-person/public-official/criminal classification.
+140. [ ] Heartbeat/lease-only worker liveness receipt; declared UI state alone yields unknown rather than active.
+141. [ ] Structurally disabled scheduler state + pure activation evaluator that always returns allowed:false in v7.
+142. [ ] Service-role-only capture/privacy persistence, owner-scoped liveness/scheduler reads, append-only decisions and fail-closed scheduler constraints.
+143. [ ] Disposable PostgreSQL acceptance + backend unit/strict-build CI for items 138–142.
+144. [ ] Actual public-source fetch, real sensitive-person review, phone/operator acceptance, scheduler enablement and Preview schema application remain separately approval-gated.
