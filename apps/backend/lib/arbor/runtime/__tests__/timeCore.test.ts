@@ -17,6 +17,17 @@ describe("Arbor Time Core", () => {
     expect(core.authoritative).toBe(true);
   });
 
+  it("uses a trusted UTC offset when a surface cannot supply an IANA timezone", () => {
+    const core = buildTimeCore({
+      now: new Date("2026-10-01T18:30:45.000Z"),
+      utcOffsetMinutes: -420,
+    });
+    expect(core.timeZone).toBe("UTC-07:00");
+    expect(core.utcOffsetMinutes).toBe(-420);
+    expect(core.localDate).toBe("2026-10-01");
+    expect(core.localTime).toBe("11:30:45");
+  });
+
   it("fails safely to UTC for an invalid timezone", () => {
     const core = buildTimeCore({
       now: new Date("2026-10-01T18:30:45.000Z"),
