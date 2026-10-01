@@ -435,7 +435,7 @@ export async function buildPromptContext({
   const behaviorMode =
     arbor.activeSubsystem === "annabelle" ? "annabelle" : interactionMode;
 
-  const bodyState = deriveArborBodyState({
+  const timeCore = buildTimeCore({ timeZone });\n  const timeCoreBlock = renderTimeCorePromptBlock(timeCore);\n\n  const bodyState = deriveArborBodyState({
     latestUserText,
     continuity: continuityState,
     activeSubsystem: arbor.activeSubsystem,
