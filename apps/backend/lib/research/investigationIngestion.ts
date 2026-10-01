@@ -5,8 +5,8 @@ export type DocumentTypology =
   | "other_or_unknown";
 
 export type StructuralEntityKind =
-  | "phone" | "email" | "tail_number" | "passport_or_document"
-  | "bank_routing_code" | "money" | "date" | "coordinate";
+  | "phone" | "email" | "address" | "tail_number" | "passport_or_document"
+  | "bank_routing_code" | "account_number" | "money" | "date" | "coordinate";
 
 export type StructuralEntity = {
   kind: StructuralEntityKind;
@@ -90,9 +90,11 @@ export function extractStructuralEntities(text: string): StructuralEntity[] {
   const entities = [
     ...collectMatches(text, "email", /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi),
     ...collectMatches(text, "phone", /(?<!\d)(?:\+?1[-.\s]?)?(?:\(?\d{3}\)?[-.\s]?)\d{3}[-.\s]?\d{4}(?!\d)/g),
+    ...collectMatches(text, "address", /\b\d{1,6}\s+[A-Z0-9][A-Z0-9.' -]{1,60}\s+(?:Street|St\.?|Avenue|Ave\.?|Road|Rd\.?|Boulevard|Blvd\.?|Drive|Dr\.?|Lane|Ln\.?|Court|Ct\.?|Way|Place|Pl\.?)\b(?:\s+(?:Apt\.?|Suite|Ste\.?|Unit)\s*[A-Z0-9-]+)?/gi),
     ...collectMatches(text, "tail_number", /\bN\d{1,5}[A-Z]{0,2}\b/g),
     ...collectMatches(text, "passport_or_document", /\b(?:passport|document)\s*(?:no\.?|number)?\s*[:#-]?\s*[A-Z0-9]{5,20}\b/gi),
     ...collectMatches(text, "bank_routing_code", /\b(?:routing|aba)\s*(?:no\.?|number)?\s*[:#-]?\s*\d{9}\b/gi),
+    ...collectMatches(text, "account_number", /\b(?:account|acct)\s*(?:no\.?|number|#)?\s*[:#-]?\s*[A-Z0-9-]{4,24}\b/gi),
     ...collectMatches(text, "money", /(?<!\w)\$\s?\d{1,3}(?:,\d{3})*(?:\.\d{2})?\b/g),
     ...collectMatches(text, "date", /\b(?:19|20)\d{2}[-/]\d{1,2}[-/]\d{1,2}\b|\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{1,2},?\s+(?:19|20)\d{2}\b/gi),
     ...collectMatches(text, "coordinate", /(?<!\d)-?(?:[1-8]?\d(?:\.\d+)?|90(?:\.0+)?)[,\s]+-?(?:(?:1[0-7]\d|\d?\d)(?:\.\d+)?|180(?:\.0+)?)(?!\d)/g),
