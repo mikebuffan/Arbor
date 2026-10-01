@@ -133,10 +133,14 @@ create table if not exists public.arbor_investigation_falsification_attempts (
 );
 
 create or replace function public.arbor_reject_investigation_mutation()
-returns trigger language plpgsql set search_path = public, pg_temp as $$
+returns trigger language plpgsql set search_path = public, pg_temp as $
 begin
   raise exception 'investigation_records_are_append_only';
-end $$;
+end $;
+
+-- UPDATE is blocked even for privileged writers. DELETE is not trigger-blocked so
+-- owner/account erasure cascades remain possible; ordinary service/client roles
+-- receive no DELETE grant.
 
 do $$
 declare rel text;
@@ -151,7 +155,7 @@ begin
     execute format('drop trigger if exists %I on public.%I',
       rel || '_immutable', rel);
     execute format(
-      'create trigger %I before update or delete on public.%I for each row execute function public.arbor_reject_investigation_mutation()',
+      'create trigger %I before update on public.%I for each row execute function public.arbor_reject_investigation_mutation()',
       rel || '_immutable', rel
     );
   end loop;
