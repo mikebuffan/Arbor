@@ -8,6 +8,7 @@ import {
   ResearchUnitDispatcher,
 } from "./researchUnitDispatcher";
 import type { TrustedInvestigationFindingStore } from "./investigationIntegrityStore";
+import type { TrustedInvestigationObservationStore } from "./investigationDiscoveryUnit";
 
 vi.mock("@/lib/memory/patternHopResearch", () => ({
   runPatternHopResearch: vi.fn(),
@@ -130,6 +131,39 @@ describe("research unit dispatcher", () => {
       integrityStore,
     });
     expect(dispatcher.kinds()).toEqual([
+      "research.integrity_gate",
+      "research.pattern_hop",
+    ]);
+  });
+
+  it("registers discovery only when a trusted observation store is supplied", () => {
+    const discoveryStore: TrustedInvestigationObservationStore = {
+      loadObservations: vi.fn(async () => []),
+    };
+    const dispatcher = buildDefaultResearchUnitDispatcher({
+      supabase: {} as SupabaseClient,
+      discoveryStore,
+    });
+    expect(dispatcher.kinds()).toEqual([
+      "research.discovery",
+      "research.pattern_hop",
+    ]);
+  });
+
+  it("can register both investigation layers without enabling them by default", () => {
+    const integrityStore: TrustedInvestigationFindingStore = {
+      loadFindingContext: vi.fn(async () => null),
+    };
+    const discoveryStore: TrustedInvestigationObservationStore = {
+      loadObservations: vi.fn(async () => []),
+    };
+    const dispatcher = buildDefaultResearchUnitDispatcher({
+      supabase: {} as SupabaseClient,
+      integrityStore,
+      discoveryStore,
+    });
+    expect(dispatcher.kinds()).toEqual([
+      "research.discovery",
       "research.integrity_gate",
       "research.pattern_hop",
     ]);
