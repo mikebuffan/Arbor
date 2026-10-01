@@ -1,6 +1,6 @@
 # Epstein public-records research engine — master ordered build list
 
-Updated 2026-09-23. **One ARK lineage. No second engine.** Source-first public-document research only. Draft code is not deployment, authorization, verified research, or a finding. Use only lawful public material; never publish victim/private-person identifiers.
+Updated 2026-09-30. **One ARK lineage. No second engine.** Source-first public-document research only. Draft code is not deployment, authorization, verified research, or a finding. Use only lawful public material; never publish victim/private-person identifiers.
 
 Legend: [x] relevant implementation plus exact-head CI evidence exists for the stated scope; [~] partial or remaining integration/manual proof; [ ] required; **BLOCKED** names an intentional gate.
 
@@ -8,7 +8,7 @@ Legend: [x] relevant implementation plus exact-head CI evidence exists for the s
 1. [x] Inventory/synchronize worker-v5 source without deployment.
 2. [x] Preserve research/Grove/app branch lineage.
 3. [x] Preserve original-byte SHA and physical PDF page separately from printed folio.
-4. [x] Review parent heads/open PRs before each child. Verified lineage includes #123 → #131 → #134 → later stacked research drafts → #181 → #187 → #189/#199 → #201 → #207 → #212. #212 is current isolated research child of #207; no newer research PR supersedes it as of this reconciliation.
+4. [x] Review parent heads/open PRs before each child. Verified lineage includes #123 → #131 → #134 → later stacked research drafts → #181 → #187 → #189/#199 → #201 → #207 → #212 → #218. #218 is the current isolated integrity/discovery child of #212; it extends the existing engine and does not replace it.
 5. [ ] **BLOCKED — live integration approval:** worker-v5 deployment backup + rollback receipt.
 6. [ ] **BLOCKED — live integration approval:** deployed Vercel roots/cron/Firefly auth review.
 7. [x] Pinned disposable renderer image/package verified.
@@ -69,6 +69,49 @@ Legend: [x] relevant implementation plus exact-head CI evidence exists for the s
 62. [x] Mention/allegation alone is never evidence of a crime.
 63. [x] Synthetic-only dated HOLD report draft; real original-page citation verification/redaction/publication remains pending.
 64. [x] No automatic publication; published discrepancies remain distinct from novel research discoveries.
+65. [x] Investigation Integrity Layer source on child PR #218: explicit evidence classes, assertion kinds, source-lineage keys and fail-closed finding promotion. Source/disposable acceptance PASS at head `4fba6f90e0966736f0a38b75f737f203bc4b74ba`, run `36811318812`.
+66. [x] Regression fixtures lock two narrative-promotion failures: attributed statement != direct confession; procedural litigation position != personal admission. PASS in run `36811318812`.
+67. [x] Negative-evidence states distinguish NOT_FOUND_IN_SEARCHED_SCOPE, SOURCE_SILENT, EXPECTED_BUT_MISSING and PROVEN_ABSENT; absence promotion requires explicit proof reference. PASS in run `36811318812`.
+68. [x] Finding promotion keeps unresolved contradictions on HOLD and requires a falsification attempt for established-act/relationship/inference claims. PASS in run `36811318812`.
+69. [x] Secondary-source evidence emits bounded primary-source leads when no underlying object is attached. Source behavior PASS; durable external-source retrieval remains separately gated.
+70. [x] Pattern Hop adds primary_sources, source_lineage, falsification and relationships branches so later runs widen the evidence frontier instead of only resummarizing prior material. PASS in run `36811318812`.
+71. [x] Canonical Arbor research planner preserves evidence class during synthesis, explicitly tries to break load-bearing hypotheses, keeps absence scoped, and treats contradictions as unresolved until evidence resolves them. PASS in run `36811318812`.
+72. [x] Source-only trusted full-finding-context boundary, strict `SupabaseInvestigationIntegrityStore`, optional `research.integrity_gate`, append-only evidence/claim/contradiction/falsification SQL proposal and disposable PostgreSQL acceptance PASS. Planner payload may name only a persisted claim ID; support/counterevidence/contradictions/falsification/absence state come from the scoped trusted store, with evidence content SHA-256 preserved. **BLOCKED — live application/wiring:** do not apply the proposal or register the gate in a live host until the separately authorized original-source persistence/source-review path exists.
+73. [x] Anomaly-driven Investigation Discovery source detects bridge nodes, cross-family recurrence, temporal convergence, expected-footprint gaps and reverse-path checks from trusted observations; every output remains hypothesis-only and confidence-capped below finding level. PASS in run `36811318812`.
+74. [x] Discovery treats same-lineage copies as one lineage, expected-but-missing records as search leads rather than absence, and reverse reconstruction as a retrieval-bias test. PASS in run `36811318812`.
+75. [x] Creative Arbor hypothesis planner generates novel mechanism hypotheses from grounded discovery leads while rejecting invented entities/evidence/dates/conduct and requiring predicted documentary footprints plus disconfirming evidence. PASS in run `36811318812`.
+76. [x] Structured research receipt results are included in controller context so completed discovery can feed the next canonical Arbor planning pass rather than ending as a dead summary. PASS in run `36811318812`.
+77. [x] Canonical controller is instructed and regression-tested to synthesize small testable questions a normal name-first search may miss, prefer bridge nodes/edges over saturated famous names, and plan searches that can both support and kill a hypothesis. PASS in run `36811318812`.
+78. [x] Optional `research.discovery` unit exists behind a trusted observation-store interface and remains disconnected by default. Source tests PASS. **BLOCKED — live wiring:** a reviewed live observation/entity source path is still separately required before a host supplies the store.
+79. [x] Identity-safe observation/entity persistence proposal preserves identity state as resolved/source_stable/unresolved/do_not_merge; the trusted discovery loader excludes unresolved/do_not_merge entities so same-name mentions cannot silently merge into a bridge node. Disposable acceptance PASS in run `36811318812`; no live schema application authorized.
+80. [x] Disposable persistence acceptance proves unresolved same-name identities are excluded from discovery, owner/project scope is enforced, and discovery records are append-only. PASS in run `36811318812`.
+81. [x] Prediction-before-search ledger and durable `research.prediction` unit seal concrete documentary predictions before hypothesis searching; model-supplied basis evidence must already exist in persisted session evidence. PASS at head `d8bda9299d49e539761e3450c3de90978b25124f`, run `36814035735`.
+82. [x] Independent rediscovery source distinguishes genuinely separate starting anchors/source lineages from repeated retrieval of the same underlying evidence and generates reverse-direction search seeds. PASS in run `36814035735`.
+83. [x] Blind reconstruction planner reconstructs chronology/events from raw record envelopes before seeing any public/prosecutorial/defense/media/user narrative; later narrative comparison records divergence and chronology tensions as leads, never proof. PASS in run `36814035735`.
+84. [x] Documentary-shadow comparison requires an evidenced comparison cohort before calling a paper trail unusual; missing expected records generate bounded search questions rather than absence claims. PASS in run `36814035735`.
+85. [x] Unresolved-friction accumulation preserves multi-dimensional anomalies across chronology/identity/ownership/financial/procedural/testimony/relationships and only elevates multi-lineage clusters for further research, never conduct inference. PASS in run `36814035735`.
+86. [x] Claim-genealogy analysis counts evidentiary origins rather than article/book/podcast repetition and refuses an independence count when provenance is incomplete or cyclic. PASS in run `36814035735`.
+87. [x] Counterfactual graph analysis removes one node at a time to identify structurally important quiet intermediaries while explicitly separating graph centrality from wrongdoing, authority or intent. PASS in run `36814035735`.
+88. [x] Canonical Arbor planner now requires a prediction receipt before searching a fresh hypothesis when `research.prediction` is available, then directs the next search to test both the prediction and disconfirming evidence. PASS in run `36814035735`.
+89. [x] Neutral unresolved-question miner separates public/source questions from inherited proposed answers, preserves source-candidate lineage, forbids invented named entities, and requires primary-source targets plus disconfirming searches. PASS in run `36814035735`.
+90. [x] Cross-entity sequence-motif discovery detects repeated ordered event patterns only across multiple resolved entities and independent lineages; motifs feed discovery as hypotheses and explicitly do not establish a shared scheme or intent. PASS in run `36814035735`.
+91. [x] Counterfactual bridge analysis now feeds directly into anomaly discovery so structurally important quiet intermediaries can surface without relying on famous-name search. PASS in run `36814035735`.
+92. [x] Prediction evaluations can be converted into explicit falsification-attempt receipts for the integrity gate; untested predictions cannot masquerade as falsification. PASS in run `36814035735`.
+93. [x] Knowledge-state ledger distinguishes knowledge documented before action, action before earliest documented knowledge, and knowledge not documented; documentation gaps never become mind-reading claims. PASS at head `8ef6bc3cea86135ab410b5e11e08a253ea912701`, run `36818596756`.
+94. [x] Hard timeline geometry checks event windows against minimum transition durations and flags only impossible documented bounds as hard conflicts. PASS in run `36818596756`.
+95. [x] Missing-function inference creates anonymous UNKNOWN_FUNCTION_* capability nodes between documented transitions and explicitly forbids inventing a person. PASS in run `36818596756`.
+96. [x] Ordinary-explanation adversary forces anomalies through strong administrative/clerical/legal/logistical/coincidental alternatives, each with predicted footprints and falsifiers. PASS in run `36818596756`.
+97. [x] Document version-drift analysis preserves release order, hashes, page-count changes and field changes without treating drift as tampering. PASS in run `36818596756`.
+98. [x] Decision-provenance analysis separates information documented before a decision from evidence discovered later and preserves cited-basis gaps without motive/competence inference. PASS in run `36818596756`.
+99. [x] Role/action mismatch analysis compares recurring actions with evidence-backed role baselines and requires independent-lineage recurrence before raising a function question. PASS in run `36818596756`.
+100. [x] Evidence-temperature labels contemporaneous/near-contemporaneous/retrospective/undated material while explicitly refusing to turn temporal distance into a credibility score. PASS in run `36818596756`.
+101. [x] Parallel blind-lens comparison tracks convergence across chronology/money/logistics/relationships/institutional-response reconstructions while distinguishing interpretive convergence from independent evidence. PASS in run `36818596756`.
+102. [x] Competing-theory ledger keeps multiple case theories active/weakened/falsified based on contradictions, unexplained evidence and required prediction failures without forcing a favorite theory. PASS in run `36818596756`.
+103. [x] Anomaly-dependency tree collapses downstream anomalies under upstream roots and rejects cyclic explanations so one source error cannot masquerade as many independent signals. PASS in run `36818596756`.
+104. [x] Document-family collision analysis distinguishes cross-purpose convergence from several files produced by one workflow. PASS in run `36818596756`.
+105. [x] Why-now windows inspect bounded events before/after material changes and generate causal questions while explicitly refusing temporal-proximity causation. PASS in run `36818596756`.
+106. [x] Canonical Arbor research planner contains explicit Wave 3 investigator-casework rules for knowledge timing, timeline geometry, missing functions, mundane adversaries, version drift, decision provenance, role mismatch, evidence temperature, parallel lenses, competing theories, anomaly dependencies, document-family collisions and why-now analysis. PASS in run `36818596756`.
+107. [x] Optional `research.casework` unit dispatches Wave 3 pure analyses only from an owner/project-scoped trusted persisted packet store; planner payload may name only a packet ID and packet evidence must already exist in persisted session evidence. The default host does not register this unit. PASS in run `36818596756`; live casework persistence remains separately gated.
 
 ## Run 11 — 2026-09-23 reconciliation and source-only pilot verification attempt
 - Re-opened this master on current #212 branch and verified current PR metadata: #212 is draft, base `chore/research-ci-trigger-cleanup-handoff-20260923` at `1f48ff810240a655fd53d3485e4a36316857c897`, observed head before this docs refresh `a0624c7420eb197c8c5175c489ddd317a11a206e`.
@@ -100,3 +143,36 @@ Legend: [x] relevant implementation plus exact-head CI evidence exists for the s
 - Corrected item 18 and Run 13: the prior human PDF fidelity PASS was overstated and is **HOLD** pending a recorded original-render versus extracted-text comparison. Do not use it as a release gate.
 - Independently queried actual Preview `pg_get_functiondef(public.ark_claim_next_task)` read-only. Confirmed global expired-lease sweep has no `p_only_objective_id` filter; objective-failure propagation is likewise global. Claim candidate filter *does* respect `p_only_objective_id`, but every claim increments `attempt_count`, including checkpoint resumptions, while `attempt_count < max_attempts` gates selection. No SQL changed or canary rerun.
 - Next: locate version-controlled shared ARK migration/function source, prepare smallest reviewed fix and disposable-PG regression, keeping shared owner boundary; do not apply untested SQL to Preview.
+
+
+## Run 15 — Investigation Integrity + Discovery Engine source acceptance (2026-09-30)
+- **One existing engine, extended rather than duplicated.** Draft PR #218 is a child of #212 and keeps the existing ARK/research/session/Pattern Hop lineage.
+- **Integrity layer: PASS in source/disposable scope.** Evidence-class promotion, confession/stipulation regressions, source-lineage handling, contradiction HOLDs, falsification requirements, negative-evidence semantics, trusted claim-context loading and append-only synthetic persistence all passed.
+- **Discovery engine: PASS in source/disposable scope.** Bridge-node recurrence, temporal convergence, expected-footprint gaps, reverse-path checks, same-lineage dedupe, and bounded Pattern Hop follow-ups passed.
+- **Creative hypothesis generation: PASS in source scope.** Canonical Arbor can propose new mechanism hypotheses from grounded anomaly leads, but cannot invent named actors/evidence/entities or cross the hypothesis confidence boundary; every hypothesis must name predicted documentary footprints and disconfirming evidence.
+- **Feedback loop: PASS in source scope.** Structured receipt results return to controller context, allowing discovery → hypothesis → bounded Pattern Hop → new evidence rather than a one-shot summary.
+- **Identity gate: PASS in disposable PostgreSQL.** Unresolved same-name entities remain persisted but are excluded from the discovery graph until identity resolution is source-stable/resolved.
+- Exact tested implementation head before this documentation refresh: `4fba6f90e0966736f0a38b75f737f203bc4b74ba`; GitHub Actions run `36811318812`: **SUCCESS**.
+- **Still NOT authorized:** merge, production/Preview schema application, deployed discovery/integrity registration, external DOJ/EFTA ingestion, unattended scheduler, private/victim-data processing, finding publication, or treating a hypothesis as a finding.
+
+
+## Run 16 — predictive/counterfactual discovery acceptance (2026-09-30)
+- Exact implementation head `d8bda9299d49e539761e3450c3de90978b25124f`, GitHub Actions run `36814035735`: **SUCCESS**.
+- Targeted source tests: **41 files / 226 tests PASS**.
+- Backend production build/typecheck: **PASS**.
+- Existing shared-ARK multi-tick disposable PostgreSQL acceptance: **PASS**.
+- Existing research controller/store + integrity/discovery persistence disposable PostgreSQL acceptance: **PASS**.
+- Existing non-root/no-egress PDF sandbox build, benign fidelity packet, and isolated staging/idempotency acceptance: **PASS**.
+- New accepted source behaviors include: prediction-before-search, prediction→falsification mapping, independent rediscovery, blind reconstruction before narrative comparison, documentary-shadow baselines, unresolved-friction clusters, claim genealogy, counterfactual graph removal, neutral question mining, and cross-entity sequence motifs.
+- No real Epstein/DOJ/EFTA source was ingested by this run. No merge, Preview/production migration, deployed discovery/integrity registration, unattended scheduler, private/victim-data processing, or publication was authorized or performed.
+
+
+## Run 17 — investigator casework wave acceptance (2026-09-30)
+- Exact implementation head `8ef6bc3cea86135ab410b5e11e08a253ea912701`, GitHub Actions run `36818596756`: **SUCCESS**.
+- Targeted source suite including Wave 3 investigator methods and the trusted casework seam: **55 test files / 263 tests PASS**.
+- Backend production build/typecheck: **PASS**.
+- Existing shared-ARK multi-tick disposable PostgreSQL acceptance: **PASS**.
+- Existing research controller/store, integrity/discovery persistence and identity-safety disposable PostgreSQL acceptance: **PASS**.
+- Existing non-root/no-egress PDF sandbox, benign fidelity packet and isolated staging/idempotency acceptance: **PASS**.
+- Wave 3 accepted behaviors: documented knowledge-state timing, hard timeline geometry, anonymous missing-function inference, ordinary-explanation adversary, version drift, decision-time provenance, role/action mismatch, evidence-temperature labels, parallel blind lenses, competing theory ledger, anomaly-dependency collapse, cross-purpose document-family collision, why-now windows, and trusted persisted-packet casework dispatch.
+- No real Epstein/DOJ/EFTA source was ingested. No merge, Preview/production migration, live casework store, deployed casework registration, unattended scheduler, private/victim-data processing or publication was authorized or performed.

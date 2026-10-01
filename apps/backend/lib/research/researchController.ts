@@ -26,6 +26,7 @@ export type ResearchControllerReceiptSummary = {
   status: "completed" | "checkpointed" | "blocked" | "failed";
   evidenceRefs: string[];
   recordedAt: string;
+  result?: Record<string, unknown> | null;
 };
 
 export type ResearchControllerContext = {
