@@ -47,7 +47,7 @@ const text=(v:unknown,k:string,max=10000):string=>{
   if(typeof v!=="string"||!v.trim()||v.length>max)throw new Error("invalid_ocr_"+k);
   return v.trim();
 };
-const utc=(v:string):boolean=>/^d{4}-d{2}-d{2}Td{2}:d{2}:d{2}.d{3}Z$/.test(v)
+const utc=(v:string):boolean=>/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(v)
   && Number.isFinite(Date.parse(v)) && new Date(v).toISOString()===v;
 
 function validateBox(box:OcrBox,w:number,h:number):OcrBox{
