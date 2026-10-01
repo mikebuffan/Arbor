@@ -97,6 +97,13 @@ describe("canonical Arbor research controller planner adapter", () => {
     expect(call.instructions).toContain("DISCOVERY MODE");
     expect(call.instructions).toContain("question a normal name-first search would miss");
     expect(call.instructions).toContain("searches that could both support and kill it");
+    expect(call.instructions).toContain("PREDICTION-BEFORE-SEARCH");
+    expect(call.instructions).toContain("INDEPENDENT REDISCOVERY");
+    expect(call.instructions).toContain("BLIND RECONSTRUCTION");
+    expect(call.instructions).toContain("DOCUMENTARY SHADOWS");
+    expect(call.instructions).toContain("FRICTION ACCUMULATION");
+    expect(call.instructions).toContain("CLAIM GENEALOGY");
+    expect(call.instructions).toContain("COUNTERFACTUAL GRAPH");
     expect(call.allowWebResearch).toBe(false);
     expect(call.verifyCompletion).toBe(false);
     expect(call.maxRounds).toBe(2);
