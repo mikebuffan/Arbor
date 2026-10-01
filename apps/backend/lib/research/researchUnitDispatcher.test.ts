@@ -7,6 +7,7 @@ import {
   buildDefaultResearchUnitDispatcher,
   ResearchUnitDispatcher,
 } from "./researchUnitDispatcher";
+import type { TrustedInvestigationEvidenceStore } from "./investigationIntegrityStore";
 
 vi.mock("@/lib/memory/patternHopResearch", () => ({
   runPatternHopResearch: vi.fn(),
@@ -118,6 +119,20 @@ describe("research unit dispatcher", () => {
       supabase: {} as SupabaseClient,
     });
     expect(dispatcher.kinds()).toEqual(["research.pattern_hop"]);
+  });
+
+  it("registers the integrity gate only when a trusted evidence store is supplied", () => {
+    const integrityStore: TrustedInvestigationEvidenceStore = {
+      loadEvidence: vi.fn(async () => []),
+    };
+    const dispatcher = buildDefaultResearchUnitDispatcher({
+      supabase: {} as SupabaseClient,
+      integrityStore,
+    });
+    expect(dispatcher.kinds()).toEqual([
+      "research.integrity_gate",
+      "research.pattern_hop",
+    ]);
   });
 
   it("fails closed for an unregistered research kind", async () => {
