@@ -161,6 +161,13 @@ describe("owner-scoped Supabase research adapter",()=>{
     const receipts=listQuery([{
       idempotency_key:"done-a",status:"completed",
       evidence_refs:["synthetic:evidence"],recorded_at:"2026-09-20T12:10:00Z",
+      result:{
+        discoveryLeads:[{
+          id:"bridge-a",
+          kind:"bridge_node",
+          status:"hypothesis",
+        }],
+      },
     }]);
     const from=vi.fn((table:string)=>{
       if(table==="arbor_research_sessions")return sessionQuery;
@@ -177,6 +184,13 @@ describe("owner-scoped Supabase research adapter",()=>{
       recentReceipts:[{
         unitKey:"done-a",status:"completed",
         evidenceRefs:["synthetic:evidence"],
+        result:{
+          discoveryLeads:[{
+            id:"bridge-a",
+            kind:"bridge_node",
+            status:"hypothesis",
+          }],
+        },
       }],
     });
   });
