@@ -28,7 +28,7 @@ This layer exists specifically to stop errors such as:
 - primary-source lead generation for secondary evidence;
 - unresolved-contradiction HOLD;
 - counterevidence cannot disappear silently: each counterevidence reference must be carried through an explicit survived falsification attempt before promotion;
-- falsification requirement for established-act, relationship and inference findings;
+- falsification requirement for established-act, relationship and inference findings; falsification outcomes are explicitly claim-relative (`claim_survived`, `claim_failed`, `inconclusive`), and failed/inconclusive challenges keep the finding on HOLD;
 - scoped negative-evidence states;
 - fail-closed promotion decisions.
 
