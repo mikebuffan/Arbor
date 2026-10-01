@@ -155,7 +155,7 @@ describe("prediction-before-search ledger", () => {
       id: "prediction-test:hypothesis-1",
       hypothesis:
         "A shared administrative role may explain the cross-family recurrence.",
-      result: "failed",
+      result: "claim_failed",
       evidenceRefs: ["evidence:counter"],
     });
   });
