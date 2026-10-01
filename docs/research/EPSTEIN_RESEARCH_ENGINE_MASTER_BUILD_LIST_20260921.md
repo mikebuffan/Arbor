@@ -157,11 +157,24 @@ Implementation branch: `feat/epstein-corpus-intelligence-v2-20261001`.
 
 Implementation branch: `feat/epstein-investigation-workbench-v3-20261001`.
 
-104. [ ] Explicit-key conversation/thread reconstruction with reply/forward chronology and orphan-reference reporting.
-105. [ ] Visual/image/exhibit evidence layer with source hashes, exhibit/testimony linkage, literal reviewed observations, and explicit no-biometric-inference guard.
-106. [ ] Research Coverage Map across document families, dates, entities, locations and record types; coverage is never equated with truth.
-107. [ ] Neutral Lead Prioritizer using contradiction density, source-independence potential, unresolved identity, missing connective tissue, expected information gain, evidence density and estimated research cost; no person/guilt/suspicion score.
-108. [ ] Human Review Workbench model + synthetic `/research-review` screen with original source, extraction/OCR, identities, contradictions, release deltas, structured tables, visual exhibits and receipt-based review actions.
-109. [ ] Proposed durable persistence for threads, visuals, coverage, lead-priority receipts, review packets and review-action receipts plus disposable PostgreSQL acceptance.
-110. [ ] Exact-head CI for items 104–109.
+104. [x] Explicit-key conversation/thread reconstruction with reply/forward chronology and orphan-reference reporting.
+105. [x] Visual/image/exhibit evidence layer with source hashes, exhibit/testimony linkage, literal reviewed observations, and explicit no-biometric-inference guard.
+106. [x] Research Coverage Map across document families, dates, entities, locations and record types; coverage is never equated with truth.
+107. [x] Neutral Lead Prioritizer using contradiction density, source-independence potential, unresolved identity, missing connective tissue, expected information gain, evidence density and estimated research cost; no person/guilt/suspicion score.
+108. [x] Human Review Workbench model + synthetic `/research-review` screen with original source, extraction/OCR, identities, contradictions, release deltas, structured tables, visual exhibits and receipt-based review actions.
+109. [x] Proposed durable persistence for threads, visuals, coverage, lead-priority receipts, review packets and review-action receipts plus disposable PostgreSQL acceptance.
+110. [x] Exact-head CI for items 104–109. Verified at PR #226 head `9ed45fdbcddf4c8ff1ca195fe66e7b06bab69dbe`, Integration CI run `36917698033` SUCCESS (130 backend test files / 660 tests, production Next build including `/research-review`, v3 PostgreSQL persistence, PDF/control/Flutter regressions green).
 111. [ ] Production/live integration remains gated by items 42, 47–49, 51, 56, 93–96 and item 103.
+
+
+## 2026-10-01 reproducibility & scale v4 extension
+
+Implementation branch: `feat/epstein-reproducibility-scale-v4-20261001`.
+
+112. [ ] Reproducible investigation replay receipts: corpus snapshots, query, filters, hop directives, resolver decisions, code version, algorithm versions, produced evidence/leads and canonical SHA-256 recipe digest.
+113. [ ] Source-anchored evidence packet builder preserving support, counterevidence, context, original-page hashes, limitations, unresolved questions and permanent human-review HOLD.
+114. [ ] Multilingual evidence lane preserving original text as canonical source plus aligned secondary translations, spans, translator/version, confidence, ambiguity and human-review state.
+115. [ ] Corpus-scale shard/backpressure planner with hard concurrency/batch/storage caps and 3.5M-page deterministic shard acceptance.
+116. [ ] Coverage-aware stopping logic requiring source-family exhaustion, sufficient coverage, stable no-new-evidence/no-new-lead rounds, zero required work and completion evidence; unresolved contradictions/identities force manual HOLD.
+117. [ ] Proposed durable persistence + disposable PostgreSQL acceptance + exact-head CI for items 112–116.
+118. [ ] Production/live integration remains gated by items 42, 47–49, 51, 56, 93–96, 103 and 111.
