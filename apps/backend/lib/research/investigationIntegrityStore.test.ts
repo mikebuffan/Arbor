@@ -13,6 +13,7 @@ function storedEvidence(): InvestigationEvidenceAtom {
     sourceRef: "court:exhibit-1",
     lineageKey: "court:exhibit-1",
     content: "Synthetic persisted primary record.",
+    contentSha256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
     supports: ["established_act"],
   };
 }
