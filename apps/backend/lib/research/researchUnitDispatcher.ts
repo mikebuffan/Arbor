@@ -9,7 +9,7 @@ import type {
   ResearchUnitReceipt,
 } from "./sessionPolicy";
 import { buildInvestigationIntegrityUnitHandler } from "./investigationIntegrityUnit";
-import type { TrustedInvestigationEvidenceStore } from "./investigationIntegrityStore";
+import type { TrustedInvestigationFindingStore } from "./investigationIntegrityStore";
 
 export type ResearchUnitHandler = (input: {
   session: ResearchSession;
@@ -92,7 +92,7 @@ function priorRunId(claim: ResearchClaim): string | undefined {
 
 export function buildDefaultResearchUnitDispatcher(input: {
   supabase: SupabaseClient;
-  integrityStore?: TrustedInvestigationEvidenceStore;
+  integrityStore?: TrustedInvestigationFindingStore;
 }): ResearchUnitDispatcher {
   const dispatcher = new ResearchUnitDispatcher().register(
     "research.pattern_hop",
