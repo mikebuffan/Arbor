@@ -1,3 +1,4 @@
+import type { CognitiveRuntimeState } from "./cognitiveRuntime.js";
 import type {
   ArborRecoveryRouteStats,
 } from "./agencyRecovery/routeLearning.js";
@@ -116,6 +117,7 @@ export type ArborState = {
   selfModelObservations?: SelfModelObservation[];
   selfModelClaims?: SelfModelClaim[];
   selfModelMigrations?: SelfModelMigrationRecord[];
+  cognitiveRuntime?: CognitiveRuntimeState;
   annabelle?: AnnabelleWorkspaceState;
   annabelleRevisions?: AnnabelleWorkspaceRevisionState[];
 };
