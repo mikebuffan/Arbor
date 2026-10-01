@@ -4,8 +4,6 @@
 -- no scheduler, no source ingestion and no publication is created here.
 -- Apply only after the existing item-42 security review and live integration approval.
 
-create extension if not exists pgcrypto;
-
 create table if not exists public.arbor_research_documents (
   id uuid primary key default gen_random_uuid(),
   owner_id uuid not null,
