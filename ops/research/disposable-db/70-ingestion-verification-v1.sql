@@ -127,10 +127,43 @@ values
 ('11111111-1111-1111-1111-111111111111','22222222-2222-2222-2222-222222222222',
  'mention-1','reclassified_duplicate','synthetic shared-origin test');
 
+insert into public.arbor_research_releases
+(owner_id, project_id, release_key, source_authority, published_at, parent_release_key, source_ref)
+values
+('11111111-1111-1111-1111-111111111111','22222222-2222-2222-2222-222222222222',
+ 'release-a','synthetic authority','2026-01-01T00:00:00Z',null,'synthetic:release-a'),
+('11111111-1111-1111-1111-111111111111','22222222-2222-2222-2222-222222222222',
+ 'release-b','synthetic authority','2026-02-01T00:00:00Z','release-a','synthetic:release-b');
+
+insert into public.arbor_research_release_deltas
+(owner_id, project_id, prior_release_key, current_release_key, added_page_ids, removed_page_ids, changed_page_ids, evidence_ref)
+values
+('11111111-1111-1111-1111-111111111111','22222222-2222-2222-2222-222222222222',
+ 'release-a','release-b','["p3"]'::jsonb,'["p2"]'::jsonb,'["p1"]'::jsonb,'synthetic:delta');
+
+insert into public.arbor_research_replay_queue
+(owner_id, project_id, replay_key, finding_key, finding_version, changed_evidence_refs, reason)
+values
+('11111111-1111-1111-1111-111111111111','22222222-2222-2222-2222-222222222222',
+ 'replay-1','finding-1',1,'["mention-1"]'::jsonb,'synthetic evidence reclassified');
+
+insert into public.arbor_research_adversarial_reviews
+(owner_id, project_id, review_key, finding_key, finding_version, independent_source_family_count,
+ counterevidence_refs, alternative_explanations, chronology_conflict_ids, unresolved_identity_ids, result_status)
+values
+('11111111-1111-1111-1111-111111111111','22222222-2222-2222-2222-222222222222',
+ 'review-1','finding-1',1,1,'["search:counter"]'::jsonb,'["shared source"]'::jsonb,'[]'::jsonb,'["candidate-1"]'::jsonb,'hold');
+
 select
   (select count(*) from public.arbor_research_mentions where mention_key='mention-1') = 1
   and
   (select observed_status from public.arbor_research_expected_record_leads where lead_key='lead-1') = 'not_observed_in_current_corpus'
   and
   (select review_status from public.arbor_research_findings where finding_key='finding-1' and version=1) = 'hold_for_human_review'
+  and
+  (select count(*) from public.arbor_research_release_deltas where prior_release_key='release-a' and current_release_key='release-b') = 1
+  and
+  (select status from public.arbor_research_replay_queue where replay_key='replay-1') = 'queued'
+  and
+  (select result_status from public.arbor_research_adversarial_reviews where review_key='review-1') = 'hold'
 as ingestion_verification_acceptance_pass;
