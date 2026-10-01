@@ -17,6 +17,7 @@ function evidence(
     sourceRef: "court:exhibit-1",
     lineageKey: "court:exhibit-1",
     content: "Synthetic primary-source content.",
+    contentSha256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
     supports: ["established_act"],
     ...overrides,
   };
