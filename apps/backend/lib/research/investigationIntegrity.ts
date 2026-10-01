@@ -39,6 +39,7 @@ export type InvestigationEvidenceAtom = {
   sourceRef: string;
   lineageKey: string;
   content: string;
+  contentSha256: string;
   supports: InvestigationAssertionKind[];
   underlyingSourceRef?: string | null;
 };
@@ -103,6 +104,9 @@ export function validateInvestigationEvidenceAtom(
   nonEmpty(evidence.sourceRef, "source_ref");
   nonEmpty(evidence.lineageKey, "lineage_key");
   nonEmpty(evidence.content, "content");
+  if (!/^[0-9a-f]{64}$/.test(evidence.contentSha256)) {
+    throw new Error("investigation_integrity_invalid_content_sha256");
+  }
 
   if (!INVESTIGATION_EVIDENCE_CLASSES.includes(evidence.evidenceClass)) {
     throw new Error("investigation_integrity_invalid_evidence_class");
@@ -118,6 +122,7 @@ export function validateInvestigationEvidenceAtom(
     sourceRef: evidence.sourceRef.trim(),
     lineageKey: evidence.lineageKey.trim(),
     content: evidence.content.trim(),
+    contentSha256: evidence.contentSha256,
     underlyingSourceRef: evidence.underlyingSourceRef?.trim() || null,
     supports: [...new Set(evidence.supports)],
   };
