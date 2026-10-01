@@ -66,10 +66,10 @@ export function hybridRetrieve(input:{
   if(![w.exact,w.lexical,w.semantic].every(x=>Number.isFinite(x)&&x>=0)||w.exact+w.lexical+w.semantic<=0)
     throw new Error("invalid_retrieval_weights");
 
-  const docs=input.documents.map(d=>({
+  const docs=input.documents.map((d:RetrievalDocument)=>({
     recordId:req(d.recordId,"record_id",240),text:req(d.text,"document_text"),
-    identifiers:[...new Set(d.identifiers.map(x=>req(x,"identifier",240)))],
-    sourceRefs:[...new Set(d.sourceRefs.map(x=>req(x,"source_ref",500)))],
+    identifiers:[...new Set(d.identifiers.map((x:string)=>req(x,"identifier",240)))],
+    sourceRefs:[...new Set(d.sourceRefs.map((x:string)=>req(x,"source_ref",500)))],
     embedding:d.embedding,
   }));
   if(new Set(docs.map(d=>d.recordId)).size!==docs.length)throw new Error("duplicate_retrieval_record_id");
@@ -79,10 +79,10 @@ export function hybridRetrieve(input:{
   for(const d of docs)for(const term of new Set(toks(d.text)))df.set(term,(df.get(term)??0)+1);
   const lexicalRaw=docs.map(d=>lexicalScore(queryText,d.text,df,docs.length));
   const lexicalMax=Math.max(0,...lexicalRaw);
-  const qIds=new Set((input.query.identifiers??[]).map(norm));
+  const qIds=new Set((input.query.identifiers??[]).map((x:string)=>norm(x)));
 
   return docs.map((d,i)=>{
-    const dIds=new Set(d.identifiers.map(norm));
+    const dIds=new Set(d.identifiers.map((x:string)=>norm(x)));
     const overlap=[...qIds].filter(x=>dIds.has(x));
     const exact=qIds.size?overlap.length/qIds.size:0;
     let semantic:number|null=null;
