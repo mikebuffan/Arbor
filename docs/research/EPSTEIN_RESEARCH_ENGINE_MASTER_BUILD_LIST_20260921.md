@@ -169,7 +169,7 @@ Legend: [x] relevant implementation plus exact-head CI evidence exists for the s
 
 ## Run 17 — investigator casework wave acceptance (2026-09-30)
 - Exact implementation head `8ef6bc3cea86135ab410b5e11e08a253ea912701`, GitHub Actions run `36818596756`: **SUCCESS**.
-- Targeted source suite including Wave 3 investigator methods: **54 test files / 259 tests PASS** before the final casework-store seam additions; the exact-head run also passed the updated targeted suite including the trusted `research.casework` unit.
+- Targeted source suite including Wave 3 investigator methods and the trusted casework seam: **55 test files / 263 tests PASS**.
 - Backend production build/typecheck: **PASS**.
 - Existing shared-ARK multi-tick disposable PostgreSQL acceptance: **PASS**.
 - Existing research controller/store, integrity/discovery persistence and identity-safety disposable PostgreSQL acceptance: **PASS**.
