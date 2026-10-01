@@ -38,6 +38,7 @@ function evidence(): InvestigationEvidenceAtom {
     sourceRef: "court:record-1",
     lineageKey: "court:record-1",
     content: "Synthetic primary record.",
+    contentSha256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
     supports: ["established_act"],
   };
 }
