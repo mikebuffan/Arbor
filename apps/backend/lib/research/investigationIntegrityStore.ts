@@ -9,9 +9,13 @@ import {
 
 export type PersistedInvestigationFindingRequest = {
   claimId: string;
+};
+
+export type PersistedInvestigationFindingContext = {
+  claimId: string;
   claimText: string;
   assertionKind: InvestigationAssertionKind;
-  supportEvidenceIds: string[];
+  support: InvestigationEvidenceAtom[];
   counterEvidenceRefs: string[];
   unresolvedContradictionIds: string[];
   falsificationAttempts: FalsificationAttempt[];
@@ -22,77 +26,67 @@ export type PersistedInvestigationFindingRequest = {
   } | null;
 };
 
-export type TrustedInvestigationEvidenceStore = {
-  loadEvidence(input: {
+export type TrustedInvestigationFindingStore = {
+  loadFindingContext(input: {
     ownerId: string;
     projectId: string;
-    evidenceIds: string[];
-  }): Promise<InvestigationEvidenceAtom[]>;
+    claimId: string;
+  }): Promise<PersistedInvestigationFindingContext | null>;
 };
 
-function cleanIds(values: string[], field: string): string[] {
-  if (!Array.isArray(values) || values.length === 0 || values.length > 100) {
-    throw new Error("investigation_integrity_" + field + "_invalid");
+function requiredText(value: string, field: string, max = 4000): string {
+  if (typeof value !== "string" || !value.trim() || value.length > max) {
+    throw new Error("investigation_integrity_" + field + "_required");
   }
-  const ids = values.map((value) => {
-    if (typeof value !== "string" || !value.trim() || value.length > 300) {
-      throw new Error("investigation_integrity_" + field + "_invalid");
-    }
-    return value.trim();
-  });
-  if (new Set(ids).size !== ids.length) {
-    throw new Error("investigation_integrity_" + field + "_duplicate");
-  }
-  return ids;
+  return value.trim();
 }
 
+/**
+ * Finding promotion never accepts evidence, contradiction state, counterevidence,
+ * falsification receipts or absence semantics from planner/model payloads.
+ * The planner can name only a persisted claim ID. The trusted owner/project
+ * store must return the complete current context for that claim.
+ */
 export async function evaluatePersistedInvestigationFinding(input: {
-  store: TrustedInvestigationEvidenceStore;
+  store: TrustedInvestigationFindingStore;
   ownerId: string;
   projectId: string;
   request: PersistedInvestigationFindingRequest;
 }): Promise<InvestigationIntegrityDecision> {
-  if (!input.ownerId.trim() || !input.projectId.trim()) {
-    throw new Error("investigation_integrity_scope_required");
-  }
+  const ownerId = requiredText(input.ownerId, "owner_id", 300);
+  const projectId = requiredText(input.projectId, "project_id", 300);
+  const claimId = requiredText(input.request.claimId, "claim_id", 300);
 
-  const requestedIds = cleanIds(
-    input.request.supportEvidenceIds,
-    "support_evidence_ids",
-  );
-  const loaded = await input.store.loadEvidence({
-    ownerId: input.ownerId,
-    projectId: input.projectId,
-    evidenceIds: requestedIds,
+  const persisted = await input.store.loadFindingContext({
+    ownerId,
+    projectId,
+    claimId,
   });
 
-  const loadedIds = loaded.map((item) => item.id);
-  if (
-    loadedIds.length !== requestedIds.length ||
-    new Set(loadedIds).size !== loadedIds.length ||
-    requestedIds.some((id) => !loadedIds.includes(id)) ||
-    loadedIds.some((id) => !requestedIds.includes(id))
-  ) {
-    throw new Error("investigation_integrity_persisted_evidence_mismatch");
+  if (!persisted) {
+    throw new Error("investigation_integrity_persisted_claim_not_found");
+  }
+  if (persisted.claimId !== claimId) {
+    throw new Error("investigation_integrity_persisted_claim_mismatch");
   }
 
   return evaluateInvestigationIntegrity({
-    claimId: input.request.claimId,
-    claimText: input.request.claimText,
-    assertionKind: input.request.assertionKind,
-    support: loaded,
-    counterEvidenceRefs: [...input.request.counterEvidenceRefs],
+    claimId: persisted.claimId,
+    claimText: persisted.claimText,
+    assertionKind: persisted.assertionKind,
+    support: persisted.support,
+    counterEvidenceRefs: [...persisted.counterEvidenceRefs],
     unresolvedContradictionIds: [
-      ...input.request.unresolvedContradictionIds,
+      ...persisted.unresolvedContradictionIds,
     ],
-    falsificationAttempts: input.request.falsificationAttempts.map(
+    falsificationAttempts: persisted.falsificationAttempts.map(
       (attempt) => ({
         ...attempt,
         evidenceRefs: [...attempt.evidenceRefs],
       }),
     ),
-    negativeEvidence: input.request.negativeEvidence
-      ? { ...input.request.negativeEvidence }
+    negativeEvidence: persisted.negativeEvidence
+      ? { ...persisted.negativeEvidence }
       : null,
   });
 }
