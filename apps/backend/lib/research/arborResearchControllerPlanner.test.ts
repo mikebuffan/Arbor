@@ -347,7 +347,7 @@ describe("canonical Arbor research controller planner adapter", () => {
     expect(call.userText).toContain("evidence:three");
     expect(call.userText).toContain("independentlyVerifiedFinding");
     expect(call.instructions).toContain("Do not merely repeat their search seeds");
-    expect(call.instructions).toContain("prefer bridge nodes/edges");
+    expect(call.instructions).toContain("Prefer starting from bridge nodes and edges");
   });
 
 });
