@@ -44,6 +44,11 @@ async function main(): Promise<void> {
     c.comparison.right.source.pdfPage === 4);
   if (!candidates.some(c => new Set(c.dates).size === 2 &&
       c.dates.includes("1999-07-30") && c.dates.includes("1999-10-10") &&
+      c.identityAssessment === "identity_unresolved" &&
+      c.eventMentions.some(m => m.pdfPage === 2 && m.date === "1999-10-10" &&
+        m.eventType === "agreement_execution") &&
+      c.eventMentions.some(m => m.pdfPage === 4 && m.date === "1999-07-30" &&
+        m.assertionType === "quoted_earlier_finding") &&
       c.comparison.reviewStatus === "needs_independent_verification" &&
       c.status === "hold_for_original_page_and_instrument_review")) {
     throw new Error("date_conflict_acceptance_failed");
@@ -56,8 +61,9 @@ async function main(): Promise<void> {
       sha256: c.original.originalBytesSha256,
       pages: c.original.declaredPageCount,
     })),
-    candidate: { dates: ["1999-07-30", "1999-10-10"], pdfPages: [3, 4],
+    candidate: { dates: ["1999-07-30", "1999-10-10"], pdfPages: [2, 3, 4],
       documentId: "Adv-03-3228-Doc-115", sourceFamilyCount: 1,
+      eventTypes: ["agreement_execution", "property_transfer"], identityAssessment: "identity_unresolved",
       disposition: "HOLD: original 2005 opinion and transfer instrument needed" },
   }, null, 2) + "\n");
 }
