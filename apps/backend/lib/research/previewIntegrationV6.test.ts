@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createPreviewRollbackReceipt, previewIntegrationPreflight, previewResearchSqlOrder } from "./previewIntegrationPlan";
 import { SupabaseInvestigationStore } from "./supabaseInvestigationStore";
+import { preparePatternHopCandidate } from "./researchPatternHopBridge";
 
 function mockDb(){
   let nextId=0;
@@ -90,6 +91,18 @@ describe("preview integration v6",()=>{
     expect(inserted.status).toBe("recorded_no_execution");
     expect(inserted.owner_id).toBe("owner-1");
     expect(inserted.project_id).toBe("project-1");
+  });
+
+  it("prepares Pattern Hop persistence candidates without submitting or requesting execution",()=>{
+    const candidate=preparePatternHopCandidate({
+      candidateId:"ph-1",anomalyRef:"anomaly:date",objective:"Cross-check the synthetic date anomaly",
+      requestedQuery:"find matching calendar and travel records",triggerEvidenceRefs:["e2","e1"],
+      maxDepth:2,maxHopsPerAttempt:3,
+    });
+    expect(candidate.status).toBe("prepared_not_submitted");
+    expect(candidate.executionRequested).toBe(false);
+    expect(candidate.persistenceTarget).toBe("arbor_pattern_hop_runs");
+    expect(candidate.seed.triggerEvidenceRefs).toEqual(["e1","e2"]);
   });
 
   it("loads only a fail-closed integration state scoped by owner/project",async()=>{
