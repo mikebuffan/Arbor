@@ -108,14 +108,11 @@ create policy arbor_research_receipts_owner_read on public.arbor_research_receip
 create or replace function public.arbor_claim_research_unit(
   p_session_id uuid,p_user_id uuid,p_project_id uuid,p_worker_id text,
   p_lease_seconds integer default 240
-) returns jsonb language plpgsql security definer set search_path = public, pg_temp as $$
+) returns jsonb language plpgsql security invoker set search_path = pg_catalog, public as $$
 declare v_session public.arbor_research_sessions%rowtype;
         v_unit public.arbor_research_units%rowtype;
         v_now timestamptz;
 begin
-  if auth.role() is distinct from 'service_role' then
-    raise exception 'research_worker_service_role_required';
-  end if;
   if p_worker_id is null or length(btrim(p_worker_id)) = 0 or
      p_lease_seconds not between 30 and 300 then
     raise exception 'invalid_research_lease';
@@ -185,15 +182,12 @@ create or replace function public.arbor_settle_research_unit(
   p_lease_token uuid,p_idempotency_key text,p_status text,
   p_cost_cents integer,p_evidence_refs text[],p_unresolved_required_work integer,
   p_result jsonb default '{}'::jsonb
-) returns text language plpgsql security definer set search_path = public, pg_temp as $$
+) returns text language plpgsql security invoker set search_path = pg_catalog, public as $$
 declare v_session public.arbor_research_sessions%rowtype;
         v_unit public.arbor_research_units%rowtype;
         v_now timestamptz;
         v_status text;
 begin
-  if auth.role() is distinct from 'service_role' then
-    raise exception 'research_worker_service_role_required';
-  end if;
   select * into v_session from public.arbor_research_sessions
     where id=p_session_id and user_id=p_user_id and project_id=p_project_id
     for update;
@@ -260,11 +254,8 @@ end $$;
 
 create or replace function public.arbor_stop_research_session(
   p_session_id uuid,p_user_id uuid,p_project_id uuid,p_status text,p_reason text
-) returns boolean language plpgsql security definer set search_path = public, pg_temp as $$
+) returns boolean language plpgsql security invoker set search_path = pg_catalog, public as $$
 begin
-  if auth.role() is distinct from 'service_role' then
-    raise exception 'research_worker_service_role_required';
-  end if;
   if p_status not in ('blocked','timebox_ended','cancelled') then
     raise exception 'invalid_research_stop_status';
   end if;
