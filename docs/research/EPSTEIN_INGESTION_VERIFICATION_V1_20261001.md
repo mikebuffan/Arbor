@@ -78,6 +78,9 @@ The proposed schema adds:
 - finding dependencies
 - evidence-change receipts
 - expected-record leads
+- release lineage and release-delta receipts
+- downstream replay queue
+- adversarial review receipts
 
 RLS is enabled in the proposal, but **no live policies, service-role grants, migration application, scheduler, ingestion or publication authorization is created**. Existing item-42 privilege review remains mandatory before production application.
 
@@ -100,6 +103,9 @@ Disposable PostgreSQL:
 - sequential finding version constraints
 - finding dependency persistence
 - evidence-change persistence
+- release-lineage/delta persistence
+- replay-queue persistence
+- adversarial-review persistence
 
 ## Implementation mapping to the 42-item 2026-10-01 build list
 
