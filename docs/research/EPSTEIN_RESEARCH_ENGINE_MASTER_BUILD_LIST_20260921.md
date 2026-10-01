@@ -95,3 +95,46 @@ Legend: [x] relevant implementation plus exact-head CI evidence exists for the s
 
 ### Saved run receipt
 Current isolated draft: #189, branch `feat/ark-research-disposable-attempt-matrix-20260922`. Code/test commits add only disposable synthetic PostgreSQL acceptance and CI wiring. At handoff time exact-head Actions had not yet appeared, so item 45 remains partial and no success is claimed. No merge, deployment, production DB, live worker, scheduler, paid API, private/victim data, EFTA processing or publication was performed.
+
+
+## 2026-10-01 ingestion & verification v1 extension
+
+Implementation branch: `feat/epstein-ingestion-verification-v1-20261001`.
+Detailed mapping: `docs/research/EPSTEIN_INGESTION_VERIFICATION_V1_20261001.md`.
+
+65. [~] Canonical document/page/mention ingestion contracts plus proposed durable schema.
+66. [~] Exact and normalized page fingerprinting plus near-duplicate candidate scoring.
+67. [~] Release Delta comparison: added/removed/changed/reordered pages and attachments.
+68. [~] Redaction geometry mapper; similarity can create a lead but never resolve hidden identity.
+69. [~] Bates/page/attachment missingness and expected-record lead contract; absence remains non-evidence.
+70. [~] Deterministic document typology and machine-safe structural extraction.
+71. [~] Immutable source-coordinate Evidence Mention Ledger contract.
+72. [~] Candidate-first entity resolution with fuzzy alias ranking and no silent merge.
+73. [~] Append-only identity correction/supersession chain.
+74. [~] Typed global relation edges and proximity-only edge class.
+75. [~] Cogs metrics describe connectivity only; no automatic importance/conduct inference.
+76. [~] Evidence-origin/source-family collapse for mirrors and explicit derivative reporting.
+77. [~] Expanded temporal observation model and conservative chronology/location conflict detection.
+78. [~] Recurring-pattern detector.
+79. [~] Observable transcript response-pattern shift detector; no deception/guilt/motive inference.
+80. [~] Bounded evidence-backed next-hop explanation contract.
+81. [~] Research Interrupt Queue contract preserving parent checkpoint.
+82. [~] Three-directive bounded Roundabout cap per pass.
+83. [~] Evidence status, identity status and extraction confidence remain separate dimensions.
+84. [~] Versioned finding candidate contract.
+85. [~] Downstream evidence replay marks every dependent finding for re-review after evidence changes.
+86. [~] Adversarial finding check: source independence, counterevidence, alternatives, chronology, identity.
+87. [~] Publication preflight integrates existing privacy/original-page/release gates.
+88. [~] Investigation Cockpit summary contract.
+89. [~] Hierarchical bounded page batches and deterministic idempotency keys.
+90. [~] Synthetic Vitest acceptance for ingestion, aliases, release delta, provenance, timeline, replay and pass orchestration.
+91. [~] Disposable PostgreSQL acceptance for proposed ingestion schema and invariant constraints.
+92. [ ] Exact-head CI required before any item 65–91 is promoted to [x].
+93. [ ] Existing item-42 DB privilege/security review remains required before any production application.
+94. [ ] Live worker persistence/Pattern Hop wiring remains behind existing integration/deployment approval.
+95. [ ] Real-source Epstein/EFTA ingestion remains separately authorization-gated.
+96. [ ] Human original-page fidelity/privacy review and any publication remain separately gated.
+
+### 2026-10-01 next action
+
+Open the ingestion branch as a draft child against the CI-enabled research handoff base so the corrected item-45 disposable PostgreSQL stage and the new backend/PostgreSQL acceptance run at the same exact head. If green, record exact run evidence and promote only the verified synthetic/disposable scope; do not infer production authorization.
