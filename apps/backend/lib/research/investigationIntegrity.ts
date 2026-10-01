@@ -234,6 +234,17 @@ export function evaluateInvestigationIntegrity(
     reasons.push("unresolved_contradictions_present");
   }
 
+  if (draft.counterEvidenceRefs.length > 0) {
+    const survivedCounterRefs = new Set(
+      draft.falsificationAttempts
+        .filter((attempt) => attempt.result === "survived")
+        .flatMap((attempt) => attempt.evidenceRefs),
+    );
+    if (draft.counterEvidenceRefs.some((ref) => !survivedCounterRefs.has(ref))) {
+      reasons.push("counterevidence_requires_explicit_resolution");
+    }
+  }
+
   if (
     requiresFalsification(draft.assertionKind) &&
     draft.falsificationAttempts.length === 0
