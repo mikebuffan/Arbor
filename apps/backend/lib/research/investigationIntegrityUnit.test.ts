@@ -6,7 +6,10 @@ import {
   buildInvestigationIntegrityUnitHandler,
   parsePersistedInvestigationFindingRequest,
 } from "./investigationIntegrityUnit";
-import type { TrustedInvestigationEvidenceStore } from "./investigationIntegrityStore";
+import type {
+  PersistedInvestigationFindingContext,
+  TrustedInvestigationFindingStore,
+} from "./investigationIntegrityStore";
 
 const AT = "2026-09-30T23:00:00.000Z";
 
@@ -39,6 +42,27 @@ function evidence(): InvestigationEvidenceAtom {
   };
 }
 
+function persistedContext(
+  overrides: Partial<PersistedInvestigationFindingContext> = {},
+): PersistedInvestigationFindingContext {
+  return {
+    claimId: "claim-1",
+    claimText: "Synthetic act occurred.",
+    assertionKind: "established_act",
+    support: [evidence()],
+    counterEvidenceRefs: [],
+    unresolvedContradictionIds: [],
+    falsificationAttempts: [{
+      id: "break-1",
+      hypothesis: "The act did not occur.",
+      result: "survived",
+      evidenceRefs: ["counter-check-1"],
+    }],
+    negativeEvidence: null,
+    ...overrides,
+  };
+}
+
 function claim(request: Record<string, unknown>): ResearchClaim {
   return {
     unitId: "unit-1",
@@ -50,49 +74,28 @@ function claim(request: Record<string, unknown>): ResearchClaim {
   };
 }
 
-function validRequest() {
-  return {
-    claimId: "claim-1",
-    claimText: "Synthetic act occurred.",
-    assertionKind: "established_act",
-    supportEvidenceIds: ["evidence-1"],
-    counterEvidenceRefs: [],
-    unresolvedContradictionIds: [],
-    falsificationAttempts: [{
-      id: "break-1",
-      hypothesis: "The act did not occur.",
-      result: "survived",
-      evidenceRefs: ["counter-check-1"],
-    }],
-    negativeEvidence: null,
-  };
-}
-
 describe("investigation integrity research unit", () => {
-  it("parses only the bounded integrity request shape", () => {
-    expect(parsePersistedInvestigationFindingRequest(validRequest()))
-      .toMatchObject({
-        claimId: "claim-1",
-        assertionKind: "established_act",
-        supportEvidenceIds: ["evidence-1"],
-      });
+  it("accepts only a persisted claim id from planner payload", () => {
+    expect(parsePersistedInvestigationFindingRequest({
+      claimId: "claim-1",
+    })).toEqual({ claimId: "claim-1" });
 
     expect(() => parsePersistedInvestigationFindingRequest({
-      ...validRequest(),
-      supportEvidenceIds: [],
+      claimId: "claim-1",
+      support: [evidence()],
     })).toThrow(
-      "investigation_integrity_unit_invalid_support_evidence_ids",
+      "investigation_integrity_unit_request_must_reference_claim_only",
     );
   });
 
   it("completes a gate pass without claiming independent verification", async () => {
-    const store: TrustedInvestigationEvidenceStore = {
-      loadEvidence: vi.fn(async () => [evidence()]),
+    const store: TrustedInvestigationFindingStore = {
+      loadFindingContext: vi.fn(async () => persistedContext()),
     };
     const handler = buildInvestigationIntegrityUnitHandler(store);
     const receipt = await handler({
       session,
-      claim: claim(validRequest()),
+      claim: claim({ claimId: "claim-1" }),
       remainingMs: 60_000,
       remainingCostCents: 0,
       at: AT,
@@ -100,8 +103,10 @@ describe("investigation integrity research unit", () => {
 
     expect(receipt).toMatchObject({
       status: "completed",
+      evidenceRefs: ["investigation-claim:claim-1"],
       unresolvedRequiredWork: 1,
       result: {
+        persistedClaimId: "claim-1",
         investigationIntegrityStatus: "promotable",
         findingIntegrityPassed: true,
         independentlyVerifiedFinding: false,
@@ -109,17 +114,16 @@ describe("investigation integrity research unit", () => {
     });
   });
 
-  it("blocks rather than smoothing over an unresolved contradiction", async () => {
-    const store: TrustedInvestigationEvidenceStore = {
-      loadEvidence: vi.fn(async () => [evidence()]),
+  it("blocks rather than smoothing over a persisted contradiction", async () => {
+    const store: TrustedInvestigationFindingStore = {
+      loadFindingContext: vi.fn(async () => persistedContext({
+        unresolvedContradictionIds: ["contradiction-1"],
+      })),
     };
     const handler = buildInvestigationIntegrityUnitHandler(store);
     const receipt = await handler({
       session,
-      claim: claim({
-        ...validRequest(),
-        unresolvedContradictionIds: ["contradiction-1"],
-      }),
+      claim: claim({ claimId: "claim-1" }),
       remainingMs: 60_000,
       remainingCostCents: 0,
       at: AT,
@@ -137,27 +141,26 @@ describe("investigation integrity research unit", () => {
     });
   });
 
-  it("derives owner and project from the trusted session, not from payload text", async () => {
-    const store: TrustedInvestigationEvidenceStore = {
-      loadEvidence: vi.fn(async (input) => {
-        expect(input.ownerId).toBe("owner-1");
-        expect(input.projectId).toBe("project-1");
-        return [evidence()];
+  it("derives owner/project scope from the trusted session", async () => {
+    const store: TrustedInvestigationFindingStore = {
+      loadFindingContext: vi.fn(async (input) => {
+        expect(input).toEqual({
+          ownerId: "owner-1",
+          projectId: "project-1",
+          claimId: "claim-1",
+        });
+        return persistedContext();
       }),
     };
     const handler = buildInvestigationIntegrityUnitHandler(store);
     await handler({
       session,
-      claim: claim({
-        ...validRequest(),
-        ownerId: "spoofed-owner",
-        projectId: "spoofed-project",
-      }),
+      claim: claim({ claimId: "claim-1" }),
       remainingMs: 60_000,
       remainingCostCents: 0,
       at: AT,
     });
 
-    expect(store.loadEvidence).toHaveBeenCalledOnce();
+    expect(store.loadFindingContext).toHaveBeenCalledOnce();
   });
 });
