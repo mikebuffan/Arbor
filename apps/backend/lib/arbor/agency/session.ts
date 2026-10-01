@@ -7,6 +7,12 @@ import {
 import { loadRuntimeState } from "../runtime/runtimeStateStore";
 import { resolveAgencyGoal } from "./continuation";
 import { recordStrategyCandidate } from "./strategyRetention";
+import {
+  preserveSuspendedOpenLoops,
+  restoreMostRecentOpenLoop,
+  splitAgencyWork,
+  suspendAgencyIntoWork,
+} from "./openLoops";
 
 export function nextObjective(
   prior: AgencyState | null,
@@ -19,7 +25,9 @@ export function nextObjective(
       ...prior.objective,
       parentGoal: prior.objective.parentGoal || goal,
       status: "active",
-      nextAction: unresolvedWork[0] ?? prior.objective.nextAction ?? `continue goal: ${goal}`,
+      nextAction: splitAgencyWork(unresolvedWork).current[0] ??
+        prior.objective.nextAction ??
+        `continue goal: ${goal}`,
       checkpoint: prior.objective.checkpoint,
       revision: prior.objective.revision + 1,
     };
@@ -40,7 +48,8 @@ export function nextObjective(
       "high-consequence fork",
       "missing required authorization",
     ],
-    nextAction: unresolvedWork[0] ?? `complete goal: ${goal}`,
+    nextAction: splitAgencyWork(unresolvedWork).current[0] ??
+      `complete goal: ${goal}`,
     checkpoint: "objective accepted",
     status: "active",
     revision: (prior?.objective?.revision ?? 0) + 1,
@@ -67,11 +76,58 @@ export function choosePriorAgency(
   const conversation = resumableAgency(conversationAgency);
   const projectRevision = project?.objective?.revision ?? 0;
   const conversationRevision = conversation?.objective?.revision ?? 0;
-  // Project state is canonical on a revision tie. A conversation may only
-  // override it when it is demonstrably newer.
   return conversation && conversationRevision > projectRevision
     ? conversation
     : project ?? conversation;
+}
+
+/**
+ * Pure transition used by persistence and tests. An unrelated turn is a
+ * foreground interruption, not implicit cancellation of unfinished work.
+ */
+export function buildAgencySessionState(input: {
+  userText: string;
+  prior: AgencyState | null;
+  checkpointId?: string;
+  now?: string;
+}): AgencyState {
+  const { goal, resume, superseded } =
+    resolveAgencyGoal(input.userText, input.prior);
+
+  const foregroundWork =
+    resume && input.prior
+      ? splitAgencyWork(input.prior.unresolvedWork).current.length
+        ? input.prior.unresolvedWork
+        : [`complete goal: ${input.prior.goal}`]
+      : [`complete goal: ${goal}`];
+
+  const unresolvedWork =
+    !resume &&
+    !superseded &&
+    input.prior &&
+    resumableAgency(input.prior)
+      ? suspendAgencyIntoWork(
+          foregroundWork,
+          input.prior,
+          {
+            id: input.checkpointId,
+            suspendedAt: input.now,
+          },
+        )
+      : foregroundWork;
+
+  return {
+    goal,
+    status: "active",
+    currentStep: resume && input.prior ? input.prior.currentStep : 0,
+    unresolvedWork,
+    recurringWeaknesses: input.prior?.recurringWeaknesses ?? [],
+    strategyNotes: input.prior?.strategyNotes ?? [],
+    blocker: null,
+    attemptedActionIds: resume ? input.prior?.attemptedActionIds ?? [] : [],
+    lastVerification: resume ? input.prior?.lastVerification ?? null : null,
+    objective: nextObjective(input.prior, goal, unresolvedWork, resume),
+  };
 }
 
 export async function beginAgencySession(input: {
@@ -93,42 +149,19 @@ export async function beginAgencySession(input: {
       : Promise.resolve(null),
   ]);
 
-  // Project state is the canonical carrier. A conversation may resume only
-  // when it is not older than the project objective. This prevents revisiting
-  // an old thread from resurrecting stale work over a newer project checkpoint.
   const prior = choosePriorAgency(
     projectAgency,
     conversationRuntime?.agency,
   );
 
-  const { goal, resume } = resolveAgencyGoal(input.userText, prior);
-
-  const unresolvedWork =
-    resume && prior
-      ? prior.unresolvedWork.length
-        ? prior.unresolvedWork
-        : [`complete goal: ${prior.goal}`]
-      : [`complete goal: ${goal}`];
-
-  const agency: AgencyState = {
-    goal,
-    status: "active",
-    currentStep: resume && prior ? prior.currentStep : 0,
-    // Persist ownership immediately so an interrupted request cannot erase
-    // the parent objective before the first tool call.
-    unresolvedWork,
-    recurringWeaknesses: prior?.recurringWeaknesses ?? [],
-    strategyNotes: prior?.strategyNotes ?? [],
-    blocker: null,
-    objective: nextObjective(prior, goal, unresolvedWork, resume),
-  };
+  const agency = buildAgencySessionState({
+    userText: input.userText,
+    prior,
+  });
 
   await persistAgencyState({
     ...input,
     agency,
-    // Any existing durable objective is revision-owned, including a
-    // completed objective being replaced by a new goal. This prevents two
-    // simultaneous turns from silently overwriting one another.
     expectedRevision: prior?.objective?.revision,
     expectAbsent: !prior,
   });
@@ -155,7 +188,14 @@ export async function recordAgencyProgress(input: {
     : null;
 
   const unresolvedWork =
-    input.unresolvedWork ?? input.agency.unresolvedWork;
+    input.unresolvedWork === undefined
+      ? input.agency.unresolvedWork
+      : preserveSuspendedOpenLoops(
+          input.agency.unresolvedWork,
+          input.unresolvedWork,
+        );
+
+  const foreground = splitAgencyWork(unresolvedWork).current;
 
   const next: AgencyState = {
     ...input.agency,
@@ -177,7 +217,7 @@ export async function recordAgencyProgress(input: {
           ...input.agency.objective,
           status: "active",
           nextAction:
-            unresolvedWork[0] ??
+            foreground[0] ??
             input.agency.objective.nextAction ??
             `continue goal: ${input.agency.goal}`,
           checkpoint: `step ${input.step} persisted`,
@@ -210,16 +250,22 @@ export async function blockAgencySession(input: {
   blocker: AgencyBlocker;
   unresolvedWork: string[];
 }): Promise<AgencyState> {
+  const unresolvedWork = preserveSuspendedOpenLoops(
+    input.agency.unresolvedWork,
+    input.unresolvedWork,
+  );
+  const foreground = splitAgencyWork(unresolvedWork).current;
+
   const next: AgencyState = {
     ...input.agency,
     status: "blocked",
     blocker: input.blocker,
-    unresolvedWork: input.unresolvedWork,
+    unresolvedWork,
     objective: input.agency.objective
       ? {
           ...input.agency.objective,
           status: "blocked",
-          nextAction: input.unresolvedWork[0] ?? null,
+          nextAction: foreground[0] ?? null,
           checkpoint: `blocked: ${input.blocker}`,
           revision: input.agency.objective.revision + 1,
         }
@@ -248,6 +294,7 @@ export async function checkpointAgencySession(input: {
   const unresolvedWork = input.agency.unresolvedWork.length
     ? input.agency.unresolvedWork
     : [`continue goal: ${input.agency.goal}`];
+  const foreground = splitAgencyWork(unresolvedWork).current;
 
   const next: AgencyState = {
     ...input.agency,
@@ -259,7 +306,7 @@ export async function checkpointAgencySession(input: {
           ...input.agency.objective,
           status: "checkpointed",
           nextAction:
-            unresolvedWork[0] ??
+            foreground[0] ??
             input.agency.objective.nextAction ??
             `continue goal: ${input.agency.goal}`,
           checkpoint: input.reason ?? "execution checkpoint persisted",
@@ -287,30 +334,63 @@ export async function completeAgencySession(input: {
   agency: AgencyState;
   verified: boolean;
 }): Promise<AgencyState> {
-  const next: AgencyState = {
-    ...input.agency,
-    status: input.verified ? "complete" : "active",
-    unresolvedWork: input.verified
-      ? []
-      : input.agency.unresolvedWork,
-    blocker: null,
-    objective: input.agency.objective
-      ? {
-          ...input.agency.objective,
-          status: input.verified ? "complete" : "active",
-          nextAction: input.verified
-            ? null
-            : input.agency.unresolvedWork[0] ?? input.agency.objective.nextAction,
-          checkpoint: input.verified
-            ? "completion verified and persisted"
-            : "completion verification did not pass",
-          revision: input.agency.objective.revision + 1,
-          execution: input.verified
-            ? null
-            : input.agency.objective.execution ?? null,
-        }
-      : undefined,
-  };
+  const restored = input.verified
+    ? restoreMostRecentOpenLoop(input.agency)
+    : null;
+
+  let next: AgencyState;
+
+  if (restored) {
+    const currentRevision = input.agency.objective?.revision ?? 0;
+    const restoredForeground = splitAgencyWork(restored.unresolvedWork).current;
+    next = {
+      ...restored,
+      objective: restored.objective
+        ? {
+            ...restored.objective,
+            status: restored.status,
+            nextAction:
+              restoredForeground[0] ??
+              restored.objective.nextAction ??
+              `continue goal: ${restored.goal}`,
+            checkpoint: "resumed suspended objective after foreground completion",
+            revision: currentRevision + 1,
+            execution: null,
+          }
+        : nextObjective(
+            input.agency,
+            restored.goal,
+            restored.unresolvedWork,
+            false,
+          ),
+    };
+  } else {
+    next = {
+      ...input.agency,
+      status: input.verified ? "complete" : "active",
+      unresolvedWork: input.verified
+        ? []
+        : input.agency.unresolvedWork,
+      blocker: null,
+      objective: input.agency.objective
+        ? {
+            ...input.agency.objective,
+            status: input.verified ? "complete" : "active",
+            nextAction: input.verified
+              ? null
+              : splitAgencyWork(input.agency.unresolvedWork).current[0] ??
+                input.agency.objective.nextAction,
+            checkpoint: input.verified
+              ? "completion verified and persisted"
+              : "completion verification did not pass",
+            revision: input.agency.objective.revision + 1,
+            execution: input.verified
+              ? null
+              : input.agency.objective.execution ?? null,
+          }
+        : undefined,
+    };
+  }
 
   await persistAgencyState({
     supabase: input.supabase,
@@ -318,9 +398,11 @@ export async function completeAgencySession(input: {
     projectId: input.projectId,
     agency: next,
     expectedRevision: input.agency.objective?.revision,
-    checkpointReason: input.verified
-      ? "completion verified"
-      : "completion verification failed",
+    checkpointReason: restored
+      ? "foreground complete; suspended objective resumed"
+      : input.verified
+        ? "completion verified"
+        : "completion verification failed",
   });
 
   return next;
