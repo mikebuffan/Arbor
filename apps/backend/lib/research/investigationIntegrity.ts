@@ -47,7 +47,8 @@ export type InvestigationEvidenceAtom = {
 export type FalsificationAttempt = {
   id: string;
   hypothesis: string;
-  result: "survived" | "failed" | "inconclusive";
+  /** Outcome is always relative to the current claim, not the adversarial hypothesis. */
+  result: "claim_survived" | "claim_failed" | "inconclusive";
   evidenceRefs: string[];
 };
 
@@ -242,7 +243,7 @@ export function evaluateInvestigationIntegrity(
   if (draft.counterEvidenceRefs.length > 0) {
     const survivedCounterRefs = new Set(
       draft.falsificationAttempts
-        .filter((attempt) => attempt.result === "survived")
+        .filter((attempt) => attempt.result === "claim_survived")
         .flatMap((attempt) => attempt.evidenceRefs),
     );
     if (draft.counterEvidenceRefs.some((ref) => !survivedCounterRefs.has(ref))) {
@@ -255,6 +256,16 @@ export function evaluateInvestigationIntegrity(
     draft.falsificationAttempts.length === 0
   ) {
     reasons.push("falsification_attempt_required");
+  }
+  if (draft.falsificationAttempts.some(
+    (attempt) => attempt.result === "claim_failed",
+  )) {
+    reasons.push("falsification_failed_claim");
+  }
+  if (draft.falsificationAttempts.some(
+    (attempt) => attempt.result === "inconclusive",
+  )) {
+    reasons.push("falsification_inconclusive");
   }
 
   if (
