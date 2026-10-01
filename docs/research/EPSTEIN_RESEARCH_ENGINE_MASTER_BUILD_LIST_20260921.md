@@ -53,8 +53,8 @@ Legend: [x] relevant implementation plus exact-head CI evidence exists for the s
 38. [x] Start/deadline/authorization guards and distinct non-completion state.
 39. [x] Research Vitest discovery fixed.
 40. [x] No-cost isolated synthetic PostgreSQL 17 CI service exercises proposed research SQL; no real user data or production DB.
-41. [~] Owner/RLS acceptance is exercised synthetically; full service-role matrix remains before production integration.
-42. [ ] Security review of search_path/SECURITY DEFINER/EXECUTE privileges remains required before any production application.
+41. [x] Owner/RLS acceptance plus explicit service-role/client privilege matrix verified synthetically through v5 disposable PostgreSQL acceptance. Live integration remains separately gated.
+42. [x] Proposed research-stack security review complete: least-privilege grants, RLS catalog assertions, SECURITY INVOKER RPCs, pinned search_path and service-role-only write execution verified at PR #229 head `18882ebfadb9a1bf9a302c6ba3dc8c3a562d6a5f`, run `36923115563`. Actual Preview/production application remains separately gated.
 43. [x] Disposable CI exercises claim/settlement/idempotency/owner RLS/STOP, deadline/expiry/fencing/revocation, independent-connection concurrency, lock-wait fences and STOP-vs-settlement race. Verified run `35806979345`. Disposable DB evidence only.
 44. [x] Advisory late-settlement policy plus SQL lock-time resampling repair verified; database remains authoritative.
 45. [x] Disposable PostgreSQL coverage for failed receipt + retry delay, terminal `max_attempts`, stalled active-lease fencing, reclaim after expiry, bounded attempt increment, cost accounting and no false completion. Verified again at PR #224 exact head `b06f894bcf0356659da6703f56950571f750a8cb`, Integration CI run `36909153495` SUCCESS.
@@ -130,7 +130,7 @@ Detailed mapping: `docs/research/EPSTEIN_INGESTION_VERIFICATION_V1_20261001.md`.
 90. [x] Synthetic Vitest acceptance for ingestion, aliases, release delta, provenance, timeline, replay and pass orchestration.
 91. [x] Disposable PostgreSQL acceptance for proposed ingestion schema and invariant constraints.
 92. [x] Exact-head CI verification complete for items 65–91 synthetic/disposable scope: PR #224 head `b06f894bcf0356659da6703f56950571f750a8cb`, run `36909153495` SUCCESS (128 backend test files / 651 tests, production Next build, disposable PostgreSQL, PDF sandbox, control backend, Flutter/Android all green).
-93. [ ] Existing item-42 DB privilege/security review remains required before any production application.
+93. [x] Item-42 privilege/security review is complete for the proposed research stack. No live Preview or production application is authorized by that verification.
 94. [ ] Live worker persistence/Pattern Hop wiring remains behind existing integration/deployment approval.
 95. [ ] Real-source Epstein/EFTA ingestion remains separately authorization-gated.
 96. [ ] Human original-page fidelity/privacy review and any publication remain separately gated.
@@ -184,12 +184,28 @@ Implementation branch: `feat/epstein-reproducibility-scale-v4-20261001`.
 
 Implementation branch: `feat/epstein-security-integration-v5-20261001`.
 
-119. [ ] Read-only Firefly ARK Preview security baseline: RLS inventory, Supabase Security Advisor, table grants, function ACL/elevation/search_path, anonymous visibility sample, public-schema CREATE privileges.
-120. [ ] Convert proposed bounded research RPCs from SECURITY DEFINER to SECURITY INVOKER and remove deprecated/redundant service-role claim checks.
-121. [ ] Explicit raw-research least-privilege grant matrix: anon none, authenticated only owner-readable session status, service_role writes/RPC execution.
-122. [ ] Remove unnecessary pgcrypto extension creation from research ingestion proposal.
-123. [ ] Catalog-level disposable CI assertions for RLS, grants, SECURITY DEFINER regression, pinned search_path and RPC EXECUTE roles.
-124. [ ] Prove the bounded claim RPC still executes successfully as the actual PostgreSQL service_role after elevation is removed.
-125. [ ] Non-applied Preview legacy grant-hardening candidate for service-only no-policy tables/functions and redundant anon ARK/Pattern-Hop grants.
-126. [ ] Exact-head CI for items 119–125.
+119. [x] Read-only Firefly ARK Preview security baseline: RLS inventory, Supabase Security Advisor, table grants, function ACL/elevation/search_path, anonymous visibility sample, public-schema CREATE privileges.
+120. [x] Convert proposed bounded research RPCs from SECURITY DEFINER to SECURITY INVOKER and remove deprecated/redundant service-role claim checks.
+121. [x] Explicit raw-research least-privilege grant matrix: anon none, authenticated only owner-readable session status, service_role writes/RPC execution.
+122. [x] Remove unnecessary pgcrypto extension creation from research ingestion proposal.
+123. [x] Catalog-level disposable CI assertions for RLS, grants, SECURITY DEFINER regression, pinned search_path and RPC EXECUTE roles.
+124. [x] Prove the bounded claim RPC still executes successfully as the actual PostgreSQL service_role after elevation is removed.
+125. [x] Non-applied Preview legacy grant-hardening candidate for service-only no-policy tables/functions and redundant anon ARK/Pattern-Hop grants.
+126. [x] Exact-head CI for items 119–125. Verified at PR #229 head `18882ebfadb9a1bf9a302c6ba3dc8c3a562d6a5f`, Integration CI run `36923115563` SUCCESS (131 backend test files / 665 tests, production Next build, security matrix/service-role acceptance, PDF/control/Flutter regressions green).
 127. [ ] Actual Preview grant/auth/extension changes remain separately approval-gated; no production Firefly/Grove mutation.
+
+
+## 2026-10-01 Preview integration rehearsal v6 extension
+
+Implementation branch: `feat/epstein-preview-integration-v6-20261001`.
+
+128. [ ] Ordered Preview-only research schema application manifest with collision preflight and all execution/scheduler/real-source/publication flags hard OFF.
+129. [ ] Forward-only rollback receipt contract preserving pre-apply migration head, applied migration list, no-data-ingested and never-executed state.
+130. [ ] Default-OFF Preview integration-state table that cannot enable execution, scheduler, real-source ingestion or publication in v6.
+131. [ ] Append-only same-owner/project bounded research session handoff receipts.
+132. [ ] Server-only owner/project-scoped Supabase investigation persistence adapter with allow-listed replay/evidence-packet/handoff writes and fail-closed integration-state read.
+133. [ ] Same-user/project isolation and cross-session handoff acceptance in disposable PostgreSQL using two synthetic owners/projects.
+134. [ ] Default-OFF Pattern Hop persistence candidate bridge; prepared-not-submitted and executionRequested:false.
+135. [ ] Read-only real ARK Preview preflight confirms no existing `arbor_research_*` tables/functions and no research migration collision.
+136. [ ] Exact-head CI for items 128–135.
+137. [ ] Actual Preview schema application remains separately approval-gated; no production Firefly/Grove mutation or real-source ingestion.
