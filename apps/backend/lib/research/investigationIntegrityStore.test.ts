@@ -2,8 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 import type { InvestigationEvidenceAtom } from "./investigationIntegrity";
 import {
   evaluatePersistedInvestigationFinding,
-  type PersistedInvestigationFindingRequest,
-  type TrustedInvestigationEvidenceStore,
+  type PersistedInvestigationFindingContext,
+  type TrustedInvestigationFindingStore,
 } from "./investigationIntegrityStore";
 
 function storedEvidence(): InvestigationEvidenceAtom {
@@ -17,14 +17,14 @@ function storedEvidence(): InvestigationEvidenceAtom {
   };
 }
 
-function request(
-  overrides: Partial<PersistedInvestigationFindingRequest> = {},
-): PersistedInvestigationFindingRequest {
+function context(
+  overrides: Partial<PersistedInvestigationFindingContext> = {},
+): PersistedInvestigationFindingContext {
   return {
     claimId: "claim-1",
     claimText: "Synthetic act occurred.",
     assertionKind: "established_act",
-    supportEvidenceIds: ["persisted-1"],
+    support: [storedEvidence()],
     counterEvidenceRefs: [],
     unresolvedContradictionIds: [],
     falsificationAttempts: [{
@@ -39,15 +39,15 @@ function request(
 }
 
 describe("trusted persisted investigation integrity evaluation", () => {
-  it("loads support from trusted persistence instead of accepting model-supplied evidence objects", async () => {
-    const store: TrustedInvestigationEvidenceStore = {
-      loadEvidence: vi.fn(async (input) => {
+  it("loads the full finding context from trusted persistence", async () => {
+    const store: TrustedInvestigationFindingStore = {
+      loadFindingContext: vi.fn(async (input) => {
         expect(input).toEqual({
           ownerId: "owner-1",
           projectId: "project-1",
-          evidenceIds: ["persisted-1"],
+          claimId: "claim-1",
         });
-        return [storedEvidence()];
+        return context();
       }),
     };
 
@@ -55,61 +55,70 @@ describe("trusted persisted investigation integrity evaluation", () => {
       store,
       ownerId: "owner-1",
       projectId: "project-1",
-      request: request(),
+      request: { claimId: "claim-1" },
     })).resolves.toMatchObject({
       status: "promotable",
       independentLineages: 1,
     });
   });
 
-  it("fails closed when trusted persistence cannot return every requested evidence id", async () => {
-    const store: TrustedInvestigationEvidenceStore = {
-      loadEvidence: vi.fn(async () => []),
+  it("fails closed when the trusted store cannot resolve the claim", async () => {
+    const store: TrustedInvestigationFindingStore = {
+      loadFindingContext: vi.fn(async () => null),
     };
 
     await expect(evaluatePersistedInvestigationFinding({
       store,
       ownerId: "owner-1",
       projectId: "project-1",
-      request: request(),
+      request: { claimId: "claim-1" },
     })).rejects.toThrow(
-      "investigation_integrity_persisted_evidence_mismatch",
+      "investigation_integrity_persisted_claim_not_found",
     );
   });
 
-  it("fails closed when persistence returns an unexpected evidence object", async () => {
-    const store: TrustedInvestigationEvidenceStore = {
-      loadEvidence: vi.fn(async () => [{
-        ...storedEvidence(),
-        id: "not-requested",
-      }]),
+  it("fails closed when persistence returns a different claim id", async () => {
+    const store: TrustedInvestigationFindingStore = {
+      loadFindingContext: vi.fn(async () => context({
+        claimId: "other-claim",
+      })),
     };
 
     await expect(evaluatePersistedInvestigationFinding({
       store,
       ownerId: "owner-1",
       projectId: "project-1",
-      request: request(),
+      request: { claimId: "claim-1" },
     })).rejects.toThrow(
-      "investigation_integrity_persisted_evidence_mismatch",
+      "investigation_integrity_persisted_claim_mismatch",
     );
   });
 
-  it("preserves a HOLD returned by the integrity gate", async () => {
-    const store: TrustedInvestigationEvidenceStore = {
-      loadEvidence: vi.fn(async () => [storedEvidence()]),
-    };
-
-    await expect(evaluatePersistedInvestigationFinding({
-      store,
-      ownerId: "owner-1",
-      projectId: "project-1",
-      request: request({
+  it("preserves trusted contradictions and counterevidence from persistence", async () => {
+    const store: TrustedInvestigationFindingStore = {
+      loadFindingContext: vi.fn(async () => context({
         unresolvedContradictionIds: ["contradiction-1"],
-      }),
+        counterEvidenceRefs: ["counter-1"],
+        falsificationAttempts: [{
+          id: "break-other",
+          hypothesis: "Different challenge.",
+          result: "survived",
+          evidenceRefs: ["different-evidence"],
+        }],
+      })),
+    };
+
+    await expect(evaluatePersistedInvestigationFinding({
+      store,
+      ownerId: "owner-1",
+      projectId: "project-1",
+      request: { claimId: "claim-1" },
     })).resolves.toMatchObject({
       status: "hold",
-      reasons: ["unresolved_contradictions_present"],
+      reasons: expect.arrayContaining([
+        "unresolved_contradictions_present",
+        "counterevidence_requires_explicit_resolution",
+      ]),
     });
   });
 });
