@@ -77,3 +77,25 @@ host; create one source-authorized evidence packet; execute the plan then a
 bounded follow-up; independently read task/receipt/evidence state; interrupt and
 resume; confirm no duplicate acquisition and preserve unanswered questions.
 Only after that gate should repeated unattended runs be treated as verified.
+# Trusted host connection
+
+`runResearchReinsArkPulse` now accepts an optional host-only
+`resolveCaseworkStore` callback. After validating the ARK claim against the
+authorized run, it passes the persisted owner, project, session, and authorization
+version to that callback. A returned trusted packet store registers
+`research.casework` in the existing dispatcher and planner. Task payloads cannot
+provide this callback or change its scope. No store means no casework capability;
+resolver errors stop binding construction.
+
+The connection test exercises the actual host binding and casework dispatcher,
+then serializes/restores its receipt and selects follow-up work through the
+existing controller selector. Completed keys are skipped. Prompt construction
+and model planner construction are mocked; no model, database, network source,
+ARK lease, or live worker runs in this test. It is not a deployed end-to-end proof.
+
+The deployment still requires an accessible isolated host, the research/reins
+schema and RPCs, and an operator-owned durable packet store supplied by that
+host. The host callback is not yet configured by a deployed caller. The reins
+source scope remains `project_history`; this does not grant access to an external
+investigation corpus. Follow-up source acquisition and integrity promotion must
+be verified separately before reporting live research findings.

@@ -5,6 +5,7 @@ import { ArkExecutorRegistry } from "@/lib/ark/executorRegistry";
 import { runArkWorkerCycle, type ArkWorkerCycleResult } from "@/lib/ark/runner";
 import { SupabaseArkStore } from "@/lib/ark/supabaseStore";
 import type { ArkClaim } from "@/lib/ark/types";
+import type { TrustedInvestigationCaseworkStore } from "./investigationCaseworkUnit";
 import { SupabaseResearchStore } from "./supabaseResearchStore";
 import { buildDefaultResearchUnitDispatcher } from "./researchUnitDispatcher";
 import { buildArborResearchControllerPlanner } from "./arborResearchControllerPlanner";
@@ -247,13 +248,29 @@ function preflightStopReason(
   return null;
 }
 
-async function buildControllerBinding(input: {
+// Supplied by the authenticated host, never by task payloads or model output.
+export type ResearchReinsCaseworkResolver = (scope: Readonly<{
+  ownerId: string;
+  projectId: string;
+  sessionId: string;
+  authorizationVersion: string;
+}>) => Promise<TrustedInvestigationCaseworkStore | null>;
+
+export async function buildResearchReinsControllerBinding(input: {
   supabase: SupabaseClient;
   run: ResearchReinsBinding;
   claim: ArkClaim;
+  resolveCaseworkStore?: ResearchReinsCaseworkResolver;
 }) {
   if (
+    !input.run.sessionAuthorized ||
+    input.run.cancellationRequested ||
+    input.run.runStatus !== "active" ||
+    input.run.sourceScope !== "project_history" ||
     input.claim.objective.id !== input.run.objectiveId ||
+    input.claim.objective.userId !== input.run.userId ||
+    input.claim.objective.projectId !== input.run.projectId ||
+    input.claim.task.objectiveId !== input.run.objectiveId ||
     input.claim.task.id !== input.run.taskId ||
     input.claim.task.kind !== ARK_RESEARCH_CONTROLLER_TASK_KIND ||
     input.claim.task.userId !== input.run.userId ||
@@ -262,8 +279,15 @@ async function buildControllerBinding(input: {
     return null;
   }
 
+  const caseworkStore = await input.resolveCaseworkStore?.(Object.freeze({
+    ownerId: input.run.userId,
+    projectId: input.run.projectId,
+    sessionId: input.run.sessionId,
+    authorizationVersion: input.run.authorizationVersion,
+  }));
   const dispatcher = buildDefaultResearchUnitDispatcher({
     supabase: input.supabase,
+    caseworkStore: caseworkStore ?? undefined,
   });
   const store = new SupabaseResearchStore(
     input.supabase,
@@ -321,6 +345,7 @@ export async function runResearchReinsArkPulse(input: {
   runId: string;
   supabase?: SupabaseClient;
   now?: () => Date;
+  resolveCaseworkStore?: ResearchReinsCaseworkResolver;
 }): Promise<ResearchReinsArkPulseResult> {
   const supabase = input.supabase ?? supabaseAdmin();
   const now = input.now ?? (() => new Date());
@@ -354,10 +379,11 @@ export async function runResearchReinsArkPulse(input: {
     registry,
     now,
     resolveTrustedBinding: (claim) =>
-      buildControllerBinding({
+      buildResearchReinsControllerBinding({
         supabase,
         run: before,
         claim,
+        resolveCaseworkStore: input.resolveCaseworkStore,
       }),
   });
 
