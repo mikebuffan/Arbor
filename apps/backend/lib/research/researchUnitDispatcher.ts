@@ -10,6 +10,8 @@ import type {
 } from "./sessionPolicy";
 import { buildInvestigationIntegrityUnitHandler } from "./investigationIntegrityUnit";
 import type { TrustedInvestigationFindingStore } from "./investigationIntegrityStore";
+import { buildInvestigationDiscoveryUnitHandler } from "./investigationDiscoveryUnit";
+import type { TrustedInvestigationObservationStore } from "./investigationDiscoveryUnit";
 
 export type ResearchUnitHandler = (input: {
   session: ResearchSession;
@@ -93,6 +95,7 @@ function priorRunId(claim: ResearchClaim): string | undefined {
 export function buildDefaultResearchUnitDispatcher(input: {
   supabase: SupabaseClient;
   integrityStore?: TrustedInvestigationFindingStore;
+  discoveryStore?: TrustedInvestigationObservationStore;
 }): ResearchUnitDispatcher {
   const dispatcher = new ResearchUnitDispatcher().register(
     "research.pattern_hop",
@@ -176,6 +179,13 @@ export function buildDefaultResearchUnitDispatcher(input: {
     dispatcher.register(
       "research.integrity_gate",
       buildInvestigationIntegrityUnitHandler(input.integrityStore),
+    );
+  }
+
+  if (input.discoveryStore) {
+    dispatcher.register(
+      "research.discovery",
+      buildInvestigationDiscoveryUnitHandler(input.discoveryStore),
     );
   }
 
