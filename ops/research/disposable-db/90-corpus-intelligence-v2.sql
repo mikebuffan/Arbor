@@ -68,7 +68,7 @@ values
 
 do $assert$
 begin
-  if (select count(*) from public.arbor_research_ocr_tokens where ocr_receipt_id=:'ocr_id') <> 2
+  if (select count(*) from public.arbor_research_ocr_tokens where ocr_receipt_id=(select id from public.arbor_research_ocr_receipts where receipt_key='ocr-1')) <> 2
   then raise exception 'ocr token persistence mismatch'; end if;
 
   if (select extracted_text from public.arbor_research_ocr_receipts where receipt_key='ocr-1') <> 'J. Example'
@@ -77,7 +77,7 @@ begin
   if (select corrected_text from public.arbor_research_ocr_reviews where review_key='ocr-review-1') <> 'J. Exemple'
   then raise exception 'ocr correction receipt missing'; end if;
 
-  if (select count(*) from public.arbor_research_table_cells where table_id=:'table_id') <> 4
+  if (select count(*) from public.arbor_research_table_cells where table_id=(select id from public.arbor_research_table_reconstructions where table_key='table-1')) <> 4
   then raise exception 'table cell persistence mismatch'; end if;
 
   if not exists(
