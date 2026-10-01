@@ -121,6 +121,53 @@ Every edge must carry evidence refs and source lineage.
 
 Structural importance is explicitly not evidence of wrongdoing, authority, knowledge or intent.
 
+## 8. Neutral question mining
+
+`investigationQuestionMiner.ts` turns sourced public questions into a neutral unresolved-question reservoir without inheriting the author's preferred answer.
+
+It preserves:
+
+- source candidate IDs;
+- source lineages;
+- supplied entity IDs;
+- inherited assumptions as a separate field.
+
+It requires:
+
+- primary-source targets;
+- disconfirming searches;
+- bounded search seeds.
+
+Popularity or repetition does not increase evidentiary weight.
+
+## 9. Cross-entity sequence motifs
+
+`investigationSequenceMotifs.ts` looks for ordered event-tag sequences that recur across multiple resolved entities and independent source lineages.
+
+Example shape:
+
+`scheduled → travel → payment`
+
+A motif is only a hypothesis generator. It explicitly does not establish a shared scheme, intent or misconduct.
+
+Sequence motifs now feed the anomaly discovery layer, which asks whether:
+
+- the same order recurs in more independent entities;
+- an ordinary process explains the sequence;
+- primary records support each transition;
+- reverse searching from the final event reconstructs earlier steps.
+
+## 10. Prediction results feed falsification
+
+A tested prediction can be transformed into an explicit falsification-attempt receipt for the integrity gate.
+
+- required prediction contradicted → failed hypothesis test;
+- weaker contradiction → weakened/inconclusive;
+- complete non-contradicted test → survived;
+- untested prediction → cannot become a falsification receipt.
+
+This prevents the prediction ledger from becoming a decorative side channel.
+
 ## Intended research loop
 
 ```
