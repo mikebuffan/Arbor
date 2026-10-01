@@ -323,3 +323,89 @@ drop trigger if exists arbor_research_evidence_changes_append_only on public.arb
 create trigger arbor_research_evidence_changes_append_only
 before update or delete on public.arbor_research_evidence_changes
 for each row execute function public.arbor_research_reject_history_mutation();
+
+
+create table if not exists public.arbor_research_releases (
+  id uuid primary key default gen_random_uuid(),
+  owner_id uuid not null,
+  project_id uuid not null,
+  release_key text not null,
+  source_authority text not null,
+  published_at timestamptz,
+  parent_release_key text,
+  source_ref text not null,
+  created_at timestamptz not null default now(),
+  check (parent_release_key is null or parent_release_key <> release_key),
+  unique(owner_id, project_id, release_key)
+);
+
+create table if not exists public.arbor_research_release_deltas (
+  id uuid primary key default gen_random_uuid(),
+  owner_id uuid not null,
+  project_id uuid not null,
+  prior_release_key text not null,
+  current_release_key text not null,
+  added_page_ids jsonb not null default '[]'::jsonb check (jsonb_typeof(added_page_ids)='array'),
+  removed_page_ids jsonb not null default '[]'::jsonb check (jsonb_typeof(removed_page_ids)='array'),
+  changed_page_ids jsonb not null default '[]'::jsonb check (jsonb_typeof(changed_page_ids)='array'),
+  reordered_page_ids jsonb not null default '[]'::jsonb check (jsonb_typeof(reordered_page_ids)='array'),
+  new_attachment_refs jsonb not null default '[]'::jsonb check (jsonb_typeof(new_attachment_refs)='array'),
+  missing_bates_numbers jsonb not null default '[]'::jsonb check (jsonb_typeof(missing_bates_numbers)='array'),
+  evidence_ref text not null,
+  created_at timestamptz not null default now(),
+  check (prior_release_key <> current_release_key),
+  unique(owner_id, project_id, prior_release_key, current_release_key)
+);
+
+create table if not exists public.arbor_research_replay_queue (
+  id uuid primary key default gen_random_uuid(),
+  owner_id uuid not null,
+  project_id uuid not null,
+  replay_key text not null,
+  finding_key text not null,
+  finding_version integer not null check (finding_version > 0),
+  changed_evidence_refs jsonb not null check (jsonb_typeof(changed_evidence_refs)='array'),
+  reason text not null,
+  status text not null default 'queued' check (status in ('queued','reviewing','resolved','blocked')),
+  created_at timestamptz not null default now(),
+  unique(owner_id, project_id, replay_key)
+);
+
+create table if not exists public.arbor_research_adversarial_reviews (
+  id uuid primary key default gen_random_uuid(),
+  owner_id uuid not null,
+  project_id uuid not null,
+  review_key text not null,
+  finding_key text not null,
+  finding_version integer not null check (finding_version > 0),
+  independent_source_family_count integer not null check (independent_source_family_count >= 0),
+  counterevidence_refs jsonb not null check (jsonb_typeof(counterevidence_refs)='array'),
+  alternative_explanations jsonb not null check (jsonb_typeof(alternative_explanations)='array'),
+  chronology_conflict_ids jsonb not null check (jsonb_typeof(chronology_conflict_ids)='array'),
+  unresolved_identity_ids jsonb not null check (jsonb_typeof(unresolved_identity_ids)='array'),
+  result_status text not null check (result_status in ('hold','eligible_for_human_promotion_review')),
+  created_at timestamptz not null default now(),
+  unique(owner_id, project_id, review_key)
+);
+
+alter table public.arbor_research_releases enable row level security;
+alter table public.arbor_research_release_deltas enable row level security;
+alter table public.arbor_research_replay_queue enable row level security;
+alter table public.arbor_research_adversarial_reviews enable row level security;
+
+drop trigger if exists arbor_research_release_deltas_append_only on public.arbor_research_release_deltas;
+create trigger arbor_research_release_deltas_append_only
+before update or delete on public.arbor_research_release_deltas
+for each row execute function public.arbor_research_reject_history_mutation();
+
+drop trigger if exists arbor_research_adversarial_reviews_append_only on public.arbor_research_adversarial_reviews;
+create trigger arbor_research_adversarial_reviews_append_only
+before update or delete on public.arbor_research_adversarial_reviews
+for each row execute function public.arbor_research_reject_history_mutation();
+
+comment on table public.arbor_research_release_deltas is
+  'Append-only comparison receipts between public-record release snapshots; deltas are not findings.';
+comment on table public.arbor_research_replay_queue is
+  'Re-review queue derived from evidence changes and finding dependencies.';
+comment on table public.arbor_research_adversarial_reviews is
+  'Recorded pre-promotion challenge review; eligible status still requires human promotion review.';
