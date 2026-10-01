@@ -133,10 +133,10 @@ create table if not exists public.arbor_investigation_falsification_attempts (
 );
 
 create or replace function public.arbor_reject_investigation_mutation()
-returns trigger language plpgsql set search_path = public, pg_temp as $
+returns trigger language plpgsql set search_path = public, pg_temp as $$
 begin
   raise exception 'investigation_records_are_append_only';
-end $;
+end $$;
 
 -- UPDATE is blocked even for privileged writers. DELETE is not trigger-blocked so
 -- owner/account erasure cascades remain possible; ordinary service/client roles
