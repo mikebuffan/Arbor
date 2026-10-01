@@ -111,6 +111,7 @@ Legend: [x] relevant implementation plus exact-head CI evidence exists for the s
 104. [~] Document-family collision analysis distinguishes cross-purpose convergence from several files produced by one workflow. Exact-head CI pending.
 105. [~] Why-now windows inspect bounded events before/after material changes and generate causal questions while explicitly refusing temporal-proximity causation. Exact-head CI pending.
 106. [~] Canonical Arbor research planner contains explicit Wave 3 investigator-casework rules for knowledge timing, timeline geometry, missing functions, mundane adversaries, version drift, decision provenance, role mismatch, evidence temperature, parallel lenses, competing theories, anomaly dependencies, document-family collisions and why-now analysis. Exact-head CI pending.
+107. [~] Optional `research.casework` unit dispatches Wave 3 pure analyses only from an owner/project-scoped trusted persisted packet store; planner payload may name only a packet ID and packet evidence must already exist in persisted session evidence. The default host does not register this unit. Exact-head CI pending; live casework persistence remains separately gated.
 
 ## Run 11 — 2026-09-23 reconciliation and source-only pilot verification attempt
 - Re-opened this master on current #212 branch and verified current PR metadata: #212 is draft, base `chore/research-ci-trigger-cleanup-handoff-20260923` at `1f48ff810240a655fd53d3485e4a36316857c897`, observed head before this docs refresh `a0624c7420eb197c8c5175c489ddd317a11a206e`.
