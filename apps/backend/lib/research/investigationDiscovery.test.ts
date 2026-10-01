@@ -181,6 +181,35 @@ describe("investigation discovery engine", () => {
     );
   });
 
+  it("finds a repeated cross-entity sequence motif without promoting it to a shared scheme", () => {
+    const a = { id: "entity:a", label: "Entity A", kind: "person" as const };
+    const b = { id: "entity:b", label: "Entity B", kind: "person" as const };
+
+    const result = discoverInvestigationLeads({
+      observations: [
+        obs("a1", "la1", "calendar", "2026-01-01T00:00:00Z", [a], ["scheduled"]),
+        obs("a2", "la2", "travel", "2026-01-02T00:00:00Z", [a], ["travel"]),
+        obs("a3", "la3", "payment", "2026-01-03T00:00:00Z", [a], ["payment"]),
+        obs("b1", "lb1", "calendar", "2026-02-01T00:00:00Z", [b], ["scheduled"]),
+        obs("b2", "lb2", "travel", "2026-02-02T00:00:00Z", [b], ["travel"]),
+        obs("b3", "lb3", "payment", "2026-02-03T00:00:00Z", [b], ["payment"]),
+      ],
+    });
+
+    const motif = result.leads.find((item) =>
+      item.kind === "sequence_motif" &&
+      item.hypothesis.includes("scheduled → travel → payment")
+    );
+    expect(motif).toBeTruthy();
+    expect(motif?.status).toBe("hypothesis");
+    expect(motif?.rationale).toContain(
+      "not proof of a shared scheme",
+    );
+    expect(motif?.falsifiers).toEqual(expect.arrayContaining([
+      "Each entity has a different ordinary explanation for the same tag order.",
+    ]));
+  });
+
   it("converts a discovery lead into bounded Pattern Hop searches that explicitly seek disconfirmation", () => {
     const entity = { id: "entity:bridge", label: "Bridge Entity", kind: "company" as const };
     const result = discoverInvestigationLeads({
