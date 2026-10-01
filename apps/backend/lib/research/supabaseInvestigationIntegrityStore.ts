@@ -142,7 +142,7 @@ function falsification(value: unknown): FalsificationAttempt[] {
     }
     ids.add(id);
     const result = text(r.result, "falsification_result", 1, 30);
-    if (!["survived", "failed", "inconclusive"].includes(result)) {
+    if (!["claim_survived", "claim_failed", "inconclusive"].includes(result)) {
       throw new Error(
         "invalid_investigation_integrity_db_falsification_result",
       );
