@@ -123,7 +123,7 @@ create table if not exists public.arbor_investigation_falsification_attempts (
   user_id uuid not null,
   project_id uuid not null,
   hypothesis text not null check (length(btrim(hypothesis)) between 1 and 10000),
-  result text not null check (result in ('survived','failed','inconclusive')),
+  result text not null check (result in ('claim_survived','claim_failed','inconclusive')),
   evidence_refs text[] not null default '{}'
     check (cardinality(evidence_refs) <= 100),
   created_at timestamptz not null default now(),
