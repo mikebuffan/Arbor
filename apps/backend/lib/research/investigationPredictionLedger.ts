@@ -291,9 +291,9 @@ export function predictionEvaluationToFalsificationAttempt(input: {
 
   const result: FalsificationAttempt["result"] =
     input.evaluation.status === "failed"
-      ? "failed"
+      ? "claim_failed"
       : input.evaluation.status === "survived"
-        ? "survived"
+        ? "claim_survived"
         : "inconclusive";
 
   return {
