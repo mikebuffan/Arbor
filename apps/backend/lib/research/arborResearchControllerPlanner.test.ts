@@ -94,6 +94,9 @@ describe("canonical Arbor research controller planner adapter", () => {
     expect(call.instructions).toContain("evidence class is immutable");
     expect(call.instructions).toContain("attempt to break it");
     expect(call.instructions).toContain("not-found-in-searched-scope");
+    expect(call.instructions).toContain("DISCOVERY MODE");
+    expect(call.instructions).toContain("question a normal name-first search would miss");
+    expect(call.instructions).toContain("searches that could both support and kill it");
     expect(call.allowWebResearch).toBe(false);
     expect(call.verifyCompletion).toBe(false);
     expect(call.maxRounds).toBe(2);
