@@ -4,5 +4,10 @@
       "path": "/api/admin/system/heartbeat",
       "schedule": "*/10 * * * *"
     }
-  ]
+  ],
+  "git": {
+    "deploymentEnabled": {
+      "feat/research-evidence-followups-20261001": false
+    }
+  }
 }

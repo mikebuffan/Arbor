@@ -121,6 +121,21 @@ export class SupabaseResearchStore implements ResearchControllerStore {
     const {data:receiptRows,error:receiptError} = await receiptsQuery;
     if (receiptError) throw receiptError;
 
+    // Preserve the latest complete follow-up frontier even after it falls out
+    // of the rolling 50-receipt window. All three scope predicates still apply.
+    const {data:followupRows,error:followupError} = await this.db.from("arbor_research_receipts")
+      .select("idempotency_key,status,evidence_refs,recorded_at,result")
+      .eq("session_id",session.id)
+      .eq("user_id",this.ownerId)
+      .eq("project_id",this.projectId)
+      .eq("status","completed")
+      .eq("result->>caseworkKind","followup_plan")
+      .order("recorded_at",{ascending:false})
+      .limit(1);
+    if (followupError) throw followupError;
+    const combinedReceiptRows = [...(receiptRows ?? []), ...(followupRows ?? [])];
+    const receiptKeys = new Set<string>();
+
     const units = (unitRows ?? []).map((value:unknown) => {
       const r=row(value);
       const status=requiredString(r.status,"unit_status");
@@ -136,7 +151,12 @@ export class SupabaseResearchStore implements ResearchControllerStore {
       };
     });
 
-    const recentReceipts = (receiptRows ?? []).map((value:unknown) => {
+    const recentReceipts = combinedReceiptRows.filter((value: unknown) => {
+      const key = requiredString(row(value).idempotency_key,"receipt_idempotency_key");
+      if (receiptKeys.has(key)) return false;
+      receiptKeys.add(key);
+      return true;
+    }).map((value:unknown) => {
       const r=row(value);
       const status=requiredString(r.status,"receipt_status");
       if (!["completed","checkpointed","blocked","failed"].includes(status)) {
