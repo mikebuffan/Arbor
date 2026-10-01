@@ -373,7 +373,10 @@ function expectedGapLeads(
     const missingTags = expectedTags.filter((tag) => !tags.has(tag));
     if (!missingFamilies.length && !missingTags.length) continue;
 
-    const relatedEntityIds = unique(expectation.relatedEntityIds ?? []);
+    const relatedEntityIds = unique(
+      (expectation.relatedEntityIds ?? []).map((id) =>
+        clean(id, "related_entity_id", 300)),
+    );
     const related = relatedEntityIds.flatMap(
       (id) => byEntity.get(id) ?? [],
     );
@@ -383,9 +386,9 @@ function expectedGapLeads(
       id: "gap-" + slug(key),
       kind: "expected_footprint_gap",
       hypothesis:
-        "If the working hypothesis "" +
+        'If the working hypothesis "' +
         description +
-        "" is correct, the missing expected record types should be searched before the hypothesis is strengthened.",
+        '" is correct, the missing expected record types should be searched before the hypothesis is strengthened.',
       rationale:
         "Expected-but-not-yet-observed is a search lead, not proof of absence. Missing families: " +
         (missingFamilies.join(", ") || "none") +
