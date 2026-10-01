@@ -12,6 +12,7 @@ const context = {
     sourceRef: "synthetic:court-record:1",
     lineageKey: "synthetic:court-record:1",
     content: "Synthetic primary record.",
+    contentSha256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
     supports: ["established_act"],
     underlyingSourceRef: null,
   }],
