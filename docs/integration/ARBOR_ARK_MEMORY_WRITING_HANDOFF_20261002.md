@@ -70,3 +70,7 @@ No manuscript rewrite, source read receipt, live workspace save, deployment, pro
 ## Memory follow-through
 
 Branch `fix/memory-reconciliation-20261002` reconciles the runtime recall subset of #221 onto the #223 + #232 source candidate. See `ARBOR_MEMORY_RECONCILIATION_20261002.md` for exact scope, restart simulation and remaining limits. Recent owner/project correction snapshots now reach older active conversations without replacing their goal; copied recurrence counts stay stable; explicit goal clearing works; timezone-offset ordering is chronological. Runtime saves now reject missing-table failures rather than claiming continuity was stored. Local backend tests: 575 passed. No ARK consumption or live behavior is claimed.
+
+## Independent work while live memory handoff waits
+
+`fix/annabelle-editorial-context-20261002` adds the read-only editorial-to-generation bridge using #222 tables. It preserves shared identity/corrections and the legacy workspace, selects one canonical manuscript, scopes chapter evidence to an explicit request, excludes stale/superseded examples and reports unavailable/ambiguous/incomplete context honestly. See `ANNABELLE_EDITORIAL_CONTEXT_BRIDGE_20261002.md` for limits and live gates. Full backend suite: 588 tests passed. Current writing notes are not claimed to have been inserted into live editorial storage. No deployment, protected write, manuscript edit or reading receipt occurred.
