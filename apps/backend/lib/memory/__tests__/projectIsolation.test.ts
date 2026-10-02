@@ -6,6 +6,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 const mocks = vi.hoisted(() => ({ logMemoryEvent: vi.fn() }));
 vi.mock("@/lib/memory/logger", () => ({ logMemoryEvent: mocks.logMemoryEvent }));
 vi.mock("@/lib/memory/embeddings", () => ({ embedText: vi.fn(), embedTexts: vi.fn(), memoryToEmbedString: vi.fn() }));
+vi.mock("@/lib/providers/openai", () => ({ openAIEmbed: vi.fn().mockResolvedValue([0.1, 0.2]) }));
 vi.mock("@/lib/supabase/server", () => ({ getServerSupabase: vi.fn() }));
 
 import { reinforceMemoryUse } from "@/lib/memory/store";
@@ -40,7 +41,7 @@ describe("memory project isolation", () => {
     expect(isMemoryInProjectScope({ project_id: "project-a", conversation_id: "conversation-b", scope: "conversation" }, "project-a", "conversation-a")).toBe(false);
   });
 
-  it("disables vector RPC use and filters direct retrieval to the authenticated project", async () => {
+  it("falls back from a failed scoped vector RPC and filters direct retrieval to the authenticated project", async () => {
     const response = { data: [
       { id: "memory-a", project_id: "project-a", key: "project-a-key", value: { text: "project A" }, tier: "normal", scope: "project", status: "active", deleted_at: null },
       { id: "memory-b", project_id: "project-b", key: "project-b-key", value: { text: "project B" }, tier: "normal", scope: "project", status: "active", deleted_at: null },
@@ -48,10 +49,13 @@ describe("memory project isolation", () => {
     ], error: null };
     const query = { select: vi.fn(), eq: vi.fn(), is: vi.fn(), order: vi.fn(), or: vi.fn(), limit: vi.fn(), then: (resolve: (value: typeof response) => unknown) => Promise.resolve(response).then(resolve) };
     query.select.mockReturnValue(query); query.eq.mockReturnValue(query); query.is.mockReturnValue(query); query.order.mockReturnValue(query); query.or.mockReturnValue(query); query.limit.mockReturnValue(query);
-    const rpc = vi.fn();
+    const rpc = vi.fn().mockResolvedValue({ data: null, error: { message: "vector unavailable" } });
     const supabase = { from: vi.fn().mockReturnValue(query), rpc } as unknown as SupabaseClient;
     const result = await getMemoryContext({ supabase, authedUserId: "user-a", projectId: "project-a", latestUserText: "This query is long enough for vector retrieval.", useVectorSearch: true });
-    expect(rpc).not.toHaveBeenCalled();
+    expect(rpc).toHaveBeenCalledWith("match_memories_v3", expect.objectContaining({
+      p_user_id: "user-a", p_project_id: "project-a", p_conversation_id: null,
+      p_query_embedding: [0.1, 0.2],
+    }));
     expect(query.eq).toHaveBeenCalledWith("user_id", "user-a");
     expect(query.or).toHaveBeenCalledWith("scope.eq.global,and(scope.eq.project,project_id.eq.project-a)");
     expect(result.keysUsed).toEqual(["project-a-key", "global-key"]);
