@@ -3,7 +3,7 @@ import type { MemoryItem } from "@/lib/memory/types";
 import { upsertMemoryItems } from "@/lib/memory/store";
 import type { ArborCorrection } from "./runtimeState";
 import { hasExplicitDurableAuthorization } from "@/lib/memory/durableAuthorization";
-import { correctionFamily } from "./corrections";
+import { correctionFamily, correctionId } from "./corrections";
 
 export function promotedCorrectionKey(
   correction: ArborCorrection,
@@ -21,6 +21,7 @@ export function promotedCorrectionKey(
 
 export function correctionPromotionItem(
   correction: ArborCorrection,
+  explicitlyAuthorized = false,
 ): MemoryItem | null {
   const occurrences = Math.max(
     1,
@@ -28,7 +29,7 @@ export function correctionPromotionItem(
   );
 
   const key = promotedCorrectionKey(correction);
-  if (!key || occurrences < 2) return null;
+  if (!key || (!explicitlyAuthorized && occurrences < 2)) return null;
 
   return {
     key,
@@ -62,7 +63,7 @@ export async function promoteRepeatedBehaviorCorrections(params: {
   }
 
   const promotable = params.corrections
-    .map(correctionPromotionItem)
+    .map(correction => correctionPromotionItem(correction, true))
     .filter((item): item is MemoryItem => item !== null);
 
   if (!promotable.length) {
@@ -71,9 +72,19 @@ export async function promoteRepeatedBehaviorCorrections(params: {
     };
   }
 
+  // An older thread must not replace a newer permanent calibration.
+  const existing = await loadDurableBehaviorCorrections({ supabase: params.supabase, userId: params.userId });
+  const currentByKey = new Map(existing.map(correction => [promotedCorrectionKey(correction), correction]));
+  const fresh = promotable.filter(item => {
+    const prior = currentByKey.get(item.key);
+    const value = typeof item.value === "string" ? {} : item.value;
+    return !prior || Date.parse(String(value.last_observed_at)) > Date.parse(prior.observedAt);
+  });
+  if (!fresh.length) return { promoted: [] as string[] };
+
   const result = await upsertMemoryItems(
     params.userId,
-    promotable,
+    fresh,
     null,
     params.supabase,
     null,
@@ -87,4 +98,45 @@ export async function promoteRepeatedBehaviorCorrections(params: {
       ]),
     ),
   };
+}
+
+
+const DURABLE_BEHAVIOR_KEYS = [
+  "behavior.correction.agency-followthrough",
+  "behavior.correction.identity-drift",
+  "behavior.correction.continuity",
+];
+
+/** Read existing authorized permanent corrections independently of conversation
+ * recall and general memory ranking. Acoustic calibration stays separate. */
+export async function loadDurableBehaviorCorrections(input: {
+  supabase: SupabaseClient; userId: string;
+}): Promise<ArborCorrection[]> {
+  const { data, error } = await input.supabase.from("memory_items")
+    .select("id,user_id,project_id,conversation_id,key,value,scope,status,deleted_at,confidence")
+    .eq("user_id", input.userId).eq("scope", "global")
+    .is("project_id", null).is("conversation_id", null)
+    .eq("status", "active").is("deleted_at", null)
+    .in("key", DURABLE_BEHAVIOR_KEYS).limit(DURABLE_BEHAVIOR_KEYS.length + 1);
+  if (error) throw error;
+  const rows = data ?? [];
+  const seen = new Set<string>();
+  return rows.map(row => {
+    if (row.user_id !== input.userId || row.scope !== "global" || row.project_id !== null ||
+        row.conversation_id !== null || row.status !== "active" || row.deleted_at !== null ||
+        !DURABLE_BEHAVIOR_KEYS.includes(row.key) || seen.has(row.key))
+      throw new Error("durable_behavior_correction_scope_or_duplicate");
+    seen.add(row.key);
+    const value = row.value as Record<string, unknown>;
+    const text = typeof value?.text === "string" ? value.text.trim() : "";
+    const observedAt = typeof value?.last_observed_at === "string" ? value.last_observed_at : "";
+    const family = correctionFamily("behavior", text);
+    const occurrences = Number(value?.occurrences ?? 1);
+    if (!text || row.key !== `behavior.correction.${family}` || !Number.isFinite(Date.parse(observedAt)) ||
+        !Number.isSafeInteger(occurrences) || occurrences < 1)
+      throw new Error("durable_behavior_correction_invalid_payload");
+    return { id: correctionId("behavior", text), kind: "behavior" as const, value: text,
+      source: value.source === "voice" || value.source === "annabelle" ? value.source : "text" as const,
+      observedAt, confidence: Number(row.confidence ?? 1), protected: true, occurrences };
+  });
 }
