@@ -1,4 +1,7 @@
 import type { AgencyState } from "../agency/engine";
+import {
+  projectAgencyWorkForPrompt,
+} from "../agency/openLoops";
 import { promptDataBlock } from "../promptData";
 import type { ArborSubsystem } from "../runtime/arborRuntime";
 
@@ -26,7 +29,11 @@ export function buildContinuityState(input: {
     currentGoal: input.agency?.goal?.trim() || null,
     lastMeaningfulUserTurn: input.lastMeaningfulUserTurn?.trim() || null,
     lastMeaningfulArborTurn: input.lastMeaningfulArborTurn?.trim() || null,
-    unresolvedWork: input.agency?.unresolvedWork ?? [],
+    // Internal checkpoint payloads stay host-owned. Only a readable projection
+    // of suspended work is exposed to the model.
+    unresolvedWork: input.agency
+      ? projectAgencyWorkForPrompt(input.agency.unresolvedWork)
+      : [],
     recurringWeaknesses: input.agency?.recurringWeaknesses ?? [],
     retainedStrategies: input.agency?.strategyNotes ?? [],
     activeCorrections: Array.from(

@@ -2,6 +2,9 @@ import {
   ensureSelfModelIdentity,
 } from "./selfModelState.js";
 import {
+  reconcileSelfModelClaims,
+} from "./selfModelClaims.js";
+import {
   addSelfModelObservation,
   summarizeSelfModelObservations,
   type SelfModelObservationInput,
@@ -54,10 +57,15 @@ export class SelfModelControlService {
             current,
           );
 
-        const next =
+        const observed =
           addSelfModelObservation(
             verified,
             input.observation,
+          );
+
+        const next =
+          reconcileSelfModelClaims(
+            observed,
           );
 
         return {
