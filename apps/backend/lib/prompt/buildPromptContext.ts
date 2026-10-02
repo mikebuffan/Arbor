@@ -1,3 +1,6 @@
+import { loadDurableBehaviorCorrections } from "@/lib/arbor/runtime/correctionPromotion";
+import { mergeCorrectionSnapshots } from "@/lib/arbor/runtime/runtimeState";
+import { behaviorCorrections } from "@/lib/arbor/runtime/corrections";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   getAlwaysIncludedMemoryAnchors,
@@ -373,15 +376,20 @@ export async function buildPromptContext({
         })
       : null;
 
+  const durableBehaviorCorrections = await loadDurableBehaviorCorrections({ supabase, userId: authedUserId });
+  const activeBehaviorCorrections = mergeCorrectionSnapshots([
+    durableBehaviorCorrections, conversationRuntime?.corrections ?? [],
+  ]);
+
   const runtimeHost =
     conversationRuntime
       ? projectRuntimeStartup(
-          conversationRuntime,
+          { ...conversationRuntime, corrections: activeBehaviorCorrections },
         )
       : null;
 
   const runtimeBehavioralCorrections =
-    runtimeHost?.behaviorCorrections ?? [];
+    behaviorCorrections(activeBehaviorCorrections);
 
   const pendingStrategyUnderVerification =
     conversationRuntime?.currentGoal === currentGoal
