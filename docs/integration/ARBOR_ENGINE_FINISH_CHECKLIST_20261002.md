@@ -86,3 +86,5 @@ No secret, protected migration, paid execution, deployment, manuscript receipt, 
 - These are local source/build receipts, not remote CI, deployment, database migrations, real-model inference or live ARK acceptance.
 
 Memory follow-through: see `ARBOR_MEMORY_RECONCILIATION_20261002.md`. The bounded runtime repair is source-tested; live integration and lifetime correction retention remain open.
+
+Long-term follow-through: `DURABLE_CORRECTION_RETENTION_20261002.md` records direct existing-store recall for the three promoted behavioral families beyond the 50-conversation window, first-observation explicit promotion and source acceptance. Live durable write/readback and real response verification remain open.
