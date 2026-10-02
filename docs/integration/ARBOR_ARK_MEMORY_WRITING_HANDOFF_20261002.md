@@ -74,3 +74,7 @@ Branch `fix/memory-reconciliation-20261002` reconciles the runtime recall subset
 ## Independent work while live memory handoff waits
 
 `fix/annabelle-editorial-context-20261002` adds the read-only editorial-to-generation bridge using #222 tables. It preserves shared identity/corrections and the legacy workspace, selects one canonical manuscript, scopes chapter evidence to an explicit request, excludes stale/superseded examples and reports unavailable/ambiguous/incomplete context honestly. See `ANNABELLE_EDITORIAL_CONTEXT_BRIDGE_20261002.md` for limits and live gates. Full backend suite: 588 tests passed. Current writing notes are not claimed to have been inserted into live editorial storage. No deployment, protected write, manuscript edit or reading receipt occurred.
+
+## Long-term behavior correction retention
+
+`fix/durable-correction-retention-20261002` uses existing memory_items correction keys directly in canonical generation, so promoted behavioral corrections no longer depend on the newest 50 conversation snapshots or general 24/14-item memory budgets. Explicit durable authorization can promote a first observation; unrequested feedback and acoustic corrections remain excluded from this promoter. Newer runtime values supersede old permanent values in projection without inflating recurrence. Owner/global scope, active/deleted checks and storage-error propagation are tested. See `DURABLE_CORRECTION_RETENTION_20261002.md`: 596 backend tests passed, including a 60-conversation boundary simulation. Live write/readback/model adherence remains open.
