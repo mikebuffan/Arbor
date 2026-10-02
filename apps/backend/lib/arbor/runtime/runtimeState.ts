@@ -84,7 +84,7 @@ export function mergeCorrections(
     }
 
     const latest =
-      normalized.observedAt >= prior.observedAt
+      Date.parse(normalized.observedAt) >= Date.parse(prior.observedAt)
         ? normalized
         : prior;
 
@@ -97,8 +97,37 @@ export function mergeCorrections(
   }
 
   return Array.from(byId.values()).sort((a, b) =>
-    a.observedAt.localeCompare(b.observedAt),
+    Date.parse(a.observedAt) - Date.parse(b.observedAt),
   );
+}
+
+/** Stored snapshots can contain the same observations copied across threads.
+ * Hydration must not count those copies as new user feedback. Without per-event
+ * IDs, the largest persisted count is the evidence-backed lower bound.
+ */
+export function mergeCorrectionSnapshots(
+  snapshots: readonly ArborCorrection[][],
+): ArborCorrection[] {
+  const byId = new Map<string, ArborCorrection>();
+  for (const snapshot of snapshots) {
+    for (const correction of snapshot) {
+      const normalized = normalizeCorrection(correction);
+      if (!normalized.value) continue;
+      const prior = byId.get(normalized.id);
+      if (!prior) {
+        byId.set(normalized.id, normalized);
+        continue;
+      }
+      const latest = Date.parse(normalized.observedAt) > Date.parse(prior.observedAt)
+        ? normalized : prior;
+      byId.set(normalized.id, {
+        ...latest,
+        occurrences: Math.max(prior.occurrences ?? 1, normalized.occurrences ?? 1),
+      });
+    }
+  }
+  return [...byId.values()].sort((a, b) =>
+    Date.parse(a.observedAt) - Date.parse(b.observedAt) || a.id.localeCompare(b.id));
 }
 
 export function switchRuntimeChannel(
