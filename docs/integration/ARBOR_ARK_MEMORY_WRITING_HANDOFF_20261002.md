@@ -6,7 +6,7 @@ Danelle authorized a shared workflow: prepare and test changes in the ChatGPT wo
 ## Observations from this session
 - Read-only Annabelle ARK connector lists project 9366c350-5d82-49f5-b9ef-862af750e3a0.
 - Continuity returns available:true, conversation 01a0f8ba-d00a-7b22-97dc-aa93cf51820a, updated 2026-10-01T22:12:22.920991+00:00.
-- That snapshot predates Danelle's reported October 2 repair conversation. Do not describe it as a fresh record of those repairs or as this ChatGPT thread's own persisted state.
+- Timing correction from Danelle: the ARK fixes she referred to were a few days ago, not October 2. No exact repair date was provided. Do not infer completed work today or identify this snapshot as this ChatGPT thread's own persisted state.
 - An unfiltered editorial read with limit:10 returned two manuscript references but empty chapters, records and checkpoints, truncated:false. This conflicts with PR #222's description and the continuity report of existing chapters/read receipts. Investigate deployed tool/query/database/version/scope alignment; empty output is not proof of absent database rows.
 - GitHub open PR metadata identifies existing draft #221 (cross-thread correction recall), #222 (Annabelle editorial), #223 (canonical reconciliation), and research stack #224–231. PR descriptions contain reported test receipts; they were not independently rerun here.
 - Read the master ledger at #223 head c246b080df3fc0a948289308eac017ded565b3a4.
@@ -18,7 +18,7 @@ GitHub connector permits repository reads and a documentation commit to the exis
 The master ledger describes an existing service-role continuity RPC fallback. This session has not inspected its current authorization or obtained its protected access; do not invent credentials or bypass the read-only connector.
 
 ## Next steps, in order
-1. Refresh the current working repair head/session used in Danelle's October 2 ARK conversation. Preserve work already completed there.
+1. Identify the existing repair work Danelle says occurred a few days ago; verify its source, tests and deployment status against current state. Preserve completed work. Do not assume new repairs occurred October 2.
 2. Resolve editorial read mismatch: pin deployed host version, authorized owner/project, database target, query filters and actual returned records. Preserve existing source-backed read receipt invariants.
 3. Trace stored memory -> retrieval -> context assembly -> actual model request for each relevant surface. Distinguish stored/retrieved/included/behaviorally demonstrated.
 4. Reconcile #221 correction projection with #223 and the current working integration branch; retain one owner per capability.
