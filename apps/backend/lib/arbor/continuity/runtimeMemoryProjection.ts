@@ -67,9 +67,7 @@ export function prioritizeCorrections(
     ...corrections,
   ].sort(
     (a, b) =>
-      b.observedAt.localeCompare(
-        a.observedAt,
-      ),
+      Date.parse(b.observedAt) - Date.parse(a.observedAt),
   );
 
   for (
