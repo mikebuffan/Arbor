@@ -58,3 +58,11 @@ Read main versions of feltLife/atlas.ts, body/bodySystem.ts, adapters/annabelle.
 - Current findings do not establish that this ChatGPT conversation is automatically routed through any backend prompt builder.
 
 No source code changes or test execution in this inspection pass. Next: trace concrete generation callers and the editorial-to-writing context bridge, then decide whether a patch or simply correct routing is needed.
+
+## Completed bounded repair pass
+
+See `ARBOR_ENGINE_FINISH_CHECKLIST_20261002.md` for the 23-area inventory, workarounds, accepted Chapter Two corrections and acceptance gates. Branch `fix/annabelle-context-reconciliation-20261002` is based on this master reconciliation branch.
+
+Demonstrated repairs: Annabelle no longer imposes a fixed atmosphere/body/dialogue order; workspace mutation/revision/restore errors cannot produce false successful writes. Read-only missing-table compatibility remains. Six new regression checks cover these boundaries. An existing isolation test was corrected to mock the actual provider and check scoped vector fallback. Local verification: 565 backend tests, 124 control tests, backend production build and control TypeScript build passed.
+
+No manuscript rewrite, source read receipt, live workspace save, deployment, protected migration or worker activation occurred. The generic canonical runner's stale injected-context candidate was not patched: no production caller was found, so it is listed as a latent issue rather than claimed as a live repair. Separate #221/#222 implementations still require reconciliation; installed editorial readback discrepancy still requires investigation. This GitHub handoff is not proof of ARK consumption.
