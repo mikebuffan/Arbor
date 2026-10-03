@@ -69,8 +69,10 @@ import {
   detectCorrectionKind,
 } from "@/lib/arbor/runtime/corrections";
 import {
-  promoteRepeatedBehaviorCorrections,
-} from "@/lib/arbor/runtime/correctionPromotion";
+  stageBehaviorCorrectionPromotion,
+  recoverPendingBehaviorCorrections,
+  schedulePendingBehaviorCorrectionRecovery,
+} from "@/lib/arbor/runtime/correctionRecovery";
 import {
   beginSelfUpdate,
   decideSelfUpdate,
@@ -231,6 +233,7 @@ export async function POST(req: Request) {
       timeZoneOffsetMinutes,
     } = parsed.data;
 
+    const correctionObservedAt = new Date().toISOString();
     const memoryTestMode = detectTestMode(userText);
     const durableLearningAuthorized = hasExplicitDurableAuthorization(userText);
 
@@ -304,6 +307,7 @@ export async function POST(req: Request) {
       conversationId: convoId,
     });
     if (completedTurn) {
+      schedulePendingBehaviorCorrectionRecovery({ supabase, userId });
       return NextResponse.json(
         buildChatSuccessResponse({
           projectId,
@@ -365,6 +369,37 @@ export async function POST(req: Request) {
       agency: agencyState,
       behaviorProof,
       now: new Date().toISOString(),
+    });
+
+    const deterministicMemoryTurn = classifyMemoryTurn({
+      userText,
+      extractedItems: [],
+    });
+
+    const detectedRuntimeCorrectionKind =
+      detectCorrectionKind(userText);
+
+    const detectedRuntimeCorrections =
+      detectedRuntimeCorrectionKind ||
+      deterministicMemoryTurn.kind === "correction"
+        ? [
+            createCorrection({
+              value: userText,
+              source:
+                activeSubsystem === "annabelle"
+                  ? "annabelle"
+                  : interactionMode,
+              observedAt: correctionObservedAt,
+              kind:
+                detectedRuntimeCorrectionKind ??
+                undefined,
+            }),
+          ]
+        : [];
+    const runtimeCorrections = await stageBehaviorCorrectionPromotion({
+      supabase, userId, projectId, conversationId: convoId,
+      userMessageId: resolvedTurn.ids.userMessageId, currentUserText: userText,
+      corrections: detectedRuntimeCorrections,
     });
 
     let pendingSelfUpdate =
@@ -770,31 +805,6 @@ export async function POST(req: Request) {
           : `I need your choice before I do ${agentResult.toolName.replaceAll("_", " ")} because this is a high-consequence fork.`
         : agentResult.text;
 
-    const deterministicMemoryTurn = classifyMemoryTurn({
-      userText,
-      extractedItems: [],
-    });
-
-    const detectedRuntimeCorrectionKind =
-      detectCorrectionKind(userText);
-
-    const runtimeCorrections =
-      detectedRuntimeCorrectionKind ||
-      deterministicMemoryTurn.kind === "correction"
-        ? [
-            createCorrection({
-              value: userText,
-              source:
-                activeSubsystem === "annabelle"
-                  ? "annabelle"
-                  : interactionMode,
-              observedAt: new Date().toISOString(),
-              kind:
-                detectedRuntimeCorrectionKind ??
-                undefined,
-            }),
-          ]
-        : [];
     let explicitCorrectionHandledSynchronously = false;
 
     const finalAssistant = await finalizeAndPersistAssistantTurn({
@@ -927,25 +937,7 @@ export async function POST(req: Request) {
         },
 
         memory_pipeline: async () => {
-          const correctionIdsObservedThisTurn =
-            new Set(
-              runtimeCorrections.map(
-                (correction) => correction.id,
-              ),
-            );
-
-          await promoteRepeatedBehaviorCorrections({
-            supabase,
-            userId,
-            currentUserText: userText,
-            corrections:
-              updatedRuntimeSession.corrections.filter(
-                (correction) =>
-                  correctionIdsObservedThisTurn.has(
-                    correction.id,
-                  ),
-              ),
-          });
+          await recoverPendingBehaviorCorrections({ supabase, userId });
 
           await Promise.all(
             injectedCandidateIds.map((candidateId) =>

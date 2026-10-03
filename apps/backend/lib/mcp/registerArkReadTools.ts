@@ -6,6 +6,10 @@ import { assertConversationOwnedByUser, assertProjectOwnedByUser } from "@/lib/a
 import { readArkProjectSnapshot } from "@/lib/ark/readModel";
 import { projectRuntimeStartup } from "@/lib/arbor/runtime/hostProjection";
 import { loadLatestRuntimeState, loadRuntimeState } from "@/lib/arbor/runtime/runtimeStateStore";
+import { loadDurableBehaviorCorrections } from "@/lib/arbor/runtime/correctionPromotion";
+import { mergeCorrectionSnapshots } from "@/lib/arbor/runtime/runtimeState";
+import { behaviorCorrections } from "@/lib/arbor/runtime/corrections";
+import { promptDataBlock } from "@/lib/arbor/promptData";
 import { arkMcpUserContext } from "./context";
 
 const ReadOnlyAnnotations = {
@@ -150,6 +154,7 @@ export function registerArkReadTools(server: McpServer): void {
       const state = conversationId
         ? await loadRuntimeState({ supabase, userId, projectId, conversationId })
         : await loadLatestRuntimeState({ supabase, userId, projectId });
+      const durableCorrections = await loadDurableBehaviorCorrections({ supabase, userId });
 
       if (!state) {
         return result({
@@ -162,14 +167,18 @@ export function registerArkReadTools(server: McpServer): void {
           lastMeaningfulUserTurn: null,
           lastMeaningfulArborTurn: null,
           unresolvedWork: [],
-          behavioralCorrections: [],
+          behavioralCorrections: behaviorCorrections(durableCorrections),
           acousticCorrections: [],
-          continuityPrompt: null,
+          continuityPrompt: durableCorrections.length
+            ? promptDataBlock("DURABLE ARBOR BEHAVIOR CORRECTIONS", behaviorCorrections(durableCorrections))
+            : null,
           updatedAt: null,
         });
       }
 
-      const projection = projectRuntimeStartup(state);
+      const projection = projectRuntimeStartup({
+        ...state, corrections: mergeCorrectionSnapshots([durableCorrections, state.corrections ?? []]),
+      });
       return result({
         available: true,
         projectId,
