@@ -12,6 +12,7 @@ import { behaviorCorrections } from "@/lib/arbor/runtime/corrections";
 import { promptDataBlock } from "@/lib/arbor/promptData";
 import { renderCanonicalIdentityAnchor } from "@/lib/arbor/selfModel/canonicalIdentityAnchor";
 import { arkMcpUserContext } from "./context";
+import { readArborMemoryRecall } from "@/lib/memory/readRecall";
 
 const ReadOnlyAnnotations = {
   readOnlyHint: true,
@@ -48,6 +49,25 @@ export function registerArkReadTools(server: McpServer): void {
     async (_input, ctx) => {
       const { userId, email } = arkMcpUserContext(ctx);
       return result({ userId, email, subsystem: "ARK" as const, access: "read-only" as const });
+    },
+  );
+
+  server.registerTool(
+    "get_arbor_memory_recall",
+    {
+      title: "Recall Arbor Memories",
+      description: "Read bounded owned archive excerpts, episode summaries, and eligible durable memories for the current request. Reports archive inventory separately from matches. Read-only lexical lookup; no external model requests, imports, or writes.",
+      inputSchema: z.object({projectId: z.string().uuid(), conversationId: z.string().uuid().optional(),
+        query: z.string().trim().min(3).max(2000)}),
+      outputSchema: z.object({projectId: z.string().uuid(), query: z.string(), archive: JsonRecord,
+        episodes: JsonRecord, memories: JsonRecord, recallPrompt: z.string()}),
+      annotations: ReadOnlyAnnotations,
+    },
+    async ({projectId, conversationId, query}, ctx) => {
+      const {userId, supabase} = arkMcpUserContext(ctx);
+      await assertProjectOwnedByUser(supabase, userId, projectId);
+      if (conversationId) await assertConversationOwnedByUser({supabase, userId, projectId, conversationId});
+      return result(await readArborMemoryRecall({supabase, userId, projectId, conversationId, query}));
     },
   );
 

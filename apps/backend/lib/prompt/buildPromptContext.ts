@@ -29,6 +29,7 @@ import {
 import type { SafetyAddendum } from "@/lib/governance/realWorldSafetyAddendum";
 import { buildArborInjectedContext, composeArborSystemInjection } from "@/lib/arbor/subsystem/context";
 import { renderCanonicalIdentityAnchor } from "@/lib/arbor/selfModel/canonicalIdentityAnchor";
+import { memoryRecallQuery } from "@/lib/memory/recallQuery";
 import type { ArborSubsystem } from "@/lib/arbor/runtime/arborRuntime";
 import {
   buildArborBehaviorProjection,
@@ -251,13 +252,19 @@ export async function buildPromptContext({
 
   const negativePrefsFromAnchors = buildNegativePrefsGuardFromAnchors(anchors);
 
+  const conversationRuntime = projectId && conversationId
+    ? await loadRuntimeState({supabase, userId: authedUserId, projectId, conversationId})
+    : null;
+  const recallQuery = memoryRecallQuery(latestUserText, currentGoal ??
+    (conversationRuntime?.agency?.status === "complete" ? null : conversationRuntime?.currentGoal));
+
   const [memContext, alwaysIncludedMemory] = await Promise.all([
     getMemoryContext({
       supabase,
       authedUserId,
       projectId,
       conversationId,
-      latestUserText,
+      latestUserText: recallQuery,
       useVectorSearch: true,
     }),
     getAlwaysIncludedMemoryAnchors({
@@ -294,7 +301,7 @@ export async function buildPromptContext({
   );
   const continuityItems = selectContinuityAnchors(
     promptEligibleItems,
-    latestUserText,
+    recallQuery,
     14,
   );
   const decayMs = 1000 * 60 * 60 * 24 * 30;
@@ -329,7 +336,7 @@ export async function buildPromptContext({
           supabase,
           userId: authedUserId,
           projectId,
-          userText: latestUserText,
+          userText: recallQuery,
           currentThreadId: conversationId,
           limit: 4,
         })
@@ -344,7 +351,7 @@ export async function buildPromptContext({
           supabase,
           userId: authedUserId,
           projectId,
-          query: latestUserText,
+          query: recallQuery,
         })
       : [];
 
@@ -369,16 +376,6 @@ export async function buildPromptContext({
           canonicalSelfModelBlock: renderCanonicalIdentityAnchor(),
         }),
       };
-
-  const conversationRuntime =
-    projectId && conversationId
-      ? await loadRuntimeState({
-          supabase,
-          userId: authedUserId,
-          projectId,
-          conversationId,
-        })
-      : null;
 
   const durableBehaviorCorrections = await loadDurableBehaviorCorrections({ supabase, userId: authedUserId });
   const activeBehaviorCorrections = mergeCorrectionSnapshots([

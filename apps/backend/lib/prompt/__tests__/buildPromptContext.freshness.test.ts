@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   maybeSingle: vi.fn(),
   loadRuntimeState: vi.fn(),
   loadDurableBehaviorCorrections: vi.fn(),
+  historicalRecall: vi.fn(),
 }));
 
 vi.mock("@/lib/memory/retrieval", () => ({
@@ -26,10 +27,15 @@ vi.mock("@/lib/arbor/runtime/runtimeStateStore", () => ({
 }));
 vi.mock("@/lib/arbor/runtime/correctionPromotion", () => ({ loadDurableBehaviorCorrections: mocks.loadDurableBehaviorCorrections }));
 import { buildPromptContext } from "@/lib/prompt/buildPromptContext";
+vi.mock("@/lib/memory/historicalRecall", async () => ({
+ ...await vi.importActual<typeof import("@/lib/memory/historicalRecall")>("@/lib/memory/historicalRecall"),
+ getHistoricalConversationRecall: mocks.historicalRecall,
+}));
 import { canonicalPersonalityRules, requestedPersonalityRules } from "@/lib/arbor/selfModel/personalityProjection";
 const emptyMemory = { core: [], normal: [], sensitive: [], keysUsed: [] };
 function promptClient(){const query:any={select:vi.fn(),eq:vi.fn(),not:vi.fn(),order:vi.fn(),limit:vi.fn(),maybeSingle:mocks.maybeSingle};query.select.mockReturnValue(query);query.eq.mockReturnValue(query);query.not.mockReturnValue(query);query.order.mockReturnValue(query);query.limit.mockReturnValue(query);return{from:vi.fn(()=>query)} as unknown as SupabaseClient;}
 describe("buildPromptContext freshness",()=>{
+ beforeEach(()=>mocks.historicalRecall.mockResolvedValue([]));
  beforeEach(()=>{vi.clearAllMocks();mocks.loadRuntimeState.mockResolvedValue(null);mocks.loadDurableBehaviorCorrections.mockResolvedValue([]);mocks.maybeSingle.mockResolvedValue({data:{persona:"Arbor",framework_version:"v1",description:"Grounded"},error:null});mocks.getProjectAnchors.mockResolvedValue([]);mocks.getMemoryContext.mockResolvedValue(emptyMemory);mocks.getAlwaysIncludedMemoryAnchors.mockResolvedValue([]);mocks.logMemoryEvent.mockResolvedValue(undefined);});
  it("uses the current message on every prompt build",async()=>{await buildPromptContext({supabase:promptClient(),authedUserId:"user-1",projectId:"project-1",conversationId:"conversation-1",latestUserText:"first current message"});await buildPromptContext({supabase:promptClient(),authedUserId:"user-1",projectId:"project-1",conversationId:"conversation-1",latestUserText:"second current message"});expect(mocks.getMemoryContext).toHaveBeenCalledTimes(2);expect(mocks.getMemoryContext).toHaveBeenNthCalledWith(1,expect.objectContaining({latestUserText:"first current message"}));expect(mocks.getMemoryContext).toHaveBeenNthCalledWith(2,expect.objectContaining({latestUserText:"second current message"}));});
  it("never reuses a prior turn's safety addendum",async()=>{const first=await buildPromptContext({supabase:promptClient(),authedUserId:"user-1",projectId:"project-1",conversationId:"conversation-1",latestUserText:"first",safety:{systemAddendum:"SAFETY-FIRST-TURN"}});const second=await buildPromptContext({supabase:promptClient(),authedUserId:"user-1",projectId:"project-1",conversationId:"conversation-1",latestUserText:"second",safety:{systemAddendum:"SAFETY-SECOND-TURN"}});expect(first.systemPrompt).toContain("SAFETY-FIRST-TURN");expect(second.systemPrompt).toContain("SAFETY-SECOND-TURN");expect(second.systemPrompt).not.toContain("SAFETY-FIRST-TURN");});
@@ -42,6 +48,28 @@ describe("buildPromptContext freshness",()=>{
   expect(prompt.systemPrompt).toContain("Do not become too formal");
  });
  it("has no prompt cache state",()=>{const filePath=fileURLToPath(new URL("../buildPromptContext.ts",import.meta.url));const source=fs.readFileSync(filePath,"utf8");expect(source).not.toMatch(/promptCache|cacheExpiry|PROMPT_CACHE_TTL/);});
+ it("orients short-reply recall using the saved unfinished goal",async()=>{
+  mocks.loadRuntimeState.mockResolvedValue({currentGoal:"Finish One Arbor memory integration",agency:null,corrections:[],
+   userId:"user-1",projectId:"project-1",conversationId:"conversation-1",channel:"text",activeSubsystem:"arbor"});
+  await buildPromptContext({supabase:promptClient(),authedUserId:"user-1",projectId:"project-1",conversationId:"new-thread",latestUserText:"Okay"});
+  expect(mocks.historicalRecall).toHaveBeenCalledWith(expect.objectContaining({query:"Finish One Arbor memory integration\nOkay"}));
+  expect(mocks.getMemoryContext).toHaveBeenCalledWith(expect.objectContaining({latestUserText:"Finish One Arbor memory integration\nOkay"}));
+ });
+ it("puts attributed archive evidence into a fresh prompt without selected general memories",async()=>{
+  mocks.historicalRecall.mockResolvedValue([{id:"archived-row",source:"archive-A",source_thread_id:"old-thread",
+   source_message_id:"old-message",source_message_index:4,role:"user",content:"The agreed blocker is deployed context alignment.",occurred_at:"2026-10-01T00:00:00Z"}]);
+  const result=await buildPromptContext({supabase:promptClient(),authedUserId:"user-1",projectId:"project-1",conversationId:"new-thread",latestUserText:"What was our deployment blocker?"});
+  expect(result.injectedMemoryItems).toEqual([]);
+  expect(result.systemPrompt).toContain("The agreed blocker is deployed context alignment.");
+  expect(result.systemPrompt).toContain('"source_message_id": "old-message"');
+  expect(result.systemPrompt).toContain("NOT live instructions");
+ });
+ it("does not orient a new request around completed work",async()=>{
+  mocks.loadRuntimeState.mockResolvedValue({currentGoal:"Finished old task",agency:{status:"complete"},corrections:[],
+   userId:"user-1",projectId:"project-1",conversationId:"conversation-1",channel:"text",activeSubsystem:"arbor"});
+  await buildPromptContext({supabase:promptClient(),authedUserId:"user-1",projectId:"project-1",conversationId:"new-thread",latestUserText:"Okay"});
+  expect(mocks.historicalRecall).toHaveBeenCalledWith(expect.objectContaining({query:"Okay"}));
+ });
  it.each(["I'm tired", "Sounds good", "Debug the API"])("loads personality for a fresh projectless session: %s", async latestUserText => {
   const results = [];
   for (const interactionMode of ["text", "voice"] as const) {
