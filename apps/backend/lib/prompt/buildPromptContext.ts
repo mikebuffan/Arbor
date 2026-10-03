@@ -27,7 +27,8 @@ import {
   type AnchorRow,
 } from "@/lib/memory/anchors";
 import type { SafetyAddendum } from "@/lib/governance/realWorldSafetyAddendum";
-import { buildArborInjectedContext } from "@/lib/arbor/subsystem/context";
+import { buildArborInjectedContext, composeArborSystemInjection } from "@/lib/arbor/subsystem/context";
+import { renderCanonicalIdentityAnchor } from "@/lib/arbor/selfModel/canonicalIdentityAnchor";
 import type { ArborSubsystem } from "@/lib/arbor/runtime/arborRuntime";
 import {
   buildArborBehaviorProjection,
@@ -363,7 +364,10 @@ export async function buildPromptContext({
         activeSubsystem: "arbor" as const,
         voiceId: process.env.ARBOR_OPENAI_VOICE ?? "cedar",
         acousticCorrections: [] as string[],
-        systemInjection: "",
+        systemInjection: composeArborSystemInjection({
+          activeSubsystem: "arbor",
+          canonicalSelfModelBlock: renderCanonicalIdentityAnchor(),
+        }),
       };
 
   const conversationRuntime =

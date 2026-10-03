@@ -6,6 +6,7 @@ vi.mock("@/lib/arbor/runtime/runtimeStateStore",()=>({loadLatestRuntimeState:moc
 vi.mock("@/lib/arbor/runtime/correctionPromotion",()=>({loadDurableBehaviorCorrections:mocks.durable}));
 import { registerArkReadTools } from "../registerArkReadTools";
 import { createCorrection } from "@/lib/arbor/runtime/corrections";
+import { renderCanonicalIdentityAnchor } from "@/lib/arbor/selfModel/canonicalIdentityAnchor";
 
 const userId="owner",projectId="project",supabase={};
 const correction=(hour:string,text="Do not become too formal")=>createCorrection({kind:"behavior",source:"text",
@@ -25,6 +26,7 @@ describe("canonical permanent corrections in ARK continuity",()=>{
   expect(result.structuredContent).toMatchObject({available:false,conversationId:null,surface:null,authority:null,
    currentGoal:null,updatedAt:null,behavioralCorrections:["Do not become too formal"],acousticCorrections:[]});
   expect(result.structuredContent.continuityPrompt).toContain("Do not become too formal");
+  expect(result.structuredContent.identityAnchor).toBe(renderCanonicalIdentityAnchor());
   expect(mocks.durable).toHaveBeenCalledWith({supabase,userId});
  });
  it("merges durable and recent observations chronologically using the shared host projection",async()=>{
@@ -36,6 +38,7 @@ describe("canonical permanent corrections in ARK continuity",()=>{
   });
   const result=await callback()({projectId},{});
   expect(result.structuredContent.available).toBe(true);
+  expect(result.structuredContent.identityAnchor).toBe(renderCanonicalIdentityAnchor());
   expect(result.structuredContent.behavioralCorrections).toEqual(["Do not become too formal"]);
   expect(result.structuredContent.continuityPrompt).toContain("Do not become too formal");
   expect(result.structuredContent.continuityPrompt).not.toContain("You have drifted");
@@ -51,6 +54,8 @@ describe("canonical permanent corrections in ARK continuity",()=>{
   const result=await callback()({projectId},{});
   expect(result.structuredContent.behavioralCorrections).toEqual(["You have drifted; come back"]);
   expect(result.structuredContent.acousticCorrections).toEqual(["Your accent sounds British"]);
+  expect(result.structuredContent.identityAnchor).toBe(renderCanonicalIdentityAnchor());
+  expect(result.structuredContent.identityAnchor).not.toContain("Your accent sounds British");
  });
  it("retains owner/conversation denial before attempting permanent recall",async()=>{
   mocks.conversation.mockRejectedValue(new Error("foreign_conversation"));
@@ -60,5 +65,12 @@ describe("canonical permanent corrections in ARK continuity",()=>{
  it("propagates failed durable recall rather than reporting empty rules",async()=>{
   mocks.durable.mockRejectedValue({code:"42501"});
   await expect(callback()({projectId},{})).rejects.toEqual({code:"42501"});
+ });
+ it("returns the personality baseline even with no history or permanent corrections",async()=>{
+  mocks.durable.mockResolvedValue([]);
+  const result=await callback()({projectId},{});
+  expect(result.structuredContent).toMatchObject({available:false,continuityPrompt:null,currentGoal:null,
+   behavioralCorrections:[],acousticCorrections:[],identityAnchor:renderCanonicalIdentityAnchor()});
+  expect(result.structuredContent.identityAnchor).toContain("dry, situational, callback-heavy");
  });
 });

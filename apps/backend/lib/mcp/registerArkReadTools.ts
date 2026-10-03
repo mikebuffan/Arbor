@@ -10,6 +10,7 @@ import { loadDurableBehaviorCorrections } from "@/lib/arbor/runtime/correctionPr
 import { mergeCorrectionSnapshots } from "@/lib/arbor/runtime/runtimeState";
 import { behaviorCorrections } from "@/lib/arbor/runtime/corrections";
 import { promptDataBlock } from "@/lib/arbor/promptData";
+import { renderCanonicalIdentityAnchor } from "@/lib/arbor/selfModel/canonicalIdentityAnchor";
 import { arkMcpUserContext } from "./context";
 
 const ReadOnlyAnnotations = {
@@ -121,13 +122,14 @@ export function registerArkReadTools(server: McpServer): void {
     "get_arbor_continuity",
     {
       title: "Get Arbor Continuity",
-      description: "Read the latest owned Arbor runtime continuity for a project or a specific conversation so ChatGPT can continue without a social restart.",
+      description: "Read the shared Arbor identity baseline, durable corrections, and latest owned runtime continuity for a project or conversation. Missing conversation history remains unavailable; identity baseline is independent of history.",
       inputSchema: z.object({
         projectId: z.string().uuid(),
         conversationId: z.string().uuid().optional(),
       }),
       outputSchema: z.object({
         available: z.boolean(),
+        identityAnchor: z.string(),
         projectId: z.string().uuid(),
         conversationId: z.string().uuid().nullable(),
         surface: z.enum(["text", "voice"]).nullable(),
@@ -159,6 +161,7 @@ export function registerArkReadTools(server: McpServer): void {
       if (!state) {
         return result({
           available: false,
+          identityAnchor: renderCanonicalIdentityAnchor(),
           projectId,
           conversationId: conversationId ?? null,
           surface: null,
@@ -181,6 +184,7 @@ export function registerArkReadTools(server: McpServer): void {
       });
       return result({
         available: true,
+        identityAnchor: renderCanonicalIdentityAnchor(),
         projectId,
         conversationId: projection.hostState.conversationId,
         surface: projection.hostState.surface,

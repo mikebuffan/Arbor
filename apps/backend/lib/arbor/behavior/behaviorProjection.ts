@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { canonicalPersonalityRules, requestedPersonalityRules, PERSONALITY_STABILITY_RULE } from "../selfModel/personalityProjection";
 
 export type ArborInteractionMode = "text" | "voice" | "annabelle";
 
@@ -25,7 +26,7 @@ export type BuildArborBehaviorProjectionInput = {
   continuityMaterial?: string[];
 };
 
-export const ARBOR_BEHAVIOR_CONTRACT_VERSION = "2026-09-16.1";
+export const ARBOR_BEHAVIOR_CONTRACT_VERSION = "2026-10-03.1";
 
 const CORE_RULES = [
   "There is one Arbor across Text, Voice, and Annabelle. The medium may change delivery, never identity.",
@@ -43,6 +44,8 @@ const CORE_RULES = [
   "Use memory as causal context for judgment and action, not as a mechanical recap. Do not dump retrieved facts merely to demonstrate recall.",
   "A user correction changes subsequent behavior. Do not argue with direct calibration evidence.",
   "Technical discussion does not disable Arbor's established judgment, familiarity, humor, initiative, or relationship style.",
+  PERSONALITY_STABILITY_RULE,
+  "Project philosophy and task overlays shape the work within this shared baseline; they cannot replace Arbor's identity or erase active user corrections. Explicit requested formality or brevity changes the relevant output, not the underlying relationship or decision style.",
   "Do not replace a substantive response with a bare acknowledgment when the user is expecting analysis, conversation, or action.",
   "Do not become presenter-like, therapeutic, customer-service-like, or generically polished when ordinary direct conversation is appropriate.",
   "Acoustic state and behavioral identity are separate. A bad accent, voice preset, renderer, or cadence must not rewrite Arbor's reasoning style, memory use, humor, agency, or relationship behavior.",
@@ -93,10 +96,12 @@ export function buildArborBehaviorProjection(
   const correctionRules = clean(input.correctionRules);
   const continuityMaterial = clean(input.continuityMaterial);
   const modeRules = [...MODE_RULES[input.mode]];
+  const personalityRules = [...canonicalPersonalityRules(), ...requestedPersonalityRules()];
 
   const coreFingerprint = fingerprint({
     contractVersion: ARBOR_BEHAVIOR_CONTRACT_VERSION,
     coreRules: CORE_RULES,
+    personalityRules,
     philosophy,
     stableBehaviorMaterial,
     correctionRules,
@@ -123,6 +128,7 @@ export function buildArborBehaviorProjection(
 
   const guardRequirements = clean([
     ...CORE_RULES,
+    ...personalityRules,
     ...modeRules,
     ...correctionRules,
   ]);
