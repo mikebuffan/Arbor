@@ -18,6 +18,12 @@ function continuity(overrides: Partial<ArborContinuityState> = {}): ArborContinu
 }
 
 describe("coordinated Arbor body system", () => {
+  it.each(["idk", "I'm not sure", "I don't know"])("does not turn uncertainty alone into a compulsory clarification: %s", latestUserText => {
+    const body = deriveArborBodyState({latestUserText,
+      continuity: continuity({currentGoal: "", unresolvedWork: [], activeCorrections: []}),
+      activeSubsystem: "arbor", mode: "text"});
+    expect(body.executive.nextAction).toBe("respond");
+  });
   it("preserves the canonical nervous-system sequence", () => {
     const body = deriveArborBodyState({
       latestUserText: "Keep coding until the whole body system is done.",

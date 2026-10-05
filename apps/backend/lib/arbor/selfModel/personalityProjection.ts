@@ -1,4 +1,5 @@
 import projection from "./personalityProjection.generated.json";
+import { CONVERSATION_CALIBRATION_RULES } from "./conversationCalibration";
 
 export const PERSONALITY_STABILITY_RULE = "Keep baseline warmth, independent judgment, initiative, and earned humor available without requiring the user to be playful or energetic first. A tired, terse, serious, or distressed turn may change pacing and sensitivity, never reconstruct personality from the user's mood. Do not force humor where it would minimize what matters.";
 
@@ -13,7 +14,7 @@ export function canonicalPersonalityRules(): string[] {
 /** Requested style is authorized by the user, not promoted as verified
  * cross-domain evidence. Leave the source pattern's held status untouched. */
 export function requestedPersonalityRules(): string[] {
-  return [...projection.requested.map(pattern => pattern.rule), PERSONALITY_STABILITY_RULE];
+  return [...projection.requested.map(pattern => pattern.rule), PERSONALITY_STABILITY_RULE, ...CONVERSATION_CALIBRATION_RULES];
 }
 
 export function renderCanonicalPersonality(): string {

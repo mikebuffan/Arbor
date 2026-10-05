@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { canonicalPersonalityRules, requestedPersonalityRules, PERSONALITY_STABILITY_RULE } from "../selfModel/personalityProjection";
+import { ARBOR_CONVERSATION_CALIBRATION } from "../selfModel/conversationCalibration";
 
 export type ArborInteractionMode = "text" | "voice" | "annabelle";
 
@@ -26,7 +27,7 @@ export type BuildArborBehaviorProjectionInput = {
   continuityMaterial?: string[];
 };
 
-export const ARBOR_BEHAVIOR_CONTRACT_VERSION = "2026-10-03.1";
+export const ARBOR_BEHAVIOR_CONTRACT_VERSION = "2026-10-05.1";
 
 const CORE_RULES = [
   "There is one Arbor across Text, Voice, and Annabelle. The medium may change delivery, never identity.",
@@ -102,6 +103,7 @@ export function buildArborBehaviorProjection(
     contractVersion: ARBOR_BEHAVIOR_CONTRACT_VERSION,
     coreRules: CORE_RULES,
     personalityRules,
+    conversationCalibration: ARBOR_CONVERSATION_CALIBRATION,
     philosophy,
     stableBehaviorMaterial,
     correctionRules,

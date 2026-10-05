@@ -88,12 +88,11 @@ import { summarizePriorOpenEpisodes } from "@/lib/arbor/episodes/maintainEpisode
 import { detectTestMode } from "@/lib/runtime/testModeDetection";
 import { hasExplicitDurableAuthorization } from "@/lib/memory/durableAuthorization";
 
+import { buildChatSuccessResponse, loadRecentMessages, type Msg } from "@/lib/chat/routeSupport";
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export { assertProjectOwnedByUser };
-
-type Msg = { role: "user" | "assistant" | "system"; content: string };
 
 const NullableUuid = z.preprocess(
   (v) => (v === null || v === "" ? undefined : v),
@@ -108,21 +107,6 @@ const Body = z.object({
   interactionMode: z.enum(["text", "voice"]).default("text"),
   timeZoneOffsetMinutes: z.number().int().min(-840).max(840).optional(),
 });
-
-export function buildChatSuccessResponse(params: {
-  projectId: string;
-  conversationId: string;
-  assistantText: string;
-  flagged?: boolean;
-}) {
-  return {
-    ok: true as const,
-    projectId: params.projectId,
-    conversationId: params.conversationId,
-    assistantText: params.assistantText,
-    ...(params.flagged ? { flagged: true as const } : {}),
-  };
-}
 
 function getCorsHeaders(req: Request) {
   const origin = req.headers.get("origin") ?? "*";
@@ -168,35 +152,6 @@ async function getOrCreateDefaultProjectId(
 
   if (e2) throw e2;
   return created.id as string;
-}
-
-export async function loadRecentMessages(
-  supabase: SupabaseClient,
-  userId: string,
-  conversationId: string,
-  limit = 20,
-): Promise<Msg[]> {
-  const { data, error } = await supabase
-    .from("messages")
-    .select("role,content,created_at,deleted_at,expires_at")
-    .eq("user_id", userId)
-    .eq("conversation_id", conversationId)
-    .is("deleted_at", null)
-    .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
-    .order("created_at", { ascending: false })
-    .limit(limit);
-
-  if (error) throw error;
-  const messages = (data ?? []) as Array<{
-    role: Msg["role"];
-    content: string;
-  }>;
-  return messages
-    .reverse()
-    .map((message) => ({
-      role: message.role,
-      content: message.content,
-    }));
 }
 
 async function cleanupExpiredMessagesBestEffort(

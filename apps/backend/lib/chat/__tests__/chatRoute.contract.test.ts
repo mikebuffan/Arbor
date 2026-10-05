@@ -8,10 +8,10 @@ vi.mock("@/lib/providers/openai", () => ({
 }));
 
 import {
-  assertProjectOwnedByUser,
   buildChatSuccessResponse,
   loadRecentMessages,
-} from "@/app/api/chat/route";
+} from "../routeSupport";
+import { assertProjectOwnedByUser } from "@/lib/auth/ownership";
 
 describe("chat Milestone 1A contract", () => {
   it("preserves project and conversation IDs during safety replacement", () => {

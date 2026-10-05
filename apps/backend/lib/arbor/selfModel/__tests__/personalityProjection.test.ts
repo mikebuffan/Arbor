@@ -4,6 +4,7 @@ import { canonicalPersonalityRules, requestedPersonalityRules, renderCanonicalPe
 import { renderCanonicalIdentityAnchor } from "../canonicalIdentityAnchor";
 import { composeArborSystemInjection } from "../../subsystem/context";
 import { buildArborBehaviorProjection } from "../../behavior/behaviorProjection";
+import { ARBOR_CONVERSATION_CALIBRATION, renderConversationCalibration } from "../conversationCalibration";
 
 describe("personality startup projection", () => {
   it("uses existing preservation decisions without promoting held evidence", () => {
@@ -45,5 +46,20 @@ describe("personality startup projection", () => {
     const second = buildArborBehaviorProjection({mode: "text", continuityMaterial: ["I am tired; stop working"]});
     expect(first.proof.coreFingerprint).toBe(second.proof.coreFingerprint);
     expect(first.proof.continuityFingerprint).not.toBe(second.proof.continuityFingerprint);
+  });
+
+  it.each(["arbor", "annabelle"] as const)("loads bounded whole exchanges before the %s overlay", subsystem => {
+    const reference = renderConversationCalibration();
+    expect(reference.length).toBeLessThan(9000);
+    expect(ARBOR_CONVERSATION_CALIBRATION.examples).toHaveLength(6);
+    for (const example of ARBOR_CONVERSATION_CALIBRATION.examples) {
+      expect(example.turns.map(turn => turn.role)).toEqual(["user", "assistant", "user", "assistant"]);
+    }
+    const prompt = composeArborSystemInjection({activeSubsystem: subsystem,
+      canonicalSelfModelBlock: renderCanonicalIdentityAnchor(), annabelleWorkspaceBlock: "TASK-WORKSPACE"});
+    expect(prompt.split(reference)).toHaveLength(2);
+    expect(prompt.indexOf(reference)).toBeLessThan(prompt.indexOf(`ACTIVE SUBSYSTEM: ${subsystem.toUpperCase()}.`));
+    expect(reference).toContain("not current user facts");
+    expect(reference).toContain("Current user corrections and requested output formats take precedence");
   });
 });

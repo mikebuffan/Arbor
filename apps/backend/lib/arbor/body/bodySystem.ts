@@ -71,9 +71,7 @@ export function deriveArborBodyState(input: {
   const nextAction: ArborBodyState["executive"]["nextAction"] =
     unresolved.length > 0 && digestive.state !== "BLOCKED"
       ? "continue"
-      : uncertaintyCue && !currentGoal
-        ? "clarify"
-        : "respond";
+      : "respond";
 
   return {
     schemaVersion: 1,
@@ -170,6 +168,7 @@ export function arborBodyPromptBlock(state: ArborBodyState): string {
       : "Hepatic/immune warnings: none.",
     `Vagal downshift: ${state.vagal.downshift ? state.vagal.reason ?? "yes" : "no"}`,
     `Executive next action: ${state.executive.nextAction}`,
+    "Uncertainty cues are attention signals, not proof that information is missing. Use available conversation context; ask only when a meaningful uncertainty remains.",
     "Skeleton: preserve identity, truth, valid corrections, and unresolved work.",
     "Skin: enforce privacy/ownership boundaries; body signals never authorize durable writeback by themselves.",
   ].join("\n");

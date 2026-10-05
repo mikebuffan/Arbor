@@ -32,6 +32,7 @@ vi.mock("@/lib/memory/historicalRecall", async () => ({
  getHistoricalConversationRecall: mocks.historicalRecall,
 }));
 import { canonicalPersonalityRules, requestedPersonalityRules } from "@/lib/arbor/selfModel/personalityProjection";
+import { renderConversationCalibration } from "@/lib/arbor/selfModel/conversationCalibration";
 const emptyMemory = { core: [], normal: [], sensitive: [], keysUsed: [] };
 function promptClient(){const query:any={select:vi.fn(),eq:vi.fn(),not:vi.fn(),order:vi.fn(),limit:vi.fn(),maybeSingle:mocks.maybeSingle};query.select.mockReturnValue(query);query.eq.mockReturnValue(query);query.not.mockReturnValue(query);query.order.mockReturnValue(query);query.limit.mockReturnValue(query);return{from:vi.fn(()=>query)} as unknown as SupabaseClient;}
 describe("buildPromptContext freshness",()=>{
@@ -78,6 +79,8 @@ describe("buildPromptContext freshness",()=>{
   expect(results[0].behaviorProof.coreFingerprint).toBe(results[1].behaviorProof.coreFingerprint);
   for (const result of results) {
    expect(result.injectedMemoryItems).toEqual([]);
+   expect(result.systemPrompt.split(renderConversationCalibration())).toHaveLength(2);
+   expect(result.systemPrompt.indexOf(renderConversationCalibration())).toBeLessThan(result.systemPrompt.indexOf("ACTIVE SUBSYSTEM: ARBOR."));
    for (const rule of [...canonicalPersonalityRules(), ...requestedPersonalityRules()]) {
     expect(result.systemPrompt).toContain(rule);
     expect(result.behaviorGuardRequirements).toContain(rule);
