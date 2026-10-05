@@ -12,6 +12,7 @@ import { behaviorCorrections } from "@/lib/arbor/runtime/corrections";
 import { promptDataBlock } from "@/lib/arbor/promptData";
 import { renderCanonicalIdentityAnchor } from "@/lib/arbor/selfModel/canonicalIdentityAnchor";
 import { arkMcpUserContext } from "./context";
+import { isArkMcpSubmissionEnabled, ARK_READ_TASK_SUBMIT_PERMISSION } from "./taskPermissions";
 import { readArborMemoryRecall } from "@/lib/memory/readRecall";
 
 const ReadOnlyAnnotations = {
@@ -41,14 +42,18 @@ export function registerArkReadTools(server: McpServer): void {
         userId: z.string().uuid(),
         email: z.string().email().nullable(),
         subsystem: z.literal("ARK"),
-        access: z.literal("read-only"),
+        access: z.enum(["read-only", "read-and-submit-read-tasks"]),
       }),
       annotations: ReadOnlyAnnotations,
       _meta: { "openai/profile": true },
     },
     async (_input, ctx) => {
       const { userId, email } = arkMcpUserContext(ctx);
-      return result({ userId, email, subsystem: "ARK" as const, access: "read-only" as const });
+      const auth = ctx.http?.authInfo;
+      const canSubmit = isArkMcpSubmissionEnabled() && auth?.scopes.includes(ARK_READ_TASK_SUBMIT_PERMISSION)
+        && Array.isArray(auth.extra?.arkReadTaskProjectIds) && auth.extra.arkReadTaskProjectIds.length > 0;
+      return result({ userId, email, subsystem: "ARK" as const,
+        access: canSubmit ? "read-and-submit-read-tasks" as const : "read-only" as const });
     },
   );
 

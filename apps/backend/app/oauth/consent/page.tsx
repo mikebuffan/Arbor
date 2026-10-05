@@ -96,14 +96,14 @@ export default function OAuthConsentPage() {
             </p>
 
             <div className="mt-6 rounded-2xl border border-emerald-300/15 bg-emerald-300/[0.05] p-4">
-              <h2 className="font-medium text-emerald-100">This connection is read-only</h2>
+              <h2 className="font-medium text-emerald-100">Access to your Arbor account</h2>
               <ul className="mt-3 grid gap-2 text-sm leading-6 text-zinc-400">
                 <li>Read your Arbor project list.</li>
-                <li>Read durable ARK objectives and task status.</li>
+                <li>Read durable ARK objectives, task status, and stored results.</li>
                 <li>Read Arbor continuity for an owned project or conversation.</li>
               </ul>
               <p className="mt-3 text-xs leading-5 text-zinc-500">
-                It cannot create or change tasks, memory, projects, code, deployments, or production settings.
+                Task submission requires a separate grant for this connection and project. When enabled, it can queue supported reads of existing runtime or editorial state. Approving this connection does not enable workers or authorize manuscript edits, code changes, or deployments.
               </p>
             </div>
 
@@ -123,7 +123,7 @@ export default function OAuthConsentPage() {
                 Deny
               </button>
               <button disabled={busy} onClick={() => void decide("approve")} className="min-h-12 rounded-2xl border border-cyan-300/20 bg-cyan-300/[0.09] font-medium text-cyan-50 transition hover:bg-cyan-300/[0.14] disabled:opacity-50">
-                {busy ? "Connecting…" : "Approve read-only access"}
+                {busy ? "Connecting…" : "Approve connection"}
               </button>
             </div>
           </>

@@ -2,6 +2,7 @@ import "server-only";
 
 import type { AuthInfo } from "@modelcontextprotocol/server";
 import { createUserClientForBearerToken } from "@/lib/supabase/user";
+import { arkReadTaskProjects, ARK_READ_TASK_SUBMIT_PERMISSION } from "./taskPermissions";
 
 type VerifiedTokenClaims = {
   client_id?: unknown;
@@ -35,6 +36,7 @@ export async function verifyArkMcpToken(
 
   // Claims are consumed only after Supabase has validated the complete token.
   const claims = verifiedTokenClaims(token);
+  const grantedProjects = arkReadTaskProjects(user.app_metadata, claims.client_id);
 
   return {
     token,
@@ -42,11 +44,12 @@ export async function verifyArkMcpToken(
       typeof claims.client_id === "string"
         ? claims.client_id
         : "supabase-oauth-client",
-    scopes: ["ark.read"],
+    scopes: grantedProjects.length ? ["ark.read", ARK_READ_TASK_SUBMIT_PERMISSION] : ["ark.read"],
     expiresAt: typeof claims.exp === "number" ? claims.exp : undefined,
     extra: {
       userId: user.id,
       email: user.email ?? null,
+      ...(grantedProjects.length ? {arkReadTaskProjectIds: grantedProjects} : {}),
     },
   };
 }
