@@ -152,8 +152,10 @@ describe("isolated acceptance runner (mock provider, never live acceptance)", ()
     const createResponse = async (request: any) => {
       const id = `correction${++count}`;
       const isVerifier = String(request.instructions).includes("completion and behavioral-regression verifier");
-      return response(id, isVerifier ? JSON.stringify({ complete: verifications !== 1, score: 1,
-        unresolvedWork: ++verifications === 2 ? [] : ["Unfinished task"], evidence: [], strategyCorrection: null, behaviorViolations: [] }) : "Reply");
+      if (!isVerifier) return response(id, "Reply");
+      verifications++;
+      return response(id, JSON.stringify({ complete: verifications !== 1, score: 1,
+        unresolvedWork: verifications === 1 ? ["Unfinished task"] : [], evidence: [], strategyCorrection: null, behaviorViolations: [] }));
     };
     const result = await runAcceptanceComparison({ generation, assignment, config: { ...config, verifyCompletion: true },
       createResponse, provision: provisionAcceptanceFixture, record: async e => { events.push(e); } });
