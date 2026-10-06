@@ -99,6 +99,17 @@ describe("Firefly roundabout -> existing cognitive brain -> private-model data",
     expect(view.roundabout.suggestedNextStage).toBe("awareness");
     expect(view.roundabout.requiresReview).toBe(true);
   });
+  it("holds on a contradictory seed even when no later hop carries the conflict", async () => {
+    const db = store();
+    const view = ready(await previewFireflyCognitiveRoundabout(args(db, {
+      seed: { ...seed, epistemicStatus: "contradictory" }, candidates: [],
+    })));
+    expect(view.roundabout.decision).toBe("hold");
+    expect(view.roundabout.requiresReview).toBe(true);
+    expect(view.grantsExecution).toBe(false);
+    expect(view.learningApplied).toBe(false);
+    expect(db.writes).toBe(0);
+  });
   it("preserves objective while interrupted and returns by re-observing", async () => {
     const db = store();
     const paused = ready(await previewFireflyCognitiveRoundabout(args(db, {
