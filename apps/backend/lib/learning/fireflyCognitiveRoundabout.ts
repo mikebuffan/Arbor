@@ -70,7 +70,7 @@ export async function previewFireflyCognitiveRoundabout(
   const evidence = [input.seed, ...input.candidates];
   const byId = new Map(evidence.map(item => [item.id, item]));
   // These links are PROVIDED classifications, not independent fact checks.
-  const flaggedConflict = prepared.cycle.hops.some(hop =>
+  const flaggedConflict = input.seed.epistemicStatus === "contradictory" || prepared.cycle.hops.some(hop =>
     hop.epistemicStatus === "contradictory" ||
     hop.relationship === "contradiction");
   const provenance: KnowledgePacket["provenance"] = [
