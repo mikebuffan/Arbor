@@ -1,3 +1,4 @@
+import { searchOwnedResearchPages, type DocumentHopSearch } from "./researchDocumentSearch";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { buildEvidencePacket, type EvidencePacket } from "./evidencePacketBuilder";
 import { createInvestigationReplayReceipt, type InvestigationReplayRecipe } from "./investigationReplayReceipt";
@@ -89,6 +90,10 @@ export class SupabaseInvestigationStore{
       reason,evidence_refs:evidenceRefs,
       status:"recorded_no_execution",
     });
+  }
+
+  async searchPreparedPatternHopPages(input: DocumentHopSearch) {
+    return searchOwnedResearchPages(this.db, this.ownerId, this.projectId, input);
   }
 
   async loadIntegrationState():Promise<{
