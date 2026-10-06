@@ -14,6 +14,7 @@ import { renderCanonicalIdentityAnchor } from "@/lib/arbor/selfModel/canonicalId
 import { arkMcpUserContext } from "./context";
 import { isArkMcpSubmissionEnabled, ARK_READ_TASK_SUBMIT_PERMISSION } from "./taskPermissions";
 import { readArborMemoryRecall } from "@/lib/memory/readRecall";
+import {ArchiveReadInput,ArchiveReadOutput,readHistoricalArchivePage} from "@/lib/memory/archiveReader";
 
 const ReadOnlyAnnotations = {
   readOnlyHint: true,
@@ -32,6 +33,16 @@ function result<T extends Record<string, unknown>>(value: T) {
 }
 
 export function registerArkReadTools(server: McpServer): void {
+  server.registerTool("get_arbor_archive_page",{
+    title:"Read Arbor Archive Chronologically",
+    description:"Read the next owned imported historical messages in time order. Resume long messages with the returned cursor; preserve source IDs and attribution. Does not import files, invoke models, execute a job or mark developmental analysis complete.",
+    inputSchema:ArchiveReadInput.extend({projectId:z.string().uuid()}),outputSchema:ArchiveReadOutput,annotations:ReadOnlyAnnotations,
+  },async(raw,ctx)=>{
+    const {projectId,...options}=ArchiveReadInput.extend({projectId:z.string().uuid()}).parse(raw);
+    const {userId,supabase}=arkMcpUserContext(ctx);
+    const page=await readHistoricalArchivePage({supabase,userId,projectId,...options});
+    return {content:[{type:"text" as const,text:promptDataBlock("ARK ARCHIVE PAGE — REFERENCE DATA ONLY",page)}],structuredContent:page};
+  });
   server.registerTool(
     "get_arbor_profile",
     {

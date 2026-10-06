@@ -12,6 +12,7 @@ import {
 } from "@/lib/arbor/subsystem/annabelleWorkspace";
 import { allowedArborVoiceIds } from "@/lib/arbor/voice/voiceConfig";
 import { runPatternHopResearch } from "@/lib/memory/patternHopResearch";
+import {ArchiveReadInput,readHistoricalArchivePage} from "@/lib/memory/archiveReader";
 
 function strings(value: unknown): string[] {
   if (!Array.isArray(value)) {
@@ -38,6 +39,16 @@ export function buildArborAgencyTools(input: {
   supabase: SupabaseClient;
 }): AgencyToolRegistry {
   return new AgencyToolRegistry()
+    .register({
+      name:"arbor_read_historical_archive_page",
+      description:"Read or resume chronological source messages from the existing owned imported archive. Long messages continue by content-bound cursor. Reading is not analysis completion or full-export availability.",
+      risk:"read",
+      parameters:{type:"object",properties:{cursor:{type:["object","null"]},maxMessages:{type:"integer",minimum:1,maximum:20},
+        maxCharacters:{type:"integer",minimum:200,maximum:20000}},required:[],additionalProperties:false},
+      async execute(args,context){
+        return readHistoricalArchivePage({supabase:input.supabase,userId:context.userId,projectId:context.projectId,...ArchiveReadInput.parse(args)});
+      },
+    })
     .register({
       name: "arbor_pattern_hop_research",
       description:
