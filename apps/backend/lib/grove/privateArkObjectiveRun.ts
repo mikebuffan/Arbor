@@ -202,6 +202,28 @@ async function readSingleTaskSelection(input: {
   };
 }
 
+function assertSelectionBound(input: {
+  selected: Selection;
+  userId: string;
+  projectId: string;
+  conversationId: string;
+  objectiveId: string;
+}): void {
+  const { selected } = input;
+  if (
+    selected.objective.id !== input.objectiveId ||
+    selected.objective.userId !== input.userId ||
+    selected.objective.projectId !== input.projectId ||
+    selected.task.objectiveId !== input.objectiveId ||
+    selected.task.userId !== input.userId ||
+    selected.task.projectId !== input.projectId ||
+    selected.task.conversationId !== input.conversationId ||
+    selected.task.kind !== "arbor.agency-tool"
+  ) {
+    throw new RouteAccessError(409, "grove_ark_selection_scope_mismatch");
+  }
+}
+
 function boundedResult(value: unknown): {
   resultJson: string | null;
   resultTruncated: boolean;
@@ -273,6 +295,13 @@ export async function runPrivateGroveArkObjective(input: {
   };
 
   let selected = await readSelection(scope);
+  assertSelectionBound({
+    selected,
+    userId: bound.fireflyUserId,
+    projectId: input.projectId,
+    conversationId: input.conversationId,
+    objectiveId: input.objectiveId,
+  });
 
   if (selected.task.status === "running") {
     throw new RouteAccessError(409, "grove_ark_task_in_progress");
@@ -302,6 +331,13 @@ export async function runPrivateGroveArkObjective(input: {
     });
     await reauthorize();
     selected = await readSelection(scope);
+    assertSelectionBound({
+      selected,
+      userId: bound.fireflyUserId,
+      projectId: input.projectId,
+      conversationId: input.conversationId,
+      objectiveId: input.objectiveId,
+    });
     await reauthorize();
   } else {
     await reauthorize();
