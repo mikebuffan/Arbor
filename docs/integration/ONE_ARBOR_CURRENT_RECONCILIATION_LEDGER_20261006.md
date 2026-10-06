@@ -40,3 +40,22 @@ GATED: research v7 scheduler is deliberately default-OFF. No live source capture
 
 ## Completion semantics
 Never collapse copied/imported, read/consumed, analyzed/reconciled, source-tested, deployed, live-proven, or user-accepted. Code, rows, checkpoints and old assistant claims do not by themselves prove completion.
+
+
+## Fresh source-audit closures
+- C01 ledger reconciliation: SOURCE_BUILT here. This file is based on the current #260 spine rather than the older Buffalo-only view.
+- C11 executor map: current #260 already contains the chronological archive reader in both agency and bounded ARK task paths; generic engineering execution remains intentionally absent.
+- C24–C35 startup/capture: #260 materially supersedes the older “missing caller” audit by adding default-off exact-conversation runtime-goal and turn capture plus startup hydration. Live activation/restart proof remains GATED, not OPEN source work.
+- C46 blocker continuation: current prompt and agency engine already encode continue-after-intermediate-result, alternate recovery, completion proof and blocker-only yield. The remaining failure is live/surface adoption, not absence of source policy.
+- C56 inventory mismatch: CLOSED as an inventory question. Authenticated/live database evidence establishes one canonical manuscript with 60 chapters, 100 records, five checkpoints and one completed Chapter 1 receipt. Sequential reading remains C59.
+- Research C62 reconciliation: #224–231 are a coherent existing research stack through privacy/operator controls v7; #250 preserves its custody handoff on the current spine; #262 supplies current Pattern Hop run control. Remaining work is selective integration/live gates, not another engine.
+- Grove C50/source connection: #260 now contains private conversation discovery/history/chat, runtime capture and exact ARK handoff/run routes. Live owner grants/host/device acceptance remain gated.
+- Independent LM C51 preparation: #261/#266 establish a pinned no-AVX Windows runtime path and physical target eligibility. Real foundation+LoRA inference remains gated.
+
+## Blockers intentionally carried forward
+- Vercel deployment quota: no deployment until provider reset.
+- Protected hosted migrations/grants: require explicit reviewed activation.
+- Real LM inference/cost: requires bounded owner approval and private artifact/runtime inputs.
+- Physical phone install/sign-in and acoustic acceptance: owner/device actions.
+- Full export reading: blocked behind remaining live archive transport and deployed task execution.
+- Annabelle Chapters 2–60 durable read receipts: source-access/reader execution path remains to connect; do not infer completion from editorial rows or prior language-model excavation.
