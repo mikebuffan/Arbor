@@ -494,12 +494,13 @@ export async function POST(req: Request) {
             key,
             operation,
           }),
-        complete: ({ key, result }) =>
+        complete: ({ key, operation, result }) =>
           completeAgencyOperation({
             supabase,
             userId,
             projectId,
             key,
+            operation,
             result,
           }),
       },
