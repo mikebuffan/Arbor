@@ -1,0 +1,2 @@
+import{describe,expect,it}from"vitest";import{acquirePatternHopLease,checkpointPatternHop,stopPatternHop}from"../patternHopLease";
+describe("pattern hop lease",()=>{it("prevents concurrent runs and honors durable stop",()=>{let l={runId:"a",holder:"w1",leaseUntil:100,stopped:false,checkpoint:null};expect(acquirePatternHopLease(l,{runId:"b",holder:"w2",now:50,ttlMs:100}).allowed).toBe(false);l=stopPatternHop(l);expect(acquirePatternHopLease(l,{runId:"b",holder:"w2",now:150,ttlMs:100}).reason).toBe("stopped");expect(()=>checkpointPatternHop(l,"x")).toThrow();});});
