@@ -99,7 +99,7 @@ export function buildArkAgencyExecutionDelegate(input: {
           kind: "checkpointed",
           objectiveId: dispatched.objectiveId,
           reason:
-            "The selected action is durably owned by ARK and remains unfinished. Its checkpoint is preserved for continuation.",
+            "INTERNAL CONTINUATION REQUIRED: ARK durably owns this unfinished action. Resume the same objective automatically; do not ask the user to say go and do not treat the checkpoint as completion.",
         };
       }
 
