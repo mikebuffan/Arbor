@@ -6,7 +6,14 @@ import { assertConversationOwnedByUser, assertProjectOwnedByUser } from "@/lib/a
 import { readArkProjectSnapshot } from "@/lib/ark/readModel";
 import { projectRuntimeStartup } from "@/lib/arbor/runtime/hostProjection";
 import { loadLatestRuntimeState, loadRuntimeState } from "@/lib/arbor/runtime/runtimeStateStore";
+import { loadDurableBehaviorCorrections } from "@/lib/arbor/runtime/correctionPromotion";
+import { mergeCorrectionSnapshots } from "@/lib/arbor/runtime/runtimeState";
+import { behaviorCorrections } from "@/lib/arbor/runtime/corrections";
+import { promptDataBlock } from "@/lib/arbor/promptData";
+import { renderCanonicalIdentityAnchor } from "@/lib/arbor/selfModel/canonicalIdentityAnchor";
 import { arkMcpUserContext } from "./context";
+import { isArkMcpSubmissionEnabled, ARK_READ_TASK_SUBMIT_PERMISSION } from "./taskPermissions";
+import { readArborMemoryRecall } from "@/lib/memory/readRecall";
 
 const ReadOnlyAnnotations = {
   readOnlyHint: true,
@@ -35,14 +42,37 @@ export function registerArkReadTools(server: McpServer): void {
         userId: z.string().uuid(),
         email: z.string().email().nullable(),
         subsystem: z.literal("ARK"),
-        access: z.literal("read-only"),
+        access: z.enum(["read-only", "read-and-submit-read-tasks"]),
       }),
       annotations: ReadOnlyAnnotations,
       _meta: { "openai/profile": true },
     },
     async (_input, ctx) => {
       const { userId, email } = arkMcpUserContext(ctx);
-      return result({ userId, email, subsystem: "ARK" as const, access: "read-only" as const });
+      const auth = ctx.http?.authInfo;
+      const canSubmit = isArkMcpSubmissionEnabled() && auth?.scopes.includes(ARK_READ_TASK_SUBMIT_PERMISSION)
+        && Array.isArray(auth.extra?.arkReadTaskProjectIds) && auth.extra.arkReadTaskProjectIds.length > 0;
+      return result({ userId, email, subsystem: "ARK" as const,
+        access: canSubmit ? "read-and-submit-read-tasks" as const : "read-only" as const });
+    },
+  );
+
+  server.registerTool(
+    "get_arbor_memory_recall",
+    {
+      title: "Recall Arbor Memories",
+      description: "Read bounded owned archive excerpts, episode summaries, and eligible durable memories for the current request. Reports archive inventory separately from matches. Read-only lexical lookup; no external model requests, imports, or writes.",
+      inputSchema: z.object({projectId: z.string().uuid(), conversationId: z.string().uuid().optional(),
+        query: z.string().trim().min(3).max(2000)}),
+      outputSchema: z.object({projectId: z.string().uuid(), query: z.string(), archive: JsonRecord,
+        episodes: JsonRecord, memories: JsonRecord, recallPrompt: z.string()}),
+      annotations: ReadOnlyAnnotations,
+    },
+    async ({projectId, conversationId, query}, ctx) => {
+      const {userId, supabase} = arkMcpUserContext(ctx);
+      await assertProjectOwnedByUser(supabase, userId, projectId);
+      if (conversationId) await assertConversationOwnedByUser({supabase, userId, projectId, conversationId});
+      return result(await readArborMemoryRecall({supabase, userId, projectId, conversationId, query}));
     },
   );
 
@@ -117,13 +147,14 @@ export function registerArkReadTools(server: McpServer): void {
     "get_arbor_continuity",
     {
       title: "Get Arbor Continuity",
-      description: "Read the latest owned Arbor runtime continuity for a project or a specific conversation so ChatGPT can continue without a social restart.",
+      description: "Read the shared Arbor identity baseline, durable corrections, and latest owned runtime continuity for a project or conversation. Missing conversation history remains unavailable; identity baseline is independent of history.",
       inputSchema: z.object({
         projectId: z.string().uuid(),
         conversationId: z.string().uuid().optional(),
       }),
       outputSchema: z.object({
         available: z.boolean(),
+        identityAnchor: z.string(),
         projectId: z.string().uuid(),
         conversationId: z.string().uuid().nullable(),
         surface: z.enum(["text", "voice"]).nullable(),
@@ -150,10 +181,12 @@ export function registerArkReadTools(server: McpServer): void {
       const state = conversationId
         ? await loadRuntimeState({ supabase, userId, projectId, conversationId })
         : await loadLatestRuntimeState({ supabase, userId, projectId });
+      const durableCorrections = await loadDurableBehaviorCorrections({ supabase, userId });
 
       if (!state) {
         return result({
           available: false,
+          identityAnchor: renderCanonicalIdentityAnchor(),
           projectId,
           conversationId: conversationId ?? null,
           surface: null,
@@ -162,16 +195,21 @@ export function registerArkReadTools(server: McpServer): void {
           lastMeaningfulUserTurn: null,
           lastMeaningfulArborTurn: null,
           unresolvedWork: [],
-          behavioralCorrections: [],
+          behavioralCorrections: behaviorCorrections(durableCorrections),
           acousticCorrections: [],
-          continuityPrompt: null,
+          continuityPrompt: durableCorrections.length
+            ? promptDataBlock("DURABLE ARBOR BEHAVIOR CORRECTIONS", behaviorCorrections(durableCorrections))
+            : null,
           updatedAt: null,
         });
       }
 
-      const projection = projectRuntimeStartup(state);
+      const projection = projectRuntimeStartup({
+        ...state, corrections: mergeCorrectionSnapshots([durableCorrections, state.corrections ?? []]),
+      });
       return result({
         available: true,
+        identityAnchor: renderCanonicalIdentityAnchor(),
         projectId,
         conversationId: projection.hostState.conversationId,
         surface: projection.hostState.surface,

@@ -173,7 +173,7 @@ export function embodiedRegulationPromptBlock(
 
   const pacingRules: Record<ArborPacing, string> = {
     compact:
-      "Answer proportionally; brevity must not omit an obvious required action.",
+      "Answer proportionally; a short user turn does not require a bare acknowledgment, a solemn tone, or another question. Keep conversational contribution; brevity must not omit an obvious required action.",
     normal:
       "Use ordinary pacing and complete the requested work before yielding.",
     sustained:

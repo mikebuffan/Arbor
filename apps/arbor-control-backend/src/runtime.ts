@@ -29,8 +29,16 @@ import {
   detectRuntimeCorrectionKind,
 } from "./correctionDetection.js";
 import {
+  emptyCognitiveRuntimeState,
+  renderCognitiveRuntime,
+  updateCognitiveRuntime,
+} from "./cognitiveRuntime.js";
+import {
   ARBOR_CORE_INJECTION,
 } from "./identity.js";
+import {
+  renderCurrentArborProfile,
+} from "./currentArborProfile.js";
 import {
   shouldCarryGoal,
 } from "./longitudinalPolicy.js";
@@ -42,6 +50,10 @@ import {
 import {
   renderSelfModelProjection,
 } from "./selfModelProjection.js";
+import {
+  reconcileSelfModelClaims,
+  renderSelfModelClaimProjection,
+} from "./selfModelClaims.js";
 import {
   ensureSelfModelIdentity,
   renderSelfModelIdentityAnchor,
@@ -73,6 +85,7 @@ const DEFAULT_STATE: ArborState = {
   behavioralCorrections: [],
   acousticCorrections: [],
   voiceId: defaultVoiceId(),
+  cognitiveRuntime: emptyCognitiveRuntimeState(),
 };
 
 export type AgencyRunner =
@@ -158,11 +171,14 @@ export class ArborControlRuntime {
           saved.behavioralCorrections ??
           [],
         voiceId,
+        cognitiveRuntime:
+          saved.cognitiveRuntime ?? emptyCognitiveRuntimeState(),
       });
 
     if (
       !saved.selfModel ||
-      !saved.behavioralCorrections
+      !saved.behavioralCorrections ||
+      !saved.cognitiveRuntime
     ) {
       await this.store
         .save(
@@ -565,7 +581,7 @@ export class ArborControlRuntime {
               .acousticCorrections;
 
       const state:
-        ArborState = {
+        ArborState = reconcileSelfModelClaims({
         ...prior,
 
         activeSubsystem,
@@ -581,7 +597,7 @@ export class ArborControlRuntime {
             : request
                 .userText
                 .trim(),
-      };
+      });
 
       await this.record(
         turnId,
@@ -648,6 +664,8 @@ export class ArborControlRuntime {
       const instructions = [
         ARBOR_CORE_INJECTION,
 
+        renderCurrentArborProfile(),
+
         renderSelfModelIdentityAnchor(
           state,
         ),
@@ -676,7 +694,13 @@ export class ArborControlRuntime {
 
         buildCarrierInjection(state),
 
+        renderCognitiveRuntime(state.cognitiveRuntime),
+
         renderSelfModelProjection(),
+
+        renderSelfModelClaimProjection(
+          state,
+        ),
 
         subsystemInjection(
           state,
@@ -898,6 +922,49 @@ export class ArborControlRuntime {
                 .acousticCorrections,
             ]),
         });
+
+      const postProviderArborProfile =
+        renderCurrentArborProfile();
+
+      if (!postProviderArborProfile.includes(
+        "Apply this profile to judgment and action before task/surface presentation",
+      )) {
+        throw new Error("current_arbor_profile_boundary_invalid");
+      }
+
+      agency.state = {
+        ...agency.state,
+        cognitiveRuntime: updateCognitiveRuntime({
+          prior: state.cognitiveRuntime,
+          signals: [
+            {
+              id: `active-goal:${turnId}`,
+              kind: "task",
+              content: agency.state.goal ?? request.userText,
+              reason: "active objective",
+              provenance: [`turn:${turnId}`],
+              confidence: 1,
+              intensity: agency.state.unresolvedWork.length ? 1 : 0.7,
+              assertedAt: new Date().toISOString(),
+              unresolved: agency.state.unresolvedWork.length > 0,
+            },
+          ],
+          causalTrace: {
+            eventId: `turn:${turnId}`,
+            internalStateChange: agency.state.unresolvedWork.length
+              ? "active objective remains unresolved"
+              : "current turn reached a response boundary",
+            attentionEffect: agency.state.unresolvedWork.length
+              ? "active objective retained in attention"
+              : "attention may return to durable carrier state",
+            expectationEffect: agency.status === "complete"
+              ? "completion requires verified evidence"
+              : "unfinished work remains expected to continue",
+            interpretationEffect: "task state may change; canonical Arbor identity does not",
+            provenance: [`turn:${turnId}`],
+          },
+        }),
+      };
 
       const response =
         this.buildCanonicalResponse(

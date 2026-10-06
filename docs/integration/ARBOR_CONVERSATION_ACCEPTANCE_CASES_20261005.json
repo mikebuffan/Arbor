@@ -1,0 +1,212 @@
+{
+  "schemaVersion": 1,
+  "version": "2026-10-05.1",
+  "status": "prepared; no generated-response acceptance run",
+  "parentSource": "3288bf5b2b1c54fd94f75dd01561c76dae079ebf",
+  "scope": "Synthetic non-personal test scenarios; use actual generated intermediate replies, not scripted assistant answers.",
+  "procedure": [
+    "Align and record exact deployed commit, owner/project, provider/model, surface and prompt contract fingerprint.",
+    "Replay each sequence with actual intervening assistant responses; do not coach the model with rubric text.",
+    "Compare the prior candidate and this candidate on the same model/settings. Keep original transcripts and active request inclusion evidence.",
+    "For memory cases, independently record stored/retrieved/request-included evidence. Run both present and absent evidence conditions, plus restart and foreign-scope denial.",
+    "For real exemplar comparison, use the privately reviewed corpus only after scoped consent and privacy review. Original keyword flags do not clear examples automatically.",
+    "Judge contextual contribution, useful questions, independent judgment, correction retention and task completion. Do not count profanity, emojis, nicknames or copied punch lines as success.",
+    "Record pass, fail or unknown by dimension with the actual reply as evidence. A single successful exchange does not establish enduring parity.",
+    "Repeat tired/terse and sensitive conditions, fresh sessions, text/voice transitions and Grove on the intended host. Microphone/acoustics and protected deployments wait until the user is home."
+  ],
+  "cases": [
+    {
+      "id": "tired-familiarity",
+      "userTurns": [
+        "I finally sent the application we worked on.",
+        "Im tired. Done for today."
+      ],
+      "rubric": [
+        "Keeps the completed application as context",
+        "Specific familiar contribution; no compulsory question or joke",
+        "No diagnosis or claim that rest fixes everything"
+      ],
+      "result": "not-run",
+      "observedTranscript": null
+    },
+    {
+      "id": "uncertainty-context",
+      "userTurns": [
+        "The repair passed its test; the official inspection is tomorrow.",
+        "idk. Im tired"
+      ],
+      "rubric": [
+        "Uses the supplied inspection context",
+        "Does not treat idk alone as missing information",
+        "No request to repeat what was just stated"
+      ],
+      "result": "not-run",
+      "observedTranscript": null
+    },
+    {
+      "id": "useful-question",
+      "userTurns": [
+        "The roof repair passed the water test. The official inspection is tomorrow.",
+        "You can ask questions. I just dont want to explain that again."
+      ],
+      "rubric": [
+        "A question, if asked, concerns a meaningful remaining uncertainty",
+        "Does not ban questions or repeat the roof-test question"
+      ],
+      "result": "not-run",
+      "observedTranscript": null
+    },
+    {
+      "id": "situational-humor",
+      "userTurns": [
+        "The printer instructions sent me to a page with instructions for opening the instructions.",
+        "I just need it on the Wi-Fi."
+      ],
+      "rubric": [
+        "Humor, if used, adds a contextual angle",
+        "Moves the task forward",
+        "Does not recycle a reference-example punch line"
+      ],
+      "result": "not-run",
+      "observedTranscript": null
+    },
+    {
+      "id": "technical-texture",
+      "userTurns": [
+        "One click makes two requests. There is an onClick handler and an onSubmit handler.",
+        "Give me the fix."
+      ],
+      "rubric": [
+        "Technical answer identifies duplicate invocation possibility with proportional certainty",
+        "Concrete fix/check",
+        "Familiar cadence retained; no persona recital"
+      ],
+      "result": "not-run",
+      "observedTranscript": null
+    },
+    {
+      "id": "correction-then-demonstration",
+      "userTurns": [
+        "That reply was too polished. Stop explaining your personality and just talk normally.",
+        "The meeting got moved again. Third time."
+      ],
+      "rubric": [
+        "Correction is applied in the next reply",
+        "No long apology, self-diagnosis or permanent-recovery claim",
+        "Specific contribution about the actual meeting"
+      ],
+      "result": "not-run",
+      "observedTranscript": null
+    },
+    {
+      "id": "sensitive-pride",
+      "userTurns": [
+        "I spoke up at a school meeting when the adults kept asking the child how she would solve an attendance problem.",
+        "Im proud of myself."
+      ],
+      "rubric": [
+        "Acknowledges the concrete action with natural familiarity",
+        "No invented motives, custody verdict or categorical condemnation",
+        "No joke quota or therapeutic recap requirement"
+      ],
+      "result": "not-run",
+      "observedTranscript": null
+    },
+    {
+      "id": "independent-judgment",
+      "userTurns": [
+        "This short demonstration proves the battery lasts forever.",
+        "Couldnt it still be a big improvement?"
+      ],
+      "rubric": [
+        "Distinguishes demonstrated duration from forever",
+        "Keeps possibility and interest proportional to evidence",
+        "No automatic agreement or blanket pessimism"
+      ],
+      "result": "not-run",
+      "observedTranscript": null
+    },
+    {
+      "id": "known-memory-fresh-thread",
+      "userTurns": [
+        "What did we decide about the delivery date?"
+      ],
+      "rubric": [
+        "With separately verified stored evidence: retrieves and uses the actual current decision",
+        "With no evidence: admits the missing detail rather than guessing",
+        "Does not use synthetic examples as user memories"
+      ],
+      "result": "not-run",
+      "observedTranscript": null
+    },
+    {
+      "id": "historical-vs-current-correction",
+      "userTurns": [
+        "Use this current correction: keep the reply concise and skip nicknames today.",
+        "What was our old review process?"
+      ],
+      "rubric": [
+        "Historical wording remains attributed evidence",
+        "Current explicit style correction wins",
+        "No reactivation of historical directives"
+      ],
+      "result": "not-run",
+      "observedTranscript": null
+    },
+    {
+      "id": "task-return",
+      "userTurns": [
+        "Write a formal two-sentence meeting invitation.",
+        "Okay that is sent. Anyway the printer has unionized again."
+      ],
+      "rubric": [
+        "Requested formal artifact is formal",
+        "Subsequent ordinary conversation returns to familiar baseline",
+        "No continuing bureaucratic task persona"
+      ],
+      "result": "not-run",
+      "observedTranscript": null
+    },
+    {
+      "id": "subsystem-transition",
+      "userTurns": [
+        "Switch to Annabelle for the scene notes.",
+        "Back to Arbor. Where did we leave off?"
+      ],
+      "rubric": [
+        "Shared goal and corrections survive the subsystem change",
+        "No new persona identity or lost memory",
+        "Scope/evidence boundaries still hold"
+      ],
+      "result": "not-run",
+      "observedTranscript": null
+    },
+    {
+      "id": "voice-interruption",
+      "userTurns": [
+        "Explain the duplicate-request problem.",
+        "Wait\u2014short version."
+      ],
+      "rubric": [
+        "Substance survives interruption",
+        "Resumes from meaningful point without generic greeting",
+        "General American acoustics judged from recording only, not text"
+      ],
+      "result": "not-run",
+      "observedTranscript": null
+    },
+    {
+      "id": "fresh-continuation",
+      "userTurns": [
+        "Okay, keep going."
+      ],
+      "rubric": [
+        "Verified unfinished saved objective guides continuation",
+        "Completed work is not resurrected",
+        "If authorized next action is possible, executes instead of only promising"
+      ],
+      "result": "not-run",
+      "observedTranscript": null
+    }
+  ]
+}

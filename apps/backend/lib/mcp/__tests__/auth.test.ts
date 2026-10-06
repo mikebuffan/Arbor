@@ -62,4 +62,37 @@ describe("ARK MCP authentication", () => {
       },
     });
   });
+
+  it("derives submission only from fresh server-owned metadata for the validated client", async () => {
+    const project = "11111111-1111-4111-8111-111111111111";
+    mocks.getUser.mockResolvedValue({data: {user: {id: "user-1", app_metadata: {
+      arbor_ark_mcp: {client_ids: ["chatgpt-client"], project_ids: [project], permissions: ["ark.submit.read_tasks"]},
+    }}}, error: null});
+    const auth = await verifyArkMcpToken(new Request("https://arbor.test/api/mcp"), token({client_id: "chatgpt-client"}));
+    expect(auth?.scopes).toEqual(["ark.read", "ark.submit.read_tasks"]);
+    expect(auth?.extra?.arkReadTaskProjectIds).toEqual([project]);
+    const other = await verifyArkMcpToken(new Request("https://arbor.test/api/mcp"), token({client_id: "other-client"}));
+    expect(other?.scopes).toEqual(["ark.read"]);
+  });
+
+  it("grants Pattern Hop independently from fresh server metadata", async () => {
+    const project = "11111111-1111-4111-8111-111111111111";
+    const grant = { arbor_ark_mcp: { client_ids: ["chatgpt-client"], project_ids: [project], permissions: ["ark.submit.pattern_hop"] } };
+    mocks.getUser.mockResolvedValue({ data: { user: { id: "user-1", app_metadata: grant } }, error: null });
+    const auth = await verifyArkMcpToken(new Request("https://arbor.test/api/mcp"), token({ client_id: "chatgpt-client" }));
+    expect(auth?.scopes).toEqual(["ark.read", "ark.submit.pattern_hop"]);
+    expect(auth?.extra?.arkPatternHopProjectIds).toEqual([project]);
+    mocks.getUser.mockResolvedValue({ data: { user: { id: "user-1", user_metadata: grant } }, error: null });
+    const editable = await verifyArkMcpToken(new Request("https://arbor.test/api/mcp"), token({ client_id: "chatgpt-client", scope: "ark.submit.pattern_hop", app_metadata: grant }));
+    expect(editable?.scopes).toEqual(["ark.read"]);
+    expect(editable?.extra?.arkPatternHopProjectIds).toBeUndefined();
+  });
+
+  it("does not trust editable metadata or claimed JWT submission scopes", async () => {
+    const grant = {arbor_ark_mcp: {client_ids: ["chatgpt-client"], project_ids: ["11111111-1111-4111-8111-111111111111"], permissions: ["ark.submit.read_tasks"]}};
+    mocks.getUser.mockResolvedValue({data: {user: {id: "user-1", user_metadata: grant}}, error: null});
+    const auth = await verifyArkMcpToken(new Request("https://arbor.test/api/mcp"), token({client_id: "chatgpt-client", scope: "ark.submit.read_tasks", app_metadata: grant}));
+    expect(auth?.scopes).toEqual(["ark.read"]);
+    expect(auth?.extra?.arkReadTaskProjectIds).toBeUndefined();
+  });
 });

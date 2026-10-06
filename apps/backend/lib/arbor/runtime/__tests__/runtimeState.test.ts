@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   mergeCorrections,
+  mergeCorrectionSnapshots,
   switchRuntimeChannel,
   switchRuntimeSubsystem,
   type ArborRuntimeState,
@@ -34,6 +35,14 @@ const base: ArborRuntimeState = {
 };
 
 describe("shared Arbor runtime state", () => {
+  it("does not count copied snapshot observations as new feedback and compares offset timestamps chronologically", () => {
+    const earlier = { id: "behavior:drift", kind: "behavior" as const, value: "earlier",
+      source: "text" as const, observedAt: "2026-10-01T09:00:00+02:00", confidence: 1, protected: true, occurrences: 3 };
+    const later = { ...earlier, value: "later", observedAt: "2026-10-01T08:00:00Z", occurrences: 4 };
+    const restored = mergeCorrectionSnapshots([[earlier], [later], [later]]);
+    expect(restored).toEqual([later]);
+    expect(mergeCorrectionSnapshots([restored, restored])).toEqual(restored);
+  });
   it("keeps continuity when channel changes", () => {
     const voice = switchRuntimeChannel(
       base,

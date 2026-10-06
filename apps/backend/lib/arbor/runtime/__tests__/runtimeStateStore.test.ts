@@ -6,6 +6,7 @@ import { beginSelfUpdate } from "../../agency/updateLifecycle";
 import type { ArborRuntimeState } from "../runtimeState";
 import {
   loadRuntimeState,
+  loadLatestRuntimeState,
   saveRuntimeState,
 } from "../runtimeStateStore";
 
@@ -51,6 +52,9 @@ describe("runtime state persistence", () => {
       eq() {
         return this;
       },
+      neq() { return this; },
+      order() { return this; },
+      async limit() { return { data: [], error: null }; },
       async maybeSingle() {
         return {
           data: storedRow,
@@ -118,7 +122,11 @@ describe("runtime state persistence", () => {
       eq() { return this; },
       neq() { return this; },
       order() { return this; },
-      limit() { return this; },
+      async limit() {
+        return { data: [{ user_id: "user-1", project_id: "project-1",
+          conversation_id: meaningfulState.conversationId, state: meaningfulState,
+          updated_at: meaningfulState.updatedAt }], error: null };
+      },
       async maybeSingle() {
         lookup += 1;
         return {
@@ -159,4 +167,95 @@ describe("runtime state persistence", () => {
     expect(loaded?.lastMeaningfulUserTurn).toBe("keep going");
   });
 
+});
+
+function fixture(conversationId: string, updatedAt: string): ArborRuntimeState {
+  return { schemaVersion: 1, userId: "owner", projectId: "project", conversationId,
+    channel: "text", activeSubsystem: "arbor", currentGoal: "local goal",
+    lastMeaningfulUserTurn: "local user turn", lastMeaningfulArborTurn: "local response",
+    agency: null, corrections: [], behaviorProof: null, pendingSelfUpdate: null,
+    createdAt: "2026-10-01T00:00:00Z", updatedAt };
+}
+
+function correction(value: string, observedAt: string, occurrences = 1) {
+  return { id: "behavior:identity-drift", kind: "behavior" as const, value,
+    source: "text" as const, observedAt, confidence: 1, protected: true, occurrences };
+}
+
+function database(states: ArborRuntimeState[]) {
+  const queriedScopes: Array<Record<string, string>> = [];
+  const supabase = { from: vi.fn((table: string) => {
+    expect(table).toBe("arbor_conversation_state");
+    const filters: Record<string, string> = {};
+    let excluded = "";
+    const rows = () => states.filter(s => s.userId === filters.user_id && s.projectId === filters.project_id &&
+      (!filters.conversation_id || s.conversationId === filters.conversation_id) && s.conversationId !== excluded)
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).map(s => ({ user_id: s.userId,
+        project_id: s.projectId, conversation_id: s.conversationId, updated_at: s.updatedAt, state: s }));
+    return {
+      select() { return this; },
+      eq(key: string, value: string) { filters[key] = value; return this; },
+      neq(_key: string, value: string) { excluded = value; return this; },
+      order() { return this; },
+      async maybeSingle() { queriedScopes.push({ ...filters }); return { data: rows()[0] ?? null, error: null }; },
+      async limit(count: number) { queriedScopes.push({ ...filters }); return { data: rows().slice(0, count), error: null }; },
+    };
+  }) } as unknown as SupabaseClient;
+  return { supabase, queriedScopes };
+}
+
+describe("cross-thread correction recall", () => {
+  it("restores newer corrections from another surface without replacing an active thread's goal", async () => {
+    const old = fixture("old", "2026-10-01T00:10:00Z");
+    old.corrections = [correction("Earlier calibration", "2026-10-01T00:05:00Z")];
+    const newer = fixture("new", "2026-10-01T00:20:00Z");
+    newer.channel = "voice";
+    newer.currentGoal = "other thread goal";
+    newer.corrections = [correction("Updated calibration", "2026-10-01T00:15:00Z", 2)];
+    const foreign = fixture("foreign", "2026-10-01T00:30:00Z");
+    foreign.userId = "other-owner";
+    foreign.corrections = [correction("Private foreign correction", "2026-10-01T00:25:00Z", 99)];
+    const db = database([old, newer, foreign]);
+    const input = { supabase: db.supabase, userId: "owner", projectId: "project", conversationId: "old" };
+    const loaded = await loadRuntimeState(input);
+    expect(loaded).toMatchObject({ conversationId: "old", channel: "text", currentGoal: "local goal",
+      lastMeaningfulUserTurn: "local user turn", corrections: [expect.objectContaining({
+        value: "Updated calibration", occurrences: 2 })] });
+    const replayed = await loadRuntimeState(input);
+    expect(replayed?.corrections).toEqual(loaded?.corrections);
+    expect(db.queriedScopes.every(scope => scope.user_id === "owner" && scope.project_id === "project")).toBe(true);
+  });
+
+  it("finds meaningful context behind multiple fresh empty threads and merges independent correction families", async () => {
+    const meaningful = fixture("active", "2026-10-01T00:10:00Z");
+    meaningful.corrections = [correction("Preserve humor", "2026-10-01T00:05:00Z", 3)];
+    const blank = fixture("blank", "2026-10-01T00:30:00Z");
+    blank.currentGoal = blank.lastMeaningfulUserTurn = blank.lastMeaningfulArborTurn = null;
+    const secondBlank = { ...blank, conversationId: "second-blank", updatedAt: "2026-10-01T00:20:00Z" };
+    const db = database([meaningful, blank, secondBlank]);
+    expect(await loadLatestRuntimeState({ supabase: db.supabase, userId: "owner", projectId: "project" }))
+      .toMatchObject({ conversationId: "active", currentGoal: "local goal" });
+    expect(await loadRuntimeState({ supabase: db.supabase, userId: "owner", projectId: "project", conversationId: "blank" }))
+      .toMatchObject({ conversationId: "blank", currentGoal: "local goal", corrections: [expect.objectContaining({ occurrences: 3 })] });
+  });
+
+  it("rejects a persisted state whose inner owner/project does not match its row", async () => {
+    const state = fixture("thread", "2026-10-01T00:10:00Z");
+    state.userId = "wrong-owner";
+    const query = { select() { return this; }, eq() { return this; },
+      async maybeSingle() { return { data: { user_id: "owner", project_id: "project",
+        conversation_id: "thread", updated_at: state.updatedAt, state }, error: null }; } };
+    const supabase = { from: () => query } as unknown as SupabaseClient;
+    await expect(loadRuntimeState({ supabase, userId: "owner", projectId: "project", conversationId: "thread" }))
+      .rejects.toThrow("persisted_scope_mismatch");
+  });
+});
+
+
+describe("runtime save durability", () => {
+  it("rejects a missing storage table instead of claiming a saved session", async () => {
+    const error = { code: "42P01", message: "relation arbor_conversation_state does not exist" };
+    const supabase = { from: () => ({ upsert: async () => ({ error }) }) } as unknown as SupabaseClient;
+    await expect(saveRuntimeState({ supabase, state: fixture("thread", "2026-10-02T18:00:00Z") })).rejects.toEqual(error);
+  });
 });

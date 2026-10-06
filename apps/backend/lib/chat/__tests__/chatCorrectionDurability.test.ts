@@ -30,6 +30,8 @@ const mocks = vi.hoisted(() => ({
   scheduleChatPostResponseWork: vi.fn(),
   consolidateMemoryCandidates: vi.fn(),
   promoteEligibleMemoryCandidates: vi.fn(),
+  recoverPendingBehaviorCorrections: vi.fn(),
+  schedulePendingBehaviorCorrectionRecovery: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/requireUser", () => ({ requireUser: mocks.requireUser }));
@@ -74,6 +76,11 @@ vi.mock("@/lib/chat/turnPersistence", async (importOriginal) => ({
 vi.mock("@/lib/arbor/episodes/getOrCreateOpenEpisode", () => ({ getOrCreateOpenEpisode: mocks.getOrCreateOpenEpisode }));
 vi.mock("@/lib/arbor/telemetry/buildTelemetry", () => ({ buildTelemetry: mocks.buildTelemetry }));
 vi.mock("@/lib/chat/postResponseScheduler", () => ({ scheduleChatPostResponseWork: mocks.scheduleChatPostResponseWork }));
+vi.mock("@/lib/arbor/runtime/correctionRecovery", () => ({
+  stageBehaviorCorrectionPromotion: async (input: { corrections: unknown[] }) => input.corrections,
+  recoverPendingBehaviorCorrections: mocks.recoverPendingBehaviorCorrections,
+  schedulePendingBehaviorCorrectionRecovery: mocks.schedulePendingBehaviorCorrectionRecovery,
+}));
 
 import { POST } from "@/app/api/chat/route";
 
@@ -298,7 +305,7 @@ describe("explicit correction request-path durability", () => {
     expect(mocks.scheduleChatPostResponseWork).not.toHaveBeenCalled();
   });
 
-  it("does not reapply or reschedule an exact completed-turn retry", async () => {
+  it("does not repeat completed-turn effects while allowing pending correction recovery", async () => {
     let correctionCount = 0;
     let aliasSupersessions = 0;
     let correctionEvents = 0;
@@ -325,6 +332,8 @@ describe("explicit correction request-path durability", () => {
     expect(mocks.persistClassifiedMemoryTurn).toHaveBeenCalledTimes(1);
     expect(mocks.runOpenAIAgencyAgent).toHaveBeenCalledTimes(1);
     expect(mocks.scheduleChatPostResponseWork).toHaveBeenCalledTimes(1);
+    expect(mocks.schedulePendingBehaviorCorrectionRecovery).toHaveBeenCalledTimes(1);
+    expect(mocks.recoverPendingBehaviorCorrections).toHaveBeenCalledTimes(1);
     expect(mocks.writeDurableChatCompletedEvent).toHaveBeenCalledTimes(1);
     expect(turnStore.messages).toHaveLength(2);
   });

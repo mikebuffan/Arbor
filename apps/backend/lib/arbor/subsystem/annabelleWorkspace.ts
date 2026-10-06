@@ -31,6 +31,7 @@ export async function loadAnnabelleWorkspace(input: {
   supabase: SupabaseClient;
   userId: string;
   projectId: string;
+  requireStorage?: boolean;
 }): Promise<AnnabelleWorkspace> {
   const { data, error } = await input.supabase
     .from("annabelle_workspace_state")
@@ -42,7 +43,7 @@ export async function loadAnnabelleWorkspace(input: {
     .maybeSingle();
 
   if (error) {
-    if (isMissingRuntimeTable(error)) return EMPTY_WORKSPACE;
+    if (isMissingRuntimeTable(error) && !input.requireStorage) return EMPTY_WORKSPACE;
     throw error;
   }
 
@@ -83,7 +84,6 @@ export async function persistAnnabelleWorkspace(input: {
     );
 
   if (error) {
-    if (isMissingRuntimeTable(error)) return;
     throw error;
   }
 }
@@ -107,7 +107,6 @@ export async function persistAnnabelleWorkspaceRevision(input: {
     });
 
   if (error) {
-    if (isMissingRuntimeTable(error)) return;
     throw error;
   }
 }
@@ -121,7 +120,8 @@ export async function updateAnnabelleWorkspace(
   },
   mutate: (current: AnnabelleWorkspace) => AnnabelleWorkspace,
 ): Promise<AnnabelleWorkspace> {
-  const current = await loadAnnabelleWorkspace(input);
+  // A read-only compatibility fallback must never become a successful write.
+  const current = await loadAnnabelleWorkspace({ ...input, requireStorage: true });
 
   await persistAnnabelleWorkspaceRevision({
     ...input,
@@ -153,7 +153,6 @@ export async function restoreLatestAnnabelleWorkspaceRevision(input: {
     .maybeSingle();
 
   if (error) {
-    if (isMissingRuntimeTable(error)) return loadAnnabelleWorkspace(input);
     throw error;
   }
 

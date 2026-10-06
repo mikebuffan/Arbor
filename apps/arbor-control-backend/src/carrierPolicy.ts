@@ -1,3 +1,4 @@
+import { mergeCognitiveRuntimeState } from "./cognitiveRuntime.js";
 import type { ArborState } from "./types.js";
 
 /**
@@ -62,6 +63,20 @@ export function mergeCarrierState(
     // Identity/self-model is host-owned durable state. A child scope cannot
     // silently replace the identity root.
     selfModel: projectState.selfModel ?? conversationState.selfModel,
+    selfModelObservations:
+      projectState.selfModelObservations ??
+      conversationState.selfModelObservations,
+    selfModelClaims:
+      projectState.selfModelClaims ??
+      conversationState.selfModelClaims,
+    selfModelMigrations:
+      projectState.selfModelMigrations ??
+      conversationState.selfModelMigrations,
+
+    cognitiveRuntime: mergeCognitiveRuntimeState(
+      projectState.cognitiveRuntime,
+      conversationState.cognitiveRuntime,
+    ),
   };
 }
 

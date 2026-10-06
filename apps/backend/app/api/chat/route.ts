@@ -69,8 +69,10 @@ import {
   detectCorrectionKind,
 } from "@/lib/arbor/runtime/corrections";
 import {
-  promoteRepeatedBehaviorCorrections,
-} from "@/lib/arbor/runtime/correctionPromotion";
+  stageBehaviorCorrectionPromotion,
+  recoverPendingBehaviorCorrections,
+  schedulePendingBehaviorCorrectionRecovery,
+} from "@/lib/arbor/runtime/correctionRecovery";
 import {
   beginSelfUpdate,
   decideSelfUpdate,
@@ -86,12 +88,11 @@ import { summarizePriorOpenEpisodes } from "@/lib/arbor/episodes/maintainEpisode
 import { detectTestMode } from "@/lib/runtime/testModeDetection";
 import { hasExplicitDurableAuthorization } from "@/lib/memory/durableAuthorization";
 
+import { buildChatSuccessResponse, loadRecentMessages, type Msg } from "@/lib/chat/routeSupport";
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export { assertProjectOwnedByUser };
-
-type Msg = { role: "user" | "assistant" | "system"; content: string };
 
 const NullableUuid = z.preprocess(
   (v) => (v === null || v === "" ? undefined : v),
@@ -104,22 +105,8 @@ const Body = z.object({
   turnId: z.string().uuid(),
   userText: z.string().min(1),
   interactionMode: z.enum(["text", "voice"]).default("text"),
+  timeZoneOffsetMinutes: z.number().int().min(-840).max(840).optional(),
 });
-
-export function buildChatSuccessResponse(params: {
-  projectId: string;
-  conversationId: string;
-  assistantText: string;
-  flagged?: boolean;
-}) {
-  return {
-    ok: true as const,
-    projectId: params.projectId,
-    conversationId: params.conversationId,
-    assistantText: params.assistantText,
-    ...(params.flagged ? { flagged: true as const } : {}),
-  };
-}
 
 function getCorsHeaders(req: Request) {
   const origin = req.headers.get("origin") ?? "*";
@@ -167,35 +154,6 @@ async function getOrCreateDefaultProjectId(
   return created.id as string;
 }
 
-export async function loadRecentMessages(
-  supabase: SupabaseClient,
-  userId: string,
-  conversationId: string,
-  limit = 20,
-): Promise<Msg[]> {
-  const { data, error } = await supabase
-    .from("messages")
-    .select("role,content,created_at,deleted_at,expires_at")
-    .eq("user_id", userId)
-    .eq("conversation_id", conversationId)
-    .is("deleted_at", null)
-    .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
-    .order("created_at", { ascending: false })
-    .limit(limit);
-
-  if (error) throw error;
-  const messages = (data ?? []) as Array<{
-    role: Msg["role"];
-    content: string;
-  }>;
-  return messages
-    .reverse()
-    .map((message) => ({
-      role: message.role,
-      content: message.content,
-    }));
-}
-
 async function cleanupExpiredMessagesBestEffort(
   supabase: SupabaseClient,
   userId: string,
@@ -227,8 +185,10 @@ export async function POST(req: Request) {
       turnId,
       userText,
       interactionMode,
+      timeZoneOffsetMinutes,
     } = parsed.data;
 
+    const correctionObservedAt = new Date().toISOString();
     const memoryTestMode = detectTestMode(userText);
     const durableLearningAuthorized = hasExplicitDurableAuthorization(userText);
 
@@ -302,6 +262,7 @@ export async function POST(req: Request) {
       conversationId: convoId,
     });
     if (completedTurn) {
+      schedulePendingBehaviorCorrectionRecovery({ supabase, userId });
       return NextResponse.json(
         buildChatSuccessResponse({
           projectId,
@@ -334,6 +295,7 @@ export async function POST(req: Request) {
       interactionMode,
       hostSessionId: turnId,
       currentGoal: agencyState.goal,
+      timeZoneOffsetMinutes: timeZoneOffsetMinutes ?? null,
     });
 
     const [history, promptContext] = await Promise.all([
@@ -362,6 +324,37 @@ export async function POST(req: Request) {
       agency: agencyState,
       behaviorProof,
       now: new Date().toISOString(),
+    });
+
+    const deterministicMemoryTurn = classifyMemoryTurn({
+      userText,
+      extractedItems: [],
+    });
+
+    const detectedRuntimeCorrectionKind =
+      detectCorrectionKind(userText);
+
+    const detectedRuntimeCorrections =
+      detectedRuntimeCorrectionKind ||
+      deterministicMemoryTurn.kind === "correction"
+        ? [
+            createCorrection({
+              value: userText,
+              source:
+                activeSubsystem === "annabelle"
+                  ? "annabelle"
+                  : interactionMode,
+              observedAt: correctionObservedAt,
+              kind:
+                detectedRuntimeCorrectionKind ??
+                undefined,
+            }),
+          ]
+        : [];
+    const runtimeCorrections = await stageBehaviorCorrectionPromotion({
+      supabase, userId, projectId, conversationId: convoId,
+      userMessageId: resolvedTurn.ids.userMessageId, currentUserText: userText,
+      corrections: detectedRuntimeCorrections,
     });
 
     let pendingSelfUpdate =
@@ -767,31 +760,6 @@ export async function POST(req: Request) {
           : `I need your choice before I do ${agentResult.toolName.replaceAll("_", " ")} because this is a high-consequence fork.`
         : agentResult.text;
 
-    const deterministicMemoryTurn = classifyMemoryTurn({
-      userText,
-      extractedItems: [],
-    });
-
-    const detectedRuntimeCorrectionKind =
-      detectCorrectionKind(userText);
-
-    const runtimeCorrections =
-      detectedRuntimeCorrectionKind ||
-      deterministicMemoryTurn.kind === "correction"
-        ? [
-            createCorrection({
-              value: userText,
-              source:
-                activeSubsystem === "annabelle"
-                  ? "annabelle"
-                  : interactionMode,
-              observedAt: new Date().toISOString(),
-              kind:
-                detectedRuntimeCorrectionKind ??
-                undefined,
-            }),
-          ]
-        : [];
     let explicitCorrectionHandledSynchronously = false;
 
     const finalAssistant = await finalizeAndPersistAssistantTurn({
@@ -924,25 +892,7 @@ export async function POST(req: Request) {
         },
 
         memory_pipeline: async () => {
-          const correctionIdsObservedThisTurn =
-            new Set(
-              runtimeCorrections.map(
-                (correction) => correction.id,
-              ),
-            );
-
-          await promoteRepeatedBehaviorCorrections({
-            supabase,
-            userId,
-            currentUserText: userText,
-            corrections:
-              updatedRuntimeSession.corrections.filter(
-                (correction) =>
-                  correctionIdsObservedThisTurn.has(
-                    correction.id,
-                  ),
-              ),
-          });
+          await recoverPendingBehaviorCorrections({ supabase, userId });
 
           await Promise.all(
             injectedCandidateIds.map((candidateId) =>

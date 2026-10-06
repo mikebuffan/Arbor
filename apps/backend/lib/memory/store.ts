@@ -6,6 +6,7 @@ import { logMemoryEvent } from "@/lib/memory/logger";
 import { getServerSupabase } from "@/lib/supabase/server";
 import { computePatternPromotion } from "@/lib/memory/patternPromotion";
 import { findPatternHopTarget } from "@/lib/memory/patternMerge";
+import { isDurableBehaviorCorrection, writeDurableBehaviorCorrection } from "./durableCorrectionWrite";
 
 const ITEMS_TABLE = "memory_items";
 const EVENTS_TABLE = "memory_pending";
@@ -236,6 +237,26 @@ export async function upsertMemoryItems(
     const rawEmbedding =
       batched?.[i] ?? (await embedText(memoryToEmbedString(key, item.value)));
     const embedding = normalizeEmbedding(rawEmbedding);
+
+    if (isDurableBehaviorCorrection(item)) {
+      const outcome = await writeDurableBehaviorCorrection({
+        supabase, userId: authedUserId, item, embedding, now: nowIso,
+      });
+      if (outcome === "created" || outcome === "updated") {
+        await logEvent({
+          supabase, authedUserId, projectId: null, key,
+          event_type: outcome === "created" ? "create" : "update",
+          payload: { key, memory_kind: "correction", conditional_write: true },
+        });
+      }
+      if (outcome === "locked") {
+        res.locked.push(key);
+        res.ignored.push(key);
+      } else {
+        res[outcome].push(key);
+      }
+      continue;
+    }
 
     let existing = await findExisting({
       supabase,

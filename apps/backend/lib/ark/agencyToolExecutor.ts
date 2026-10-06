@@ -8,6 +8,22 @@ import {
 } from "@/lib/arbor/agency/idempotency";
 import type { AgencyTool } from "@/lib/arbor/agency/tools";
 import type { ArkExecutorRegistry } from "./executorRegistry";
+import type { ArkExecutionResult } from "./types";
+
+function completedPass(capability: string, output: unknown, attempts: number, replayed = false): ArkExecutionResult {
+  if (capability === "arbor_pattern_hop_research") {
+    const value = output && typeof output === "object" && !Array.isArray(output)
+      ? output as Record<string, unknown> : null;
+    if (value?.status === "blocked") return {status: "blocked", blocker: {
+      kind: "research_blocked", message: typeof value.blocker === "string" ? value.blocker.slice(0, 2000) : "Pattern Hop source retrieval is blocked",
+    }};
+    if (!value || !["active", "complete", "exhausted"].includes(String(value.status)) || typeof value.runId !== "string")
+      return {status: "failed", error: "ark_pattern_hop_invalid_result", retryable: false};
+    return {status: "completed", result: {capability, verified: true, attempts, replayed,
+      completionScope: "bounded_historical_research_pass", traversalFinished: value.status !== "active", output}};
+  }
+  return {status: "completed", result: {capability, verified: true, attempts, ...(replayed ? {replayed: true} : {}), output}};
+}
 
 function payloadString(
   payload: Record<string, unknown>,
@@ -71,16 +87,7 @@ export function registerArkAgencyToolExecutor(input: {
       });
       if (!idempotency.acquired) {
         if (idempotency.result !== null && idempotency.result !== undefined) {
-          return {
-            status: "completed",
-            result: {
-              capability,
-              verified: true,
-              attempts: 0,
-              replayed: true,
-              output: idempotency.result,
-            },
-          };
+          return completedPass(capability, idempotency.result, 0, true);
         }
         return {
           status: "blocked",
@@ -127,14 +134,6 @@ export function registerArkAgencyToolExecutor(input: {
       });
     }
 
-    return {
-      status: "completed",
-      result: {
-        capability,
-        verified: true,
-        attempts: outcome.attempts,
-        output: outcome.result,
-      },
-    };
+    return completedPass(capability, outcome.result, outcome.attempts);
   });
 }

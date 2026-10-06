@@ -1,3 +1,6 @@
+import { loadDurableBehaviorCorrections } from "@/lib/arbor/runtime/correctionPromotion";
+import { mergeCorrectionSnapshots } from "@/lib/arbor/runtime/runtimeState";
+import { behaviorCorrections } from "@/lib/arbor/runtime/corrections";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   getAlwaysIncludedMemoryAnchors,
@@ -24,7 +27,9 @@ import {
   type AnchorRow,
 } from "@/lib/memory/anchors";
 import type { SafetyAddendum } from "@/lib/governance/realWorldSafetyAddendum";
-import { buildArborInjectedContext } from "@/lib/arbor/subsystem/context";
+import { buildArborInjectedContext, composeArborSystemInjection } from "@/lib/arbor/subsystem/context";
+import { renderCanonicalIdentityAnchor } from "@/lib/arbor/selfModel/canonicalIdentityAnchor";
+import { memoryRecallQuery } from "@/lib/memory/recallQuery";
 import type { ArborSubsystem } from "@/lib/arbor/runtime/arborRuntime";
 import {
   buildArborBehaviorProjection,
@@ -56,6 +61,14 @@ import type {
   HostStartupProjection,
   OneArborHostState,
 } from "@/lib/arbor/host/oneArborHostBridge";
+import {
+  buildTimeCore,
+  renderTimeCorePromptBlock,
+} from "@/lib/arbor/runtime/timeCore";
+import {
+  bridgeEmbodiedState,
+  embodiedCognitivePromptBlock,
+} from "@/lib/arbor/runtime/cognitiveBridge";
 
 export function invalidatePromptCache(params: {
   authedUserId: string;
@@ -75,6 +88,8 @@ type BuildPromptParams = {
   interactionMode?: "text" | "voice";
   hostSessionId?: string | null;
   currentGoal?: string | null;
+  timeZone?: string | null;
+  timeZoneOffsetMinutes?: number | null;
 };
 
 export type BuiltPromptContext = {
@@ -173,6 +188,8 @@ export async function buildPromptContext({
   interactionMode = "text",
   hostSessionId = null,
   currentGoal = null,
+  timeZone = null,
+  timeZoneOffsetMinutes = null,
 }: BuildPromptParams): Promise<BuiltPromptContext> {
   const { data: project, error: projectError } = await supabase
     .from("projects")
@@ -235,13 +252,19 @@ export async function buildPromptContext({
 
   const negativePrefsFromAnchors = buildNegativePrefsGuardFromAnchors(anchors);
 
+  const conversationRuntime = projectId && conversationId
+    ? await loadRuntimeState({supabase, userId: authedUserId, projectId, conversationId})
+    : null;
+  const recallQuery = memoryRecallQuery(latestUserText, currentGoal ??
+    (conversationRuntime?.agency?.status === "complete" ? null : conversationRuntime?.currentGoal));
+
   const [memContext, alwaysIncludedMemory] = await Promise.all([
     getMemoryContext({
       supabase,
       authedUserId,
       projectId,
       conversationId,
-      latestUserText,
+      latestUserText: recallQuery,
       useVectorSearch: true,
     }),
     getAlwaysIncludedMemoryAnchors({
@@ -278,7 +301,7 @@ export async function buildPromptContext({
   );
   const continuityItems = selectContinuityAnchors(
     promptEligibleItems,
-    latestUserText,
+    recallQuery,
     14,
   );
   const decayMs = 1000 * 60 * 60 * 24 * 30;
@@ -313,7 +336,7 @@ export async function buildPromptContext({
           supabase,
           userId: authedUserId,
           projectId,
-          userText: latestUserText,
+          userText: recallQuery,
           currentThreadId: conversationId,
           limit: 4,
         })
@@ -328,7 +351,7 @@ export async function buildPromptContext({
           supabase,
           userId: authedUserId,
           projectId,
-          query: latestUserText,
+          query: recallQuery,
         })
       : [];
 
@@ -348,28 +371,26 @@ export async function buildPromptContext({
         activeSubsystem: "arbor" as const,
         voiceId: process.env.ARBOR_OPENAI_VOICE ?? "cedar",
         acousticCorrections: [] as string[],
-        systemInjection: "",
+        systemInjection: composeArborSystemInjection({
+          activeSubsystem: "arbor",
+          canonicalSelfModelBlock: renderCanonicalIdentityAnchor(),
+        }),
       };
 
-  const conversationRuntime =
-    projectId && conversationId
-      ? await loadRuntimeState({
-          supabase,
-          userId: authedUserId,
-          projectId,
-          conversationId,
-        })
-      : null;
+  const durableBehaviorCorrections = await loadDurableBehaviorCorrections({ supabase, userId: authedUserId });
+  const activeBehaviorCorrections = mergeCorrectionSnapshots([
+    durableBehaviorCorrections, conversationRuntime?.corrections ?? [],
+  ]);
 
   const runtimeHost =
     conversationRuntime
       ? projectRuntimeStartup(
-          conversationRuntime,
+          { ...conversationRuntime, corrections: activeBehaviorCorrections },
         )
       : null;
 
   const runtimeBehavioralCorrections =
-    runtimeHost?.behaviorCorrections ?? [];
+    behaviorCorrections(activeBehaviorCorrections);
 
   const pendingStrategyUnderVerification =
     conversationRuntime?.currentGoal === currentGoal
@@ -435,6 +456,12 @@ export async function buildPromptContext({
   const behaviorMode =
     arbor.activeSubsystem === "annabelle" ? "annabelle" : interactionMode;
 
+  const timeCore = buildTimeCore({
+    timeZone,
+    utcOffsetMinutes: timeZoneOffsetMinutes,
+  });
+  const timeCoreBlock = renderTimeCorePromptBlock(timeCore);
+
   const bodyState = deriveArborBodyState({
     latestUserText,
     continuity: continuityState,
@@ -444,6 +471,11 @@ export async function buildPromptContext({
   const bodyBlock = arborBodyPromptBlock(bodyState);
   const feltLifeState = inferFeltLife({ text: latestUserText });
   const feltLifeBlock = feltLifePromptBlock(feltLifeState);
+  const embodiedBridge = bridgeEmbodiedState({
+    body: bodyState,
+    felt: feltLifeState,
+  });
+  const embodiedBridgeBlock = embodiedCognitivePromptBlock(embodiedBridge);
 
   const behaviorProjection = buildArborBehaviorProjection({
     mode: behaviorMode,
@@ -482,6 +514,8 @@ export async function buildPromptContext({
     ${bodyBlock}
 
     ${feltLifeBlock}
+
+    ${embodiedBridgeBlock}
 
     ${host.startup.promptBlock}
 

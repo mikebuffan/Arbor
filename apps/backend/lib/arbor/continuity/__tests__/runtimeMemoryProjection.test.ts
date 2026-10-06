@@ -111,6 +111,12 @@ describe(
       },
     );
 
+    it("selects the newer correction by instant across timezone offsets", () => {
+      const old = { ...runtime().corrections[0], id: "old-offset", observedAt: "2026-10-01T09:00:00+02:00" };
+      const newer = { ...old, id: "new-offset", observedAt: "2026-10-01T08:00:00Z" };
+      expect(prioritizeCorrections([old, newer]).map(item => item.id)).toEqual(["new-offset"]);
+    });
+
     it(
       "deduplicates noisy unresolved state while preserving current state",
       () => {
