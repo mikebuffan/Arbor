@@ -55,11 +55,15 @@ export function parseAgencyVerification(
           ? 1
           : 0;
 
+    const evidence = strings(parsed.evidence);
+    const unresolvedWork = strings(parsed.unresolvedWork);
+    const complete = parsed.complete && unresolvedWork.length === 0 && evidence.length > 0;
+
     return {
-      complete: parsed.complete,
+      complete,
       score,
-      unresolvedWork: strings(parsed.unresolvedWork),
-      evidence: strings(parsed.evidence),
+      unresolvedWork: complete ? [] : unresolvedWork.length ? unresolvedWork : parsed.complete ? ["completion claim lacked evidence"] : [],
+      evidence,
       strategyCorrection:
         typeof parsed.strategyCorrection === "string" &&
         parsed.strategyCorrection.trim()
