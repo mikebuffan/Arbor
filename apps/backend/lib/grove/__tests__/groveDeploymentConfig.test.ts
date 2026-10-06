@@ -17,6 +17,7 @@ describe("private Grove deployment-only Vercel configuration", () => {
       }).status;
       expect(run("arbor/grove-lm-source-repair-20261005", "any-project")).toBe(0);
       expect(run("arbor/grove-phone-recovery-20261005", "any-project")).toBe(0);
+      expect(run("arbor/grove-phone-tests-20261005", "any-project")).toBe(0);
       expect(run("finish/grove-mobile-home-20260928", "foreign-project")).toBe(0);
       expect(run("finish/grove-mobile-home-20260928", "prj_nw2X0SyLn4e8CXWZ83MEs4jwn1JN")).toBe(1);
     }
