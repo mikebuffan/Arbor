@@ -31,9 +31,6 @@ jobs:
         run: |
           set -euo pipefail
           unset HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy
-          for proxy_var in HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy; do
-            printf '%s=\n' "$proxy_var" >> "$GITHUB_ENV"
-          done
           for subnet in 169.254.0.0/16 100.100.100.200/32; do
             sudo -n iptables -w 5 -I OUTPUT 1 -d "$subnet" -j REJECT
             sudo -n iptables -w 5 -C OUTPUT -d "$subnet" -j REJECT
@@ -94,9 +91,6 @@ jobs:
         run: |
           set -euo pipefail
           unset HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy
-          for proxy_var in HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy; do
-            printf '%s=\n' "$proxy_var" >> "$GITHUB_ENV"
-          done
           for subnet in 169.254.0.0/16 100.100.100.200/32; do
             sudo -n iptables -w 5 -I OUTPUT 1 -d "$subnet" -j REJECT
             sudo -n iptables -w 5 -C OUTPUT -d "$subnet" -j REJECT
