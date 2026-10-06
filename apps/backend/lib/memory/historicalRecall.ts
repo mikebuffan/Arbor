@@ -1,5 +1,4 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { openAIEmbed } from "@/lib/providers/openai";
 import { promptDataBlock } from "@/lib/arbor/promptData";
 
 export type HistoricalRecallTurn = {
@@ -78,6 +77,7 @@ async function semanticCandidates(params: {
   projectId: string;
   query: string;
 }): Promise<HistoricalRecallTurn[]> {
+  const { openAIEmbed } = await import("@/lib/providers/openai");
   const embedding = await openAIEmbed(params.query.trim());
 
   const { data, error } = await params.supabase.rpc(

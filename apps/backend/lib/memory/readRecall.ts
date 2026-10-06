@@ -12,6 +12,8 @@ import { promptDataBlock } from "@/lib/arbor/promptData";
 export async function readArborMemoryRecall(input: {
   supabase: SupabaseClient; userId: string; projectId: string;
   conversationId?: string; query: string;
+  /** Retrieval orientation must not impersonate a new sensitive-memory trigger. */
+  revealUserText?: string;
 }) {
   const query = input.query.trim().slice(0, 2000);
   const [inventory, history, episodes, memories] = await Promise.allSettled([
@@ -28,7 +30,7 @@ export async function readArborMemoryRecall(input: {
     : {turns: [], lexical: "failed", semantic: "disabled", truncated: false};
   const memoryItems = memories.status === "fulfilled" ? selectContinuityAnchors(selectItemsForPrompt([
     ...memories.value.core, ...memories.value.normal, ...memories.value.sensitive,
-  ], query), query, 14).map(item => ({id: item.id, key: item.key, scope: item.scope,
+  ], input.revealUserText ?? query), query, 14).map(item => ({id: item.id, key: item.key, scope: item.scope,
     projectId: item.project_id, conversationId: item.conversation_id, updatedAt: item.updated_at,
     content: item.content_text.slice(0, 1000), contentTruncated: item.content_text.length > 1000})) : [];
   const episodeItems = episodes.status === "fulfilled" ? episodes.value.map(episode => ({

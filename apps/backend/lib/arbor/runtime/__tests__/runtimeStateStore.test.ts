@@ -11,6 +11,15 @@ import {
 } from "../runtimeStateStore";
 
 describe("runtime state persistence", () => {
+  it("private exact reads never query a different conversation as fallback", async () => {
+    const row = {select: vi.fn(), eq: vi.fn(), maybeSingle: vi.fn(async () => ({data: null, error: null}))};
+    row.select.mockReturnValue(row); row.eq.mockReturnValue(row);
+    const from = vi.fn(() => row);
+    expect(await loadRuntimeState({supabase: {from} as unknown as SupabaseClient,
+      userId: "user", projectId: "project", conversationId: "conversation", exactConversationOnly: true})).toBeNull();
+    expect(from).toHaveBeenCalledTimes(1);
+    expect(row.eq).toHaveBeenCalledWith("conversation_id", "conversation");
+  });
   it("round-trips a pending self-update without losing verification state", async () => {
     const behavior = buildArborBehaviorProjection({
       mode: "text",

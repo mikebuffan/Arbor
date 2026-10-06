@@ -11,6 +11,11 @@ const item=(id:string,extra={})=>({id,project_id:null,conversation_id:null,scope
  user_trigger_only:false,importance:10,confidence:1,updated_at:"2026-10-02T00:00:00Z",...extra});
 beforeEach(()=>{vi.clearAllMocks();mocks.history.mockResolvedValue({turns:[],lexical:"ok",semantic:"disabled",truncated:false});mocks.episodes.mockResolvedValue([]);mocks.memories.mockResolvedValue({core:[],normal:[],sensitive:[]});});
 describe("independent memory read receipts",()=>{
+ it("saved goal retrieval terms do not reveal a sensitive record on a short acknowledgment",async()=>{
+  mocks.memories.mockResolvedValue({core:[item("sensitive",{tier:"sensitive",key:"private.record"})],normal:[],sensitive:[]});
+  const result=await readArborMemoryRecall({...input,query:"private record\nGo",revealUserText:"Go",supabase:database().supabase});
+  expect(result.memories.items).toEqual([]);
+ });
  it("distinguishes unmatched stored history from an empty archive and scopes inventory",async()=>{
   const db=database();const result=await readArborMemoryRecall({...input,supabase:db.supabase});
   expect(result.archive).toMatchObject({totalTurns:42,inventoryStatus:"ok",turns:[]});

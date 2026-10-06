@@ -33,6 +33,8 @@ export async function loadRuntimeState(input: {
   userId: string;
   projectId: string;
   conversationId: string;
+  /** Private owner-scoped callers must never inherit another conversation. */
+  exactConversationOnly?: boolean;
 }): Promise<ArborRuntimeState | null> {
   const { data, error } = await input.supabase
     .from("arbor_conversation_state")
@@ -51,6 +53,7 @@ export async function loadRuntimeState(input: {
     (data as RuntimeRow | null) ?? null,
     input,
   );
+  if (input.exactConversationOnly) return exact;
   const snapshots = await loadRecentRuntimeStates({
     supabase: input.supabase,
     userId: input.userId,
