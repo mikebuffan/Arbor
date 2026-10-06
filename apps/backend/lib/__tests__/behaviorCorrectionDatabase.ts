@@ -53,7 +53,8 @@ export class BehaviorCorrectionDatabase {
             return { data: null, error: { code: "23505" } };
           if (duplicate) data = [];
           else {
-            const row = { id: payload.id ?? "row-" + (rows.length + 1), created_at: "2026-10-02T00:00:00Z", ...clone(payload) };
+            const row = { id: payload.id ?? "row-" + (rows.length + 1), created_at: "2026-10-02T00:00:00Z",
+              ...(table === "memory_items" ? { excluded_from_memory: false } : {}), ...clone(payload) };
             rows.push(row); fixture.tables[table] = rows; data = [clone(row)];
           }
         } else throw new Error("unsupported fixture mutation");
