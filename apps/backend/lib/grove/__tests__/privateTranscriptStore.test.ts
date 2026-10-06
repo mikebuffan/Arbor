@@ -203,7 +203,7 @@ describe("Grove-only private conversation durability (fixtures, migration OFF)",
     expect(restarted.readLayer).toHaveBeenCalledWith({
       supabase: { private: "firefly" },
       authenticatedUserId: ownerId,
-      projectId, conversationId, mode: "text",
+      projectId, conversationId, mode: "text", latestUserText: "What remains?",
     });
     expect(restarted.sendModel).toHaveBeenCalledWith(
       expect.objectContaining({

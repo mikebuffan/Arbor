@@ -11,8 +11,16 @@ const mock = vi.hoisted(() => ({
   loadLatestRuntimeState: vi.fn(),
   loadRuntimeState: vi.fn(),
   assertAttachmentOwnedByScope: vi.fn(),
+  loadDurableBehaviorCorrections: vi.fn(),
+  getMemoryContext: vi.fn(),
+  getAlwaysIncludedMemoryAnchors: vi.fn(),
 }));
 
+vi.mock("@/lib/arbor/runtime/correctionPromotion", () => ({loadDurableBehaviorCorrections: mock.loadDurableBehaviorCorrections}));
+vi.mock("@/lib/memory/retrieval", async importOriginal => ({
+  ...await importOriginal<typeof import("@/lib/memory/retrieval")>(),
+  getMemoryContext: mock.getMemoryContext, getAlwaysIncludedMemoryAnchors: mock.getAlwaysIncludedMemoryAnchors,
+}));
 vi.mock("@/lib/auth/ownership", () => ({
   assertProjectOwnedByUser: mock.assertProjectOwnedByUser,
   assertConversationOwnedByUser: mock.assertConversationOwnedByUser,
@@ -84,6 +92,9 @@ const snapshot: ArkReadSnapshot = {
 describe("owner-scoped ARK -> Arbor Layer read crossing", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    mock.loadDurableBehaviorCorrections.mockResolvedValue([]);
+    mock.getAlwaysIncludedMemoryAnchors.mockResolvedValue([]);
+    mock.getMemoryContext.mockResolvedValue({core: [], normal: [], sensitive: [], keysUsed: []});
     mock.assertProjectOwnedByUser.mockResolvedValue(undefined);
     mock.assertConversationOwnedByUser.mockResolvedValue(undefined);
     mock.readArkProjectSnapshot.mockResolvedValue(snapshot);
@@ -162,6 +173,8 @@ describe("owner-scoped ARK -> Arbor Layer read crossing", () => {
     expect(mock.assertConversationOwnedByUser).not.toHaveBeenCalled();
     expect(mock.readArkProjectSnapshot).not.toHaveBeenCalled();
     expect(mock.loadLatestRuntimeState).not.toHaveBeenCalled();
+    expect(mock.loadDurableBehaviorCorrections).not.toHaveBeenCalled();
+    expect(mock.getMemoryContext).not.toHaveBeenCalled();
   });
 
   it("rejects an unowned requested conversation before ARK or continuity reads", async () => {
@@ -172,6 +185,8 @@ describe("owner-scoped ARK -> Arbor Layer read crossing", () => {
     })).rejects.toThrow("conversation_not_found");
     expect(mock.readArkProjectSnapshot).not.toHaveBeenCalled();
     expect(mock.loadRuntimeState).not.toHaveBeenCalled();
+    expect(mock.loadDurableBehaviorCorrections).not.toHaveBeenCalled();
+    expect(mock.getMemoryContext).not.toHaveBeenCalled();
   });
 
   it("fails closed when the stored JSON claims a different project or owner", async () => {
@@ -297,7 +312,7 @@ describe("owner-scoped ARK -> Arbor Layer read crossing", () => {
     expect(result.ark.eventCountInWindow).toBe(100);
     expect(result.ark.windowMayBeTruncated).toBe(true);
   });
-  it("preserves current identity and time while exposing the legacy receiver budget blocker", async () => {
+  it("preserves current identity and time within reviewed r3 schema bounds", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-10-06T01:47:30Z"));
     try {
@@ -316,12 +331,13 @@ describe("owner-scoped ARK -> Arbor Layer read crossing", () => {
       expect(prompt.indexOf("ARBOR DURABLE IDENTITY ANCHOR"))
         .toBeLessThan(prompt.indexOf("Mode projection:"));
       expect(context.behavior.proof.projectionFingerprint).toMatch(/^[a-f0-9]{64}$/);
-      // Preserve the current baseline; do not truncate it to fake legacy acceptance.
+      // Preserve the current baseline within the independently reviewed r3 schema.
       expect(prompt.length).toBeGreaterThan(12000);
+      expect(prompt.length).toBeLessThanOrEqual(32768);
     } finally { vi.useRealTimers(); }
   });
 
-  it("holds the current One Arbor contract before contacting the legacy receiver", async () => {
+  it("rejects the old One Arbor contract before contacting the reviewed receiver", async () => {
     const owner = "00000000-0000-4000-8000-000000000001";
     const project = "00000000-0000-4000-8000-000000000002";
     const conversation = "00000000-0000-4000-8000-000000000003";
@@ -333,6 +349,7 @@ describe("owner-scoped ARK -> Arbor Layer read crossing", () => {
       projectId: project, conversationId: conversation, mode: "text",
     });
     expect(context.behavior.proof.contractVersion).toBe("2026-10-05.1");
+    context.behavior.proof.contractVersion = "2026-09-21.1";
     const request = vi.fn();
     await expect(sendPrivateGroveLmTurnFromVerifiedHost({
       ownerId: owner, projectId: project, conversationId: conversation,
@@ -343,6 +360,51 @@ describe("owner-scoped ARK -> Arbor Layer read crossing", () => {
       hmacKey: "synthetic-host-only-hmac-key-over-32-characters",
     }, request})).rejects.toMatchObject({code: "private_lm_scope_rejected"});
     expect(request).not.toHaveBeenCalled();
+  });
+
+  it("hydrates permanent corrections without inventing conversation continuity", async () => {
+    mock.loadRuntimeState.mockResolvedValue(null);
+    mock.loadDurableBehaviorCorrections.mockResolvedValue([{...state().corrections[0],
+      value: "Keep established humor during technical work", observedAt: "2026-10-06T00:00:00Z"}]);
+    const result = await readArkLayerContext({supabase: {} as never,
+      authenticatedUserId: userId, projectId, conversationId, mode: "text"});
+    expect(result.continuity.available).toBe(false);
+    expect(result.continuity.behavioralCorrections).toEqual([]);
+    expect(result.behavior.guardRequirements).toContain("Keep established humor during technical work");
+    expect(mock.loadDurableBehaviorCorrections).toHaveBeenCalledWith({supabase: {}, userId});
+  });
+
+  it("reuses scoped lexical memory and keeps sensitive/unrelated/foreign facts out of the prompt", async () => {
+    const item = (id: string, text: string, change: Record<string, unknown> = {}) => ({
+      id, key: "project.note", content_text: text, project_id: projectId, conversation_id: null,
+      scope: "project", tier: "normal", pinned: false, locked: false, user_trigger_only: false,
+      status: "active", deleted_at: null, excluded_from_memory: false, importance: 5,
+      confidence: 0.75, ...change,
+    });
+    mock.getMemoryContext.mockResolvedValue({core: [], sensitive: [], keysUsed: [], normal: [
+      item("relevant", "Grove receiver integration is pending"),
+      item("unrelated", "Banana bread recipe"),
+      item("foreign", "Grove receiver FOREIGN", {project_id: "other-project"}),
+      item("sensitive", "Grove receiver SECRET", {tier: "sensitive", pinned: true}),
+      item("excluded", "Grove receiver DELETED", {excluded_from_memory: true}),
+    ]});
+    const result = await readArkLayerContext({supabase: {} as never,
+      authenticatedUserId: userId, projectId, conversationId, mode: "text",
+      latestUserText: "Grove receiver integration"});
+    expect(result.behavior.promptBlock).toContain("Grove receiver integration is pending");
+    for (const forbidden of ["Banana bread", "FOREIGN", "SECRET", "DELETED"])
+      expect(result.behavior.promptBlock).not.toContain(forbidden);
+    expect(result.behavior.guardRequirements).not.toContain("Grove receiver integration is pending");
+    expect(mock.getMemoryContext).toHaveBeenCalledWith(expect.objectContaining({
+      authedUserId: userId, projectId, conversationId, useVectorSearch: false, useCache: false,
+    }));
+  });
+
+  it("fails closed when permanent correction hydration fails", async () => {
+    mock.loadDurableBehaviorCorrections.mockRejectedValue(new Error("synthetic_read_failure"));
+    await expect(readArkLayerContext({supabase: {} as never, authenticatedUserId: userId,
+      projectId, conversationId, mode: "text"})).rejects.toThrow("synthetic_read_failure");
+    expect(mock.getMemoryContext).not.toHaveBeenCalled();
   });
 
   it.skipIf(!process.env.GROVE_LM_RECEIVER_SOURCE)(
@@ -357,6 +419,15 @@ describe("owner-scoped ARK -> Arbor Layer read crossing", () => {
       mock.loadRuntimeState.mockResolvedValueOnce(state({
         userId: owner, projectId: project, conversationId: conversation,
       }));
+      mock.loadDurableBehaviorCorrections.mockResolvedValueOnce([{...state().corrections[0],
+        id: "behavior:professional-humor", value: "Preserve professional casual humor during technical work",
+        observedAt: "2026-10-06T00:00:00Z"}]);
+      mock.getAlwaysIncludedMemoryAnchors.mockResolvedValueOnce([{
+        id: "fixture-memory", key: "project.constraint", content_text: "The private Grove fixture has no external actions",
+        scope: "project", project_id: project, conversation_id: null, tier: "core",
+        status: "active", pinned: true, locked: false, user_trigger_only: false,
+        excluded_from_memory: false, deleted_at: null, importance: 9, confidence: 1,
+      }]);
       const context = await readArkLayerContext({
         supabase: {} as never, authenticatedUserId: owner,
         projectId: project, conversationId: conversation,
@@ -381,9 +452,25 @@ class FakeModel:
         assert "ARBOR DURABLE IDENTITY ANCHOR" in system
         assert "Finish the scoped ARK integration" in system
         assert "Do not restart the conversation." in system
+        assert "Preserve professional casual humor during technical work" in system
+        assert "The private Grove fixture has no external actions" in system
         assert "time_zone=UTC-07:00" in system
         assert system.index("ARBOR DURABLE IDENTITY ANCHOR") < system.index("Mode projection:")
         assert messages[-1]["content"] == "Continue the fixture objective"
+        if os.environ.get("GROVE_TOKENIZER_DIR"):
+            from transformers import AutoTokenizer
+            from pathlib import Path
+            tokenizer = AutoTokenizer.from_pretrained(os.environ["GROVE_TOKENIZER_DIR"],
+                local_files_only=True, trust_remote_code=False)
+            ids = tokenizer.apply_chat_template([{"role":"system","content":system}] + messages,
+                tokenize=True, add_generation_prompt=True, enable_thinking=False)
+            # Tokenizer-only evidence; no model or weights are loaded.
+            Path(os.environ["GROVE_OFFLINE_TOKEN_AUDIT"]).write_text(json.dumps({
+                "input_tokens":len(ids), "system_characters":len(system),
+                "tokenizer_declared_max_length":tokenizer.model_max_length,
+                "default_2400_fits":len(ids)<=2400,
+                "candidate_8192_fits":len(ids)+max_new_tokens<=8192,
+                "real_inference":False}))
         return "Fixture context reached generation."
 client = TestClient(create_app(model=FakeModel()))
 response = client.post("/v1/grove/chat-with-host-context", content=packet["body"], headers=packet["headers"])

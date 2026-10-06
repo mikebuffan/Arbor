@@ -3,7 +3,7 @@ import "server-only";
 import { createHmac, randomBytes } from "node:crypto";
 
 /**
- * Private Grove HOST -> independent Arbor LM v0.3.5 receiver.
+ * Private Grove HOST -> reviewed independent Arbor LM r3 receiver source.
  *
  * No public route imports this module. A future private chat route MUST first
  * authenticate the Grove owner, prove Firefly project+conversation ownership,
@@ -47,6 +47,7 @@ const uuid =
 export const GROVE_EXPECTED_ADAPTER_SHA256 =
   "5447bc273c11374c73194428825babe22a008b0827e9ef002127a461023402aa";
 export const GROVE_EXPECTED_RECEIVER_CARD = "0.3.3";
+export const GROVE_EXPECTED_BROKER_REVISION = "2026-10-06.1";
 
 export function privateGroveLmHostConfig(
   env: Record<string, string | undefined> = process.env,
@@ -93,7 +94,7 @@ function assertBoundContext(
       !continuity || typeof continuity.available !== "boolean" ||
       !Object.prototype.hasOwnProperty.call(x, "selectedAttachment") ||
       !behavior || !proof || proof.schemaVersion !== 1 ||
-      proof.contractVersion !== "2026-09-21.1" ||
+      proof.contractVersion !== "2026-10-05.1" ||
       proof.mode !== "text" ||
       (selected !== null && selected !== undefined &&
         (selected.projectId !== projectId ||
@@ -174,10 +175,10 @@ export async function sendPrivateGroveLmTurnFromVerifiedHost(
     messages: input.messages,
     max_new_tokens: 170,
   });
-  // The v0.3.5-r2 receiver enforces a 32 KiB *raw UTF-8 body* cap.
-  // Match its lower ceiling before sending/signing: 12k JS characters can
-  // exceed 32 KiB with multibyte languages even when history is valid.
-  if (Buffer.byteLength(body, "utf8") > 32768) {
+  // The reviewed r3 source receiver enforces a 96 KiB raw UTF-8 body cap.
+  // Check exact UTF-8 bytes before signing; valid character counts alone
+  // do not guarantee a bounded multibyte request.
+  if (Buffer.byteLength(body, "utf8") > 98304) {
     throw new GroveLmTransportError("private_lm_history_rejected");
   }
 
@@ -229,6 +230,7 @@ export async function sendPrivateGroveLmTurnFromVerifiedHost(
       data.model !== "arbor-lm-v0.3" ||
       data.adapter_sha256 !== GROVE_EXPECTED_ADAPTER_SHA256 ||
       data.runtime_card_version !== GROVE_EXPECTED_RECEIVER_CARD ||
+      data.broker_receiver_revision !== GROVE_EXPECTED_BROKER_REVISION ||
       data.behavior_contract_version !==
         (input.readContext.behavior as Record<string, unknown> &
           { proof: Record<string, unknown> }).proof.contractVersion ||

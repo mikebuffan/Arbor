@@ -30,7 +30,7 @@ function context() {
     selectedAttachment: null,
     behavior: {
       proof: {
-        schemaVersion: 1, contractVersion: "2026-09-21.1", mode: "text",
+        schemaVersion: 1, contractVersion: "2026-10-05.1", mode: "text",
         projectionFingerprint: "a".repeat(64),
       },
     },
@@ -48,7 +48,8 @@ function result(overrides: Record<string, unknown> = {}) {
     model: "arbor-lm-v0.3",
     adapter_sha256: "5447bc273c11374c73194428825babe22a008b0827e9ef002127a461023402aa",
     runtime_card_version: "0.3.3",
-    behavior_contract_version: "2026-09-21.1",
+    broker_receiver_revision: "2026-10-06.1",
+    behavior_contract_version: "2026-10-05.1",
     behavior_projection_fingerprint: "a".repeat(64),
     ark_captured_at: "2026-09-23T12:00:00Z",
     continuity_source: "unavailable",
@@ -207,9 +208,8 @@ describe("trusted Grove LM host envelope", () => {
     expect(request).not.toHaveBeenCalled();
   });
 
-  it("rejects UTF-8 multibyte history exceeding receiver 32 KiB cap before sending", async () => {
-    // Five alternating 2,300-character entries fit the 12k character
-    // budget, but the signed JSON payload exceeds 32 KiB in UTF-8.
+  it("rejects combined UTF-8 context and history exceeding receiver 96 KiB cap before sending", async () => {
+    // History alone fits; multibyte behavior context pushes the exact body over 96 KiB.
     const request = fakeFetch();
     const messages: GroveHostVerifiedTurn["messages"] = Array.from(
       {length: 5}, (_, index) => ({
@@ -219,7 +219,7 @@ describe("trusted Grove LM host envelope", () => {
       }),
     );
     await expect(sendPrivateGroveLmTurnFromVerifiedHost(
-      {...input(), messages}, {
+      {...input(), readContext: {...context(), behavior: {...context().behavior, promptBlock: "界".repeat(32700)}}, messages}, {
         config, request: request as unknown as typeof fetch,
       },
     )).rejects.toMatchObject({code: "private_lm_history_rejected"});
@@ -240,6 +240,8 @@ describe("trusted Grove LM host envelope", () => {
       result({adapter_sha256:undefined}),
       result({runtime_card_version:"0.3.4"}),
       result({behavior_contract_version:"unapproved"}),
+      result({broker_receiver_revision:"2026-09-22.2"}),
+      result({broker_receiver_revision:undefined}),
       result({behavior_projection_fingerprint:"b".repeat(64)}),
       result({ark_captured_at:"2026-09-22T12:00:00Z"}),
       result({continuity_source:"project_latest"}),

@@ -186,6 +186,7 @@ export async function prepareVerifiedPrivateGroveTurn(input: {
     projectId: input.projectId,
     conversationId: input.conversationId,
     mode: "text",
+    latestUserText: input.message,
     ...(input.timeZoneOffsetMinutes !== undefined
       ? { timeZoneOffsetMinutes: input.timeZoneOffsetMinutes } : {}),
   });

@@ -147,6 +147,7 @@ describe("real module composition — LIVE FEATURES STILL OFF", () => {
       supabase: { synthetic: true },
       authenticatedUserId: uuids.owner,
       projectId: uuids.project, conversationId: uuids.conversation, mode: "text",
+      latestUserText: "List and go",
     });
     expect(prepared.arkLayer.continuity.currentGoal).toBe("Finish Grove");
     expect(prepared.status).toBe("ready");
