@@ -20,6 +20,15 @@ describe("entity resolution gate",()=>{
     expect(aliasSimilarity("J. Example","J Example")).toBeGreaterThan(.8);
   });
 
+  it("preserves non-Latin labels instead of treating different names as empty exact matches", () => {
+    expect(aliasSimilarity("Миша", "Лайла")).toBeLessThan(.72);
+    expect(aliasSimilarity("Миша", "МИША")).toBe(1);
+    expect(aliasSimilarity("王明", "李华")).toBe(0);
+    expect(() => aliasSimilarity("!!!", "???")).toThrow("invalid_normalized_alias");
+    const c = createEntityCandidate({ candidateId: "other", kind: "person", canonicalLabel: "Лайла", aliases: [], supportingMentionIds: ["m2"] });
+    expect(rankAliasCandidates({ observedLabel: "Миша", candidates: [c] })).toEqual([]);
+  });
+
   it("requires evidence basis for all decisions and target only for resolved identities",()=>{
     expect(()=>createIdentityDecision({
       decisionId:"d1",candidateId:"candidate-1",targetEntityId:"entity-1",status:"candidate",
