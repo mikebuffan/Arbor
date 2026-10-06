@@ -59,13 +59,13 @@ function dialogueNaturalism(text:string):AnnabelleDiagnostic[]{
   return ratio>.72?[{engine:"dialogue-naturalism",severity:ratio>.85?"revise":"watch",message:"Dialogue has a high run of clean turn-taking. Check for pauses, interruptions, hesitation, overlap, nonverbal answers and imperfect reactions where character-true.",evidence:[],count:polished}]:[];
 }
 function semanticExplanationRedundancy(text:string):AnnabelleDiagnostic[]{
-  const sentences=text.split(/(?<=[.!?])\\s+/).map(x=>x.trim()).filter(Boolean);
+  const sentences=text.split(/(?<=[.!?])\s+/).map(x=>x.trim()).filter(Boolean);
   const flags:string[]=[];
   for(let i=1;i<sentences.length;i++){
     const prior=new Set(sentences[i-1].toLowerCase().match(/[a-z']{5,}/g)??[]);
     const current=sentences[i].toLowerCase().match(/[a-z']{5,}/g)??[];
     const overlap=current.filter(w=>prior.has(w));
-    if(overlap.length>=4 && /\\b(because|meant|realized|understood|knew|that was|the point|the thing)\\b/i.test(sentences[i])) flags.push(sentences[i].slice(0,180));
+    if(overlap.length>=4 && /\b(because|meant|realized|understood|knew|that was|the point|the thing)\b/i.test(sentences[i])) flags.push(sentences[i].slice(0,180));
   }
   return flags.length?[{engine:"explanation-redundancy",severity:flags.length>=3?"revise":"watch",message:"Interpretive sentence closely repeats evidence already delivered. Check whether the reader can be trusted without the explanation.",evidence:flags.slice(0,5),count:flags.length}]:[];
 }
@@ -79,7 +79,7 @@ function rhythm(text:string):AnnabelleDiagnostic[]{
 function sceneEndingDelta(text:string):AnnabelleDiagnostic[]{
   if(text.length<1200)return[];
   const tail=text.slice(-700).toLowerCase();
-  const change=/\\b(decided|chose|left|stayed|learned|knew now|agreed|refused|opened|closed|called|went|returned|asked|told)\\b/.test(tail);
+  const change=/\b(decided|chose|left|stayed|learned|knew now|agreed|refused|opened|closed|called|went|returned|asked|told)\b/.test(tail);
   return change?[]:[{engine:"scene-change",severity:"note",message:"No obvious state-changing action appears near the scene ending. Verify what changed in knowledge, relationship, body, decision, threat or goal.",evidence:[]}];
 }
 function repetition(text:string):AnnabelleDiagnostic[]{
