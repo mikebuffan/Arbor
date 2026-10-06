@@ -58,9 +58,9 @@ export async function runPatternHopResearch(params:{
       supabase:params.supabase,runId:run.id,userId:params.userId,projectId:params.projectId,
       workerId:params.workerId ?? ("pattern-hop:"+run.id),leaseMs:90000,
     });
-    if(claimed.status==="in_progress") throw new Error("pattern_hop_run_in_progress");
-    if(claimed.status==="stopped") stoppedBeforeStart=true;
-    else lease=claimed.lease;
+    if(claimed.status==="claimed") lease=claimed.lease;
+    else if(claimed.status==="stopped") stoppedBeforeStart=true;
+    else throw new Error("pattern_hop_run_in_progress");
   }
   const controlCheck=async():Promise<boolean>=>{
     if(!control||!lease) return stoppedBeforeStart;
