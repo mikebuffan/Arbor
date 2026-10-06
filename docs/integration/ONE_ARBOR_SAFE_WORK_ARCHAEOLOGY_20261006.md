@@ -18,8 +18,9 @@ Scope: read-only comparison of historical branches against the isolated #263 sou
 - Older self-memory/retrieval branches still diverge substantially. They are outside this isolated safe lane and must be reconciled by ownership/behavior, not bulk cherry-pick.
 
 ## Pattern Hop
-- Current research branches are actively divergent from #263. This lane added isolated source contracts/tests only: STOP/lease semantics, provenance, alias gates, independence, contradiction routing, lineage and bounded rerouting.
-- Do not merge or overwrite active Pattern Hop branches from #263.
+- Read-only archaeology of `feat/pattern-hop-combined-source-20261006` and its current run-control/STOP siblings showed that the canonical research lineage already owns the real implementation: run controls, entity resolution, evidence comparison, finding integrity, lead dedupe, timeline analysis, investigation graph, document-hop execution/host, session restart, research bridge and proposed durable run-control storage.
+- Duplicate Pattern-Hop helper source briefly added on #263 was removed after this reconciliation.
+- #263 must not build, merge, or overwrite a second Pattern-Hop engine/control stack. Remaining Pattern-Hop work is reconciliation and live acceptance in the canonical research lane.
 
 ## Conclusion
-Historical behavior with a clear current owner was recovered or verified before adding new source. Divergent legacy branches remain evidence until a specific missing behavior is demonstrated.
+Historical behavior with a clear current owner was recovered or verified before adding new source. Reconciliation outranks rebuilding. Divergent legacy branches remain evidence until a specific missing behavior is demonstrated.
