@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AgencyState, AgencyBlocker, AgencyExecutionState } from "./engine";
 import {
+  AgencyStateConflictError,
   loadAgencyState,
   persistAgencyState,
 } from "./state";
@@ -159,14 +160,28 @@ export async function beginAgencySession(input: {
     prior,
   });
 
-  await persistAgencyState({
-    ...input,
-    agency,
-    expectedRevision: prior?.objective?.revision,
-    expectAbsent: !prior,
-  });
-
-  return agency;
+  try {
+    await persistAgencyState({
+      ...input,
+      agency,
+      expectedRevision: prior?.objective?.revision,
+      expectAbsent: !prior,
+    });
+    return agency;
+  } catch (error) {
+    if (!(error instanceof AgencyStateConflictError)) throw error;
+    // Another turn won the compare-and-swap. Re-read once and derive from the
+    // durable winner rather than returning stale local agency state.
+    const fresh = await loadAgencyState(input);
+    if (!fresh) throw error;
+    const reconciled = buildAgencySessionState({userText: input.userText, prior: fresh});
+    await persistAgencyState({
+      ...input,
+      agency: reconciled,
+      expectedRevision: fresh.objective?.revision,
+    });
+    return reconciled;
+  }
 }
 
 export async function recordAgencyProgress(input: {
