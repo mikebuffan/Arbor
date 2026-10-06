@@ -1,0 +1,2 @@
+import{describe,expect,it}from"vitest";import{analyzeHumorNaturalism}from"../humorNaturalism";
+describe("humor naturalism",()=>{it("flags perfect ladders and recognizes earned callbacks",()=>{const r=analyzeHumorNaturalism([{speaker:"a",text:"1",response:"x",callbackKey:"face"},{speaker:"b",text:"2",response:"x"},{speaker:"a",text:"3",response:"x"},{speaker:"b",text:"4",response:"x",callbackKey:"face"}]);expect(r.perfectLadderRisk).toBe(true);expect(r.earnedCallbacks).toContain("face");});});
