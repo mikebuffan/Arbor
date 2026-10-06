@@ -206,7 +206,7 @@ function normalizedGoal(value: string | null): string | null {
   if (value === null) return null;
   const normalized = value.trim().replace(/\s+/g, " ");
   if (!normalized || normalized.length > 500) {
-    throw new RouteAccessError(400, "grove_runtime_goal_invalid");
+    throw new Error("grove_runtime_goal_invalid");
   }
   return normalized;
 }
