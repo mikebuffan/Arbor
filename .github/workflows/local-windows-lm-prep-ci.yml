@@ -129,10 +129,18 @@ jobs:
         shell: pwsh
         run: |
           $bin = 'llama.cpp/build-sse2/bin/Release'
+          $vswhere = "${env:ProgramFiles(x86)}\\Microsoft Visual Studio\\Installer\\vswhere.exe"
+          if (-not (Test-Path -LiteralPath $vswhere)) { throw 'vswhere.exe unavailable' }
+          $vs = (& $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath).Trim()
+          if (-not $vs) { throw 'Visual Studio C++ tools unavailable' }
+          $dumpbin = Get-ChildItem -Path (Join-Path $vs 'VC\\Tools\\MSVC') -Filter dumpbin.exe -Recurse |
+            Sort-Object FullName -Descending | Select-Object -First 1 -ExpandProperty FullName
+          if (-not $dumpbin) { throw 'dumpbin.exe unavailable' }
+          Write-Host "Using dependency auditor: $dumpbin"
           foreach ($exe in @('llama-cli.exe','llama-server.exe','llama-bench.exe')) {
             $path = Join-Path $bin $exe
             if (-not (Test-Path -LiteralPath $path)) { throw "missing built executable: $exe" }
-            $deps = (& dumpbin /dependents $path) |
+            $deps = (& $dumpbin /dependents $path) |
               Select-String -Pattern '^[ ]+[A-Za-z0-9_.-]+[.]dll$' |
               ForEach-Object { $_.Line.Trim() } |
               Sort-Object -Unique
