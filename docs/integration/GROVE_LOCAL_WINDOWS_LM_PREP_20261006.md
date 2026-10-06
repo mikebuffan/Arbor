@@ -39,6 +39,10 @@ Fails closed unless a future private runtime manifest contains:
   larger than the proposed 8,192-token ceiling;
 - the existing 170-token response ceiling.
 
+The manifest also declares the runtime's minimum CPU instruction set (SSE2/SSE4.2/AVX/AVX2).
+`evaluate-local-runtime.mjs` compares that requirement to the read-only Windows preflight and
+fails closed before artifact staging when the CPU cannot support the proposed runtime.
+
 Passing verifies declared artifact identity/config only. It does **not** prove that weights load,
 that the tokenizer actually produces the expected count, or that inference succeeds.
 
