@@ -1,0 +1,2 @@
+import{describe,expect,it}from"vitest";import{inspectPhysicalContinuity}from"../physicalContinuity";
+describe("physical continuity",()=>{it("carries injuries and scars forward",()=>{const issues=inspectPhysicalContinuity([{chapter:2,character:"Ever",injuries:{hip:"chronic"},compensations:["hip hitch"],scars:["shoulder"]},{chapter:3,character:"Ever",injuries:{},compensations:[],scars:[]}]);expect(issues.map(x=>x.kind)).toContain("injury-drop");expect(issues.map(x=>x.kind)).toContain("scar-drop");});});
