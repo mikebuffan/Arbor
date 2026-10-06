@@ -20,6 +20,7 @@ hardware UUID is recorded in source.
 Read-only local hardware/tool inventory. It reports:
 - Windows version/build and architecture;
 - CPU model/core/logical-processor counts;
+- Windows-reported SSE4.2 / AVX / AVX2 / AVX512F availability;
 - total physical RAM;
 - free system-drive space;
 - whether Python/py/git/node are already present.
