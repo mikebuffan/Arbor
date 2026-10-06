@@ -127,3 +127,17 @@ function discoveryDensity(text:string):AnnabelleDiagnostic[]{
   const n=countMatches(text,DISCOVERY_EXPLAIN);
   return n>=4?[{engine:"discovery-density",severity:n>=7?"revise":"watch",message:"Explicit realization language is clustering. Let evidence accumulate before naming the inference where possible.",evidence:evidence(text,DISCOVERY_EXPLAIN),count:n}]:[];
 }
+
+function repeatedPhraseIntent(text:string):AnnabelleDiagnostic[]{
+  const words=text.toLowerCase().replace(/[^a-z0-9' ]/g," ").split(/\s+/).filter(Boolean);
+  const grams=new Map<string,number>();
+  for(let n=3;n<=6;n++) for(let i=0;i<=words.length-n;i++){const g=words.slice(i,i+n).join(" ");grams.set(g,(grams.get(g)||0)+1);}
+  const repeated=[...grams.entries()].filter(([g,n])=>n>=3 && g.length>14).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  return repeated.length?[{engine:"repetition-intent",severity:"watch",message:"Repeated multi-word language may be motif, character habit, trauma recurrence or accidental repetition. Classify intent before cutting.",evidence:repeated.map(([g,n])=>`${g} ×${n}`),count:repeated.length}]:[];
+}
+function sceneChange(text:string):AnnabelleDiagnostic[]{
+  if(text.length<1800)return[];
+  const action=/\b(decided|left|entered|opened|closed|called|told|asked|refused|agreed|learned|found|discovered|gave|took|returned|changed)\b/gi;
+  const n=countMatches(text,action);
+  return n<2?[{engine:"scene-change",severity:"note",message:"Long scene has few obvious state-change verbs. Verify that knowledge, relationship, body, threat, goal or choice is materially different at scene end.",evidence:[],count:n}]:[];
+}
