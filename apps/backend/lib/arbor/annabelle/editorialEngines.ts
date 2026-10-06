@@ -91,3 +91,22 @@ function repetition(text:string):AnnabelleDiagnostic[]{
 export function runAnnabelleEditorialDiagnostics(text:string):AnnabelleDiagnostic[]{
   return [...sensoryDefaults(text),...humorDensity(text),...proseTics(text),...dialogueNaturalism(text),...explanationRedundancy(text),...rhythm(text),...sceneChange(text),...repetition(text)];
 }
+
+const EXPLANATION_MARKERS = /\b(this meant|which meant|because she knew|because he knew|the point was|that was the thing|what he wanted was|what she wanted was|in other words)\b/gi;
+const BODY_DEFAULTS = /\b(breath caught|heart hammered|jaw tightened|shoulders tightened|stomach dropped|pulse jumped|she swallowed|he swallowed)\b/gi;
+
+function explanationRedundancy(text:string):AnnabelleDiagnostic[]{
+  const n=countMatches(text,EXPLANATION_MARKERS);
+  return n>=3?[{engine:"explanation-redundancy",severity:n>=6?"revise":"watch",message:"Interpretive/explanatory connectors are clustering. Check whether behavior, dialogue or physical evidence already lets the reader infer the meaning.",evidence:evidence(text,EXPLANATION_MARKERS),count:n}]:[];
+}
+function bodyDefaultDensity(text:string):AnnabelleDiagnostic[]{
+  const n=countMatches(text,BODY_DEFAULTS);
+  return n>=4?[{engine:"embodied-perspective",severity:n>=7?"revise":"watch",message:"Default body-response vocabulary is clustering. Expand propagation, mechanics and character-specific physical evidence rather than synonym swapping.",evidence:evidence(text,BODY_DEFAULTS),count:n}]:[];
+}
+function rhythmDensity(text:string):AnnabelleDiagnostic[]{
+  const sentences=text.split(/(?<=[.!?])\s+/).map(s=>s.trim()).filter(Boolean);
+  if(sentences.length<20)return[];
+  const fragments=sentences.filter(s=>s.split(/\s+/).length<=4).length;
+  const ratio=fragments/sentences.length;
+  return ratio>.35?[{engine:"rhythm",severity:ratio>.5?"revise":"watch",message:"Very-short sentence/fragment density is high. Confirm fragmentation is scene-earned rather than a manuscript-wide default rhythm.",evidence:[],count:fragments}]:[];
+}
