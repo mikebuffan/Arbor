@@ -33,11 +33,17 @@ retry, settings update, deployment or live migration is authorized.
    Metadata deny rules, pinned SDK, unchanged lockfile, focused/full tests and
    synthetic APK verified. Phone tree `a611128ac9e9beaffccaf81134f69dff7783a440`
    is unchanged from the saved reconciliation.
-5. Native PostgreSQL claims/completion/revocation: passed in job `112326530553`
-   of the first run. Actual durable-writer trial stopped before running because
-   the test harness used an incompatible module import; that harness is repaired.
-   Full corrected native receipt pending. Local native execution remains unavailable: no PostgreSQL
-   binaries and no process identity capabilities. No hosted fallback.
+5. Native PostgreSQL claims/completion/revocation and actual durable writer:
+   **passed**, CI run `37481859127`, native job `112331984344`, runtime/source
+   head `670045422925431b3cb991e7d4d533e8d62e1818`. PostgreSQL 16 in a disposable
+   local Unix-socket database. Both transaction orderings and all 12-session
+   claims/completions/correction cases passed. Phone custody job `112331908629`
+   independently verified the exact previously accepted Flutter tree. Full
+   phone compilation was intentionally skipped on that repair-only run.
+   Earlier harness failures were module-loading and command-output parsing;
+   they were repaired without changing the actual durable writer. Local native
+   execution is still unavailable, but the safe runner resolved this gate.
+
 
 ## Correction connection
 
@@ -99,10 +105,16 @@ are denied by the existing test setup; embeddings are synthetic in connection
 fixtures. The actual signed TS-to-private-Python fake-generation fixture runs
 separately with the unchanged private source ZIP, never published to CI.
 
+Flutter analyzer completed with 100 existing informational/warning diagnostics;
+zero analyzer errors. Focused 36 tests are a subset of 192, not an extra count.
+The APK is synthetic debug output, never signed for release, published or installed.
+
 Native fixture: original exact owner/bridge/transcript/claim proposals, plus the
 new correction permission proposal. Twelve psql sessions test one claim winner,
 expired lease reclaim, stale-token fencing, one canonical completion, restart
-replay, changed text denial and revocation while completion is blocked.
+replay, changed text denial and both transaction orderings: revoked access commits
+before blocked completion (denied), and completion holds its access locks until
+commit before revocation (one canonical row, future claims denied).
 The native correction transport calls the actual existing TypeScript durable
 writer against a synthetic minimal memory table and independent psql sessions:
 unique first insert, newest observation, bounded contention recovery, stale
@@ -123,3 +135,14 @@ Approve transcript/draft retention, signed package identity and signer before
 device installation. Then run account denials, one bounded real-model turn,
 correction save/restart readback and phone acceptance. ARK execution/checkpoint
 requires a separate explicit capability and receipt. No reused canary.
+
+## Final continuation boundary
+
+The correction backend connection, goal/checkpoint review, integrated phone
+checks and native disposable database checks are complete in source. Remaining
+engineering/live gates: separate Grove runtime-goal writer; reviewed objective
+selector and bounded leased ARK caller; a phone UI for the new explicit correction
+action if desired; actual hosted PostgREST/RLS/permissions; model/tokenizer/context
+and replay/rate policy; approved signed release/device acceptance. No hosted
+write grants were created, no exports ingested, no engine rebuilt, no production
+release or inference activated. All existing drafts including Buffalo #249 remain.
