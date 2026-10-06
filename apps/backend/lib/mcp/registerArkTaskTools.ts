@@ -7,13 +7,17 @@ import { enqueueArkAgencyToolPlan } from "@/lib/ark/agencyBridge";
 import { promptDataBlock } from "@/lib/arbor/promptData";
 import { arkMcpUserContext } from "./context";
 import { assertArkReadTaskSubmission, isArkMcpSubmissionEnabled } from "./taskPermissions";
+import {ArchiveReadInput} from "@/lib/memory/archiveReader";
 import { registerArkPatternHopTool } from "./registerArkPatternHopTool";
 
 export const ArkReadTaskRequest = z.object({
   projectId: z.string().uuid(),
   requestId: z.string().uuid().describe("Reuse this same ID on retries; changed input with the same ID is rejected."),
-  capability: z.enum(["arbor_read_runtime_state", "annabelle_read_workspace"]),
-}).strict();
+  capability: z.enum(["arbor_read_runtime_state", "annabelle_read_workspace","arbor_read_historical_archive_page"]),
+  archiveRead:ArchiveReadInput.optional(),
+}).strict().superRefine((value,ctx)=>{
+  if(value.archiveRead&&value.capability!=="arbor_read_historical_archive_page")ctx.addIssue({code:"custom",message:"archiveRead requires the archive reader capability"});
+});
 
 function result(value: Record<string, unknown>) {
   return {content: [{type: "text" as const, text: promptDataBlock("ARK TASK RECEIPT", value)}], structuredContent: value};
@@ -27,7 +31,7 @@ export function registerArkTaskTools(server: McpServer): void {
     inputSchema: z.object({projectId: z.string().uuid(), taskId: z.string().uuid()}).strict(),
     outputSchema: z.object({projectId: z.string().uuid(), taskId: z.string().uuid(), objectiveId: z.string().uuid(),
       status: z.string(), resultJson: z.string(), resultTruncated: z.boolean(), lastError: z.string().nullable(),
-      attemptCount: z.number(), capturedAt: z.string()}),
+      attemptCount: z.number(), terminal: z.boolean(), completed: z.boolean(), capturedAt: z.string()}),
     annotations: {readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false},
   }, async (raw, ctx) => {
     const input = z.object({projectId: z.string().uuid(), taskId: z.string().uuid()}).strict().parse(raw);
@@ -43,14 +47,14 @@ export function registerArkTaskTools(server: McpServer): void {
     return result({projectId: input.projectId, taskId: data.id, objectiveId: data.objective_id,
       status: data.status, resultJson: encoded.slice(0, 20000), resultTruncated: encoded.length > 20000,
       lastError: typeof data.last_error === "string" ? data.last_error.slice(0, 2000) : null,
-      attemptCount: data.attempt_count, capturedAt: new Date().toISOString()});
+      attemptCount: data.attempt_count, terminal: ["completed","failed","cancelled"].includes(data.status), completed: data.status === "completed", capturedAt: new Date().toISOString()});
   });
 
   registerArkPatternHopTool(server);
   if (!isArkMcpSubmissionEnabled()) return;
   server.registerTool("submit_ark_read_task", {
     title: "Submit a Bounded ARK Read Task",
-    description: "Queue one existing runtime-state or Annabelle-workspace read in ARK when the user requests it. Writes durable queue state and returns a task ID; submission is not execution or completion. Requires an explicit server-side client/project grant. Reuse requestId on retries. Cannot submit arbitrary code, research, manuscript edits, deployments or other capabilities.",
+    description: "Queue one existing runtime-state, Annabelle-workspace or chronological archive-page read in ARK when the user requests it. Writes durable queue state and returns a task ID; submission is not execution or completion. Requires an explicit server-side client/project grant. Reuse requestId on retries. Cannot submit arbitrary code, research, manuscript edits, deployments or other capabilities.",
     inputSchema: ArkReadTaskRequest,
     outputSchema: z.object({projectId: z.string().uuid(), requestId: z.string().uuid(), objectiveId: z.string().uuid(),
       taskId: z.string().uuid(), status: z.string(), submitted: z.literal(true), completed: z.boolean()}),
@@ -68,7 +72,7 @@ export function registerArkTaskTools(server: McpServer): void {
       goal: `Read existing state through ${input.capability}`,
       planId: `mcp-read:${input.requestId}`,
       steps: [{id: "read-1", description: `Read through ${input.capability}`, capability: input.capability,
-        arguments: {}, maxAttempts: 1}],
+        arguments: input.capability==="arbor_read_historical_archive_page"?input.archiveRead??{}:{}, maxAttempts: 1}],
       budget: {maxTasksPerCycle: 1, maxRuntimeMs: 20000, maxAttemptsPerTask: 1},
     });
     if (objective.userId !== userId || objective.projectId !== input.projectId)

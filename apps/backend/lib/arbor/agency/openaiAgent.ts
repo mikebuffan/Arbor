@@ -34,6 +34,7 @@ export type AgencyToolExecutionDelegateResult =
       kind: "checkpointed";
       reason: string;
       objectiveId?: string;
+      retry?: () => Promise<AgencyToolExecutionDelegateResult>;
     };
 
 export type AgencyToolExecutionDelegate = {
@@ -241,7 +242,7 @@ export async function runOpenAIAgencyAgent(
         | { acquired: true; result: null }
         | { acquired: false; result: unknown }
       >;
-      complete(input: { key: string; result: unknown }): Promise<void>;
+      complete(input: { key: string; operation: string; result: unknown }): Promise<void>;
     };
     executionDelegate?: AgencyToolExecutionDelegate;
   },
@@ -578,7 +579,7 @@ export async function runOpenAIAgencyAgent(
         }
       }
 
-      const delegatedExecution =
+      let delegatedExecution =
         input.executionDelegate
           ? await input.executionDelegate.execute({
               tool,
@@ -595,6 +596,10 @@ export async function runOpenAIAgencyAgent(
                 attemptedRoutes: [...attemptedRoutes],
               }),
             };
+
+      for (let resume = 0; delegatedExecution.kind === "checkpointed" && delegatedExecution.retry && resume < 2; resume += 1) {
+        delegatedExecution = await delegatedExecution.retry();
+      }
 
       if (delegatedExecution.kind === "checkpointed") {
         return {
@@ -614,6 +619,7 @@ export async function runOpenAIAgencyAgent(
         if (idempotencyKey && input.idempotency) {
           await input.idempotency.complete({
             key: idempotencyKey,
+            operation: tool.name,
             result: execution.result,
           });
         }
@@ -715,7 +721,7 @@ export async function runOpenAIAgencyAgent(
   return {
     status: "checkpointed",
     text:
-      "The active objective reached an execution checkpoint. Its durable state is preserved and remains unfinished.",
+      "INTERNAL CONTINUATION REQUIRED: the active objective reached an execution checkpoint and remains unfinished. Persist this checkpoint and resume automatically; do not present this text to the user as a completed turn and do not require another user prompt.",
     responseId: response.id,
     toolCalls,
   };

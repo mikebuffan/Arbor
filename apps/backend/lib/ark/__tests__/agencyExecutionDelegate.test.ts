@@ -187,4 +187,18 @@ describe("ARK agency execution delegate", () => {
 
     expect(result.kind).toBe("checkpointed");
   });
+  it("can resume the exact same durable ARK action without another user turn", async () => {
+    mocks.dispatch
+      .mockResolvedValueOnce({ status: "checkpointed", objectiveId: "objective-1", taskStatus: "checkpointed" })
+      .mockResolvedValueOnce({ status: "completed", objectiveId: "objective-1", output: { finished: true }, attempts: 2, replayed: false });
+
+    const delegate = buildArkAgencyExecutionDelegate({ toolSupabase: {} as never, goal: "finish" });
+    const first = await delegate.execute({ tool, args: {}, context, attemptedRoutes: [] });
+    expect(first.kind).toBe("checkpointed");
+    if (first.kind !== "checkpointed" || !first.retry) throw new Error("retry missing");
+    const resumed = await first.retry();
+    expect(resumed).toMatchObject({ kind: "outcome", outcome: { ok: true, result: { finished: true } } });
+    expect(mocks.dispatch).toHaveBeenCalledTimes(2);
+  });
+
 });

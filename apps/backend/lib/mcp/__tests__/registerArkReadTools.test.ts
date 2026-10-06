@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-vi.mock("../context", () => ({ arkMcpUserContext: () => ({ userId: "owner", email: null }) }));
+vi.mock("../context", () => ({ arkMcpUserContext: () => ({ userId: "owner", email: null, supabase: {} }) }));
 import { registerArkReadTools } from "../registerArkReadTools";
 
 describe("ARK MCP tool boundary", () => {
@@ -7,8 +7,9 @@ describe("ARK MCP tool boundary", () => {
     const registerTool = vi.fn();
     registerArkReadTools({ registerTool } as never);
 
-    expect(registerTool).toHaveBeenCalledTimes(5);
+    expect(registerTool).toHaveBeenCalledTimes(6);
     expect(registerTool.mock.calls.map(([name]) => name)).toEqual([
+      "get_arbor_archive_page",
       "get_arbor_profile",
       "get_arbor_memory_recall",
       "list_arbor_projects",
