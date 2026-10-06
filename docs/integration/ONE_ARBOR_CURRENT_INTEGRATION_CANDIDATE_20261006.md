@@ -25,3 +25,8 @@ This new combined lane has changed source relative to every prior CI receipt. Pr
 Vercel exact-head deployment; ARK submission/live task acceptance; archive batches 1-661; full chronological read/developmental reconciliation; hosted Pattern Hop migration/STOP acceptance; Grove hosted grants/migrations; real private foundation+LoRA inference; signed physical-phone acceptance; production/main merge.
 
 Completion vocabulary remains separate: SOURCE_BUILT, SOURCE_TESTED, DEPLOYED, CONNECTED, LIVE_PROVEN, USER_ACCEPTED, GATED.
+
+## Exact archive resume
+- Resume procedure is frozen in ARK_ARCHIVE_LIVE_RESUME_CHECKLIST_20261006.md.
+- Resume starts at batch 1 only after recomputing source fingerprint and exact-readback of batch 0.
+- Full transport requires independent 59,909-identity verification; transport never implies read/analyzed/reconciled.
