@@ -1,1 +1,145 @@
-name: Build SSE2-only local LM runtime\n\non:\n  pull_request:\n    branches:\n      - arbor/local-lm-windows-prep-20261006\n    types:\n      - opened\n      - synchronize\n      - reopened\n\npermissions:\n  contents: read\n\nconcurrency:\n  group: local-lm-sse2-${{ github.event.pull_request.number }}\n  cancel-in-progress: true\n\njobs:\n  build-windows-x64-baseline:\n    if: github.repository == 'mikebuffan/Arbor' && github.head_ref == 'arbor/local-lm-sse2-runtime-20261006'\n    runs-on: windows-2022\n    timeout-minutes: 35\n    env:\n      LLAMA_CPP_SHA: 5ad1c5da0ad7f6176256b823925aad19134f0263\n    steps:\n      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262\n        with:\n          persist-credentials: false\n          ref: ${{ github.event.pull_request.head.sha }}\n\n      - name: Fetch exact llama.cpp source\n        shell: pwsh\n        run: |\n          git clone --filter=blob:none https://github.com/ggml-org/llama.cpp.git llama.cpp\n          Set-Location llama.cpp\n          git checkout --detach $env:LLAMA_CPP_SHA\n          $actual = git rev-parse HEAD\n          if ($actual -ne $env:LLAMA_CPP_SHA) { throw "llama.cpp source mismatch: $actual" }\n\n      - name: Configure x64 baseline without AVX\n        shell: pwsh\n        run: |\n          $args = @(\n            '-DCMAKE_BUILD_TYPE=Release',\n            '-DBUILD_SHARED_LIBS=OFF',\n            '-DGGML_NATIVE=OFF',\n            '-DGGML_SSE42=OFF',\n            '-DGGML_AVX=OFF',\n            '-DGGML_AVX_VNNI=OFF',\n            '-DGGML_AVX2=OFF',\n            '-DGGML_BMI2=OFF',\n            '-DGGML_AVX512=OFF',\n            '-DGGML_AVX512_VBMI=OFF',\n            '-DGGML_AVX512_VNNI=OFF',\n            '-DGGML_AVX512_BF16=OFF',\n            '-DGGML_FMA=OFF',\n            '-DGGML_F16C=OFF',\n            '-DGGML_CPU_ALL_VARIANTS=OFF',\n            '-DGGML_OPENMP=OFF',\n            '-DLLAMA_CURL=OFF',\n            '-DLLAMA_BUILD_SERVER=ON',\n            '-DLLAMA_BUILD_TESTS=OFF',\n            '-DLLAMA_BUILD_EXAMPLES=ON'\n          )\n          cmake -S llama.cpp -B llama.cpp/build-sse2 -A x64 @args\n\n      - name: Build local CPU runtime\n        shell: pwsh\n        run: cmake --build llama.cpp/build-sse2 --config Release --target llama-cli llama-server llama-bench --parallel 4\n\n      - name: Verify built programs launch\n        shell: pwsh\n        run: |\n          $bin = 'llama.cpp/build-sse2/bin/Release'\n          & "$bin/llama-cli.exe" --version\n          if ($LASTEXITCODE -ne 0) { throw 'llama-cli version failed' }\n          & "$bin/llama-server.exe" --version\n          if ($LASTEXITCODE -ne 0) { throw 'llama-server version failed' }\n          & "$bin/llama-bench.exe" --help *> $null\n          if ($LASTEXITCODE -ne 0) { throw 'llama-bench help failed' }\n\n      - name: Package exact runtime with provenance\n        shell: pwsh\n        run: |\n          $out = 'runtime-package'\n          New-Item -ItemType Directory -Force $out | Out-Null\n          $bin = 'llama.cpp/build-sse2/bin/Release'\n          Copy-Item "$bin/llama-cli.exe" $out\n          Copy-Item "$bin/llama-server.exe" $out\n          Copy-Item "$bin/llama-bench.exe" $out\n          Copy-Item 'llama.cpp/LICENSE' $out\n          $flags = @(\n            'BUILD_SHARED_LIBS=OFF',\n            'GGML_NATIVE=OFF',\n            'GGML_SSE42=OFF',\n            'GGML_AVX=OFF',\n            'GGML_AVX_VNNI=OFF',\n            'GGML_AVX2=OFF',\n            'GGML_BMI2=OFF',\n            'GGML_AVX512=OFF',\n            'GGML_AVX512_VBMI=OFF',\n            'GGML_AVX512_VNNI=OFF',\n            'GGML_AVX512_BF16=OFF',\n            'GGML_FMA=OFF',\n            'GGML_F16C=OFF',\n            'GGML_CPU_ALL_VARIANTS=OFF',\n            'GGML_OPENMP=OFF',\n            'LLAMA_CURL=OFF'\n          )\n          $files = Get-ChildItem $out -File | Where-Object { $_.Name -like '*.exe' } | ForEach-Object {\n            [ordered]@{\n              name = $_.Name\n              sha256 = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()\n              bytes = $_.Length\n            }\n          }\n          $manifest = [ordered]@{\n            schemaVersion = 1\n            scope = 'windows_x64_baseline_cpu_runtime'\n            source = [ordered]@{ repository = 'ggml-org/llama.cpp'; commit = $env:LLAMA_CPP_SHA }\n            intendedCpuFloor = 'x86_64_sse2'\n            avxRequired = $false\n            avx2Required = $false\n            modelIncluded = $false\n            adapterIncluded = $false\n            buildFlags = $flags\n            files = @($files)\n            claims = [ordered]@{\n              binariesLaunchOnGithubWindowsRunner = $true\n              qwenModelLoadVerified = $false\n              targetLaptopExecutionVerified = $false\n              arborAdapterVerified = $false\n            }\n          }\n          $manifest | ConvertTo-Json -Depth 8 | Set-Content -Encoding utf8 "$out/RUNTIME_MANIFEST.json"\n          Get-Content "$out/RUNTIME_MANIFEST.json"\n\n      - name: Upload baseline runtime artifact\n        uses: actions/upload-artifact@v4\n        with:\n          name: arbor-local-lm-windows-x64-sse2-${{ env.LLAMA_CPP_SHA }}\n          path: runtime-package\n          if-no-files-found: error\n          retention-days: 14\n
+name: Build SSE2-only local LM runtime
+
+on:
+  pull_request:
+    branches:
+      - arbor/local-lm-windows-prep-20261006
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+permissions:
+  contents: read
+
+concurrency:
+  group: local-lm-sse2-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  build-windows-x64-baseline:
+    if: github.repository == 'mikebuffan/Arbor' && github.head_ref == 'arbor/local-lm-sse2-runtime-20261006'
+    runs-on: windows-2022
+    timeout-minutes: 35
+    env:
+      LLAMA_CPP_SHA: 5ad1c5da0ad7f6176256b823925aad19134f0263
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Fetch exact llama.cpp source
+        shell: pwsh
+        run: |
+          git clone --filter=blob:none https://github.com/ggml-org/llama.cpp.git llama.cpp
+          Set-Location llama.cpp
+          git checkout --detach $env:LLAMA_CPP_SHA
+          $actual = git rev-parse HEAD
+          if ($actual -ne $env:LLAMA_CPP_SHA) { throw "llama.cpp source mismatch: $actual" }
+
+      - name: Configure x64 baseline without AVX
+        shell: pwsh
+        run: |
+          $args = @(
+            '-DCMAKE_BUILD_TYPE=Release',
+            '-DBUILD_SHARED_LIBS=OFF',
+            '-DGGML_NATIVE=OFF',
+            '-DGGML_SSE42=OFF',
+            '-DGGML_AVX=OFF',
+            '-DGGML_AVX_VNNI=OFF',
+            '-DGGML_AVX2=OFF',
+            '-DGGML_BMI2=OFF',
+            '-DGGML_AVX512=OFF',
+            '-DGGML_AVX512_VBMI=OFF',
+            '-DGGML_AVX512_VNNI=OFF',
+            '-DGGML_AVX512_BF16=OFF',
+            '-DGGML_FMA=OFF',
+            '-DGGML_F16C=OFF',
+            '-DGGML_CPU_ALL_VARIANTS=OFF',
+            '-DGGML_OPENMP=OFF',
+            '-DLLAMA_CURL=OFF',
+            '-DLLAMA_BUILD_SERVER=ON',
+            '-DLLAMA_BUILD_TESTS=OFF',
+            '-DLLAMA_BUILD_EXAMPLES=ON'
+          )
+          cmake -S llama.cpp -B llama.cpp/build-sse2 -A x64 @args
+
+      - name: Build local CPU runtime
+        shell: pwsh
+        run: cmake --build llama.cpp/build-sse2 --config Release --target llama-cli llama-server llama-bench --parallel 4
+
+      - name: Verify built programs launch
+        shell: pwsh
+        run: |
+          $bin = 'llama.cpp/build-sse2/bin/Release'
+          & "$bin/llama-cli.exe" --version
+          if ($LASTEXITCODE -ne 0) { throw 'llama-cli version failed' }
+          & "$bin/llama-server.exe" --version
+          if ($LASTEXITCODE -ne 0) { throw 'llama-server version failed' }
+          & "$bin/llama-bench.exe" --help *> $null
+          if ($LASTEXITCODE -ne 0) { throw 'llama-bench help failed' }
+
+      - name: Package exact runtime with provenance
+        shell: pwsh
+        run: |
+          $out = 'runtime-package'
+          New-Item -ItemType Directory -Force $out | Out-Null
+          $bin = 'llama.cpp/build-sse2/bin/Release'
+          Copy-Item "$bin/llama-cli.exe" $out
+          Copy-Item "$bin/llama-server.exe" $out
+          Copy-Item "$bin/llama-bench.exe" $out
+          Copy-Item 'llama.cpp/LICENSE' $out
+          $flags = @(
+            'BUILD_SHARED_LIBS=OFF',
+            'GGML_NATIVE=OFF',
+            'GGML_SSE42=OFF',
+            'GGML_AVX=OFF',
+            'GGML_AVX_VNNI=OFF',
+            'GGML_AVX2=OFF',
+            'GGML_BMI2=OFF',
+            'GGML_AVX512=OFF',
+            'GGML_AVX512_VBMI=OFF',
+            'GGML_AVX512_VNNI=OFF',
+            'GGML_AVX512_BF16=OFF',
+            'GGML_FMA=OFF',
+            'GGML_F16C=OFF',
+            'GGML_CPU_ALL_VARIANTS=OFF',
+            'GGML_OPENMP=OFF',
+            'LLAMA_CURL=OFF'
+          )
+          $files = Get-ChildItem $out -File | Where-Object { $_.Name -like '*.exe' } | ForEach-Object {
+            [ordered]@{
+              name = $_.Name
+              sha256 = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+              bytes = $_.Length
+            }
+          }
+          $manifest = [ordered]@{
+            schemaVersion = 1
+            scope = 'windows_x64_baseline_cpu_runtime'
+            source = [ordered]@{ repository = 'ggml-org/llama.cpp'; commit = $env:LLAMA_CPP_SHA }
+            intendedCpuFloor = 'x86_64_sse2'
+            avxRequired = $false
+            avx2Required = $false
+            modelIncluded = $false
+            adapterIncluded = $false
+            buildFlags = $flags
+            files = @($files)
+            claims = [ordered]@{
+              binariesLaunchOnGithubWindowsRunner = $true
+              qwenModelLoadVerified = $false
+              targetLaptopExecutionVerified = $false
+              arborAdapterVerified = $false
+            }
+          }
+          $manifest | ConvertTo-Json -Depth 8 | Set-Content -Encoding utf8 "$out/RUNTIME_MANIFEST.json"
+          Get-Content "$out/RUNTIME_MANIFEST.json"
+
+      - name: Upload baseline runtime artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: arbor-local-lm-windows-x64-sse2-${{ env.LLAMA_CPP_SHA }}
+          path: runtime-package
+          if-no-files-found: error
+          retention-days: 14
