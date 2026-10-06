@@ -1,0 +1,2 @@
+import{describe,expect,it}from"vitest";import{inspectAnnabelleVoice}from"../voiceCore";
+describe("voice core",()=>{it("protects gold and flags trust-reader residue",()=>{const r=inspectAnnabelleVoice("Gold line. Which meant she knew.",[{text:"Gold line.",sourceSha256:"a".repeat(64),gold:true}]);expect(r.some(x=>x.kind==="protected")).toBe(true);expect(r.some(x=>x.kind==="explanation")).toBe(true);});});
