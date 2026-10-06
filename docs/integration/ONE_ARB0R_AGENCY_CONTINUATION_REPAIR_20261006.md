@@ -31,3 +31,15 @@ The chat route must not call `finalizeAndPersistAssistantTurn` for an ordinary c
 6. test interruption/re-entry and ARK checkpoint ownership.
 
 No production activation or merge is authorized by this document.
+
+
+## Repair implemented on branch
+- ARK dispatcher now re-enters the same checkpointed objective for a bounded number of cycles inside the request.
+- It does not spin on a task that is still `running` under a live lease.
+- ARK execution delegate exposes a retry for the exact same durable plan/action rather than selecting a new action.
+- OpenAI agency loop consumes delegated checkpoint retries before it can return a checkpoint to the host.
+- Host imports and enforces the shared continuation disposition; checkpoints are explicitly non-yield states.
+- Regression coverage now includes checkpoint continuation, completion on a later ARK cycle, running-lease preservation, same-objective retry, and delegated continuation within one user turn.
+
+## Remaining proof gate
+Run the backend TypeScript/build and relevant Vitest suites on this exact branch/head. Then exercise the live preview with an intentionally checkpointing bounded objective. Do not merge or activate production until those proofs pass.
