@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import type { AgencyState } from "../engine";
 import { splitAgencyWork } from "../openLoops";
 import { buildAgencySessionState } from "../session";
