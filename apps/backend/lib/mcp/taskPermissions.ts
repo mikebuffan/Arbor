@@ -32,7 +32,8 @@ function arkGrantedProjects(appMetadata: unknown, clientId: unknown, permission:
 }
 
 export function isArkPatternHopSubmissionEnabled(): boolean {
-  return isArkMcpSubmissionEnabled() && process.env.ARBOR_ENABLE_ARK_MCP_PATTERN_HOP === "true";
+  return isArkMcpSubmissionEnabled() && process.env.ARBOR_ENABLE_ARK_MCP_PATTERN_HOP === "true"
+    && process.env.ARBOR_ENABLE_PATTERN_HOP_CONTROLS === "true";
 }
 
 export function assertArkPatternHopSubmission(ctx: ServerContext, projectId: string): void {
