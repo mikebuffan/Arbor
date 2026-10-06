@@ -115,6 +115,7 @@ describe("real module composition — LIVE FEATURES STILL OFF", () => {
       chatEnabled: false, modelEnabled: false, cognitivePreviewEnabled: false,
       transcriptEnabled: false,
       claimEnabled: false,
+      runtimeCaptureEnabled: false,
     });
     expect(grovePrivateTurnFeatures({
       GROVE_PRIVATE_CHAT_PREVIEW_ENABLED: "yes",
@@ -124,6 +125,7 @@ describe("real module composition — LIVE FEATURES STILL OFF", () => {
       chatEnabled: false, modelEnabled: false, cognitivePreviewEnabled: true,
       transcriptEnabled: false,
       claimEnabled: false,
+      runtimeCaptureEnabled: false,
     });
   });
 
@@ -344,6 +346,75 @@ describe("private Grove connection repair", () => {
     await expect(respondToVerifiedPrivateGroveTurn({
       prepared, features: flags, dependencies: h.dependencies,
     })).rejects.toThrow("revoked after preparation");
+    expect(h.sendModel).not.toHaveBeenCalled();
+  });
+
+  it("preauthorizes automatic runtime capture and saves only after a verified reply", async () => {
+    const h = harness();
+    const authorizeRuntimeCapture = vi.fn(async () => ({
+      groveUserId: uuids.grove,
+      fireflyUserId: uuids.owner,
+      projectId: uuids.project,
+      conversationId: uuids.conversation,
+      access: "read-only" as const,
+      fireflyAdmin: { synthetic: true },
+      groveAdmin: { synthetic: true },
+    }));
+    const captureRuntimeTurn = vi.fn(async () => ({
+      status: "saved" as const,
+      replayed: false,
+    }));
+    const dependencies = {
+      ...h.dependencies,
+      authorizeRuntimeCapture: authorizeRuntimeCapture as never,
+      captureRuntimeTurn: captureRuntimeTurn as never,
+    };
+    const features = { ...flags, runtimeCaptureEnabled: true };
+    const prepared = await h.prepare({ features, dependencies });
+    expect(authorizeRuntimeCapture).toHaveBeenCalledWith(
+      req,
+      uuids.project,
+      uuids.conversation,
+    );
+    expect(captureRuntimeTurn).not.toHaveBeenCalled();
+
+    await respondToVerifiedPrivateGroveTurn({
+      prepared,
+      features,
+      dependencies,
+    });
+
+    expect(captureRuntimeTurn).toHaveBeenCalledWith({
+      request: req,
+      projectId: uuids.project,
+      conversationId: uuids.conversation,
+      userText: "List and go",
+      arborText:
+        "I can see the unfinished goal, but this is not work execution.",
+    });
+  });
+
+  it("rejects a mismatched runtime-capture grant before model inference", async () => {
+    const h = harness();
+    const authorizeRuntimeCapture = vi.fn(async () => ({
+      groveUserId: uuids.grove,
+      fireflyUserId: uuids.grove,
+      projectId: uuids.project,
+      conversationId: uuids.conversation,
+      access: "read-only" as const,
+      fireflyAdmin: { synthetic: true },
+      groveAdmin: { synthetic: true },
+    }));
+    await expect(h.prepare({
+      features: { ...flags, runtimeCaptureEnabled: true },
+      dependencies: {
+        ...h.dependencies,
+        authorizeRuntimeCapture: authorizeRuntimeCapture as never,
+      },
+    })).rejects.toMatchObject({
+      status: 403,
+      code: "grove_runtime_capture_access_changed",
+    });
     expect(h.sendModel).not.toHaveBeenCalled();
   });
 });
