@@ -143,4 +143,27 @@ describe("ARK agency dispatcher", () => {
       blocker: { kind: "operation_in_progress" },
     });
   });
+  it("finishes in the same dispatch when a checkpoint becomes complete on a later cycle", async () => {
+    const rows = [
+      { status: "checkpointed" },
+      { status: "completed" },
+      { status: "completed", result: { output: { done: true }, attempts: 2 }, attempt_count: 2 },
+    ];
+    const maybeSingle = vi.fn().mockImplementation(async () => ({ data: rows.shift() ?? rows.at(-1), error: null }));
+    const eqTask = vi.fn(() => ({ maybeSingle }));
+    const eqObjective = vi.fn(() => ({ eq: eqTask }));
+    const select = vi.fn(() => ({ eq: eqObjective }));
+    const supabase = { from: vi.fn(() => ({ select })) } as never;
+
+    const result = await dispatchAgencyToolThroughArk({
+      arkSupabase: supabase, toolSupabase: {} as never,
+      userId: "user-1", projectId: "project-1", turnId: "turn-1",
+      goal: "finish the work", planId: "plan-1", actionId: "step-1",
+      capability: "state.inspect", arguments: {},
+    });
+
+    expect(mocks.run).toHaveBeenCalledTimes(2);
+    expect(result).toMatchObject({ status: "completed", output: { done: true }, attempts: 2 });
+  });
+
 });
