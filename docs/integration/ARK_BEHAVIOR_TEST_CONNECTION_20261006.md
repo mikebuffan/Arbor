@@ -7,7 +7,7 @@ October 6 UTC / October 5 Pacific, 2026. This isolated branch extends the previo
 | Step | Evidence / status |
 | --- | --- |
 | 1. Wire runner into existing host | Source implemented: existing ARK worker registry invokes the existing acceptance runner and agency loop. No second queue or model engine. |
-| 2. Start-test and read-result controls | Source implemented: `start_ark_behavior_test`; existing `get_ark_task_result` remains the owned result reader. Submission queues, never executes inline. |
+| 2. Start-test and read-result controls | Source implemented: `start_ark_behavior_test`; existing `get_ark_task_result` reports owned status/output, and `get_ark_behavior_test_result` pages larger test captures. Submission queues, never executes inline. |
 | 3. Restrict access and costs | Separate fresh server-owned client/project grant, flag-off by default, checked-in cases only, one run per case/campaign, durable paid-operation claim, twelve calls per case, bounded tokens/rounds/time. |
 | 4. Test failures and retries locally | Backend suite and TypeScript checked; actual executor → runner → agent → verifier path crosses mock provider/storage boundaries. Live database/worker behavior is not established by these tests. |
 | 5. Deploy reviewed preview | Open. Existing preview's newest Pattern Hop deployment failed with a type error. Reconcile all newer work before updating the connected preview; this older isolated base must not overwrite it. |
@@ -21,7 +21,7 @@ Validated MCP token → fresh application grant and owned project → existing a
 
 `lib/ark/acceptanceContract.ts` owns the exact source, campaign, checked-in pack, model, prompts and fixed budgets. The client supplies only project UUID, request UUID and checked-in case ID. The candidate uses the existing canonical identity anchor and personality projection; the baseline omits that bundle. Both retain Arbor's agency engine and verifier. This is a bounded text/identity-context ablation, not a full-system/unmodified-model comparison or production prompt parity result. Synthetic fixtures do not prove durable memory, true process restart, subsystem switching or acoustic voice quality.
 
-No new table, migration, dependency, general code executor or public context override was added. Captures are synthetic, owned and stored in the existing event table. Large task results retain the existing 20,000-character truncation indicator; a clipped result is not sufficient full evidence. Inspect/export the owned host capture when necessary. No scoring rubric is passed to inference.
+No new table, migration, dependency, general code executor or public context override was added. Captures are synthetic, owned and stored in the existing event table. Generic task results retain the existing 20,000-character truncation indicator. The additional read-only test reader returns 12,000-character JSON chunks with nextOffset and resultSha256; concatenate all chunks with the same task/status/hash before parsing or reviewing the full result. It accepts only owned behavior-test tasks and remains available when submission is disabled. A clipped result is not sufficient full evidence. Raw event traces can still require independent owned host inspection/export. No scoring rubric is passed to inference.
 
 ## Authorization, costs and retries
 
@@ -53,6 +53,6 @@ Current connection profile still reports read-only. No live permission change, d
 
 ## Validation and references
 
-Full backend suite: 741 tests pass, zero failures, 134 files. Standalone TypeScript and diff checks pass. The ten offline comparison-tool checks passed in the previous runner pass. The source integration test connects the actual executor, runner, agent and verifier with a mock provider/storage boundary and captures eight request/response pairs, without creating live acceptance evidence. The previous local production build was blocked downloading existing Google Fonts; no unrelated font/layout edits were made. The inspected remote build failure above concerns another source commit.
+Full backend suite: 743 tests pass, zero failures, 134 files. Standalone TypeScript and diff checks pass. The ten offline comparison-tool checks passed in the previous runner pass. The source integration test connects the actual executor, runner, agent and verifier with a mock provider/storage boundary and captures eight request/response pairs, without creating live acceptance evidence. The previous local production build was blocked downloading existing Google Fonts; no unrelated font/layout edits were made. The inspected remote build failure above concerns another source commit.
 
 Authorization documentation checked: Supabase [token security and RLS](https://supabase.com/docs/guides/auth/oauth-server/token-security), [getUser](https://supabase.com/docs/reference/javascript/auth-getuser), and [changelog](https://supabase.com/changelog). The markdown changelog endpoint could not be fetched through the search service; its HTML changelog was inspected. Standard OAuth identity scopes do not grant application task permissions. No new Supabase feature or schema was introduced.
