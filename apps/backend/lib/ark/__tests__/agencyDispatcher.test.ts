@@ -104,6 +104,7 @@ describe("ARK agency dispatcher", () => {
       arguments: {},
     });
 
+    expect(mocks.run).toHaveBeenCalledTimes(3);
     expect(result).toEqual({
       status: "checkpointed",
       objectiveId: "objective-1",
