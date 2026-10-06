@@ -130,6 +130,7 @@ describe("trusted Grove LM host envelope", () => {
     expect(url.toString()).toBe(
       "https://private-model.example.org/v1/grove/chat-with-host-context",
     );
+    expect(options!.redirect).toBe("error");
     const headers = options!.headers as Record<string, string>;
     const body = options!.body as string;
     const nonce = headers["x-arbor-host-nonce"];

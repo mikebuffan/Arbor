@@ -145,6 +145,7 @@ export async function prepareVerifiedPrivateGroveTurn(input: {
   message: string;
   /** Client-generated retry ID only, NEVER authentication or a model turn ID. */
   requestId?: string;
+  timeZoneOffsetMinutes?: number;
   features?: GrovePrivateTurnFeatures;
   dependencies?: GroveTurnDeps;
 }): Promise<GroveVerifiedTurn> {
@@ -158,6 +159,12 @@ export async function prepareVerifiedPrivateGroveTurn(input: {
     throw new GrovePrivateRequestError(400, "grove_private_message_invalid");
   if (input.requestId !== undefined && !uuid.test(input.requestId))
     throw new GrovePrivateRequestError(400, "grove_private_request_id_invalid");
+  if (features.transcriptEnabled && input.requestId === undefined)
+    throw new GrovePrivateRequestError(400, "grove_private_request_id_required");
+  if (input.timeZoneOffsetMinutes !== undefined &&
+      (!Number.isInteger(input.timeZoneOffsetMinutes) ||
+       Math.abs(input.timeZoneOffsetMinutes) > 840))
+    throw new GrovePrivateRequestError(400, "grove_private_timezone_invalid");
   const deps = input.dependencies ?? {};
   const authorized: VerifiedConversation =
     await (deps.authorize ?? authorizePrivateGroveConversation)(
@@ -179,6 +186,8 @@ export async function prepareVerifiedPrivateGroveTurn(input: {
     projectId: input.projectId,
     conversationId: input.conversationId,
     mode: "text",
+    ...(input.timeZoneOffsetMinutes !== undefined
+      ? { timeZoneOffsetMinutes: input.timeZoneOffsetMinutes } : {}),
   });
   if (arkLayer.access !== "read-only" ||
       arkLayer.projectId !== input.projectId ||
@@ -392,6 +401,9 @@ export async function respondToVerifiedPrivateGroveTurn(input: {
         scope: transcriptScope, userText,
       })
     : [{ role: "user" as const, content: userText }];
+  // History reads may outlast a revocation. Verify scope immediately before
+  // sending any private context/history to the independent model host.
+  await input.prepared.reauthorize();
   const reply = await (
     input.dependencies?.sendModel ?? sendPrivateGroveLmTurnFromVerifiedHost
   )({

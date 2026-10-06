@@ -1,3 +1,5 @@
+import { spawnSync } from "node:child_process";
+import { sendPrivateGroveLmTurnFromVerifiedHost } from "@/lib/grove/privateLmHostTransport";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ArborRuntimeState } from "@/lib/arbor/runtime/runtimeState";
 import type { ArkReadSnapshot } from "@/lib/ark/readModel";
@@ -295,4 +297,91 @@ describe("owner-scoped ARK -> Arbor Layer read crossing", () => {
     expect(result.ark.eventCountInWindow).toBe(100);
     expect(result.ark.windowMayBeTruncated).toBe(true);
   });
+  it("projects canonical identity and host time before the task mode", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-06T01:47:30Z"));
+    try {
+      mock.loadRuntimeState.mockResolvedValueOnce(state({activeSubsystem: "annabelle"}));
+      const context = await readArkLayerContext({
+        supabase: {} as never, authenticatedUserId: userId, projectId,
+        conversationId, mode: "text", timeZoneOffsetMinutes: -420,
+      });
+      const prompt = context.behavior.promptBlock;
+      expect(prompt).toContain("ARBOR DURABLE IDENTITY ANCHOR");
+      expect(prompt).toContain("local_date=2026-10-05");
+      expect(prompt).toContain("local_time=18:47:30");
+      expect(prompt).toContain("Authority: arbor");
+      expect(prompt).not.toContain("Authority: annabelle");
+      expect(prompt).toContain("Do not restart the conversation.");
+      expect(prompt.indexOf("ARBOR DURABLE IDENTITY ANCHOR"))
+        .toBeLessThan(prompt.indexOf("Mode projection:"));
+      expect(context.behavior.proof.projectionFingerprint).toMatch(/^[a-f0-9]{64}$/);
+      expect(prompt.length).toBeLessThanOrEqual(12000);
+    } finally { vi.useRealTimers(); }
+  });
+
+  it.skipIf(!process.env.GROVE_LM_RECEIVER_SOURCE)(
+    "passes the actual signed TS envelope through the preserved Python receiver (fake model only)",
+    async () => {
+      const owner = "00000000-0000-4000-8000-000000000001";
+      const project = "00000000-0000-4000-8000-000000000002";
+      const conversation = "00000000-0000-4000-8000-000000000003";
+      mock.readArkProjectSnapshot.mockResolvedValueOnce({
+        ...snapshot, capturedAt: new Date().toISOString(),
+      });
+      mock.loadRuntimeState.mockResolvedValueOnce(state({
+        userId: owner, projectId: project, conversationId: conversation,
+      }));
+      const context = await readArkLayerContext({
+        supabase: {} as never, authenticatedUserId: owner,
+        projectId: project, conversationId: conversation,
+        mode: "text", timeZoneOffsetMinutes: -420,
+      });
+      const config = {
+        url: "https://synthetic-model.example.org",
+        apiKey: "synthetic-server-only-api-key",
+        hmacKey: "synthetic-host-only-hmac-key-over-32-characters",
+      };
+      const request = async (_url: unknown, options?: RequestInit) => {
+        const python = spawnSync(process.env.GROVE_TEST_PYTHON ?? "python3", ["-c", `
+import json, os, sys
+from fastapi.testclient import TestClient
+from arbor_service.api import create_app
+packet = json.load(sys.stdin)
+os.environ["ARBOR_GROVE_API_KEY"] = packet["apiKey"]
+os.environ["ARBOR_GROVE_BROKER_HMAC_KEY"] = packet["hmacKey"]
+class FakeModel:
+    ready = True
+    def generate(self, *, system, messages, max_new_tokens):
+        assert "ARBOR DURABLE IDENTITY ANCHOR" in system
+        assert "Finish the scoped ARK integration" in system
+        assert "Do not restart the conversation." in system
+        assert "time_zone=UTC-07:00" in system
+        assert system.index("ARBOR DURABLE IDENTITY ANCHOR") < system.index("Mode projection:")
+        assert messages[-1]["content"] == "Continue the fixture objective"
+        return "Fixture context reached generation."
+client = TestClient(create_app(model=FakeModel()))
+response = client.post("/v1/grove/chat-with-host-context", content=packet["body"], headers=packet["headers"])
+print(json.dumps({"status":response.status_code,"data":response.json()}))
+`], {
+          cwd: process.env.GROVE_LM_RECEIVER_SOURCE,
+          input: JSON.stringify({body: options!.body, headers: options!.headers,
+            apiKey: config.apiKey, hmacKey: config.hmacKey}), encoding: "utf8",
+        });
+        expect(python.status, python.stderr).toBe(0);
+        const response = JSON.parse(python.stdout);
+        expect(response.status).toBe(200);
+        return Response.json(response.data, {status: response.status});
+      };
+      const reply = await sendPrivateGroveLmTurnFromVerifiedHost({
+        ownerId: owner, projectId: project, conversationId: conversation,
+        readContext: context,
+        messages: [{role: "user", content: "Continue the fixture objective"}],
+      }, {config, request: request as typeof fetch});
+      expect(reply.reply).toBe("Fixture context reached generation.");
+      expect(reply.liveExecutionVerified).toBe(false);
+      expect(reply.workReceipts).toEqual([]);
+    },
+  );
+
 });
