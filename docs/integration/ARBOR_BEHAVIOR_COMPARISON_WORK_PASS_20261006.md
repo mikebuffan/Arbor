@@ -58,3 +58,18 @@ The human review records concrete benefits and costs: correct action, useful con
 Reconcile this isolated source patch with the current integration candidate. It advances preparation and fixes test discovery for connection-checklist C36; it does not close C25–C35, C37–C46 or live acceptance C70. The canonical queue remains the existing One Arbor queue. This repository handoff does not prove ARK consumed it. Publish source/head and receipts, then collect actual host outputs when that authorized route is available.
 
 No model inference, deployment, merge, protected write, export import, manuscript edit, worker activation or ARK task submission occurred in this pass.
+
+## Existing host compatibility check
+
+Source inspection of this branch confirms that supplying a model credential alone will not complete the comparison:
+
+| Existing surface | Finding | Consequence |
+| --- | --- | --- |
+| `app/api/chat/route.ts` | Builds actual prompt context, runs the agency agent, and persists turns, episodes and memory signals. Its request schema has no baseline/candidate context selector or model override. | Ordinary paired chat requests cannot implement controlled context ablation; use isolated fixtures rather than the user's normal conversation. |
+| `app/api/debug/chat/route.ts` | Returns 404 in production, requires user and admin authorization elsewhere, and sends a single message through Chat Completions. | Its system override is useful for limited diagnostics, but does not reproduce the chat host's context, multi-turn agency or tools. |
+| `lib/chat/routeSupport.ts` | Public success response exposes assistant text, not provider response IDs and request-context hashes. | The current public response alone cannot fill the comparison's capture contract. |
+| `lib/arbor/agency/openaiAgent.ts` | Existing agent exposes tool/boundary/verification hooks and provider response IDs in its result. | Reuse this agent for an isolated server-side evaluation harness; a second agency engine is unnecessary. |
+
+The remaining implementation is a private server-side runner that selects the reviewed condition, assembles equal task context and scoped fixtures, invokes the existing agent, and records actual request hashes, provider identifiers, intermediate replies and tool receipts. Explicitly capture the verification calls and any additional model calls; a final response ID alone is not a complete request trace. Preserve each condition's own intermediate replies. Memory/restart cases also require independently inspected storage and eligibility evidence. Keep the scoring material outside inference and do not expose an arbitrary client-controlled context override on production chat.
+
+Run that harness on the authorized host with its existing model configuration. Current ARK read-only access does not provide generation, and no paired generation host or model credential is configured in this workspace. This is a source compatibility finding, not a failed live inference run. The runner has not been implemented in this pass; the eighteen prepared cases remain not-run.
