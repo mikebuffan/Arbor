@@ -12,6 +12,8 @@ export type ResearchClaim = {
   kind: string;
   payload: Record<string, unknown>;
   maxCostReservationCents?: number;
+  /** Persisted result from the prior committed attempt, used only for bounded resume. */
+  lastResult?: Record<string, unknown> | null;
 };
 
 /**
