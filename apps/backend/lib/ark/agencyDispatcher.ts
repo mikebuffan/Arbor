@@ -96,6 +96,9 @@ export async function dispatchAgencyToolThroughArk(input: {
     if (probe.error) throw probe.error;
     const status = String((probe.data as JsonRow | null)?.status ?? "");
     if (!["queued", "running", "checkpointed"].includes(status)) break;
+    // A running task may still own an unexpired lease. Do not spin or duplicate
+    // it; the durable continuation worker must resume it after the lease/checkpoint.
+    if (status === "running") break;
   }
 
   const { data, error } = await input.arkSupabase
