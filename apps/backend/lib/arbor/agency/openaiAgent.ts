@@ -715,7 +715,7 @@ export async function runOpenAIAgencyAgent(
   return {
     status: "checkpointed",
     text:
-      "The active objective reached an execution checkpoint. Its durable state is preserved and remains unfinished.",
+      "INTERNAL CONTINUATION REQUIRED: the active objective reached an execution checkpoint and remains unfinished. Persist this checkpoint and resume automatically; do not present this text to the user as a completed turn and do not require another user prompt.",
     responseId: response.id,
     toolCalls,
   };
