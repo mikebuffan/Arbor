@@ -11,3 +11,9 @@ export function validateEvidenceProvenance(p:EvidenceProvenance):string[]{
  return errors;
 }
 export function independentCorroboration(rows:readonly EvidenceProvenance[]):number{return new Set(rows.map(x=>x.sourceFamily)).size;}
+
+export function sourceIndependenceScore(rows:readonly EvidenceProvenance[]):number{
+ if(!rows.length)return 0;
+ const families=new Set(rows.map(x=>x.sourceFamily).filter(Boolean)).size;
+ return Number((families/rows.length).toFixed(3));
+}
