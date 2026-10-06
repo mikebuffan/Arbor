@@ -826,24 +826,6 @@ export async function POST(req: Request) {
         agency: agencyState,
         verified: !finalAssistant.flagged,
       });
-    } else if (agentResult.status === "checkpointed") {
-      const arkExecution = agencyState.objective?.execution;
-      agencyState = await checkpointAgencySession({
-        supabase,
-        userId,
-        projectId,
-        agency: agencyState,
-        reason: arkExecution
-          ? `ARK execution checkpoint persisted: ${arkExecution.arkObjectiveId ?? arkExecution.planId}`
-          : "execution ceiling reached after canonical assistant turn persisted",
-      });
-      if (arkExecution) {
-        await timeline.record("persist", "ark_execution_checkpointed", {
-          capability: arkExecution.capability,
-          planId: arkExecution.planId,
-          arkObjectiveId: arkExecution.arkObjectiveId ?? null,
-        });
-      }
     }
 
     await timeline.record(
