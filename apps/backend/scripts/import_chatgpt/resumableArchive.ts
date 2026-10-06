@@ -86,20 +86,24 @@ export interface VerifiedArchiveTransport {
  * Receipts advance only after exact destination verification. Checkpoints never prove reading. */
 export async function transportResumableArchive(input:{files:string[];target:ArchiveTarget;manifest:ArchiveManifest;
   checkpoint:ArchiveCheckpoint|null;transport:VerifiedArchiveTransport;
-  saveCheckpoint:(value:ArchiveCheckpoint)=>Promise<void>;maxBatches?:number}){
+  saveCheckpoint:(value:ArchiveCheckpoint)=>Promise<void>;maxBatches?:number;signal?:AbortSignal}){
   const prepared=await verifyResumableArchive(input),{manifest,turns}=prepared;
   const checkpoint=z.object({schemaVersion:z.literal(1),fingerprint:z.string(),nextBatch:z.number().int().nonnegative()}).strict()
     .parse(input.checkpoint??{schemaVersion:1,fingerprint:manifest.fingerprint,nextBatch:0});
   if(checkpoint.fingerprint!==manifest.fingerprint||checkpoint.nextBatch>manifest.batches.length)throw Error("archive_checkpoint_mismatch");
   const maxBatches=z.number().int().min(1).max(1000).parse(input.maxBatches??1);
+  const assertRunning=()=>{if(input.signal?.aborted)throw Error("archive_transport_aborted");};
   // A local offset alone cannot silently skip data; reverify every claimed completed batch.
-  for(const batch of manifest.batches.slice(0,checkpoint.nextBatch))
-    await input.transport.verifyExactBatch(manifest.target,turns.slice(batch.start,batch.start+batch.count));
+  for(const batch of manifest.batches.slice(0,checkpoint.nextBatch)){assertRunning();
+    await input.transport.verifyExactBatch(manifest.target,turns.slice(batch.start,batch.start+batch.count));}
   let nextBatch=checkpoint.nextBatch;
   for(const batch of manifest.batches.slice(nextBatch,nextBatch+maxBatches)){
+    assertRunning();
     const payload=turns.slice(batch.start,batch.start+batch.count);
     await input.transport.applyExactBatch(manifest.target,payload);
+    assertRunning();
     await input.transport.verifyExactBatch(manifest.target,payload);
+    assertRunning();
     const next:ArchiveCheckpoint={schemaVersion:1,fingerprint:manifest.fingerprint,nextBatch:batch.index+1};
     await input.saveCheckpoint(next);nextBatch=next.nextBatch;
   }
