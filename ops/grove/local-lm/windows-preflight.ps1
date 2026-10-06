@@ -46,6 +46,7 @@ $cpu = Get-CimInstance Win32_Processor | Select-Object -First 1
 $computer = Get-CimInstance Win32_ComputerSystem
 
 $instructionSets = [ordered]@{
+  sse2 = [ArborProcessorFeatures]::IsProcessorFeaturePresent(10)
   sse42 = [ArborProcessorFeatures]::IsProcessorFeaturePresent(38)
   avx = [ArborProcessorFeatures]::IsProcessorFeaturePresent(39)
   avx2 = [ArborProcessorFeatures]::IsProcessorFeaturePresent(40)
