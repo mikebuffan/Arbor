@@ -1,0 +1,82 @@
+name: Grove combined phone acceptance
+
+# Isolated draft child only. No production branch, hosted provider or deployment.
+'on':
+  pull_request:
+    branches: [integration/finish-the-buffalo-20261005]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: grove-combined-phone-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  phone-source:
+    if: github.repository == 'mikebuffan/Arbor' && github.head_ref == 'arbor/grove-combined-acceptance-20261006'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      CI: 'true'
+      FLUTTER_SUPPRESS_ANALYTICS: 'true'
+      DART_SUPPRESS_ANALYTICS: 'true'
+      AWS_EC2_METADATA_DISABLED: 'true'
+    steps:
+      - name: Block metadata before checkout or SDK bootstrap; fail closed
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Workflow env keys are case-insensitive. Clear both OS spellings at
+          # runtime instead of declaring duplicate YAML environment keys.
+          unset HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy
+          for proxy_var in HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy; do
+            printf '%s=\n' "$proxy_var" >> "$GITHUB_ENV"
+          done
+          for subnet in 169.254.0.0/16 100.100.100.200/32; do
+            sudo -n iptables -w 5 -I OUTPUT 1 -d "$subnet" -j REJECT
+            sudo -n iptables -w 5 -C OUTPUT -d "$subnet" -j REJECT
+          done
+          for subnet in fe80::/10 fc00::/7; do
+            sudo -n ip6tables -w 5 -I OUTPUT 1 -d "$subnet" -j REJECT
+            sudo -n ip6tables -w 5 -C OUTPUT -d "$subnet" -j REJECT
+          done
+          # Inspect installed rules only; never probe any metadata endpoint.
+          printf 'Metadata deny rules installed and verified.\n'
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Install pinned public Flutter source in disposable runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdk_dir="$RUNNER_TEMP/grove-flutter"
+          git init "$sdk_dir"
+          git -C "$sdk_dir" remote add origin https://github.com/flutter/flutter.git
+          git -C "$sdk_dir" fetch --depth=1 origin refs/tags/3.47.6:refs/tags/3.47.6
+          git -C "$sdk_dir" checkout --detach refs/tags/3.47.6
+          test "$(git -C "$sdk_dir" rev-parse HEAD)" = 5fc346839b5d0eef006ed8404392afb4dfae428d
+          echo "$sdk_dir/bin" >> "$GITHUB_PATH"
+          "$sdk_dir/bin/flutter" config --no-analytics
+          "$sdk_dir/bin/flutter" --version
+      - name: Resolve only locked app dependencies
+        working-directory: apps/frontend
+        run: flutter pub get --enforce-lockfile
+      - name: Verify lockfile is unchanged
+        run: git diff --exit-code -- apps/frontend/pubspec.lock
+      - name: Analyze shared Text/Voice and private phone source
+        working-directory: apps/frontend
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+      - name: Run restart, storage-failure, scope and retry fixtures
+        working-directory: apps/frontend
+        run: >-
+          timeout 180s flutter test --reporter expanded --concurrency=1
+          test/arbor_session_test.dart
+          test/grove_pending_turn_store_test.dart
+          test/grove_private_text_page_test.dart
+          test/grove_private_conversations_test.dart
+      - name: Run complete existing Flutter regression suite
+        working-directory: apps/frontend
+        run: timeout 360s flutter test --reporter expanded

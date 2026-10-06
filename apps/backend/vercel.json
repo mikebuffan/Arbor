@@ -4,5 +4,6 @@
       "path": "/api/admin/system/heartbeat",
       "schedule": "0 0 * * *"
     }
-  ]
+  ],
+  "ignoreCommand": "if [ \"$VERCEL_GIT_COMMIT_REF\" = \"arbor/grove-combined-acceptance-20261006\" ]; then exit 0; else exit 1; fi"
 }
