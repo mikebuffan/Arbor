@@ -81,6 +81,7 @@ import {
 import {
   retainStrategy,
 } from "@/lib/arbor/agency/strategyRetention";
+import { agencyContinuationDisposition, internalCheckpointResponse } from "@/lib/arbor/agency/continuationContract";
 import { buildTelemetry } from "@/lib/arbor/telemetry/buildTelemetry";
 import { getOrCreateOpenEpisode } from "@/lib/arbor/episodes/getOrCreateOpenEpisode";
 import { scheduleChatPostResponseWork } from "@/lib/chat/postResponseScheduler";
@@ -494,12 +495,13 @@ export async function POST(req: Request) {
             key,
             operation,
           }),
-        complete: ({ key, result }) =>
+        complete: ({ key, operation, result }) =>
           completeAgencyOperation({
             supabase,
             userId,
             projectId,
             key,
+            operation,
             result,
           }),
       },
@@ -752,6 +754,22 @@ export async function POST(req: Request) {
         },
       },
     });
+
+    const continuation = agencyContinuationDisposition({
+      status: agentResult.status === "complete" ? "complete" : agentResult.status === "blocked" ? "blocked" : "checkpointed",
+      unresolvedWork: agencyState.unresolvedWork,
+      blocker: agentResult.status === "blocked" ? agentResult.reason : null,
+    });
+    if (agentResult.status === "checkpointed") {
+      if (continuation.returnToUser) throw new Error("agency_checkpoint_illegal_yield");
+      agencyState = await checkpointAgencySession({supabase,userId,projectId,agency:agencyState,
+        reason:"internal continuation checkpoint; no user-visible completion"});
+      await updateRuntimeSession({supabase,state:runtimeSession,activeSubsystem,channel:interactionMode,
+        currentGoal:agencyState.goal,lastMeaningfulArborTurn:runtimeSession.lastMeaningfulArborTurn,
+        agency:agencyState,corrections:runtimeCorrections,behaviorProof,pendingSelfUpdate,now:new Date().toISOString()});
+      return NextResponse.json(internalCheckpointResponse({projectId,conversationId:convoId}),
+        {status:202,headers:getCorsHeaders(req)});
+    }
 
     const agentText =
       agentResult.status === "blocked"
