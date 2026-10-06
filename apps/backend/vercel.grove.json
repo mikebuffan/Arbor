@@ -1,4 +1,4 @@
 {
   "crons": [],
-  "ignoreCommand": "if [ \"$VERCEL_GIT_COMMIT_REF\" = \"arbor/grove-receiver-r3-20261006\" ]; then exit 0; else if [ \"$VERCEL_GIT_COMMIT_REF\" = \"arbor/grove-combined-connection-20261006\" ]; then exit 0; else exit 1; fi; fi"
+  "ignoreCommand": "if [ \"$VERCEL_GIT_COMMIT_REF\" = \"arbor/grove-receiver-r3-20261006\" ]; then exit 0; else if [ \"$VERCEL_GIT_COMMIT_REF\" = \"arbor/grove-receiver-r3-alignment-20261006\" ]; then exit 0; else if [ \"$VERCEL_GIT_COMMIT_REF\" = \"arbor/grove-combined-connection-20261006\" ]; then exit 0; else exit 1; fi; fi; fi"
 }

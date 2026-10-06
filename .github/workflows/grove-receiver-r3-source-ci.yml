@@ -1,17 +1,21 @@
-name: Grove receiver r3 independent verification
+name: Grove receiver r3 host source checks
 
+# Isolated draft child only. No production branch, hosted provider or deployment.
 'on':
   pull_request:
-    branches: [arbor/grove-receiver-r3-alignment-20261006]
-    types: [opened, synchronize, reopened, edited]
+    branches: [arbor/grove-combined-connection-20261006]
+    types: [opened, synchronize, reopened]
+
 permissions:
   contents: read
+
 concurrency:
   group: grove-receiver-r3-${{ github.event.pull_request.number }}
   cancel-in-progress: true
+
 jobs:
   backend-source:
-    if: github.repository == 'mikebuffan/Arbor' && github.head_ref == 'arbor/grove-receiver-r3-20261006'
+    if: github.repository == 'mikebuffan/Arbor' && github.head_ref == 'arbor/grove-receiver-r3-alignment-20261006'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:

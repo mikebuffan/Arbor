@@ -1,7 +1,5 @@
 import "server-only";
 
-import { ARBOR_BEHAVIOR_CONTRACT_VERSION } from "@/lib/arbor/behavior/behaviorProjection";
-
 import { createHmac, randomBytes } from "node:crypto";
 
 /**
@@ -43,13 +41,13 @@ export class GroveLmTransportError extends Error {
 const uuid =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-// Pin the reviewed r3 receiver source and preserved Qwen v0.3 adapter
+// Pin the actual private receiver r3 and preserved Qwen v0.3 adapter
 // metadata. These fields are host response consistency checks, NOT proof of a
 // real GPU, uploaded weights, live runtime authenticity or completion receipt.
 export const GROVE_EXPECTED_ADAPTER_SHA256 =
   "5447bc273c11374c73194428825babe22a008b0827e9ef002127a461023402aa";
 export const GROVE_EXPECTED_RECEIVER_CARD = "0.3.3";
-export const GROVE_EXPECTED_BROKER_RECEIVER_REVISION = "2026-10-06.1";
+export const GROVE_EXPECTED_RECEIVER_REVISION = "2026-10-06.1";
 
 export function privateGroveLmHostConfig(
   env: Record<string, string | undefined> = process.env,
@@ -96,7 +94,7 @@ function assertBoundContext(
       !continuity || typeof continuity.available !== "boolean" ||
       !Object.prototype.hasOwnProperty.call(x, "selectedAttachment") ||
       !behavior || !proof || proof.schemaVersion !== 1 ||
-      proof.contractVersion !== ARBOR_BEHAVIOR_CONTRACT_VERSION ||
+      proof.contractVersion !== "2026-10-05.1" ||
       proof.mode !== "text" ||
       (selected !== null && selected !== undefined &&
         (selected.projectId !== projectId ||
@@ -177,8 +175,9 @@ export async function sendPrivateGroveLmTurnFromVerifiedHost(
     messages: input.messages,
     max_new_tokens: 170,
   });
-  // Reviewed r3 ceiling is 96 KiB of exact signed UTF-8 bytes. History
-  // keeps its existing tighter limits; full identity/context is not truncated.
+  // Receiver r3 accepts at most 96 KiB of signed raw UTF-8 JSON.
+  // This byte limit is separate from its behavior and actual tokenizer limits;
+  // never truncate identity, corrections or memory to make a request fit.
   if (Buffer.byteLength(body, "utf8") > 98304) {
     throw new GroveLmTransportError("private_lm_history_rejected");
   }
@@ -231,7 +230,7 @@ export async function sendPrivateGroveLmTurnFromVerifiedHost(
       data.model !== "arbor-lm-v0.3" ||
       data.adapter_sha256 !== GROVE_EXPECTED_ADAPTER_SHA256 ||
       data.runtime_card_version !== GROVE_EXPECTED_RECEIVER_CARD ||
-      data.broker_receiver_revision !== GROVE_EXPECTED_BROKER_RECEIVER_REVISION ||
+      data.broker_receiver_revision !== GROVE_EXPECTED_RECEIVER_REVISION ||
       data.behavior_contract_version !==
         (input.readContext.behavior as Record<string, unknown> &
           { proof: Record<string, unknown> }).proof.contractVersion ||

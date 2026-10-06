@@ -164,9 +164,6 @@ describe("trusted Grove LM host envelope", () => {
       {...input(), projectId: "not-a-uuid"},
       {...input(), readContext: {...context(), projectId: ownerId}},
       {...input(), readContext: {...context(), access: "read-write"}},
-      {...input(), readContext: {...context(), behavior: {proof: {
-        ...context().behavior.proof, contractVersion: "2026-09-21.1",
-      }}}},
       {...input(), readContext: {...context(),
         ark: {...context().ark, liveExecutionVerified: true}}},
       {...input(), readContext: {...context(),
@@ -211,27 +208,49 @@ describe("trusted Grove LM host envelope", () => {
     expect(request).not.toHaveBeenCalled();
   });
 
-  it("accepts bounded multibyte history above the historical r2 body cap", async () => {
+  it("rejects UTF-8 context exceeding receiver 96 KiB cap before sending", async () => {
+    // The behavior text fits the receiver character limit, but its UTF-8
+    // bytes plus envelope exceed the signed-body ceiling.
     const request = fakeFetch();
     const messages: GroveHostVerifiedTurn["messages"] = Array.from(
       {length: 5}, (_, index) => ({
-        role: (index % 2 === 0 ? "user" : "assistant") as "user" | "assistant",
+        role: (index % 2 === 0 ? "user" : "assistant") as
+          "user" | "assistant",
         content: "界".repeat(2300),
       }),
     );
-    await sendPrivateGroveLmTurnFromVerifiedHost({...input(), messages}, {
-      config, request: request as unknown as typeof fetch,
-    });
-    expect(request).toHaveBeenCalledTimes(1);
+    await expect(sendPrivateGroveLmTurnFromVerifiedHost(
+      {...input(), messages, readContext: {...context(), behavior: {
+        ...context().behavior, promptBlock: "界".repeat(32768), guardRequirements: [],
+      }}}, {
+        config, request: request as unknown as typeof fetch,
+      },
+    )).rejects.toMatchObject({code: "private_lm_history_rejected"});
+    expect(request).not.toHaveBeenCalled();
   });
 
-  it("rejects a signed UTF-8 body above the reviewed r3 ceiling before sending", async () => {
+  it("accepts complete current context above the historical body ceiling", async () => {
     const request = fakeFetch();
     const readContext = {...context(), behavior: {...context().behavior,
-      promptBlock: "界".repeat(32768)}};
+      promptBlock: "界".repeat(14000), guardRequirements: [],
+    }};
+    await sendPrivateGroveLmTurnFromVerifiedHost({...input(), readContext}, {
+      config, request: request as unknown as typeof fetch,
+    });
+    const body = request.mock.calls[0][1]!.body as string;
+    expect(Buffer.byteLength(body, "utf8")).toBeGreaterThan(32768);
+    expect(Buffer.byteLength(body, "utf8")).toBeLessThanOrEqual(98304);
+    expect(JSON.parse(body).context.behavior.promptBlock).toBe(readContext.behavior.promptBlock);
+  });
+
+  it("rejects the historical contract before dispatch", async () => {
+    const request = fakeFetch();
+    const readContext = {...context(), behavior: {proof: {
+      ...context().behavior.proof, contractVersion: "2026-09-21.1",
+    }}};
     await expect(sendPrivateGroveLmTurnFromVerifiedHost({...input(), readContext}, {
       config, request: request as unknown as typeof fetch,
-    })).rejects.toMatchObject({code: "private_lm_history_rejected"});
+    })).rejects.toMatchObject({code: "private_lm_scope_rejected"});
     expect(request).not.toHaveBeenCalled();
   });
 
@@ -250,7 +269,6 @@ describe("trusted Grove LM host envelope", () => {
       result({runtime_card_version:"0.3.4"}),
       result({broker_receiver_revision:undefined}),
       result({broker_receiver_revision:"2026-09-22.1"}),
-      result({behavior_contract_version:"2026-09-21.1"}),
       result({behavior_contract_version:"unapproved"}),
       result({behavior_projection_fingerprint:"b".repeat(64)}),
       result({ark_captured_at:"2026-09-22T12:00:00Z"}),
