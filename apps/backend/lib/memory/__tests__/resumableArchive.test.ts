@@ -41,6 +41,14 @@ describe("resumable archive transport preparation",()=>{
   await expect(transportResumableArchive({files,target,manifest:p.manifest,checkpoint:null,saveCheckpoint,transport:{...d.transport,verifyExactBatch:async()=>{throw Error("readback_failed");}}})).rejects.toThrow("readback_failed");expect(saves).toBe(0);
   const empty=destination();await expect(transportResumableArchive({files,target,manifest:p.manifest,checkpoint:{schemaVersion:1,fingerprint:p.manifest.fingerprint,nextBatch:1},saveCheckpoint,transport:empty.transport})).rejects.toThrow("destination_not_exact");
  });
+ it("honors STOP without advancing the durable checkpoint",async()=>{
+  const files=[await file([conversation("a","one","a"),conversation("b","two","b")])],p=await prepareResumableArchive({files,target,maxMessages:1}),d=destination(),controller=new AbortController();let checkpoint:ArchiveCheckpoint|null=null;
+  const transport:VerifiedArchiveTransport={...d.transport,async applyExactBatch(scope,turns){await d.transport.applyExactBatch(scope,turns);controller.abort();}};
+  await expect(transportResumableArchive({files,target,manifest:p.manifest,checkpoint,transport,signal:controller.signal,saveCheckpoint:async(v)=>{checkpoint=v;}})).rejects.toThrow("archive_transport_aborted");
+  expect(checkpoint).toBeNull();expect(d.writes).toBe(1);
+  const saveCheckpoint=async(v:ArchiveCheckpoint)=>{checkpoint=v;};await transportResumableArchive({files,target,manifest:p.manifest,checkpoint,transport:d.transport,saveCheckpoint});
+  expect(checkpoint?.nextBatch).toBe(1);expect(d.writes).toBe(1);
+ });
  it("does not overwrite a conflicting destination or resume a different manifest",async()=>{
   const files=[await file([conversation()])],p=await prepareResumableArchive({files,target}),d=destination();d.rows.set(JSON.stringify(["chatgpt","thread","m"]),"conflicting original");
   const base={files,target,manifest:p.manifest,transport:d.transport,saveCheckpoint:async()=>{}};
