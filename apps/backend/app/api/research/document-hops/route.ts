@@ -4,9 +4,8 @@ import { z } from "zod";
 import { requireUser } from "@/lib/auth/requireUser";
 import { assertProjectOwnedByUser } from "@/lib/auth/ownership";
 import { RouteAccessError } from "@/lib/auth/routeAuthorization";
-import { supabaseAdmin } from "@/lib/supabase/admin";
+import { runPrivilegedDocumentHopTick, stopPrivilegedResearchSession } from "@/lib/research/documentHopPrivilegedBroker";
 import { SupabaseResearchStore } from "@/lib/research/supabaseResearchStore";
-import { runStoredDocumentHopTick } from "@/lib/research/documentHopExecutor";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -55,8 +54,7 @@ export async function POST(req: Request) {
     if (action === "stop") {
       if (["completed", "cancelled", "timebox_ended"].includes(session.status))
         return json({ ok: true, status: session.status, executionRequested: false });
-      const writer = new SupabaseResearchStore(supabaseAdmin(), userId, projectId, "owner-stop");
-      await writer.stop({ session, status: "cancelled", reason: "cancelled_by_owner" });
+      await stopPrivilegedResearchSession({ userId, projectId, session });
       const settled = await reader.loadSession(sessionId);
       if (!settled || !["completed", "cancelled", "timebox_ended"].includes(settled.status))
         return json({ ok: false, error: "research_stop_not_confirmed", executionRequested: false }, 409);
@@ -73,7 +71,7 @@ export async function POST(req: Request) {
     if (!gate || gate.owner_id !== userId || gate.project_id !== projectId || gate.execution_enabled !== true ||
         gate.scheduler_enabled !== false || gate.real_source_ingestion_enabled !== false || gate.publication_enabled !== false)
       return json({ ok: false, error: "document_hop_integration_gate_closed", executionRequested: false }, 409);
-    const result = await runStoredDocumentHopTick({ db: supabaseAdmin(), ownerId: userId, projectId,
+    const result = await runPrivilegedDocumentHopTick({ ownerId: userId, projectId,
       workerId: `document-host:${randomUUID()}`, sessionId, unitId: parsed.data.unitId, at: new Date().toISOString(), enabled: true });
     return json({ ok: true, ...result, researchCompletionVerified: false });
   } catch (error) { return failure(error); }
