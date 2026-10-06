@@ -26,3 +26,7 @@ The acceptance run must show successful metadata rule verification, pinned SDK/v
 The two earlier handoffs retain all owner/device/private-host/model/memory/checkpoint gates. Real owner-configured installation and inference remain separately authorized. A source CI pass cannot establish real process-kill persistence, scope revocation on deployed services, model behavior, relevant-memory/correction/objective wiring or ARK checkpoint writes.
 
 Primary references consulted: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instancedata-data-retrieval.html ; https://cloud.google.com/compute/docs/metadata/querying-metadata . Addresses are blocked; none is queried.
+
+## First remote setup result
+
+Run `37406249303` rejected the initial workflow before any runner/job started because GitHub treats YAML environment keys case-insensitively; upper/lower proxy variants collided. The source repair clears both variants at runtime using `GITHUB_ENV` instead. YAML parsing alone did not catch this GitHub-specific validation rule. No Flutter checks ran in that rejected run.

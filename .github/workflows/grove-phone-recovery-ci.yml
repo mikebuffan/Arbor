@@ -23,18 +23,17 @@ jobs:
       FLUTTER_SUPPRESS_ANALYTICS: 'true'
       DART_SUPPRESS_ANALYTICS: 'true'
       AWS_EC2_METADATA_DISABLED: 'true'
-      # Prevent an HTTP proxy from routing a metadata request around local rules.
-      HTTP_PROXY: ''
-      HTTPS_PROXY: ''
-      ALL_PROXY: ''
-      http_proxy: ''
-      https_proxy: ''
-      all_proxy: ''
     steps:
       - name: Block metadata before checkout or SDK bootstrap; fail closed
         shell: bash
         run: |
           set -euo pipefail
+          # Workflow env keys are case-insensitive. Clear both OS spellings at
+          # runtime instead of declaring duplicate YAML environment keys.
+          unset HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy
+          for proxy_var in HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy; do
+            printf '%s=\n' "$proxy_var" >> "$GITHUB_ENV"
+          done
           for subnet in 169.254.0.0/16 100.100.100.200/32; do
             sudo -n iptables -w 5 -I OUTPUT 1 -d "$subnet" -j REJECT
             sudo -n iptables -w 5 -C OUTPUT -d "$subnet" -j REJECT
