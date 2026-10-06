@@ -29,9 +29,26 @@ function Get-CommandInfo([string]$Name) {
   }
 }
 
+Add-Type @"
+using System;
+using System.Runtime.InteropServices;
+public static class ArborProcessorFeatures {
+  [DllImport("kernel32.dll")]
+  [return: MarshalAs(UnmanagedType.Bool)]
+  public static extern bool IsProcessorFeaturePresent(uint processorFeature);
+}
+"@
+
 $os = Get-CimInstance Win32_OperatingSystem
 $cpu = Get-CimInstance Win32_Processor | Select-Object -First 1
 $computer = Get-CimInstance Win32_ComputerSystem
+
+$instructionSets = [ordered]@{
+  sse42 = [ArborProcessorFeatures]::IsProcessorFeaturePresent(38)
+  avx = [ArborProcessorFeatures]::IsProcessorFeaturePresent(39)
+  avx2 = [ArborProcessorFeatures]::IsProcessorFeaturePresent(40)
+  avx512f = [ArborProcessorFeatures]::IsProcessorFeaturePresent(41)
+}
 
 $systemDrive = $env:SystemDrive
 if ([string]::IsNullOrWhiteSpace($systemDrive)) {
@@ -68,6 +85,7 @@ $result = [ordered]@{
     cores = [int]$cpu.NumberOfCores
     logicalProcessors = [int]$cpu.NumberOfLogicalProcessors
     addressWidth = [int]$cpu.AddressWidth
+    instructionSets = $instructionSets
   }
   memory = [ordered]@{
     totalGiB = $ramGiB
@@ -91,6 +109,7 @@ $result = [ordered]@{
     notes = @(
       "This script installs nothing, downloads nothing, and does not inspect device IDs or serial numbers.",
       "Eligibility means only that a bounded CPU pilot is worth attempting; it is not a speed or compatibility guarantee.",
+      "AVX/AVX2/AVX512 flags come from Windows IsProcessorFeaturePresent and let the later runtime choose a compatible CPU build.",
       "Exact model, tokenizer, adapter, receiver and context limits still require artifact/runtime verification."
     )
     holdReasons = @($reasons)
