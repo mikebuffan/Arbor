@@ -58,14 +58,14 @@ function dialogueNaturalism(text:string):AnnabelleDiagnostic[]{
   const ratio=polished/Math.max(1,dialogue.length-1);
   return ratio>.72?[{engine:"dialogue-naturalism",severity:ratio>.85?"revise":"watch",message:"Dialogue has a high run of clean turn-taking. Check for pauses, interruptions, hesitation, overlap, nonverbal answers and imperfect reactions where character-true.",evidence:[],count:polished}]:[];
 }
-function explanationRedundancy(text:string):AnnabelleDiagnostic[]{
-  const sentences=text.split(/(?<=[.!?])\s+/).map(x=>x.trim()).filter(Boolean);
+function semanticExplanationRedundancy(text:string):AnnabelleDiagnostic[]{
+  const sentences=text.split(/(?<=[.!?])\\s+/).map(x=>x.trim()).filter(Boolean);
   const flags:string[]=[];
   for(let i=1;i<sentences.length;i++){
     const prior=new Set(sentences[i-1].toLowerCase().match(/[a-z']{5,}/g)??[]);
     const current=sentences[i].toLowerCase().match(/[a-z']{5,}/g)??[];
     const overlap=current.filter(w=>prior.has(w));
-    if(overlap.length>=4 && /\b(because|meant|realized|understood|knew|that was|the point|the thing)\b/i.test(sentences[i])) flags.push(sentences[i].slice(0,180));
+    if(overlap.length>=4 && /\\b(because|meant|realized|understood|knew|that was|the point|the thing)\\b/i.test(sentences[i])) flags.push(sentences[i].slice(0,180));
   }
   return flags.length?[{engine:"explanation-redundancy",severity:flags.length>=3?"revise":"watch",message:"Interpretive sentence closely repeats evidence already delivered. Check whether the reader can be trusted without the explanation.",evidence:flags.slice(0,5),count:flags.length}]:[];
 }
@@ -76,10 +76,10 @@ function rhythm(text:string):AnnabelleDiagnostic[]{
   const ratio=short/sentences.length;
   return ratio>.32?[{engine:"rhythm",severity:ratio>.45?"revise":"watch",message:"Very-short sentence/fragment density is high. Protect intentional impact beats and vary the rest.",evidence:[],count:short}]:[];
 }
-function sceneChange(text:string):AnnabelleDiagnostic[]{
+function sceneEndingDelta(text:string):AnnabelleDiagnostic[]{
   if(text.length<1200)return[];
   const tail=text.slice(-700).toLowerCase();
-  const change=/\b(decided|chose|left|stayed|learned|knew now|agreed|refused|opened|closed|called|went|returned|asked|told)\b/.test(tail);
+  const change=/\\b(decided|chose|left|stayed|learned|knew now|agreed|refused|opened|closed|called|went|returned|asked|told)\\b/.test(tail);
   return change?[]:[{engine:"scene-change",severity:"note",message:"No obvious state-changing action appears near the scene ending. Verify what changed in knowledge, relationship, body, decision, threat or goal.",evidence:[]}];
 }
 function repetition(text:string):AnnabelleDiagnostic[]{
@@ -89,7 +89,7 @@ function repetition(text:string):AnnabelleDiagnostic[]{
   return dup.length?[{engine:"duplicate-assembly",severity:"revise",message:"Near-identical paragraph openings recur; inspect for draft assembly duplication.",evidence:dup.slice(0,5),count:dup.length}]:[];
 }
 export function runAnnabelleEditorialDiagnostics(text:string):AnnabelleDiagnostic[]{
-  return [...sensoryDefaults(text),...humorDensity(text),...proseTics(text),...dialogueNaturalism(text),...explanationRedundancy(text),...rhythm(text),...sceneChange(text),...touchSpecificity(text),...powerResponse(text),...environmentPresence(text),...repetition(text)];
+  return [...sensoryDefaults(text),...humorDensity(text),...proseTics(text),...dialogueNaturalism(text),...semanticExplanationRedundancy(text),...explanationRedundancy(text),...rhythm(text),...rhythmDensity(text),...sceneEndingDelta(text),...sceneChange(text),...bodyDefaultDensity(text),...rawGravity(text),...cameraBoundary(text),...discoveryDensity(text),...repeatedPhraseIntent(text),...touchSpecificity(text),...powerResponse(text),...environmentPresence(text),...repetition(text)];
 }
 
 const EXPLANATION_MARKERS = /\b(this meant|which meant|because she knew|because he knew|the point was|that was the thing|what he wanted was|what she wanted was|in other words)\b/gi;
