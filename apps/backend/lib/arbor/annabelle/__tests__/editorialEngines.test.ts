@@ -31,4 +31,13 @@ describe("Annabelle editorial diagnostics", () => {
     expect(runAnnabelleEditorialDiagnostics(text).some(x=>x.engine==="rhythm")).toBe(true);
   });
 
+  it("flags explanation residue only when it clusters", () => {
+    const text="This meant he knew. The point was she had seen it. That was the thing. In other words, nobody needed to say it.";
+    expect(runAnnabelleEditorialDiagnostics(text).some(x=>x.engine==="explanation-redundancy")).toBe(true);
+  });
+  it("flags repeated generic body shorthand", () => {
+    const text="Her breath caught. His jaw tightened. Her stomach dropped. His pulse jumped. Her shoulders tightened.";
+    expect(runAnnabelleEditorialDiagnostics(text).some(x=>x.engine==="embodied-perspective")).toBe(true);
+  });
+
 });
