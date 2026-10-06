@@ -52,4 +52,13 @@ describe("Annabelle editorial diagnostics", () => {
     expect(runAnnabelleEditorialDiagnostics(text).some(x=>x.engine==="discovery-density")).toBe(true);
   });
 
+  it("flags generic touch shorthand density",()=>{
+    const text="Electricity sparked. She shivered. He trembled. Her breath hitched. Another shiver followed.";
+    expect(runAnnabelleEditorialDiagnostics(text).some(x=>x.engine==="touch")).toBe(true);
+  });
+  it("flags named power fragility when behavior should carry it",()=>{
+    const text="It was male fragility. He hated being corrected. He needed control.";
+    expect(runAnnabelleEditorialDiagnostics(text).some(x=>x.engine==="power-response")).toBe(true);
+  });
+
 });
