@@ -12,7 +12,13 @@ function toEvidence(row: Awaited<ReturnType<typeof searchHistoricalHopEvidence>>
   return { id:row.id, source:row.source, sourceThreadId:row.sourceThreadId, sourceMessageId:row.sourceMessageId, speaker:row.role, evidenceType:classification.evidenceType, content:row.content, occurredAt:row.occurredAt, confidence:Math.max(0,Math.min(1,row.similarity ?? 0.5)), epistemicStatus:classification.epistemicStatus };
 }
 
-export async function runPatternHopResearch(params:{supabase:SupabaseClient;userId:string;projectId:string;conversationId?:string|null;seed:string;objective?:string;maxDepth?:number;maxHops?:number;runId?:string}) {
+export async function runPatternHopResearch(params:{supabase:SupabaseClient;userId:string;projectId:string;conversationId?:string|null;seed:string;objective?:string;maxDepth?:number;maxHops?:number;runId?:string;maxRuntimeMs?:number;signal?:AbortSignal}) {
+  const maxRuntimeMs = params.maxRuntimeMs ?? 15000;
+  if (!Number.isSafeInteger(maxRuntimeMs) || maxRuntimeMs < 1 || maxRuntimeMs > 60000)
+    throw new Error("pattern_hop_invalid_runtime_budget");
+  const startedAt = performance.now();
+  let passStopReason: "hop_limit" | "time_budget" | "cancelled" | "sources_blocked" | "traversal_finished" = "hop_limit";
+  let hopsProcessed = 0;
   let run = params.runId ? await loadPatternHopRun({supabase:params.supabase,userId:params.userId,projectId:params.projectId,runId:params.runId}) : null;
   if (params.runId && !run) throw new Error("pattern_hop_run_not_found");
   if (run && (run.seed.clue !== params.seed || (params.maxDepth !== undefined && params.maxDepth !== run.state.maxDepth)))
@@ -24,6 +30,12 @@ export async function runPatternHopResearch(params:{supabase:SupabaseClient;user
   }
 
   let state:PatternHopState=run.state;
+  // A new, explicitly requested pass may retry a preserved retrieval. The same
+  // queue request still replays its prior blocked receipt without execution.
+  if (state.status === "blocked" && state.frontier.length > 0 &&
+      /^(?:all|some)_pattern_hop_sources_failed:/.test(state.blocker ?? "")) {
+    state = {...state, status: "active", blocker: null};
+  }
   const found:PatternHopEvidence[]=await loadPatternHopEvidence({
     supabase:params.supabase,
     runId:run.id,
@@ -60,6 +72,9 @@ export async function runPatternHopResearch(params:{supabase:SupabaseClient;user
   const idMap=found.length ? await persistPatternHopEvidence({supabase:params.supabase,runId:run.id,userId:params.userId,projectId:params.projectId,evidence:found}) : new Map<string,string>();
 
   for(let i=0;i<maxHops && state.status==="active";i+=1){
+    if (params.signal?.aborted) { passStopReason = "cancelled"; break; }
+    if (performance.now() - startedAt >= maxRuntimeMs) { passStopReason = "time_budget"; break; }
+    const stateBeforeRetrieval = state;
     const evidenceStart=found.length;
     const edgeStart=edges.length;
     const nextResult=takeNextHop(state); state=nextResult.state; const next=nextResult.next; if(!next) break;
@@ -93,11 +108,15 @@ export async function runPatternHopResearch(params:{supabase:SupabaseClient;user
       sourceFailures.push("timeline:"+(error instanceof Error?error.message:"failed"));
     }
 
-    if(sourceFailures.length===3){
-      state={...state,status:"blocked",blocker:"all_pattern_hop_sources_failed:"+sourceFailures.join("|")};
+    if(sourceFailures.length > 0){
+      // An unavailable route is not a negative finding. Keep the exact query
+      // unvisited and at the front so a later authorized pass can retry it.
+      state={...stateBeforeRetrieval,status:"blocked",blocker:(sourceFailures.length === 3 ? "all" : "some")+"_pattern_hop_sources_failed:"+sourceFailures.join("|")};
+      passStopReason = "sources_blocked";
       break;
     }
 
+    if (params.signal?.aborted) { state = stateBeforeRetrieval; passStopReason = "cancelled"; break; }
     const historicalCandidates:PatternHopCandidate[]=rows
       .filter(r=>(r.similarity ?? 0)>=0.35)
       .map(row=>({
@@ -134,14 +153,22 @@ export async function runPatternHopResearch(params:{supabase:SupabaseClient;user
     for(const [clientId,storedId] of newIds) idMap.set(clientId,storedId);
     await persistPatternHopEdges({supabase:params.supabase,runId:run.id,idMap,edges:edges.slice(edgeStart)});
     await savePatternHopRun({supabase:params.supabase,runId:run.id,userId:params.userId,projectId:params.projectId,state});
+    hopsProcessed += 1;
   }
 
   const rootBranches=[...DEFAULT_PATTERN_HOP_BRANCHES];
   if(state.status==="active" && objectiveComplete(state,rootBranches)) state={...state,status:"complete"};
   if(state.status==="active" && state.frontier.length===0) state={...state,status:"exhausted"};
+  if (state.status === "complete" || state.status === "exhausted") passStopReason = "traversal_finished";
   const runtimeProjection=projectPatternHopForRuntime({evidence:found,path,maxItems:8});
   const verificationState={
     rootBranches,
+    passStopReason,
+    hopsProcessed,
+    retrievalScope: "owned_historical_memory_timeline",
+    sourceCoverageCompleteForProcessedHops: true,
+    pendingRetrievalBlocked: state.status === "blocked",
+    budgetSemantics: "Time and cancellation are checked between retrieval units; in-flight providers are not forcibly cancelled.",
     foundEvidence:found.length,
     edgeCount:edges.length,
     pathSteps:path.length,
@@ -152,5 +179,17 @@ export async function runPatternHopResearch(params:{supabase:SupabaseClient;user
     absenceSemantics:"An exhausted branch means evidence was not found by the attempted routes; it is not proof that the evidence does not exist.",
   };
   await savePatternHopRun({supabase:params.supabase,runId:run.id,userId:params.userId,projectId:params.projectId,state,verificationState});
-  return {runId:run.id,status:state.status,blocker:state.blocker ?? null,state,evidence:rankEvidence(found),edges,path,runtimeProjection,verificationState};
+  const handoff = {
+    runId: run.id,
+    seed: params.seed,
+    maxDepth: state.maxDepth,
+    passStopReason,
+    traversalFinished: state.status === "complete" || state.status === "exhausted",
+    nextQueries: state.frontier.slice(0, 8),
+    unresolvedContradictionEvidenceIds: [...new Set(path.filter(step => step.relationship === "contradiction" || step.epistemicStatus === "contradictory").map(step => step.evidenceId))],
+    requiresIndependentReview: true,
+    independentCorroborationVerified: false,
+    blocker: state.blocker ?? null,
+  };
+  return {handoff,runId:run.id,status:state.status,blocker:state.blocker ?? null,state,evidence:rankEvidence(found),edges,path,runtimeProjection,verificationState};
 }
