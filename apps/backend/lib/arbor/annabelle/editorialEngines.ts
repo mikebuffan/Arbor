@@ -48,7 +48,7 @@ function proseTics(text:string):AnnabelleDiagnostic[]{
   return out;
 }
 function dialogueNaturalism(text:string):AnnabelleDiagnostic[]{
-  const dialogue=[...text.matchAll(/“([^”]{1,300})”/g)].map(m=>m[1]);
+  const dialogue=[...text.matchAll(/(?:“([^”]{1,300})”|"([^"\n]{1,300})")/g)].map(m=>m[1]??m[2]).filter((x):x is string=>Boolean(x));
   if(dialogue.length<8)return[];
   let polished=0;
   for(let i=1;i<dialogue.length;i++){
