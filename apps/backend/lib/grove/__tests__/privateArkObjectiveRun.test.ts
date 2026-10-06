@@ -42,6 +42,7 @@ function selection(status: string, result: unknown = null) {
       objectiveId,
       userId: fireflyUserId,
       projectId,
+      conversationId,
       kind: "arbor.agency-tool",
       status,
       result,
