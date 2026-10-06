@@ -6,6 +6,7 @@ import type { ResearchClaim, ResearchStore } from "./sessionRunner";
 import {
   ARK_RESEARCH_TASK_KIND, registerArkResearchSessionExecutor,
   type AuthorizedResearchBinding,
+  type ResolveResearchBinding,
 } from "./registerArkResearchSessionExecutor";
 
 const instant = "2026-09-23T19:00:00.000Z";
@@ -66,7 +67,7 @@ function binding(storeOverride?:Partial<ResearchStore>):AuthorizedResearchBindin
     executor:vi.fn(async()=>receipt),
   };
 }
-function fixture(resolve=vi.fn(async()=>binding())){
+function fixture(resolve: ResolveResearchBinding = vi.fn(async()=>binding())){
   const registry=new ArkExecutorRegistry();
   registerArkResearchSessionExecutor({
     registry,resolveTrustedBinding:resolve,
