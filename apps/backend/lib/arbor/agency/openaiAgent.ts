@@ -34,6 +34,7 @@ export type AgencyToolExecutionDelegateResult =
       kind: "checkpointed";
       reason: string;
       objectiveId?: string;
+      retry?: () => Promise<AgencyToolExecutionDelegateResult>;
     };
 
 export type AgencyToolExecutionDelegate = {
@@ -578,7 +579,7 @@ export async function runOpenAIAgencyAgent(
         }
       }
 
-      const delegatedExecution =
+      let delegatedExecution =
         input.executionDelegate
           ? await input.executionDelegate.execute({
               tool,
@@ -595,6 +596,13 @@ export async function runOpenAIAgencyAgent(
                 attemptedRoutes: [...attemptedRoutes],
               }),
             };
+
+      // A delegated checkpoint is not a user boundary. If the delegate can
+      // resume the exact same durable action, do that before yielding the
+      // request. The retry function must preserve the original plan/action ID.
+      for (let resume = 0; delegatedExecution.kind === "checkpointed" && delegatedExecution.retry && resume < 2; resume += 1) {
+        delegatedExecution = await delegatedExecution.retry();
+      }
 
       if (delegatedExecution.kind === "checkpointed") {
         return {
