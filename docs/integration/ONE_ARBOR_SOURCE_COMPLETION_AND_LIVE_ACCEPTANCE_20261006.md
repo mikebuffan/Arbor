@@ -3,24 +3,25 @@ Date: 2026-10-06
 
 ## Source lanes completed on #263
 - host continuation contract + bounded checkpoint resume
+- agency long-list/failure/dedup/completion-evidence fixtures
 - Annabelle advisory diagnostics and book self-check
-- mature voice core protection
+- mature voice core and Gold/do-not-touch protection
 - Felt-Life expansion (still intentionally partial)
-- character/relationship integrity
-- internal clock, screen time, injury, knowledge and motif continuity
-- embodied/touch/consent mechanics
-- corpus repetition and atmosphere coverage
-- Chapter Two acceptance harness
-- provenance-bound editorial diagnostic records
-- agency torture model: checkpoint/resume/failure recovery/no duplicate side effects
-- Pattern Hop STOP/lease source semantics
-- canonical capability ownership map
-- #260/#263 no-overlap reconciliation plan
+- character/relationship integrity and profiles
+- internal clock, time/location/object/clothing, screen time, injury and knowledge continuity
+- movement, embodied, touch/intimacy/consent mechanics
+- corpus repetition, sensory frequency and atmosphere coverage
+- motif/payoff/downstream impact and scene-state delta
+- editorial supersession/checkpoint/resume/persistence-port/dedup source
+- Chapter Two synthetic acceptance harness
+- canonical One Arbor identity/capability/reconciliation contracts
+- #260/#263 no-direct-path-overlap reconciliation plan
+- read-only archaeology proving Pattern Hop remains owned by its existing research lineage; duplicate #263 Pattern-Hop helpers removed
 
 ## Still requires evidence rather than source claims
 - exact-head backend/type/build test run
 - canonical Chapter Two source ingestion + real fixture result
-- durable hosted Pattern Hop lease integration
+- canonical Pattern-Hop research-lane durable run-control/live acceptance
 - #260 + #263 combined candidate CI
 - live restart/continuation acceptance
 - private Grove/LM vertical slice
