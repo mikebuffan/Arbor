@@ -241,7 +241,7 @@ export async function runOpenAIAgencyAgent(
         | { acquired: true; result: null }
         | { acquired: false; result: unknown }
       >;
-      complete(input: { key: string; result: unknown }): Promise<void>;
+      complete(input: { key: string; operation: string; result: unknown }): Promise<void>;
     };
     executionDelegate?: AgencyToolExecutionDelegate;
   },
@@ -614,6 +614,7 @@ export async function runOpenAIAgencyAgent(
         if (idempotencyKey && input.idempotency) {
           await input.idempotency.complete({
             key: idempotencyKey,
+            operation: tool.name,
             result: execution.result,
           });
         }
