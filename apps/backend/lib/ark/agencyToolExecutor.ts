@@ -130,6 +130,7 @@ export function registerArkAgencyToolExecutor(input: {
         userId: claim.task.userId,
         projectId: claim.task.projectId,
         key: operationKey,
+        operation: capability,
         result: outcome.result,
       });
     }
