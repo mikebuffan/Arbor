@@ -3,20 +3,33 @@
 ## Preconditions
 - Record exact #263 head and exact #260 head.
 - Build a fresh combined candidate without rewriting either sibling.
+- Keep Pattern Hop on its canonical research lineage; do not fold a duplicate implementation from #263.
 - Confirm no unexpected protected flags are enabled.
 - Confirm migrations/grants are intentionally approved before any hosted change.
 - Confirm rollback target commit/deployment IDs.
 
-## Source / CI
+## #260 + #263 source / CI
 1. backend complete test suite
 2. backend production build
 3. standalone TypeScript
 4. Flutter analyzer
 5. Flutter regression suite
 6. synthetic Android APK build
-7. Annabelle source tests including voice core, Gold protection, Felt-Life guard, character/relationship integrity, physical continuity, internal clock/screen-time, motif/downstream impact, repetition/atmosphere, editorial supersession/checkpoint/dedup and Chapter Two synthetic harness
-8. agency tests including checkpoint-not-completion, >20-action continuation, recoverable failure, exhausted failure not skipped, duplicate suppression, lease no-spin and parent-goal completion evidence
-9. Pattern-Hop contract tests including STOP, lease, contradiction, independence, unresolved aliases, lineage and bounded reroute
+7. Annabelle source tests including voice core, Gold protection, Felt-Life guard, character/relationship integrity, physical/movement continuity, internal clock/screen-time, motif/downstream impact, repetition/sensory/atmosphere, editorial supersession/checkpoint/persistence/dedup and Chapter Two synthetic harness
+8. agency tests including checkpoint-not-completion, >20-action continuation, recoverable failure, exhausted failure not skipped, duplicate suppression, lease no-spin, independent-work continuation and parent-goal completion evidence
+
+## Canonical Pattern Hop research candidate
+Run the research lineage's own tests and acceptance for:
+1. STOP/run-control behavior
+2. atomic lease / competing holder behavior
+3. checkpoint + restart
+4. duplicate lead/finding suppression
+5. source-family independence
+6. contradiction preservation
+7. unresolved alias/entity-resolution gates
+8. timeline/relationship hops
+9. bounded failed-lead rerouting
+10. provenance/finding integrity through every hop
 
 ## Deployed agency acceptance
 1. start one bounded objective with multiple safe reversible actions
@@ -25,10 +38,11 @@
 4. fail one route
 5. verify alternate/recovery continues
 6. verify no duplicate side effect on retry/restart
-7. restart host/session
-8. verify unfinished objective recovers
-9. verify completed objective replays terminal state instead of rerunning
-10. return user-visible control only at verified completion or real human boundary
+7. block one lane at a genuine human boundary and verify independent safe work continues
+8. restart host/session
+9. verify unfinished objective recovers
+10. verify completed objective replays terminal state instead of rerunning
+11. return user-visible control only at verified completion or real human boundary
 
 ## Annabelle canonical Chapter Two
 1. bind exact canonical Chapter Two hash
@@ -41,18 +55,6 @@
 8. run Book Regression Suite
 9. inspect advisory findings manually before rewrite
 10. record acceptance receipt
-
-## Pattern Hop live durability
-1. create run identity
-2. acquire atomic per-run lease
-3. checkpoint
-4. restart worker
-5. resume same run
-6. reject concurrent holder
-7. persist STOP
-8. verify STOP survives restart
-9. verify lineage/provenance through every hop
-10. verify unresolved aliases never merge
 
 ## Grove / LM / ARK vertical slice
 Only after explicit approval:
