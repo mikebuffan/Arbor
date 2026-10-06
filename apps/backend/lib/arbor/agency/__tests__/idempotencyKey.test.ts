@@ -29,4 +29,11 @@ describe("agency operation idempotency keys", () => {
       }),
     ).not.toBe(base);
   });
+  it("cannot collide capability identity through argument key ordering", () => {
+    const argsA={nested:{z:2,a:1},value:"x"}; const argsB={value:"x",nested:{a:1,z:2}};
+    expect(agencyOperationKey({turnId:"turn",toolName:"write-a",args:argsA}))
+      .toBe(agencyOperationKey({turnId:"turn",toolName:"write-a",args:argsB}));
+    expect(agencyOperationKey({turnId:"turn",toolName:"write-b",args:argsB}))
+      .not.toBe(agencyOperationKey({turnId:"turn",toolName:"write-a",args:argsA}));
+  });
 });
