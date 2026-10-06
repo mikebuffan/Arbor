@@ -61,4 +61,9 @@ describe("Annabelle editorial diagnostics", () => {
     expect(runAnnabelleEditorialDiagnostics(text).some(x=>x.engine==="power-response")).toBe(true);
   });
 
+  it("handles straight quote dialogue as well as curly quotes",()=>{
+    const text=Array.from({length:10},(_,i)=>`"Line ${i}."`).join(" ");
+    const out=runAnnabelleEditorialDiagnostics(text);
+    expect(Array.isArray(out)).toBe(true);
+  });
 });
