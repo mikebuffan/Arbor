@@ -72,4 +72,46 @@ Source inspection of this branch confirms that supplying a model credential alon
 
 The remaining implementation is a private server-side runner that selects the reviewed condition, assembles equal task context and scoped fixtures, invokes the existing agent, and records actual request hashes, provider identifiers, intermediate replies and tool receipts. Explicitly capture the verification calls and any additional model calls; a final response ID alone is not a complete request trace. Preserve each condition's own intermediate replies. Memory/restart cases also require independently inspected storage and eligibility evidence. Keep the scoring material outside inference and do not expose an arbitrary client-controlled context override on production chat.
 
-Run that harness on the authorized host with its existing model configuration. Current ARK read-only access does not provide generation, and no paired generation host or model credential is configured in this workspace. This is a source compatibility finding, not a failed live inference run. The runner has not been implemented in this pass; the eighteen prepared cases remain not-run.
+Run that harness on the authorized host with its existing model configuration. Current ARK read-only access does not provide generation, and no paired generation host or model credential is configured in this workspace. This is a source compatibility finding, not a failed live inference run. The runner described below is now implemented; the eighteen live cases remain not-run.
+
+## Runner implementation completed
+
+`apps/backend/scripts/runBehaviorAcceptance.ts` is a private CLI, backed by `lib/arbor/agency/acceptanceRunner.ts`. It invokes the existing agency loop, with an invocation-scoped response transport shared by generation, tool follow-up, verification and corrective requests. Default production callers retain the existing client and behavior. There is no new public route or engine.
+
+Each arm receives a separate fixture scope. Initial fixture state, task context and tool definitions must match before the second arm can generate. Each arm uses its own actual intermediate replies. Private event capture records exact request bodies and hashes, provider response IDs/models/status/usage, elapsed call time, replies, verification, tool results, failures and final fixture receipts. Call and output budgets are explicit. Checkpoints, incomplete provider responses and boundaries never become completed transcripts. Capture failure stops further calls. A run-wide call budget stops generation; partial event receipts survive and incomplete results are not presented as a completed run. Output files use exclusive creation and mode 0600, and writes are flushed before subsequent calls.
+
+The built-in `acceptanceFixture.ts` provisions process-local synthetic tasks and drafts, with read, complete-once and opening-only edit tools. No personal data, database, manuscript, message or worker is accessed. Task one can genuinely report a capability blocker; task two can execute. Completed tasks cannot execute twice. Draft edits preserve later paragraphs. Synthetic fixture receipts demonstrate those local actions only: they do not establish durable memory, process restart, actual subsystem context selection, production host alignment or voice acoustics.
+
+This first runner compares reviewed **context bundles on the same Arbor agency runtime**. Both conditions retain the agency engine, verifier and fixture tools. It is not an unmodified model versus the entire Arbor system, and cannot substantiate that broader claim. Both generation and verification use the configured common model. A reviewed host adapter may export `provisionAcceptanceFixture` with the `FixtureFactory` contract to supply actual isolated storage/restart fixtures. Its initial receipts must be stable fixture content, with scope-specific IDs excluded from that fingerprint. Independently inspect host receipts; merely implementing this interface does not prove a correct fixture or full host integration.
+
+Prepare the generation/assignment files with the existing offline utility, then create a private JSON configuration on the authorized host:
+
+```json
+{
+  "model": "THE_HOST_MODEL",
+  "sourceIdentity": "EXACT_RECONCILED_SOURCE_COMMIT",
+  "taskInstructions": "Shared task-specific instructions, identical in both arms.",
+  "baselineContext": "",
+  "candidateContext": "The reviewed Arbor context bundle being tested, without scoring notes.",
+  "maxRounds": 8,
+  "maxCalls": 300,
+  "maxOutputTokens": 2000,
+  "verifyCompletion": true
+}
+```
+
+The context strings above are placeholders, not an approved Arbor prompt. Populate the candidate from the reviewed current source/context builder and record that provenance. Do not reconstruct it from a canned personality description or include scoring criteria. The host must already have its model credential; do not paste it into chat or these files. Chained Responses requests use provider storage, as required by the existing loop's `previous_response_id`; the private filesystem is not the sole storage location.
+
+From `apps/backend` on that host:
+
+```sh
+node --import tsx scripts/runBehaviorAcceptance.ts \
+  /absolute/private/run.generation.json \
+  /absolute/private/run.assignment.json \
+  /absolute/private/config.json \
+  /absolute/private/capture
+```
+
+An optional fifth argument names the reviewed host fixture module. The Node `--import tsx` entrypoint avoids the standalone tsx CLI's IPC listener, which this workspace disallows. A no-credential smoke check reaches the runner and exits before inference or capture-file creation. Use a fresh output prefix; reservation failures can leave an empty file, and an interrupted run can leave incomplete results alongside useful events. Never publish raw event files or condition assignments. Feed completed results to the existing offline audit, then conduct the blinded review. The CLI adds no judgments; captured output remains unscored. Memory and voice criteria without real external evidence stay unknown.
+
+Validation: thirteen new runner tests exercise independent histories, all eighteen scenarios through the mock boundary, actual local fixture tool execution, verification/corrective capture, invalid assignments, scope/state mismatch, call-budget and capture failures, retained host failures, checkpoints, duplicate provider IDs, and scoped/idempotent fixture actions. Mock transcripts are test evidence only and are not written into live acceptance files. TypeScript passes. The final backend suite passes 721 tests with zero failures; the ten separate offline preparation/audit tests also pass. The production build was attempted but blocked fetching the existing Geist/Geist Mono Google Fonts through this environment's TLS/network connection. It is not reported as passing; no unrelated font or application-layout changes were made. `git diff --check` passes. Deployment, reconciliation with other workstreams, real host prompt/fixture provisioning and paid generation remain outside the completed source receipt.
