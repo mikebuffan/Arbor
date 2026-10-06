@@ -70,6 +70,18 @@ jobs:
           pdftotext -v
       - name: Complete backend regression suite
         run: pnpm --filter firefly-backend test
+      - name: Focused Epstein evidence integration tests
+        working-directory: apps/backend
+        run: >
+          pnpm exec vitest run
+          lib/research/investigationPatternHop.test.ts
+          lib/research/researchUnitDispatcher.test.ts
+          lib/research/investigationIntegrity.test.ts
+          lib/research/investigationDiscovery.test.ts
+          lib/research/investigationPredictionLedger.test.ts
+          lib/research/investigationCaseworkUnit.test.ts
+          lib/research/arkResearchHandoff.test.ts
+          lib/research/registerArkResearchSessionExecutor.test.ts
       - name: Production backend build
         run: pnpm --filter firefly-backend build
       - name: Standalone TypeScript
