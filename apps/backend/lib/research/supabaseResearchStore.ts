@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { validateResearchSession, type ResearchSession } from "./sessionPolicy";
+import { validateResearchSession, validateResearchUnitReceipt, type ResearchSession } from "./sessionPolicy";
+import { validateResearchUnitResult } from "./unitResult";
 import type { ResearchClaim, ResearchStore } from "./sessionRunner";
 
 type JsonRow = Record<string, unknown>;
@@ -116,6 +117,10 @@ export class SupabaseResearchStore implements ResearchStore {
     receipt: import("./sessionPolicy").ResearchUnitReceipt;
   }): Promise<"committed"|"duplicate"|"lease_lost"> {
     this.assertScope(input.session);
+    validateResearchUnitReceipt(input.session, input.receipt);
+    if (input.receipt.unitId !== input.claim.unitId || input.receipt.idempotencyKey !== input.claim.idempotencyKey) {
+      throw new Error("research_claim_receipt_mismatch");
+    }
     const {data,error} = await this.db.rpc("arbor_settle_research_unit",{
       p_session_id:input.session.id,
       p_user_id:this.ownerId,
@@ -127,13 +132,33 @@ export class SupabaseResearchStore implements ResearchStore {
       p_cost_cents:input.receipt.costCents,
       p_evidence_refs:input.receipt.evidenceRefs,
       p_unresolved_required_work:input.receipt.unresolvedRequiredWork,
-      p_result:{receipt_recorded_at:input.receipt.recordedAt},
+      p_result:{receipt_recorded_at:input.receipt.recordedAt,
+        ...(input.receipt.result === undefined ? {} : { unit_result: input.receipt.result })},
     });
     if (error) throw error;
     if (data!=="committed"&&data!=="duplicate"&&data!=="lease_lost") {
       throw new Error("invalid_research_settlement_result");
     }
     return data;
+  }
+
+  /** Reload a committed unit result after restart; never re-run its search. */
+  async loadUnitResult(sessionId: string, unitId: string): Promise<Record<string, unknown> | null> {
+    const { data, error } = await this.db.from("arbor_research_receipts")
+      .select("session_id,unit_id,user_id,project_id,result")
+      .eq("session_id", sessionId).eq("unit_id", unitId)
+      .eq("user_id", this.ownerId).eq("project_id", this.projectId)
+      .order("recorded_at", { ascending: false }).limit(1).maybeSingle();
+    if (error) throw error;
+    if (!data) return null;
+    const r = row(data);
+    if (r.user_id !== this.ownerId || r.project_id !== this.projectId || r.session_id !== sessionId || r.unit_id !== unitId) {
+      throw new Error("research_owner_scope_mismatch");
+    }
+    const result = row(r.result).unit_result;
+    if (result === undefined) return null; // Older timestamp-only receipts.
+    validateResearchUnitResult(result);
+    return result;
   }
 
   async stop(input: {
