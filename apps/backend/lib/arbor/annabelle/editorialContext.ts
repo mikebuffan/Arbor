@@ -1,8 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { promptDataBlock } from "../promptData";
 
-const RECORD_LIMIT = 200;
-const CONTEXT_CHAR_LIMIT = 30000;
+const RECORD_LIMIT = 1000;
+const CONTEXT_CHAR_LIMIT = 120000;
 const types = ["editor_note", "voice_evidence", "gold_exemplar", "canon", "decision", "do_not_touch",
   "character_state", "relationship_state", "knowledge_state", "timeline", "physicality", "location", "injury_recovery", "contradiction"];
 type Row = Record<string, unknown>;
@@ -91,7 +91,7 @@ export async function loadEditorialContext(input: {
   }
   const rows = (result.data ?? []) as Row[];
   rows.forEach(row => assertScope(row, input, String(manuscript.id)));
-  if (rows.length > RECORD_LIMIT) return empty("incomplete", "Editorial window exceeds the safe bound; no partial locks or potentially superseded evidence was loaded.");
+  if (rows.length > RECORD_LIMIT) return empty("incomplete", "Editorial window exceeds the expanded safe bound; no partial locks or potentially superseded evidence was loaded.");
   const superseded = new Set(rows.map(row => row.supersedes_id).filter(Boolean));
   const warnings: string[] = [];
   const records: Row[] = [];
