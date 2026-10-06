@@ -89,7 +89,7 @@ function repetition(text:string):AnnabelleDiagnostic[]{
   return dup.length?[{engine:"duplicate-assembly",severity:"revise",message:"Near-identical paragraph openings recur; inspect for draft assembly duplication.",evidence:dup.slice(0,5),count:dup.length}]:[];
 }
 export function runAnnabelleEditorialDiagnostics(text:string):AnnabelleDiagnostic[]{
-  return [...sensoryDefaults(text),...humorDensity(text),...proseTics(text),...dialogueNaturalism(text),...explanationRedundancy(text),...rhythm(text),...sceneChange(text),...repetition(text)];
+  return [...sensoryDefaults(text),...humorDensity(text),...proseTics(text),...dialogueNaturalism(text),...explanationRedundancy(text),...rhythm(text),...sceneChange(text),...touchSpecificity(text),...powerResponse(text),...environmentPresence(text),...repetition(text)];
 }
 
 const EXPLANATION_MARKERS = /\b(this meant|which meant|because she knew|because he knew|the point was|that was the thing|what he wanted was|what she wanted was|in other words)\b/gi;
@@ -140,4 +140,22 @@ function sceneChange(text:string):AnnabelleDiagnostic[]{
   const action=/\b(decided|left|entered|opened|closed|called|told|asked|refused|agreed|learned|found|discovered|gave|took|returned|changed)\b/gi;
   const n=countMatches(text,action);
   return n<2?[{engine:"scene-change",severity:"note",message:"Long scene has few obvious state-change verbs. Verify that knowledge, relationship, body, threat, goal or choice is materially different at scene end.",evidence:[],count:n}]:[];
+}
+
+const TOUCH_GENERIC=/\b(electric(?:ity)?|spark(?:ed|s)?|tingle[ds]?|shiver(?:ed|ing)?|trembl(?:e|ed|ing)|breath hitch(?:ed)?)\b/gi;
+const POWER_EXPLAIN=/\b(male fragility|fragile ego|he hated being corrected|he couldn't stand being wrong|loss of control|needed control)\b/gi;
+
+function touchSpecificity(text:string):AnnabelleDiagnostic[]{
+ const n=countMatches(text,TOUCH_GENERIC);
+ return n>=4?[{engine:"touch",severity:n>=7?"revise":"watch",message:"Generic touch/arousal shorthand is clustering. Prefer contact geometry, pressure, duration, withdrawal, residue and character-specific response.",evidence:evidence(text,TOUCH_GENERIC),count:n}]:[];
+}
+function powerResponse(text:string):AnnabelleDiagnostic[]{
+ const n=countMatches(text,POWER_EXPLAIN);
+ return n>=2?[{engine:"power-response",severity:"watch",message:"Power/fragility is being named repeatedly. Prefer the bruise and the behavioral response: space-taking, deflection, blame transfer, status defense or escalation.",evidence:evidence(text,POWER_EXPLAIN),count:n}]:[];
+}
+function environmentPresence(text:string):AnnabelleDiagnostic[]{
+ if(text.length<1600)return[];
+ const environment=/\b(window|door|floor|wall|table|chair|street|traffic|light|shadow|air|room|hall|stairs|glass|rain|wind|heat|cold|sound|voice|footstep|fabric|metal|wood)\b/gi;
+ const n=countMatches(text,environment);
+ return n<4?[{engine:"object-environment",severity:"note",message:"Long passage has little environmental/object interaction. Check for empty-room dialogue; add only details the focal character would actually register.",evidence:[],count:n}]:[];
 }
