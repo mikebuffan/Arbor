@@ -16,6 +16,8 @@ However, the combined head omitted the private Text widget and conversation-clie
 
 The restored 36-case focused suite covers session adoption/reset/clear failures and serialization, unknown records, scope isolation, remount recovery, frozen retry IDs, lost replies recovered from authorized history, failed save/cleanup, explicit discard, owner revocation during save, preview-off denial and fixed private endpoints. The complete combined Flutter suite must also pass; its total differs from the older Grove composite because other suites were not composed into #249.
 
+First child CI run `37418223586` passed metadata firewall verification, then failed at checkout: the combined parent still tracks the root SDK gitlink `90673a4eef275d1a6692c26ac80d6d746d41a73a` without `.gitmodules`. #246 had removed this orphaned pointer, but that deletion was omitted from composition. This child also removes that exact unused gitlink. Application/engine source is unchanged; Flutter is independently pinned and installed under runner temporary space. No Flutter check ran in that first failed job.
+
 ## Combined compilation does not establish a private Grove connection
 
 At the inspected combined head:
