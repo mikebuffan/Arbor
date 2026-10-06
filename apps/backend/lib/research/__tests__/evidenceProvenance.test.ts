@@ -1,0 +1,2 @@
+import{describe,expect,it}from"vitest";import{independentCorroboration,validateEvidenceProvenance}from"../evidenceProvenance";
+describe("evidence provenance",()=>{it("does not mistake repeated reporting for independent corroboration",()=>{const base={sourceSha256:"a".repeat(64),sourceLocator:"p1",sourceFamily:"newswire",hopLineage:["h1"],counterevidenceIds:[],uncertainty:.2,findingVersion:1};expect(independentCorroboration([{...base,evidenceId:"1"},{...base,evidenceId:"2"}])).toBe(1);expect(validateEvidenceProvenance({...base,evidenceId:"1"})).toEqual([]);});});
