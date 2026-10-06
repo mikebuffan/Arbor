@@ -120,6 +120,7 @@ begin
     run_lease_expires_at=v_now + make_interval(secs => p_lease_ms / 1000.0),
     control_version=control_version+1
   where id=p_run_id;
+  perform set_config('arbor.pattern_hop_control_rpc','',true);
 
   return jsonb_build_object(
     'status','claimed',
@@ -179,6 +180,7 @@ begin
     run_lease_expires_at=v_now + make_interval(secs => p_lease_ms / 1000.0),
     control_version=control_version+1
   where id=p_run_id;
+  perform set_config('arbor.pattern_hop_control_rpc','',true);
 
   return jsonb_build_object(
     'status','ok',
@@ -225,6 +227,7 @@ begin
     run_lease_expires_at=null,
     control_version=control_version+1
   where id=p_run_id;
+  perform set_config('arbor.pattern_hop_control_rpc','',true);
   return 'released';
 end;
 $release$;
@@ -259,6 +262,7 @@ begin
     stop_requested_at=clock_timestamp(),
     control_version=control_version+1
   where id=p_run_id;
+  perform set_config('arbor.pattern_hop_control_rpc','',true);
   return 'requested';
 end;
 $stop$;
@@ -300,6 +304,7 @@ begin
     run_lease_expires_at=null,
     control_version=control_version+1
   where id=p_run_id;
+  perform set_config('arbor.pattern_hop_control_rpc','',true);
   return 'resumed';
 end;
 $resume$;
