@@ -35,7 +35,9 @@ export async function runPatternHopResearch(params:{supabase:SupabaseClient;user
   const evidenceById=new Map<string,PatternHopEvidence>(
     found.map(evidence=>[evidence.id,evidence]),
   );
-  const visitedEvidenceIds=new Set<string>(found.map(evidence=>evidence.id));
+  // Sources/edges can survive a failed checkpoint. Only edges whose parent
+  // retrieval is committed count as visited; replay the rest to rebuild children.
+  const visitedEvidenceIds=new Set<string>(edges.filter(edge=>state.visited.some(key=>key.startsWith([edge.fromEvidenceId ?? "seed",edge.originatingClue,edge.hopDepth,""].join("::")))).map(edge=>edge.toEvidenceId));
   const path:PatternHopPathStep[]=edges.flatMap(edge=>{
     const evidence=evidenceById.get(edge.toEvidenceId);
     if(!evidence) return [];
@@ -51,8 +53,13 @@ export async function runPatternHopResearch(params:{supabase:SupabaseClient;user
     }];
   });
   const maxHops=Math.max(1,Math.min(params.maxHops ?? 24,100));
+  // Resolve restored client IDs once. New sources/edges must be durable before
+  // a checkpoint can mark their retrieval visited or enqueue their children.
+  const idMap=found.length ? await persistPatternHopEvidence({supabase:params.supabase,runId:run.id,userId:params.userId,projectId:params.projectId,evidence:found}) : new Map<string,string>();
 
   for(let i=0;i<maxHops && state.status==="active";i+=1){
+    const evidenceStart=found.length;
+    const edgeStart=edges.length;
     const nextResult=takeNextHop(state); state=nextResult.state; const next=nextResult.next; if(!next) break;
     const parent=next.evidenceId==="seed" ? null : evidenceById.get(next.evidenceId) ?? null;
     let rows:Awaited<ReturnType<typeof searchHistoricalHopEvidence>>=[];
@@ -109,8 +116,11 @@ export async function runPatternHopResearch(params:{supabase:SupabaseClient;user
       for(const candidate of selected){
         const evidence=candidate.evidence; visitedEvidenceIds.add(evidence.id); evidenceById.set(evidence.id,evidence);
         if(!found.some(x=>x.id===evidence.id)) found.push(evidence);
-        const step=buildPathStep({candidate,parentEvidenceId:next.evidenceId==="seed"?null:next.evidenceId,depth:next.depth}); path.push(step);
-        edges.push({fromEvidenceId:step.parentEvidenceId,toEvidenceId:evidence.id,originatingClue:next.clue,relationship:candidate.relationship,hopDepth:next.depth,confidence:candidate.score,epistemicStatus:evidence.epistemicStatus==="direct"?"direct":evidence.epistemicStatus==="hypothesis"?"hypothesis":"derived",rationale:candidate.relationshipReason});
+        const step=buildPathStep({candidate,parentEvidenceId:next.evidenceId==="seed"?null:next.evidenceId,depth:next.depth});
+        if(!edges.some(edge=>edge.fromEvidenceId===step.parentEvidenceId && edge.toEvidenceId===evidence.id && edge.relationship===candidate.relationship && edge.hopDepth===next.depth)) {
+          path.push(step);
+          edges.push({fromEvidenceId:step.parentEvidenceId,toEvidenceId:evidence.id,originatingClue:next.clue,relationship:candidate.relationship,hopDepth:next.depth,confidence:candidate.score,epistemicStatus:evidence.epistemicStatus==="direct"?"direct":evidence.epistemicStatus==="hypothesis"?"hypothesis":"derived",rationale:candidate.relationshipReason});
+        }
         if(next.depth+1<=state.maxDepth){
           for(const branch of ["neighboring_concepts","people_entities","terminology_changes","causal_predecessors","consequences","retrospective_references","chronology_anchors","implementation_architecture","behavioral_results","contradictions"]){
             state=enqueueHop(state,{evidenceId:evidence.id,clue:patternHopBranchClue(branch,params.seed,evidence.content),depth:next.depth+1,branch:next.branch+">"+branch});
@@ -118,11 +128,12 @@ export async function runPatternHopResearch(params:{supabase:SupabaseClient;user
         }
       }
     }
+    const newIds=await persistPatternHopEvidence({supabase:params.supabase,runId:run.id,userId:params.userId,projectId:params.projectId,evidence:found.slice(evidenceStart)});
+    for(const [clientId,storedId] of newIds) idMap.set(clientId,storedId);
+    await persistPatternHopEdges({supabase:params.supabase,runId:run.id,idMap,edges:edges.slice(edgeStart)});
     await savePatternHopRun({supabase:params.supabase,runId:run.id,userId:params.userId,projectId:params.projectId,state});
   }
 
-  const idMap=await persistPatternHopEvidence({supabase:params.supabase,runId:run.id,userId:params.userId,projectId:params.projectId,evidence:found});
-  await persistPatternHopEdges({supabase:params.supabase,runId:run.id,idMap,edges});
   const rootBranches=[...DEFAULT_PATTERN_HOP_BRANCHES];
   if(state.status==="active" && objectiveComplete(state,rootBranches)) state={...state,status:"complete"};
   if(state.status==="active" && state.frontier.length===0) state={...state,status:"exhausted"};
