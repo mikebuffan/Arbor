@@ -11,7 +11,7 @@ import {
   updateAnnabelleWorkspace,
 } from "@/lib/arbor/subsystem/annabelleWorkspace";
 import { allowedArborVoiceIds } from "@/lib/arbor/voice/voiceConfig";
-import { runPatternHopResearch } from "@/lib/memory/patternHopResearch";
+import { runControlledPatternHopResearch } from "@/lib/memory/patternHopControls";
 
 function strings(value: unknown): string[] {
   if (!Array.isArray(value)) {
@@ -60,7 +60,9 @@ export function buildArborAgencyTools(input: {
           throw new Error("agency_tool_invalid_pattern_hop_seed");
         }
 
-        const result = await runPatternHopResearch({
+        let result: Awaited<ReturnType<typeof runControlledPatternHopResearch>>;
+        try {
+        result = await runControlledPatternHopResearch({
           supabase: input.supabase,
           userId: context.userId,
           projectId: context.projectId,
@@ -76,6 +78,12 @@ export function buildArborAgencyTools(input: {
             typeof args.maxHops === "number" ? args.maxHops : undefined,
         });
 
+        } catch (error) {
+          const reason = error instanceof Error ? error.message : "";
+          if (["pattern_hop_stop_requested", "pattern_hop_run_busy", "pattern_hop_run_lease_lost", "pattern_hop_controls_disabled"].includes(reason))
+            return { evidenceOnly: true, status: "blocked", blocker: reason, runId: typeof args.runId === "string" ? args.runId : null };
+          throw error;
+        }
         return {
           evidenceOnly: true,
           completionScope: "bounded_historical_research_pass",
