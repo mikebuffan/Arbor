@@ -4,5 +4,6 @@
       "path": "/api/admin/system/heartbeat",
       "schedule": "*/10 * * * *"
     }
-  ]
+  ],
+  "ignoreCommand": "sh -c 'case \"$VERCEL_GIT_COMMIT_REF\" in arbor/one-arbor-phone-reconciliation-20261006|arbor/grove-lm-source-repair-20261005|arbor/grove-phone-recovery-20261005|arbor/grove-phone-tests-20261005) exit 0;; *) exit 1;; esac'"
 }

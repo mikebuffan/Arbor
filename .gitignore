@@ -41,3 +41,8 @@ Thumbs.db
 apps/frontend/.metadata
 flutter__BROKEN
 flutter
+
+# Private Grove release signing material
+*.jks
+*.keystore
+**/key.properties
