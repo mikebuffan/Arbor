@@ -2,6 +2,7 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { assertProjectOwnedByUser } from "@/lib/auth/ownership";
+import { RouteAccessError } from "@/lib/auth/routeAuthorization";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import {
   recordSavedResearchHandoff,
@@ -24,7 +25,7 @@ export async function recordAuthorizedSavedResearchHandoff(input: {
   );
 
   if (process.env.ARBOR_ENABLE_SAVED_RESEARCH_HANDOFF !== "true") {
-    throw new Error("saved_research_handoff_disabled");
+    throw new RouteAccessError(409, "saved_research_handoff_disabled");
   }
 
   const {
@@ -38,7 +39,7 @@ export async function recordAuthorizedSavedResearchHandoff(input: {
     !Array.isArray(grants?.project_ids) ||
     !grants.project_ids.includes(input.projectId)
   ) {
-    throw new Error("saved_research_handoff_not_granted");
+    throw new RouteAccessError(403, "saved_research_handoff_not_granted");
   }
 
   const db = supabaseAdmin();
