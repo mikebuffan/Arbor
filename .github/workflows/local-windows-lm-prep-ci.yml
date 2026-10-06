@@ -70,6 +70,7 @@ jobs:
           if ($result.scope -ne 'read_only_local_hardware_preflight') { throw 'scope mismatch' }
           if ($result.machineIdentityCollected -ne $false) { throw 'machine identity must not be collected' }
           if ($result.assessment.intendedMode -ne 'cpu_only_bounded_pilot') { throw 'pilot mode mismatch' }
+          if ($null -eq $result.processor.instructionSets.sse2) { throw 'SSE2 feature result missing' }
           if ($null -eq $result.processor.instructionSets.avx) { throw 'AVX feature result missing' }
           if ($null -eq $result.processor.instructionSets.avx2) { throw 'AVX2 feature result missing' }
           Write-Host "PASS: read-only Windows preflight executed; eligibility result is host-specific and not a model receipt."
