@@ -55,7 +55,7 @@ describe("permanent correction retention", () => {
     expect(memoryQuery.filters).toContainEqual(["project_id", null]);
   });
   it("rejects foreign, deleted, non-global and duplicated corrections even if storage returns them", async () => {
-    for (const patch of [{ user_id: "foreign" }, { project_id: "foreign" }, { status: "tombstoned" }, { deleted_at: "2026-01-01" }]) {
+    for (const patch of [{ user_id: "foreign" }, { project_id: "foreign" }, { status: "tombstoned" }, { deleted_at: "2026-01-01" }, { excluded_from_memory: true }]) {
       await expect(loadDurableBehaviorCorrections({ supabase: database([{ ...row, ...patch }]).supabase, userId: "owner" })).rejects.toThrow("scope_or_duplicate");
     }
     await expect(loadDurableBehaviorCorrections({ supabase: database([row, row]).supabase, userId: "owner" })).rejects.toThrow("scope_or_duplicate");
