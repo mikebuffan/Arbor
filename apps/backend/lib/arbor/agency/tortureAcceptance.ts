@@ -10,6 +10,7 @@ export type AgencyTortureResult={
  executed:string[];
  skippedDuplicates:string[];
  recoveredFailures:string[];
+ exhaustedFailures:string[];
 };
 
 export function runBoundedAgencyTorture(input:{
@@ -18,19 +19,22 @@ export function runBoundedAgencyTorture(input:{
  maxActions?:number;
 }):AgencyTortureResult{
  const seen=new Set(input.completedSideEffects??[]);
- const executed:string[]=[]; const skippedDuplicates:string[]=[]; const recoveredFailures:string[]=[];
+ const executed:string[]=[]; const skippedDuplicates:string[]=[]; const recoveredFailures:string[]=[]; const exhaustedFailures:string[]=[];
  const max=Math.max(1,Math.min(input.maxActions??32,64));
  let actions=0;
  for(const step of input.steps){
-   if(actions>=max) return {complete:false,nextAction:step.id,executed,skippedDuplicates,recoveredFailures};
+   if(actions>=max) return {complete:false,nextAction:step.id,executed,skippedDuplicates,recoveredFailures,exhaustedFailures};
    if(step.status==="completed"){seen.add(step.sideEffectKey);continue;}
-   if(step.status==="running") return {complete:false,nextAction:step.id,executed,skippedDuplicates,recoveredFailures};
+   if(step.status==="running") return {complete:false,nextAction:step.id,executed,skippedDuplicates,recoveredFailures,exhaustedFailures};
    if(seen.has(step.sideEffectKey)){skippedDuplicates.push(step.id);continue;}
    if(step.status==="failed"){
+     if(step.attempt>=3){
+       exhaustedFailures.push(step.id);
+       return {complete:false,nextAction:step.id,executed,skippedDuplicates,recoveredFailures,exhaustedFailures};
+     }
      recoveredFailures.push(step.id);
-     if(step.attempt>=3) continue;
    }
    seen.add(step.sideEffectKey); executed.push(step.id); actions++;
  }
- return {complete:true,nextAction:null,executed,skippedDuplicates,recoveredFailures};
+ return {complete:exhaustedFailures.length===0,nextAction:null,executed,skippedDuplicates,recoveredFailures,exhaustedFailures};
 }
