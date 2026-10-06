@@ -29,7 +29,8 @@ function Get-CommandInfo([string]$Name) {
   }
 }
 
-Add-Type @"
+if (-not ("ArborProcessorFeatures" -as [type])) {
+  Add-Type @"
 using System;
 using System.Runtime.InteropServices;
 public static class ArborProcessorFeatures {
@@ -38,6 +39,7 @@ public static class ArborProcessorFeatures {
   public static extern bool IsProcessorFeaturePresent(uint processorFeature);
 }
 "@
+}
 
 $os = Get-CimInstance Win32_OperatingSystem
 $cpu = Get-CimInstance Win32_Processor | Select-Object -First 1
@@ -120,12 +122,13 @@ $json = $result | ConvertTo-Json -Depth 8
 Write-Output $json
 
 if (-not [string]::IsNullOrWhiteSpace($OutputPath)) {
-  $parent = Split-Path -Parent $OutputPath
-  if ($parent -and -not (Test-Path $parent)) {
+  $fullPath = [System.IO.Path]::GetFullPath($OutputPath)
+  $parent = [System.IO.Path]::GetDirectoryName($fullPath)
+  if (-not [string]::IsNullOrWhiteSpace($parent) -and -not (Test-Path -LiteralPath $parent)) {
     throw "Output directory does not exist: $parent"
   }
   [System.IO.File]::WriteAllText(
-    (Resolve-Path -LiteralPath (Split-Path -Parent $OutputPath)).Path + [System.IO.Path]::DirectorySeparatorChar + (Split-Path -Leaf $OutputPath),
+    $fullPath,
     $json,
     [System.Text.UTF8Encoding]::new($false)
   )
