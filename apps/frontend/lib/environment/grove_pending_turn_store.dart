@@ -23,8 +23,9 @@ class GrovePendingTurnStore {
   final String apiOrigin;
   final String authOrigin;
   final DeviceStringStore _storage;
-  // One app-isolate queue orders writes from disposed/remounted panels too.
-  static Future<void> _tail = Future<void>.value();
+  // Panels sharing a physical store serialize, including disposed/remounted
+  // panels. An unrelated store must not inherit another store's pending work.
+  static final _queues = Expando<_PendingTurnQueue>();
   static final _uuid = RegExp(
     r'^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
     caseSensitive: false,
@@ -35,9 +36,8 @@ class GrovePendingTurnStore {
   ));
 
   Future<T> _serial<T>(Future<T> Function() operation) {
-    final next = _tail.then((_) => operation());
-    _tail = next.then<void>((_) {}, onError: (Object _, StackTrace __) {});
-    return next;
+    final queue = _queues[_storage] ??= _PendingTurnQueue();
+    return queue.run(operation);
   }
 
   void _validate(String id, GrovePendingTurn? turn) {
@@ -98,4 +98,14 @@ class GrovePendingTurnStore {
       throw StateError('Private draft could not be erased');
     }
   });
+}
+
+class _PendingTurnQueue {
+  Future<void>? _tail;
+
+  Future<T> run<T>(Future<T> Function() operation) {
+    final next = _tail == null ? operation() : _tail!.then((_) => operation());
+    _tail = next.then<void>((_) {}, onError: (Object _, StackTrace __) {});
+    return next;
+  }
 }

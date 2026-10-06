@@ -624,7 +624,7 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel>
       ));
     }
     final choices = _choices;
-    return ColoredBox(
+    return Material(
       color: const Color(0xFF0A1819),
       child: Padding(
         padding: const EdgeInsets.all(14),

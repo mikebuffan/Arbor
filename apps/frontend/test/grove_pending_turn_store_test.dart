@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/environment/grove_pending_turn_store.dart';
@@ -19,6 +20,20 @@ GrovePendingTurnStore store(FakeDeviceStringStore storage, {
     apiOrigin: api, authOrigin: auth, storage: storage);
 
 void main() {
+  test('a blocked device store does not stall another device store', () async {
+    final blocked = FakeDeviceStringStore();
+    final release = Completer<void>();
+    blocked.pauseWrite = release.future;
+    final pending = store(blocked).save(conversation,
+      const GrovePendingTurn(text: 'Waiting'));
+    try {
+      expect(await store(FakeDeviceStringStore()).load(conversation), isNull);
+    } finally {
+      release.complete();
+      await pending;
+    }
+  });
+
   test('opening empty storage does not opt in or write', () async {
     final disk = FakeDeviceStringStore();
     expect(await store(disk).load(conversation), isNull);
