@@ -1,0 +1,2 @@
+import{describe,expect,it}from"vitest";import{assertSafeSourceReconciliation}from"../reconciliationContract";
+describe("reconciliation contract",()=>{it("allows source-only reconciliation and rejects protected activation",()=>{expect(()=>assertSafeSourceReconciliation({changedLanes:["annabelle-editorial","host-continuation"]})).not.toThrow();expect(()=>assertSafeSourceReconciliation({changedLanes:["private-grove-ark-spine"],activatesProtected:true})).toThrow();});});
