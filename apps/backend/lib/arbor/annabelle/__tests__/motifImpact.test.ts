@@ -1,0 +1,2 @@
+import{describe,expect,it}from"vitest";import{analyzeMotifs,downstreamImpact}from"../motifImpact";
+describe("motif impact",()=>{it("tracks evolution and downstream chapters",()=>{const r=analyzeMotifs([{motif:"purple pumpkin",chapter:2,role:"first",sourceSha256:"a"},{motif:"purple pumpkin",chapter:8,role:"echo",sourceSha256:"b"},{motif:"purple pumpkin",chapter:20,role:"payoff",sourceSha256:"c"}]);expect(r[0].chapters).toEqual([2,8,20]);expect(downstreamImpact({changedChapter:2,motifChapters:[8,20]}).affectedChapters).toEqual([8,20]);});});
