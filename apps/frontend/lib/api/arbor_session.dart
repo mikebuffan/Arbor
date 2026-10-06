@@ -1,130 +1,119 @@
 import 'dart:async';
+import 'dart:convert';
 
-import 'package:shared_preferences/shared_preferences.dart';
+import 'device_string_store.dart';
 
 class ArborSessionContext {
-  const ArborSessionContext({
-    required this.projectId,
-    this.conversationId,
-  });
-
+  const ArborSessionContext({required this.projectId, this.conversationId});
   final String projectId;
   final String? conversationId;
 }
 
 class ArborSession {
-  ArborSession();
+  ArborSession({DeviceStringStore? storage})
+      : _storage = storage ?? const PreferencesStringStore();
 
   static final ArborSession instance = ArborSession();
-
-  final Map<String, ArborSessionContext> _memory =
-      <String, ArborSessionContext>{};
-  final Set<String> _loadedUsers = <String>{};
-
-  // Local account/project/thread changes must invalidate any visible Grove
-  // shelves before another user's or project's contents can be displayed.
+  final DeviceStringStore _storage;
+  final Map<String, ArborSessionContext> _memory = {};
+  final Set<String> _loadedUsers = {};
   final StreamController<String> _contextChanges =
       StreamController<String>.broadcast(sync: true);
+  Future<void> _tail = Future<void>.value();
 
   Stream<String> get contextChanges => _contextChanges.stream;
-
-  String _projectKey(String userId) =>
-      'arbor.session.$userId.projectId';
-
-  String _conversationKey(String userId) =>
-      'arbor.session.$userId.conversationId';
-
   ArborSessionContext? peek(String userId) => _memory[userId];
+  String _key(String userId) => 'arbor.session.$userId.context.v1';
 
-  Future<ArborSessionContext?> contextFor(String userId) async {
-    if (_loadedUsers.contains(userId)) {
-      return _memory[userId];
+  Future<T> _serial<T>(Future<T> Function() operation) {
+    final next = _tail.then((_) => operation());
+    _tail = next.then<void>((_) {}, onError: (Object _, StackTrace __) {});
+    return next;
+  }
+
+  Future<ArborSessionContext?> contextFor(String userId) =>
+      _serial(() => _load(userId));
+
+  Future<ArborSessionContext?> _load(String userId) async {
+    if (_loadedUsers.contains(userId)) return _memory[userId];
+    final raw = await _storage.read(_key(userId));
+    String? project;
+    String? conversation;
+    if (raw != null) {
+      final record = jsonDecode(raw);
+      if (record is! Map || record['version'] != 1 ||
+          record['userId'] != userId ||
+          (record['projectId'] != null && record['projectId'] is! String) ||
+          (record['conversationId'] != null &&
+              record['conversationId'] is! String)) {
+        throw const FormatException('Stored Arbor scope is unavailable');
+      }
+      project = record['projectId'] as String?;
+      conversation = record['conversationId'] as String?;
+      if ((project != null && project.isEmpty) ||
+          (conversation != null && conversation.isEmpty) ||
+          (project == null && conversation != null)) {
+        throw const FormatException('Stored Arbor scope is invalid');
+      }
+    } else {
+      // Read old builds without rewriting storage on startup. An envelope,
+      // including a cleared tombstone, always overrides legacy keys.
+      project = await _storage.read('arbor.session.$userId.projectId');
+      conversation = await _storage.read('arbor.session.$userId.conversationId');
+      if (project?.isEmpty == true) project = null;
+      if (conversation?.isEmpty == true) conversation = null;
     }
-
-    final prefs = await SharedPreferences.getInstance();
-    final projectId = prefs.getString(_projectKey(userId));
-    final conversationId =
-        prefs.getString(_conversationKey(userId));
-
-    _loadedUsers.add(userId);
-
-    if (projectId == null || projectId.isEmpty) {
-      return null;
-    }
-
-    final context = ArborSessionContext(
-      projectId: projectId,
-      conversationId:
-          conversationId == null || conversationId.isEmpty
-              ? null
-              : conversationId,
+    final context = project == null ? null : ArborSessionContext(
+      projectId: project, conversationId: conversation,
     );
-
-    _memory[userId] = context;
+    _loadedUsers.add(userId);
+    if (context != null) _memory[userId] = context;
     return context;
   }
 
-  Future<void> adopt({
-    required String userId,
-    required String projectId,
-    required String conversationId,
-  }) async {
-    final context = ArborSessionContext(
-      projectId: projectId,
-      conversationId: conversationId,
-    );
-
-    _loadedUsers.add(userId);
-    _memory[userId] = context;
-    _contextChanges.add(userId);
-
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_projectKey(userId), projectId);
-    await prefs.setString(
-      _conversationKey(userId),
-      conversationId,
-    );
+  Future<void> _persist(String userId, ArborSessionContext? context,
+      {bool publish = true}) async {
+    final saved = await _storage.write(_key(userId), jsonEncode({
+      'version': 1, 'userId': userId,
+      'projectId': context?.projectId,
+      'conversationId': context?.conversationId,
+    }));
+    if (!saved) throw StateError('Arbor conversation selection was not saved');
+    if (publish) _publish(userId, context);
   }
 
-  Future<void> startNewThread({
-    required String userId,
-    String? projectId,
-  }) async {
-    final current = await contextFor(userId);
-    final resolvedProjectId = projectId ?? current?.projectId;
-
+  void _publish(String userId, ArborSessionContext? context) {
     _loadedUsers.add(userId);
-
-    final prefs = await SharedPreferences.getInstance();
-
-    if (resolvedProjectId == null ||
-        resolvedProjectId.isEmpty) {
+    if (context == null) {
       _memory.remove(userId);
-      _contextChanges.add(userId);
-      await prefs.remove(_projectKey(userId));
-      await prefs.remove(_conversationKey(userId));
-      return;
+    } else {
+      _memory[userId] = context;
     }
-
-    _memory[userId] = ArborSessionContext(
-      projectId: resolvedProjectId,
-    );
     _contextChanges.add(userId);
-
-    await prefs.setString(
-      _projectKey(userId),
-      resolvedProjectId,
-    );
-    await prefs.remove(_conversationKey(userId));
   }
 
-  Future<void> clearStoredUser(String userId) async {
-    _loadedUsers.add(userId);
-    _memory.remove(userId);
-    _contextChanges.add(userId);
+  Future<void> adopt({required String userId, required String projectId,
+    required String conversationId}) => _serial(() async {
+      if (userId.isEmpty || projectId.isEmpty || conversationId.isEmpty) {
+        throw const FormatException('Arbor scope is empty');
+      }
+      await _persist(userId, ArborSessionContext(
+        projectId: projectId, conversationId: conversationId,
+      ));
+    });
 
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_projectKey(userId));
-    await prefs.remove(_conversationKey(userId));
-  }
+  Future<void> startNewThread({required String userId, String? projectId}) =>
+      _serial(() async {
+        final current = await _load(userId);
+        final project = projectId ?? current?.projectId;
+        await _persist(userId, project == null || project.isEmpty ? null :
+            ArborSessionContext(projectId: project));
+      });
+
+  Future<void> clearStoredUser(String userId) => _serial(() async {
+    // Hide private content even when disk clearing fails. Propagate failure;
+    // never claim successful disk deletion.
+    _publish(userId, null);
+    await _persist(userId, null, publish: false);
+  });
 }
