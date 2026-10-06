@@ -1,0 +1,18 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { prepareEvaluation, auditEvaluation } from './behavior-acceptance.mjs';
+const pack = { schemaVersion: 1, cases: [{ id: 'test', userTurns: ['Repair passed.', 'Im tired'], rubric: ['Specific contribution', 'Correction survives restart'], externalEvidenceCriteria: [1] }] };
+const prepared = prepareEvaluation(pack, 'fixed-seed');
+function arm() { return { origin: 'host-captured', metadata: { provider: 'provider', model: 'same-model', surface: 'text', fixtureId: 'isolated-fixture', settings: { temperature: 0.4 }, sourceIdentity: 'source-head', contextSha256: 'a'.repeat(64) },
+  turns: [{ role: 'user', content: 'Repair passed.' }, { role: 'assistant', content: 'Captured reply one', requestId: 'one', requestContextSha256: 'b'.repeat(64) }, { role: 'user', content: 'Im tired' }, { role: 'assistant', content: 'Captured reply two', requestId: 'two', requestContextSha256: 'c'.repeat(64) }], judgments: [] }; }
+function results() { return { schemaVersion: 1, casePackHash: prepared.generation.casePackHash, pairs: [{ caseId: 'test', A: arm(), B: arm() }] }; }
+test('generation packet excludes rubric and scripted assistant responses', () => { assert.deepEqual(prepared.generation.cases, [{ id: 'test', userTurns: ['Repair passed.', 'Im tired'] }]); assert.equal(JSON.stringify(prepared.generation).includes('Specific contribution'), false); });
+test('assignment repeats reproducibly and has both conditions', () => { assert.deepEqual(prepareEvaluation(pack, 'fixed-seed'), prepared); assert.notEqual(prepared.assignment.cases[0].A, prepared.assignment.cases[0].B); });
+test('empty runs remain not-run, never accepted', () => { assert.equal(auditEvaluation(pack, prepared.resultsTemplate).status, 'not-run'); });
+test('captured but unscored output stays unknown', () => { assert.equal(auditEvaluation(pack, results()).cases[0].A[0].verdict, 'unknown'); });
+test('mismatched model or fixture invalidates comparison', () => { for (const key of ['model', 'fixtureId']) { const r = results(); r.pairs[0].B.metadata[key] = 'different'; assert.throws(() => auditEvaluation(pack, r), /unmatched/); } });
+test('incomplete, changed and scripted transcripts are rejected', () => { for (const mutate of [a => a.turns.pop(), a => { a.turns[0].content = 'changed'; }, a => { a.origin = 'synthetic'; }]) { const r = results(); mutate(r.pairs[0].A); assert.throws(() => auditEvaluation(pack, r)); } });
+test('missing response receipts and duplicate requests are rejected', () => { const r = results(); r.pairs[0].A.turns[3].requestId = 'one'; assert.throws(() => auditEvaluation(pack, r), /duplicate_response/); });
+test('pack drift and duplicate result pairs are rejected', () => { const r = results(); assert.throws(() => auditEvaluation({ ...pack, cases: [{ ...pack.cases[0], userTurns: ['changed'] }] }, r), /mismatch/); r.pairs.push(r.pairs[0]); assert.throws(() => auditEvaluation(pack, r), /duplicate_pair/); });
+test('a verdict requires actual assistant evidence, not a user quote', () => { const r = results(); r.pairs[0].A.judgments = [{ rubricIndex: 0, verdict: 'pass', reason: 'reviewed', assistantTurnIndices: [0] }]; assert.throws(() => auditEvaluation(pack, r), /judgment_evidence/); });
+test('restart verdict requires external evidence beyond reply text', () => { const r = results(); r.pairs[0].A.judgments = [{ rubricIndex: 1, verdict: 'pass', reason: 'reviewed', assistantTurnIndices: [3] }]; assert.throws(() => auditEvaluation(pack, r), /external_evidence/); r.pairs[0].A.judgments[0].externalReceipts = ['independently-reviewed-restart-receipt']; assert.equal(auditEvaluation(pack, r).cases[0].A[1].verdict, 'pass'); });
