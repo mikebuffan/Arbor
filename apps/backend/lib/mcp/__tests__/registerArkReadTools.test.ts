@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-vi.mock("../context", () => ({ arkMcpUserContext: () => ({ userId: "owner", email: null }) }));
+vi.mock("../context", () => ({ arkMcpUserContext: () => ({ userId: "owner", email: null, supabase: {} }) }));
 import { registerArkReadTools } from "../registerArkReadTools";
 
 describe("ARK MCP tool boundary", () => {
