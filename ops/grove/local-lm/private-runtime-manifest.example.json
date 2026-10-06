@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "foundation": {
+    "name": "Qwen/Qwen3-0.6B",
+    "revision": "REPLACE_WITH_EXACT_40_HEX_FOUNDATION_COMMIT"
+  },
+  "tokenizer": {
+    "revision": "REPLACE_WITH_EXACT_40_HEX_TOKENIZER_COMMIT"
+  },
+  "adapter": {
+    "sha256": "5447bc273c11374c73194428825babe22a008b0827e9ef002127a461023402aa"
+  },
+  "receiver": {
+    "runtimeCardVersion": "0.3.3",
+    "brokerReceiverRevision": "2026-10-06.1",
+    "behaviorContractVersion": "2026-10-05.1"
+  },
+  "context": {
+    "maxInputTokens": 8192,
+    "maxNewTokens": 170
+  }
+}
