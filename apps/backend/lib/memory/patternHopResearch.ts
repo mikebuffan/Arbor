@@ -15,6 +15,8 @@ function toEvidence(row: Awaited<ReturnType<typeof searchHistoricalHopEvidence>>
 export async function runPatternHopResearch(params:{supabase:SupabaseClient;userId:string;projectId:string;conversationId?:string|null;seed:string;objective?:string;maxDepth?:number;maxHops?:number;runId?:string}) {
   let run = params.runId ? await loadPatternHopRun({supabase:params.supabase,userId:params.userId,projectId:params.projectId,runId:params.runId}) : null;
   if (params.runId && !run) throw new Error("pattern_hop_run_not_found");
+  if (run && (run.seed.clue !== params.seed || (params.maxDepth !== undefined && params.maxDepth !== run.state.maxDepth)))
+    throw new Error("pattern_hop_resume_input_mismatch");
   if (!run) {
     run = await createPatternHopRun({supabase:params.supabase,userId:params.userId,projectId:params.projectId,conversationId:params.conversationId,objective:params.objective ?? "Pattern-hop research: "+params.seed,seed:{clue:params.seed},maxDepth:params.maxDepth});
     for (const branch of DEFAULT_PATTERN_HOP_BRANCHES) run.state=enqueueHop(run.state,{evidenceId:"seed",clue:patternHopBranchClue(branch,params.seed),depth:0,branch});
