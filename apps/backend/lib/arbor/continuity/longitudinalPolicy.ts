@@ -1,7 +1,7 @@
 import type { AgencyState } from "../agency/engine";
 
 const EXPLICIT_CONTINUATION =
-  /^(?:k|kk|go+|okay|ok|continue|continue please|keep going|keep working|do it|finish it|yes|yep|yeah|please do|carry on|go ahead)[.!?\s]*$/i;
+  /^(?:k|kk|go+|okay|ok|continue|continue please|keep going|keep working|do it|finish it|yes|yep|yeah|please do|carry on|go ahead|alright|all right)[.!?\s]*$/i;
 const CONTINUATION_SIGNAL =
   /\b(?:keep going|keep working|continue(?: please)?|carry on|finish it|do it|follow through|whole list|one go|do as much as you can|as much as you can|do as much as possible|as much as possible|if you (?:already )?know what to do|you don['’]?t need to (?:tell|ask) me if you know what to do|without (?:waiting|stopping)|find (?:a )?work ?around|work ?around if needed|don['’]?t stop|do not stop|don['’]?t wait(?: for me)?|do not wait(?: for me)?|don['’]?t ask me|do not ask me|stop handing it back|don['’]?t hand it back|don['’]?t make me babysit|do not make me babysit|i don['’]?t want to tell you to go|i do not want to tell you to go|you (?:keep )?stop(?:ping)?|you stop again|you stopped|why did you stop|you did it again|you just did it again|you(?:'re| are) not done|not done yet)\b/i;
 const EXPLICIT_SWITCH =
