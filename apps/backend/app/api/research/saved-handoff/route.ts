@@ -4,8 +4,8 @@ import { z } from "zod";
 import { requireUser } from "@/lib/auth/requireUser";
 import { assertProjectOwnedByUser } from "@/lib/auth/ownership";
 import { RouteAccessError } from "@/lib/auth/routeAuthorization";
-import { supabaseAdmin } from "@/lib/supabase/admin";
-import { SavedResearchHandoff, readSavedResearchCheckpoint, recordSavedResearchHandoff } from "@/lib/research/savedResearchHandoff";
+import { SavedResearchHandoff, readSavedResearchCheckpoint } from "@/lib/research/savedResearchHandoff";
+import { recordAuthorizedSavedResearchHandoff } from "@/lib/research/savedResearchHandoffBroker";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -36,14 +36,13 @@ export async function POST(req: Request) {
     if (!parsed.success) return json({ ok: false, error: "invalid_saved_research_handoff" }, 400);
     const { projectId, handoff } = parsed.data;
     await assertProjectOwnedByUser(supabase, userId, projectId);
-    if (process.env.ARBOR_ENABLE_SAVED_RESEARCH_HANDOFF !== "true")
-      return json({ ok: false, error: "saved_research_handoff_disabled" }, 409);
-    const { data: { user }, error } = await supabase.auth.getUser();
-    const grants = user?.app_metadata?.arbor_saved_research_handoff;
-    if (error || user?.id !== userId || !Array.isArray(grants?.project_ids) || !grants.project_ids.includes(projectId))
-      return json({ ok: false, error: "saved_research_handoff_not_granted" }, 403);
-    const result = await recordSavedResearchHandoff({ db: supabaseAdmin(), ownerId: userId, projectId, handoff,
-      workerId: `saved-research:${randomUUID()}` });
+    const result = await recordAuthorizedSavedResearchHandoff({
+      supabase,
+      userId,
+      projectId,
+      handoff,
+      workerId: `saved-research:${randomUUID()}`,
+    });
     return json({ ok: true, ...result });
   } catch (error) { return failure(error); }
 }
