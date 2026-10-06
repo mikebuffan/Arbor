@@ -60,3 +60,26 @@ build is separate from live engine/task acceptance.
 Live corpus availability, original-page review, source independence, identity
 decisions, observed consequences and reviewed learning remain unverified here.
 Cross-thread/Grove/LM integration remains coordinated with its own workstream.
+
+## Follow-through receipt
+
+- Source preview candidate: `6b658a53460b5db00b06c524fc62e7bd5717b119`, PR #247.
+- Local optimized Next.js app build passed, including TypeScript, page-data
+  collection, static generation and registration of `/api/research/document-hops`.
+  Used CI placeholder credentials and system TLS certificates; no live credentials
+  or authenticated source data were used. This is not a Vercel build receipt.
+- Started the built app locally and issued real HTTP GET, POST tick and POST STOP
+  requests without authentication. All returned 401 `auth_required` with
+  `Cache-Control: no-store`. No source search or privileged DB access occurred.
+  Stopped the local verification server afterward.
+- The attempted isolated Vercel preview failed before building: HTTP 402,
+  `api-deployments-free-per-day`, 100 daily deployments used, zero remaining.
+  Reported reset: October 6, 2026 at 7:56:01 PM America/Los_Angeles
+  (`1791341761242` milliseconds). No preview URL or READY receipt was created.
+  No automatic retry, account upgrade, stable alias change or migration followed.
+- Atomic publication succeeded and fetched remote tree matched the tested local
+  tree. A documentation-only follow-through commit does not alter runtime code.
+
+The existing 44-item list is reconciled in
+`PATTERN_HOP_44_ITEM_PROGRESS_20261006.md`. Finish source composition does not
+mean every listed engine has a live trusted caller or verified useful behavior.
