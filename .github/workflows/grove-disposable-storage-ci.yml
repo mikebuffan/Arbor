@@ -1,0 +1,74 @@
+name: Grove disposable storage acceptance
+
+'on':
+  pull_request:
+    branches: [arbor/grove-receiver-r3-alignment-20261006]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: grove-storage-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  disposable-postgres:
+    if: github.repository == 'mikebuffan/Arbor' && github.head_ref == 'arbor/grove-storage-release-prep-20261006'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      AWS_EC2_METADATA_DISABLED: 'true'
+    steps:
+      - name: Block metadata before checkout or SDK bootstrap; fail closed
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Workflow env keys are case-insensitive. Clear both OS spellings at
+          # runtime instead of declaring duplicate YAML environment keys.
+          unset HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy
+          for proxy_var in HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy; do
+            printf '%s=\n' "$proxy_var" >> "$GITHUB_ENV"
+          done
+          for subnet in 169.254.0.0/16 100.100.100.200/32; do
+            sudo -n iptables -w 5 -I OUTPUT 1 -d "$subnet" -j REJECT
+            sudo -n iptables -w 5 -C OUTPUT -d "$subnet" -j REJECT
+          done
+          for subnet in fe80::/10 fc00::/7; do
+            sudo -n ip6tables -w 5 -I OUTPUT 1 -d "$subnet" -j REJECT
+            sudo -n ip6tables -w 5 -C OUTPUT -d "$subnet" -j REJECT
+          done
+          # Inspect installed rules only; never probe any metadata endpoint.
+          printf 'Metadata deny rules installed and verified.\n'
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Check exact proposals on disposable PostgreSQL 17.6
+        shell: bash
+        run: |
+          set -euo pipefail
+          container_name=grove-disposable-storage
+          trap 'docker rm -f "$container_name" >/dev/null 2>&1 || true' EXIT
+          # No host ports, network, real credentials, or persistent database volume.
+          docker pull postgres:17.6
+          docker run --detach --name "$container_name" --network none \
+            --env POSTGRES_PASSWORD=synthetic-disposable-fixture-only \
+            --mount "type=bind,source=$GITHUB_WORKSPACE,target=/source,readonly" \
+            postgres:17.6
+          ready=false
+          for attempt in {1..30}; do
+            if docker exec "$container_name" pg_isready --username postgres; then
+              ready=true
+              break
+            fi
+            sleep 1
+          done
+          [ "$ready" = true ]
+          docker exec "$container_name" psql --username postgres --dbname postgres \
+            --command 'SELECT version();'
+          docker exec "$container_name" psql --username postgres --dbname postgres \
+            --set ON_ERROR_STOP=on \
+            --file /source/ops/grove/disposable-db/00-private-transcript-acceptance.sql
+      - name: Verify proposal files remain unchanged by the check
+        run: git diff --exit-code

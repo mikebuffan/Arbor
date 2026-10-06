@@ -5,5 +5,5 @@
       "schedule": "0 0 * * *"
     }
   ],
-  "ignoreCommand": "if [ \"$VERCEL_GIT_COMMIT_REF\" = \"arbor/grove-receiver-r3-alignment-20261006\" ]; then exit 0; else if [ \"$VERCEL_GIT_COMMIT_REF\" = \"arbor/grove-combined-connection-20261006\" ]; then exit 0; else if [ \"$VERCEL_GIT_COMMIT_REF\" = \"arbor/grove-combined-acceptance-20261006\" ]; then exit 0; else exit 1; fi; fi; fi"
+  "ignoreCommand": "if [ \"$VERCEL_GIT_COMMIT_REF\" = \"arbor/grove-storage-release-prep-20261006\" ]; then exit 0; else if [ \"$VERCEL_GIT_COMMIT_REF\" = \"arbor/grove-receiver-r3-alignment-20261006\" ]; then exit 0; else if [ \"$VERCEL_GIT_COMMIT_REF\" = \"arbor/grove-combined-connection-20261006\" ]; then exit 0; else if [ \"$VERCEL_GIT_COMMIT_REF\" = \"arbor/grove-combined-acceptance-20261006\" ]; then exit 0; else exit 1; fi; fi; fi; fi"
 }
