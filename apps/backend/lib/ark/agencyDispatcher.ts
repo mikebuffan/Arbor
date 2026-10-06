@@ -71,14 +71,32 @@ export async function dispatchAgencyToolThroughArk(input: {
 
   await input.onEnqueued?.(objective.id);
 
-  await runDefaultArkWorkerCycle({
-    supabase: input.arkSupabase,
-    toolSupabase: input.toolSupabase,
-    workerId: `chat:${input.turnId}:${input.actionId}`,
-    objectiveId: objective.id,
-    maxTasks: 1,
-    maxRuntimeMs: 20_000,
-  });
+  const workerId = `chat:${input.turnId}:${input.actionId}`;
+  const maxCycles = 3;
+
+  // A worker-cycle checkpoint is an internal scheduling boundary, not a
+  // reason to hand control back to the user. Re-enter the same objective
+  // within the request budget before surfacing a durable checkpoint.
+  for (let cycle = 0; cycle < maxCycles; cycle += 1) {
+    await runDefaultArkWorkerCycle({
+      supabase: input.arkSupabase,
+      toolSupabase: input.toolSupabase,
+      workerId,
+      objectiveId: objective.id,
+      maxTasks: 1,
+      maxRuntimeMs: 20_000,
+    });
+
+    const probe = await input.arkSupabase
+      .from("ark_tasks")
+      .select("status")
+      .eq("objective_id", objective.id)
+      .eq("task_key", input.actionId)
+      .maybeSingle();
+    if (probe.error) throw probe.error;
+    const status = String((probe.data as JsonRow | null)?.status ?? "");
+    if (!["queued", "running", "checkpointed"].includes(status)) break;
+  }
 
   const { data, error } = await input.arkSupabase
     .from("ark_tasks")
