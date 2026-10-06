@@ -1,1 +1,61 @@
-# Local Windows LM runtime — baseline x64/SSE2 candidate\n\nThis child stacks on PR #261 and prepares a Windows runtime that is deliberately\nmore conservative than the target laptop requires.\n\nObserved target preflight on 2026-10-06:\n- Windows 11 x64;\n- Intel Celeron N4120, 4 cores / 4 logical processors;\n- 7.82 GiB RAM;\n- 16.04 GiB free system-drive storage;\n- SSE2 and SSE4.2 available;\n- AVX, AVX2 and AVX512F unavailable.\n\nNo machine name, device ID, serial number, product key or account identifier is\nrecorded in this branch.\n\n## Why baseline SSE2 instead of SSE4.2\n\nThe target supports SSE4.2, but a baseline x86-64 build gives us a safer first\nbinary while avoiding accidental AVX-family requirements. Performance can be\nmeasured later on the actual laptop before considering a more aggressive build.\n\nThe workflow pins llama.cpp commit:\n\n5ad1c5da0ad7f6176256b823925aad19134f0263\n\nand explicitly disables native CPU tuning, SSE4.2, AVX/AVX2/AVX512, FMA, F16C,\nBMI2, OpenMP and all-variant CPU dispatch. It builds static llama-cli,\nllama-server and llama-bench executables and records SHA-256 digests in\nRUNTIME_MANIFEST.json.\n\n## Important boundary\n\nThe artifact contains no model and no private Arbor adapter. A successful CI\nbuild means only that the exact baseline binaries compile and launch on the\nWindows runner.\n\nIt does not prove:\n- execution on the N4120 laptop;\n- acceptable generation speed;\n- the Qwen3-0.6B model load;\n- the Arbor LoRA conversion/load;\n- the r3 signed receiver path.\n\nThose are the next bounded stages.\n\n## Model lane\n\nThe saved private receiver r3 still uses PyTorch/Transformers/PEFT for real\ngeneration. Because this laptop has no AVX, that path is not assumed compatible.\nThe safer local experiment is:\n\n1. baseline llama.cpp runtime;\n2. exact Qwen3-0.6B GGUF;\n3. privately convert the already verified Arbor v0.3 PEFT LoRA to GGUF;\n4. run one local model+LoRA turn;\n5. only then connect the existing signed r3 receiver contract to that local\n   backend without weakening its HMAC/scope/replay boundaries.\n\nNo inference, model download, deployment or activation is performed by this\nsource branch.\n
+# Local Windows LM runtime — baseline x64/SSE2 candidate
+
+This child stacks on PR #261 and prepares a Windows runtime that is deliberately
+more conservative than the target laptop requires.
+
+Observed target preflight on 2026-10-06:
+- Windows 11 x64;
+- Intel Celeron N4120, 4 cores / 4 logical processors;
+- 7.82 GiB RAM;
+- 16.04 GiB free system-drive storage;
+- SSE2 and SSE4.2 available;
+- AVX, AVX2 and AVX512F unavailable.
+
+No machine name, device ID, serial number, product key or account identifier is
+recorded in this branch.
+
+## Why baseline SSE2 instead of SSE4.2
+
+The target supports SSE4.2, but a baseline x86-64 build gives us a safer first
+binary while avoiding accidental AVX-family requirements. Performance can be
+measured later on the actual laptop before considering a more aggressive build.
+
+The workflow pins llama.cpp commit:
+
+5ad1c5da0ad7f6176256b823925aad19134f0263
+
+and explicitly disables native CPU tuning, SSE4.2, AVX/AVX2/AVX512, FMA, F16C,
+BMI2, OpenMP and all-variant CPU dispatch. It builds static llama-cli,
+llama-server and llama-bench executables and records SHA-256 digests in
+RUNTIME_MANIFEST.json.
+
+## Important boundary
+
+The artifact contains no model and no private Arbor adapter. A successful CI
+build means only that the exact baseline binaries compile and launch on the
+Windows runner.
+
+It does not prove:
+- execution on the N4120 laptop;
+- acceptable generation speed;
+- the Qwen3-0.6B model load;
+- the Arbor LoRA conversion/load;
+- the r3 signed receiver path.
+
+Those are the next bounded stages.
+
+## Model lane
+
+The saved private receiver r3 still uses PyTorch/Transformers/PEFT for real
+generation. Because this laptop has no AVX, that path is not assumed compatible.
+The safer local experiment is:
+
+1. baseline llama.cpp runtime;
+2. exact Qwen3-0.6B GGUF;
+3. privately convert the already verified Arbor v0.3 PEFT LoRA to GGUF;
+4. run one local model+LoRA turn;
+5. only then connect the existing signed r3 receiver contract to that local
+   backend without weakening its HMAC/scope/replay boundaries.
+
+No inference, model download, deployment or activation is performed by this
+source branch.
