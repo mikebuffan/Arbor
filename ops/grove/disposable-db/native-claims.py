@@ -50,6 +50,26 @@ finally:
     tx.stdin.close();tx.wait(timeout=10)
 assert sql(f"SELECT count(*) FROM grove_private_turns WHERE request_id='{request2}';")=='0'
 assert claim(uid(106))['status']=='no_access'
+# Completion holds access locks first: revocation must wait for its commit.
+sql(f"UPDATE grove_private_owner_access SET revoked_at=NULL WHERE user_id='{owner}';")
+request3=uid(107);token3=claim(request3)['leaseToken']
+tx=subprocess.Popen(cmd,env=env,stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True,bufsize=1)
+try:
+    tx.stdin.write('BEGIN; '+complete(request3,token3)+" SELECT 'locked';\n");tx.stdin.flush()
+    outputs=[]
+    while True:
+        line=tx.stdout.readline().strip();outputs.append(line)
+        if line=='locked':break
+        if tx.poll() is not None:raise RuntimeError('completion transaction failed')
+    assert 'created' in outputs
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+        f=pool.submit(sql,f"UPDATE grove_private_owner_access SET revoked_at=now() WHERE user_id='{owner}';")
+        time.sleep(.2);assert not f.done()
+        tx.stdin.write('COMMIT;\n');tx.stdin.flush();f.result(timeout=10)
+finally:
+    tx.stdin.close();tx.wait(timeout=10)
+assert sql(f"SELECT count(*) FROM grove_private_turns WHERE request_id='{request3}';")=='1'
+assert claim(uid(108))['status']=='no_access'
 print(json.dumps(dict(nativeClaims='PASS',connections=12,oneClaimWinner=True,expiredLeaseReclaimed=True,
     staleTokenFenced=True,oneCanonicalCompletion=True,restartReplay=True,changedTextDenied=True,
-    revocationBeforeCompletionCommit=True,hostedWrites=False,exactlyOnceInference=False)))
+    revocationBeforeCompletionCommit=True,completionBeforeRevocationCommit=True,hostedWrites=False,exactlyOnceInference=False)))
