@@ -33,3 +33,16 @@ The fixture must not require any of those targets to exist. A clean canonical ch
 
 ## Still partial
 Felt-Life remains partial until substantially broader state coverage and manuscript-grounded calibration are present. Character/relationship/timeline engines remain partial until they consume durable canonical state rather than regex-only text.
+
+
+## Chapter Two fixture status — source harness ready
+- The executable Chapter Two acceptance harness now exists in `chapterAcceptance.ts`.
+- It binds every diagnostic to exact chapter number + SHA-256 provenance and keeps results advisory.
+- It refuses empty chapter text.
+- A synthetic Chapter Two harness test exists; this is NOT a claim that canonical Chapter Two prose has been consumed or accepted.
+- Real Chapter Two acceptance remains blocked until the canonical chapter source is available to this execution path with an exact source hash.
+
+## Continuity / relationship additions
+- Internal book clock, season, relationship stage, injury/recovery, knowledge state, motif appearance and screen-time accounting are executable.
+- Character boundary/injury continuity and relationship trust progression now flag unearned changes.
+- These checks do not infer missing canon; absent evidence remains absent.
