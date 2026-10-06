@@ -1,4 +1,5 @@
 import '../api/arbor_api_client.dart';
+import 'grove_app_mode.dart';
 
 /// Persisted read-only ARK state. "Running" is not a worker heartbeat.
 class GroveArkHandoff {
@@ -119,11 +120,15 @@ GroveArkHandoff parseGroveArkHandoff(
   );
 }
 
+String groveArkHandoffPath({required bool privateGrove}) =>
+    privateGrove ? '/api/grove/ark/handoff' : '/api/ark/handoff';
+
 class GroveArkHandoffReader {
   const GroveArkHandoffReader(this.api);
   final ArborApiClient api;
   Future<GroveArkHandoff> read(String projectId) async {
-    final response = await api.get('/api/ark/handoff',
+    final response = await api.get(
+        groveArkHandoffPath(privateGrove: groveStandalone),
         queryParameters: {'projectId': projectId});
     return parseGroveArkHandoff(response, projectId: projectId);
   }
