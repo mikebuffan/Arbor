@@ -7,8 +7,8 @@ import { enqueueArkAgencyToolPlan } from "@/lib/ark/agencyBridge";
 import { promptDataBlock } from "@/lib/arbor/promptData";
 import { arkMcpUserContext } from "./context";
 import { assertArkReadTaskSubmission, isArkMcpSubmissionEnabled } from "./taskPermissions";
+import {ArchiveReadInput} from "@/lib/memory/archiveReader";
 import { registerArkPatternHopTool } from "./registerArkPatternHopTool";
-import { ArchiveReadInput } from "@/lib/memory/archiveReader";
 
 export const ArkReadTaskRequest = z.object({
   projectId: z.string().uuid(),
@@ -31,7 +31,7 @@ export function registerArkTaskTools(server: McpServer): void {
     inputSchema: z.object({projectId: z.string().uuid(), taskId: z.string().uuid()}).strict(),
     outputSchema: z.object({projectId: z.string().uuid(), taskId: z.string().uuid(), objectiveId: z.string().uuid(),
       status: z.string(), resultJson: z.string(), resultTruncated: z.boolean(), lastError: z.string().nullable(),
-      attemptCount: z.number(), capturedAt: z.string()}),
+      attemptCount: z.number(), terminal: z.boolean(), completed: z.boolean(), capturedAt: z.string()}),
     annotations: {readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false},
   }, async (raw, ctx) => {
     const input = z.object({projectId: z.string().uuid(), taskId: z.string().uuid()}).strict().parse(raw);
@@ -47,7 +47,7 @@ export function registerArkTaskTools(server: McpServer): void {
     return result({projectId: input.projectId, taskId: data.id, objectiveId: data.objective_id,
       status: data.status, resultJson: encoded.slice(0, 20000), resultTruncated: encoded.length > 20000,
       lastError: typeof data.last_error === "string" ? data.last_error.slice(0, 2000) : null,
-      attemptCount: data.attempt_count, capturedAt: new Date().toISOString()});
+      attemptCount: data.attempt_count, terminal: ["completed","failed","cancelled"].includes(data.status), completed: data.status === "completed", capturedAt: new Date().toISOString()});
   });
 
   registerArkPatternHopTool(server);
