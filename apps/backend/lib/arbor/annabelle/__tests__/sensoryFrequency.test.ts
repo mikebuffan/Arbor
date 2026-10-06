@@ -1,0 +1,2 @@
+import{describe,expect,it}from"vitest";import{compareSensoryFrequency}from"../sensoryFrequency";
+describe("sensory frequency",()=>{it("compares local density to corpus without banning a word",()=>{const r=compareSensoryFrequency([{token:"coffee",chapterCount:5,corpusCount:20,chapterWords:1000,corpusWords:100000}]);expect(r[0].token).toBe("coffee");expect(r[0].ratio).toBeGreaterThan(2);expect(r[0].message).toContain("not a ban");});});
