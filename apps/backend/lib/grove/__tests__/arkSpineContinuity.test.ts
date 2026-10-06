@@ -109,6 +109,7 @@ describe("One Arbor ARK spine continuity composition", () => {
         objectiveId: ids.objectiveId,
         userId: ids.userId,
         projectId: ids.projectId,
+        conversationId: ids.conversationId,
         kind: "arbor.agency-tool",
         status: "checkpointed",
         result: null,
