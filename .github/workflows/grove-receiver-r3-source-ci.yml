@@ -1,0 +1,68 @@
+name: Grove receiver r3 host source checks
+
+# Isolated draft child only. No production branch, hosted provider or deployment.
+'on':
+  pull_request:
+    branches: [arbor/grove-combined-connection-20261006]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: grove-receiver-r3-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  backend-source:
+    if: github.repository == 'mikebuffan/Arbor' && github.head_ref == 'arbor/grove-receiver-r3-alignment-20261006'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      CI: 'true'
+      NEXT_TELEMETRY_DISABLED: '1'
+      AWS_EC2_METADATA_DISABLED: 'true'
+    steps:
+      - name: Block metadata before checkout or SDK bootstrap; fail closed
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Workflow env keys are case-insensitive. Clear both OS spellings at
+          # runtime instead of declaring duplicate YAML environment keys.
+          unset HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy
+          for proxy_var in HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy; do
+            printf '%s=\n' "$proxy_var" >> "$GITHUB_ENV"
+          done
+          for subnet in 169.254.0.0/16 100.100.100.200/32; do
+            sudo -n iptables -w 5 -I OUTPUT 1 -d "$subnet" -j REJECT
+            sudo -n iptables -w 5 -C OUTPUT -d "$subnet" -j REJECT
+          done
+          for subnet in fe80::/10 fc00::/7; do
+            sudo -n ip6tables -w 5 -I OUTPUT 1 -d "$subnet" -j REJECT
+            sudo -n ip6tables -w 5 -C OUTPUT -d "$subnet" -j REJECT
+          done
+          # Inspect installed rules only; never probe any metadata endpoint.
+          printf 'Metadata deny rules installed and verified.\n'
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      - run: corepack enable
+      - run: corepack prepare pnpm@10.30.3 --activate
+      - run: pnpm install --frozen-lockfile
+      - name: Type-check combined backend
+        working-directory: apps/backend
+        run: pnpm exec tsc --noEmit
+      - name: Run complete backend regression suite with fetch-denying fixtures
+        env:
+          OPENAI_API_KEY: synthetic-ci-placeholder-not-a-real-key
+        run: pnpm --filter firefly-backend test
+      - name: Build combined backend without live credentials
+        env:
+          OPENAI_API_KEY: synthetic-ci-placeholder-not-a-real-key
+        run: pnpm --filter firefly-backend build
+      - name: Verify dependency manifests remain unchanged
+        run: git diff --exit-code -- pnpm-lock.yaml pnpm-workspace.yaml
