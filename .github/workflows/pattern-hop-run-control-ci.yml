@@ -1,0 +1,56 @@
+name: Pattern Hop run control acceptance
+
+on:
+  pull_request:
+    branches:
+      - arbor/ark-spine-20261006
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pattern-hop-run-control-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    if: github.repository == 'mikebuffan/Arbor' && github.head_ref == 'arbor/pattern-hop-run-control-20261006'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      CI: 'true'
+      OPENAI_API_KEY: ci-placeholder-not-a-real-key
+      AWS_EC2_METADATA_DISABLED: 'true'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install locked dependencies
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.30.3 --activate
+          pnpm install --frozen-lockfile
+      - name: Focused Pattern Hop control tests
+        working-directory: apps/backend
+        run: >
+          pnpm exec vitest run
+          lib/memory/__tests__/patternHopRunControl.test.ts
+          lib/memory/__tests__/patternHopRunControlRunner.test.ts
+          lib/memory/__tests__/patternHopResearchCheckpoint.test.ts
+          lib/mcp/__tests__/patternHopRunControlBridge.test.ts
+          lib/mcp/__tests__/patternHopBridge.test.ts
+      - name: Full backend regression
+        run: pnpm --filter firefly-backend test
+      - name: Production backend build
+        run: pnpm --filter firefly-backend build
+      - name: Standalone TypeScript
+        working-directory: apps/backend
+        run: pnpm exec tsc --noEmit
