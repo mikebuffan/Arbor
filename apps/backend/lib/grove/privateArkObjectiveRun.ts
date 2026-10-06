@@ -25,6 +25,7 @@ type Selection = {
     objectiveId: string;
     userId: string;
     projectId: string;
+    conversationId: string;
     kind: string;
     status: string;
     result: unknown;
@@ -40,6 +41,7 @@ export type GroveArkRunDeps = {
     userId: string;
     projectId: string;
     objectiveId: string;
+    conversationId: string;
   }) => Promise<Selection>;
   runWorker?: typeof runDefaultArkWorkerCycle;
 };
@@ -117,6 +119,7 @@ async function readSingleTaskSelection(input: {
   userId: string;
   projectId: string;
   objectiveId: string;
+  conversationId: string;
 }): Promise<Selection> {
   const { data: objective, error: objectiveError } = await input.supabase
     .from("ark_objectives")
@@ -141,7 +144,7 @@ async function readSingleTaskSelection(input: {
   const { data: tasks, error: taskError } = await input.supabase
     .from("ark_tasks")
     .select(
-      "id,objective_id,user_id,project_id,kind,status,result,last_error,attempt_count",
+      "id,objective_id,user_id,project_id,kind,status,payload,result,last_error,attempt_count",
     )
     .eq("objective_id", input.objectiveId)
     .eq("user_id", input.userId)
@@ -157,6 +160,10 @@ async function readSingleTaskSelection(input: {
   }
 
   const task = tasks[0];
+  const payload = task?.payload && typeof task.payload === "object" &&
+    !Array.isArray(task.payload)
+    ? task.payload as Record<string, unknown>
+    : null;
   if (
     !task ||
     typeof task.id !== "string" ||
@@ -164,7 +171,8 @@ async function readSingleTaskSelection(input: {
     task.user_id !== input.userId ||
     task.project_id !== input.projectId ||
     task.kind !== "arbor.agency-tool" ||
-    typeof task.status !== "string"
+    typeof task.status !== "string" ||
+    payload?.conversationId !== input.conversationId
   ) {
     throw new RouteAccessError(409, "grove_ark_task_not_supported");
   }
@@ -182,6 +190,7 @@ async function readSingleTaskSelection(input: {
       objectiveId: task.objective_id,
       userId: task.user_id,
       projectId: task.project_id,
+      conversationId: payload.conversationId as string,
       kind: task.kind,
       status: task.status,
       result: task.result ?? null,
@@ -260,6 +269,7 @@ export async function runPrivateGroveArkObjective(input: {
     userId: bound.fireflyUserId,
     projectId: input.projectId,
     objectiveId: input.objectiveId,
+    conversationId: input.conversationId,
   };
 
   let selected = await readSelection(scope);
