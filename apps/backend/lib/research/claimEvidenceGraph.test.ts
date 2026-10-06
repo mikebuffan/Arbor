@@ -1,0 +1,3 @@
+import{describe,expect,it}from"vitest";import{summarizeClaimEvidence}from"./claimEvidenceGraph";
+describe("claim evidence graph",()=>{it("keeps counterevidence and family provenance visible",()=>{const [r]=summarizeClaimEvidence([
+{claimId:"c",evidenceRef:"e1",direction:"supports",sourceFamilyId:"f1"},{claimId:"c",evidenceRef:"e2",direction:"contradicts",sourceFamilyId:"f2"},{claimId:"c",evidenceRef:"e3",direction:"contextualizes",sourceFamilyId:"f1"}]);expect(r.counterRefs).toEqual(["e2"]);expect(r.supportFamilies).toEqual(["f1"]);expect(r.status).toBe("graph_not_verdict");});});
