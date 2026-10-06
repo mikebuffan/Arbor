@@ -6,7 +6,7 @@ describe("delegated continuation", () => {
   it("resumes checkpointed delegated work before returning a user-visible turn", async () => {
     const tools = new AgencyToolRegistry();
     tools.register({
-      name:"state_inspect", description:"inspect", parameters:{type:"object",properties:{}}, risk:"read",
+      name:"state_inspect", description:"inspect", parameters:{type:"object",properties:{},additionalProperties:false}, risk:"read",
       execute: vi.fn(),
     } as never);
     let createCount=0;
