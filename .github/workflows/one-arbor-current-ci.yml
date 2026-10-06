@@ -1,4 +1,4 @@
-name: One Arbor current integrated source acceptance
+name: One Arbor current integrated source acceptance v2
 
 on:
   pull_request:
