@@ -11,6 +11,7 @@ export const EXPECTED = Object.freeze({
   maxNewTokens: 170,
   minimumReviewedPromptTokens: 4020,
   maximumProposedPromptTokens: 8192,
+  supportedInstructionSets: Object.freeze(["sse2", "sse42", "avx", "avx2"]),
 });
 
 const sha40 = /^[a-f0-9]{40}$/;
@@ -32,6 +33,7 @@ export function verifyPrivateRuntimeManifest(input) {
   const adapter = input.adapter;
   const receiver = input.receiver;
   const context = input.context;
+  const cpu = input.cpu;
 
   if (!foundation || typeof foundation !== "object" ||
       foundation.name !== EXPECTED.foundationName ||
@@ -57,6 +59,10 @@ export function verifyPrivateRuntimeManifest(input) {
       !sha64.test(exactString(receiver.archiveSha256, "receiver_archive_sha_invalid")))
     throw Error("private_runtime_receiver_archive_sha_invalid");
 
+  if (!cpu || typeof cpu !== "object" ||
+      !EXPECTED.supportedInstructionSets.includes(cpu.minimumInstructionSet))
+    throw Error("private_runtime_cpu_requirement_invalid");
+
   if (!context || typeof context !== "object" ||
       !Number.isSafeInteger(context.maxInputTokens) ||
       !Number.isSafeInteger(context.maxNewTokens) ||
@@ -80,6 +86,7 @@ export function verifyPrivateRuntimeManifest(input) {
     behaviorContractVersion: receiver.behaviorContractVersion,
     maxInputTokens: context.maxInputTokens,
     maxNewTokens: context.maxNewTokens,
+    minimumInstructionSet: cpu.minimumInstructionSet,
     realWeightsLoaded: false,
     tokenizerExecutionVerified: false,
     inferenceVerified: false,
