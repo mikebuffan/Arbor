@@ -51,14 +51,15 @@ export async function claimAgencyOperation(input: {
 
   const { data, error: readError } = await input.supabase
     .from("arbor_agency_idempotency")
-    .select("result")
+    .select("operation,result")
     .eq("user_id", input.userId)
     .eq("project_id", input.projectId)
     .eq("idempotency_key", input.key)
     .maybeSingle();
 
   if (readError) throw readError;
-  return { acquired: false, result: data?.result ?? null };
+  if (!data || data.operation !== input.operation) throw new Error("agency_idempotency_operation_mismatch");
+  return { acquired: false, result: data.result ?? null };
 }
 
 export async function completeAgencyOperation(input: {
@@ -68,11 +69,12 @@ export async function completeAgencyOperation(input: {
   key: string;
   result: unknown;
 }): Promise<void> {
-  const { error } = await input.supabase
+  const { data, error } = await input.supabase
     .from("arbor_agency_idempotency")
     .update({ result: input.result })
     .eq("user_id", input.userId)
     .eq("project_id", input.projectId)
-    .eq("idempotency_key", input.key);
+    .eq("idempotency_key", input.key).eq("operation", input.operation).is("result", null).select("id");
   if (error) throw error;
+  if (data?.length !== 1) throw new Error("agency_idempotency_completion_conflict");
 }
