@@ -8,12 +8,16 @@ import { promptDataBlock } from "@/lib/arbor/promptData";
 import { arkMcpUserContext } from "./context";
 import { assertArkReadTaskSubmission, isArkMcpSubmissionEnabled } from "./taskPermissions";
 import { registerArkPatternHopTool } from "./registerArkPatternHopTool";
+import { ArchiveReadInput } from "@/lib/memory/archiveReader";
 
 export const ArkReadTaskRequest = z.object({
   projectId: z.string().uuid(),
   requestId: z.string().uuid().describe("Reuse this same ID on retries; changed input with the same ID is rejected."),
-  capability: z.enum(["arbor_read_runtime_state", "annabelle_read_workspace"]),
-}).strict();
+  capability: z.enum(["arbor_read_runtime_state", "annabelle_read_workspace","arbor_read_historical_archive_page"]),
+  archiveRead:ArchiveReadInput.optional(),
+}).strict().superRefine((value,ctx)=>{
+  if(value.archiveRead&&value.capability!=="arbor_read_historical_archive_page")ctx.addIssue({code:"custom",message:"archiveRead requires the archive reader capability"});
+});
 
 function result(value: Record<string, unknown>) {
   return {content: [{type: "text" as const, text: promptDataBlock("ARK TASK RECEIPT", value)}], structuredContent: value};
@@ -50,7 +54,7 @@ export function registerArkTaskTools(server: McpServer): void {
   if (!isArkMcpSubmissionEnabled()) return;
   server.registerTool("submit_ark_read_task", {
     title: "Submit a Bounded ARK Read Task",
-    description: "Queue one existing runtime-state or Annabelle-workspace read in ARK when the user requests it. Writes durable queue state and returns a task ID; submission is not execution or completion. Requires an explicit server-side client/project grant. Reuse requestId on retries. Cannot submit arbitrary code, research, manuscript edits, deployments or other capabilities.",
+    description: "Queue one existing runtime-state, Annabelle-workspace or chronological archive-page read in ARK when the user requests it. Writes durable queue state and returns a task ID; submission is not execution or completion. Requires an explicit server-side client/project grant. Reuse requestId on retries. Cannot submit arbitrary code, research, manuscript edits, deployments or other capabilities.",
     inputSchema: ArkReadTaskRequest,
     outputSchema: z.object({projectId: z.string().uuid(), requestId: z.string().uuid(), objectiveId: z.string().uuid(),
       taskId: z.string().uuid(), status: z.string(), submitted: z.literal(true), completed: z.boolean()}),
@@ -68,7 +72,7 @@ export function registerArkTaskTools(server: McpServer): void {
       goal: `Read existing state through ${input.capability}`,
       planId: `mcp-read:${input.requestId}`,
       steps: [{id: "read-1", description: `Read through ${input.capability}`, capability: input.capability,
-        arguments: {}, maxAttempts: 1}],
+        arguments: input.capability==="arbor_read_historical_archive_page"?input.archiveRead??{}:{}, maxAttempts: 1}],
       budget: {maxTasksPerCycle: 1, maxRuntimeMs: 20000, maxAttemptsPerTask: 1},
     });
     if (objective.userId !== userId || objective.projectId !== input.projectId)

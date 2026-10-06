@@ -4,6 +4,36 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+val groveApplicationId = System.getenv("GROVE_ANDROID_APPLICATION_ID")?.trim().orEmpty()
+val groveKeystorePath = System.getenv("GROVE_ANDROID_KEYSTORE_PATH")?.trim().orEmpty()
+val groveKeystorePassword = System.getenv("GROVE_ANDROID_KEYSTORE_PASSWORD")?.trim().orEmpty()
+val groveKeyAlias = System.getenv("GROVE_ANDROID_KEY_ALIAS")?.trim().orEmpty()
+val groveKeyPassword = System.getenv("GROVE_ANDROID_KEY_PASSWORD")?.trim().orEmpty()
+val groveSigningReady = listOf(
+    groveKeystorePath,
+    groveKeystorePassword,
+    groveKeyAlias,
+    groveKeyPassword,
+).all { it.isNotEmpty() }
+val groveReleaseRequested = gradle.startParameter.taskNames.any {
+    it.contains("grove", ignoreCase = true) &&
+        it.contains("release", ignoreCase = true)
+}
+
+if (groveReleaseRequested && groveApplicationId.isEmpty()) {
+    throw GradleException(
+        "Grove release application ID is not configured. " +
+            "Set GROVE_ANDROID_APPLICATION_ID to the owner-approved package ID."
+    )
+}
+if (groveReleaseRequested && !groveSigningReady) {
+    throw GradleException(
+        "Grove release signing is not configured. " +
+            "Set GROVE_ANDROID_KEYSTORE_PATH, GROVE_ANDROID_KEYSTORE_PASSWORD, " +
+            "GROVE_ANDROID_KEY_ALIAS, and GROVE_ANDROID_KEY_PASSWORD."
+    )
+}
+
 android {
     namespace = "com.example.arbor"
     compileSdk = flutter.compileSdkVersion
@@ -29,11 +59,45 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        if (groveSigningReady) {
+            create("groveRelease") {
+                storeFile = file(groveKeystorePath)
+                storePassword = groveKeystorePassword
+                keyAlias = groveKeyAlias
+                keyPassword = groveKeyPassword
+            }
+        }
+    }
+
+    // Two independently installable apps from one Flutter codebase.
+    // "arbor" keeps the existing package; "grove" gets its own launcher.
+    flavorDimensions += "experience"
+    productFlavors {
+        create("arbor") {
+            dimension = "experience"
+        }
+        create("grove") {
+            dimension = "experience"
+            if (groveApplicationId.isNotEmpty()) {
+                applicationId = groveApplicationId
+            } else {
+                // Debug/test builds keep an independent install ID. A real
+                // release is blocked above until an owner-approved ID exists.
+                applicationIdSuffix = ".grove"
+            }
+            versionNameSuffix = "-grove"
+            if (groveSigningReady) {
+                signingConfig = signingConfigs.getByName("groveRelease")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // Never ship a release APK under the Android debug identity.
+            // Grove release tasks fail above unless the private signing
+            // credential set is present. Debug builds remain available for CI.
         }
     }
 }
