@@ -22,4 +22,13 @@ describe("Annabelle editorial diagnostics", () => {
     const out=runAnnabelleEditorialDiagnostics(`${p}\n\nSomething else happened.\n\n${p}`);
     expect(out.some(x=>x.engine==="duplicate-assembly")).toBe(true);
   });
+  it("flags explanatory echo after evidence", () => {
+    const text="Her hand locked around the glass and her shoulders went rigid. She realized her shoulders were rigid because the threat had frightened her.";
+    expect(runAnnabelleEditorialDiagnostics(text).some(x=>x.engine==="explanation-redundancy")).toBe(true);
+  });
+  it("flags fragment saturation without banning fragments", () => {
+    const text=Array.from({length:30},(_,i)=>i%2===0?"Too late.":"She crossed the room and put the folder on the table before anyone could stop her.").join(" ");
+    expect(runAnnabelleEditorialDiagnostics(text).some(x=>x.engine==="rhythm")).toBe(true);
+  });
+
 });
