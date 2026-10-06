@@ -24,7 +24,7 @@ describe("agency continuation regression", () => {
     },
   );
   it.each(["okay","ok","k","yes","yep","go"])("does not close or replace a blocked unfinished objective for acknowledgment %s",(text)=>{
-    const blocked={...active,status:"blocked" as const,blocker:"provider gate"};
+    const blocked: AgencyState={...active,status:"blocked",blocker:"external_authority"};
     expect(resolveAgencyGoal(text,blocked)).toEqual({goal:active.goal,resume:true,superseded:false});
   });
 });
