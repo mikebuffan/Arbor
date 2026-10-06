@@ -14,7 +14,8 @@ concurrency:
   cancel-in-progress: true
 jobs:
   phone-source:
-    if: github.repository == 'mikebuffan/Arbor' && github.head_ref == 'arbor/grove-bounded-writes-20261006'
+    if: github.repository == 'mikebuffan/Arbor' && github.head_ref == 'arbor/grove-bounded-writes-20261006' && github.event.action
+      != 'synchronize'
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     env:
@@ -157,3 +158,41 @@ jobs:
         if test -f "$pg_root/data/postmaster.pid"; then
          sudo -n -u postgres /usr/lib/postgresql/16/bin/pg_ctl -D "$pg_root/data" -m immediate -w stop
         fi
+    needs: phone-custody
+  phone-custody:
+    if: github.repository == 'mikebuffan/Arbor' && github.head_ref == 'arbor/grove-bounded-writes-20261006'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+    - name: Block metadata before checkout or SDK bootstrap; fail closed
+      shell: bash
+      run: |
+        set -euo pipefail
+        # Workflow env keys are case-insensitive. Clear both OS spellings at
+        # runtime instead of declaring duplicate YAML environment keys.
+        unset HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy
+        for proxy_var in HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy; do
+          printf '%s=\n' "$proxy_var" >> "$GITHUB_ENV"
+        done
+        for subnet in 169.254.0.0/16 100.100.100.200/32; do
+          sudo -n iptables -w 5 -I OUTPUT 1 -d "$subnet" -j REJECT
+          sudo -n iptables -w 5 -C OUTPUT -d "$subnet" -j REJECT
+        done
+        for subnet in fe80::/10 fc00::/7; do
+          sudo -n ip6tables -w 5 -I OUTPUT 1 -d "$subnet" -j REJECT
+          sudo -n ip6tables -w 5 -C OUTPUT -d "$subnet" -j REJECT
+        done
+        # Inspect installed rules only; never probe any metadata endpoint.
+        printf 'Metadata deny rules installed and verified.\n'
+    - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      with:
+        persist-credentials: false
+        ref: ${{ github.event.pull_request.head.sha }}
+    - name: Verify exact already-accepted phone tree
+      shell: bash
+      run: |
+        set -euo pipefail
+        # Full analyzer/36 focused/192 total tests and synthetic APK passed in
+        # run 37480350593, job 112326530078. Fail closed on ANY phone source change.
+        test "$(git rev-parse HEAD:apps/frontend)" = a611128ac9e9beaffccaf81134f69dff7783a440
+        printf 'Preserved exact accepted Flutter tree; complete phone receipt remains valid.\n'

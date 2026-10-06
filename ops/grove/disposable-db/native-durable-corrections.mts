@@ -21,9 +21,12 @@ function literal(key:string,value:unknown){
 }
 async function sql(query:string):Promise<any[]> {
   return await new Promise((resolve,reject)=>{
-    const child=spawn("psql",["-XAt","-v","ON_ERROR_STOP=1","-v","VERBOSITY=verbose","-c",query],{env});
+    const child=spawn("psql",["-XAtq","-v","ON_ERROR_STOP=1","-v","VERBOSITY=verbose","-c",query],{env});
     let out="",err="";child.stdout.on("data",v=>out+=v);child.stderr.on("data",v=>err+=v);
-    child.on("error",reject);child.on("close",code=>code===0?resolve(out.trim()?JSON.parse(out.trim()):[]):reject(Object.assign(new Error("disposable_sql_failed"),{code:err.match(/ERROR:\s+([0-9A-Z]{5}):/)?.[1]})));
+    child.on("error",reject);child.on("close",code=>{
+      if(code!==0){reject(Object.assign(new Error("disposable_sql_failed"),{code:err.match(/ERROR:\s+([0-9A-Z]{5}):/)?.[1]}));return;}
+      try{resolve(out.trim()?JSON.parse(out.trim()):[]);}catch(error){reject(error);}
+    });
   });
 }
 await sql(`CREATE TABLE public.memory_items (
