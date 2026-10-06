@@ -1,3 +1,6 @@
+import { explainNextHop, type NextHopExplanation } from "./investigationGraph";
+import { validateReviewPacket, reviewPacketStats, type ReviewPacket } from "./reviewWorkbench";
+
 export type ResearchPatternHopCandidate={
   candidateId:string;
   objective:string;
@@ -44,5 +47,51 @@ export function preparePatternHopCandidate(input:{
     persistenceTarget:"arbor_pattern_hop_runs",
     executionRequested:false,
     status:"prepared_not_submitted",
+  };
+}
+
+/** Bind an existing review packet to the existing prepared hop. This adapter
+ * cannot turn a document lead into a historical-memory search or execution. */
+export function preparePatternHopFromReviewPacket(input: {
+  packet: ReviewPacket;
+  directive: NextHopExplanation;
+  candidateId: string;
+  objective: string;
+  maxDepth: number;
+  maxHopsPerAttempt: number;
+}) {
+  const packet = validateReviewPacket(input.packet);
+  const directive = explainNextHop(input.directive);
+  const knownRefs = new Set([
+    ...packet.source.sourceRefs,
+    ...packet.contradictions.flatMap(item => item.evidenceRefs),
+    ...packet.identityCandidates.flatMap(item => item.basisMentionIds),
+  ]);
+  if (directive.triggerEvidenceRefs.some(ref => !knownRefs.has(ref)))
+    throw new Error("pattern_bridge_trigger_outside_review_packet");
+  const candidate = preparePatternHopCandidate({
+    candidateId: input.candidateId,
+    anomalyRef: directive.directiveId,
+    objective: input.objective,
+    requestedQuery: directive.targetQuery,
+    triggerEvidenceRefs: directive.triggerEvidenceRefs,
+    maxDepth: input.maxDepth,
+    maxHopsPerAttempt: input.maxHopsPerAttempt,
+  });
+  const stats = reviewPacketStats(packet);
+  return {
+    ...candidate,
+    provenance: { packetId: packet.packetId, ...packet.source },
+    reason: directive.reason,
+    stoppingCondition: directive.stoppingCondition,
+    reviewRequirements: {
+      unresolvedIdentities: stats.unresolvedIdentities,
+      contradictions: stats.contradictions,
+      privacyFlags: stats.privacyFlags,
+      originalPageReviewRequired: true as const,
+    },
+    executionRoute: "document_research_adapter_required" as const,
+    canSubmitToHistoricalMemoryTool: false as const,
+    independentCorroborationVerified: false as const,
   };
 }
