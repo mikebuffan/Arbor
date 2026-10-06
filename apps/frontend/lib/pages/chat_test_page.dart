@@ -6,8 +6,6 @@ import 'package:frontend/api/arbor_api.dart';
 import 'package:frontend/api/arbor_session.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../environment/grove_app_mode.dart';
-
 class ArborHeader extends StatelessWidget {
   const ArborHeader({
     super.key,
@@ -32,7 +30,7 @@ class ArborHeader extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          groveStandalone ? 'ARBOR · THE GROVE' : 'ARBOR',
+          'ARBOR',
           style: t.headlineMedium?.copyWith(
             fontWeight: FontWeight.w500,
             letterSpacing: 2.0,
@@ -40,9 +38,7 @@ class ArborHeader extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         Text(
-          groveStandalone
-              ? 'Private Grove Talk · existing Firefly sign-in, not public Arbor App'
-              : 'a reflective companion',
+          'a reflective companion',
           style: t.bodySmall?.copyWith(
             color: Colors.white70,
             letterSpacing: 0.3,
@@ -76,7 +72,7 @@ class ArborHeader extends StatelessWidget {
             ],
           ],
         ),
-        if (!groveStandalone && isAuthed && (userId?.isNotEmpty ?? false)) ...[
+        if (isAuthed && (userId?.isNotEmpty ?? false)) ...[
           const SizedBox(height: 8),
           Text(
             'userId: $userId, projectId: $projectId, conversationId: $conversationId',
@@ -440,9 +436,7 @@ class _ChatTestPageState extends State<ChatTestPage> {
     final authed = _isAuthed;
 
     return Scaffold(
-      backgroundColor: groveStandalone
-          ? const Color(0xFF0A1819)
-          : const Color(0xFF0E0316),
+      backgroundColor: const Color(0xFF0E0316),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16),
