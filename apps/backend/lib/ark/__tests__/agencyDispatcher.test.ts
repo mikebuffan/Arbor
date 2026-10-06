@@ -166,4 +166,16 @@ describe("ARK agency dispatcher", () => {
     expect(result).toMatchObject({ status: "completed", output: { done: true }, attempts: 2 });
   });
 
+  it("does not spin a second worker cycle while the same task is still running", async () => {
+    const { supabase } = client({ status: "running", result: null, attempt_count: 1 });
+    const result = await dispatchAgencyToolThroughArk({
+      arkSupabase: supabase, toolSupabase: {} as never,
+      userId: "user-1", projectId: "project-1", turnId: "turn-1",
+      goal: "finish the work", planId: "plan-1", actionId: "step-1",
+      capability: "state.inspect", arguments: {},
+    });
+    expect(mocks.run).toHaveBeenCalledTimes(1);
+    expect(result).toMatchObject({ status: "checkpointed", taskStatus: "running" });
+  });
+
 });
