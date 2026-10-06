@@ -124,7 +124,7 @@ describe("bounded durable research-session policy", () => {
     };
     const store: ResearchStore = {
       loadSession:vi.fn(async()=>session),claimOne:vi.fn(async()=>claim),
-      settle:vi.fn(async()=>"committed"),stop:vi.fn(async()=>{}),
+      settle:vi.fn(async()=>"committed" as const),stop:vi.fn(async()=>{}),
     };
     const executor=vi.fn(async()=>receipt);
     const result=await runResearchSessionTick({sessionId:session.id,at,store,executor});
