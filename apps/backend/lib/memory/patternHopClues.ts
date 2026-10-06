@@ -47,6 +47,14 @@ export function patternHopBranchClue(
       return base + " called named term renamed earlier wording";
     case "contradictions":
       return base + " wrong correction contradiction not true superseded";
+    case "primary_sources":
+      return base + " original primary source filing transcript exhibit record deed log metadata";
+    case "source_lineage":
+      return base + " source lineage copied from syndication wire original underlying provenance";
+    case "falsification":
+      return base + " disconfirm falsify alternative explanation inconsistent impossible expected missing";
+    case "relationships":
+      return base + " connected relationship employer address property lawyer company transaction date";
     case "neighboring_concepts":
       return terms.slice(0, 8).join(" ") || base;
     default:
