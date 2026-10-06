@@ -12,7 +12,7 @@ import {
   type PatternHopLease,
 } from "@/lib/memory/patternHopRunControl";
 
-export const DEFAULT_PATTERN_HOP_BRANCHES = ["direct_matches","neighboring_concepts","people_entities","terminology_changes","causal_predecessors","consequences","retrospective_references","chronology_anchors","implementation_architecture","behavioral_results","contradictions"] as const;
+export const DEFAULT_PATTERN_HOP_BRANCHES = ["direct_matches","neighboring_concepts","people_entities","terminology_changes","causal_predecessors","consequences","retrospective_references","chronology_anchors","implementation_architecture","behavioral_results","contradictions","primary_sources","source_lineage","falsification","relationships"] as const;
 
 function toEvidence(row: Awaited<ReturnType<typeof searchHistoricalHopEvidence>>[number], branch: string): PatternHopEvidence {
   const classification = classifyHistoricalEvidence(row.role, branch.includes("retrospective_references"), row.content);
