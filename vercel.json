@@ -4,5 +4,6 @@
       "path": "/api/admin/system/heartbeat",
       "schedule": "*/10 * * * *"
     }
-  ]
+  ],
+  "ignoreCommand": "if [ \"$VERCEL_GIT_COMMIT_REF\" = \"fix/buffalo-grove-private-host-20261006\" ]; then exit 0; else exit 1; fi"
 }

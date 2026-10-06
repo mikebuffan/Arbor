@@ -1,0 +1,218 @@
+-- PROPOSAL ONLY: private Grove project, never public Firefly or ARK Preview.
+-- Requires explicit owner approval of retention/cascade and existing approved
+-- owner/bridge/project-grant tables BEFORE live application.
+-- No live migrations, no scheduler, no model calls.
+BEGIN;
+
+CREATE TABLE IF NOT EXISTS public.grove_private_turn_claims (
+  grove_user_id uuid NOT NULL,
+  firefly_project_id uuid NOT NULL,
+  firefly_conversation_id uuid NOT NULL,
+  request_id uuid NOT NULL,
+  user_text_sha256 text NOT NULL
+    CONSTRAINT grove_private_claim_hash CHECK (user_text_sha256 ~ '^[a-f0-9]{64}$'),
+  lease_token uuid NOT NULL DEFAULT gen_random_uuid(),
+  claimed_at timestamptz NOT NULL DEFAULT now(),
+  lease_expires_at timestamptz NOT NULL,
+  CONSTRAINT grove_private_claim_time CHECK (lease_expires_at > claimed_at),
+  CONSTRAINT grove_private_turn_claims_pkey PRIMARY KEY (
+    grove_user_id,firefly_project_id,firefly_conversation_id,request_id
+  ),
+  CONSTRAINT grove_private_claim_grant_fk FOREIGN KEY (
+    grove_user_id,firefly_project_id
+  ) REFERENCES public.grove_private_ark_project_grants (
+    grove_user_id,firefly_project_id
+  ) ON DELETE CASCADE
+);
+ALTER TABLE public.grove_private_turn_claims ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.grove_private_turn_claims
+  FROM PUBLIC, anon, authenticated, service_role;
+
+-- Only the SERVER service-role may call this atomic PostgreSQL transaction.
+-- Browser credentials cannot claim, view or enumerate pending private turns.
+-- Each request must independently pass Grove JWT+invitation+bridge, Firefly
+-- conversation ownership and project grant in the TypeScript broker first.
+CREATE OR REPLACE FUNCTION public.grove_private_claim_turn(
+  p_grove_user_id uuid,
+  p_project_id uuid,
+  p_conversation_id uuid,
+  p_request_id uuid,
+  p_user_text_sha256 text
+) RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $grove_claim$
+DECLARE
+  v_token uuid := gen_random_uuid();
+  v_claimed uuid;
+  v_existing_hash text;
+BEGIN
+  IF p_user_text_sha256 IS NULL OR
+      p_user_text_sha256 !~ '^[a-f0-9]{64}$' THEN
+    RETURN jsonb_build_object('status','invalid_hash');
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM public.grove_private_owner_access o
+      JOIN public.grove_private_firefly_bridge b
+        ON b.grove_user_id = o.user_id
+      JOIN public.grove_private_ark_project_grants g
+        ON g.grove_user_id = b.grove_user_id
+    WHERE o.user_id = p_grove_user_id AND o.revoked_at IS NULL
+      AND b.revoked_at IS NULL AND g.revoked_at IS NULL
+      AND g.firefly_project_id = p_project_id
+  ) THEN
+    RETURN jsonb_build_object('status','no_access');
+  END IF;
+
+  -- A completed canonical reply must not be acquired again after the lease
+  -- expires. An existing answer always goes through the host's scoped
+  -- getCompleted + user-text check; this function never returns its contents.
+  IF EXISTS (
+    SELECT 1 FROM public.grove_private_turns t
+    WHERE t.grove_user_id=p_grove_user_id
+      AND t.firefly_project_id=p_project_id
+      AND t.firefly_conversation_id=p_conversation_id
+      AND t.request_id=p_request_id
+  ) THEN
+    RETURN jsonb_build_object('status','completed');
+  END IF;
+
+  -- Unique-key conflict locking serializes claims across ALL serverless
+  -- workers. An active identical claim never renews its own lease.
+  -- A prior expired lease can be reclaimed for the SAME original text only.
+  -- A reclaimed worker must pass its NEW token through fenced completion.
+  INSERT INTO public.grove_private_turn_claims (
+    grove_user_id,firefly_project_id,firefly_conversation_id,
+    request_id,user_text_sha256,lease_token,
+    claimed_at,lease_expires_at
+  ) VALUES (
+    p_grove_user_id,p_project_id,p_conversation_id,p_request_id,
+    p_user_text_sha256,v_token,clock_timestamp(),
+    clock_timestamp()+interval '240 seconds'
+  )
+  ON CONFLICT (
+    grove_user_id,firefly_project_id,firefly_conversation_id,request_id
+  ) DO UPDATE SET
+    lease_token=EXCLUDED.lease_token,
+    claimed_at=EXCLUDED.claimed_at,
+    lease_expires_at=EXCLUDED.lease_expires_at
+  WHERE public.grove_private_turn_claims.user_text_sha256 =
+        EXCLUDED.user_text_sha256
+    AND public.grove_private_turn_claims.lease_expires_at <
+        clock_timestamp()
+  RETURNING lease_token INTO v_claimed;
+
+  IF v_claimed IS NOT NULL THEN
+    RETURN jsonb_build_object('status','claimed','leaseToken',v_claimed);
+  END IF;
+  SELECT user_text_sha256 INTO v_existing_hash
+    FROM public.grove_private_turn_claims
+    WHERE grove_user_id=p_grove_user_id
+      AND firefly_project_id=p_project_id
+      AND firefly_conversation_id=p_conversation_id
+      AND request_id=p_request_id;
+
+  IF v_existing_hash IS NOT NULL AND
+      v_existing_hash <> p_user_text_sha256 THEN
+    RETURN jsonb_build_object('status','conflict');
+  END IF;
+  RETURN jsonb_build_object('status','in_progress');
+END;
+$grove_claim$;
+
+REVOKE ALL ON FUNCTION public.grove_private_claim_turn(
+  uuid,uuid,uuid,uuid,text) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.grove_private_claim_turn(
+  uuid,uuid,uuid,uuid,text) TO service_role;
+
+-- Atomic **fenced** transcript completion. A worker that has lost/replaced
+-- its claim token cannot save an old model reply. Service-role direct INSERT
+-- into transcript is deliberately revoked in the separate draft migration.
+-- Return codes are not work receipts; only the completed scoped row is a
+-- persisted UNVERIFIED model-text receipt.
+CREATE OR REPLACE FUNCTION public.grove_private_complete_turn(
+  p_grove_user_id uuid,
+  p_project_id uuid,
+  p_conversation_id uuid,
+  p_request_id uuid,
+  p_lease_token uuid,
+  p_user_text text,
+  p_assistant_text text,
+  p_reply_verification text,
+  p_ark_connected boolean,
+  p_continuity_fetched boolean
+) RETURNS text
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $grove_complete$
+DECLARE
+  v_claim public.grove_private_turn_claims%ROWTYPE;
+  v_existing public.grove_private_turns%ROWTYPE;
+BEGIN
+  IF p_user_text IS NULL OR length(btrim(p_user_text)) NOT BETWEEN 1 AND 3000
+    OR p_assistant_text IS NULL OR
+      length(btrim(p_assistant_text)) NOT BETWEEN 1 AND 20000
+    OR p_reply_verification IS NULL OR p_reply_verification NOT IN
+      ('unverified_model_text','known_action_claim_filtered')
+    OR p_ark_connected IS NULL OR p_continuity_fetched IS NULL
+    OR p_lease_token IS NULL THEN
+    RETURN 'invalid';
+  END IF;
+  -- Lock this request across independent serverless workers. Claim renewal/
+  -- reclaim waits here until the winning completion commits.
+  SELECT * INTO v_claim FROM public.grove_private_turn_claims
+  WHERE grove_user_id=p_grove_user_id AND firefly_project_id=p_project_id
+    AND firefly_conversation_id=p_conversation_id
+    AND request_id=p_request_id FOR UPDATE;
+  IF NOT FOUND OR v_claim.lease_token <> p_lease_token
+    OR v_claim.user_text_sha256 <>
+       encode(sha256(convert_to(p_user_text,'UTF8')),'hex') THEN
+    RETURN 'stale';
+  END IF;
+  -- Hold row-share locks on all revocable access records until completion.
+  -- A revoked owner, changed bridge or expired project grant cannot persist.
+  PERFORM 1 FROM public.grove_private_owner_access o
+    JOIN public.grove_private_firefly_bridge b ON b.grove_user_id=o.user_id
+    JOIN public.grove_private_ark_project_grants g ON g.grove_user_id=b.grove_user_id
+  WHERE o.user_id=p_grove_user_id AND o.revoked_at IS NULL
+    AND b.revoked_at IS NULL AND g.revoked_at IS NULL
+    AND g.firefly_project_id=p_project_id
+  FOR SHARE OF o,b,g;
+  IF NOT FOUND THEN RETURN 'no_access'; END IF;
+  SELECT * INTO v_existing FROM public.grove_private_turns
+    WHERE grove_user_id=p_grove_user_id AND firefly_project_id=p_project_id
+      AND firefly_conversation_id=p_conversation_id AND request_id=p_request_id;
+  IF FOUND THEN
+    IF v_existing.user_text <> p_user_text THEN RETURN 'conflict'; END IF;
+    RETURN 'replayed';
+  END IF;
+  INSERT INTO public.grove_private_turns(
+    grove_user_id,firefly_project_id,firefly_conversation_id,request_id,
+    user_text,assistant_text,reply_verification,ark_connected,continuity_fetched
+  ) VALUES (
+    p_grove_user_id,p_project_id,p_conversation_id,p_request_id,
+    p_user_text,p_assistant_text,p_reply_verification,
+    p_ark_connected,p_continuity_fetched
+  );
+  RETURN 'created';
+END;
+$grove_complete$;
+
+REVOKE ALL ON FUNCTION public.grove_private_complete_turn(
+  uuid,uuid,uuid,uuid,uuid,text,text,text,boolean,boolean
+) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.grove_private_complete_turn(
+  uuid,uuid,uuid,uuid,uuid,text,text,text,boolean,boolean
+) TO service_role;
+COMMENT ON FUNCTION public.grove_private_complete_turn(
+  uuid,uuid,uuid,uuid,uuid,text,text,text,boolean,boolean
+) IS 'Server-only fenced private model transcript completion. Never creates ARK work receipts.';
+
+COMMENT ON TABLE public.grove_private_turn_claims IS
+  'PROPOSED Grove-only model-call lease. Hash-only pending text; no executed work receipt. Owner retention and grant-revocation cascade review required.';
+COMMENT ON FUNCTION public.grove_private_claim_turn(
+  uuid,uuid,uuid,uuid,text) IS
+  'Server-only atomic claim, 240s after which a retry MAY duplicate an already-running inference. Not exactly-once inference.';
+COMMIT;
