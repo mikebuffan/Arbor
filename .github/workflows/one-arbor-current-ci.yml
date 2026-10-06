@@ -65,6 +65,12 @@ jobs:
           lib/grove/__tests__/privateArkObjectiveRunRoute.test.ts
           lib/grove/__tests__/privateRuntimeTurnCapture.test.ts
           lib/grove/__tests__/privateConversationLoop.test.ts
+      - name: Install local PDF parser dependency
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils
+          pdfinfo -v
+          pdftotext -v
       - name: Complete backend regression suite
         run: pnpm --filter firefly-backend test
       - name: Production backend build
