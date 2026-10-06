@@ -81,7 +81,7 @@ import {
 import {
   retainStrategy,
 } from "@/lib/arbor/agency/strategyRetention";
-import { agencyContinuationDisposition } from "@/lib/arbor/agency/continuationContract";
+import { agencyContinuationDisposition, internalCheckpointResponse } from "@/lib/arbor/agency/continuationContract";
 import { buildTelemetry } from "@/lib/arbor/telemetry/buildTelemetry";
 import { getOrCreateOpenEpisode } from "@/lib/arbor/episodes/getOrCreateOpenEpisode";
 import { scheduleChatPostResponseWork } from "@/lib/chat/postResponseScheduler";
@@ -782,13 +782,10 @@ export async function POST(req: Request) {
         agency: agencyState, corrections: runtimeCorrections, behaviorProof, pendingSelfUpdate,
         now: new Date().toISOString(),
       });
-      return NextResponse.json({
-        ok: true,
-        projectId,
-        conversationId: convoId,
-        status: "continuing",
-        assistantText: "",
-      }, { status: 202, headers: getCorsHeaders(req) });
+      return NextResponse.json(
+        internalCheckpointResponse({ projectId, conversationId: convoId }),
+        { status: 202, headers: getCorsHeaders(req) },
+      );
     }
 
     const agentText =
