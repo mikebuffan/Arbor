@@ -764,8 +764,31 @@ export async function POST(req: Request) {
       blocker: agentResult.status === "blocked" ? agentResult.reason : null,
     });
 
-    if (agentResult.status === "checkpointed" && continuation.returnToUser) {
-      throw new Error("agency_checkpoint_illegal_yield");
+    if (agentResult.status === "checkpointed") {
+      if (continuation.returnToUser) {
+        throw new Error("agency_checkpoint_illegal_yield");
+      }
+      // Never persist an internal checkpoint marker as a completed assistant
+      // turn. The durable agency/ARK state is already owned and resumable.
+      // A host with an authorized continuation worker may resume it without
+      // requiring another user message.
+      agencyState = await checkpointAgencySession({
+        supabase, userId, projectId, agency: agencyState,
+        reason: "internal continuation checkpoint; no user-visible completion",
+      });
+      await updateRuntimeSession({
+        supabase, state: runtimeSession, activeSubsystem, channel: interactionMode,
+        currentGoal: agencyState.goal, lastMeaningfulArborTurn: runtimeSession.hostState.lastMeaningfulArborTurn,
+        agency: agencyState, corrections: runtimeCorrections, behaviorProof, pendingSelfUpdate,
+        now: new Date().toISOString(),
+      });
+      return NextResponse.json({
+        ok: true,
+        projectId,
+        conversationId: convoId,
+        status: "continuing",
+        assistantText: "",
+      }, { status: 202, headers: getCorsHeaders(req) });
     }
 
     const agentText =
