@@ -35,3 +35,16 @@ export const ONE_ARB0R_CONTINUATION_REQUIREMENTS = [
   "When ARK owns unfinished work, resume that durable objective before starting a competing action.",
   "Verify the parent goal, not merely the most recent tool call, before claiming completion.",
 ] as const;
+
+export function internalCheckpointResponse(input: {
+  projectId: string;
+  conversationId: string;
+}) {
+  return {
+    ok: true as const,
+    projectId: input.projectId,
+    conversationId: input.conversationId,
+    status: "continuing" as const,
+    assistantText: "",
+  };
+}
