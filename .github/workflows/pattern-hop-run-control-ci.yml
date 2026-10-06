@@ -54,3 +54,37 @@ jobs:
       - name: Standalone TypeScript
         working-directory: apps/backend
         run: pnpm exec tsc --noEmit
+
+  native-sql:
+    if: github.repository == 'mikebuffan/Arbor' && github.head_ref == 'arbor/pattern-hop-run-control-20261006'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Start disposable PostgreSQL
+        shell: bash
+        run: |
+          set -euo pipefail
+          pg_bin=/usr/lib/postgresql/16/bin
+          test -x "$pg_bin/initdb"
+          pg_root="/tmp/pattern-hop-control-${GITHUB_RUN_ID}"
+          mkdir -p "$pg_root/data" "$pg_root/socket"
+          sudo -n chown -R postgres:postgres "$pg_root"
+          sudo -n -u postgres "$pg_bin/initdb" -D "$pg_root/data" --auth=trust --no-locale
+          sudo -n -u postgres "$pg_bin/pg_ctl" -D "$pg_root/data" -l "$pg_root/server.log" -o "-k $pg_root/socket -p 54331 -c listen_addresses=''" -w start
+          printf 'PGHOST=%s/socket\nPGPORT=54331\nPGUSER=postgres\nPGDATABASE=pattern_hop_control\n' "$pg_root" >> "$GITHUB_ENV"
+          "$pg_bin/createdb" -h "$pg_root/socket" -p 54331 -U postgres pattern_hop_control
+      - name: Run exact proposed run-control SQL in disposable database
+        working-directory: ops/grove/disposable-db
+        run: /usr/lib/postgresql/16/bin/psql -X -v ON_ERROR_STOP=1 -f pattern-hop-run-control-acceptance.sql
+      - name: Stop disposable PostgreSQL
+        if: always()
+        shell: bash
+        run: |
+          pg_root="/tmp/pattern-hop-control-${GITHUB_RUN_ID}"
+          if test -f "$pg_root/data/postmaster.pid"; then
+            sudo -n -u postgres /usr/lib/postgresql/16/bin/pg_ctl -D "$pg_root/data" -m immediate -w stop
+          fi
