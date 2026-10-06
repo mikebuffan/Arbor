@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { agencyContinuationDisposition } from "../continuationContract";
+import { agencyContinuationDisposition, internalCheckpointResponse } from "../continuationContract";
 
 describe("One Arbor continuation contract", () => {
   it("does not return control for an ordinary checkpoint", () => {
@@ -16,4 +16,10 @@ describe("One Arbor continuation contract", () => {
     expect(agencyContinuationDisposition({status:"complete",unresolvedWork:[],blocker:null}).returnToUser).toBe(true);
     expect(agencyContinuationDisposition({status:"blocked",unresolvedWork:["approval"],blocker:"irreversible_action"}).returnToUser).toBe(true);
   });
+  it("never turns an internal checkpoint into assistant prose", () => {
+    expect(internalCheckpointResponse({projectId:"p",conversationId:"c"})).toEqual({
+      ok:true, projectId:"p", conversationId:"c", status:"continuing", assistantText:"",
+    });
+  });
+
 });
