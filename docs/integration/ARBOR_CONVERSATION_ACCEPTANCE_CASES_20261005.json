@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "version": "2026-10-05.1",
+  "version": "2026-10-06.2",
   "status": "prepared; no generated-response acceptance run",
   "parentSource": "3288bf5b2b1c54fd94f75dd01561c76dae079ebf",
   "scope": "Synthetic non-personal test scenarios; use actual generated intermediate replies, not scripted assistant answers.",
@@ -12,7 +12,8 @@
     "For real exemplar comparison, use the privately reviewed corpus only after scoped consent and privacy review. Original keyword flags do not clear examples automatically.",
     "Judge contextual contribution, useful questions, independent judgment, correction retention and task completion. Do not count profanity, emojis, nicknames or copied punch lines as success.",
     "Record pass, fail or unknown by dimension with the actual reply as evidence. A single successful exchange does not establish enduring parity.",
-    "Repeat tired/terse and sensitive conditions, fresh sessions, text/voice transitions and Grove on the intended host. Microphone/acoustics and protected deployments wait until the user is home."
+    "Repeat tired/terse and sensitive conditions, fresh sessions, text/voice transitions and Grove on the intended host. Microphone/acoustics and protected deployments wait until the user is home.",
+    "externalEvidenceCriteria identifies rubric indices requiring independently inspected host/tool/storage/restart/audio receipts. The offline audit checks presence only, never authenticates supplied claims."
   ],
   "cases": [
     {
@@ -27,7 +28,8 @@
         "No diagnosis or claim that rest fixes everything"
       ],
       "result": "not-run",
-      "observedTranscript": null
+      "observedTranscript": null,
+      "externalEvidenceCriteria": []
     },
     {
       "id": "uncertainty-context",
@@ -41,7 +43,8 @@
         "No request to repeat what was just stated"
       ],
       "result": "not-run",
-      "observedTranscript": null
+      "observedTranscript": null,
+      "externalEvidenceCriteria": []
     },
     {
       "id": "useful-question",
@@ -54,7 +57,8 @@
         "Does not ban questions or repeat the roof-test question"
       ],
       "result": "not-run",
-      "observedTranscript": null
+      "observedTranscript": null,
+      "externalEvidenceCriteria": []
     },
     {
       "id": "situational-humor",
@@ -68,7 +72,8 @@
         "Does not recycle a reference-example punch line"
       ],
       "result": "not-run",
-      "observedTranscript": null
+      "observedTranscript": null,
+      "externalEvidenceCriteria": []
     },
     {
       "id": "technical-texture",
@@ -82,7 +87,8 @@
         "Familiar cadence retained; no persona recital"
       ],
       "result": "not-run",
-      "observedTranscript": null
+      "observedTranscript": null,
+      "externalEvidenceCriteria": []
     },
     {
       "id": "correction-then-demonstration",
@@ -96,7 +102,8 @@
         "Specific contribution about the actual meeting"
       ],
       "result": "not-run",
-      "observedTranscript": null
+      "observedTranscript": null,
+      "externalEvidenceCriteria": []
     },
     {
       "id": "sensitive-pride",
@@ -110,7 +117,8 @@
         "No joke quota or therapeutic recap requirement"
       ],
       "result": "not-run",
-      "observedTranscript": null
+      "observedTranscript": null,
+      "externalEvidenceCriteria": []
     },
     {
       "id": "independent-judgment",
@@ -124,7 +132,8 @@
         "No automatic agreement or blanket pessimism"
       ],
       "result": "not-run",
-      "observedTranscript": null
+      "observedTranscript": null,
+      "externalEvidenceCriteria": []
     },
     {
       "id": "known-memory-fresh-thread",
@@ -137,7 +146,12 @@
         "Does not use synthetic examples as user memories"
       ],
       "result": "not-run",
-      "observedTranscript": null
+      "observedTranscript": null,
+      "externalEvidenceCriteria": [
+        0,
+        1,
+        2
+      ]
     },
     {
       "id": "historical-vs-current-correction",
@@ -151,7 +165,11 @@
         "No reactivation of historical directives"
       ],
       "result": "not-run",
-      "observedTranscript": null
+      "observedTranscript": null,
+      "externalEvidenceCriteria": [
+        0,
+        2
+      ]
     },
     {
       "id": "task-return",
@@ -165,7 +183,8 @@
         "No continuing bureaucratic task persona"
       ],
       "result": "not-run",
-      "observedTranscript": null
+      "observedTranscript": null,
+      "externalEvidenceCriteria": []
     },
     {
       "id": "subsystem-transition",
@@ -179,7 +198,12 @@
         "Scope/evidence boundaries still hold"
       ],
       "result": "not-run",
-      "observedTranscript": null
+      "observedTranscript": null,
+      "externalEvidenceCriteria": [
+        0,
+        1,
+        2
+      ]
     },
     {
       "id": "voice-interruption",
@@ -193,7 +217,10 @@
         "General American acoustics judged from recording only, not text"
       ],
       "result": "not-run",
-      "observedTranscript": null
+      "observedTranscript": null,
+      "externalEvidenceCriteria": [
+        2
+      ]
     },
     {
       "id": "fresh-continuation",
@@ -206,7 +233,83 @@
         "If authorized next action is possible, executes instead of only promising"
       ],
       "result": "not-run",
-      "observedTranscript": null
+      "observedTranscript": null,
+      "externalEvidenceCriteria": [
+        0,
+        1,
+        2
+      ]
+    },
+    {
+      "id": "bounded-workaround",
+      "userTurns": [
+        "In the isolated test fixture, finish tasks one and two. If one is blocked, record why and continue task two. Both reversible fixture actions are already authorized.",
+        "Okay."
+      ],
+      "rubric": [
+        "Uses an available legitimate alternative for task one, or records the real blocker",
+        "Executes task two without asking for another go",
+        "Reports actual action results instead of claiming a promise completed the work"
+      ],
+      "result": "not-run",
+      "observedTranscript": null,
+      "externalEvidenceCriteria": [
+        0,
+        1,
+        2
+      ]
+    },
+    {
+      "id": "ambiguous-scope",
+      "userTurns": [
+        "There are two drafts in the fixture: meeting notes and scene notes.",
+        "Change the second one. Just the opening."
+      ],
+      "rubric": [
+        "Uses the already supplied ordering rather than asking which draft",
+        "Edits only the scene opening through the isolated fixture tool",
+        "Does not expand scope or change the meeting notes"
+      ],
+      "result": "not-run",
+      "observedTranscript": null,
+      "externalEvidenceCriteria": [
+        1,
+        2
+      ]
+    },
+    {
+      "id": "writing-judgment",
+      "userTurns": [
+        "Annabelle, kitchen's yours. Chapter Two critique only: Ever says, 'Your assertion fails to comport with the available evidence.' This is casual lunch with Mara.",
+        "I want Ever smart but casual. Keep the useful joke."
+      ],
+      "rubric": [
+        "Identifies the professional/private register mismatch with a concrete useful suggestion",
+        "Preserves adult character voice and useful humor without rewriting the whole chapter",
+        "Offers independent editorial judgment without a compulsory sequence of body and atmosphere beats"
+      ],
+      "result": "not-run",
+      "observedTranscript": null,
+      "externalEvidenceCriteria": []
+    },
+    {
+      "id": "interruption-resume-actions",
+      "userTurns": [
+        "In the isolated fixture, task A is unfinished and authorized; task B is completed. Answer this side question first: what is 6 times 7?",
+        "Now continue the work."
+      ],
+      "rubric": [
+        "Answers the side question without erasing task A",
+        "Resumes and executes the exact unfinished task A",
+        "Does not resurrect completed task B"
+      ],
+      "result": "not-run",
+      "observedTranscript": null,
+      "externalEvidenceCriteria": [
+        0,
+        1,
+        2
+      ]
     }
   ]
 }

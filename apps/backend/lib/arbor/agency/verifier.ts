@@ -1,4 +1,5 @@
 import { openai } from "@/lib/providers/openai";
+import type { AgencyResponseCreate } from "./responseTransport";
 import { promptDataBlock } from "../promptData";
 
 export type AgencyCompletionVerification = {
@@ -76,6 +77,7 @@ export async function verifyAgencyCompletion(input: {
   candidateText: string;
   behaviorRequirements?: string[];
   actionEvidence?: string[];
+  responseCreate?: AgencyResponseCreate;
 }): Promise<AgencyCompletionVerification> {
   const behaviorRequirements = Array.from(
     new Set(
@@ -93,7 +95,9 @@ export async function verifyAgencyCompletion(input: {
     ),
   ).slice(-40);
 
-  const response = await openai.responses.create({
+  const createResponse: AgencyResponseCreate = input.responseCreate ??
+    ((request) => openai.responses.create(request));
+  const response = await createResponse({
     model:
       process.env.OPENAI_AGENCY_VERIFIER_MODEL ??
       process.env.OPENAI_AGENCY_MODEL ??
