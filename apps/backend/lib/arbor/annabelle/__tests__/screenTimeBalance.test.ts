@@ -1,0 +1,2 @@
+import{describe,expect,it}from"vitest";import{analyzeScreenTime}from"../screenTimeBalance";
+describe("screen time balance",()=>{it("flags long absences and relationship gaps",()=>{const r=analyzeScreenTime([{chapter:1,scene:"a",characters:["Ever","Will"],relationships:["Ever/Will"]},{chapter:10,scene:"b",characters:["Ever","Will"],relationships:["Ever/Will"]}],{absenceThreshold:5});expect(r.some(x=>x.kind==="long-absence")).toBe(true);expect(r.some(x=>x.kind==="relationship-gap")).toBe(true);});});
