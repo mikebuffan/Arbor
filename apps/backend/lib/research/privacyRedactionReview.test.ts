@@ -1,0 +1,10 @@
+import { describe,expect,it } from "vitest";
+import { reviewExplicitPrivacyRedactions } from "./privacyRedactionReview";
+const base=()=>({candidate:{sourceRecordId:"synthetic-record",text:"Public A / Private Example / contact@example.test",spans:[{startUtf16:11,endUtf16:26,reason:"victim_or_private_person" as const},{startUtf16:29,endUtf16:49,reason:"contact_information" as const}]},reviewerRef:"synthetic-reviewer",reviewedAtUtc:"2026-09-22T02:00:00.000Z",reviewerConfirmedAllVisibleTextReviewed:true});
+describe("synthetic explicit privacy redaction review",()=>{
+ it("redacts only supplied spans and always remains HOLD",()=>{const r=reviewExplicitPrivacyRedactions(base());expect(r.redactedText).toBe("Public A / [REDACTED] / [REDACTED]");expect(r.reviewedSpanCount).toBe(2);expect(r.status).toBe("hold_for_independent_privacy_and_release_review");});
+ it("requires explicit full-visible-text review",()=>{expect(()=>reviewExplicitPrivacyRedactions({...base(),reviewerConfirmedAllVisibleTextReviewed:false})).toThrow("privacy_full_text_review_required");});
+ it("rejects overlap and out-of-range spans",()=>{const x=base();expect(()=>reviewExplicitPrivacyRedactions({...x,candidate:{...x.candidate,spans:[{startUtf16:1,endUtf16:5,reason:"other_sensitive_identifier"},{startUtf16:4,endUtf16:8,reason:"contact_information"}]}})).toThrow("overlapping_privacy_redaction_spans");expect(()=>reviewExplicitPrivacyRedactions({...x,candidate:{...x.candidate,spans:[{startUtf16:0,endUtf16:999,reason:"contact_information"}]}})).toThrow("invalid_privacy_redaction_span");});
+ it("rejects malformed reviewer metadata",()=>{expect(()=>reviewExplicitPrivacyRedactions({...base(),reviewerRef:" "})).toThrow("invalid_reviewer_ref");expect(()=>reviewExplicitPrivacyRedactions({...base(),reviewedAtUtc:"2026-02-30T02:00:00.000Z"})).toThrow("invalid_reviewed_at_utc");});
+ it("does not pretend zero supplied spans means privacy-safe",()=>{const x=base();const r=reviewExplicitPrivacyRedactions({...x,candidate:{...x.candidate,spans:[]}});expect(r.reviewedSpanCount).toBe(0);expect(r.status).toBe("hold_for_independent_privacy_and_release_review");});
+});

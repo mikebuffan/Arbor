@@ -1,0 +1,224 @@
+# Epstein public-records research engine — master ordered build list
+
+Updated 2026-09-22. **One ARK lineage. No second engine.** Source-first public-document research only. Draft code is not deployment, authorization, verified research, or a finding. Use only lawful public material; never publish victim/private-person identifiers.
+
+**Verified lineage:** #123 → #131 → #134 → later stacked research drafts → #175 → #180 → #181 → docs handoff #187 → item-45 draft #189. Sibling #177 was deliberately reconciled into #181 rather than duplicated. Last fully verified implementation head remains #181 `4ffd760c4113588325352860148b5b9c8ad974cd`, Arbor Integration CI `35806979345` SUCCESS. #187 is docs-only. #189 is current isolated implementation draft and is **pending exact-head CI**.
+
+Legend: [x] relevant implementation plus exact-head CI evidence exists for the stated scope; [~] partial or remaining integration/manual proof; [ ] required; **BLOCKED** names an intentional gate.
+
+## 1. Preserve existing systems before integration
+1. [x] Inventory/synchronize worker-v5 source without deployment.
+2. [x] Preserve research/Grove/app branch lineage.
+3. [x] Preserve original-byte SHA and physical PDF page separately from printed folio.
+4. [x] Review parent heads/open PRs before each child; #181 is verified implementation base, #187 docs child, #189 current isolated draft; #182 remains CI-only, not an integration target.
+5. [ ] **BLOCKED — live integration approval:** worker-v5 deployment backup + rollback receipt.
+6. [ ] **BLOCKED — live integration approval:** deployed Vercel roots/cron/Firefly auth review.
+7. [x] Pinned disposable renderer image/package verified.
+8. [ ] Remove temporary CI-only bridge/base triggers before any main integration.
+
+## 2. Capture and parse public PDFs safely
+9. [x] HTTPS source identity, `%PDF-`, original-byte SHA-256, bounded capture.
+10. [x] Reject HTML/consent impostors, credentials and non-HTTPS locators.
+11. [x] Complete physical-page inventory contract.
+12. [x] Local Poppler parser uses argument arrays/no shell/no URL fetch.
+13. [x] Local-fixture page/time/output bounds.
+14. [x] Explicit text/raster/blank/failure states.
+15. [x] Restrictive temporary PDF/random temp directory/cleanup.
+16. [x] Real Poppler parses benign synthetic PDF in CI.
+17. [x] Every page keeps original SHA + independent-review HOLD.
+18. [~] Independently published benign PDF engineering acceptance runs in CI against blank 2025 IRS Form 1040: HTTPS fetch, `%PDF-`, 5 MiB bound, SHA output, two-page check, page-separated Poppler text, isolated sandbox render. Verified at `4ffd760c...` run `35806979345`. **Still HOLD:** human rendered-page/line-order review is not automated proof.
+19. [x] Page-image provenance/manual source-stamp HOLD contract.
+20. [x] Bounded page-batch planning preserving full-file provenance.
+21. [x] Executable non-root/no-egress/read-only bounded renderer sandbox; synthetic and benign-public CI paths pass.
+22. [~] Opt-in OCR with exact page-image provenance, confidence, token geometry, append-only human correction receipts and CI coverage is implemented/verified in PR #225. Real-source human OCR fidelity review remains required before production use.
+23. [ ] Glyph/box geometry only if exact visual highlighting becomes required.
+24. [x] Blank/image-only/encrypted/inaccessible/parser-failed cannot support absence claims.
+
+## 3. Exact observations and evidence integrity
+25. [x] Source-first comparison drafts stay verification/privacy HOLD.
+26. [x] Exact selected passage carries page/document/hash/UTF-16 span.
+27. [x] Source/excerpt/document/hash substitution detection.
+28. [x] Synthetic bytes → Poppler → page → exact quote → comparison test.
+29. [~] Immutable evidence persistence design exists; production persistence remains BLOCKED on live integration approval.
+30. [~] Content identity vs URL/local ID plus pure tenant-scoped canonical grouping exists; durable production index/final redirect capture remains.
+31. [x] Typed one-step evidence promotion.
+32. [~] Synthetic reviewer receipt binds original SHA/page/image hash/quote span; real human original-page workflow remains.
+33. [~] Explicit-span redaction + metadata-only privacy ledger + publication preflight reconciled in #181. Cross-module tests preserve HOLD. No automatic PII/victim detection or release authorization.
+34. [x] Immutable rejected-hypothesis/missing-data/failure receipts.
+35. [~] Conservative source-chain independence triage exists; human independence proof remains.
+
+## 4. Bounded sessions and database safety
+36. [x] Pure bounded one-unit-per-tick session policy.
+37. [x] Proposed owner/project SQL + service-role adapter kept outside auto-run migrations.
+38. [x] Start/deadline/authorization guards and distinct non-completion state.
+39. [x] Research Vitest discovery fixed.
+40. [x] No-cost isolated synthetic PostgreSQL 17 CI service exercises proposed research SQL; no real user data or production DB.
+41. [x] Owner/RLS acceptance plus explicit service-role/client privilege matrix verified synthetically through v5 disposable PostgreSQL acceptance. Live integration remains separately gated.
+42. [x] Proposed research-stack security review complete: least-privilege grants, RLS catalog assertions, SECURITY INVOKER RPCs, pinned search_path and service-role-only write execution verified at PR #229 head `18882ebfadb9a1bf9a302c6ba3dc8c3a562d6a5f`, run `36923115563`. Actual Preview/production application remains separately gated.
+43. [x] Disposable CI exercises claim/settlement/idempotency/owner RLS/STOP, deadline/expiry/fencing/revocation, independent-connection concurrency, lock-wait fences and STOP-vs-settlement race. Verified run `35806979345`. Disposable DB evidence only.
+44. [x] Advisory late-settlement policy plus SQL lock-time resampling repair verified; database remains authoritative.
+45. [x] Disposable PostgreSQL coverage for failed receipt + retry delay, terminal `max_attempts`, stalled active-lease fencing, reclaim after expiry, bounded attempt increment, cost accounting and no false completion. Verified again at PR #224 exact head `b06f894bcf0356659da6703f56950571f750a8cb`, Integration CI run `36909153495` SUCCESS.
+46. [x] Evidence-backed completion verifier exists; synthetic rehearsal rejects evidence-free completion and never equates budget exhaustion with completed.
+
+## 5. Worker wiring and unattended acceptance
+47. [ ] **BLOCKED — live integration approval:** preserve worker-v5/review-processor diff/rollback before wiring.
+48. [~] Bounded human-authorized public-source capture contract/plan is implemented in v7 with HTTPS/host/redirect/byte/page/time limits and executionRequested:false. Actual fetch executor and EFTA source authorization remain blocked.
+49. [~] Owner/project-scoped persistence bridge plus default-OFF Pattern Hop persistence candidate bridge are implemented/verified through v6. Live Preview/production immutable writes and Pattern Hop submission remain integration-approval gated.
+50. [x] Pure provenance-preserving lead dedupe verified; no persistence/integration claim.
+51. [~] Structurally default-OFF scoped scheduler state/gate is implemented in v7; no cron/cadence/execution target exists and actual scheduler activation remains separately authorization-gated.
+52. [x] Synthetic one-tick worker rehearsal plus deterministic full persisted PostgreSQL session across multiple worker identities, abandoned-lease reclaim, no duplicate receipts/costs, zero-unresolved no-extra-work, and no self-completion. Verified at PR #225 head `9e0dfa50f2ec7278c23b966dcf80658ba2ed710c`, run `36915008724` SUCCESS.
+53. [ ] **BLOCKED — explicit benign unattended-run approval:** genuine unattended benign-source hour.
+54. [x] Same-user/project isolation plus append-only cross-session handoff receipts verified in v6 disposable PostgreSQL with two synthetic owners/projects.
+55. [~] Heartbeat/lease-only worker liveness receipts are implemented in v7 so UI state alone cannot establish liveness. Real phone/operator acceptance remains pending.
+56. [ ] Separate production/deployment/scheduler/expenditure approval.
+
+## 6. Epstein public-document analysis and responsible reporting
+57. [x] Starter MCC/OIG ledger separates published official findings from open questions.
+58. [ ] **BLOCKED — separate source authorization + human original-page workflow:** specific public EFTA verification.
+59. [ ] Reconcile testimony/logs/timestamps only after authorized original-source capture.
+60. [~] Synthetic privacy candidate + append-only human decision/release-disposition gate is implemented in v7; no automatic victim/private-person classification occurs. Real sensitive-person review remains unexercised/unauthorized.
+61. [x] Pure synthetic-only finding classification; workflow integration and real finding review remain separate.
+62. [x] Mention/allegation alone is never evidence of a crime.
+63. [x] Synthetic-only dated HOLD report draft; real original-page citation verification/redaction/publication remains pending.
+64. [x] No automatic publication; published discrepancies remain distinct from novel research discoveries.
+
+## Current dependency-ordered handoff — 2026-09-22 19:18 PT
+1. [x] Re-opened and verified the master list from #187 head `4d48233e055e9445f0a6239e0ff846f0c329e3e9`; default branch still is not the canonical source for this checklist.
+2. [x] Re-checked open research PRs. No newer implementation draft superseded #181 before this run; #187 was docs-only. Created isolated draft #189 from #187 without touching #181/main.
+3. [x] Preserved last verified baseline: #181 `4ffd760c...`, Integration CI `35806979345` SUCCESS. No mock-only scope was promoted to verified.
+4. [x] Inspected proposed SQL before changing tests: `attempt_count`, `max_attempts`, retry delay, lease expiry reclaim and failed-receipt transitions already existed. No duplicate implementation was added.
+5. [~] Item 45 implementation added on #189: `ops/research/disposable-db/60-attempt-failure-stall.sql`, wired into the existing disposable PostgreSQL 17 job. It tests actual PostgreSQL RPC behavior in an ephemeral service, not an in-memory mock. Exact-head CI is pending.
+6. [ ] **NEXT:** inspect #189 exact-head CI. If failure, correct the SQL/test coherently. If green, mark item 45 verified for disposable-DB scope and proceed to item 52 deterministic persisted simulated-session acceptance.
+7. [ ] After item 52, item 8 cleanup/reconciliation of temporary CI-only bridge/base triggers before any integration review.
+8. [~] Item 18 remains engineering-pass/manual-HOLD; human rendered-page/line-order fidelity receipt is still missing.
+9. [ ] **BLOCKED:** production/live worker/deploy (#5/#6/#47/#49/#56), scheduler (#51), genuine unattended benign hour (#53), EFTA ingestion (#58), privacy-sensitive processing and publication.
+
+### Saved run receipt
+Current isolated draft: #189, branch `feat/ark-research-disposable-attempt-matrix-20260922`. Code/test commits add only disposable synthetic PostgreSQL acceptance and CI wiring. At handoff time exact-head Actions had not yet appeared, so item 45 remains partial and no success is claimed. No merge, deployment, production DB, live worker, scheduler, paid API, private/victim data, EFTA processing or publication was performed.
+
+
+## 2026-10-01 ingestion & verification v1 extension
+
+Implementation branch: `feat/epstein-ingestion-verification-v1-20261001`.
+Detailed mapping: `docs/research/EPSTEIN_INGESTION_VERIFICATION_V1_20261001.md`.
+
+65. [x] Canonical document/page/mention ingestion contracts plus proposed durable schema.
+66. [x] Exact and normalized page fingerprinting plus near-duplicate candidate scoring.
+67. [x] Release Delta comparison: added/removed/changed/reordered pages and attachments.
+68. [x] Redaction geometry mapper; similarity can create a lead but never resolve hidden identity.
+69. [x] Bates/page/attachment missingness and expected-record lead contract; absence remains non-evidence.
+70. [x] Deterministic document typology and machine-safe structural extraction.
+71. [x] Immutable source-coordinate Evidence Mention Ledger contract.
+72. [x] Candidate-first entity resolution with fuzzy alias ranking and no silent merge.
+73. [x] Append-only identity correction/supersession chain.
+74. [x] Typed global relation edges and proximity-only edge class.
+75. [x] Cogs metrics describe connectivity only; no automatic importance/conduct inference.
+76. [x] Evidence-origin/source-family collapse for mirrors and explicit derivative reporting.
+77. [x] Expanded temporal observation model and conservative chronology/location conflict detection.
+78. [x] Recurring-pattern detector.
+79. [x] Observable transcript response-pattern shift detector; no deception/guilt/motive inference.
+80. [x] Bounded evidence-backed next-hop explanation contract.
+81. [x] Research Interrupt Queue contract preserving parent checkpoint.
+82. [x] Three-directive bounded Roundabout cap per pass.
+83. [x] Evidence status, identity status and extraction confidence remain separate dimensions.
+84. [x] Versioned finding candidate contract.
+85. [x] Downstream evidence replay marks every dependent finding for re-review after evidence changes.
+86. [x] Adversarial finding check: source independence, counterevidence, alternatives, chronology, identity.
+87. [x] Publication preflight integrates existing privacy/original-page/release gates.
+88. [x] Investigation Cockpit summary contract.
+89. [x] Hierarchical bounded page batches and deterministic idempotency keys.
+90. [x] Synthetic Vitest acceptance for ingestion, aliases, release delta, provenance, timeline, replay and pass orchestration.
+91. [x] Disposable PostgreSQL acceptance for proposed ingestion schema and invariant constraints.
+92. [x] Exact-head CI verification complete for items 65–91 synthetic/disposable scope: PR #224 head `b06f894bcf0356659da6703f56950571f750a8cb`, run `36909153495` SUCCESS (128 backend test files / 651 tests, production Next build, disposable PostgreSQL, PDF sandbox, control backend, Flutter/Android all green).
+93. [x] Item-42 privilege/security review is complete for the proposed research stack. No live Preview or production application is authorized by that verification.
+94. [ ] Live worker persistence/Pattern Hop wiring remains behind existing integration/deployment approval.
+95. [ ] Real-source Epstein/EFTA ingestion remains separately authorization-gated.
+96. [ ] Human original-page fidelity/privacy review and any publication remain separately gated.
+
+### 2026-10-01 next action
+
+Open the ingestion branch as a draft child against the CI-enabled research handoff base so the corrected item-45 disposable PostgreSQL stage and the new backend/PostgreSQL acceptance run at the same exact head. If green, record exact run evidence and promote only the verified synthetic/disposable scope; do not infer production authorization.
+
+
+## 2026-10-01 corpus intelligence v2 extension
+
+Implementation branch: `feat/epstein-corpus-intelligence-v2-20261001`.
+
+97. [x] Deterministic persisted full-session PostgreSQL acceptance across multiple worker invocations, including abandoned-lease reclaim.
+98. [x] Opt-in OCR/handwriting review pipeline bound to exact page-image provenance; OCR can never overwrite original text.
+99. [x] Geometry-preserving table/ledger reconstruction for manifests, banking records, phone records and address books.
+100. [x] Hybrid corpus retrieval: exact identifiers + lexical ranking + optional precomputed semantic embeddings; all hits source-anchored.
+101. [x] Document-family reconstruction for email/attachment/reply/forward, calendar/travel, invoice/payment, deposition/exhibit relationships.
+102. [x] Synthetic acceptance and exact-head CI for items 97–101. Verified at PR #225 head `9e0dfa50f2ec7278c23b966dcf80658ba2ed710c`, Integration CI run `36915008724` SUCCESS (129 backend test files / 655 tests, production Next build, persisted restart acceptance, corpus-intelligence persistence, PDF/control/Flutter regressions green).
+103. [ ] Production/live integration remains separately gated by items 42, 47–49, 51, 56, 93–96.
+
+
+## 2026-10-01 investigation workbench v3 extension
+
+Implementation branch: `feat/epstein-investigation-workbench-v3-20261001`.
+
+104. [x] Explicit-key conversation/thread reconstruction with reply/forward chronology and orphan-reference reporting.
+105. [x] Visual/image/exhibit evidence layer with source hashes, exhibit/testimony linkage, literal reviewed observations, and explicit no-biometric-inference guard.
+106. [x] Research Coverage Map across document families, dates, entities, locations and record types; coverage is never equated with truth.
+107. [x] Neutral Lead Prioritizer using contradiction density, source-independence potential, unresolved identity, missing connective tissue, expected information gain, evidence density and estimated research cost; no person/guilt/suspicion score.
+108. [x] Human Review Workbench model + synthetic `/research-review` screen with original source, extraction/OCR, identities, contradictions, release deltas, structured tables, visual exhibits and receipt-based review actions.
+109. [x] Proposed durable persistence for threads, visuals, coverage, lead-priority receipts, review packets and review-action receipts plus disposable PostgreSQL acceptance.
+110. [x] Exact-head CI for items 104–109. Verified at PR #226 head `9ed45fdbcddf4c8ff1ca195fe66e7b06bab69dbe`, Integration CI run `36917698033` SUCCESS (130 backend test files / 660 tests, production Next build including `/research-review`, v3 PostgreSQL persistence, PDF/control/Flutter regressions green).
+111. [ ] Production/live integration remains gated by items 42, 47–49, 51, 56, 93–96 and item 103.
+
+
+## 2026-10-01 reproducibility & scale v4 extension
+
+Implementation branch: `feat/epstein-reproducibility-scale-v4-20261001`.
+
+112. [x] Reproducible investigation replay receipts: corpus snapshots, query, filters, hop directives, resolver decisions, code version, algorithm versions, produced evidence/leads and canonical SHA-256 recipe digest.
+113. [x] Source-anchored evidence packet builder preserving support, counterevidence, context, original-page hashes, limitations, unresolved questions and permanent human-review HOLD.
+114. [x] Multilingual evidence lane preserving original text as canonical source plus aligned secondary translations, spans, translator/version, confidence, ambiguity and human-review state.
+115. [x] Corpus-scale shard/backpressure planner with hard concurrency/batch/storage caps and 3.5M-page deterministic shard acceptance.
+116. [x] Coverage-aware stopping logic requiring source-family exhaustion, sufficient coverage, stable no-new-evidence/no-new-lead rounds, zero required work and completion evidence; unresolved contradictions/identities force manual HOLD.
+117. [x] Proposed durable persistence + disposable PostgreSQL acceptance + exact-head CI for items 112–116. Verified at PR #228 head `d6d531a8d055415cd50b2606c9ff1d1799597fc4`, Integration CI run `36921454577` SUCCESS (131 backend test files / 665 tests, production Next build, v4 PostgreSQL persistence, PDF/control/Flutter regressions green).
+118. [ ] Production/live integration remains gated by items 42, 47–49, 51, 56, 93–96, 103 and 111.
+
+
+## 2026-10-01 security & integration v5 extension
+
+Implementation branch: `feat/epstein-security-integration-v5-20261001`.
+
+119. [x] Read-only Firefly ARK Preview security baseline: RLS inventory, Supabase Security Advisor, table grants, function ACL/elevation/search_path, anonymous visibility sample, public-schema CREATE privileges.
+120. [x] Convert proposed bounded research RPCs from SECURITY DEFINER to SECURITY INVOKER and remove deprecated/redundant service-role claim checks.
+121. [x] Explicit raw-research least-privilege grant matrix: anon none, authenticated only owner-readable session status, service_role writes/RPC execution.
+122. [x] Remove unnecessary pgcrypto extension creation from research ingestion proposal.
+123. [x] Catalog-level disposable CI assertions for RLS, grants, SECURITY DEFINER regression, pinned search_path and RPC EXECUTE roles.
+124. [x] Prove the bounded claim RPC still executes successfully as the actual PostgreSQL service_role after elevation is removed.
+125. [x] Non-applied Preview legacy grant-hardening candidate for service-only no-policy tables/functions and redundant anon ARK/Pattern-Hop grants.
+126. [x] Exact-head CI for items 119–125. Verified at PR #229 head `18882ebfadb9a1bf9a302c6ba3dc8c3a562d6a5f`, Integration CI run `36923115563` SUCCESS (131 backend test files / 665 tests, production Next build, security matrix/service-role acceptance, PDF/control/Flutter regressions green).
+127. [ ] Actual Preview grant/auth/extension changes remain separately approval-gated; no production Firefly/Grove mutation.
+
+
+## 2026-10-01 Preview integration rehearsal v6 extension
+
+Implementation branch: `feat/epstein-preview-integration-v6-20261001`.
+
+128. [x] Ordered Preview-only research schema application manifest with collision preflight and all execution/scheduler/real-source/publication flags hard OFF.
+129. [x] Forward-only rollback receipt contract preserving pre-apply migration head, applied migration list, no-data-ingested and never-executed state.
+130. [x] Default-OFF Preview integration-state table that cannot enable execution, scheduler, real-source ingestion or publication in v6.
+131. [x] Append-only same-owner/project bounded research session handoff receipts.
+132. [x] Server-only owner/project-scoped Supabase investigation persistence adapter with allow-listed replay/evidence-packet/handoff writes and fail-closed integration-state read.
+133. [x] Same-user/project isolation and cross-session handoff acceptance in disposable PostgreSQL using two synthetic owners/projects.
+134. [x] Default-OFF Pattern Hop persistence candidate bridge; prepared-not-submitted and executionRequested:false.
+135. [x] Read-only real ARK Preview preflight confirms no existing `arbor_research_*` tables/functions and no research migration collision.
+136. [x] Exact-head CI for items 128–135. Verified at PR #230 head `8d45ccf01dff9403149bb209f3aefc257fc7077f`, Integration CI run `36924344819` SUCCESS (132 backend test files / 672 tests, production Next build, tenant isolation/handoff acceptance, PDF/control/Flutter regressions green).
+137. [ ] Actual Preview schema application remains separately approval-gated; no production Firefly/Grove mutation or real-source ingestion.
+
+
+## 2026-10-01 source, privacy & operator controls v7 extension
+
+Implementation branch: `feat/epstein-source-privacy-ops-v7-20261001`.
+
+138. [ ] Human-authorized bounded public-source capture receipt/plan: HTTPS-only, no credentials, exact origin host, redirect allowlist, byte/page/time bounds, executionRequested:false.
+139. [ ] Privacy identifier candidate HOLD plus append-only human privacy decisions; no automatic victim/private-person/public-official/criminal classification.
+140. [ ] Heartbeat/lease-only worker liveness receipt; declared UI state alone yields unknown rather than active.
+141. [ ] Structurally disabled scheduler state + pure activation evaluator that always returns allowed:false in v7.
+142. [ ] Service-role-only capture/privacy persistence, owner-scoped liveness/scheduler reads, append-only decisions and fail-closed scheduler constraints.
+143. [ ] Disposable PostgreSQL acceptance + backend unit/strict-build CI for items 138–142.
+144. [ ] Actual public-source fetch, real sensitive-person review, phone/operator acceptance, scheduler enablement and Preview schema application remain separately approval-gated.
