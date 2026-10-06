@@ -41,3 +41,9 @@ The existing #255 actual signed TS → Python test also asserts a permanent corr
 7. Private Text → selected objective → approved ARK checkpoint writer remains unestablished. Identify/reuse the existing reviewed writer and authorization path separately; do not invent selection, claim completion from a reply, duplicate archive/Pattern Hop work or replay a consumed canary. Return real source/device/runtime/save/checkpoint receipts to the master ledger.
 
 No immediate owner ARK button step is needed. The source mismatch is resolved with actual fake-generation protocol proof; real runtime and device acceptance remain explicit gates.
+
+## Deployment schema repair follow-up
+
+Provider comments on PR #256 identify the failure on source `0dfdbabe0d043de81a9ec9d504446dca886bbf8e`: `ignoreCommand` exceeded Vercel's 256-character schema ceiling. Replaced nested conditionals with exact POSIX case alternatives: root/backend 217 characters, dedicated Grove 176 characters. All original cron arrays and exact branch skip sets are preserved. Verified each command with eight branch cases, including main, unrelated, near-match and empty values; source branches exit 0 (skip), other branches exit 1. No hosted configuration change, deployment retry, model call or production action was requested. The provider's next webhook result must still be checked; successful source repair is not live acceptance.
+
+The project summary's canceled deployment `dpl_6Ub8gVfChQNN5CPHT8VzXZEzgyvz` is older source `378f3d952bc8b09c74875f2718ff2fb1e72eaca8`, with an ignored-build-step link. It is distinct from #256's schema failure. Explicit team-scoped deployment calls returned 403/404; unscoped known-host inspection succeeded, while latest #256 SHA listed no deployment. No evidence of current private runtime/device acceptance.
