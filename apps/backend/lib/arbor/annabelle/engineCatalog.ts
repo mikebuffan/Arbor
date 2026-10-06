@@ -1,5 +1,7 @@
 export type AnnabelleEngineStatus = "implemented" | "partial" | "scaffold" | "missing";
 export type AnnabelleEngineSpec = {id:string;status:AnnabelleEngineStatus;purpose:string};
+export const ANNABELLE_ENGINE_STATUS_SCOPE =
+  "implemented means executable source coverage exists on this branch; it does not by itself mean canonical-manuscript calibration, durable live wiring, deployment, or acceptance has passed." as const;
 
 export const ANNABELLE_ENGINE_CATALOG: readonly AnnabelleEngineSpec[] = [
 {id:"voice-core",status:"implemented",purpose:"Gold exemplars, voice evidence, mature-Annabelle calibration and Not-Annabelle detection."},
