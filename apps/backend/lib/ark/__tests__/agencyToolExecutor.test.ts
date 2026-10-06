@@ -76,6 +76,36 @@ describe("ARK Arbor tool boundary", () => {
     mocks.completeOperation.mockResolvedValue(undefined);
   });
 
+  it.each([false, true])("keeps blocked research blocked, including replay=%s", async (replay) => {
+    const output = { status: "blocked", runId: "run-1", blocker: "missing source" };
+    mocks.get.mockReturnValue({ risk: "reversible_write" });
+    if (replay) mocks.claimOperation.mockResolvedValue({ acquired: false, result: output });
+    mocks.execute.mockResolvedValue({ ok: true, result: output, attempts: 1 });
+    const registry = new ArkExecutorRegistry();
+    registerArkAgencyToolExecutor({ registry, supabase: {} as never });
+    const result = await registry.get("arbor.agency-tool")!({ claim: claim("arbor_pattern_hop_research"), heartbeat: vi.fn() });
+    expect(result).toMatchObject({ status: "blocked", blocker: { kind: "research_blocked", message: "missing source" } });
+    if (replay) expect(mocks.execute).not.toHaveBeenCalled();
+  });
+
+  it.each(["active", "complete", "exhausted"])("reports bounded pass completion for %s", async (status) => {
+    mocks.get.mockReturnValue({ risk: "reversible_write" });
+    mocks.execute.mockResolvedValue({ ok: true, result: { status, runId: "run-1" }, attempts: 1 });
+    const registry = new ArkExecutorRegistry();
+    registerArkAgencyToolExecutor({ registry, supabase: {} as never });
+    const result = await registry.get("arbor.agency-tool")!({ claim: claim("arbor_pattern_hop_research"), heartbeat: vi.fn() });
+    expect(result).toMatchObject({ status: "completed", result: { completionScope: "bounded_historical_research_pass", traversalFinished: status !== "active" } });
+  });
+
+  it("rejects a malformed research receipt", async () => {
+    mocks.get.mockReturnValue({ risk: "reversible_write" });
+    mocks.execute.mockResolvedValue({ ok: true, result: { status: "complete" }, attempts: 1 });
+    const registry = new ArkExecutorRegistry();
+    registerArkAgencyToolExecutor({ registry, supabase: {} as never });
+    expect(await registry.get("arbor.agency-tool")!({ claim: claim("arbor_pattern_hop_research"), heartbeat: vi.fn() }))
+      .toMatchObject({ status: "failed", error: "ark_pattern_hop_invalid_result", retryable: false });
+  });
+
   it("blocks an unknown capability without retrying execution", async () => {
     mocks.get.mockImplementation(() => {
       throw new Error("agency_tool_unknown:missing.tool");

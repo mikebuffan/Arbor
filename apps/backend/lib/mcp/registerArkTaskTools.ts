@@ -7,6 +7,7 @@ import { enqueueArkAgencyToolPlan } from "@/lib/ark/agencyBridge";
 import { promptDataBlock } from "@/lib/arbor/promptData";
 import { arkMcpUserContext } from "./context";
 import { assertArkReadTaskSubmission, isArkMcpSubmissionEnabled } from "./taskPermissions";
+import { registerArkPatternHopTool } from "./registerArkPatternHopTool";
 
 export const ArkReadTaskRequest = z.object({
   projectId: z.string().uuid(),
@@ -45,6 +46,7 @@ export function registerArkTaskTools(server: McpServer): void {
       attemptCount: data.attempt_count, capturedAt: new Date().toISOString()});
   });
 
+  registerArkPatternHopTool(server);
   if (!isArkMcpSubmissionEnabled()) return;
   server.registerTool("submit_ark_read_task", {
     title: "Submit a Bounded ARK Read Task",

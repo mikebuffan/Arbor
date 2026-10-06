@@ -117,7 +117,8 @@ export type ArkExecutionResult =
           | "missing_preference"
           | "high_consequence_fork"
           | "unsupported_capability"
-          | "operation_in_progress";
+          | "operation_in_progress"
+          | "research_blocked";
         message: string;
       };
     };
