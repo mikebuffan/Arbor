@@ -1,6 +1,6 @@
 # One Arbor continuity torture suite — 2026-10-06
 
-This child lane starts from One Arbor integration candidate commit `db7c4558d834d1426f4b3fb67f10b66dbeafabf5` and adds only an acceptance workflow. It does not merge, deploy, migrate, grant permissions, activate inference, install a phone build, ingest more archive data, or alter production state.
+This child lane starts from One Arbor integration candidate commit `0ddbea465bbe219a767d0a809db3ecf53548e4ee` and adds only an acceptance workflow. It does not merge, deploy, migrate, grant permissions, activate inference, install a phone build, ingest more archive data, or alter production state.
 
 ## Purpose
 
@@ -68,3 +68,8 @@ Those remain explicit protected/live acceptance gates rather than being papered 
 ## Integration rule
 
 Do not duplicate engines to satisfy this suite. Repair demonstrated failures in the canonical One Arbor path and rerun the same workflow.
+
+
+## Refresh receipt
+
+This lane was refreshed onto current One Arbor head `0ddbea465bbe219a767d0a809db3ecf53548e4ee` after the first torture run exposed stale-base TypeScript failures. The refresh also repairs only demonstrated test-fixture typing gaps; current research implementation files are preserved from the refreshed parent.
