@@ -1,0 +1,73 @@
+name: Local Windows LM prep acceptance
+
+on:
+  pull_request:
+    branches:
+      - arbor/ark-spine-20261006
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+permissions:
+  contents: read
+
+concurrency:
+  group: local-windows-lm-prep-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  node-contracts:
+    if: github.repository == 'mikebuffan/Arbor' && github.head_ref == 'arbor/local-lm-windows-prep-20261006'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify manifest and loopback-only smoke contracts
+        run: node --test ops/grove/local-lm/local-lm-prep.test.mjs
+
+  windows-preflight:
+    if: github.repository == 'mikebuffan/Arbor' && github.head_ref == 'arbor/local-lm-windows-prep-20261006'
+    runs-on: windows-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Assert preflight contains no installer or network action
+        shell: pwsh
+        run: |
+          $text = Get-Content -Raw ops/grove/local-lm/windows-preflight.ps1
+          $forbidden = @(
+            'Invoke-WebRequest',
+            'Invoke-RestMethod',
+            'Start-BitsTransfer',
+            'winget install',
+            'choco install',
+            'pip install',
+            'npm install',
+            'curl.exe',
+            'wget'
+          )
+          foreach ($needle in $forbidden) {
+            if ($text -match [regex]::Escape($needle)) {
+              throw "preflight contains forbidden action: $needle"
+            }
+          }
+      - name: Run read-only Windows hardware preflight
+        shell: pwsh
+        run: |
+          $json = & ./ops/grove/local-lm/windows-preflight.ps1
+          $result = $json | ConvertFrom-Json
+          if ($result.schemaVersion -ne 1) { throw 'schema mismatch' }
+          if ($result.scope -ne 'read_only_local_hardware_preflight') { throw 'scope mismatch' }
+          if ($result.machineIdentityCollected -ne $false) { throw 'machine identity must not be collected' }
+          if ($result.assessment.intendedMode -ne 'cpu_only_bounded_pilot') { throw 'pilot mode mismatch' }
+          Write-Host "PASS: read-only Windows preflight executed; eligibility result is host-specific and not a model receipt."
