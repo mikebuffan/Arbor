@@ -35,11 +35,11 @@ function harness(payload: Record<string, unknown> = { review, limit: 1 }) {
     queries.push({ table, q }); return q;
   });
   const rpc = vi.fn(async (name: string, args: any) => {
-    if (name === "arbor_claim_research_unit") return { data: { unitId: "unit", leaseToken: "lease", idempotencyKey: "key",
+    if (name === "arbor_claim_document_hop_unit") return { data: { unitId: "unit", leaseToken: "lease", idempotencyKey: "key",
       kind: "document_pattern_hop_search", payload, maxCostReservationCents: 0 }, error: null };
     if (name === "arbor_settle_research_unit") {
       saved = JSON.parse(JSON.stringify({ session_id: args.p_session_id, unit_id: args.p_unit_id,
-        user_id: args.p_user_id, project_id: args.p_project_id, result: args.p_result }));
+        user_id: args.p_user_id, project_id: args.p_project_id, status: "completed", result: args.p_result }));
       return { data: "committed", error: null };
     }
     return { data: true, error: null };
@@ -48,7 +48,7 @@ function harness(payload: Record<string, unknown> = { review, limit: 1 }) {
     leak: () => { saved.user_id = "foreign"; } };
 }
 const invocation = { ownerId: "owner", projectId: "project", workerId: "worker", sessionId: "session",
-  at: "2026-10-06T00:10:00Z", enabled: true };
+  unitId: "unit", at: "2026-10-06T00:10:00Z", enabled: true };
 
 describe("stored document hop session integration", () => {
   it("runs real review validation/search/ranking and reloads JSON receipts in a fresh adapter", async () => {
@@ -63,8 +63,11 @@ describe("stored document hop session integration", () => {
     const settle = h.rpc.mock.calls.find(([name]) => name === "arbor_settle_research_unit")![1];
     expect(settle).toMatchObject({ p_unresolved_required_work: 3, p_evidence_refs: [], p_cost_cents: 0 });
     expect(h.rpc).toHaveBeenCalledTimes(2); // Readback cannot execute or enqueue another unit.
-    const read = h.queries.find(x => x.table === "arbor_research_receipts").q;
+    const read = h.queries.filter(x => x.table === "arbor_research_receipts").at(-1)!.q;
     expect(read.eq.mock.calls).toEqual([["session_id", "session"], ["unit_id", "unit"], ["user_id", "owner"], ["project_id", "project"]]);
+    expect(await runStoredDocumentHopTick({ ...invocation, db: h.db, workerId: "restarted" })).toMatchObject({ status: "replayed", result: checkpoint });
+    expect(h.rpc).toHaveBeenCalledTimes(2);
+    expect(h.queries.filter(x => x.table === "arbor_research_pages")).toHaveLength(1);
     h.leak();
     await expect(restarted.loadUnitResult("session", "unit")).rejects.toThrow("scope_mismatch");
   });
@@ -73,19 +76,34 @@ describe("stored document hop session integration", () => {
     await expect(runStoredDocumentHopTick({ ...invocation, db: h.db, enabled: undefined })).rejects.toThrow("disabled");
     expect(h.from).not.toHaveBeenCalled(); expect(h.rpc).not.toHaveBeenCalled();
   });
+  it("uses only the targeted document claim RPC and binds its requested unit", async () => {
+    const h = harness();
+    await runStoredDocumentHopTick({ ...invocation, db: h.db });
+    expect(h.rpc).toHaveBeenCalledWith("arbor_claim_document_hop_unit", expect.objectContaining({ p_unit_id: "unit", p_session_id: "session", p_user_id: "owner", p_project_id: "project" }));
+    expect(h.rpc.mock.calls.map(([name]) => name)).not.toContain("arbor_claim_research_unit");
+  });
+  it("rejects a wrong unit or kind returned by the claim adapter before searching", async () => {
+    for (const [unitId, kind] of [["foreign", "document_pattern_hop_search"], ["unit", "source_fetch"]]) {
+      const h = harness();
+      h.rpc.mockImplementationOnce(async () => ({ data: { unitId, kind, leaseToken: "lease", idempotencyKey: "key", payload: { review }, maxCostReservationCents: 0 }, error: null }));
+      await expect(runStoredDocumentHopTick({ ...invocation, db: h.db })).rejects.toThrow("claim_scope_mismatch");
+      expect(h.queries.some(x => x.table === "arbor_research_pages")).toBe(false);
+      expect(h.rpc).toHaveBeenCalledTimes(1);
+    }
+  });
   it("stops cancelled sessions before claiming or searching", async () => {
     const h = harness(); h.session.cancellation_requested = true;
     expect(await runStoredDocumentHopTick({ ...invocation, db: h.db })).toMatchObject({ status: "stopped", reason: "cancelled_by_owner" });
-    expect(h.rpc).not.toHaveBeenCalledWith("arbor_claim_research_unit", expect.anything());
-    expect(h.from).toHaveBeenCalledTimes(1);
+    expect(h.rpc).not.toHaveBeenCalledWith("arbor_claim_document_hop_unit", expect.anything());
+    expect(h.from).toHaveBeenCalledTimes(2);
   });
   it("rejects invented review triggers, oversized batches and scope overrides without settlement", async () => {
     for (const payload of [{ review, limit: 21 }, { review, ownerId: "foreign" },
       { review: { ...review, directive: { ...review.directive, triggerEvidenceRefs: ["invented"] } } }]) {
       const h = harness(payload);
       await expect(runStoredDocumentHopTick({ ...invocation, db: h.db })).rejects.toThrow();
-      expect(h.rpc.mock.calls.map(([name]) => name)).toEqual(["arbor_claim_research_unit"]);
-      expect(h.from).toHaveBeenCalledTimes(1);
+      expect(h.rpc.mock.calls.map(([name]) => name)).toEqual(["arbor_claim_document_hop_unit"]);
+      expect(h.from).toHaveBeenCalledTimes(2);
     }
   });
   it("rejects lossy, cyclic and oversized result data before persistence", () => {

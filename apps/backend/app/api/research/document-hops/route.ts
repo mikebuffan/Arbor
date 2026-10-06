@@ -12,7 +12,10 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 const Scope = z.object({ projectId: z.string().uuid(), sessionId: z.string().uuid() }).strict();
 const Read = Scope.extend({ unitId: z.string().uuid() }).strict();
-const Action = Scope.extend({ action: z.enum(["tick", "stop"]) }).strict();
+const Action = z.discriminatedUnion("action", [
+  Scope.extend({ action: z.literal("tick"), unitId: z.string().uuid() }).strict(),
+  Scope.extend({ action: z.literal("stop") }).strict(),
+]);
 const json = (body: unknown, status = 200) => NextResponse.json(body, {
   status, headers: { "Cache-Control": "no-store" },
 });
@@ -71,7 +74,7 @@ export async function POST(req: Request) {
         gate.scheduler_enabled !== false || gate.real_source_ingestion_enabled !== false || gate.publication_enabled !== false)
       return json({ ok: false, error: "document_hop_integration_gate_closed", executionRequested: false }, 409);
     const result = await runStoredDocumentHopTick({ db: supabaseAdmin(), ownerId: userId, projectId,
-      workerId: `document-host:${randomUUID()}`, sessionId, at: new Date().toISOString(), enabled: true });
+      workerId: `document-host:${randomUUID()}`, sessionId, unitId: parsed.data.unitId, at: new Date().toISOString(), enabled: true });
     return json({ ok: true, ...result, researchCompletionVerified: false });
   } catch (error) { return failure(error); }
 }

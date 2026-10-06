@@ -55,10 +55,16 @@ export function createDocumentHopExecutor(input: {
  * No route, cron, enqueue, provider call or historical-memory submission. */
 export async function runStoredDocumentHopTick(input: {
   db: SupabaseClient; ownerId: string; projectId: string; workerId: string;
-  sessionId: string; at: string; enabled?: boolean;
+  sessionId: string; unitId: string; at: string; enabled?: boolean;
 }) {
   if (input.enabled !== true) throw new Error("stored_document_hops_disabled");
-  const store = new SupabaseResearchStore(input.db, input.ownerId, input.projectId, input.workerId);
+  if (!input.unitId) throw new Error("document_hop_unit_required");
+  const store = new SupabaseResearchStore(input.db, input.ownerId, input.projectId, input.workerId, input.unitId);
+  const saved = await store.loadUnitResult(input.sessionId, input.unitId, true);
+  if (saved) {
+    if (saved.completionScope !== "bounded_document_search_batch") throw new Error("document_hop_receipt_kind_mismatch");
+    return { status: "replayed" as const, result: saved };
+  }
   const documents = new SupabaseInvestigationStore(input.db, input.ownerId, input.projectId);
   return runResearchSessionTick({ sessionId: input.sessionId, at: input.at, store,
     executor: createDocumentHopExecutor({ ownerId: input.ownerId, projectId: input.projectId, documents }) });

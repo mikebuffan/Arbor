@@ -46,24 +46,29 @@ afterEach(() => vi.unstubAllEnvs());
 describe("authenticated document hop host route", () => {
   it("rejects invalid auth before any privileged client or executor", async () => {
     auth.requireUser.mockRejectedValue(new RouteAccessError(401, "invalid_token"));
-    expect((await POST(post({ projectId, sessionId, action: "tick" }))).status).toBe(401);
+    expect((await POST(post({ projectId, sessionId, action: "tick", unitId }))).status).toBe(401);
     expect(auth.admin).not.toHaveBeenCalled(); expect(auth.tick).not.toHaveBeenCalled();
   });
   it("rejects client owner overrides and unowned projects before admin access", async () => {
     const h = harness();
-    expect((await POST(post({ projectId, sessionId, action: "tick", userId: "foreign" }))).status).toBe(400);
+    expect((await POST(post({ projectId, sessionId, action: "tick", unitId, userId: "foreign" }))).status).toBe(400);
     h.state.project = null;
     expect((await POST(post({ projectId, sessionId, action: "stop" }))).status).toBe(404);
     expect(auth.admin).not.toHaveBeenCalled(); expect(auth.tick).not.toHaveBeenCalled();
   });
+  it("requires an explicit work unit for a tick, while STOP only needs the session", async () => {
+    harness();
+    expect((await POST(post({ projectId, sessionId, action: "tick" }))).status).toBe(400);
+    expect(auth.tick).not.toHaveBeenCalled(); expect(auth.admin).not.toHaveBeenCalled();
+  });
   it("keeps a server flag from overriding the locked preview integration state", async () => {
     const h = harness();
-    expect((await POST(post({ projectId, sessionId, action: "tick" }))).status).toBe(409);
+    expect((await POST(post({ projectId, sessionId, action: "tick", unitId }))).status).toBe(409);
     vi.stubEnv("ARBOR_ENABLE_STORED_DOCUMENT_HOPS", "true");
     for (const gate of [h.state.gate, null, { ...h.state.gate, execution_enabled: true, owner_id: "foreign" },
       { ...h.state.gate, execution_enabled: true, real_source_ingestion_enabled: true }]) {
       h.state.gate = gate;
-      const response = await POST(post({ projectId, sessionId, action: "tick" }));
+      const response = await POST(post({ projectId, sessionId, action: "tick", unitId }));
       expect(response.status).toBe(409); expect(await response.json()).toMatchObject({ executionRequested: false });
     }
     expect(auth.admin).not.toHaveBeenCalled(); expect(auth.tick).not.toHaveBeenCalled();
@@ -71,9 +76,9 @@ describe("authenticated document hop host route", () => {
   it("binds an eligible future tick to server identity and clock rather than client overrides", async () => {
     const h = harness(); vi.stubEnv("ARBOR_ENABLE_STORED_DOCUMENT_HOPS", "true");
     h.state.gate.execution_enabled = true; // Hypothetical future schema; v6 CHECK forbids this live.
-    const response = await POST(post({ projectId, sessionId, action: "tick" }));
+    const response = await POST(post({ projectId, sessionId, action: "tick", unitId }));
     expect(response.status).toBe(200);
-    expect(auth.tick).toHaveBeenCalledWith(expect.objectContaining({ db: h.db, ownerId: owner, projectId, sessionId, enabled: true,
+    expect(auth.tick).toHaveBeenCalledWith(expect.objectContaining({ db: h.db, ownerId: owner, projectId, sessionId, unitId, enabled: true,
       workerId: expect.stringMatching(/^document-host:/), at: expect.any(String) }));
     expect(await response.json()).toMatchObject({ researchCompletionVerified: false });
   });

@@ -59,6 +59,7 @@ export class SupabaseResearchStore implements ResearchStore {
     private readonly ownerId: string,
     private readonly projectId: string,
     private readonly workerId: string,
+    private readonly documentUnitId?: string,
   ) {
     if (!ownerId || !projectId || !workerId) {
       throw new Error("research_store_requires_scoped_identity");
@@ -91,16 +92,20 @@ export class SupabaseResearchStore implements ResearchStore {
     leaseSeconds: number;
   }): Promise<ResearchClaim|null> {
     this.assertScope(input.session);
-    const {data,error} = await this.db.rpc("arbor_claim_research_unit",{
+    const {data,error} = await this.db.rpc(this.documentUnitId ? "arbor_claim_document_hop_unit" : "arbor_claim_research_unit",{
       p_session_id:input.session.id,
       p_user_id:this.ownerId,
       p_project_id:this.projectId,
       p_worker_id:this.workerId,
       p_lease_seconds:input.leaseSeconds,
+      ...(this.documentUnitId ? { p_unit_id: this.documentUnitId } : {}),
     });
     if (error) throw error;
     if (data===null) return null;
     const r=row(data);
+    if (this.documentUnitId && (r.unitId !== this.documentUnitId || r.kind !== "document_pattern_hop_search")) {
+      throw new Error("document_hop_claim_scope_mismatch");
+    }
     return {
       unitId:requiredString(r.unitId,"unitId"),
       leaseToken:requiredString(r.leaseToken,"leaseToken"),
@@ -143,15 +148,17 @@ export class SupabaseResearchStore implements ResearchStore {
   }
 
   /** Reload a committed unit result after restart; never re-run its search. */
-  async loadUnitResult(sessionId: string, unitId: string): Promise<Record<string, unknown> | null> {
-    const { data, error } = await this.db.from("arbor_research_receipts")
-      .select("session_id,unit_id,user_id,project_id,result")
+  async loadUnitResult(sessionId: string, unitId: string, completedOnly = false): Promise<Record<string, unknown> | null> {
+    let query = this.db.from("arbor_research_receipts")
+      .select("session_id,unit_id,user_id,project_id,status,result")
       .eq("session_id", sessionId).eq("unit_id", unitId)
-      .eq("user_id", this.ownerId).eq("project_id", this.projectId)
-      .order("recorded_at", { ascending: false }).limit(1).maybeSingle();
+      .eq("user_id", this.ownerId).eq("project_id", this.projectId);
+    if (completedOnly) query = query.eq("status", "completed");
+    const { data, error } = await query.order("recorded_at", { ascending: false }).limit(1).maybeSingle();
     if (error) throw error;
     if (!data) return null;
     const r = row(data);
+    if (completedOnly && r.status !== "completed") throw new Error("document_hop_receipt_status_mismatch");
     if (r.user_id !== this.ownerId || r.project_id !== this.projectId || r.session_id !== sessionId || r.unit_id !== unitId) {
       throw new Error("research_owner_scope_mismatch");
     }
