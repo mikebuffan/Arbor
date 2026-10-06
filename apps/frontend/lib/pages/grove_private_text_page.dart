@@ -9,6 +9,7 @@ import '../api/arbor_session.dart';
 import '../config/grove_private_config.dart';
 import '../config/grove_private_session.dart';
 import '../environment/grove_private_conversations.dart';
+import '../environment/grove_pending_turn_store.dart';
 
 /// New-thread WRITE opt-in is separate from read-only private Text. Both are
 /// compile-time OFF in ordinary phone builds, AND server flags are independent.
@@ -139,6 +140,11 @@ class _GrovePrivateTextHostState extends State<GrovePrivateTextHost> {
         api: api, config: GrovePrivateConfig.fromBuild, enabled: true,
       ),
       projectId: project,
+      pendingStore: GrovePendingTurnStore(
+        userId: id, projectId: project,
+        apiOrigin: GrovePrivateConfig.fromBuild.apiUrl,
+        authOrigin: GrovePrivateConfig.fromBuild.authUrl,
+      ),
       allowNewConversations: _groveNewConversationEnabled,
       initialConversationId: _selectedId,
       sessionStillValid: () => _sameSession(id, token, project),
@@ -182,12 +188,14 @@ class GrovePrivateTextPanel extends StatefulWidget {
     required this.sessionStillValid,
     required this.onConversationSelected,
     this.initialConversationId,
+    this.pendingStore,
     this.allowNewConversations = false,
   });
 
   final GrovePrivateConversationClient client;
   final String projectId;
   final String? initialConversationId;
+  final GrovePendingTurnStore? pendingStore;
   final bool allowNewConversations;
   final bool Function() sessionStillValid;
   final Future<void> Function(String conversationId) onConversationSelected;
@@ -196,7 +204,8 @@ class GrovePrivateTextPanel extends StatefulWidget {
   State<GrovePrivateTextPanel> createState() => _GrovePrivateTextPanelState();
 }
 
-class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel> {
+class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel>
+    with WidgetsBindingObserver {
   final _input = TextEditingController();
   GrovePrivateConversationChoices? _choices;
   GrovePrivateHistory? _history;
@@ -208,13 +217,146 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel> {
   bool _loading = true;
   bool _sending = false;
   int _generation = 0;
+  Timer? _draftTimer;
+  bool _keepDraft = false;
+  bool _draftBlocked = false;
+  bool _changingDraft = false;
+  bool _settingInput = false;
+  bool _disposed = false;
+  String? _draftStatus;
 
-  bool get _valid => mounted && widget.sessionStillValid();
+  bool get _valid => mounted && !_disposed && widget.sessionStillValid();
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _input.addListener(_draftChanged);
     unawaited(_discover());
+  }
+
+  void _setInput(String text) {
+    _settingInput = true;
+    _input.text = text;
+    _settingInput = false;
+  }
+
+  void _draftChanged() {
+    if (_settingInput || !_keepDraft || _pendingId != null || !_valid) return;
+    _draftTimer?.cancel();
+    setState(() => _draftStatus = 'Saving draft…');
+    _draftTimer = Timer(const Duration(milliseconds: 300), () {
+      unawaited(_saveDraftQuietly());
+    });
+  }
+
+  Future<void> _saveDraft() async {
+    _draftTimer?.cancel();
+    final store = widget.pendingStore;
+    final id = _selected;
+    if (!_keepDraft || store == null || id == null || !_valid) return;
+    if (_draftBlocked) throw StateError('Saved draft needs explicit recovery');
+    // Capture scope and exact text before yielding, including on disposal.
+    final turn = GrovePendingTurn(
+      text: _pendingText ?? _input.text, requestId: _pendingId,
+    );
+    final generation = _generation;
+    await store.save(id, turn);
+    if (_valid && generation == _generation &&
+        turn.text == (_pendingText ?? _input.text) &&
+        turn.requestId == _pendingId) {
+      setState(() => _draftStatus = 'Draft saved on this device.');
+    }
+  }
+
+  Future<void> _saveDraftQuietly() async {
+    final generation = _generation;
+    try {
+      await _saveDraft();
+    } catch (_) {
+      if (_valid && generation == _generation) setState(() => _draftStatus =
+          'Draft could not be saved. Keep this screen open and retry.');
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) unawaited(_saveDraftQuietly());
+  }
+
+  Future<void> _toggleDraft(bool enabled) async {
+    if (!_valid || _sending || _loading || _changingDraft ||
+        (_pendingId != null && !enabled) || _draftBlocked ||
+        widget.pendingStore == null) return;
+    final id = _selected;
+    if (id == null) return;
+    final generation = _generation;
+    setState(() { _changingDraft = true; _keepDraft = enabled; });
+    try {
+      if (enabled) {
+        await _saveDraft();
+      } else {
+        _draftTimer?.cancel();
+        await widget.pendingStore!.erase(id);
+        if (_valid && generation == _generation) {
+          setState(() => _draftStatus = null);
+        }
+      }
+    } catch (_) {
+      if (_valid && generation == _generation) {
+        setState(() {
+          // Failed erase must not pretend the retained private draft is gone.
+          _keepDraft = true;
+          _draftStatus = 'Device draft storage failed. Retry or erase explicitly.';
+        });
+      }
+    } finally {
+      if (_valid && generation == _generation) {
+        setState(() => _changingDraft = false);
+      }
+    }
+  }
+
+  Future<void> _discardDraft() async {
+    if (!_valid || _sending || _loading || _changingDraft) return;
+    final id = _selected;
+    if (id == null) return;
+    final generation = _generation;
+    final confirmed = await showDialog<bool>(context: context, builder: (context) =>
+      AlertDialog(
+        title: const Text('Discard unfinished message?'),
+        content: const Text('Arbor may already have received it. Discarding '
+            'does not cancel that request. Sending it again as a new message '
+            'may create a duplicate.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false),
+            child: const Text('Keep message')),
+          TextButton(onPressed: () => Navigator.pop(context, true),
+            child: const Text('Discard message')),
+        ],
+      ),
+    );
+    if (confirmed != true || !_valid || generation != _generation) return;
+    _draftTimer?.cancel();
+    setState(() => _changingDraft = true);
+    try {
+      // Always attempt erasure when a store exists, including damaged bytes.
+      await widget.pendingStore?.erase(id);
+      if (!_valid || generation != _generation) return;
+      setState(() {
+        _pendingId = null; _pendingText = null;
+        _keepDraft = false; _draftBlocked = false;
+        _draftStatus = null; _error = null;
+        _setInput('');
+      });
+    } catch (_) {
+      if (_valid && generation == _generation) setState(() =>
+        _error = 'The unfinished message could not be erased. Retry erasing.');
+    } finally {
+      if (_valid && generation == _generation) {
+        setState(() => _changingDraft = false);
+      }
+    }
   }
 
   @override
@@ -222,8 +364,11 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.projectId != widget.projectId ||
         oldWidget.client != widget.client) {
+      _draftTimer?.cancel();
       _generation++;
-      _input.clear();
+      _setInput('');
+      _keepDraft = false; _draftBlocked = false;
+      _changingDraft = false; _draftStatus = null; _sending = false;
       _choices = null;
       _history = null;
       _selected = null;
@@ -236,15 +381,20 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel> {
   }
 
   Future<void> _discover() async {
+    if (!_valid || _pendingId != null || _draftBlocked || _changingDraft ||
+        (_loading && _choices != null)) return;
+    final previousId = _selected;
     final generation = ++_generation;
-    if (!_valid) return;
     setState(() { _loading = true; _error = null; });
     try {
+      await _saveDraft();
+      if (!_valid || generation != _generation) return;
       final choices = await widget.client.listExisting(widget.projectId);
       if (!_valid || generation != _generation) return;
+      final preferred = previousId ?? widget.initialConversationId;
       final selected = choices.conversations.any((c) =>
-          c.conversationId == widget.initialConversationId)
-          ? widget.initialConversationId
+          c.conversationId == preferred)
+          ? preferred
           : choices.conversations.length == 1
               ? choices.conversations.single.conversationId : null;
       setState(() { _choices = choices; _loading = selected != null; });
@@ -259,10 +409,21 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel> {
   }
 
   Future<void> _choose(String id, {int? generation}) async {
+    if (!_valid || _sending || _pendingId != null || _draftBlocked || _changingDraft ||
+        (generation != null && generation != _generation) ||
+        !(_choices?.conversations.any((c) => c.conversationId == id) ?? false)) return;
     final current = generation ?? ++_generation;
-    if (!_valid || !(_choices?.conversations.any(
-      (c) => c.conversationId == id,
-    ) ?? false)) return;
+    setState(() { _loading = true; _error = null; });
+    try {
+      await _saveDraft();
+    } catch (_) {
+      if (_valid && current == _generation) setState(() {
+        _loading = false;
+        _error = 'Save the device draft before switching.';
+      });
+      return;
+    }
+    if (!_valid || current != _generation) return;
     setState(() {
       _loading = true;
       _selected = null;
@@ -271,18 +432,58 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel> {
       _pendingText = null;
       _unsavedReply = null;
       _error = null;
-      _input.clear();
+      _draftTimer?.cancel();
+      _keepDraft = false; _draftBlocked = false; _draftStatus = null;
+      _setInput('');
     });
     try {
       final history = await widget.client.loadRecent(
         projectId: widget.projectId, conversationId: id,
       );
       if (!_valid || current != _generation) return;
+      if (history.projectId != widget.projectId || history.conversationId != id) {
+        throw StateError('Private history scope changed');
+      }
       await widget.onConversationSelected(id);
+      if (!_valid || current != _generation) return;
+      GrovePendingTurn? draft;
+      try {
+        draft = await widget.pendingStore?.load(id);
+        if (!_valid || current != _generation) return;
+        if (draft?.requestId != null) {
+          final matching = history.turnsNewestFirst.where(
+            (turn) => turn.requestId == draft!.requestId,
+          );
+          if (matching.isNotEmpty) {
+            if (matching.single.userText != draft!.text) {
+              throw StateError('Saved draft conflicts with verified history');
+            }
+            // A complete scoped history pair closes the pending turn without
+            // another model request. Keep the explicit retention preference.
+            await widget.pendingStore!.save(id, const GrovePendingTurn(text: ''),
+              completedRequestId: draft!.requestId);
+            draft = const GrovePendingTurn(text: '');
+          }
+        }
+      } catch (_) {
+        if (!_valid || current != _generation) return;
+        setState(() {
+          _selected = id; _history = history; _loading = false;
+          _draftBlocked = true;
+          _error = 'A saved device draft could not be recovered. '
+              'Sending is blocked until you erase it explicitly.';
+        });
+        return;
+      }
       if (!_valid || current != _generation) return;
       setState(() {
         _selected = id;
         _history = history;
+        _keepDraft = draft != null;
+        _pendingId = draft?.requestId;
+        _pendingText = draft?.requestId == null ? null : draft!.text;
+        _setInput(draft?.text ?? '');
+        _draftStatus = draft == null ? null : 'Device draft restored. Nothing was resent.';
         _loading = false;
       });
     } catch (_) {
@@ -296,10 +497,13 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel> {
 
   Future<void> _createNew() async {
     if (!widget.allowNewConversations ||
-        !_valid || _loading || _sending || _choices == null) return;
+        !_valid || _loading || _sending || _choices == null ||
+        _pendingId != null || _draftBlocked || _changingDraft) return;
     final generation = ++_generation;
     setState(() { _loading = true; _error = null; });
     try {
+      await _saveDraft();
+      if (!_valid || generation != _generation) return;
       // This is the ONLY path that requests an empty new conversation.
       // Never auto-retry a POST with an uncertain network response.
       final created = await widget.client.createNew(widget.projectId);
@@ -332,9 +536,13 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel> {
   Future<void> _send() async {
     final id = _selected;
     final message = _input.text.trim();
-    if (_sending || _loading || !_valid || id == null ||
+    if (_sending || _loading || _draftBlocked || _changingDraft || !_valid || id == null ||
         message.isEmpty || message.length > 3000) return;
-    if (_pendingText != message || _pendingId == null) {
+    if (_pendingId != null && _pendingText != message) {
+      setState(() => _error = 'Retry the original unchanged message, or discard it explicitly.');
+      return;
+    }
+    if (_pendingId == null) {
       _pendingText = message;
       _pendingId = _newRequestId();
     }
@@ -342,6 +550,10 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel> {
     final generation = _generation;
     setState(() { _sending = true; _error = null; });
     try {
+      // Persist original retry identity BEFORE model disclosure. Storage failure
+      // makes zero network sends. Never auto-send a restored draft.
+      await _saveDraft();
+      if (!_valid || generation != _generation) return;
       final reply = await widget.client.send(
         projectId: widget.projectId, conversationId: id,
         requestId: requestId, text: message,
@@ -366,10 +578,15 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel> {
         }
       }
       if (!_valid || generation != _generation) return;
+      if (_keepDraft) {
+        await widget.pendingStore!.save(id, const GrovePendingTurn(text: ''),
+          completedRequestId: requestId);
+      }
+      if (!_valid || generation != _generation) return;
       setState(() {
         _history = history ?? _history;
         _unsavedReply = reply.persisted ? null : reply.text;
-        _input.clear();
+        _setInput('');
         _pendingId = null;
         _pendingText = null;
         _sending = false;
@@ -380,14 +597,20 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel> {
       setState(() {
         _sending = false;
         _error = 'Grove could not confirm that reply. '
-            'Retry unchanged text or change it to start a new turn.';
+            'Retry the unchanged message, or discard it explicitly.';
       });
     }
   }
 
   @override
   void dispose() {
+    // Best effort for unsent edits; abrupt OS kills can precede platform flush.
+    unawaited(_saveDraftQuietly());
+    _disposed = true;
+    _draftTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
     ++_generation;
+    _input.removeListener(_draftChanged);
     _input.dispose();
     super.dispose();
   }
@@ -429,7 +652,8 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel> {
                       overflow: TextOverflow.ellipsis),
                   ),
                 ).toList(),
-                onChanged: _sending ? null : (id) {
+                onChanged: _sending || _loading || _pendingId != null ||
+                    _draftBlocked || _changingDraft ? null : (id) {
                   if (id != null) unawaited(_choose(id));
                 },
               ),
@@ -439,11 +663,13 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel> {
                 children: [
                   if (widget.allowNewConversations)
                     OutlinedButton(
-                      onPressed: _sending ? null : _createNew,
+                      onPressed: _sending || _loading || _pendingId != null || _draftBlocked ||
+                          _changingDraft ? null : _createNew,
                       child: const Text('New private conversation'),
                     ),
                   TextButton(
-                    onPressed: _sending ? null : _discover,
+                    onPressed: _sending || _loading || _pendingId != null || _draftBlocked ||
+                        _changingDraft ? null : _discover,
                     child: const Text('Refresh conversations'),
                   ),
                 ],
@@ -492,9 +718,29 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel> {
                   ),
             ),
             if (_selected != null) ...[
+              if (widget.pendingStore != null)
+                CheckboxListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Keep unfinished message on this device'),
+                  subtitle: const Text('Stored locally without encryption until cleared.'),
+                  value: _keepDraft,
+                  onChanged: _sending || _loading || (_pendingId != null && _keepDraft) ||
+                      _draftBlocked || _changingDraft ? null : (value) {
+                    if (value != null) unawaited(_toggleDraft(value));
+                  },
+                ),
+              if (_draftStatus != null)
+                Text(_draftStatus!, style: const TextStyle(color: Colors.white70)),
+              if (_pendingId != null || _draftBlocked)
+                TextButton(
+                  onPressed: _sending || _changingDraft ? null : _discardDraft,
+                  child: const Text('Discard unfinished message'),
+                ),
               TextField(
                 controller: _input,
-                enabled: !_sending && !_loading,
+                enabled: !_sending && !_loading && !_draftBlocked &&
+                    !_changingDraft && _pendingId == null,
                 maxLength: 3000,
                 maxLines: 4,
                 minLines: 1,
@@ -506,7 +752,8 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel> {
               Align(
                 alignment: Alignment.centerRight,
                 child: FilledButton(
-                  onPressed: _sending || _loading ? null : _send,
+                  onPressed: _sending || _loading || _draftBlocked ||
+                      _changingDraft ? null : _send,
                   child: Text(_sending ? 'Waiting for Arbor…' : 'Send'),
                 ),
               ),

@@ -1,8 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/api/arbor_api_client.dart';
 import 'package:frontend/config/grove_private_config.dart';
 import 'package:frontend/environment/grove_private_conversations.dart';
+import 'package:frontend/environment/grove_pending_turn_store.dart';
+
+import 'support/device_string_store_fake.dart';
 import 'package:frontend/pages/grove_private_text_page.dart';
 
 const projectId = '00000000-0000-4000-8000-000000000003';
@@ -32,6 +37,8 @@ class _FakePrivateClient extends GrovePrivateConversationClient {
   bool empty = false;
   bool failOnce = false;
   bool staleHistoryOnce = false;
+  bool lostReplyOnce = false;
+  void Function()? afterSaved;
   final retryIds = <String>[];
   final saved = <GrovePrivateCompleteTurn>[];
 
@@ -111,6 +118,11 @@ class _FakePrivateClient extends GrovePrivateConversationClient {
         createdAt: DateTime.utc(2026, 9, 23, 2),
       ));
     }
+    afterSaved?.call();
+    if (lostReplyOnce) {
+      lostReplyOnce = false;
+      throw StateError('Reply lost after server save');
+    }
     return GrovePrivateReply(
       text: 'Ready to continue.',
       requestId: requestId,
@@ -119,6 +131,26 @@ class _FakePrivateClient extends GrovePrivateConversationClient {
       replyVerification: 'unverified_model_text',
     );
   }
+}
+
+
+GrovePendingTurnStore pendingStore(FakeDeviceStringStore disk, {
+  String owner = '00000000-0000-4000-8000-000000000001',
+}) => GrovePendingTurnStore(userId: owner, projectId: projectId,
+    apiOrigin: apiOrigin, authOrigin: config.authUrl, storage: disk);
+
+Widget recoveryPhone(_FakePrivateClient client, GrovePendingTurnStore store, {
+  bool Function()? valid,
+}) => MaterialApp(home: Scaffold(body: GrovePrivateTextPanel(
+  client: client, projectId: projectId,
+  initialConversationId: conversationId, pendingStore: store,
+  sessionStillValid: valid ?? () => true,
+  onConversationSelected: (_) async {},
+)));
+
+Future<void> roomForRecovery(WidgetTester tester) async {
+  await tester.binding.setSurfaceSize(const Size(900, 1100));
+  addTearDown(() => tester.binding.setSurfaceSize(null));
 }
 
 void main() {
@@ -300,4 +332,182 @@ void main() {
     expect(find.textContaining('Private Grove access changed'), findsOneWidget);
     expect(client.sends, 2);
   });
+  testWidgets('unsent draft retention is explicit and restores without a send', (tester) async {
+    await roomForRecovery(tester);
+    final disk = FakeDeviceStringStore();
+    final client = _FakePrivateClient();
+    await tester.pumpWidget(recoveryPhone(client, pendingStore(disk)));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'Continue Arbor');
+    await tester.pumpAndSettle();
+    expect(disk.writes, 0);
+    await tester.tap(find.byType(Checkbox));
+    await tester.pumpAndSettle();
+    expect(disk.writes, 1);
+    await tester.pumpWidget(const MaterialApp(home: SizedBox()));
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(recoveryPhone(client, pendingStore(disk)));
+    await tester.pumpAndSettle();
+    expect(find.text('Continue Arbor'), findsOneWidget);
+    expect(find.textContaining('Nothing was resent'), findsOneWidget);
+    expect(client.sends, 0);
+  });
+
+  testWidgets('uncertain send survives remount and reuses the original retry ID', (tester) async {
+    await roomForRecovery(tester);
+    final disk = FakeDeviceStringStore();
+    final client = _FakePrivateClient()..failOnce = true;
+    await tester.pumpWidget(recoveryPhone(client, pendingStore(disk)));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(Checkbox));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'Continue Arbor');
+    await tester.tap(find.text('Send'));
+    await tester.pumpAndSettle();
+    final originalId = client.retryIds.single;
+    await tester.pumpWidget(const MaterialApp(home: SizedBox()));
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(recoveryPhone(client, pendingStore(disk)));
+    await tester.pumpAndSettle();
+    expect(client.sends, 1);
+    expect(tester.widget<TextField>(find.byType(TextField)).enabled, isFalse);
+    await tester.tap(find.text('Send'));
+    await tester.pumpAndSettle();
+    expect(client.retryIds, [originalId, originalId]);
+    expect(client.saved, hasLength(1));
+    expect((await pendingStore(disk).load(conversationId))?.requestId, isNull);
+  });
+
+  testWidgets('lost reply after server completion recovers without repeat inference', (tester) async {
+    await roomForRecovery(tester);
+    final disk = FakeDeviceStringStore();
+    final client = _FakePrivateClient()..lostReplyOnce = true;
+    await tester.pumpWidget(recoveryPhone(client, pendingStore(disk)));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(Checkbox));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'Continue Arbor');
+    await tester.tap(find.text('Send'));
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(const MaterialApp(home: SizedBox()));
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(recoveryPhone(client, pendingStore(disk)));
+    await tester.pumpAndSettle();
+    expect(client.sends, 1);
+    expect(client.saved, hasLength(1));
+    expect(find.text('Ready to continue.'), findsOneWidget);
+    expect(tester.widget<TextField>(find.byType(TextField)).controller!.text, isEmpty);
+    expect((await pendingStore(disk).load(conversationId))?.requestId, isNull);
+  });
+
+  testWidgets('device write failure stops send and preserves retry identity', (tester) async {
+    await roomForRecovery(tester);
+    final disk = FakeDeviceStringStore();
+    final client = _FakePrivateClient();
+    await tester.pumpWidget(recoveryPhone(client, pendingStore(disk)));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(Checkbox));
+    await tester.pumpAndSettle();
+    disk.failWrites = true;
+    await tester.enterText(find.byType(TextField), 'Continue Arbor');
+    await tester.tap(find.text('Send'));
+    await tester.pumpAndSettle();
+    expect(client.sends, 0);
+    expect(find.textContaining('could not confirm that reply'), findsOneWidget);
+    disk.failWrites = false;
+    await tester.tap(find.text('Send'));
+    await tester.pumpAndSettle();
+    expect(client.sends, 1);
+    expect(client.saved, hasLength(1));
+  });
+
+  testWidgets('unknown saved draft blocks send until explicit confirmed discard', (tester) async {
+    await roomForRecovery(tester);
+    final disk = FakeDeviceStringStore();
+    final store = pendingStore(disk);
+    await store.save(conversationId, const GrovePendingTurn(text: 'Private draft'));
+    disk.values[disk.values.keys.single] = '{"version":99}';
+    final client = _FakePrivateClient();
+    await tester.pumpWidget(recoveryPhone(client, store));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Sending is blocked'), findsOneWidget);
+    expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Send')).onPressed,
+      isNull);
+    await tester.tap(find.text('Discard unfinished message'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Keep message'));
+    await tester.pumpAndSettle();
+    expect(disk.values.values.single, '{"version":99}');
+    await tester.tap(find.text('Discard unfinished message'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Discard message'));
+    await tester.pumpAndSettle();
+    expect(await store.load(conversationId), isNull);
+    expect(client.sends, 0);
+  });
+
+  testWidgets('other account never restores local private text', (tester) async {
+    await roomForRecovery(tester);
+    final disk = FakeDeviceStringStore();
+    await pendingStore(disk).save(conversationId,
+      const GrovePendingTurn(text: 'Other owner private draft'));
+    final client = _FakePrivateClient();
+    await tester.pumpWidget(recoveryPhone(client, pendingStore(disk,
+      owner: '00000000-0000-4000-8000-000000000009')));
+    await tester.pumpAndSettle();
+    expect(find.text('Other owner private draft'), findsNothing);
+    expect(disk.writes, 1);
+    expect(client.sends, 0);
+  });
+
+  testWidgets('revocation while device save waits prevents model disclosure', (tester) async {
+    await roomForRecovery(tester);
+    final disk = FakeDeviceStringStore();
+    final client = _FakePrivateClient();
+    var valid = true;
+    await tester.pumpWidget(recoveryPhone(client, pendingStore(disk),
+      valid: () => valid));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(Checkbox));
+    await tester.pumpAndSettle();
+    final gate = Completer<void>();
+    disk.pauseWrite = gate.future;
+    await tester.enterText(find.byType(TextField), 'Continue Arbor');
+    await tester.tap(find.text('Send'));
+    await tester.pump();
+    expect(client.sends, 0);
+    valid = false;
+    gate.complete();
+    await tester.pumpWidget(recoveryPhone(client, pendingStore(disk),
+      valid: () => valid));
+    await tester.pumpAndSettle();
+    expect(client.sends, 0);
+    expect(find.text('Continue Arbor'), findsNothing);
+    expect(find.textContaining('Private Grove access changed'), findsOneWidget);
+  });
+
+  testWidgets('cleanup failure keeps original retry until storage recovers', (tester) async {
+    await roomForRecovery(tester);
+    final disk = FakeDeviceStringStore();
+    final client = _FakePrivateClient();
+    client.afterSaved = () => disk.failWrites = true;
+    await tester.pumpWidget(recoveryPhone(client, pendingStore(disk)));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(Checkbox));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'Continue Arbor');
+    await tester.tap(find.text('Send'));
+    await tester.pumpAndSettle();
+    final id = client.retryIds.single;
+    expect((await pendingStore(disk).load(conversationId))?.requestId, id);
+    expect(find.textContaining('could not confirm that reply'), findsOneWidget);
+    disk.failWrites = false;
+    client.afterSaved = null;
+    await tester.tap(find.text('Send'));
+    await tester.pumpAndSettle();
+    expect(client.retryIds, [id, id]);
+    expect(client.saved, hasLength(1));
+    expect((await pendingStore(disk).load(conversationId))?.requestId, isNull);
+  });
+
 }
