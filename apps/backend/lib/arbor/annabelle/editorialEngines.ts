@@ -110,3 +110,20 @@ function rhythmDensity(text:string):AnnabelleDiagnostic[]{
   const ratio=fragments/sentences.length;
   return ratio>.35?[{engine:"rhythm",severity:ratio>.5?"revise":"watch",message:"Very-short sentence/fragment density is high. Confirm fragmentation is scene-earned rather than a manuscript-wide default rhythm.",evidence:[],count:fragments}]:[];
 }
+
+const WRITER_PERFORMANCE = /\b(the kind of|as if the (?:world|room|air|night)|something ancient|something primal|beautifully broken|deliciously|dangerously beautiful|perfectly imperfect)\b/gi;
+const CAMERA_LEAK = /\b(unbeknownst to (?:her|him|them)|she couldn't see that|he couldn't see that|behind her, he|behind him, she)\b/gi;
+const DISCOVERY_EXPLAIN = /\b(she realized|he realized|she understood|he understood|she knew then|he knew then|it dawned on)\b/gi;
+
+function rawGravity(text:string):AnnabelleDiagnostic[]{
+  const n=countMatches(text,WRITER_PERFORMANCE);
+  return n>=2?[{engine:"raw-gravity",severity:n>=4?"revise":"watch",message:"Writer-performance language is clustering. Test each line against character/circumstance truth; do not keep a line merely because it sounds dramatic or beautiful.",evidence:evidence(text,WRITER_PERFORMANCE),count:n}]:[];
+}
+function cameraBoundary(text:string):AnnabelleDiagnostic[]{
+  const n=countMatches(text,CAMERA_LEAK);
+  return n?[{engine:"camera",severity:"watch",message:"Possible close-third camera leak. Confirm the focal character could perceive or infer this information in-scene.",evidence:evidence(text,CAMERA_LEAK),count:n}]:[];
+}
+function discoveryDensity(text:string):AnnabelleDiagnostic[]{
+  const n=countMatches(text,DISCOVERY_EXPLAIN);
+  return n>=4?[{engine:"discovery-density",severity:n>=7?"revise":"watch",message:"Explicit realization language is clustering. Let evidence accumulate before naming the inference where possible.",evidence:evidence(text,DISCOVERY_EXPLAIN),count:n}]:[];
+}
