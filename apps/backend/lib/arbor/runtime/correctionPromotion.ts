@@ -113,17 +113,17 @@ export async function loadDurableBehaviorCorrections(input: {
   supabase: SupabaseClient; userId: string;
 }): Promise<ArborCorrection[]> {
   const { data, error } = await input.supabase.from("memory_items")
-    .select("id,user_id,project_id,conversation_id,key,value,scope,status,deleted_at,confidence")
+    .select("id,user_id,project_id,conversation_id,key,value,scope,status,deleted_at,excluded_from_memory,confidence")
     .eq("user_id", input.userId).eq("scope", "global")
     .is("project_id", null).is("conversation_id", null)
-    .eq("status", "active").is("deleted_at", null)
+    .eq("status", "active").eq("excluded_from_memory", false).is("deleted_at", null)
     .in("key", DURABLE_BEHAVIOR_KEYS).limit(DURABLE_BEHAVIOR_KEYS.length + 1);
   if (error) throw error;
   const rows = data ?? [];
   const seen = new Set<string>();
   return rows.map(row => {
     if (row.user_id !== input.userId || row.scope !== "global" || row.project_id !== null ||
-        row.conversation_id !== null || row.status !== "active" || row.deleted_at !== null ||
+        row.conversation_id !== null || row.status !== "active" || row.deleted_at !== null || row.excluded_from_memory === true ||
         !DURABLE_BEHAVIOR_KEYS.includes(row.key) || seen.has(row.key))
       throw new Error("durable_behavior_correction_scope_or_duplicate");
     seen.add(row.key);

@@ -90,6 +90,7 @@ export function buildArborAgencyTools(input: {
           exhaustedBranches: result.state.exhaustedBranches,
           runtimeProjection: result.runtimeProjection,
           verificationState: result.verificationState,
+          handoff: result.handoff,
         };
       },
     })

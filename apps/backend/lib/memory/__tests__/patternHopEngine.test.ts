@@ -25,12 +25,12 @@ describe("pattern hop engine", () => {
 
   it("preserves provenance and chronology in path projection", () => {
     const parent = evidence("a", "memory correction continuity", "direct", "2026-01-01T00:00:00Z");
-    const child = evidence("b", "runtime code implements memory correction continuity", "direct", "2026-01-02T00:00:00Z");
+    const child = { ...evidence("b", "runtime code implements memory correction continuity", "direct", "2026-01-02T00:00:00Z"), sourceThreadId: "thread", sourceMessageId: "message", sourceArtifactId: "artifact" };
     const selected = selectNextHopCandidates({ parent, candidates:[{evidence:child,retrievalScore:0.9,retrievalMethod:"timeline"}], visitedEvidenceIds:new Set(["a"]) });
     const step = buildPathStep({candidate:selected[0],parentEvidenceId:"a",depth:1});
     expect(step.parentEvidenceId).toBe("a");
     expect(step.retrievalMethod).toBe("timeline");
-    expect(projectPatternHopForRuntime({evidence:[parent,child],path:[step]})[0].occurredAt).toBe("2026-01-02T00:00:00Z");
+    expect(projectPatternHopForRuntime({evidence:[parent,child],path:[step]})[0]).toMatchObject({ occurredAt: "2026-01-02T00:00:00Z", parentEvidenceId: "a", depth: 1, source: "fixture", sourceThreadId: "thread", sourceMessageId: "message", sourceArtifactId: "artifact", retrievalMethod: "timeline" });
   });
 
   it("keeps hypothesis weaker than direct evidence", () => {

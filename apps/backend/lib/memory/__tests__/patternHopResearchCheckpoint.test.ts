@@ -46,6 +46,55 @@ describe("Pattern Hop durable checkpoint ordering", () => {
     expect(mocks.historical).not.toHaveBeenCalled();
     expect(mocks.save).not.toHaveBeenCalled();
   });
+  it.each([false, true])("preserves a failed query for an explicit later pass (all sources=%s)", async (all) => {
+    mocks.historical.mockRejectedValue(new Error("archive unavailable"));
+    if (all) {
+      mocks.memory.mockRejectedValue(new Error("memory unavailable"));
+      mocks.timeline.mockRejectedValue(new Error("timeline unavailable"));
+    }
+    const blocked = await runPatternHopResearch(input);
+    expect(blocked.status).toBe("blocked");
+    expect(blocked.state.frontier).toEqual(initial().frontier);
+    expect(blocked.state.visited).toEqual([]);
+    expect(blocked.state.exhaustedBranches).toEqual([]);
+    expect(blocked.handoff.passStopReason).toBe("sources_blocked");
+    expect(blocked.handoff.nextQueries[0].clue).toBe("agency");
+    mocks.historical.mockResolvedValue([]);
+    mocks.memory.mockResolvedValue([]);
+    mocks.timeline.mockResolvedValue([]);
+    const recovered = await runPatternHopResearch(input);
+    expect(recovered.status).toBe("exhausted");
+    expect(recovered.state.visited).toHaveLength(1);
+    expect(recovered.state.blocker).toBeNull();
+  });
+
+  it("stops at the hop time budget with an intact resumable frontier", async () => {
+    let elapsed = 0;
+    const clock = vi.spyOn(performance, "now").mockImplementation(() => elapsed);
+    mocks.historical.mockImplementation(async () => { elapsed = 20; return [{ id: "source-one", source: "chatgpt", role: "user", content: "agency runtime implementation", similarity: 1 }]; });
+    try {
+      const pass = await runPatternHopResearch({ ...input, maxHops: 4, maxRuntimeMs: 10 });
+      expect(pass.handoff.passStopReason).toBe("time_budget");
+      expect(pass.verificationState.hopsProcessed).toBe(1);
+      expect(pass.state.frontier).toHaveLength(10);
+      expect(pass.handoff.traversalFinished).toBe(false);
+      expect(durableEvidence).toHaveLength(1);
+      expect(durableEdges).toHaveLength(1);
+      expect(pass.runtimeProjection[0]).toMatchObject({ source: "chatgpt", parentEvidenceId: null, depth: 0 });
+    } finally { clock.mockRestore(); }
+  });
+
+  it("cancellation during retrieval keeps that query unvisited for another pass", async () => {
+    const controller = new AbortController();
+    mocks.historical.mockImplementation(async () => { controller.abort(); return []; });
+    const cancelled = await runPatternHopResearch({ ...input, signal: controller.signal });
+    expect(cancelled.handoff.passStopReason).toBe("cancelled");
+    expect(cancelled.state.frontier).toEqual(initial().frontier);
+    expect(cancelled.state.visited).toEqual([]);
+    expect(cancelled.verificationState.hopsProcessed).toBe(0);
+    expect(cancelled.status).toBe("active");
+  });
+
   it("rebuilds child hops when both source and edge survived a failed checkpoint", async () => {
     mocks.save.mockRejectedValueOnce(new Error("checkpoint_store_unavailable"));
     await expect(runPatternHopResearch(input)).rejects.toThrow("checkpoint_store_unavailable");

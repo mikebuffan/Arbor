@@ -194,12 +194,13 @@ export async function searchMemoryHopEvidence(params: {
   const { data, error } = await params.supabase
     .from("memory_items")
     .select(
-      "id,conversation_id,key,value,tier,scope,confidence,memory_kind,updated_at,created_at,user_trigger_only,status,deleted_at",
+      "id,conversation_id,key,value,tier,scope,confidence,memory_kind,updated_at,created_at,user_trigger_only,status,deleted_at,excluded_from_memory",
     )
     .eq("user_id", params.userId)
     .eq("status", "active")
     .is("deleted_at", null)
     .eq("user_trigger_only", false)
+    .eq("excluded_from_memory", false)
     .neq("tier", "sensitive")
     .or(`scope.eq.global,and(scope.eq.project,project_id.eq.${params.projectId})`)
     .order("updated_at", { ascending: false })
@@ -208,6 +209,7 @@ export async function searchMemoryHopEvidence(params: {
   if (error) throw error;
 
   return (data ?? [])
+    .filter((row: any) => row.excluded_from_memory === false)
     .map((row: any) => {
       const content =
         String(row.key ?? "") +

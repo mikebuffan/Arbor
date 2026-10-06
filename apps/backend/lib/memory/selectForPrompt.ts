@@ -1,5 +1,6 @@
 export type MemoryItemForPrompt = {
   deleted_at?: string | null;
+  excluded_from_memory?: boolean;
   pinned: boolean;
   locked: boolean;
   user_trigger_only: boolean;
@@ -25,7 +26,7 @@ export function messageTriggersItem(item: MemoryItemForPrompt, userText: string)
 
 export function selectItemsForPrompt<T extends MemoryItemForPrompt>(items: T[], userText: string): T[] {
   return items.filter((i) => {
-    if (i.deleted_at) return false;
+    if (i.deleted_at || i.excluded_from_memory) return false;
     if (i.status !== "active") return false;
 
     // Reveal gating outranks durability. A sensitive/trigger-only memory does
