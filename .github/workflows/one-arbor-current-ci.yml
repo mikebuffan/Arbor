@@ -1,4 +1,4 @@
-name: ARK spine integrated source acceptance
+name: One Arbor current integrated source acceptance
 
 on:
   pull_request:
