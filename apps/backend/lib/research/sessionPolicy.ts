@@ -2,6 +2,8 @@
  * Pure bounded-session policy; no scheduler or production side effects.
  * The durable store, not the chat session, owns timestamps and counters.
  */
+import { validateResearchUnitResult } from "./unitResult";
+
 export type ResearchSessionStatus =
   | "queued" | "running" | "paused" | "blocked" | "timebox_ended"
   | "completed" | "cancelled";
@@ -126,6 +128,7 @@ export type ResearchUnitReceipt = {
   costCents: number;
   evidenceRefs: string[];
   unresolvedRequiredWork: number;
+  result?: Record<string, unknown>;
 };
 
 /** Adapter must still enforce atomic, idempotent settlement and lease fencing. */
@@ -138,6 +141,10 @@ export function validateResearchUnitReceipt(
     throw new Error("invalid_research_unit_identity");
   }
   milliseconds(receipt.recordedAt);
+  if (!["completed", "checkpointed", "blocked", "failed"].includes(receipt.status)) {
+    throw new Error("invalid_research_receipt_status");
+  }
+  if (receipt.result !== undefined) validateResearchUnitResult(receipt.result);
   integerInRange(receipt.costCents, 0, session.maxCostCents - session.committedCostCents, "unit_cost_cents");
   integerInRange(receipt.unresolvedRequiredWork, 0, 1000000, "receipt_unresolved_work");
   if (!Array.isArray(receipt.evidenceRefs) ||
