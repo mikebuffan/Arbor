@@ -28,15 +28,24 @@ function isStaticOrPublicPath(pathname: string) {
   );
 }
 
+function deny() {
+  return new NextResponse(null, {
+    status: 404,
+    headers: { "Cache-Control": "no-store" },
+  });
+}
+
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+  const groveMode = process.env.GROVE_API_ENABLED === "true";
+  const publicMode = process.env.ARBOR_PUBLIC_APP_ENABLED === "true";
 
-  // This same backend source is deployed for two DIFFERENT products. The
-  // dedicated Grove host is deny-by-default, even for static/public pages,
+  // These are different products and must never share one active backend realm.
+  if (groveMode && publicMode) return deny();
+
+  // The dedicated Grove host is deny-by-default, even for static/public pages,
   // inherited Firefly chat/admin/attachments routes and browser CORS.
-  // Individual Grove handlers independently enforce auth, active grants and
-  // default-OFF chat/model/transcript/new-thread feature flags.
-  if (process.env.GROVE_API_ENABLED === "true") {
+  if (groveMode) {
     const allowed: Record<string, readonly string[]> = {
       "/api/grove/ark/status": ["GET"],
       "/api/grove/ark/projects": ["GET"],
@@ -45,22 +54,43 @@ export function middleware(req: NextRequest) {
       "/api/grove/chat": ["POST"],
       "/api/grove/corrections": ["POST"],
     };
-    if (!allowed[pathname]?.includes(req.method)) {
+    if (!allowed[pathname]?.includes(req.method)) return deny();
+    return NextResponse.next();
+  }
+
+  // The public alpha backend is a third isolated product. It exposes only the
+  // public API namespace and accepts preflight only from explicit origins.
+  if (publicMode) {
+    if (!pathname.startsWith("/api/public/")) return deny();
+    if (req.method === "OPTIONS") {
+      const origin = req.headers.get("origin") ?? "";
+      const allowed = (process.env.ARBOR_PUBLIC_APP_ALLOWED_ORIGINS ?? "")
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean);
+      if (!origin || !allowed.includes(origin)) {
+        return new NextResponse(null, {
+          status: 403,
+          headers: { "Cache-Control": "no-store" },
+        });
+      }
       return new NextResponse(null, {
-        status: 404,
-        headers: { "Cache-Control": "no-store" },
+        status: 204,
+        headers: {
+          vary: "origin",
+          "access-control-allow-origin": origin,
+          "access-control-allow-methods": "GET, POST, DELETE, OPTIONS",
+          "access-control-allow-headers": "content-type, authorization",
+          "access-control-max-age": "600",
+          "Cache-Control": "no-store",
+        },
       });
     }
     return NextResponse.next();
   }
 
-  if (isStaticOrPublicPath(pathname)) {
-    return NextResponse.next();
-  }
-
-  if (attachmentBrokerPaths.has(pathname)) {
-    return NextResponse.next();
-  }
+  if (isStaticOrPublicPath(pathname)) return NextResponse.next();
+  if (attachmentBrokerPaths.has(pathname)) return NextResponse.next();
 
   if (req.method === "OPTIONS") {
     return new NextResponse(null, { status: 204, headers: cors(req) });
@@ -69,12 +99,11 @@ export function middleware(req: NextRequest) {
   const res = NextResponse.next();
   const h = cors(req);
   for (const [k, v] of Object.entries(h)) res.headers.set(k, v);
-
   return res;
 }
 
 export const config = {
-  // Match Next.js framework assets as well: Grove must deny /_next/*, while
-  // Firefly retains its existing static/public bypass in middleware().
+  // Match framework assets too: private Grove and public-alpha hosts must be
+  // able to deny inherited routes, while ordinary Firefly keeps its bypasses.
   matcher: ["/:path*"],
 };
