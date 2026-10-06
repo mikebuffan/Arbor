@@ -51,9 +51,6 @@ class ChatApi {
       'turnId': resolvedTurnId,
       'userText': userText,
       'interactionMode': interactionMode,
-      // DateTime supplies the current device offset without guessing an IANA
-      // zone. The backend Time Core treats it as a per-turn host signal.
-      'timeZoneOffsetMinutes': DateTime.now().timeZoneOffset.inMinutes,
     };
 
     if (resolvedProjectId != null) {

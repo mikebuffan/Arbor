@@ -1,6 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { MemoryItem } from "@/lib/memory/types";
-import { upsertMemoryItems } from "@/lib/memory/store";
 import type { ArborCorrection } from "./runtimeState";
 import { hasExplicitDurableAuthorization } from "@/lib/memory/durableAuthorization";
 import { correctionFamily, correctionId } from "./corrections";
@@ -82,6 +81,7 @@ export async function promoteRepeatedBehaviorCorrections(params: {
   });
   if (!fresh.length) return { promoted: [] as string[] };
 
+  const { upsertMemoryItems } = await import("@/lib/memory/store");
   const result = await upsertMemoryItems(
     params.userId,
     fresh,
