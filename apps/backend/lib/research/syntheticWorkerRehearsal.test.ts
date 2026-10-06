@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { runResearchSessionTick, type ResearchClaim, type ResearchStore } from "./sessionRunner";
+import { runResearchSessionTick, type ResearchClaim, type ResearchStore, type ResearchUnitExecutor } from "./sessionRunner";
 import type { ResearchSession, ResearchUnitReceipt } from "./sessionPolicy";
 
 // Deliberately synthetic, deterministic and in-process: NOT a real database or source fetch.
@@ -57,7 +57,7 @@ function rehearsal() {
     evidenceRefs:["synthetic:page:"+claim.unitId],
     unresolvedRequiredWork:s.unresolvedRequiredWork-1,
   }));
-  const tick=(minute:number,exec=executor)=>runResearchSessionTick({
+  const tick=(minute:number,exec: ResearchUnitExecutor=executor)=>runResearchSessionTick({
     sessionId:session.id,store,executor:exec,at:at(minute),
   });
   return {store,tick,executor,session:()=>session,receipts,stop:()=>store.stop({
