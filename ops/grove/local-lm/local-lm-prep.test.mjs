@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { verifyPrivateRuntimeManifest, EXPECTED as MANIFEST_EXPECTED } from "./verify-runtime-manifest.mjs";
 import { assertLoopbackOrigin, runLocalReceiverSmoke, syntheticBody, EXPECTED as SMOKE_EXPECTED } from "./smoke-local-receiver.mjs";
+import { evaluateLocalRuntimeCompatibility } from "./evaluate-local-runtime.mjs";
 import { createHmac } from "node:crypto";
 
 const revision = "a".repeat(40);
@@ -15,6 +16,7 @@ const manifest = {
     brokerReceiverRevision: MANIFEST_EXPECTED.brokerReceiverRevision,
     behaviorContractVersion: MANIFEST_EXPECTED.behaviorContractVersion,
   },
+  cpu: {minimumInstructionSet: "sse2"},
   context: {maxInputTokens: 8192, maxNewTokens: MANIFEST_EXPECTED.maxNewTokens},
 };
 
@@ -115,4 +117,26 @@ test("local smoke rejects fake execution receipts", async () => {
     nonce:"cd".repeat(24),
     request,
   }), /reply_contract_mismatch/);
+});
+
+test("hardware/runtime compatibility fails closed on a missing instruction set", () => {
+  const preflight = {
+    schemaVersion: 1,
+    scope: "read_only_local_hardware_preflight",
+    machineIdentityCollected: false,
+    processor: {instructionSets: {sse2:true,sse42:true,avx:false,avx2:false}},
+    assessment: {
+      localCpuPilotEligible: true,
+      intendedMode: "cpu_only_bounded_pilot",
+      holdReasons: [],
+    },
+  };
+  const compatible = evaluateLocalRuntimeCompatibility(preflight, manifest);
+  assert.equal(compatible.readyForArtifactStage, true);
+  const incompatible = evaluateLocalRuntimeCompatibility(preflight, {
+    ...manifest,
+    cpu: {minimumInstructionSet: "avx2"},
+  });
+  assert.equal(incompatible.readyForArtifactStage, false);
+  assert.match(incompatible.holdReasons.join(" "), /requires avx2/);
 });
