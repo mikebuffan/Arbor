@@ -24,7 +24,7 @@ export const ANNABELLE_ENGINE_CATALOG: readonly AnnabelleEngineSpec[] = [
 {id:"rhythm",status:"implemented",purpose:"Sentence/fragment/paragraph density and pacing variation."},
 {id:"touch",status:"implemented",purpose:"Initiator, placement, pressure, response, correction, residue and relationship meaning."},
 {id:"intimacy",status:"implemented",purpose:"Felt-life, mechanics, agency, character progression and stop-when-job-done compression."},
-{id:"power-response",status:"partial",purpose:"Show threatened power through behavior rather than thematic essaying."},
+{id:"power-response",status:"implemented",purpose:"Show threatened power through behavior rather than thematic essaying."},
 {id:"motif-payoff",status:"implemented",purpose:"Track first appearance, evolution, inversion, payoff and dropped motifs."},
 {id:"canon-timeline-knowledge",status:"implemented",purpose:"Canon, timeline, knowledge state, contradictions and supersession."},
 {id:"internal-clock",status:"implemented",purpose:"Book time, season, elapsed time, relationship/recovery progression."},
