@@ -31,7 +31,7 @@ export const ANNABELLE_ENGINE_CATALOG: readonly AnnabelleEngineSpec[] = [
 {id:"scene-change",status:"implemented",purpose:"Require meaningful scene-state delta or explicit reason to remain."},
 {id:"screen-time-balance",status:"missing",purpose:"Track supporting cast and relationship disappearance/overconcentration."},
 {id:"continuity-residue",status:"partial",purpose:"Carry physical/emotional/object residue across scene boundaries."},
-{id:"repetition-intent",status:"missing",purpose:"Distinguish motif/trauma/character habit from accidental repetition."},
+{id:"repetition-intent",status:"implemented",purpose:"Distinguish motif/trauma/character habit from accidental repetition."},
 {id:"duplicate-assembly",status:"implemented",purpose:"Flag likely concatenated/repeated draft material."},
 {id:"gold-do-not-touch",status:"partial",purpose:"Durable locks and gold exemplars; edits require explicit override."},
 {id:"downstream-impact",status:"partial",purpose:"Identify later chapters affected by a changed chapter."},
