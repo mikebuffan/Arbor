@@ -1,10 +1,11 @@
 // Test-only transport: actual existing writer, independent native psql sessions.
 // Never supplies a hosted URL, model key, embedding call or private user record.
 import { spawn } from "node:child_process";
+import { createRequire } from "node:module";
 import assert from "node:assert/strict";
-import { writeDurableBehaviorCorrection } from "../../../apps/backend/lib/memory/durableCorrectionWrite.ts";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { MemoryItem } from "../../../apps/backend/lib/memory/types.ts";
+const { writeDurableBehaviorCorrection } = createRequire(import.meta.url)("../../../apps/backend/lib/memory/durableCorrectionWrite.ts");
 if (process.argv[2] !== "--disposable-local" || process.env.PGDATABASE !== "grove_disposable" ||
     !process.env.PGHOST?.startsWith("/tmp/grove-native-") || process.env.PGUSER !== "postgres")
   throw Error("disposable_local_database_required");
