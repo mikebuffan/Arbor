@@ -54,7 +54,7 @@ export function buildArkAgencyExecutionDelegate(input: {
           args,
         });
 
-      const dispatched = await dispatchAgencyToolThroughArk({
+      const dispatchSameAction = () => dispatchAgencyToolThroughArk({
         arkSupabase: supabaseAdmin(),
         toolSupabase: input.toolSupabase,
         userId: context.userId,
@@ -75,6 +75,8 @@ export function buildArkAgencyExecutionDelegate(input: {
               })
           : undefined,
       });
+
+      const dispatched = await dispatchSameAction();
 
       if (dispatched.status === "completed") {
         return {
@@ -100,6 +102,27 @@ export function buildArkAgencyExecutionDelegate(input: {
           objectiveId: dispatched.objectiveId,
           reason:
             "INTERNAL CONTINUATION REQUIRED: ARK durably owns this unfinished action. Resume the same objective automatically; do not ask the user to say go and do not treat the checkpoint as completion.",
+          retry: async () => {
+            const next = await dispatchSameAction();
+            if (next.status === "completed") {
+              return { kind: "outcome", outcome: { ok: true, result: next.output, attempts: next.attempts ?? 1, recoveredFailures: [] } };
+            }
+            if (next.status === "checkpointed" || (next.status === "blocked" && next.blocker.kind === "operation_in_progress")) {
+              return {
+                kind: "checkpointed",
+                objectiveId: next.objectiveId,
+                reason: "INTERNAL CONTINUATION REQUIRED: ARK still owns the unfinished action.",
+                retry: async () => {
+                  const final = await dispatchSameAction();
+                  return final.status === "completed"
+                    ? { kind: "outcome", outcome: { ok: true, result: final.output, attempts: final.attempts ?? 1, recoveredFailures: [] } }
+                    : { kind: "checkpointed", objectiveId: final.objectiveId, reason: "INTERNAL CONTINUATION REQUIRED: durable ARK work remains unfinished." };
+                },
+              };
+            }
+            const error = next.status === "failed" ? next.error : "ark_execution_blocked";
+            return { kind: "outcome", outcome: { ok: false, failure: adapterFailure({ kind: next.status === "blocked" ? "authorization" : "provider_failure", error, retryable: false, alternateRoutes: tool.alternateRoutes, evidence: { capability: tool.name, arkObjectiveId: next.objectiveId } }), recovery: { action: "stop", reason: error }, attempts: 1, recoveredFailures: [] } };
+          },
         };
       }
 
