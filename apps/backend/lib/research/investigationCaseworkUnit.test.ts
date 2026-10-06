@@ -139,7 +139,7 @@ describe("trusted investigation casework unit", () => {
         payload: {
           items: [{
             evidenceRef: "evidence:a",
-            sourceClass: "primary_record",
+            sourceClass: "primary_record" as const,
             eventAt: "2026-01-01T00:00:00Z",
             sourceCreatedAt: "2026-01-01T00:00:00Z",
           }],
