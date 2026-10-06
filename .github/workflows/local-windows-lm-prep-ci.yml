@@ -73,7 +73,8 @@ jobs:
           if ($null -eq $result.processor.instructionSets.sse2) { throw 'SSE2 feature result missing' }
           if ($null -eq $result.processor.instructionSets.avx) { throw 'AVX feature result missing' }
           if ($null -eq $result.processor.instructionSets.avx2) { throw 'AVX2 feature result missing' }
-          Write-Host "PASS: read-only Windows preflight executed; eligibility result is host-specific and not a model receipt."
+          Write-Host 'PASS: read-only Windows preflight executed; eligibility result is host-specific and not a model receipt.'
+
   build-windows-x64-baseline:
     if: github.repository == 'mikebuffan/Arbor' && github.head_ref == 'arbor/local-lm-windows-prep-20261006'
     runs-on: windows-2022
@@ -93,7 +94,7 @@ jobs:
           git checkout --detach $env:LLAMA_CPP_SHA
           $actual = git rev-parse HEAD
           if ($actual -ne $env:LLAMA_CPP_SHA) { throw "llama.cpp source mismatch: $actual" }
-      - name: Configure x64 baseline without AVX
+      - name: Configure static-CRT x64 baseline without AVX
         shell: pwsh
         run: |
           $args = @(
@@ -123,80 +124,29 @@ jobs:
       - name: Build local CPU runtime
         shell: pwsh
         run: cmake --build llama.cpp/build-sse2 --config Release --target llama-cli llama-server llama-bench --parallel 4
-      - name: Verify built programs and dependency floor
+      - name: Verify executables and reject unpackaged C++ runtime DLLs
         shell: pwsh
         run: |
           $bin = 'llama.cpp/build-sse2/bin/Release'
-          $allowed = @(
-            'KERNEL32.dll','USER32.dll','ADVAPI32.dll','SHELL32.dll',
-            'WS2_32.dll','ole32.dll','OLEAUT32.dll','bcrypt.dll',
-            'api-ms-win-crt-runtime-l1-1-0.dll',
-            'api-ms-win-crt-heap-l1-1-0.dll',
-            'api-ms-win-crt-stdio-l1-1-0.dll',
-            'api-ms-win-crt-string-l1-1-0.dll',
-            'api-ms-win-crt-convert-l1-1-0.dll',
-            'api-ms-win-crt-math-l1-1-0.dll',
-            'api-ms-win-crt-filesystem-l1-1-0.dll',
-            'api-ms-win-crt-environment-l1-1-0.dll',
-            'api-ms-win-crt-time-l1-1-0.dll',
-            'api-ms-win-crt-locale-l1-1-0.dll'
-          )
           foreach ($exe in @('llama-cli.exe','llama-server.exe','llama-bench.exe')) {
-            & "$bin/$exe" --version 2>$null
-            if ($LASTEXITCODE -ne 0 -and $exe -ne 'llama-bench.exe') { throw "$exe version failed" }
-            $deps = (& dumpbin /dependents "$bin/$exe") |
-              Select-String -Pattern '^[ ]+[A-Za-z0-9_.-]+\.dll
-      - name: Package exact runtime with provenance
-        shell: pwsh
-        run: |
-          $out = 'runtime-package'
-          New-Item -ItemType Directory -Force $out | Out-Null
-          $bin = 'llama.cpp/build-sse2/bin/Release'
-          Copy-Item "$bin/llama-cli.exe" $out
-          Copy-Item "$bin/llama-server.exe" $out
-          Copy-Item "$bin/llama-bench.exe" $out
-          Copy-Item 'llama.cpp/LICENSE' $out
-          $files = Get-ChildItem $out -File | Where-Object { $_.Name -like '*.exe' } | ForEach-Object {
-            [ordered]@{ name=$_.Name; sha256=(Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant(); bytes=$_.Length }
-          }
-          $manifest = [ordered]@{
-            schemaVersion=1
-            scope='windows_x64_baseline_cpu_runtime_static_msvc'
-            source=[ordered]@{ repository='ggml-org/llama.cpp'; commit=$env:LLAMA_CPP_SHA }
-            intendedCpuFloor='x86_64_sse2'
-            avxRequired=$false
-            avx2Required=$false
-            modelIncluded=$false
-            adapterIncluded=$false
-            files=@($files)
-            claims=[ordered]@{
-              binariesLaunchOnGithubWindowsRunner=$true
-              qwenModelLoadVerified=$false
-              targetLaptopExecutionVerified=$false
-              arborAdapterVerified=$false
-            }
-          }
-          $manifest | ConvertTo-Json -Depth 8 | Set-Content -Encoding utf8 "$out/RUNTIME_MANIFEST.json"
-          Get-Content "$out/RUNTIME_MANIFEST.json"
-      - name: Upload baseline runtime artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: arbor-local-lm-windows-x64-sse2-${{ env.LLAMA_CPP_SHA }}
-          path: runtime-package
-          if-no-files-found: error
-          retention-days: 14
- |
+            $path = Join-Path $bin $exe
+            if (-not (Test-Path -LiteralPath $path)) { throw "missing built executable: $exe" }
+            $deps = (& dumpbin /dependents $path) |
+              Select-String -Pattern '^[ ]+[A-Za-z0-9_.-]+[.]dll$' |
               ForEach-Object { $_.Line.Trim() } |
               Sort-Object -Unique
             Write-Host "$exe dependencies:"
             $deps | ForEach-Object { Write-Host "  $_" }
             foreach ($dep in $deps) {
-              if ($dep -match '^(VCRUNTIME|MSVCP|CONCRT|vcomp|libomp)' -or
-                  ($dep -notmatch '^api-ms-win-' -and $allowed -notcontains $dep)) {
-                throw "$exe has non-system unpackaged dependency: $dep"
+              if ($dep -match '^(VCRUNTIME|MSVCP|CONCRT|VCOMP|libomp)') {
+                throw "$exe still depends on unpackaged runtime DLL: $dep"
               }
             }
           }
+          & "$bin/llama-cli.exe" --version
+          if ($LASTEXITCODE -ne 0) { throw 'llama-cli version failed' }
+          & "$bin/llama-server.exe" --version
+          if ($LASTEXITCODE -ne 0) { throw 'llama-server version failed' }
       - name: Package exact runtime with provenance
         shell: pwsh
         run: |
@@ -208,23 +158,29 @@ jobs:
           Copy-Item "$bin/llama-bench.exe" $out
           Copy-Item 'llama.cpp/LICENSE' $out
           $files = Get-ChildItem $out -File | Where-Object { $_.Name -like '*.exe' } | ForEach-Object {
-            [ordered]@{ name=$_.Name; sha256=(Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant(); bytes=$_.Length }
+            [ordered]@{
+              name = $_.Name
+              sha256 = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+              bytes = $_.Length
+            }
           }
           $manifest = [ordered]@{
-            schemaVersion=1
-            scope='windows_x64_baseline_cpu_runtime'
-            source=[ordered]@{ repository='ggml-org/llama.cpp'; commit=$env:LLAMA_CPP_SHA }
-            intendedCpuFloor='x86_64_sse2'
-            avxRequired=$false
-            avx2Required=$false
-            modelIncluded=$false
-            adapterIncluded=$false
-            files=@($files)
-            claims=[ordered]@{
-              binariesLaunchOnGithubWindowsRunner=$true
-              qwenModelLoadVerified=$false
-              targetLaptopExecutionVerified=$false
-              arborAdapterVerified=$false
+            schemaVersion = 2
+            scope = 'windows_x64_baseline_cpu_runtime_static_msvc'
+            source = [ordered]@{ repository = 'ggml-org/llama.cpp'; commit = $env:LLAMA_CPP_SHA }
+            intendedCpuFloor = 'x86_64_sse2'
+            staticMsvcRuntimeRequested = $true
+            avxRequired = $false
+            avx2Required = $false
+            modelIncluded = $false
+            adapterIncluded = $false
+            files = @($files)
+            claims = [ordered]@{
+              binariesLaunchOnGithubWindowsRunner = $true
+              unpackagedCppRuntimeDllRejected = $true
+              qwenModelLoadVerified = $false
+              targetLaptopExecutionVerified = $false
+              arborAdapterVerified = $false
             }
           }
           $manifest | ConvertTo-Json -Depth 8 | Set-Content -Encoding utf8 "$out/RUNTIME_MANIFEST.json"
@@ -232,7 +188,7 @@ jobs:
       - name: Upload baseline runtime artifact
         uses: actions/upload-artifact@v4
         with:
-          name: arbor-local-lm-windows-x64-sse2-${{ env.LLAMA_CPP_SHA }}
+          name: arbor-local-lm-windows-x64-sse2-staticcrt-${{ env.LLAMA_CPP_SHA }}
           path: runtime-package
           if-no-files-found: error
           retention-days: 14
