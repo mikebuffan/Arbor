@@ -81,6 +81,7 @@ import {
 import {
   retainStrategy,
 } from "@/lib/arbor/agency/strategyRetention";
+import { agencyContinuationDisposition } from "@/lib/arbor/agency/continuationContract";
 import { buildTelemetry } from "@/lib/arbor/telemetry/buildTelemetry";
 import { getOrCreateOpenEpisode } from "@/lib/arbor/episodes/getOrCreateOpenEpisode";
 import { scheduleChatPostResponseWork } from "@/lib/chat/postResponseScheduler";
@@ -752,6 +753,20 @@ export async function POST(req: Request) {
         },
       },
     });
+
+    const continuation = agencyContinuationDisposition({
+      status: agentResult.status === "complete"
+        ? "complete"
+        : agentResult.status === "blocked"
+          ? "blocked"
+          : "checkpointed",
+      unresolvedWork: agencyState.unresolvedWork,
+      blocker: agentResult.status === "blocked" ? agentResult.reason : null,
+    });
+
+    if (agentResult.status === "checkpointed" && continuation.returnToUser) {
+      throw new Error("agency_checkpoint_illegal_yield");
+    }
 
     const agentText =
       agentResult.status === "blocked"
