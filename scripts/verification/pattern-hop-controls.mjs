@@ -1,0 +1,47 @@
+// Disposable synthetic PostgreSQL acceptance. No live DB or external content.
+import { createRequire } from 'node:module';
+import { readFile } from 'node:fs/promises';
+import assert from 'node:assert/strict';
+const require = createRequire(import.meta.url);
+const { PGlite } = require(process.env.ARBOR_PGLITE_MODULE ?? '@electric-sql/pglite');
+const db = new PGlite();
+const owner = '11111111-1111-4111-8111-111111111111';
+const project = '22222222-2222-4222-8222-222222222222';
+const run = '33333333-3333-4333-8333-333333333333';
+const a = '44444444-4444-4444-8444-444444444444';
+const b = '55555555-5555-4555-8555-555555555555';
+const state = {status:'active',maxDepth:2,frontier:[],visited:['seed::agency::0::direct_matches'],completedBranches:['direct_matches'],exhaustedBranches:[]};
+const source = {id:'source',source:'synthetic',evidenceType:'fixture',content:'agency continuity',confidence:1,epistemicStatus:'direct'};
+const edge = {fromEvidenceId:null,toEvidenceId:'source',originatingClue:'agency',relationship:'unknown',hopDepth:0,confidence:1,epistemicStatus:'direct',rationale:'fixture'};
+const call = async (fn, rest=[], user=owner) => (await db.query(`select public.${fn}(${[user,project,run,...rest].map((_,i)=>'$'+(i+1)).join(',')}) as result`, [user,project,run,...rest])).rows[0].result;
+const commit = (token, evidence=[source], edges=[edge]) => call('arbor_commit_pattern_hop_checkpoint',[token,state,{},evidence,edges]);
+try {
+ await db.exec('create role anon; create role authenticated; create role service_role bypassrls;');
+ await db.exec(await readFile(new URL('../../supabase/migrations/20260916090000_add_pattern_hop_research_state.sql',import.meta.url),'utf8'));
+ await db.exec(await readFile(new URL('../../docs/migrations/PROPOSED_pattern_hop_run_controls_20261006.sql',import.meta.url),'utf8'));
+ await db.exec('grant select,insert,update,delete on public.arbor_pattern_hop_runs,public.arbor_pattern_hop_evidence,public.arbor_pattern_hop_edges to service_role;');
+ await db.query("insert into public.arbor_pattern_hop_runs(id,user_id,project_id,objective,max_depth) values($1,$2,$3,'synthetic',2)",[run,owner,project]);
+ await db.exec('set role service_role');
+ assert.deepEqual(await Promise.all([call('arbor_claim_pattern_hop_run',[a]),call('arbor_claim_pattern_hop_run',[b])]),['claimed','busy']);
+ await assert.rejects(call('arbor_claim_pattern_hop_run',[b],b),/not_found/);
+ await assert.rejects(commit(a,[source],[{...edge,fromEvidenceId:'foreign-source'}]),/parent_unresolved/);
+ assert.equal((await db.query('select count(*)::int as n from public.arbor_pattern_hop_evidence')).rows[0].n,0);
+ assert.equal(await commit(a),'committed');
+ assert.equal((await db.query('select count(*)::int as n from public.arbor_pattern_hop_evidence')).rows[0].n,1);
+ assert.equal((await db.query('select count(*)::int as n from public.arbor_pattern_hop_edges')).rows[0].n,1);
+ assert.equal(await commit(a),'committed');
+ assert.equal((await db.query('select count(*)::int as n from public.arbor_pattern_hop_edges')).rows[0].n,1);
+ await db.query("update public.arbor_pattern_hop_controls set lease_expires_at=clock_timestamp()-interval '1 second' where run_id=$1",[run]);
+ assert.equal(await call('arbor_claim_pattern_hop_run',[b]),'claimed');
+ assert.equal(await commit(a),'lease_lost');
+ assert.equal(await call('arbor_release_pattern_hop_run',[a]),'lease_lost');
+ assert.equal(await call('arbor_stop_pattern_hop_run'),'stop_requested');
+ assert.equal(await call('arbor_stop_pattern_hop_run'),'stop_requested');
+ assert.equal(await commit(b),'stopped');
+ assert.equal(await call('arbor_renew_pattern_hop_run',[b]),'stopped');
+ assert.equal(await call('arbor_release_pattern_hop_run',[b]),'released');
+ assert.equal(await call('arbor_claim_pattern_hop_run',[a]),'stopped');
+ await db.exec('reset role; set role authenticated');
+ await assert.rejects(call('arbor_stop_pattern_hop_run'),/permission denied/);
+ console.log('PASS: disposable PostgreSQL claim exclusion, scope denial, atomic rollback, provenance, dedupe, stale fencing, terminal STOP and role denial');
+} finally { await db.close(); }
