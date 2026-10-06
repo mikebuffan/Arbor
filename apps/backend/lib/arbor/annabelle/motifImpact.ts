@@ -12,5 +12,5 @@ export function analyzeMotifs(events:readonly MotifEvent[]):MotifReport[]{
 export type DownstreamImpact={changedChapter:number;affectedChapters:number[];reasons:string[]};
 export function downstreamImpact(input:{changedChapter:number;timelineChapters?:number[];relationshipChapters?:number[];motifChapters?:number[]}):DownstreamImpact{
  const all=[...(input.timelineChapters??[]),...(input.relationshipChapters??[]),...(input.motifChapters??[])].filter(x=>x>input.changedChapter);
- return{changedChapter:input.changedChapter,affectedChapters:[...new Set(all)].sort((a,b)=>a-b),reasons:["timeline","relationship","motif"].filter((_,i)=>[input.timelineChapters,input.relationshipChapters,input.motifChapters][i]?.some(x=>x>input.changedChapter))};
+ return{changedChapter:input.changedChapter,affectedChapters:[...new Set(all)].sort((a,b)=>a-b),reasons:["timeline","relationship","motif"].filter((_,i)=>Boolean([input.timelineChapters,input.relationshipChapters,input.motifChapters][i]?.some(x=>x>input.changedChapter)))};
 }
