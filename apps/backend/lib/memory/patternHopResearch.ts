@@ -70,6 +70,7 @@ export async function runPatternHopResearch(params:{
     return result==="stopped";
   };
 
+  try {
   if(createdNow && !stoppedBeforeStart){
     for (const branch of DEFAULT_PATTERN_HOP_BRANCHES) run.state=enqueueHop(run.state,{evidenceId:"seed",clue:patternHopBranchClue(branch,params.seed),depth:0,branch});
     await savePatternHopRun({supabase:params.supabase,runId:run.id,userId:params.userId,projectId:params.projectId,state:run.state});
@@ -251,4 +252,15 @@ export async function runPatternHopResearch(params:{
     lease=null;
   }
   return result;
+  } catch (error) {
+    if(control&&lease){
+      try {
+        await control.release({supabase:params.supabase,runId:run.id,userId:params.userId,projectId:params.projectId,lease});
+      } catch {
+        // A crashed/partitioned worker is fenced by the lease expiry.
+      }
+      lease=null;
+    }
+    throw error;
+  }
 }
