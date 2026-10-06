@@ -9,10 +9,10 @@ export type PrivateCorrectionScope = {
 };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-/** Source preparation only. No route imports this module and no read grant can
- * authorize it. A future reviewed server-side write-grant verifier is required.
- * The verifier must derive identity from authenticated context and recheck active
- * owner/project/conversation access. Never bind it to client or LM assertions. */
+/** Adapter for the separately gated private correction-write connection.
+ * A read grant cannot authorize it. The server-side verifier must derive identity
+ * from authenticated context and recheck active owner/project/conversation AND
+ * correction-write permission. Never bind it to client or LM assertions. */
 export async function preparePrivateCorrectionSave(input: {
   scope: PrivateCorrectionScope; requestId: string; currentUserText: string;
   corrections: ArborCorrection[];

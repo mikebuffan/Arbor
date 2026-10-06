@@ -28,10 +28,15 @@ retry, settings update, deployment or live migration is authorized.
    added; acceptance uses the explicit reviewed endpoint before any later UI.
 3. Shared runtime goals and ARK checkpoints: source review complete; remaining
    connections described below. No execution capability invented or activated.
-4. Integrated Flutter analyzer/tests/synthetic Grove APK: prepared in a
-   metadata-blocked, pinned-SDK disposable runner; receipt pending.
-5. Native PostgreSQL races/recovery: prepared in the same isolated CI workflow;
-   receipt pending. Local native execution remains unavailable: no PostgreSQL
+4. Integrated Flutter analyzer/tests/synthetic Grove APK: passed in CI run
+   `37480350593`, phone job `112326530078`, source `857dfd5f67f723de207160749bf0f0a3a8a6f793`.
+   Metadata deny rules, pinned SDK, unchanged lockfile, focused/full tests and
+   synthetic APK verified. Phone tree `a611128ac9e9beaffccaf81134f69dff7783a440`
+   is unchanged from the saved reconciliation.
+5. Native PostgreSQL claims/completion/revocation: passed in job `112326530553`
+   of the first run. Actual durable-writer trial stopped before running because
+   the test harness used an incompatible module import; that harness is repaired.
+   Full corrected native receipt pending. Local native execution remains unavailable: no PostgreSQL
    binaries and no process identity capabilities. No hosted fallback.
 
 ## Correction connection
@@ -85,7 +90,10 @@ fixture; proposed 8,192 needs exact model/tokenizer context validation.
 ## Validation scope
 
 The inherited reconciliation receipt remains 980 backend tests, types/build,
-11 host checks and disposable SQL. This continuation adds authorization, route,
+11 host checks and disposable SQL. This continuation passed **1,013 backend tests in 156 files, zero skips**,
+TypeScript, production Webpack build, 11 offline host checks, and the combined
+disposable WASM transcript/claim/correction-grant fixtures. Existing middleware
+and Sentry build warnings remain. It adds authorization, route,
 existing-writer connection and recovery isolation tests. All unit network calls
 are denied by the existing test setup; embeddings are synthetic in connection
 fixtures. The actual signed TS-to-private-Python fake-generation fixture runs
