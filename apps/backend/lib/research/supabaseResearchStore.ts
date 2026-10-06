@@ -1,7 +1,14 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { validateResearchSession, validateResearchUnitReceipt, type ResearchSession } from "./sessionPolicy";
 import { validateResearchUnitResult } from "./unitResult";
-import type { ResearchClaim, ResearchStore } from "./sessionRunner";
+import type { ResearchClaim } from "./sessionRunner";
+import type {
+  PlannedResearchUnit,
+  ResearchControllerContext,
+  ResearchControllerReceiptSummary,
+  ResearchControllerStore,
+  ResearchControllerUnitSummary,
+} from "./researchController";
 
 type JsonRow = Record<string, unknown>;
 
@@ -53,7 +60,7 @@ function sessionFromRow(value: unknown): ResearchSession {
  * It is intentionally not wired to cron or production until sandbox SQL tests
  * and an explicit deployment decision. No fallback to unscoped queries.
  */
-export class SupabaseResearchStore implements ResearchStore {
+export class SupabaseResearchStore implements ResearchControllerStore {
   constructor(
     private readonly db: SupabaseClient,
     private readonly ownerId: string,
@@ -113,6 +120,110 @@ export class SupabaseResearchStore implements ResearchStore {
       kind:requiredString(r.kind,"kind"),
       payload:row(r.payload),
       maxCostReservationCents:number(r.maxCostReservationCents,"maxCostReservationCents"),
+      lastResult: r.lastResult == null ? null : row(r.lastResult),
+    };
+  }
+
+  async loadControllerContext(
+    sessionId: string,
+  ): Promise<ResearchControllerContext | null> {
+    const session = await this.loadSession(sessionId);
+    if (!session) return null;
+    this.assertScope(session);
+
+    const [unitsResult, receiptsResult] = await Promise.all([
+      this.db.from("arbor_research_units")
+        .select("id,unit_key,kind,status,attempt_count,max_attempts")
+        .eq("session_id", session.id)
+        .eq("user_id", this.ownerId)
+        .eq("project_id", this.projectId)
+        .order("created_at", { ascending: true }),
+      this.db.from("arbor_research_receipts")
+        .select("unit_id,status,evidence_refs,recorded_at,result")
+        .eq("session_id", session.id)
+        .eq("user_id", this.ownerId)
+        .eq("project_id", this.projectId)
+        .order("recorded_at", { ascending: false })
+        .limit(50),
+    ]);
+    if (unitsResult.error) throw unitsResult.error;
+    if (receiptsResult.error) throw receiptsResult.error;
+
+    const unitRows = Array.isArray(unitsResult.data) ? unitsResult.data : [];
+    const receiptRows = Array.isArray(receiptsResult.data) ? receiptsResult.data : [];
+    const unitKeyById = new Map<string, string>();
+    const unitStatuses = new Set<ResearchControllerUnitSummary["status"]>([
+      "queued", "leased", "completed", "blocked", "failed", "cancelled",
+    ]);
+    const units: ResearchControllerUnitSummary[] = unitRows.map((value) => {
+      const r = row(value);
+      const id = requiredString(r.id, "unit_id");
+      const unitKey = requiredString(r.unit_key, "unit_key");
+      const status = requiredString(r.status, "unit_status") as ResearchControllerUnitSummary["status"];
+      if (!unitStatuses.has(status)) throw new Error("invalid_research_db_unit_status");
+      unitKeyById.set(id, unitKey);
+      return {
+        unitKey,
+        kind: requiredString(r.kind, "unit_kind"),
+        status,
+        attemptCount: number(r.attempt_count, "attempt_count"),
+        maxAttempts: number(r.max_attempts, "max_attempts"),
+      };
+    });
+
+    const receiptStatuses = new Set<ResearchControllerReceiptSummary["status"]>([
+      "completed", "checkpointed", "blocked", "failed",
+    ]);
+    const recentReceipts: ResearchControllerReceiptSummary[] = receiptRows.map((value) => {
+      const r = row(value);
+      const unitId = requiredString(r.unit_id, "receipt_unit_id");
+      const unitKey = unitKeyById.get(unitId);
+      if (!unitKey) throw new Error("research_controller_receipt_unit_scope_mismatch");
+      const status = requiredString(r.status, "receipt_status") as ResearchControllerReceiptSummary["status"];
+      if (!receiptStatuses.has(status)) throw new Error("invalid_research_db_receipt_status");
+      const envelope = row(r.result);
+      const unitResult = envelope.unit_result;
+      return {
+        unitKey,
+        status,
+        evidenceRefs: Array.isArray(r.evidence_refs)
+          ? r.evidence_refs.filter((x): x is string => typeof x === "string")
+          : [],
+        recordedAt: requiredString(r.recorded_at, "receipt_recorded_at"),
+        result: unitResult == null ? null : row(unitResult),
+      };
+    });
+
+    return { session, units, recentReceipts };
+  }
+
+  async appendPlannedUnits(input: {
+    session: ResearchSession;
+    units: PlannedResearchUnit[];
+  }): Promise<{ appended: number; existing: number }> {
+    this.assertScope(input.session);
+    if (input.units.length === 0) return { appended: 0, existing: 0 };
+    const rows = input.units.map((unit) => ({
+      session_id: input.session.id,
+      user_id: this.ownerId,
+      project_id: this.projectId,
+      unit_key: unit.unitKey,
+      kind: unit.kind,
+      payload: { ...unit.payload },
+      max_cost_reservation_cents: unit.maxCostReservationCents,
+      max_attempts: unit.maxAttempts ?? 3,
+    }));
+    const { data, error } = await this.db.from("arbor_research_units")
+      .upsert(rows, {
+        onConflict: "session_id,unit_key",
+        ignoreDuplicates: true,
+      })
+      .select("unit_key");
+    if (error) throw error;
+    const appended = Array.isArray(data) ? data.length : 0;
+    return {
+      appended,
+      existing: Math.max(0, input.units.length - appended),
     };
   }
 
