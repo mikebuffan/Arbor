@@ -1,0 +1,2 @@
+import{describe,expect,it}from"vitest";import{inspectPowerBeat}from"../powerResponse";
+describe("power response",()=>{it("requires behavior instead of thematic labels",()=>{expect(inspectPowerBeat({chapter:2,subject:"x",trigger:"corrected",behaviors:[],labels:["fragile ego"]}).grounded).toBe(false);expect(inspectPowerBeat({chapter:2,subject:"x",trigger:"corrected",behaviors:["talk over her"],labels:[]}).grounded).toBe(true);});});
