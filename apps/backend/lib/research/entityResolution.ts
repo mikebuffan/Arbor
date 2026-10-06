@@ -32,9 +32,11 @@ const unique=(values:readonly string[],field:string):string[]=>{
 };
 
 export function normalizeAlias(value:string):string{
-  return text(value,"alias").normalize("NFKC").toLowerCase()
-    .replace(/[’']/g,"'").replace(/[^a-z0-9' -]+/g," ")
+  const normalized = text(value,"alias").normalize("NFKC").toLowerCase()
+    .replace(/[’']/g,"'").replace(/[^\p{L}\p{N}' -]+/gu," ")
     .replace(/\s+/g," ").trim();
+  if (!/[\p{L}\p{N}]/u.test(normalized)) throw new Error("invalid_normalized_alias");
+  return normalized;
 }
 
 export function levenshteinDistance(a:string,b:string):number{
