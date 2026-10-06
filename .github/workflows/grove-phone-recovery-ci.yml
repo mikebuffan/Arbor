@@ -71,17 +71,18 @@ jobs:
       - name: Run restart, storage-failure, scope and retry fixtures
         working-directory: apps/frontend
         run: >-
-          flutter test test/arbor_session_test.dart
+          timeout 180s flutter test --reporter expanded --concurrency=1
+          test/arbor_session_test.dart
           test/grove_pending_turn_store_test.dart
           test/grove_private_text_page_test.dart
           test/grove_private_conversations_test.dart
       - name: Run complete existing Flutter regression suite
         working-directory: apps/frontend
-        run: flutter test
+        run: timeout 360s flutter test --reporter expanded
       - name: Compile synthetic Grove APK; never deploy or install
         working-directory: apps/frontend
         run: >-
-          flutter build apk --debug --flavor grove
+          timeout 600s flutter build apk --debug --flavor grove
           --dart-define=GROVE_STANDALONE=true
           --dart-define=GROVE_PRIVATE_TALK_PREVIEW=true
           --dart-define=GROVE_PRIVATE_NEW_CONVERSATION_PREVIEW=false
