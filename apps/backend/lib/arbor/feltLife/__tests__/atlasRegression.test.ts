@@ -1,0 +1,2 @@
+import{describe,expect,it}from"vitest";import{inferFeltLife}from"../atlas";
+describe("felt-life atlas regression",()=>{it("never converts hypotheses into verdicts",()=>{const r=inferFeltLife({text:"I froze and needed to leave but also wanted to stay"});expect(r.guard).toBe("hypothesis-not-verdict");expect(r.uncertainty).toBeGreaterThanOrEqual(0);});it("allows mixed states",()=>{const r=inferFeltLife({text:"I was relieved and scared to lose him"});expect(typeof r.mixed).toBe("boolean");});});
