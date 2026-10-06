@@ -1,0 +1,42 @@
+# Grove receiver r3 paired source acceptance — October 6, 2026 UTC
+
+Result: current combined Grove host can cross the actual signed r3 receiver boundary with a synthetic model, carrying complete current context. This closes the source contract/character-limit mismatch recorded in #254. It does not establish a deployed runtime, actual tokenizer fit, GPU/weights authenticity, owner provisioning, device behavior or ARK checkpoint completion. No deployment, inference activation, private data/adapter import or paid inference occurred.
+
+## Exact provenance
+
+- Parent #254: `ed843a9d187c38caf176bdf57e8c6cd1eb4d9c1f`, tree `106c801ff33a201224adc291da07ac93cbd73a0c`. Its final run `37420167073` passed 938 backend tests/one optional receiver skip, all 192 Flutter tests, 36 focused recovery fixtures, full backend build and both synthetic Android flavors. Phone source is unchanged by this child.
+- Child branch: `arbor/grove-receiver-r3-20261006`, isolated from the shared Buffalo branch. The PR receipt supplies the immutable published SHA/tree and remote source-check results.
+- Supplied source package: `Arbor_LM_One_Arbor_Receiver_r3_Source_20261006.zip`, archive SHA-256 `3da204d51f98d35c4d065534feb2b2de4d9d223b25b735418ed7a9210d93235d`. All 65 manifest file digests independently verified; safe extraction checked bounds, paths and symlinks.
+- Receiver strict behavior contract: `2026-10-05.1`; required broker revision: `2026-10-06.1`. Preserved model card `0.3.3` and expected adapter digest `5447bc273c11374c73194428825babe22a008b0827e9ef002127a461023402aa` remain unchanged. Identifiers are consistency evidence, not real-runtime attestation.
+- Existing overlapping draft #252 was inspected at `83fcef641465e436770f02d86eee5159daf6613b`; it and CI-only #253 remain preserved. This child reuses the same current host contract constant, paired with the supplied r3 revision/body protocol. Integrator must reconcile the actual latest source heads selectively, preserving tested #254 routing and context; no wholesale old-engine merge.
+
+The private source ZIP is read locally for verification and remains outside the Git repository. It contains no adapter/tokenizer/weights. Its own instruction prohibits public package publication; this child publishes only bounded edits to the existing public host/tests and these receipts. No Library item is replaced.
+
+## Bounded host repair
+
+`privateLmHostTransport.ts` now requires the existing current `ARBOR_BEHAVIOR_CONTRACT_VERSION` instead of accepting the historical 2026-09-21.1 proof. The old contract is rejected before dispatch; response proof must also include exact r3 broker revision, existing card/adapter, behavior fingerprint, captured time, scope/continuity and no-execution receipts. Redirect denial, HMAC over exact timestamp/nonce/raw UTF-8 bytes, server-only secrets, fresh authorization and retry/history limits remain intact.
+
+Host and r3 receiver share the 98,304-byte signed body ceiling. Existing 12,000-character history and 3,000-character per-message limits remain tighter and unchanged. No prompt truncation occurs. Receiver independently enforces 32,768 behavior characters, 128 guards, strict JSON scope/freshness and signature/replay validation. Host tests prove bounded multibyte history over the old r2 byte ceiling is accepted, and an oversized r3 UTF-8 body is denied before dispatch. Missing/old receiver revisions and old behavior proofs reject.
+
+The existing actual signed TS → Python test now also asserts a permanent correction and relevant scoped memory source arrive before `Mode projection:`. It uses current canonical identity, exact requested conversation goal and existing runtime correction, clock UTC-07:00 and owned ARK evidence. The receiver executes only `FakeModel.generate`; no Qwen/LoRA load, foundation download, embedding, semantic inference or ARK write is performed. The reply still states unverified model text, unresolved active-objective handoff and empty work receipts.
+
+## Verified checks
+
+- Local backend: 149 files, **940 passed, zero skipped**, with the exact supplied r3 source and isolated fake-model Python environment enabled. Existing test setup denies unexpected provider fetches.
+- Receiver: `tests` plus `evaluation_next`, **90 passed, one skipped**. The skip is the optional original adapter archive test; that private archive was not imported. One dependency deprecation warning remains. Minimal pinned validation dependencies only: FastAPI 0.142.2, Pydantic 2.13.5, HTTPX 0.28.1, pytest 9.1.1. No Torch, PEFT, transformers, tokenizer or weights are installed for this validation.
+- Backend standalone types and production build are recorded in this child PR receipt; build uses synthetic placeholder configuration/system certificates, no hosted credentials.
+- Remote workflow `.github/workflows/grove-receiver-r3-ci.yml` repeats locked backend dependencies, types, full existing tests and production build on the pinned child head. Metadata denial is verified before checkout/bootstrap; permission is read-only. The private receiver package is deliberately absent there, so its optional cross-runtime fixture skips remotely. The local cross-runtime pass and remote skip are separate evidence.
+- Phone source remains identical to #254's tested source. No repeated phone acceptance is claimed for different code.
+- Root/backend original cron configurations are preserved; dedicated Grove config stays no-cron. All three ignore commands skip this child. No Vercel deployment is requested or retried.
+
+## Live gates still open, in exact order
+
+1. Integrator reviews this child together with #254/#251 and overlapping #252 against the latest Buffalo head. Record the accepted combined SHA/tree and exact r3 package hash; rerun affected checks after composition. Keep model/execution switches off.
+2. Runtime owner approves a protected runtime and token/compute budget, then independently validates the exact existing foundation, adapter and tokenizer plus actual loaded model context. The supplied handoff reports 4,020 input tokens for its separate tokenizer fixture: default 2,400 does not fit. This child does not have the private tokenizer and cannot reproduce that number or certify its own prompt/history fit. A proposed 8,192 budget is not activated or guaranteed. Receiver checks actual tokenizer count, configured ceiling and model context including output reserve, and refuses oversize before model.generate; never silently drop identity or corrections.
+3. Review durable nonce/rate protection for restart/replica behavior. Existing replay cache/generation lock are per-process. Transcript/claim idempotency is not exactly-once GPU execution; a lease timeout may permit another model call. Record the actual reviewed single-/multi-instance policy and bounded pilot budget before live activation.
+4. Administrator reviews dedicated no-cron Grove host source/config, owner invitation/bridge, project/conversation grants, transcript/claim SQL/RPC and revocation. Provisioning/deployment requires separately scoped authorization; service/HMAC keys stay out of phone/chat. Record actual host/receiver/config IDs and prove foreign/revoked scopes deny before LM.
+5. Release owner builds the approved distinct Grove package with reviewed private signing and public phone configuration, records signer/APK hash/source IDs, and supplies the actual acceptance artifact. Synthetic debug APK compilation is not release/device proof.
+6. After explicit live inference/budget authorization, Danelle signs into the invited Grove realm and runs the exact Text/draft retention/restart/interruption/lost-reply/same-ID retry/storage failure/scope change/foreground timezone procedure in `GROVE_COMBINED_CONNECTION_SOURCE_20261006.md`. Capture authenticated receiver proof, real behavior acceptance and persisted transcript readback. This child changes no flags or hosted settings.
+7. Private Text → selected objective → approved ARK checkpoint writer remains unestablished. Identify/reuse the existing reviewed writer and authorization path separately; do not invent selection, claim completion from a reply, duplicate archive/Pattern Hop work or replay a consumed canary. Return real source/device/runtime/save/checkpoint receipts to the master ledger.
+
+No immediate owner ARK button step is needed. The source mismatch is resolved with actual fake-generation protocol proof; real runtime and device acceptance remain explicit gates.

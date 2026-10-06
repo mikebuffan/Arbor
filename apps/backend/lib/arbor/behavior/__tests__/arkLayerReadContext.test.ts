@@ -351,6 +351,7 @@ describe("owner-scoped ARK -> Arbor Layer read crossing", () => {
       expect(context.behavior.proof.projectionFingerprint).toMatch(/^[a-f0-9]{64}$/);
       // Keep the new canonical identity intact; never fake the old receiver contract.
       expect(context.behavior.proof.contractVersion).toBe("2026-10-05.1");
+      expect(prompt.length).toBeLessThanOrEqual(32768);
       const request = vi.fn();
       await expect(sendPrivateGroveLmTurnFromVerifiedHost({
         ownerId: "00000000-0000-4000-8000-000000000001",
@@ -362,7 +363,7 @@ describe("owner-scoped ARK -> Arbor Layer read crossing", () => {
   });
 
   it.skipIf(!process.env.GROVE_LM_RECEIVER_SOURCE || process.env.GROVE_LM_RECEIVER_CONTRACT !== "2026-10-05.1")(
-    "passes the actual signed TS envelope through the preserved Python receiver (fake model only)",
+    "passes the actual signed TS envelope through the reviewed r3 Python receiver (fake model only)",
     async () => {
       const owner = "00000000-0000-4000-8000-000000000001";
       const project = "00000000-0000-4000-8000-000000000002";
@@ -373,10 +374,15 @@ describe("owner-scoped ARK -> Arbor Layer read crossing", () => {
       mock.loadRuntimeState.mockResolvedValueOnce(state({
         userId: owner, projectId: project, conversationId: conversation,
       }));
+      mock.durable.mockResolvedValueOnce([{id: "permanent-fixture", kind: "behavior",
+        value: "Preserve my permanent correction", source: "text",
+        observedAt: "2026-10-05T00:00:00Z", confidence: 1, protected: true}]);
+      mock.recall.mockResolvedValueOnce({recallPrompt: "Owned scoped memory source fixture-memory-1"});
       const context = await readArkLayerContext({
         supabase: {} as never, authenticatedUserId: owner,
         projectId: project, conversationId: conversation,
         mode: "text", timeZoneOffsetMinutes: -420,
+        latestUserText: "Continue the fixture objective",
       });
       const config = {
         url: "https://synthetic-model.example.org",
@@ -397,6 +403,10 @@ class FakeModel:
         assert "ARBOR DURABLE IDENTITY ANCHOR" in system
         assert "Finish the scoped ARK integration" in system
         assert "Do not restart the conversation." in system
+        assert "Preserve my permanent correction" in system
+        assert "fixture-memory-1" in system
+        assert system.index("fixture-memory-1") < system.index("Mode projection:")
+        assert system.index("Preserve my permanent correction") < system.index("Mode projection:")
         assert "time_zone=UTC-07:00" in system
         assert system.index("ARBOR DURABLE IDENTITY ANCHOR") < system.index("Mode projection:")
         assert messages[-1]["content"] == "Continue the fixture objective"
