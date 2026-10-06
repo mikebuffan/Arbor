@@ -40,4 +40,16 @@ describe("Annabelle editorial diagnostics", () => {
     expect(runAnnabelleEditorialDiagnostics(text).some(x=>x.engine==="embodied-perspective")).toBe(true);
   });
 
+  it("flags writer-performance clustering for Raw Gravity review", () => {
+    const text="It was the kind of silence people remembered. Something ancient moved through it. She was beautifully broken.";
+    expect(runAnnabelleEditorialDiagnostics(text).some(x=>x.engine==="raw-gravity")).toBe(true);
+  });
+  it("flags possible close-third camera leaks", () => {
+    expect(runAnnabelleEditorialDiagnostics("Unbeknownst to her, he closed the door.").some(x=>x.engine==="camera")).toBe(true);
+  });
+  it("flags explicit realization density", () => {
+    const text="She realized it. He understood. She knew then. It dawned on him. She realized why.";
+    expect(runAnnabelleEditorialDiagnostics(text).some(x=>x.engine==="discovery-density")).toBe(true);
+  });
+
 });
