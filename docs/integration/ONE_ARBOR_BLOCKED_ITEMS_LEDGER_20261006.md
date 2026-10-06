@@ -20,19 +20,24 @@ This ledger separates source work from gates that cannot be crossed in the isola
 - Retry deployment acceptance only after quota resets or an already-authorized path is available.
 
 ## Hosted storage / grants
-- Pattern Hop durable lease source semantics exist, but hosted atomic persistence needs the owning research lane and hosted DB acceptance.
+- Canonical Pattern-Hop run-control/STOP source belongs to the active research lineage; hosted atomic persistence and restart acceptance remain there.
 - Grove/ARK execution grants and runtime capture grants remain default OFF and protected.
 - No hosted migration or grant may be applied from this lane.
 
 ## #260 / #263 combined candidate
 - Branches are siblings from Buffalo #249.
-- Their PR changed-file sets had no direct path overlap at the reconciliation check, but semantic integration still requires combined exact-head CI.
+- Their PR changed-file sets currently have no direct path overlap, but semantic integration still requires a fresh combined candidate and exact-head CI.
 - Do not overwrite #260 or force-rebase either branch.
 
 ## Live runtime gates
 - Host continuation repair requires deployed restart/continuation acceptance before being called live-fixed.
 - Grove -> private LM -> Arbor Layer -> ARK vertical slice requires owner-approved runtime/model/tokenizer/adapter/grant/device conditions.
 - Live ARK execution and inference activation remain protected.
+
+## Pattern Hop live gate
+- Do not duplicate Pattern Hop on #263.
+- Reconcile the newest canonical research heads, then run durable STOP/lease/checkpoint/restart acceptance in that lane.
+- Evidence Engine end-to-end live acceptance remains separate from this source-only Annabelle/agency branch.
 
 ## Device gate
 - Phone installation/sign-in and real device acceptance remain human/protected actions.
