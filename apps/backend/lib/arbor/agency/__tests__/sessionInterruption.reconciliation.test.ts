@@ -1,7 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { AgencyState } from "../engine";
 import { splitAgencyWork } from "../openLoops";
 import { buildAgencySessionState } from "../session";
+import { AgencyStateConflictError } from "../state";
 
 const prior: AgencyState = {
   goal: "finish One Arbor reconciliation",
@@ -52,5 +53,10 @@ describe("agency interruption ownership", () => {
       prior,
     });
     expect(splitAgencyWork(next.unresolvedWork).suspended).toHaveLength(0);
+  });
+  it("defines CAS conflict as a recoverable concurrency condition", () => {
+    const error = new AgencyStateConflictError();
+    expect(error.name).toBe("AgencyStateConflictError");
+    expect(error.message).toBe("agency_state_conflict");
   });
 });
