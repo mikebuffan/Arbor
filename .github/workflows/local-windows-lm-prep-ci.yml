@@ -116,6 +116,7 @@ jobs:
             '-DGGML_CPU_ALL_VARIANTS=OFF',
             '-DGGML_OPENMP=OFF',
             '-DLLAMA_CURL=OFF',
+            '-DLLAMA_OPENSSL=OFF',
             '-DLLAMA_BUILD_SERVER=ON',
             '-DLLAMA_BUILD_TESTS=OFF',
             '-DLLAMA_BUILD_EXAMPLES=ON'
