@@ -84,7 +84,10 @@ export function buildSourceOriginFamilies(nodesInput:readonly SourceOriginNode[]
     contentHash:node.contentHash===null?null:tx(node.contentHash,"content_hash").toLowerCase(),
   }));
   if(new Set(nodes.map(n=>n.sourceId)).size!==nodes.length)throw new Error("duplicate_source_id");
-  const parent=new Map(nodes.map(n=>[n.sourceId,n.sourceId]));
+  // Preserve derivation links even when the original is outside this batch.
+  // Missing originals are connector nodes, not new independent evidence.
+  const originIds = new Set(nodes.flatMap(n => [n.sourceId, ...n.derivesFromSourceIds]));
+  const parent=new Map([...originIds].map(id=>[id,id]));
   const find=(id:string):string=>{
     let p=parent.get(id)!;
     while(parent.get(p)!==p)p=parent.get(p)!;
