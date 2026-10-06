@@ -1,0 +1,2 @@
+import{describe,expect,it}from"vitest";import{runBookRegressionSuite}from"../bookRegressionSuite";
+describe("book regression suite",()=>{it("aggregates local and manuscript-scale checks",()=>{const r=runBookRegressionSuite({text:"She opened the door. She stayed.",physical:[{chapter:1,character:"Ever",injuries:{hip:"chronic"},compensations:["hitch"],scars:["shoulder"]},{chapter:2,character:"Ever",injuries:{},compensations:[],scars:[]} ]});expect(r.physical.length).toBeGreaterThan(0);expect(r.blocking).toBeGreaterThan(0);});});
