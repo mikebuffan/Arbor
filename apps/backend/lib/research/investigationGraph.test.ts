@@ -30,6 +30,20 @@ describe("investigation graph",()=>{
     expect(families).toHaveLength(2);
   });
 
+  it("keeps reports sharing an uncaptured original in one origin family", () => {
+    const nodes = [
+      { sourceId: "report-a", derivesFromSourceIds: ["uncaptured-original"], contentHash: "aaa" },
+      { sourceId: "report-b", derivesFromSourceIds: ["uncaptured-original"], contentHash: "bbb" },
+      { sourceId: "mirror-b", derivesFromSourceIds: [], contentHash: "bbb" },
+      { sourceId: "separate", derivesFromSourceIds: [], contentHash: null },
+    ];
+    const families = buildSourceOriginFamilies(nodes);
+    expect(families).toHaveLength(2);
+    expect(families.find(f => f.sourceIds.includes("report-a"))?.sourceIds).toEqual(["mirror-b", "report-a", "report-b"]);
+    expect(families.flatMap(f => f.sourceIds)).not.toContain("uncaptured-original");
+    expect(buildSourceOriginFamilies([...nodes].reverse())).toEqual(families);
+  });
+
   it("creates proximity edges without re-labeling them as documented conduct",()=>{
     const out=proximityEdges({orderedMentionEntityIds:["A","B","C"],evidenceRef:"page:1",sourceFamilyId:"source:1",maxDistance:2});
     expect(out).toHaveLength(3);
