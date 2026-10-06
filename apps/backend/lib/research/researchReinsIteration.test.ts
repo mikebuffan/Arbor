@@ -79,7 +79,7 @@ function storeFor(
     })),
     loadSession: vi.fn(async () => s),
     claimOne: vi.fn(async () => claim),
-    settle: vi.fn(async () => "committed"),
+    settle: vi.fn(async () => "committed" as const),
     stop: vi.fn(async () => {}),
   };
 }

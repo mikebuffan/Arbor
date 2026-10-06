@@ -174,7 +174,8 @@ begin
     set status='running',updated_at=v_now where id=p_session_id;
   return jsonb_build_object('unitId',v_unit.id,'leaseToken',v_unit.lease_token,
     'idempotencyKey',v_unit.unit_key,'kind',v_unit.kind,'payload',v_unit.payload,
-    'maxCostReservationCents',v_unit.max_cost_reservation_cents);
+    'maxCostReservationCents',v_unit.max_cost_reservation_cents,
+    'lastResult',v_unit.last_result->'unit_result');
 end $$;
 
 create or replace function public.arbor_settle_research_unit(

@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { ArkExecutorRegistry } from "../ark/executorRegistry";
 import type { ArkClaim } from "../ark/types";
 import type { ResearchSession } from "./sessionPolicy";
-import type { ResearchStore } from "./sessionRunner";
+import type { ResearchClaim, ResearchStore, ResearchUnitExecutor } from "./sessionRunner";
 import { stageLocalPdfPilotBatch } from "./offlinePdfBatchPilot";
 import { ARK_RESEARCH_TASK_KIND, registerArkResearchSessionExecutor } from "./registerArkResearchSessionExecutor";
 
@@ -82,7 +82,7 @@ describe("connected harmless PDF -> research receipt -> ARK checkpoint",()=>{
         committedCostCents:0,authorized:true,cancellationRequested:false,
         unresolvedRequiredWork:1,completedEvidenceRefs:[],
       };
-      const researchClaim={
+      const researchClaim:ResearchClaim={
         unitId:"research-unit",leaseToken:"research-lease",
         idempotencyKey:"research-unit",kind:"synthetic.local_pdf",
         payload:{label:"nonauthoritative"},maxCostReservationCents:0,
@@ -118,11 +118,8 @@ describe("connected harmless PDF -> research receipt -> ARK checkpoint",()=>{
         }),
         stop:vi.fn(async()=>{}),
       };
-      const execute=vi.fn(async({
+      const execute:ResearchUnitExecutor=vi.fn(async({
         session:s,claim:c,
-      }:{
-        session:ResearchSession;
-        claim:typeof researchClaim;
       })=>{
         // Source choice comes only from trusted test/host state, not task payload.
         const [staged]=await stageLocalPdfPilotBatch({
