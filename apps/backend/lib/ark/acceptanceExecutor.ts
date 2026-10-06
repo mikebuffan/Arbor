@@ -61,7 +61,7 @@ export function registerArkAcceptanceExecutor(input: { registry: ArkExecutorRegi
         verificationScope: "captured both arms; behavior remains unscored, durability/acoustics unverified",
         contractHash: contract.contractHash, output: result };
       await completeAgencyOperation({ supabase: input.supabase, userId: claim.task.userId,
-        projectId: claim.task.projectId, key: claim.task.idempotencyKey, result: output });
+        projectId: claim.task.projectId, key: claim.task.idempotencyKey, operation: ACCEPTANCE_TASK_KIND, result: output });
       return { status: "completed", result: output };
     } catch {
       return { status: "failed", error: "ark_acceptance_capture_failed_or_budget_exhausted_inspect_owned_events", retryable: false };
