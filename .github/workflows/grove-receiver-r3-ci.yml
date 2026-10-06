@@ -3,11 +3,11 @@ name: Grove receiver r3 independent verification
 'on':
   pull_request:
     branches: [arbor/grove-receiver-r3-alignment-20261006]
-    types: [opened, synchronize, reopened, edited]
+    types: [opened, synchronize, reopened]
 permissions:
   contents: read
 concurrency:
-  group: grove-receiver-r3-${{ github.event.pull_request.number }}
+  group: grove-receiver-r3-verification-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 jobs:
   backend-source:
