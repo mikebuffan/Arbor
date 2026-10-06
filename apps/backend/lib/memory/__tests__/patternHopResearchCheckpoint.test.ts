@@ -41,6 +41,11 @@ beforeEach(() => {
 });
 
 describe("Pattern Hop durable checkpoint ordering", () => {
+  it.each([{ seed: "different" }, { maxDepth: 3 }])("rejects resume inputs that would change saved traversal %j", async (changed) => {
+    await expect(runPatternHopResearch({ ...input, ...changed })).rejects.toThrow("pattern_hop_resume_input_mismatch");
+    expect(mocks.historical).not.toHaveBeenCalled();
+    expect(mocks.save).not.toHaveBeenCalled();
+  });
   it("rebuilds child hops when both source and edge survived a failed checkpoint", async () => {
     mocks.save.mockRejectedValueOnce(new Error("checkpoint_store_unavailable"));
     await expect(runPatternHopResearch(input)).rejects.toThrow("checkpoint_store_unavailable");
