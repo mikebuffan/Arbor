@@ -4,6 +4,13 @@ import { buildPathStep, projectPatternHopForRuntime, selectNextHopCandidates, ty
 import { classifyHistoricalEvidence, searchHistoricalHopEvidence, searchMemoryHopEvidence, searchTimelineHopEvidence } from "@/lib/memory/patternHopRetrieval";
 import { patternHopBranchClue } from "@/lib/memory/patternHopClues";
 import { createPatternHopRun, loadPatternHopEdges, loadPatternHopEvidence, loadPatternHopRun, persistPatternHopEdges, persistPatternHopEvidence, savePatternHopRun } from "@/lib/memory/patternHopStore";
+import {
+  claimPatternHopRun,
+  heartbeatPatternHopRun,
+  isPatternHopRunControlEnabled,
+  releasePatternHopRun,
+  type PatternHopLease,
+} from "@/lib/memory/patternHopRunControl";
 
 export const DEFAULT_PATTERN_HOP_BRANCHES = ["direct_matches","neighboring_concepts","people_entities","terminology_changes","causal_predecessors","consequences","retrospective_references","chronology_anchors","implementation_architecture","behavioral_results","contradictions"] as const;
 
@@ -12,19 +19,58 @@ function toEvidence(row: Awaited<ReturnType<typeof searchHistoricalHopEvidence>>
   return { id:row.id, source:row.source, sourceThreadId:row.sourceThreadId, sourceMessageId:row.sourceMessageId, speaker:row.role, evidenceType:classification.evidenceType, content:row.content, occurredAt:row.occurredAt, confidence:Math.max(0,Math.min(1,row.similarity ?? 0.5)), epistemicStatus:classification.epistemicStatus };
 }
 
-export async function runPatternHopResearch(params:{supabase:SupabaseClient;userId:string;projectId:string;conversationId?:string|null;seed:string;objective?:string;maxDepth?:number;maxHops?:number;runId?:string;maxRuntimeMs?:number;signal?:AbortSignal}) {
+export type PatternHopRunControlPort = {
+  claim: typeof claimPatternHopRun;
+  heartbeat: typeof heartbeatPatternHopRun;
+  release: typeof releasePatternHopRun;
+};
+
+export async function runPatternHopResearch(params:{
+  supabase:SupabaseClient;userId:string;projectId:string;conversationId?:string|null;
+  seed:string;objective?:string;maxDepth?:number;maxHops?:number;runId?:string;
+  maxRuntimeMs?:number;signal?:AbortSignal;workerId?:string;
+  runControl?: PatternHopRunControlPort | null;
+}) {
   const maxRuntimeMs = params.maxRuntimeMs ?? 15000;
   if (!Number.isSafeInteger(maxRuntimeMs) || maxRuntimeMs < 1 || maxRuntimeMs > 60000)
     throw new Error("pattern_hop_invalid_runtime_budget");
   const startedAt = performance.now();
-  let passStopReason: "hop_limit" | "time_budget" | "cancelled" | "sources_blocked" | "traversal_finished" = "hop_limit";
+  let passStopReason: "hop_limit" | "time_budget" | "cancelled" | "stop_requested" | "sources_blocked" | "traversal_finished" = "hop_limit";
   let hopsProcessed = 0;
   let run = params.runId ? await loadPatternHopRun({supabase:params.supabase,userId:params.userId,projectId:params.projectId,runId:params.runId}) : null;
   if (params.runId && !run) throw new Error("pattern_hop_run_not_found");
   if (run && (run.seed.clue !== params.seed || (params.maxDepth !== undefined && params.maxDepth !== run.state.maxDepth)))
     throw new Error("pattern_hop_resume_input_mismatch");
+  const createdNow = !run;
   if (!run) {
     run = await createPatternHopRun({supabase:params.supabase,userId:params.userId,projectId:params.projectId,conversationId:params.conversationId,objective:params.objective ?? "Pattern-hop research: "+params.seed,seed:{clue:params.seed},maxDepth:params.maxDepth});
+  }
+
+  const control = params.runControl === undefined
+    ? (isPatternHopRunControlEnabled()
+      ? {claim:claimPatternHopRun,heartbeat:heartbeatPatternHopRun,release:releasePatternHopRun}
+      : null)
+    : params.runControl;
+  let lease:PatternHopLease|null=null;
+  let stoppedBeforeStart=false;
+  if(control){
+    const claimed=await control.claim({
+      supabase:params.supabase,runId:run.id,userId:params.userId,projectId:params.projectId,
+      workerId:params.workerId ?? ("pattern-hop:"+run.id),leaseMs:90000,
+    });
+    if(claimed.status==="in_progress") throw new Error("pattern_hop_run_in_progress");
+    if(claimed.status==="stopped") stoppedBeforeStart=true;
+    else lease=claimed.lease;
+  }
+  const controlCheck=async():Promise<boolean>=>{
+    if(!control||!lease) return stoppedBeforeStart;
+    const result=await control.heartbeat({
+      supabase:params.supabase,runId:run!.id,userId:params.userId,projectId:params.projectId,lease,
+    });
+    return result==="stopped";
+  };
+
+  if(createdNow && !stoppedBeforeStart){
     for (const branch of DEFAULT_PATTERN_HOP_BRANCHES) run.state=enqueueHop(run.state,{evidenceId:"seed",clue:patternHopBranchClue(branch,params.seed),depth:0,branch});
     await savePatternHopRun({supabase:params.supabase,runId:run.id,userId:params.userId,projectId:params.projectId,state:run.state});
   }
@@ -72,6 +118,7 @@ export async function runPatternHopResearch(params:{supabase:SupabaseClient;user
   const idMap=found.length ? await persistPatternHopEvidence({supabase:params.supabase,runId:run.id,userId:params.userId,projectId:params.projectId,evidence:found}) : new Map<string,string>();
 
   for(let i=0;i<maxHops && state.status==="active";i+=1){
+    if (await controlCheck()) { passStopReason = "stop_requested"; break; }
     if (params.signal?.aborted) { passStopReason = "cancelled"; break; }
     if (performance.now() - startedAt >= maxRuntimeMs) { passStopReason = "time_budget"; break; }
     const stateBeforeRetrieval = state;
@@ -116,6 +163,7 @@ export async function runPatternHopResearch(params:{supabase:SupabaseClient;user
       break;
     }
 
+    if (await controlCheck()) { state = stateBeforeRetrieval; passStopReason = "stop_requested"; break; }
     if (params.signal?.aborted) { state = stateBeforeRetrieval; passStopReason = "cancelled"; break; }
     const historicalCandidates:PatternHopCandidate[]=rows
       .filter(r=>(r.similarity ?? 0)>=0.35)
@@ -149,9 +197,11 @@ export async function runPatternHopResearch(params:{supabase:SupabaseClient;user
         }
       }
     }
+    if (await controlCheck()) { state = stateBeforeRetrieval; passStopReason = "stop_requested"; break; }
     const newIds=await persistPatternHopEvidence({supabase:params.supabase,runId:run.id,userId:params.userId,projectId:params.projectId,evidence:found.slice(evidenceStart)});
     for(const [clientId,storedId] of newIds) idMap.set(clientId,storedId);
     await persistPatternHopEdges({supabase:params.supabase,runId:run.id,idMap,edges:edges.slice(edgeStart)});
+    if (await controlCheck()) { state = stateBeforeRetrieval; passStopReason = "stop_requested"; break; }
     await savePatternHopRun({supabase:params.supabase,runId:run.id,userId:params.userId,projectId:params.projectId,state});
     hopsProcessed += 1;
   }
@@ -178,7 +228,11 @@ export async function runPatternHopResearch(params:{supabase:SupabaseClient;user
     runtimeProjectionCount:runtimeProjection.length,
     absenceSemantics:"An exhausted branch means evidence was not found by the attempted routes; it is not proof that the evidence does not exist.",
   };
-  await savePatternHopRun({supabase:params.supabase,runId:run.id,userId:params.userId,projectId:params.projectId,state,verificationState});
+  if (!stoppedBeforeStart) {
+    if (await controlCheck() && passStopReason !== "stop_requested")
+      passStopReason = "stop_requested";
+    await savePatternHopRun({supabase:params.supabase,runId:run.id,userId:params.userId,projectId:params.projectId,state,verificationState});
+  }
   const handoff = {
     runId: run.id,
     seed: params.seed,
@@ -191,5 +245,10 @@ export async function runPatternHopResearch(params:{supabase:SupabaseClient;user
     independentCorroborationVerified: false,
     blocker: state.blocker ?? null,
   };
-  return {handoff,runId:run.id,status:state.status,blocker:state.blocker ?? null,state,evidence:rankEvidence(found),edges,path,runtimeProjection,verificationState};
+  const result={handoff,runId:run.id,status:state.status,blocker:state.blocker ?? null,state,evidence:rankEvidence(found),edges,path,runtimeProjection,verificationState};
+  if(control&&lease){
+    await control.release({supabase:params.supabase,runId:run.id,userId:params.userId,projectId:params.projectId,lease});
+    lease=null;
+  }
+  return result;
 }
