@@ -3,6 +3,7 @@ import { registerArkAgencyToolExecutor } from "./agencyToolExecutor";
 import { ArkExecutorRegistry } from "./executorRegistry";
 import { runArkWorkerCycle, type ArkWorkerCycleResult } from "./runner";
 import { SupabaseArkStore } from "./supabaseStore";
+import { registerArkAcceptanceExecutor } from "./acceptanceExecutor";
 
 export async function runDefaultArkWorkerCycle(input: {
   supabase: SupabaseClient;
@@ -13,6 +14,7 @@ export async function runDefaultArkWorkerCycle(input: {
   objectiveId?: string;
 }): Promise<ArkWorkerCycleResult> {
   const registry = new ArkExecutorRegistry();
+  registerArkAcceptanceExecutor({ registry, supabase: input.supabase });
   registerArkAgencyToolExecutor({
     registry,
     supabase: input.toolSupabase ?? input.supabase,

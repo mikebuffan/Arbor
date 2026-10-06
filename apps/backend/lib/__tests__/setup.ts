@@ -1,8 +1,11 @@
-import { vi } from "vitest";
+import { beforeEach, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-// Unit checks must never send fixture or repository content to providers.
-vi.stubGlobal("fetch", vi.fn(async () => {
-  throw new Error("test_external_fetch_forbidden");
-}));
+// Unit tests must stub their request boundary. Deny accidental provider/DB
+// requests before imports as well as between tests; never send test payloads.
+const denyNetwork = async () => {
+  throw new Error("unit_tests_unexpected_network_request");
+};
+vi.stubGlobal("fetch", denyNetwork);
+beforeEach(() => vi.stubGlobal("fetch", denyNetwork));

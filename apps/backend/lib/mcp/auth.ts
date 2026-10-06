@@ -3,6 +3,7 @@ import "server-only";
 import type { AuthInfo } from "@modelcontextprotocol/server";
 import { createUserClientForBearerToken } from "@/lib/supabase/user";
 import { arkReadTaskProjects, arkPatternHopProjects, ARK_READ_TASK_SUBMIT_PERMISSION, ARK_PATTERN_HOP_SUBMIT_PERMISSION } from "./taskPermissions";
+import { arkAcceptanceProjects, ARK_ACCEPTANCE_SUBMIT_PERMISSION } from "./taskPermissions";
 
 type VerifiedTokenClaims = {
   client_id?: unknown;
@@ -38,6 +39,7 @@ export async function verifyArkMcpToken(
   const claims = verifiedTokenClaims(token);
   const grantedProjects = arkReadTaskProjects(user.app_metadata, claims.client_id);
   const patternHopProjects = arkPatternHopProjects(user.app_metadata, claims.client_id);
+  const acceptanceProjects = arkAcceptanceProjects(user.app_metadata, claims.client_id);
 
   return {
     token,
@@ -46,13 +48,16 @@ export async function verifyArkMcpToken(
         ? claims.client_id
         : "supabase-oauth-client",
     scopes: ["ark.read", ...(grantedProjects.length ? [ARK_READ_TASK_SUBMIT_PERMISSION] : []),
-      ...(patternHopProjects.length ? [ARK_PATTERN_HOP_SUBMIT_PERMISSION] : [])],
+      ...(patternHopProjects.length ? [ARK_PATTERN_HOP_SUBMIT_PERMISSION] : []),
+      ...(acceptanceProjects.length ? [ARK_ACCEPTANCE_SUBMIT_PERMISSION] : [])],
     expiresAt: typeof claims.exp === "number" ? claims.exp : undefined,
     extra: {
       userId: user.id,
       email: user.email ?? null,
+      oauthClientId: typeof claims.client_id === "string" ? claims.client_id : null,
       ...(grantedProjects.length ? {arkReadTaskProjectIds: grantedProjects} : {}),
       ...(patternHopProjects.length ? {arkPatternHopProjectIds: patternHopProjects} : {}),
+      ...(acceptanceProjects.length ? {arkAcceptanceProjectIds: acceptanceProjects} : {}),
     },
   };
 }

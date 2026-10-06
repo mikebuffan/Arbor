@@ -41,3 +41,8 @@ Thumbs.db
 apps/frontend/.metadata
 flutter__BROKEN
 flutter
+
+# Android private signing material (never commit Grove release keys)
+*.jks
+*.keystore
+**/key.properties

@@ -1,8 +1,4 @@
 {
-  "crons": [
-    {
-      "path": "/api/admin/system/heartbeat",
-      "schedule": "*/10 * * * *"
-    }
-  ]
+  "crons": [],
+  "ignoreCommand": "sh -c 'if [ \"$VERCEL_GIT_COMMIT_REF\" = \"arbor/grove-lm-source-repair-20261005\" ]; then exit 0; fi; if [ \"$VERCEL_GIT_COMMIT_REF\" = \"arbor/grove-phone-recovery-20261005\" ]; then exit 0; fi; if [ \"$VERCEL_GIT_COMMIT_REF\" = \"finish/grove-mobile-home-20260928\" ]; then [ \"$VERCEL_PROJECT_ID\" = \"prj_nw2X0SyLn4e8CXWZ83MEs4jwn1JN\" ] && exit 1 || exit 0; fi; exit 1'"
 }

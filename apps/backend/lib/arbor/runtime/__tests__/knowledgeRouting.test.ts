@@ -1,11 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  packetHasRequiredMeaning,
-  roadsForVaultDomain,
-  routeFireflyPacket,
-  routeSignal,
-  shouldCrossContextBridge,
-} from "../knowledgeRouting";
+import { packetHasRequiredMeaning, roadsForVaultDomain, routeSignal, shouldCrossContextBridge } from "../knowledgeRouting";
 
 describe("Vault → roads integration", () => {
   it("routes identity only to identity/self-model by default", () => {
@@ -53,120 +47,95 @@ describe("architectural ablations", () => {
 });
 
 
-const fireflyScope = {
-  userId: "fixture-owner",
-  projectId: "fixture-project",
-  conversationId: "fixture-conversation",
-  turnId: "fixture-turn",
-};
+import { routeFireflyPacket } from "../knowledgeRouting";
 
+const fireflyScope = {
+  userId: "fixture-owner", projectId: "fixture-project",
+  conversationId: "fixture-conversation", turnId: "fixture-turn",
+};
 const fireflyPacket = {
   packetType: "observation",
   meaning: "Objective is unfinished; check the next safe step.",
-  relevance: 0.1,
-  confidence: 0.8,
-  provenance: [
-    { sourceKind: "pattern_hop", sourceRef: "synthetic-evidence" },
-  ],
+  relevance: 0.1, confidence: 0.8,
+  provenance: [{ sourceKind: "pattern_hop", sourceRef: "synthetic-evidence" }],
 };
+const route = (overrides: Record<string, unknown> = {}) => routeFireflyPacket({
+  scope: fireflyScope, domain: "memory", packet: fireflyPacket,
+  stage: "observe", rhythm: "stability", signal: "retrieval", ...overrides,
+});
 
-const route = (overrides: Record<string, unknown> = {}) =>
-  routeFireflyPacket({
-    scope: fireflyScope,
-    domain: "memory",
-    packet: fireflyPacket,
-    stage: "observe",
-    rhythm: "stability",
-    signal: "retrieval",
-    ...overrides,
-  });
-
-describe("Firefly Principle on canonical knowledge roundabout", () => {
+describe("Firefly Principle on ORIGINAL knowledge roundabout — isolated", () => {
   it("distinguishes both choices and cycles only after reviewed consequence", () => {
     expect(route().suggestedNextStage).toBe("first_choice");
     expect(route({ stage: "first_choice" }).suggestedNextStage).toBe("awareness");
     expect(route({ stage: "awareness" }).suggestedNextStage).toBe("second_choice");
-
     const pending = route({ stage: "second_choice" });
     expect(pending.suggestedNextStage).toBe("second_choice");
     expect(pending.decision).toBe("hold");
     expect(pending.reason).toBe("await_verified_consequence");
-
     const finished = route({
-      stage: "second_choice",
-      verifiedConsequenceRef: "host-reviewed-outcome",
+      stage: "second_choice", verifiedConsequenceRef: "host-reviewed-outcome",
     });
     expect(finished.suggestedNextStage).toBe("consequence");
     expect(finished.consequenceVerifiedByThisCode).toBe(false);
+    expect(route({ stage: "consequence", verifiedConsequenceRef: "host-reviewed-outcome" })
+      .suggestedNextStage).toBe("observe");
   });
-
-  it("holds contradictions and unverified completion", () => {
-    const hold = route({
-      signal: "active_objective",
-      packet: {
-        ...fireflyPacket,
-        conflicts: ["synthetic contradictory source"],
-      },
+  it("cannot turn the word completion into an achieved consequence", () => {
+    const unverified = route({ stage: "consequence", signal: "completion" });
+    expect(unverified.decision).toBe("hold");
+    expect(unverified.reason).toBe("unverified_completion");
+    expect(unverified.grantsExecution).toBe(false);
+  });
+  it("holds contradictions even when a model would otherwise continue", () => {
+    const hold = route({ signal: "active_objective",
+      packet: { ...fireflyPacket, conflicts: ["synthetic contradictory source"] },
     });
     expect(hold.decision).toBe("hold");
     expect(hold.reason).toBe("contradiction_hold");
+    expect(hold.requiresReview).toBe(true);
     expect(hold.targetRoads).toContain("evidence_world_model");
-
-    const completion = route({
-      stage: "consequence",
-      signal: "completion",
-    });
-    expect(completion.decision).toBe("hold");
-    expect(completion.reason).toBe("unverified_completion");
-    expect(completion.grantsExecution).toBe(false);
+    expect(hold.bridgeRecommended).toBe(true);
+    expect(roadsForVaultDomain("memory")).toEqual(["memory_continuity"]);
   });
-
-  it("returns corrections to observation and preserves interruption/return semantics", () => {
-    const correction = route({
-      stage: "awareness",
-      signal: "correction",
-    });
+  it("returns corrections to observation and carries them across bridges", () => {
+    const correction = route({ stage: "awareness", signal: "correction" });
     expect(correction.decision).toBe("backtrack");
     expect(correction.suggestedNextStage).toBe("observe");
-
+    expect(correction.targetRoads).toContain("attention_workspace");
+    expect(correction.bridgeRecommended).toBe(true);
+    expect(correction.learningApplied).toBe(false);
+  });
+  it("does not treat Human Rhythm instability as a user diagnosis or work failure", () => {
     const paused = route({
-      stage: "awareness",
-      rhythm: "instability",
-      signal: "active_objective",
+      stage: "awareness", rhythm: "instability", signal: "active_objective",
     });
     expect(paused.decision).toBe("hold");
     expect(paused.reason).toBe("interrupted_hold");
-
-    const resumed = route({
-      stage: "awareness",
-      rhythm: "return",
-      signal: "active_objective",
-    });
+    expect(paused.suggestedNextStage).toBe("awareness");
+    expect(paused.grantsExecution).toBe(false);
+    const resumed = route({ stage: "awareness", rhythm: "return",
+      signal: "active_objective" });
     expect(resumed.decision).toBe("backtrack");
     expect(resumed.reason).toBe("return_reobserve");
+    expect(resumed.suggestedNextStage).toBe("observe");
   });
-
-  it("keeps low-relevance retrieval out of cross-context bridges unless objective relevance requires it", () => {
+  it("keeps low-relevance retrieval out of cross-context bridges", () => {
     expect(route().bridgeRecommended).toBe(false);
-    expect(route({
-      packet: { ...fireflyPacket, relevance: 0.9 },
-    }).bridgeRecommended).toBe(true);
+    const relevant = route({ packet: { ...fireflyPacket, relevance: 0.9 } });
+    expect(relevant.bridgeRecommended).toBe(true);
     const objective = route({ signal: "unresolved_work" });
     expect(objective.bridgeRecommended).toBe(true);
     expect(objective.targetRoads).toContain("agency_open_loops");
   });
-
-  it("rejects malformed, provenance-free or forged routing input", () => {
-    expect(() => route({
-      scope: { ...fireflyScope, conversationId: "" },
-    })).toThrow("firefly_roundabout_scope_required");
-
-    expect(() => route({
-      packet: { ...fireflyPacket, provenance: [] },
-    })).toThrow("firefly_roundabout_packet_invalid");
-
-    expect(() => route({
-      rhythm: "superhuman",
-    })).toThrow("firefly_roundabout_vocabulary_invalid");
+  it("rejects malformed or provenance-free payloads and forged scope", () => {
+    expect(() => route({ scope: { ...fireflyScope, conversationId: "" } }))
+      .toThrow("firefly_roundabout_scope_required");
+    expect(() => route({ packet: { ...fireflyPacket, provenance: [] } }))
+      .toThrow("firefly_roundabout_packet_invalid");
+    expect(() => route({ packet: { ...fireflyPacket, confidence: Number.NaN } }))
+      .toThrow("firefly_roundabout_score_invalid");
+    expect(() => route({ rhythm: "superhuman" }))
+      .toThrow("firefly_roundabout_vocabulary_invalid");
   });
 });

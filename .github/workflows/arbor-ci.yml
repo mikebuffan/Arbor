@@ -4,6 +4,18 @@ on:
   push:
     branches:
       - main
+      # Temporary SAFE source test for isolated Grove release child; remove before integration.
+      - feature/grove-private-release-composite-20260923
+      # Disposable source-only GROVE phone + backend composite acceptance; remove before integration.
+      - test/grove-private-end-to-end-composite-20260923
+      # Isolated source release-readiness verification; NOT production deployment.
+      - feature/grove-private-release-readiness-20260923
+      # Proposed claim schema OFF; isolated disposable-only CI.
+      - feature/grove-private-durable-retry-claim-20260923
+      # Isolated pinned source candidate, review-only, NOT live Vercel release.
+      - release/grove-private-source-candidate-20260923
+      # Private mobile-home finish branch; source/CI only, no deployment.
+      - finish/grove-mobile-home-20260928
   pull_request:
     branches:
       - main
@@ -17,6 +29,33 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  grove-disposable-transcript:
+    name: Grove disposable private transcript schema acceptance
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    # Disposable synthetic DB only; never points to a hosted project.
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: grove-synthetic-ci-only
+          POSTGRES_DB: grove_synthetic
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d grove_synthetic"
+          --health-interval 5s --health-timeout 3s --health-retries 12
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: grove-synthetic-ci-only
+      PGDATABASE: grove_synthetic
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply proposed Grove transcript SQL and test real PostgreSQL boundaries
+        run: psql -v ON_ERROR_STOP=1 -f ops/grove/disposable-db/00-private-transcript-acceptance.sql
+
   backend:
     name: Backend test + build
     runs-on: ubuntu-latest
@@ -43,6 +82,28 @@ jobs:
           OPENAI_API_KEY: ci-placeholder-not-a-real-key
         run: pnpm --filter firefly-backend build
 
+      - name: Verify Grove backend builds WITHOUT legacy OpenAI credentials
+        env:
+          OPENAI_API_KEY: ""
+          GROVE_API_ENABLED: "true"
+          GROVE_PRIVATE_CHAT_PREVIEW_ENABLED: "false"
+          GROVE_PRIVATE_MODEL_TURN_ENABLED: "false"
+          GROVE_PRIVATE_TRANSCRIPT_ENABLED: "false"
+          GROVE_PRIVATE_CLAIM_ENABLED: "false"
+          GROVE_PRIVATE_NEW_CONVERSATION_ENABLED: "false"
+          GROVE_COGNITIVE_PREVIEW_ENABLED: "false"
+        run: pnpm --filter firefly-backend build
+
+      - name: Test private-host preflight and Vercel branch isolation (offline)
+        run: >-
+          node --test ops/grove/verify-private-host.test.mjs
+          ops/grove/should-build-private-host.test.mjs
+
+      - name: Reject unsafe Grove release source (offline-only proof)
+        run: |
+          node --test ops/grove/verify-private-release-source.test.mjs
+          node ops/grove/verify-private-release-source.mjs
+
   control-backend:
     name: Control backend test + build
     runs-on: ubuntu-latest
@@ -64,6 +125,34 @@ jobs:
 
       - name: Build control backend
         run: pnpm --filter arbor-control-backend build
+
+  grove-android-synthetic:
+    name: Grove standalone Android flavor (synthetic, offline-host build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: apps/frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Compile actual Grove-only Android flavor and enabled private Text UI
+        # .invalid HTTPS origins and fake publishable key prevent this artifact
+        # from being mistaken for a deployable owner-configured APK.
+        run: >-
+          flutter build apk --debug --flavor grove
+          --dart-define=GROVE_STANDALONE=true
+          --dart-define=GROVE_PRIVATE_TALK_PREVIEW=true
+          --dart-define=GROVE_PRIVATE_NEW_CONVERSATION_PREVIEW=true
+          --dart-define=GROVE_SUPABASE_URL=https://fqjqpuaoifgbweiguacf.supabase.co
+          --dart-define=GROVE_SUPABASE_ANON_KEY=sb_publishable_synthetic_ci_only
+          --dart-define=GROVE_API_URL=https://ci-grove-api.example.invalid
+      - name: Verify separate Grove APK exists (never publish synthetic artifact)
+        run: test -s build/app/outputs/flutter-apk/app-grove-debug.apk
 
   flutter:
     name: Flutter analyze + test
@@ -92,9 +181,9 @@ jobs:
 
       - run: flutter test
 
-      - name: Build Android debug APK
+      - name: Build Arbor Android debug APK (explicit experience flavor)
         run: >
-          flutter build apk --debug
+          flutter build apk --debug --flavor arbor
           --dart-define=SUPABASE_URL=https://ncpdlyakrzfvobmwzbon.supabase.co
           --dart-define=SUPABASE_ANON_KEY=sb_publishable_med7aHx1vGlYLih1QbdgtA_zQnRTSrS
           --dart-define=ARBOR_API_URL=https://firefly-coral.vercel.app
@@ -103,6 +192,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: arbor-android-debug
-          path: apps/frontend/build/app/outputs/flutter-apk/app-debug.apk
+          path: apps/frontend/build/app/outputs/flutter-apk/app-arbor-debug.apk
           if-no-files-found: error
           retention-days: 7

@@ -32,9 +32,14 @@ export function openAIClientOptions(
   };
 }
 
-export const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY!,
-  ...openAIClientOptions(),
+// Grove's separately hosted backend includes legacy Firefly routes in the
+// Next.js bundle. Next.js can evaluate their module imports at BUILD TIME.
+// Do not require a legacy OpenAI key until a legacy route actually uses it.
+// Restore the previously tested credential-free Grove deployment behavior.
+export const openai = new Proxy({} as OpenAI, {
+  get(_target, property) {
+    return Reflect.get(getClient(), property);
+  },
 });
 
 function getClient() {

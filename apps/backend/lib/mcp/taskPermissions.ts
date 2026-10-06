@@ -2,6 +2,10 @@ import type { ServerContext } from "@modelcontextprotocol/server";
 
 export const ARK_READ_TASK_SUBMIT_PERMISSION = "ark.submit.read_tasks";
 export const ARK_PATTERN_HOP_SUBMIT_PERMISSION = "ark.submit.pattern_hop";
+export const ARK_ACCEPTANCE_SUBMIT_PERMISSION = "ark.submit.behavior_acceptance";
+export function isArkAcceptanceSubmissionEnabled(): boolean {
+  return process.env.ARBOR_ENABLE_ARK_MCP_ACCEPTANCE === "true";
+}
 export function isArkMcpSubmissionEnabled(): boolean {
   return process.env.ARBOR_ENABLE_ARK_MCP_SUBMISSION === "true";
 }
@@ -16,6 +20,10 @@ export function arkReadTaskProjects(appMetadata: unknown, clientId: unknown): st
 
 export function arkPatternHopProjects(appMetadata: unknown, clientId: unknown): string[] {
   return arkGrantedProjects(appMetadata, clientId, ARK_PATTERN_HOP_SUBMIT_PERMISSION);
+}
+
+export function arkAcceptanceProjects(appMetadata: unknown, clientId: unknown): string[] {
+  return arkGrantedProjects(appMetadata, clientId, ARK_ACCEPTANCE_SUBMIT_PERMISSION);
 }
 
 function arkGrantedProjects(appMetadata: unknown, clientId: unknown, permission: string): string[] {
@@ -43,6 +51,15 @@ export function assertArkPatternHopSubmission(ctx: ServerContext, projectId: str
       || !Array.isArray(auth.extra?.arkPatternHopProjectIds)
       || !auth.extra.arkPatternHopProjectIds.includes(projectId))
     throw new Error("ark_pattern_hop_submission_not_granted");
+}
+
+export function assertArkAcceptanceSubmission(ctx: ServerContext, projectId: string): void {
+  const auth = ctx.http?.authInfo;
+  if (!isArkAcceptanceSubmissionEnabled()) throw new Error("ark_acceptance_submission_disabled");
+  if (!auth?.scopes.includes(ARK_ACCEPTANCE_SUBMIT_PERMISSION)
+      || !Array.isArray(auth.extra?.arkAcceptanceProjectIds)
+      || !auth.extra.arkAcceptanceProjectIds.includes(projectId))
+    throw new Error("ark_acceptance_submission_not_granted");
 }
 
 export function assertArkReadTaskSubmission(ctx: ServerContext, projectId: string): void {

@@ -1,4 +1,5 @@
 import { openai } from "@/lib/providers/openai";
+import type { AgencyResponseCreate } from "./responseTransport";
 import type {
   AgencyToolContext,
 } from "./tools";
@@ -223,6 +224,7 @@ function latestUserGoal(
 export async function runOpenAIAgencyAgent(
   input: {
     instructions: string;
+    responseCreate?: AgencyResponseCreate;
     goal?: string;
     userText?: string;
     messages?: AgencyMessage[];
@@ -244,6 +246,8 @@ export async function runOpenAIAgencyAgent(
     executionDelegate?: AgencyToolExecutionDelegate;
   },
 ): Promise<AgentResult> {
+  const createResponse: AgencyResponseCreate = input.responseCreate ??
+    ((request) => openai.responses.create(request));
   const maxRounds =
     input.maxRounds ?? 48;
 
@@ -320,7 +324,7 @@ export async function runOpenAIAgencyAgent(
     requestTools(tools);
 
   let response =
-    await openai.responses.create({
+    await createResponse({
       model:
         process.env
           .OPENAI_AGENCY_MODEL ??
@@ -376,6 +380,7 @@ export async function runOpenAIAgencyAgent(
             behaviorRequirements:
               input.behaviorRequirements,
             actionEvidence,
+            responseCreate: input.responseCreate,
           },
         );
 
@@ -411,7 +416,7 @@ export async function runOpenAIAgencyAgent(
       }
 
       response =
-        await openai.responses.create(
+        await createResponse(
           {
             model:
               process.env
@@ -688,7 +693,7 @@ export async function runOpenAIAgencyAgent(
     }
 
     response =
-      await openai.responses.create(
+      await createResponse(
         {
           model:
             process.env
