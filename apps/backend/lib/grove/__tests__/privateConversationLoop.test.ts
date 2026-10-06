@@ -312,3 +312,37 @@ describe("real module composition — LIVE FEATURES STILL OFF", () => {
     expect(h.sendModel).not.toHaveBeenCalled();
   });
 });
+
+
+describe("private Grove connection repair", () => {
+  it("rejects a durable request without a retry ID before authorization", async () => {
+    const h = harness();
+    await expect(h.prepare({features: {...flags, transcriptEnabled: true}}))
+      .rejects.toMatchObject({code: "grove_private_request_id_required"});
+    expect(h.auth).not.toHaveBeenCalled();
+    expect(h.sendModel).not.toHaveBeenCalled();
+  });
+  it("passes only a validated device offset into the owned Layer read", async () => {
+    const h = harness();
+    await h.prepare({timeZoneOffsetMinutes: -420});
+    expect(h.readLayer).toHaveBeenCalledWith(expect.objectContaining({
+      authenticatedUserId: uuids.owner, projectId: uuids.project,
+      conversationId: uuids.conversation, timeZoneOffsetMinutes: -420,
+    }));
+    h.auth.mockClear();
+    for (const offset of [841, -841, 1.5, NaN]) {
+      await expect(h.prepare({timeZoneOffsetMinutes: offset}))
+        .rejects.toMatchObject({code: "grove_private_timezone_invalid"});
+    }
+    expect(h.auth).not.toHaveBeenCalled();
+  });
+  it("rechecks revocation immediately before model disclosure", async () => {
+    const h = harness();
+    const prepared = await h.prepare();
+    h.auth.mockRejectedValueOnce(new Error("revoked after preparation"));
+    await expect(respondToVerifiedPrivateGroveTurn({
+      prepared, features: flags, dependencies: h.dependencies,
+    })).rejects.toThrow("revoked after preparation");
+    expect(h.sendModel).not.toHaveBeenCalled();
+  });
+});

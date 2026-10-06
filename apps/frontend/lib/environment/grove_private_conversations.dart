@@ -340,6 +340,8 @@ class GrovePrivateConversationClient {
       'conversationId': conversationId,
       'requestId': requestId,
       'message': text,
+      // Send the current offset; a window preview is never inference time.
+      'timeZoneOffsetMinutes': DateTime.now().timeZoneOffset.inMinutes,
     });
     return parseGrovePrivateReply(payload, requestId: requestId);
   }

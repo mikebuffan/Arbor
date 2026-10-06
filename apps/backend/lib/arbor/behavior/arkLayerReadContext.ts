@@ -1,3 +1,5 @@
+import { renderCanonicalIdentityAnchor } from "@/lib/arbor/selfModel/canonicalIdentityAnchor";
+import { buildTimeCore, renderTimeCorePromptBlock } from "@/lib/arbor/runtime/timeCore";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   assertConversationOwnedByUser,
@@ -70,6 +72,8 @@ export async function readArkLayerContext(input: {
   /** Only on explicit file selection; omitted for ordinary conversation reads. */
   selectedAttachment?: { conversationId: string; attachmentId: string } | null;
   mode: ArborInteractionMode;
+  /** Authenticated surface offset only; the server owns the instant. */
+  timeZoneOffsetMinutes?: number | null;
 }): Promise<ArkLayerReadContext> {
   const { supabase, authenticatedUserId: userId, projectId } = input;
   // An explicitly selected file must belong to the CURRENT requested
@@ -133,13 +137,18 @@ export async function readArkLayerContext(input: {
         channel: input.mode === "voice" ? "voice" as const :
           input.mode === "text" ? "text" as const : storedState.channel,
         activeSubsystem: input.mode === "annabelle"
-          ? "annabelle" as const : storedState.activeSubsystem,
+          ? "annabelle" as const : "arbor" as const,
       }
     : null;
 
   const startup = state ? projectRuntimeStartup(state) : null;
   const correctionRules = startup?.behaviorCorrections ?? [];
-  const continuityMaterial = startup ? [startup.startup.promptBlock] : [];
+  const continuityMaterial = [
+    renderTimeCorePromptBlock(buildTimeCore({
+      utcOffsetMinutes: input.timeZoneOffsetMinutes,
+    })),
+    ...(startup ? [startup.startup.promptBlock] : []),
+  ];
 
   return {
     access: "read-only",
@@ -182,6 +191,7 @@ export async function readArkLayerContext(input: {
     } : null,
     behavior: buildArborBehaviorProjection({
       mode: input.mode,
+      stableBehaviorMaterial: [renderCanonicalIdentityAnchor()],
       correctionRules,
       continuityMaterial,
       // Unlike main chat's existing prompt assembler, standalone LM does

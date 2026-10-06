@@ -287,6 +287,7 @@ void main() {
     expect(api.sent, {
       'projectId': project, 'conversationId': conversation,
       'requestId': requestId, 'message': 'Continue our work.',
+      'timeZoneOffsetMinutes': DateTime.now().timeZoneOffset.inMinutes,
     });
     final count = api.calls;
     expect(() => client.send(

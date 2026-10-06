@@ -168,3 +168,20 @@ describe("default-OFF private Grove chat endpoint — synthetic contract", () =>
     expect(payload).not.toContain("private prompt");
   });
 });
+
+
+describe("private Grove device timezone contract", () => {
+  it("forwards a valid offset and rejects invalid or spoofed host clocks", async () => {
+    const body = {...ids, message: "Continue"};
+    const valid = await POST(request({...body, timeZoneOffsetMinutes: -420}));
+    expect(valid.status).toBe(200);
+    expect(mock.prepare).toHaveBeenCalledWith(expect.objectContaining({
+      timeZoneOffsetMinutes: -420,
+    }));
+    for (const value of [841, -841, 2.5, "America/Los_Angeles"]) {
+      expect((await POST(request({...body, timeZoneOffsetMinutes: value}))).status)
+        .toBe(400);
+    }
+    expect((await POST(request({...body, now: "1999-01-01"}))).status).toBe(400);
+  });
+});

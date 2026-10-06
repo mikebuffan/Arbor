@@ -203,6 +203,9 @@ export async function sendPrivateGroveLmTurnFromVerifiedHost(
         body,
         signal: AbortSignal.timeout(180000),
         cache: "no-store",
+        // Custom API/HMAC headers and private context must never follow a
+        // redirect to a different receiver. Configuration pins one origin.
+        redirect: "error",
       },
     );
   } catch {

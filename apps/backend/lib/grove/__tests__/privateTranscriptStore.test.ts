@@ -405,9 +405,11 @@ describe("Grove-only private conversation durability (fixtures, migration OFF)",
     const data = fakeStore();
     const h = host(data.store);
     const prepared = await h.prepare("Private reply must not outlive grant", firstId);
-    // The claim-time check passes; the later post-inference check fails.
-    h.authorize.mockResolvedValueOnce(await h.authorize());
-    h.authorize.mockRejectedValueOnce(new Error("revoked_during_inference"));
+    // Revoke from the actual model boundary, not a fragile call-count queue.
+    h.sendModel.mockImplementationOnce(async () => {
+      h.authorize.mockRejectedValueOnce(new Error("revoked_during_inference"));
+      return reply("Arbor answer");
+    });
     await expect(respondToVerifiedPrivateGroveTurn({
       prepared, features: flags, dependencies: {
         authorize: h.authorize as never,
@@ -438,7 +440,7 @@ describe("Grove-only private conversation durability (fixtures, migration OFF)",
     })).rejects.toThrow("revoked_after_db_commit");
     expect(data.records.size).toBe(1);
     expect(h.sendModel).toHaveBeenCalledTimes(1);
-    expect(h.authorize).toHaveBeenCalledTimes(4);
+    expect(h.authorize).toHaveBeenCalledTimes(5);
   });
 
   it("failed inference keeps claim held and never creates a partial transcript", async()=>{
@@ -546,13 +548,16 @@ describe("Grove-only private conversation durability (fixtures, migration OFF)",
         transcriptStore: data.store,
       },
     });
-    h.authorize.mockRejectedValueOnce(new Error("grant_revoked_during_inference"));
+    h.sendModel.mockImplementationOnce(async () => {
+      h.authorize.mockRejectedValueOnce(new Error("grant_revoked_during_inference"));
+      return reply("Arbor answer");
+    });
     await expect(respondToVerifiedPrivateGroveTurn({
       prepared, features: off,
       dependencies: { authorize: h.authorize as never,
         sendModel: h.sendModel as never },
     })).rejects.toThrow("grant_revoked_during_inference");
-    expect(h.authorize).toHaveBeenCalledTimes(2);
+    expect(h.authorize).toHaveBeenCalledTimes(3);
     expect(h.sendModel).toHaveBeenCalledTimes(1);
     expect(data.records.size).toBe(0);
   });

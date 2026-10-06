@@ -21,6 +21,7 @@ const bodySchema = z.object({
   message: z.string().trim().min(1).max(3000),
   /** Retry identifier only. Owner/permissions still come exclusively from auth. */
   requestId: z.string().uuid().optional(),
+  timeZoneOffsetMinutes: z.number().int().min(-840).max(840).optional(),
 }).strict();
 
 function reply(body: Record<string, unknown>, status: number) {
@@ -80,7 +81,10 @@ export async function POST(req: Request) {
     const prepared = await prepareVerifiedPrivateGroveTurn({
       request: req, projectId: body.projectId,
       conversationId: body.conversationId, message: body.message,
-      requestId: body.requestId, features,
+      requestId: body.requestId,
+      ...(body.timeZoneOffsetMinutes !== undefined
+        ? { timeZoneOffsetMinutes: body.timeZoneOffsetMinutes } : {}),
+      features,
     });
     const result = await respondToVerifiedPrivateGroveTurn({
       prepared, features,
