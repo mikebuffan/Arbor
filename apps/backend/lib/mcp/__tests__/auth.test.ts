@@ -82,4 +82,13 @@ describe("ARK MCP authentication", () => {
     expect(auth?.scopes).toEqual(["ark.read"]);
     expect(auth?.extra?.arkReadTaskProjectIds).toBeUndefined();
   });
+  it("keeps acceptance grants separate from read-task grants", async () => {
+    const project = "11111111-1111-4111-8111-111111111111";
+    mocks.getUser.mockResolvedValue({ data: { user: { id: "user", app_metadata: { arbor_ark_mcp: {
+      client_ids: ["client"], permissions: ["ark.submit.behavior_acceptance"], project_ids: [project] } } } }, error: null });
+    const auth = await verifyArkMcpToken(new Request("https://arbor.test/api/mcp"), token({ client_id: "client" }));
+    expect(auth?.scopes).toEqual(["ark.read", "ark.submit.behavior_acceptance"]);
+    expect(auth?.extra?.arkAcceptanceProjectIds).toEqual([project]);
+    expect(auth?.extra?.arkReadTaskProjectIds).toBeUndefined();
+  });
 });
