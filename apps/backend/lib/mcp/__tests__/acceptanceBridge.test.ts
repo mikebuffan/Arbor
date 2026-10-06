@@ -17,7 +17,7 @@ const input = { projectId: project, requestId, caseId: "tired-familiarity" };
 const ctx = { http: { authInfo: { clientId: "client", token: "validated", scopes: [ARK_ACCEPTANCE_SUBMIT_PERMISSION],
   extra: { userId: user, arkAcceptanceProjectIds: [project] } } } };
 function tools() { const registerTool = vi.fn(); registerArkAcceptanceTools({ registerTool } as never); return registerTool.mock.calls; }
-function tool() { const [name, config, run] = tools()[0]; return { name, config, run }; }
+function tool() { const [name, config, run] = tools().find(c => c[0] === "start_ark_behavior_test")!; return { name, config, run }; }
 function client(data: unknown) { const q: any = {}; for (const k of ["select", "eq"]) q[k] = vi.fn(() => q);
   q.maybeSingle = vi.fn(async () => ({ data, error: null })); return { from: vi.fn(() => q) }; }
 
@@ -28,7 +28,8 @@ describe("bounded behavior-test MCP connection", () => {
     mocks.owner.mockResolvedValue(undefined); mocks.admin.mockReturnValue({});
     mocks.enqueue.mockResolvedValue({ id: objective, userId: user, projectId: project });
     mocks.context.mockReturnValue({ userId: user, supabase: client({ id: task, user_id: user, project_id: project, status: "queued" }) }); });
-  it("advertises no start control when disabled", () => { vi.stubEnv("ARBOR_ENABLE_ARK_MCP_ACCEPTANCE", "false"); expect(tools()).toEqual([]); });
+  it("advertises no start control when disabled but retains owned result reads", () => {
+    vi.stubEnv("ARBOR_ENABLE_ARK_MCP_ACCEPTANCE", "false"); expect(tools().map(c => c[0])).toEqual(["get_ark_behavior_test_result"]); });
   it("rejects arbitrary code, prompts, budgets and unknown cases", () => {
     for (const extra of [{ prompt: "do anything" }, { maxCalls: 9999 }, { caseId: "arbitrary" }, { code: "run()" }])
       expect(ArkAcceptanceRequest.safeParse({ ...input, ...extra }).success).toBe(false);
@@ -76,5 +77,31 @@ describe("bounded behavior-test MCP connection", () => {
     await expect(tool().run({ ...input, projectId: task }, ctx)).rejects.toThrow("not_granted");
     mocks.context.mockReturnValue({ userId: user, supabase: client({ id: task, user_id: task, project_id: project }) });
     await expect(tool().run(input, ctx)).rejects.toThrow("retry_same_request_id");
+  });
+  it("reconstructs large owned capture JSON through chunks without executing work", async () => {
+    const output = { transcript: "synthetic".repeat(4000) };
+    mocks.context.mockReturnValue({ userId: user, supabase: client({ id: task, user_id: user, project_id: project,
+      kind: "arbor.behavior-acceptance", status: "completed", result: output }) });
+    const [, , read] = tools().find(c => c[0] === "get_ark_behavior_test_result")!;
+    let offset = 0, encoded = "";
+    let resultHash: string | undefined;
+    do {
+      const r = await read({ projectId: project, taskId: task, offset }, ctx);
+      expect(r.structuredContent.status).toBe("completed");
+      expect(r.structuredContent.resultSha256).toMatch(/^[a-f0-9]{64}$/);
+      if (resultHash) expect(r.structuredContent.resultSha256).toBe(resultHash);
+      resultHash = r.structuredContent.resultSha256;
+      expect(r.structuredContent.resultJsonPart.length).toBeLessThanOrEqual(12000);
+      encoded += r.structuredContent.resultJsonPart;
+      if (r.structuredContent.nextOffset === null) break;
+      offset = r.structuredContent.nextOffset;
+    } while (offset < 50000);
+    expect(JSON.parse(encoded)).toEqual(output); expect(mocks.admin).not.toHaveBeenCalled(); expect(mocks.enqueue).not.toHaveBeenCalled();
+  });
+  it("does not accept foreign or unrelated task captures", async () => {
+    mocks.context.mockReturnValue({ userId: user, supabase: client({ id: task, user_id: user, project_id: project,
+      kind: "another-task", status: "completed", result: {} }) });
+    const [, , read] = tools().find(c => c[0] === "get_ark_behavior_test_result")!;
+    await expect(read({ projectId: project, taskId: task, offset: 0 }, ctx)).rejects.toThrow("not_found");
   });
 });
