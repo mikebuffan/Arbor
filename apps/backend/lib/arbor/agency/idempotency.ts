@@ -67,6 +67,7 @@ export async function completeAgencyOperation(input: {
   userId: string;
   projectId: string;
   key: string;
+  operation: string;
   result: unknown;
 }): Promise<void> {
   const { data, error } = await input.supabase
