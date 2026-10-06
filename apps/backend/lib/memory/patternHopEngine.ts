@@ -179,7 +179,7 @@ export function projectPatternHopForRuntime(params: {
   evidence: PatternHopEvidence[];
   path: PatternHopPathStep[];
   maxItems?: number;
-}): Array<{ evidenceId: string; content: string; relationship: PatternHopRelationship; epistemicStatus: PatternHopEpistemicStatus; confidence: number; occurredAt: string | null }> {
+}): Array<{ evidenceId: string; content: string; relationship: PatternHopRelationship; epistemicStatus: PatternHopEpistemicStatus; confidence: number; occurredAt: string | null; parentEvidenceId: string | null; depth: number; source: string; sourceThreadId: string | null; sourceMessageId: string | null; sourceArtifactId: string | null; retrievalMethod: string }> {
   const byId = new Map(params.evidence.map(item => [item.id, item]));
   const maxItems = Math.max(1, Math.min(params.maxItems ?? 8, 20));
   return params.path
@@ -191,6 +191,13 @@ export function projectPatternHopForRuntime(params: {
       if (!evidence) return [];
       return [{
         evidenceId: evidence.id,
+        parentEvidenceId: step.parentEvidenceId,
+        depth: step.depth,
+        source: evidence.source,
+        sourceThreadId: evidence.sourceThreadId ?? null,
+        sourceMessageId: evidence.sourceMessageId ?? null,
+        sourceArtifactId: evidence.sourceArtifactId ?? null,
+        retrievalMethod: step.retrievalMethod,
         content: evidence.content,
         relationship: step.relationship,
         epistemicStatus: evidence.epistemicStatus,
