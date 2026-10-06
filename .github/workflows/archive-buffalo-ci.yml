@@ -3,7 +3,7 @@ name: ARK spine integrated source acceptance
 on:
   pull_request:
     branches:
-      - arbor/grove-bounded-writes-20261006
+      - integration/finish-the-buffalo-20261005
     types:
       - opened
       - synchronize
