@@ -35,6 +35,6 @@ export const ANNABELLE_ENGINE_CATALOG: readonly AnnabelleEngineSpec[] = [
 {id:"duplicate-assembly",status:"implemented",purpose:"Flag likely concatenated/repeated draft material."},
 {id:"gold-do-not-touch",status:"partial",purpose:"Durable locks and gold exemplars; edits require explicit override."},
 {id:"downstream-impact",status:"partial",purpose:"Identify later chapters affected by a changed chapter."},
-{id:"book-self-check",status:"missing",purpose:"Post-rewrite regression across voice, repetition, continuity, physicality and payoff."},
+{id:"book-self-check",status:"implemented",purpose:"Post-rewrite regression across voice, repetition, continuity, physicality and payoff."},
 {id:"containment",status:"partial",purpose:"Keep Annabelle, Arbor, character voices and task overlays from contaminating one another."},
 ] as const;
