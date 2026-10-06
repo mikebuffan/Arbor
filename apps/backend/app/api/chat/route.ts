@@ -778,7 +778,7 @@ export async function POST(req: Request) {
       });
       await updateRuntimeSession({
         supabase, state: runtimeSession, activeSubsystem, channel: interactionMode,
-        currentGoal: agencyState.goal, lastMeaningfulArborTurn: runtimeSession.hostState.lastMeaningfulArborTurn,
+        currentGoal: agencyState.goal, lastMeaningfulArborTurn: runtimeSession.lastMeaningfulArborTurn,
         agency: agencyState, corrections: runtimeCorrections, behaviorProof, pendingSelfUpdate,
         now: new Date().toISOString(),
       });
