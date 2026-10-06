@@ -5,5 +5,5 @@
       "schedule": "0 0 * * *"
     }
   ],
-  "ignoreCommand": "case \"$VERCEL_GIT_COMMIT_REF\" in arbor/grove-receiver-r3-20261006|arbor/grove-receiver-r3-alignment-20261006|arbor/grove-combined-connection-20261006|arbor/grove-combined-acceptance-20261006) exit 0;; *) exit 1;; esac"
+  "ignoreCommand": "p=arbor/grove-;d=20261006;case \"$VERCEL_GIT_COMMIT_REF\" in \"$p\"receiver-r3-\"$d\"|\"$p\"receiver-r3-alignment-\"$d\"|\"$p\"combined-connection-\"$d\"|\"$p\"combined-acceptance-\"$d\"|\"$p\"storage-release-prep-\"$d\"|\"$p\"release-preparation-\"$d\")exit 0;;*)exit 1;;esac"
 }
