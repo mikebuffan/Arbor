@@ -5,6 +5,20 @@ import { classifyHistoricalEvidence, searchHistoricalHopEvidence, searchMemoryHo
 import { patternHopBranchClue } from "@/lib/memory/patternHopClues";
 import { createPatternHopRun, loadPatternHopEdges, loadPatternHopEvidence, loadPatternHopRun, persistPatternHopEdges, persistPatternHopEvidence, savePatternHopRun } from "@/lib/memory/patternHopStore";
 
+export type PatternHopPersistence = {
+  createPatternHopRun: typeof createPatternHopRun;
+  loadPatternHopRun: typeof loadPatternHopRun;
+  savePatternHopRun: typeof savePatternHopRun;
+  loadPatternHopEvidence: typeof loadPatternHopEvidence;
+  loadPatternHopEdges: typeof loadPatternHopEdges;
+  persistPatternHopEvidence: typeof persistPatternHopEvidence;
+  persistPatternHopEdges: typeof persistPatternHopEdges;
+};
+const defaultPersistence: PatternHopPersistence = {
+  createPatternHopRun, loadPatternHopRun, savePatternHopRun,
+  loadPatternHopEvidence, loadPatternHopEdges, persistPatternHopEvidence, persistPatternHopEdges,
+};
+
 export const DEFAULT_PATTERN_HOP_BRANCHES = ["direct_matches","neighboring_concepts","people_entities","terminology_changes","causal_predecessors","consequences","retrospective_references","chronology_anchors","implementation_architecture","behavioral_results","contradictions"] as const;
 
 function toEvidence(row: Awaited<ReturnType<typeof searchHistoricalHopEvidence>>[number], branch: string): PatternHopEvidence {
@@ -12,7 +26,10 @@ function toEvidence(row: Awaited<ReturnType<typeof searchHistoricalHopEvidence>>
   return { id:row.id, source:row.source, sourceThreadId:row.sourceThreadId, sourceMessageId:row.sourceMessageId, speaker:row.role, evidenceType:classification.evidenceType, content:row.content, occurredAt:row.occurredAt, confidence:Math.max(0,Math.min(1,row.similarity ?? 0.5)), epistemicStatus:classification.epistemicStatus };
 }
 
-export async function runPatternHopResearch(params:{supabase:SupabaseClient;userId:string;projectId:string;conversationId?:string|null;seed:string;objective?:string;maxDepth?:number;maxHops?:number;runId?:string;maxRuntimeMs?:number;signal?:AbortSignal}) {
+export async function runPatternHopResearch(params:{supabase:SupabaseClient;userId:string;projectId:string;conversationId?:string|null;seed:string;objective?:string;maxDepth?:number;maxHops?:number;runId?:string;maxRuntimeMs?:number;signal?:AbortSignal;persistence?:PatternHopPersistence;beforeRetrieval?:()=>Promise<void>}) {
+  const { createPatternHopRun, loadPatternHopRun, savePatternHopRun,
+    loadPatternHopEvidence, loadPatternHopEdges, persistPatternHopEvidence, persistPatternHopEdges
+  } = params.persistence ?? defaultPersistence;
   const maxRuntimeMs = params.maxRuntimeMs ?? 15000;
   if (!Number.isSafeInteger(maxRuntimeMs) || maxRuntimeMs < 1 || maxRuntimeMs > 60000)
     throw new Error("pattern_hop_invalid_runtime_budget");
@@ -74,6 +91,7 @@ export async function runPatternHopResearch(params:{supabase:SupabaseClient;user
   for(let i=0;i<maxHops && state.status==="active";i+=1){
     if (params.signal?.aborted) { passStopReason = "cancelled"; break; }
     if (performance.now() - startedAt >= maxRuntimeMs) { passStopReason = "time_budget"; break; }
+    await params.beforeRetrieval?.();
     const stateBeforeRetrieval = state;
     const evidenceStart=found.length;
     const edgeStart=edges.length;
@@ -117,6 +135,7 @@ export async function runPatternHopResearch(params:{supabase:SupabaseClient;user
     }
 
     if (params.signal?.aborted) { state = stateBeforeRetrieval; passStopReason = "cancelled"; break; }
+    await params.beforeRetrieval?.();
     const historicalCandidates:PatternHopCandidate[]=rows
       .filter(r=>(r.similarity ?? 0)>=0.35)
       .map(row=>({
