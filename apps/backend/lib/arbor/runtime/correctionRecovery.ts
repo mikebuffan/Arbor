@@ -41,6 +41,7 @@ function validateRow(row: any, userId: string): ArborCorrection[] {
 export async function stageBehaviorCorrectionPromotion(input: {
   supabase: SupabaseClient; userId: string; projectId: string; conversationId: string;
   userMessageId: string; currentUserText: string; corrections: ArborCorrection[];
+  writeAuthorization?: { kind: "grove_global_behavior_calibration"; groveUserId: string };
 }): Promise<ArborCorrection[]> {
   if (!hasExplicitDurableAuthorization(input.currentUserText)) return input.corrections;
   const eligible = input.corrections.filter(c => correctionPromotionItem(c, true));
@@ -50,7 +51,8 @@ export async function stageBehaviorCorrectionPromotion(input: {
     id: input.userMessageId, user_id: input.userId, project_id: null,
     question: "memory_event", event_type: PENDING, ops: OPS,
     payload: { userId: input.userId, projectId: input.projectId,
-      conversationId: input.conversationId, explicitlyAuthorized: true, corrections: eligible },
+      conversationId: input.conversationId, explicitlyAuthorized: true, corrections: eligible,
+      ...(input.writeAuthorization ? { writeAuthorization: input.writeAuthorization } : {}) },
   }, { onConflict: "id", ignoreDuplicates: true });
   if (error) throw error;
   const { data, error: readError } = await input.supabase.from("memory_pending")
@@ -60,6 +62,7 @@ export async function stageBehaviorCorrectionPromotion(input: {
   if (!data) throw new Error("behavior_correction_recovery_stage_readback_failed");
   const saved = validateRow(data, input.userId);
   if (data.payload.projectId !== input.projectId || data.payload.conversationId !== input.conversationId ||
+      JSON.stringify(data.payload.writeAuthorization ?? null) !== JSON.stringify(input.writeAuthorization ?? null) ||
       saved.length !== eligible.length || saved.some(c => !eligible.some(x => x.id === c.id && x.value === c.value)))
     throw new Error("behavior_correction_recovery_turn_mismatch");
   const byId = new Map(saved.map(c => [c.id, c]));
@@ -92,11 +95,15 @@ function safeCode(error: unknown): string {
 export async function recoverPendingBehaviorCorrections(input: {
   supabase: SupabaseClient; userId: string;
   pause?: (ms: number) => Promise<void>;
+  requestId?: string;
+  authorizePromotion?: (scope: { projectId: string; conversationId: string }) => Promise<void>;
 }): Promise<{ completed: number; failed: number; deferred: boolean }> {
-  const { data, error } = await input.supabase.from("memory_pending")
+  let query = input.supabase.from("memory_pending")
     .select("id,user_id,project_id,event_type,ops,payload")
     .eq("user_id", input.userId).is("project_id", null).eq("event_type", PENDING)
-    .contains("ops", OPS).order("ops->>lastAttemptAt", { ascending: true, nullsFirst: true })
+    .contains("ops", OPS);
+  if (input.requestId) query = query.eq("id", input.requestId);
+  const { data, error } = await query.order("ops->>lastAttemptAt", { ascending: true, nullsFirst: true })
     .order("created_at", { ascending: true }).order("id", { ascending: true })
     .limit(RECOVERY_LIMIT + 1);
   if (error) throw error;
@@ -106,7 +113,14 @@ export async function recoverPendingBehaviorCorrections(input: {
   for (const row of rows.slice(0, RECOVERY_LIMIT)) {
     try {
       const corrections = validateRow(row, input.userId);
+      if (row.payload.writeAuthorization &&
+          (row.payload.writeAuthorization.kind !== "grove_global_behavior_calibration" ||
+           typeof row.payload.writeAuthorization.groveUserId !== "string" || !input.authorizePromotion))
+        throw new Error("behavior_correction_bounded_authorization_required");
+      if (input.requestId && row.id !== input.requestId)
+        throw new Error("behavior_correction_recovery_request_mismatch");
       await retryTransient(async () => {
+        await input.authorizePromotion?.({ projectId: row.payload.projectId, conversationId: row.payload.conversationId });
         // Authorization was captured and verified at staging, not inferred from
         // the new chat's text or from an ordinary runtime snapshot.
         const result = await promoteRepeatedBehaviorCorrections({
@@ -123,6 +137,7 @@ export async function recoverPendingBehaviorCorrections(input: {
               throw new Error("behavior_correction_recovery_readback_failed");
           }
         }
+        await input.authorizePromotion?.({ projectId: row.payload.projectId, conversationId: row.payload.conversationId });
         const { data: acknowledged, error: ackError } = await input.supabase.from("memory_pending")
           .update({ event_type: COMPLETE }).eq("id", row.id).eq("user_id", input.userId)
           .is("project_id", null).eq("event_type", PENDING).contains("ops", OPS).select("id");

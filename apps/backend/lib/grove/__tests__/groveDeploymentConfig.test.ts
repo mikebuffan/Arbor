@@ -12,7 +12,9 @@ describe("private Grove deployment-only Vercel configuration", () => {
   it("skips this source repair branch in both config scopes without changing the approved branch", () => {
     for (const relative of ["../../../vercel.json", "../../../../../vercel.json"]) {
       const config = JSON.parse(readFileSync(new URL(relative, import.meta.url), "utf8"));
+      expect(Buffer.byteLength(config.ignoreCommand)).toBeLessThanOrEqual(256);
       const run = (branch: string, project: string) => spawnSync("sh", ["-c", config.ignoreCommand], {
+        cwd: new URL(relative, import.meta.url).pathname.replace(/\/vercel\.json$/, ""),
         env: { ...process.env, VERCEL_GIT_COMMIT_REF: branch, VERCEL_PROJECT_ID: project },
       }).status;
       expect(run("arbor/grove-lm-source-repair-20261005", "any-project")).toBe(0);
@@ -20,6 +22,9 @@ describe("private Grove deployment-only Vercel configuration", () => {
       expect(run("arbor/grove-phone-tests-20261005", "any-project")).toBe(0);
       expect(run("arbor/one-arbor-phone-reconciliation-20261006", "any-project")).toBe(0);
       expect(run("arbor/grove-buffalo-acceptance-20261006", "any-project")).toBe(0);
+      expect(run("arbor/grove-bounded-writes-20261006", "any-project")).toBe(0);
+      expect(run("arbor/grove-buffalo-source-20261006", "any-project")).toBe(0);
+      expect(run("arbor/grove-bounded-writes-20261006-extra", "any-project")).toBe(1);
       expect(run("main", "any-project")).toBe(1);
     }
   });

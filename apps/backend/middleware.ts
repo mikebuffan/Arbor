@@ -43,6 +43,7 @@ export function middleware(req: NextRequest) {
       "/api/grove/chat/conversations": ["GET", "POST"],
       "/api/grove/chat/history": ["GET"],
       "/api/grove/chat": ["POST"],
+      "/api/grove/corrections": ["POST"],
     };
     if (!allowed[pathname]?.includes(req.method)) {
       return new NextResponse(null, {

@@ -23,6 +23,32 @@ const recover=(db:BehaviorCorrectionDatabase)=>recoverPendingBehaviorCorrections
 beforeEach(()=>vi.restoreAllMocks());
 
 describe("durable correction recovery on authenticated chat",()=>{
+ it("ordinary chat recovery cannot promote a Grove job without fresh bounded authorization",async()=>{
+  const db=new BehaviorCorrectionDatabase();await stageBehaviorCorrectionPromotion({supabase:client(db),userId,projectId,conversationId,
+    userMessageId,currentUserText:correction().value,corrections:[correction()],
+    writeAuthorization:{kind:"grove_global_behavior_calibration",groveUserId:"grove-owner"}});
+  vi.spyOn(console,"warn").mockImplementation(()=>{});
+  expect((await recover(db)).failed).toBe(1);expect(db.tables.memory_items).toEqual([]);
+  expect((await recoverPendingBehaviorCorrections({supabase:client(db),userId,requestId:userMessageId,
+    authorizePromotion:async()=>{},pause:async()=>{}})).completed).toBe(1);
+ });
+ it("recovers only the requested UUID and rechecks authority before promotion and acknowledgement",async()=>{
+  const db=new BehaviorCorrectionDatabase();await stage(db);
+  await stageBehaviorCorrectionPromotion({supabase:client(db),userId,projectId,conversationId,
+    userMessageId:"other",currentUserText:correction().value,corrections:[correction()]});
+  const authorizePromotion=vi.fn(async()=>{});
+  expect(await recoverPendingBehaviorCorrections({supabase:client(db),userId,requestId:userMessageId,authorizePromotion,pause:async()=>{}}))
+    .toEqual({completed:1,failed:0,deferred:false});
+  expect(authorizePromotion).toHaveBeenCalledTimes(2);
+  expect(authorizePromotion).toHaveBeenCalledWith({projectId,conversationId});
+  expect(db.tables.memory_pending.find(r=>r.id==="other")?.event_type).toContain("_pending");
+ });
+ it("holds a pending save when the bounded write permission is revoked before recovery",async()=>{
+  const db=new BehaviorCorrectionDatabase();await stage(db);vi.spyOn(console,"warn").mockImplementation(()=>{});
+  expect((await recoverPendingBehaviorCorrections({supabase:client(db),userId,requestId:userMessageId,
+    authorizePromotion:async()=>{throw new Error("permission_revoked");},pause:async()=>{}})).failed).toBe(1);
+  expect(db.tables.memory_items).toEqual([]);
+ });
  it("does not stage unrequested or acoustic promotion",async()=>{
   const db=new BehaviorCorrectionDatabase();
   await stage(db,"12","Keep going");

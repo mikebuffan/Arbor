@@ -36,6 +36,7 @@ import {
 } from "@/lib/grove/privateReadBroker";
 import { GET } from "@/app/api/grove/ark/status/route";
 import { GET as GET_PROJECTS } from "@/app/api/grove/ark/projects/route";
+import { authorizePrivateGroveCorrectionWrite } from "../privateCorrectionWrite";
 
 const groveUrl = "https://fqjqpuaoifgbweiguacf.supabase.co";
 const fireflyUrl = "https://ncpdlyakrzfvobmwzbon.supabase.co";
@@ -70,6 +71,7 @@ function query(table: string) {
     select: vi.fn(),
     eq: vi.fn(),
     is: vi.fn(),
+    gt: vi.fn(),
     order: vi.fn(),
     insert: vi.fn((values: unknown) => {
       mocks.insertedRows.push({ table, values }); return q;
@@ -90,6 +92,9 @@ function query(table: string) {
     return q;
   });
   q.is.mockReturnValue(q);
+  q.gt.mockImplementation((key: string, value: unknown) => {
+    mocks.queryFilters.push({ table, key, value }); return q;
+  });
   q.order.mockImplementation((key: string, options: {ascending: boolean}) => {
     mocks.queryOrders.push({table, key, ascending: options.ascending});
     return q;
@@ -145,6 +150,50 @@ beforeEach(() => {
 });
 
 afterEach(() => vi.unstubAllEnvs());
+
+describe("distinct Grove correction-write permission", () => {
+  const grant = () => ({ grove_user_id: groveOwner, firefly_user_id: fireflyOwner,
+    firefly_project_id: projectId, firefly_conversation_id: conversationId,
+    purpose: "global_behavior_calibration", expires_at: new Date(Date.now()+60000).toISOString(), revoked_at: null });
+  const authorize = () => authorizePrivateGroveCorrectionWrite(req(), projectId, conversationId);
+  it("is off before authentication or database access", async () => {
+    vi.stubEnv("GROVE_PRIVATE_CORRECTION_WRITE_ENABLED", "false");
+    await expect(authorize()).rejects.toMatchObject({status:404});
+    expect(mocks.createClient).not.toHaveBeenCalled();
+  });
+  it("read ownership never implies correction-write permission", async () => {
+    vi.stubEnv("GROVE_PRIVATE_CORRECTION_WRITE_ENABLED", "true");
+    await expect(authorize()).rejects.toMatchObject({status:403,code:"grove_correction_write_not_granted"});
+  });
+  it.each(["grove_user_id","firefly_user_id","firefly_project_id","firefly_conversation_id"])("rejects foreign %s", async key => {
+    vi.stubEnv("GROVE_PRIVATE_CORRECTION_WRITE_ENABLED", "true");
+    mocks.lookup.set("grove_private_correction_write_grants", { data:{...grant(),[key]:"foreign"},error:null });
+    await expect(authorize()).rejects.toMatchObject({status:403});
+  });
+  it.each([{purpose:"ark_execute"},{revoked_at:"2026-10-06T00:00:00Z"},
+    {expires_at:"2020-01-01T00:00:00Z"},{expires_at:"invalid"}])("rejects revoked, expired or wrong-purpose grants %j", async changes => {
+    vi.stubEnv("GROVE_PRIVATE_CORRECTION_WRITE_ENABLED", "true");
+    mocks.lookup.set("grove_private_correction_write_grants", {data:{...grant(),...changes},error:null});
+    await expect(authorize()).rejects.toMatchObject({status:403});
+  });
+  it("checks JWT/project/conversation before inspecting the separate exact grant", async () => {
+    vi.stubEnv("GROVE_PRIVATE_CORRECTION_WRITE_ENABLED", "true");
+    mocks.lookup.set("grove_private_correction_write_grants", {data:grant(),error:null});
+    expect(await authorize()).toMatchObject({groveUserId:groveOwner,fireflyUserId:fireflyOwner});
+    expect(mocks.assertConversationOwnedByUser).toHaveBeenCalled();
+    expect(mocks.queryFilters.filter(f=>f.table==="grove_private_correction_write_grants"))
+      .toEqual(expect.arrayContaining([
+        {table:"grove_private_correction_write_grants",key:"grove_user_id",value:groveOwner},
+        {table:"grove_private_correction_write_grants",key:"firefly_user_id",value:fireflyOwner},
+        {table:"grove_private_correction_write_grants",key:"firefly_conversation_id",value:conversationId},
+      ]));
+  });
+  it("denies expired JWTs before any write-grant lookup", async () => {
+    vi.stubEnv("GROVE_PRIVATE_CORRECTION_WRITE_ENABLED", "true");
+    await expect(authorizePrivateGroveCorrectionWrite(req(jwt({exp:now-1})),projectId,conversationId)).rejects.toMatchObject({status:401});
+    expect(mocks.fromCalls).not.toContain("grove_private_correction_write_grants");
+  });
+});
 
 describe("private Grove provider and token boundaries", () => {
   it("requires explicit private deployment enablement", () => {
