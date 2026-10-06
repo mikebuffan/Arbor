@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   backend-continuity:
-    if: github.repository == 'mikebuffan/Arbor' && github.head_ref == 'integration/one-arbor-torture-suite-20261006'
+    if: github.repository == 'mikebuffan/Arbor'
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     env:
@@ -94,7 +94,7 @@ jobs:
         run: pnpm exec tsc --noEmit
 
   phone-continuity:
-    if: github.repository == 'mikebuffan/Arbor' && github.head_ref == 'integration/one-arbor-torture-suite-20261006'
+    if: github.repository == 'mikebuffan/Arbor'
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     env:
