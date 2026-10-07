@@ -7,7 +7,7 @@ const CONTINUATION_SIGNAL =
 // Workflow shorthand is a continuation cue only when a real unfinished goal
 // already exists. It never authorizes execution, overrides STOP or selects a new goal.
 const COMPACT_WORKFLOW_CONTINUATION =
-  /^(?:(?:list\\s*[,;:+-]?\\s*)?prompt\\s*(?:,|;|\\s+and)?\\s*go|list\\s+(?:and\\s+)?prompt\\s*(?:(?:,|;|\\s+then|\\s+and)\\s*)?go|go\\s+go\\s+buffalo)[.!?\\s]*$/i;
+  /^(?:(?:list\s*[,;:+-]?\s*)?prompt\s*(?:,|;|\s+and)?\s*go|list\s+(?:and\s+)?prompt\s*(?:(?:,|;|\s+then|\s+and)\s*)?go|go\s+go\s+buffalo)[.!?\s]*$/i;
 
 const EXPLICIT_SWITCH =
   /(?:^|\b)(?:instead\b|new goal\b|new task|different task|separate task|separate question|switch(?:ing)? (?:to|goals?)|change (?:the )?goal|forget that|drop that|stop (?:that|this)(?: and)?|leave that)\b/i;
