@@ -156,6 +156,31 @@ export const CONTEXTUAL_REFERENCE_SYNTHETIC_FIXTURES = [
     expected: "resolved",
   },
   {
+    id: "file_name_collision",
+    raw: "use buildPromptContext.ts",
+    expected: "use_literal",
+  },
+  {
+    id: "commit_hash_collision",
+    raw: "use 65be4dc3ac59997d6bb0ee800648293b45932b6e",
+    expected: "use_literal",
+  },
+  {
+    id: "inline_command_collision",
+    raw: "run `pnpm test`",
+    expected: "use_literal",
+  },
+  {
+    id: "not_that_correction",
+    raw: "not that",
+    expected: "resolved",
+  },
+  {
+    id: "go_back",
+    raw: "go back",
+    expected: "resolved",
+  },
+  {
     id: "unresolved_deictic",
     raw: "that one",
     expected: "clarify",
