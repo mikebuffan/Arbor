@@ -40,6 +40,7 @@ jobs:
           pnpm --filter firefly-backend exec vitest run \
             lib/memory/__tests__/patternHopSourceIndependence.test.ts \
             lib/memory/__tests__/patternHopEngine.test.ts \
-            lib/memory/__tests__/patternHop.test.ts
+            lib/memory/__tests__/patternHop.test.ts \
+            lib/arbor/runtime/__tests__/knowledgeRouting.test.ts
       - name: Backend TypeScript
         run: pnpm --filter firefly-backend exec tsc --noEmit
