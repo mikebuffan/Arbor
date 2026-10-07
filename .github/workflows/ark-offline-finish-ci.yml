@@ -284,8 +284,76 @@ jobs:
               when serialization_failure then null;
             end;
           end
-          $$;
+          $;
           SQL
+
+      - name: Prove concurrent workers cannot claim the same task
+        shell: bash
+        run: |
+          set -euo pipefail
+          objective_id="$(psql -Atq -v ON_ERROR_STOP=1 -c "
+            select public.ark_enqueue_objective(
+              '11111111-1111-1111-1111-111111111111'::uuid,
+              'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'::uuid,
+              'parallel lease canary',
+              0,
+              '{}'::jsonb,
+              'parallel-lease-canary',
+              jsonb_build_array(jsonb_build_object(
+                'task_key','act',
+                'kind','canary.read',
+                'description','parallel claim',
+                'dependencies','[]'::jsonb,
+                'payload','{}'::jsonb,
+                'max_attempts',3,
+                'idempotency_key','parallel-lease-canary:act'
+              ))
+            )->>'id';
+          ")"
+          test -n "$objective_id"
+
+          first_log="$RUNNER_TEMP/ark-first-claim.log"
+          psql -Atq -v ON_ERROR_STOP=1 >"$first_log" <<SQL &
+          begin;
+          select coalesce(
+            public.ark_claim_next_task(
+              'parallel-worker-a',
+              10000,
+              now(),
+              '{}'::uuid[],
+              '$objective_id'::uuid
+            )::text,
+            'null'
+          );
+          select pg_sleep(3);
+          commit;
+          SQL
+          first_pid=$!
+
+          # Give worker A time to acquire the row lock but keep its
+          # transaction open. Worker B must SKIP the locked task, not wait,
+          # duplicate the claim, or steal the lease.
+          sleep 1
+          second_claim="$(psql -Atq -v ON_ERROR_STOP=1 -c "
+            select coalesce(
+              public.ark_claim_next_task(
+                'parallel-worker-b',
+                10000,
+                now(),
+                '{}'::uuid[],
+                '$objective_id'::uuid
+              )::text,
+              'null'
+            );
+          ")"
+          test "$second_claim" = "null"
+
+          wait "$first_pid"
+          grep -q '"lease_owner": "parallel-worker-a"' "$first_log"
+
+          psql -v ON_ERROR_STOP=1 -c "
+            select public.ark_cancel_objective('$objective_id'::uuid, now());
+          " >/dev/null
 
   phone-status-fidelity:
     runs-on: ubuntu-24.04
