@@ -83,18 +83,36 @@ const BEHAVIOR_FEEDBACK_PATTERNS = [
 const ACOUSTIC_FEEDBACK_CONTEXT =
   /\b(?:your|you|still|again|sounds?|sound|drift(?:ed)?|too|wrong|weird|not)\b/i;
 
+// "doesn't sound like you" and "you've drifted" are compatible with both
+// behavior and audio feedback. When the *same* correction explicitly identifies
+// an acoustic feature, do not accidentally file only that feedback as identity
+// drift. Distinct substantive behavioral feedback still wins for this
+// single-kind legacy classifier; compound multi-domain turns need separate
+// validated observations, not inferred automatic splitting.
+const AMBIGUOUS_DRIFT_FEEDBACK =
+  /^(?:doesn['’]?t sound like you|does not sound like you|you['’]ve drifted|you have drifted)$/i;
+const EXPLICIT_ACOUSTIC_FEATURE =
+  /\b(?:british|foreign|accent|pronunciation|breathy|growl|cadence)\b/i;
+
 export function detectCorrectionKind(value: string): ArborCorrectionKind | null {
-  if (BEHAVIOR_FEEDBACK_PATTERNS.some((pattern) => pattern.test(value))) {
-    return "behavior";
-  }
+  const behaviorMatches = BEHAVIOR_FEEDBACK_PATTERNS.flatMap((pattern) => {
+    const match = value.match(pattern);
+    return match ? [match[0]] : [];
+  });
+  const acousticFeedback =
+    ACOUSTIC_FEEDBACK_CONTEXT.test(value) &&
+    ACOUSTIC_PATTERNS.some((pattern) => pattern.test(value));
 
   if (
-    ACOUSTIC_FEEDBACK_CONTEXT.test(value) &&
-    ACOUSTIC_PATTERNS.some((pattern) => pattern.test(value))
+    acousticFeedback &&
+    EXPLICIT_ACOUSTIC_FEATURE.test(value) &&
+    behaviorMatches.every((match) => AMBIGUOUS_DRIFT_FEEDBACK.test(match))
   ) {
     return "acoustic";
   }
 
+  if (behaviorMatches.length) return "behavior";
+  if (acousticFeedback) return "acoustic";
   return null;
 }
 
