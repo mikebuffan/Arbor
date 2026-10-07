@@ -82,8 +82,8 @@ export const ARBOR_CAPABILITY_HYPOTHESES: CapabilityHypothesisRecord[] = [
       "Inspect strategy quality, confidence, stuckness, and evidence-use before changing course.",
     problem:
       "Agency can act without fully modeling why a strategy is failing or when familiarity is being mistaken for evidence.",
-    lifecycleState: "bench_proven",
-    evidenceLevel: "bench",
+    lifecycleState: "hypothesis",
+    evidenceLevel: "concept",
     dependencies: ["agency", "epistemics", "continuity"],
     overlaps: ["adversarial_self_review", "operational_traceability"],
     primitives: ["observe","interpret","model_uncertainty","compare","update_state","verify"],
@@ -109,8 +109,8 @@ export const ARBOR_CAPABILITY_HYPOTHESES: CapabilityHypothesisRecord[] = [
       "Recover likely intended meaning from degraded, atypical, typo-heavy, fragmented, or speech-to-text input while preserving uncertainty.",
     problem:
       "Standard language assumptions can create unnecessary friction for users communicating under fatigue, disability, motor errors, word-finding difficulty, or noisy input.",
-    lifecycleState: "hypothesis",
-    evidenceLevel: "concept",
+    lifecycleState: "bench_proven",
+    evidenceLevel: "bench",
     dependencies: ["continuity", "epistemics", "language_context"],
     overlaps: ["behavioral_language_identity_evidence"],
     primitives: ["observe","interpret","compare","model_uncertainty","preserve_provenance"],
