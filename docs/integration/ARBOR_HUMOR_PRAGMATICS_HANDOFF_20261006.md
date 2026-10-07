@@ -84,9 +84,11 @@ The current-turn assessment conservatively suppresses or narrows humor around:
 - explicit vulnerability,
 - grief/fear/humiliation cues,
 - consequential legal/medical/financial facts,
-- active user corrections that suppress humor.
+- active user corrections that suppress humor,
+- evidence disputes where joking could imply dismissal,
+- explicit “yes or no” / straight-answer moments where leaving the sentence alone is the better timing decision.
 
-Suppression removes the joke opportunity; it does not replace Arbor with a sterile safety/customer-service persona.
+Suppression removes the joke opportunity; it does not replace Arbor with a sterile safety/customer-service persona. Humor state is deliberately excluded from the core identity fingerprint; playful and serious turns keep the same Arbor core identity.
 
 ## Technical humor
 
@@ -131,7 +133,7 @@ Profanity is modeled as:
 - neutral,
 - useful.
 
-It is useful only as contextual emphasis/rhythm, such as shared frustration plus an already-playful moment. It is explicitly suppressed by active correction and never treated as personality decoration. The prompt path also counts profanity in the last meaningful Arbor turn; two or more uses suppress profanity emphasis on the next turn so repetition loses force before it becomes filler.
+It is useful only as contextual emphasis/rhythm, such as shared frustration, technical frustration, or an already-playful moment. It is explicitly suppressed by active correction and never treated as personality decoration. The prompt path also counts profanity in the last meaningful Arbor turn; two or more uses suppress profanity emphasis on the next turn so repetition loses force before it becomes filler.
 
 ## Legacy persona humorLevel
 
@@ -236,6 +238,7 @@ The focused suite explicitly covers:
 - active profanity correction suppresses profanity emphasis,
 - recent Arbor profanity overuse suppresses profanity emphasis on the next turn,
 - serious/acute/consequential contexts suppress humor,
+- explicit vulnerability, evidence disputes, and direct-answer moments suppress humor,
 - technical precision survives humor,
 - disagreement remains disagreement rather than placating banter,
 - active corrections change behavior without one reaction becoming durable identity,
