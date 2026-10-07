@@ -35,6 +35,7 @@ describe("Arbor Time Core", () => {
     });
     expect(core.timeZone).toBe("UTC");
     expect(core.localTime).toBe("18:30:45");
+    expect(core.utcOffsetMinutes).toBe(0);
   });
 
   it("derives the actual IANA offset, not a fabricated UTC zero", () => {
@@ -62,6 +63,21 @@ describe("Arbor Time Core", () => {
     expect(after.localTime).toBe("01:30:00");
     expect(before.utcOffsetMinutes).toBe(-420);
     expect(after.utcOffsetMinutes).toBe(-480);
+  });
+
+  it("handles spring-forward without carrying the old winter offset", () => {
+    const before = buildTimeCore({
+      now: new Date("2026-03-08T09:30:00.000Z"),
+      timeZone: "America/Los_Angeles",
+    });
+    const after = buildTimeCore({
+      now: new Date("2026-03-08T10:30:00.000Z"),
+      timeZone: "America/Los_Angeles",
+    });
+    expect(before.localTime).toBe("01:30:00");
+    expect(before.utcOffsetMinutes).toBe(-480);
+    expect(after.localTime).toBe("03:30:00");
+    expect(after.utcOffsetMinutes).toBe(-420);
   });
 
   it("supports fractional-hour IANA offsets and explicit unknown offset rendering", () => {
