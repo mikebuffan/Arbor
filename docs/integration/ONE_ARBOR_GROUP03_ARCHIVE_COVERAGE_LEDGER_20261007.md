@@ -57,3 +57,13 @@ Distinguish `transported` from `reader-delivered`, `analyzed`, `reconciled` and 
 **Unchanged protected boundaries:** no import of private exports or unapproved media; no automated memory capture/promotion; no worker activation, new canary, permission grant, model inference, production/main merge or deployment; no September 28 task mutation. The existing queued STOP acceptance task is outside Group 03 scope and untouched.
 
 Reference documents already on parent: `ARK_EXACT_DATABASE_TRANSPORT_ACCEPTANCE_20261006.md`, `ARK_ARCHIVE_LIVE_RESUME_CHECKLIST_20261006.md`, `ARK_CHRONOLOGICAL_ARCHIVE_READER_SOURCE_ACCEPTANCE_20261006.md`, `ARK_DEVELOPMENTAL_ARCHIVE_ANALYSIS_CONTRACT_20261006.md`, `ARK_FULL_ARCHIVE_READING_RECONCILIATION_PACKAGE_20261006.md`.
+
+
+## Group 03 source-only continuation (same draft PR #346)
+
+- Added **opt-in pure metadata helper** `apps/backend/scripts/import_chatgpt/archiveSourceInventory.ts` (blob `eed2e5b2c1e7ee20f06619339b1b009fd07390b0`). It counts active-path versus off-path mapped nodes, message descriptors, structured-part and asset-pointer *hints*, duplicate mapped message IDs, missing/invalid parent links and parent cycles. It never dereferences asset pointers, returns message contents, imports turns, saves a checkpoint or invokes existing import paths.
+- Added six synthetic Vitest cases in `apps/backend/lib/memory/__tests__/archiveSourceInventory.test.ts` (blob `fa351ae6e07af4202707a3579aef2af6c492044e`). Cases cover active vs alternate branch classification with the original parser unchanged, missing current pointer, damaged alternate graph, alternate cycle/invalid parent, lazy pointer getter that must never be dereferenced, and duplicate message ID count without exposing it.
+- Independent isolated Node synthetic-fixture checks: **6 passed**; isolated strict TypeScript compile: **passed**. These were run outside the full repository on the pure helper; they do **not** replace repository Vitest/TypeScript/CI verification.
+- GitHub file readback verified both new blobs. The exact new source/test head `885b32390a027139f2dded7761bb40edcaa19829` had only a **skipped Supabase Preview** check when queried. No completed new repository CI is claimed.
+- These functions **have not been run against private exports**. Actual off-path counts, attachment byte hashes, whether media is accessible, and alternate-branch provenance remain **UNKNOWN / authorization gated**. Preserve B03 gated status.
+- Existing `parseChatGPT.ts`, `preflight.ts`, resumable importer, chronological reader, worker registry, runtime and release files remain unchanged. No new archive engine, automatic private-media traversal or Vercel deployment.
