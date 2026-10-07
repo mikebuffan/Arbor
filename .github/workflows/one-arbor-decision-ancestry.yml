@@ -29,7 +29,7 @@ jobs:
   bounded-source-acceptance:
     if: github.repository == 'mikebuffan/Arbor'
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 25
     env:
       CI: 'true'
       AWS_EC2_METADATA_DISABLED: 'true'
@@ -49,6 +49,11 @@ jobs:
       - name: Read-only decision history tests
         working-directory: apps/backend
         run: pnpm exec vitest run lib/arbor/runtime/__tests__/decisionAncestry.test.ts lib/arbor/runtime/__tests__/decisionReviewAdapter.test.ts lib/arbor/runtime/__tests__/discoveryRadar.test.ts
+      - name: Existing agency and continuity regression
+        working-directory: apps/backend
+        run: pnpm exec vitest run lib/arbor/agency/__tests__ lib/arbor/continuity/__tests__
+      - name: Full backend regression
+        run: pnpm --filter firefly-backend test
       - name: Standalone TypeScript
         working-directory: apps/backend
         run: pnpm exec tsc --noEmit
