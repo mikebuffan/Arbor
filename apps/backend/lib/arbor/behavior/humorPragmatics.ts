@@ -206,6 +206,7 @@ export function assessHumorPragmatics(
   const hardSuppressed = acute || consequential || suppressByCorrection;
   const playful = PLAYFUL.test(text);
   const frustration = SHARED_FRUSTRATION.test(text);
+  const userProfanity = countProfanityUses(text) > 0;
 
   const opportunity: HumorOpportunity =
     hardSuppressed ? "none"
@@ -237,7 +238,7 @@ export function assessHumorPragmatics(
 
   const profanityUsefulness: HumorProfanityUsefulness =
     hardSuppressed || profanitySuppressed || profanityOverused ? "discouraged"
-      : frustration && playful ? "useful"
+      : frustration && (playful || userProfanity) ? "useful"
         : "neutral";
 
   const technicalClarityRisk: HumorClarityRisk =
