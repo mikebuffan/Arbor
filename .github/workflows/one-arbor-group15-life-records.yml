@@ -1,0 +1,43 @@
+name: One Arbor Group 15 manual life and records source acceptance
+
+on:
+  pull_request:
+    branches:
+      - integration/one-arbor-reconciled-335-339-20261007
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'apps/backend/lib/arbor/records/**'
+      - 'docs/integration/ONE_ARBOR_GROUP15_LIFE_RECORDS_20261007.md'
+      - '.github/workflows/one-arbor-group15-life-records.yml'
+      - 'ops/grove/source-only-ignore.mjs'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: group15-life-records-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  source-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.30.3
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Group 15 manual review and scope negatives
+        env:
+          OPENAI_API_KEY: ci-placeholder-key
+        run: |
+          pnpm --filter firefly-backend exec vitest run \
+            lib/arbor/records/__tests__/manualReview.test.ts
+      - name: Backend standalone TypeScript
+        run: pnpm --filter firefly-backend exec tsc --noEmit
