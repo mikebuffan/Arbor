@@ -86,4 +86,63 @@ describe("Arbor behavior guard requirements", () => {
       "The previous turn discussed a grocery list.",
     );
   });
+  it("projects the same humor contract through text and voice while current context changes the decision", () => {
+    const text = buildArborBehaviorProjection({
+      mode: "text",
+      correctionRules: [],
+      humorPragmatics: {
+        latestUserText: "Vercel did the same bullshit again 🤣",
+        technicalContext: true,
+        absurdityRelevance: "strong",
+        relationshipPermission: "established",
+      },
+    });
+
+    const voice = buildArborBehaviorProjection({
+      mode: "voice",
+      correctionRules: [],
+      humorPragmatics: {
+        latestUserText: "Vercel did the same bullshit again 🤣",
+        technicalContext: true,
+        absurdityRelevance: "strong",
+        relationshipPermission: "established",
+      },
+    });
+
+    expect(text.promptBlock).toContain(
+      "ARBOR HUMOR / PRAGMATICS — SHARED BEHAVIOR LAYER",
+    );
+    expect(voice.promptBlock).toContain(
+      "ARBOR HUMOR / PRAGMATICS — SHARED BEHAVIOR LAYER",
+    );
+    expect(text.promptBlock).toContain("humorRequired=false");
+    expect(voice.promptBlock).toContain("humorRequired=false");
+    expect(text.guardRequirements).toContain(
+      "When no humor opportunity is earned, leave the sentence alone.",
+    );
+    expect(voice.guardRequirements).toContain(
+      "When no humor opportunity is earned, leave the sentence alone.",
+    );
+  });
+
+  it("lets an active humor correction suppress a playful current turn", () => {
+    const projection = buildArborBehaviorProjection({
+      mode: "text",
+      correctionRules: [
+        "That joke was weird. Don't make everything a joke.",
+      ],
+      humorPragmatics: {
+        latestUserText: "lol okay 🤣",
+        relationshipPermission: "established",
+      },
+    });
+
+    expect(projection.promptBlock).toContain(
+      "suppression=active-humor-correction",
+    );
+    expect(projection.promptBlock).toContain(
+      "opportunity=none",
+    );
+  });
+
 });
