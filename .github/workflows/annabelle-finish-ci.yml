@@ -34,15 +34,23 @@ jobs:
           corepack enable
           corepack prepare pnpm@10.30.3 --activate
           pnpm install --frozen-lockfile
+      - name: Install local PDF parser dependency
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils
+          pdfinfo -v
+          pdftotext -v
       - name: Annabelle and Felt-Life focused acceptance
         working-directory: apps/backend
         run: pnpm exec vitest run lib/arbor/annabelle lib/arbor/feltLife lib/arbor/agency/__tests__/continuationContract.test.ts lib/arbor/agency/__tests__/continuationRegression.test.ts
       - name: Full backend regression
         run: pnpm --filter firefly-backend test
       - name: TypeScript
+        if: always()
         working-directory: apps/backend
         run: pnpm exec tsc --noEmit
       - name: Production backend build
+        if: always()
         run: pnpm --filter firefly-backend build
 
   phone:
