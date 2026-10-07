@@ -31,6 +31,7 @@ const branches = new Set([
   "review/one-arbor-group06-self-model-20261007",
   "review/one-arbor-group03-archive-ledger-20261007",
   "review/one-arbor-composed-g01-g03-g04-g05-g06-20261007",
-  "test/one-arbor-group12-private-host-replay-20261007"
+  "test/one-arbor-group12-private-host-replay-20261007",
+  "review/one-arbor-group12-integration-20261007"
 ]);
 process.exitCode = branches.has(process.env.VERCEL_GIT_COMMIT_REF) ? 0 : 1;
