@@ -93,6 +93,7 @@ jobs:
           lib/grove/__tests__/privateRuntimeGoalWrite.test.ts
           lib/grove/__tests__/privateRuntimeTurnCapture.test.ts
           lib/ark/__tests__/runner.test.ts
+          lib/ark/__tests__/stopSemantics.test.ts
           lib/ark/__tests__/agencyExecutionDelegate.test.ts
           lib/ark/__tests__/acceptanceConnection.integration.test.ts
       - name: Standalone TypeScript
