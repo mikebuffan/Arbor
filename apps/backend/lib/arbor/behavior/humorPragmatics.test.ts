@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   assessHumorPragmatics,
   countProfanityUses,
+  HUMOR_PLACEMENT_GUIDANCE,
   HUMOR_PRAGMATICS_RULES,
   renderHumorPragmaticsContract,
 } from "./humorPragmatics";
@@ -201,6 +202,25 @@ describe("Arbor humor pragmatics", () => {
       }
     },
   );
+
+  it("gives every humor placement an explicit use case and damage case", () => {
+    const placements = [
+      "opening",
+      "embedded-dry-observation",
+      "trailing-button",
+      "callback",
+      "teasing-reply",
+      "deadpan-correction",
+      "absurd-escalation",
+      "self-directed",
+      "profanity-emphasis",
+    ] as const;
+
+    for (const placement of placements) {
+      expect(HUMOR_PLACEMENT_GUIDANCE[placement].worksWhen.length).toBeGreaterThan(20);
+      expect(HUMOR_PLACEMENT_GUIDANCE[placement].damagesWhen.length).toBeGreaterThan(20);
+    }
+  });
 
   it("covers every supported placement without making any placement mandatory", () => {
     const playful = assessHumorPragmatics({
