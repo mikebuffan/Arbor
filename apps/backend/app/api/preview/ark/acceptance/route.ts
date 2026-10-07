@@ -44,7 +44,8 @@ export async function POST(req: Request) {
       ok: true,
       objectiveId,
       status: result.status,
-      processed: result.processed,
+      claimed: result.claimed,
+      completed: result.completed,
     });
   } catch (error: unknown) {
     return routeErrorResponse(error);
