@@ -9,6 +9,7 @@ import { arkMcpUserContext } from "./context";
 import { assertArkReadTaskSubmission, isArkMcpSubmissionEnabled } from "./taskPermissions";
 import {ArchiveReadInput} from "@/lib/memory/archiveReader";
 import { registerArkPatternHopTool } from "./registerArkPatternHopTool";
+import { arkTaskReadbackFlags } from "@/lib/ark/taskStatus";
 
 export const ArkReadTaskRequest = z.object({
   projectId: z.string().uuid(),
@@ -44,10 +45,11 @@ export function registerArkTaskTools(server: McpServer): void {
     if (!data || data.id !== input.taskId || data.user_id !== userId || data.project_id !== input.projectId)
       throw new Error("ark_task_not_found");
     const encoded = JSON.stringify(data.result ?? null);
+    const flags=arkTaskReadbackFlags(String(data.status));
     return result({projectId: input.projectId, taskId: data.id, objectiveId: data.objective_id,
       status: data.status, resultJson: encoded.slice(0, 20000), resultTruncated: encoded.length > 20000,
       lastError: typeof data.last_error === "string" ? data.last_error.slice(0, 2000) : null,
-      attemptCount: data.attempt_count, terminal: ["completed","failed","cancelled"].includes(data.status), completed: data.status === "completed", capturedAt: new Date().toISOString()});
+      attemptCount: data.attempt_count, ...flags, capturedAt: new Date().toISOString()});
   });
 
   registerArkPatternHopTool(server);
