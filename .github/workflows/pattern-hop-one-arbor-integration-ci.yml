@@ -1,6 +1,9 @@
 name: Pattern Hop One Arbor research integration acceptance
 
 on:
+  push:
+    branches:
+      - integration/one-arbor-pattern-hop-research-20261006
   pull_request:
     branches:
       - integration/one-arbor-current-20261006
@@ -11,7 +14,7 @@ permissions:
 
 jobs:
   backend:
-    if: github.repository == 'mikebuffan/Arbor' && github.head_ref == 'integration/one-arbor-pattern-hop-research-20261006'
+    if: github.repository == 'mikebuffan/Arbor' && (github.event_name == 'push' || github.head_ref == 'integration/one-arbor-pattern-hop-research-20261006')
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     env:
@@ -24,7 +27,11 @@ jobs:
         run: |
           git init .
           git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          git fetch --no-tags --depth=1 origin "refs/pull/${{ github.event.pull_request.number }}/merge"
+          if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
+            git fetch --no-tags --depth=1 origin "refs/pull/${{ github.event.pull_request.number }}/merge"
+          else
+            git fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          fi
           git checkout --detach FETCH_HEAD
       - uses: actions/setup-node@v4
         with:
