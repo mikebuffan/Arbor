@@ -135,9 +135,15 @@ describe("bounded read-only Decision Ancestry projection", () => {
 
   it("projects only review-worthy decision candidates with no automatic approval", () => {
     const clean = project([event("a", "choice")]);
-    const flagged = project([event("a", "choice"), event("b", "choice")]);
+    const flagged = projectDecisionAncestry({
+      scope, decisionId: "another-decision",
+      events: [
+        event("a", "choice", { decisionId: "another-decision" }),
+        event("b", "choice", { decisionId: "another-decision" }),
+      ],
+    });
     const item = projectDecisionReviewCandidates({
-      scope, views: [clean, { ...flagged, decisionId: "another-decision" }],
+      scope, views: [clean, flagged],
     });
     expect(item.items).toHaveLength(1);
     expect(item.items[0].decisionId).toBe("another-decision");
@@ -148,8 +154,13 @@ describe("bounded read-only Decision Ancestry projection", () => {
 
   it("fails closed on cross-owner review candidates and repeated decision keys", () => {
     const one = project([event("a", "correction")]);
+    const foreign = projectDecisionAncestry({
+      scope: { userId: "intruder", projectId: "project" },
+      decisionId: "select-runtime",
+      events: [event("b", "correction", { userId: "intruder" })],
+    });
     expect(() => projectDecisionReviewCandidates({
-      scope, views: [one, { ...one, scope: { userId: "intruder", projectId: "project" } }],
+      scope, views: [one, foreign],
     })).toThrow("decision_review_scope_mismatch");
     expect(() => projectDecisionReviewCandidates({
       scope, views: [one, one],
@@ -157,9 +168,12 @@ describe("bounded read-only Decision Ancestry projection", () => {
   });
 
   it("keeps the candidate view bounded and honestly reports truncation", () => {
-    const base = project([event("a", "correction")]);
-    const one = { ...base, decisionId: "one" };
-    const two = { ...base, decisionId: "two" };
+    const makeView = (decisionId: string) => projectDecisionAncestry({
+      scope, decisionId,
+      events: [event("a", "correction", { decisionId })],
+    });
+    const one = makeView("one");
+    const two = makeView("two");
     const result = projectDecisionReviewCandidates({
       scope, views: [two, one], limit: 1,
     });
@@ -168,6 +182,16 @@ describe("bounded read-only Decision Ancestry projection", () => {
     expect(() => projectDecisionReviewCandidates({
       scope, views: [one], limit: 0,
     })).toThrow("decision_review_invalid_input");
+  });
+
+  it("rejects forged clean or inconsistent views instead of suppressing review signals", () => {
+    const flagged = project([event("a", "correction")]);
+    expect(() => projectDecisionReviewCandidates({
+      scope, views: [{ ...flagged, warnings: [] }],
+    })).toThrow("decision_ancestry_view_invalid");
+    expect(() => projectDecisionReviewCandidates({
+      scope, views: [{ ...flagged, decisionId: "rewritten-id" }],
+    })).toThrow("decision_ancestry_view_invalid");
   });
 
   it("requires bounded, plausible records and refuses oversized unreconciled histories", () => {
