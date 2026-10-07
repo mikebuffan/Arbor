@@ -14,7 +14,8 @@ import {
   isArkMcpObjectiveControlEnabled,
 } from "./taskPermissions";
 import {ArchiveReadInput} from "@/lib/memory/archiveReader";
-import { registerArkPatternHopTool } from "./registerArkPatternHopTool";\nimport { arkTaskReadbackFlags } from "@/lib/ark/taskStatus";
+import { registerArkPatternHopTool } from "./registerArkPatternHopTool";
+import { arkTaskReadbackFlags } from "@/lib/ark/taskStatus";
 
 export const ArkReadTaskRequest = z.object({
   projectId: z.string().uuid(),
@@ -66,7 +67,8 @@ export function registerArkTaskTools(server: McpServer): void {
     if (error) throw error;
     if (!data || data.id !== input.taskId || data.user_id !== userId || data.project_id !== input.projectId)
       throw new Error("ark_task_not_found");
-    const encoded = JSON.stringify(data.result ?? null);\n    const flags=arkTaskReadbackFlags(String(data.status));
+    const encoded = JSON.stringify(data.result ?? null);
+    const flags=arkTaskReadbackFlags(String(data.status));
     return result({projectId: input.projectId, taskId: data.id, objectiveId: data.objective_id,
       status: data.status, resultJson: encoded.slice(0, 20000), resultTruncated: encoded.length > 20000,
       lastError: typeof data.last_error === "string" ? data.last_error.slice(0, 2000) : null,
