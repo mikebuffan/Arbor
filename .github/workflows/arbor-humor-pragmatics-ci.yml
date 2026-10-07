@@ -1,0 +1,86 @@
+name: Arbor Humor Pragmatics Acceptance
+
+on:
+  push:
+    branches:
+      - feature/arbor-humor-pragmatics-20261006
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: arbor-humor-pragmatics-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    if: github.repository == 'mikebuffan/Arbor'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      CI: 'true'
+      OPENAI_API_KEY: ci-placeholder-not-a-real-key
+      AWS_EC2_METADATA_DISABLED: 'true'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          ref: ${{ github.sha }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install locked dependencies
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.30.3 --activate
+          pnpm install --frozen-lockfile
+
+      - name: Focused humor pragmatics acceptance
+        working-directory: apps/backend
+        run: >
+          pnpm exec vitest run
+          lib/arbor/behavior/humorPragmatics.test.ts
+          lib/arbor/behavior/behaviorProjection.test.ts
+          lib/arbor/runtime/__tests__/corrections.test.ts
+          lib/arbor/runtime/__tests__/humorCorrectionDurability.test.ts
+          lib/arbor/voice/__tests__/identity.test.ts
+          lib/flow.test.ts
+
+      - name: Full backend regression
+        run: pnpm --filter firefly-backend test
+
+      - name: Standalone TypeScript
+        working-directory: apps/backend
+        run: pnpm exec tsc --noEmit
+
+      - name: Production backend build
+        run: pnpm --filter firefly-backend build
+
+  control-self-model:
+    if: github.repository == 'mikebuffan/Arbor'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          ref: ${{ github.sha }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install locked dependencies
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.30.3 --activate
+          pnpm install --frozen-lockfile
+
+      - name: Control backend self-model tests
+        run: pnpm --filter arbor-control-backend test
+
+      - name: Control backend build
+        run: pnpm --filter arbor-control-backend build
