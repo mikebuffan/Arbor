@@ -52,6 +52,7 @@ describe(
                 "Dry callback humor landed in ordinary conversation.",
               confidence:
                 0.9,
+              sourceTurnId: "turn-communication-1",
             },
           );
 
@@ -71,6 +72,7 @@ describe(
                 "Humor remained specific during collaborative debugging.",
               confidence:
                 0.9,
+              sourceTurnId: "turn-collaboration-2",
             },
           );
 
