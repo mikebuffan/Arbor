@@ -131,3 +131,62 @@ export async function readExistingDecisionReview(input: {
   ]);
   return projectExistingDecisionReview({ scope: input.scope, agency, runtime });
 }
+
+/**
+ * "What changed?" over TWO actual existing-state projections.
+ * A lost snapshot is unknown coverage, not deletion evidence. A cleared
+ * blocker in a snapshot is NOT permission to execute a previously blocked step.
+ */
+export function compareExistingDecisionReviews(
+  before: ExistingDecisionReview,
+  after: ExistingDecisionReview,
+): {
+  scope: { userId: string; projectId: string };
+  conversationChanged: boolean;
+  goalChanged: boolean;
+  statusChanged: boolean;
+  introducedBlocker: AgencyBlocker | null;
+  clearedBlockerReported: boolean;
+  correctionIdsNewlyVisible: string[];
+  correctionIdsNoLongerVisible: string[];
+  runtimeCoverageLost: boolean;
+  reviewSuggested: boolean;
+  verifiedCausalChangeHere: false;
+  grantsExecution: false;
+} {
+  if (!before || !after || !before.scope || !after.scope ||
+      before.scope.userId !== after.scope.userId ||
+      before.scope.projectId !== after.scope.projectId)
+    throw new Error("decision_review_delta_scope_mismatch");
+  requireScope(before.scope);
+  requireScope(after.scope);
+  if ([before, after].some(view =>
+    view.sourceReadOnly !== true || view.outcomeVerifiedHere !== false ||
+    view.grantsExecution !== false || view.grantsMemoryPromotion !== false))
+    throw new Error("decision_review_delta_invalid_projection");
+  const idsBefore = new Set(before.correctionSignals.map(item => item.id));
+  const idsAfter = new Set(after.correctionSignals.map(item => item.id));
+  const introducedBlocker = after.agency?.blocker &&
+      after.agency.blocker !== before.agency?.blocker
+    ? after.agency.blocker : null;
+  const clearedBlockerReported = Boolean(before.agency?.blocker &&
+    !after.agency?.blocker);
+  const goalChanged = before.agency?.goal !== after.agency?.goal;
+  const statusChanged = before.agency?.status !== after.agency?.status;
+  const correctionIdsNewlyVisible = [...idsAfter].filter(id => !idsBefore.has(id)).sort();
+  const correctionIdsNoLongerVisible = [...idsBefore].filter(id => !idsAfter.has(id)).sort();
+  const runtimeCoverageLost = before.runtimeSource !== "unavailable" &&
+    after.runtimeSource === "unavailable";
+  return {
+    scope: { userId: after.scope.userId, projectId: after.scope.projectId },
+    conversationChanged: before.scope.conversationId !== after.scope.conversationId,
+    goalChanged, statusChanged, introducedBlocker, clearedBlockerReported,
+    correctionIdsNewlyVisible, correctionIdsNoLongerVisible,
+    runtimeCoverageLost,
+    reviewSuggested: Boolean(after.needsHumanDecisionReview ||
+      introducedBlocker || clearedBlockerReported || runtimeCoverageLost ||
+      correctionIdsNoLongerVisible.length),
+    verifiedCausalChangeHere: false,
+    grantsExecution: false,
+  };
+}
