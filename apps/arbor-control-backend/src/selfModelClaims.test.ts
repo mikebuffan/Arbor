@@ -26,6 +26,7 @@ describe("falsifiable self-model claims", () => {
       verdict: "supports",
       evidence: "Dry callback appeared without prompting.",
       confidence: 0.9,
+      sourceTurnId: "turn-communication-1",
     });
     next = addSelfModelObservation(next, {
       targetKind: "pattern",
@@ -34,6 +35,7 @@ describe("falsifiable self-model claims", () => {
       verdict: "supports",
       evidence: "Specific humor persisted during debugging.",
       confidence: 0.9,
+      sourceTurnId: "turn-collaboration-2",
     });
     next = reconcileSelfModelClaims(next);
 
@@ -54,6 +56,7 @@ describe("falsifiable self-model claims", () => {
       verdict: "supports",
       evidence: "Dry callback.",
       confidence: 0.9,
+      sourceTurnId: "turn-communication-3",
     });
     next = addSelfModelObservation(next, {
       targetKind: "pattern",
@@ -62,6 +65,7 @@ describe("falsifiable self-model claims", () => {
       verdict: "supports",
       evidence: "Specific humor during work.",
       confidence: 0.9,
+      sourceTurnId: "turn-collaboration-4",
     });
     next = reconcileSelfModelClaims(next);
     const candidate = next.selfModelClaims?.at(-1);
