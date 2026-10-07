@@ -43,3 +43,18 @@ The Fresh App profile observed `canSubmitReadTasks=true`, `canControlObjectives=
 4. Reconcile outcome with Group 1 canonical ownership/release ledger before any incorporation. No main merge or deployment from this draft.
 
 **Prohibitions:** main/production/Preview deployment, cross-lane mutation, privileged objective control, worker activation, reopening cancelled/completed objectives, manufactured memory, automatic identity learning, or unapproved model spend.
+
+
+## Second-pass findings — bounded regression amendments
+
+The initial source acceptance was green at `bf2c92c206fa0fa829e188e90be213cda7d382f9`, GitHub Actions run `37701611344`; that receipt **does not** cover subsequent edits.
+
+1. **C07 / B10 precedence:** `host/recoveryReadProjection.ts` previously let a divergent host goal replace `hold_for_verification`, `review_correction` or `no_unfinished_goal`. A stale host summary must not suppress a contradictory-completion review, unapplied correction, or durable completed status. Preserve existing critical recovery dispositions and report the divergence separately; regression cases assert no execution authority.
+2. **D16 malformed context fail-closed:** `language/contextualReferenceResolution.ts` previously tolerated unknown serialized `risk` vocabulary and could throw on malformed optional arrays or missing candidates. Unsupported risk now receives high-consequence clarification for context-sensitive turns; invalid referents are dropped instead of gaining priority or crashing. Explicit control words still retain their usual precedence.
+3. **B10 / B11 continuation phrasing:** `continuity/longitudinalPolicy.ts` previously did not recognize bounded more-work questions (e.g. `Anything else?`) as belonging to a pending, unfinished task. It now preserves existing active/checkpointed work and protected blocked status for these exact follow-ups. `complete` and absent objectives still never qualify.
+
+New negative regression cases live in the existing host, contextual reference and longitudinal shorthand suites; there are no new state stores, automatic capture hooks, routes, external writes, permissions or workers. **Only a successful exact-final-head workflow** counts as acceptance for these amendments.
+
+### Concurrent composition note
+
+Group 1 PR #344 is a sibling from #340 with a different source-only branch exclusion; preserve **both** exclusion entries when a separately reviewed integration composes the branches. Source-only branch ancestry is not live deployment.
