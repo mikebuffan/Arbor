@@ -32,6 +32,7 @@ export type HumorPragmaticsInput = {
   vulnerabilityContext?: boolean;
   acuteRiskContext?: boolean;
   legacyHumorLevel?: 0 | 1 | 2 | 3;
+  recentAssistantProfanityUses?: number;
 };
 
 export type HumorPragmaticsAssessment = {
@@ -93,7 +94,7 @@ const HUMOR_ENCOURAGE_CORRECTION =
   /\b(?:more like that|that was (?:actually )?funny|more humou?r|humou?r is gone|bring back the humou?r)\b/i;
 
 const PROFANITY_DISCOURAGE_CORRECTION =
-  /\b(?:less|stop|don'?t|do not)\b.{0,24}\b(?:swear|profan|cuss)/i;
+  /\b(?:less|stop|don'?t|do not)\b.{0,24}\b(?:swear|profan|cuss)|\btoo much (?:profanity|swearing|cussing)\b/i;
 
 const TEASING_DISCOURAGE_CORRECTION =
   /\b(?:stop|don'?t|do not|less)\b.{0,24}\bteas/i;
@@ -130,6 +131,7 @@ export function assessHumorPragmatics(
   const suppressByCorrection = anyMatch(corrections, HUMOR_SUPPRESS_CORRECTION);
   const encourageByCorrection = anyMatch(corrections, HUMOR_ENCOURAGE_CORRECTION);
   const profanitySuppressed = anyMatch(corrections, PROFANITY_DISCOURAGE_CORRECTION);
+  const profanityOverused = Math.max(0, input.recentAssistantProfanityUses ?? 0) >= 2;
   const teasingSuppressed = anyMatch(corrections, TEASING_DISCOURAGE_CORRECTION);
 
   const suppression: string[] = [];
@@ -137,6 +139,7 @@ export function assessHumorPragmatics(
   if (vulnerability) suppression.push("explicit-vulnerability");
   if (consequential) suppression.push("consequential-facts");
   if (suppressByCorrection) suppression.push("active-humor-correction");
+  if (profanityOverused) suppression.push("profanity-overuse");
 
   const emotionalTemperature: HumorTemperature =
     acute ? "acute"
@@ -178,7 +181,7 @@ export function assessHumorPragmatics(
     !hardSuppressed && input.absurdityRelevance === "strong";
 
   const profanityUsefulness: HumorProfanityUsefulness =
-    hardSuppressed || profanitySuppressed ? "discouraged"
+    hardSuppressed || profanitySuppressed || profanityOverused ? "discouraged"
       : frustration && playful ? "useful"
         : "neutral";
 
