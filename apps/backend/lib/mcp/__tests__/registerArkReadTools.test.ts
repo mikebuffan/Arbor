@@ -55,7 +55,7 @@ describe("ARK MCP tool boundary", () => {
       },
     });
     expect(r.structuredContent).toMatchObject({
-      access: "read-only",
+      access: "read-and-control-objectives",
       canSubmitReadTasks: false,
       canSubmitBehaviorTests: false,
       canControlObjectives: true,
