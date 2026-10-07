@@ -33,6 +33,12 @@ export type LocalPdfExtraction = {
   parser: "poppler-local-unreviewed";
 };
 
+export type PopplerRunner = (
+  command: string,
+  args: string[],
+  operation: string,
+) => Promise<string>;
+
 /** No shell, interpolated command, remote fetch or logged document text. */
 async function poppler(command: string, args: string[], operation: string):
     Promise<string> {
@@ -67,7 +73,7 @@ export async function extractLocalPublicPdf(input: {
   sourceUri: string;
   documentId: string;
   bytes: Uint8Array;
-}): Promise<LocalPdfExtraction> {
+}, options: { runPoppler?: PopplerRunner } = {}): Promise<LocalPdfExtraction> {
   if (!(input.bytes instanceof Uint8Array) ||
       input.bytes.byteLength < 8 ||
       input.bytes.byteLength > MAX_PDF_SOURCE_BYTES) {
@@ -79,13 +85,14 @@ export async function extractLocalPublicPdf(input: {
     ...input, declaredPageCount: 1,
   });
 
+  const runPoppler = options.runPoppler ?? poppler;
   const folder = await mkdtemp(join(tmpdir(), "arbor-public-pdf-"));
   const file = join(folder, "input.pdf");
   try {
     await writeFile(file, Buffer.from(input.bytes), {
       flag: "wx", mode: 0o600,
     });
-    const info = await poppler("pdfinfo", [file], "metadata");
+    const info = await runPoppler("pdfinfo", [file], "metadata");
     if (/^Encrypted:\s+yes\b/im.test(info)) {
       throw new Error("pdf_encrypted_source_hold");
     }
@@ -100,7 +107,7 @@ export async function extractLocalPublicPdf(input: {
     const original = await capturePdfOriginalBytes({
       ...input, declaredPageCount,
     });
-    const inventory = await poppler("pdfimages", ["-list", file], "image_inventory");
+    const inventory = await runPoppler("pdfimages", ["-list", file], "image_inventory");
     const imagePages = new Set<number>();
     // Poppler's tabular inventory lines start with physical page number,
     // image number and image type; the two-line header never matches.
@@ -114,7 +121,7 @@ export async function extractLocalPublicPdf(input: {
          physicalPdfPage <= declaredPageCount; physicalPdfPage++) {
       let text: string;
       try {
-        text = await poppler("pdftotext", [
+        text = await runPoppler("pdftotext", [
           "-f", String(physicalPdfPage),
           "-l", String(physicalPdfPage),
           "-enc", "UTF-8",
