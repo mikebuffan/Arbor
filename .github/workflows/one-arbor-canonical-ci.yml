@@ -76,11 +76,18 @@ jobs:
           lib/research/sourceIndependence.test.ts
           lib/research/claimEvidenceGraph.test.ts
           lib/research/failedLeadRouting.test.ts
+          lib/research/sourceFamilyCollapse.test.ts
+          lib/research/entityResolution.test.ts
+          lib/research/timelineAnalysis.test.ts
+          lib/research/sourceChainReview.test.ts
           lib/research/patternHopDomainLenses.test.ts
           lib/research/researchPatternHopBridge.test.ts
           lib/research/researchPatternHopBridgeDomain.test.ts
           lib/research/patternHopEvidenceIntegration.test.ts
           lib/research/investigationPatternHop.test.ts
+          lib/research/sessionPolicy.test.ts
+          lib/research/syntheticWorkerRehearsal.test.ts
+          lib/ark/__tests__/stopSemantics.test.ts
           lib/research/arkResearchHandoff.test.ts
           lib/research/registerArkResearchControllerExecutor.test.ts
           lib/research/registerArkResearchSessionExecutor.test.ts
