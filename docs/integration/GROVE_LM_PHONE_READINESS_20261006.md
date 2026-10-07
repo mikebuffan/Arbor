@@ -121,6 +121,47 @@ Before any context ceiling is activated:
 
 Until that happens, `8192` is a proposed ceiling, not a live-proven capacity.
 
+### Historical real-model semantic evidence
+
+Real Qwen + preserved Arbor adapter inference is **historically proven**, but the last reviewed behavior is **not accepted**.
+
+The preserved v0.3.3 semantic run from 2026-09-22 recorded:
+
+- results SHA-256 `0cff514500f2d4ea5c57628a080d99a082a3102518ec8bc15b4bb01e0dc03713`;
+- preserved v0.3 adapter SHA-256 `5447bc273c11374c73194428825babe22a008b0827e9ef002127a461023402aa`;
+- 18 cases x 2 seeds = 36 paired cases;
+- **100 real model calls** across foundation and adapted variants, including sequential dialogue.
+
+Human review found known adapted-model failures that must remain release blockers:
+
+- explicit identity and mid-conversation correction failures, including assigning "Firefly" to Arbor instead of Danelle;
+- false claims of having checked GitHub and Supabase when no such tools were available;
+- payment/capability failure, including a promise to use a card for GPU time;
+- misleading model-provenance claims;
+- one private-data case implying a signed request could permit retrieval through a tool-less model;
+- weak evidence-bounded continuity/project-switching/long-history behavior.
+
+The same review also found preserved strengths: no fabricated deployment receipt, correct ARK/Arbor Layer/LM distinction, and no unsupported clinical-approval claim.
+
+A later v0.3.4 focused real-model run was also recovered. It actually executed and produced **68 real generations** plus a matched-review artifact. The run showed improvement in several explicit no-tool / capability-boundary cases but still contained identity/correction and private-data weaknesses; the artifact itself remained marked for human review and did not establish acceptance.
+
+A still newer private **v0.4 corrective candidate** was recovered and verified as trained rather than merely prepared:
+
+- foundation family: `Qwen/Qwen3-0.6B`;
+- parent adapter: preserved Arbor v0.3;
+- 221 private corrective training examples;
+- 112 training steps / 2 epochs;
+- recorded final loss about 2.783;
+- v0.4 adapter SHA-256 `d47bdccb36c536550c218f01cd02b5b612e4065168592db7d9b0cda51af0ffcb`;
+- 28 paired holdout scenarios = **56 actual holdout generations**;
+- recorded production status: **NOT_DEPLOYED**.
+
+The recovered v0.4 holdout was semantically adjudicated in `ARBOR_LM_V04_HOLDOUT_REVIEW_20261006.md`: **16 PASS / 9 FAIL / 3 NEEDS_REVIEW**. v0.4 materially improves several identity, execution, payment, privacy, continuity, and public/private-boundary cases, but two high-severity source-honesty failures remain: filename-only metadata was promoted into invented save/citation claims. Additional medium failures remain in release-status directness, pronoun ownership, and naturalness/shared agency.
+
+Therefore v0.4 is the **newest trained Arbor LM candidate**, but it is **not accepted for Grove inference**. The safe disposition is one small targeted corrective pass using only demonstrated failure classes, then a fresh isolated holdout. The current public Grove receiver must remain pinned to v0.3 until a later candidate passes semantic review and the exact foundation/tokenizer/runtime is pinned.
+
+Before activation, rerun a matched real-model semantic gate on the exact selected foundation/tokenizer/adapter/runtime card. At minimum it must cover identity, correction uptake, model provenance, unavailable tools, account/private-data boundaries, billing/payment, unsupported completion claims, ARK availability, continuity without evidence, project switching, long-history handling, fake receipts, metadata/content/action distinctions, and independent paraphrases. Save actual outputs and perform human review; runner exit alone is not acceptance.
+
 ## Exactly-once distinction
 
 ### Already proven in source
@@ -157,7 +198,7 @@ The host transport independently prevents model prose from being treated as trus
 - fake active-objective claims are rejected;
 - scope/owner/project/conversation claims are host-derived, not model-derived.
 
-**Semantic hallucination acceptance remains real-model GATED.** A fake/synthetic receiver cannot prove the actual model will never say “I charged your account,” “I sent payment,” or “I used a tool.” Real-model acceptance must include adversarial prompts for account access, billing/payment, unavailable tools, work-completion claims, and permission escalation. Expected behavior is explicit limitation/abstention, with zero trusted execution receipt.
+**Semantic hallucination acceptance remains real-model GATED, with known prior failures rather than merely missing evidence.** The historical v0.3.3 run already demonstrated false tool-access and payment-capability language. The current host correctly refuses to turn that prose into trusted execution, but activation still requires a clean exact-runtime real-model rerun demonstrating explicit limitation/abstention for account access, billing/payment, unavailable tools, work-completion claims, permission escalation and private-data access.
 
 ## Grove -> LM -> Arbor -> ARK interface boundary
 
@@ -208,8 +249,8 @@ Private LM behavior acceptance is separate and should be added only after real-m
 - real foundation load;
 - exact adapter conversion/load against that foundation;
 - measured RAM/latency/generation limits;
-- real model identity/personality semantic evaluation;
-- adversarial account/payment/tool-capability hallucination evaluation;
+- exact-current-runtime real-model identity/personality semantic rerun and human review;
+- clean rerun of the historically failing account/payment/tool/private-data/correction cases;
 - persistent exactly-once generation proof;
 - no-cloud-fallback / no unintended egress proof against the selected real runtime;
 - runtime cancel/restart/orphan-process proof.
