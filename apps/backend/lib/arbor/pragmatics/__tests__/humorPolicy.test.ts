@@ -128,6 +128,6 @@ describe("humor pragmatics", () => {
 
     const prompt = renderHumorPragmaticsPrompt(result);
     expect(prompt).toContain("Humor is available but never required.");
-    expect(prompt).toContain("do not use callbacks merely to prove continuity");
+    expect(prompt).toContain("Do not explain the joke or use callbacks merely to prove continuity.");
   });
 });
