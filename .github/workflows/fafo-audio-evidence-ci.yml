@@ -1,0 +1,53 @@
+name: FAFO audio evidence provenance acceptance
+
+on:
+  push:
+    branches:
+      - research/fafo-audio-evidence-20261006
+  pull_request:
+    branches:
+      - integration/one-arbor-pre-vercel-20261006
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    if: github.repository == 'mikebuffan/Arbor'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      CI: 'true'
+      OPENAI_API_KEY: ci-placeholder-not-a-real-key
+      AWS_EC2_METADATA_DISABLED: 'true'
+    steps:
+      - name: Checkout without broken submodule cleanup
+        shell: bash
+        run: |
+          git init .
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
+            git fetch --no-tags --depth=1 origin "refs/pull/${{ github.event.pull_request.number }}/merge"
+          else
+            git fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          fi
+          git checkout --detach FETCH_HEAD
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install locked dependencies
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.30.3 --activate
+          pnpm install --frozen-lockfile
+      - name: Focused FAFO audio provenance tests
+        working-directory: apps/backend
+        run: pnpm exec vitest run lib/research/audioEvidence.test.ts
+      - name: Standalone TypeScript
+        working-directory: apps/backend
+        run: pnpm exec tsc --noEmit
+      - name: Full backend regression
+        run: pnpm --filter firefly-backend test
+      - name: Production build
+        run: pnpm --filter firefly-backend build
