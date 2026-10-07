@@ -198,7 +198,7 @@ jobs:
   native-database:
     if: github.repository == 'mikebuffan/Arbor'
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 18
     env:
       CI: 'true'
       AWS_EC2_METADATA_DISABLED: 'true'
@@ -215,7 +215,7 @@ jobs:
           corepack enable
           corepack prepare pnpm@10.30.3 --activate
           pnpm install --frozen-lockfile
-      - name: Start disposable PostgreSQL
+      - name: Start Grove disposable PostgreSQL
         shell: bash
         run: |
           set -euo pipefail
@@ -228,7 +228,6 @@ jobs:
           printf 'PGHOST=%s/socket\nPGPORT=54333\nPGUSER=postgres\nPGDATABASE=grove_disposable\n' "$pg_root" >> "$GITHUB_ENV"
           echo "$pg_bin" >> "$GITHUB_PATH"
           "$pg_bin/createdb" -h "$pg_root/socket" -p 54333 -U postgres grove_disposable
-          "$pg_bin/createdb" -h "$pg_root/socket" -p 54333 -U postgres pattern_hop_control
       - name: Grove transcript correction concurrency and recovery acceptance
         run: |
           psql -X -v ON_ERROR_STOP=1 -d grove_disposable -f ops/grove/disposable-db/00-private-transcript-acceptance.sql
@@ -236,13 +235,30 @@ jobs:
           python3 ops/grove/disposable-db/native-claims.py --disposable-local
           cd apps/backend
           node_modules/.bin/tsx ../../ops/grove/disposable-db/native-durable-corrections.mts --disposable-local
-      - name: Pattern Hop run-control exact SQL acceptance
-        run: psql -X -v ON_ERROR_STOP=1 -d pattern_hop_control -f ops/grove/disposable-db/pattern-hop-run-control-acceptance.sql
-      - name: Stop disposable PostgreSQL
-        if: always()
+      - name: Stop Grove disposable PostgreSQL
         shell: bash
         run: |
           pg_root="/tmp/grove-native-${GITHUB_RUN_ID}"
+          sudo -n -u postgres /usr/lib/postgresql/16/bin/pg_ctl -D "$pg_root/data" -m immediate -w stop
+      - name: Start Pattern Hop disposable PostgreSQL
+        shell: bash
+        run: |
+          set -euo pipefail
+          pg_bin=/usr/lib/postgresql/16/bin
+          pg_root="/tmp/pattern-hop-control-${GITHUB_RUN_ID}"
+          mkdir -p "$pg_root/data" "$pg_root/socket"
+          sudo -n chown -R postgres:postgres "$pg_root"
+          sudo -n -u postgres "$pg_bin/initdb" -D "$pg_root/data" --auth=trust --no-locale
+          sudo -n -u postgres "$pg_bin/pg_ctl" -D "$pg_root/data" -l "$pg_root/server.log" -o "-k $pg_root/socket -p 54334 -c listen_addresses=''" -w start
+          printf 'PGHOST=%s/socket\nPGPORT=54334\nPGUSER=postgres\nPGDATABASE=pattern_hop_control\n' "$pg_root" >> "$GITHUB_ENV"
+          "$pg_bin/createdb" -h "$pg_root/socket" -p 54334 -U postgres pattern_hop_control
+      - name: Pattern Hop run-control exact SQL acceptance
+        run: psql -X -v ON_ERROR_STOP=1 -d pattern_hop_control -f ops/grove/disposable-db/pattern-hop-run-control-acceptance.sql
+      - name: Stop Pattern Hop disposable PostgreSQL
+        if: always()
+        shell: bash
+        run: |
+          pg_root="/tmp/pattern-hop-control-${GITHUB_RUN_ID}"
           if test -f "$pg_root/data/postmaster.pid"; then
             sudo -n -u postgres /usr/lib/postgresql/16/bin/pg_ctl -D "$pg_root/data" -m immediate -w stop
           fi
