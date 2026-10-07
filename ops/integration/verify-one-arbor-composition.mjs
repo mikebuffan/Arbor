@@ -54,6 +54,7 @@ for (const name of [
   'review/one-arbor-composed-g01-g03-g04-g05-g06-20261007',
   'test/one-arbor-group5-continuity-time-20261007',
   'review/one-arbor-group01-canonical-ledger-20261007',
+  'review/one-arbor-group03-archive-ledger-20261007',
   'fix/one-arbor-group04-memory-scope-20261007',
   'fix/group4-memory-exclusion-shelf-20261007',
   'review/one-arbor-group06-self-model-20261007',
