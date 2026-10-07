@@ -44,6 +44,13 @@ describe("One Arbor host bridge", () => {
     expect(startup.promptBlock).toContain("Align Text and Voice");
     expect(startup.promptBlock).toContain("Verify live Voice continuity");
     expect(startup.promptBlock).toContain("There is still a disconnect.");
+    expect(startup.promptBlock).toContain("ARBOR DURABLE IDENTITY ANCHOR");
+    expect(startup.promptBlock).toContain("ARBOR SELF-MODEL — ACTIVE RUNTIME EVIDENCE");
+    expect(startup.promptBlock).toContain("dry, situational, callback-heavy");
+    expect(startup.promptBlock).toContain("do not mechanically copy intensity");
+    expect(startup.promptBlock.indexOf("ARBOR DURABLE IDENTITY ANCHOR")).toBeLessThan(
+      startup.promptBlock.indexOf("ONE ARBOR HOST CONTINUITY"),
+    );
   });
 
   it("keeps Annabelle as authority instead of a separate identity", () => {

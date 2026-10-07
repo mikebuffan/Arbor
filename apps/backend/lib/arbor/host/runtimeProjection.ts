@@ -127,6 +127,7 @@ export function projectRuntimeHost(
     startup:
       projectHostStartup(
         state,
+        { includeIdentityAnchor: false },
       ),
   };
 }

@@ -1,9 +1,10 @@
-name: One Arbor decision ancestry source acceptance
+name: One Arbor combined child source acceptance
 
 on:
   pull_request:
     branches:
       - integration/one-arbor-multilane-20261007
+      - investigation/one-arbor-opportunity-reconciliation-20261007
     types: [opened, synchronize, reopened]
     paths:
       - 'apps/backend/lib/arbor/runtime/decisionAncestry.ts'
@@ -11,25 +12,32 @@ on:
       - 'apps/backend/lib/arbor/runtime/decisionReviewAdapter.ts'
       - 'apps/backend/lib/arbor/runtime/__tests__/decisionReviewAdapter.test.ts'
       - 'apps/backend/lib/arbor/runtime/discoveryRadar.ts'
-      - 'apps/backend/lib/arbor/runtime/__tests__/discoveryRadar.test.ts lib/arbor/continuity/__tests__/longitudinalShorthand.integration.test.ts'
+      - 'apps/backend/lib/arbor/runtime/__tests__/discoveryRadar.test.ts'
       - 'apps/backend/lib/arbor/continuity/longitudinalPolicy.ts'
       - 'apps/backend/lib/arbor/agency/session.ts'
       - 'apps/backend/lib/arbor/continuity/__tests__/longitudinalShorthand.integration.test.ts'
       - '.github/workflows/one-arbor-decision-ancestry.yml'
+      - 'apps/backend/lib/arbor/host/**'
+      - 'apps/backend/lib/arbor/selfModel/**'
+      - 'apps/backend/scripts/import_chatgpt/resumableArchive.ts'
+      - 'apps/backend/lib/memory/__tests__/resumableArchive.test.ts'
+      - 'docs/integration/ARBOR_LM_V04_ARTIFACT_RECOVERY_RECEIPT_20261007.md'
+      - 'docs/integration/ONE_ARBOR_COMBINED_CHILD_ACCEPTANCE_20261007.md'
+      - 'ops/grove/source-only-ignore.mjs'
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: arbor-decision-ancestry-${{ github.event.pull_request.number || github.ref }}
+  group: arbor-children-integration-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
   bounded-source-acceptance:
     if: github.repository == 'mikebuffan/Arbor'
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    timeout-minutes: 35
     env:
       CI: 'true'
       AWS_EC2_METADATA_DISABLED: 'true'
@@ -46,9 +54,18 @@ jobs:
           corepack enable
           corepack prepare pnpm@10.30.3 --activate
           pnpm install --frozen-lockfile
-      - name: Read-only decision history tests
+      - name: Combined child source contracts (decision, archive STOP, self-model)
         working-directory: apps/backend
-        run: pnpm exec vitest run lib/arbor/runtime/__tests__/decisionAncestry.test.ts lib/arbor/runtime/__tests__/decisionReviewAdapter.test.ts lib/arbor/runtime/__tests__/discoveryRadar.test.ts
+        run: >-
+          pnpm exec vitest run
+          lib/arbor/runtime/__tests__/decisionAncestry.test.ts
+          lib/arbor/runtime/__tests__/decisionReviewAdapter.test.ts
+          lib/arbor/runtime/__tests__/discoveryRadar.test.ts
+          lib/memory/__tests__/resumableArchive.test.ts
+          lib/arbor/host/__tests__/oneArborHostBridge.test.ts
+          lib/arbor/selfModel/__tests__/personalityProjection.test.ts
+          lib/prompt/__tests__/buildPromptContext.freshness.test.ts
+          lib/arbor/behavior/__tests__/arkLayerReadContext.test.ts
       - name: Existing agency and continuity regression
         working-directory: apps/backend
         run: pnpm exec vitest run lib/arbor/agency/__tests__ lib/arbor/continuity/__tests__
@@ -64,6 +81,14 @@ jobs:
           pdftotext -v
       - name: Full backend regression
         run: pnpm --filter firefly-backend test
+      - name: Existing control backend
+        run: |
+          pnpm --filter arbor-control-backend test
+          pnpm --filter arbor-control-backend build
+      - name: Local model fixture isolation (no inference)
+        run: node ops/grove/local-lm/validate-correction-fixtures.mjs
+      - name: Backend production build (CI only)
+        run: pnpm --filter firefly-backend build
       - name: Standalone TypeScript
         working-directory: apps/backend
         run: pnpm exec tsc --noEmit
