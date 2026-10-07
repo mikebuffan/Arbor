@@ -106,6 +106,9 @@ jobs:
           lib/ark/__tests__/runner.test.ts
           lib/ark/__tests__/agencyExecutionDelegate.test.ts
           lib/ark/__tests__/acceptanceConnection.integration.test.ts
+          lib/ark/__tests__/cancelObjective.test.ts
+          lib/ark/__tests__/taskStatus.test.ts
+          lib/mcp/__tests__/taskPermissions.test.ts
       - name: Local LM source contracts
         run: node --test ops/grove/local-lm/local-lm-prep.test.mjs
       - name: Full backend regression
@@ -255,10 +258,31 @@ jobs:
       - name: Pattern Hop run-control exact SQL acceptance
         run: psql -X -v ON_ERROR_STOP=1 -d pattern_hop_control -f ops/grove/disposable-db/pattern-hop-run-control-acceptance.sql
       - name: Stop Pattern Hop disposable PostgreSQL
-        if: always()
         shell: bash
         run: |
           pg_root="/tmp/pattern-hop-control-${GITHUB_RUN_ID}"
+          sudo -n -u postgres /usr/lib/postgresql/16/bin/pg_ctl -D "$pg_root/data" -m immediate -w stop
+      - name: Start Grove grant-proposal disposable PostgreSQL
+        shell: bash
+        run: |
+          set -euo pipefail
+          pg_bin=/usr/lib/postgresql/16/bin
+          pg_root="/tmp/grove-readiness-${GITHUB_RUN_ID}"
+          mkdir -p "$pg_root/data" "$pg_root/socket"
+          sudo -n chown -R postgres:postgres "$pg_root"
+          sudo -n -u postgres "$pg_bin/initdb" -D "$pg_root/data" --auth=trust --no-locale
+          sudo -n -u postgres "$pg_bin/pg_ctl" -D "$pg_root/data" -l "$pg_root/server.log" -o "-k $pg_root/socket -p 54335 -c listen_addresses=''" -w start
+          printf 'PGHOST=%s/socket\nPGPORT=54335\nPGUSER=postgres\nPGDATABASE=grove_readiness\n' "$pg_root" >> "$GITHUB_ENV"
+          "$pg_bin/createdb" -h "$pg_root/socket" -p 54335 -U postgres grove_readiness
+      - name: Grove ARK grant proposals exact acceptance
+        run: |
+          psql -X -v ON_ERROR_STOP=1 -d grove_readiness -f ops/grove/disposable-db/ark-spine-grants-acceptance.sql
+          git diff --exit-code --             docs/migrations/PROPOSED_grove_runtime_capture_grants_20261006.sql             docs/migrations/PROPOSED_grove_runtime_goal_write_grants_20261006.sql             docs/migrations/PROPOSED_grove_ark_objective_run_grants_20261006.sql
+      - name: Stop Grove grant-proposal disposable PostgreSQL
+        if: always()
+        shell: bash
+        run: |
+          pg_root="/tmp/grove-readiness-${GITHUB_RUN_ID}"
           if test -f "$pg_root/data/postmaster.pid"; then
             sudo -n -u postgres /usr/lib/postgresql/16/bin/pg_ctl -D "$pg_root/data" -m immediate -w stop
           fi
