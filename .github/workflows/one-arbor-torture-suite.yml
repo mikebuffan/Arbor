@@ -99,6 +99,9 @@ jobs:
           lib/ark/__tests__/runner.test.ts
           lib/ark/__tests__/stopSemantics.test.ts
           lib/ark/__tests__/cancelObjective.test.ts
+          lib/ark/__tests__/taskStatus.test.ts
+          lib/mcp/__tests__/taskPermissions.test.ts
+          lib/mcp/__tests__/registerArkReadTools.test.ts
           lib/ark/__tests__/agencyDispatcher.test.ts
           lib/ark/__tests__/agencyToolExecutor.test.ts
           lib/ark/__tests__/agencyExecutionDelegate.test.ts
