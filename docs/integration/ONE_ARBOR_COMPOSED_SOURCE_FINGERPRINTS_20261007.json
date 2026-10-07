@@ -8,7 +8,8 @@
     "group04_pr345": "e725265533123b5ca2296bc94f16810594fea114",
     "group04_pr347": "bc1f1ebbdb2a23f11abf5dff5d4dbc2112528f4e",
     "group05_pr343": "e9077a66bac293437916c4ab11228752cfd2e6da",
-    "group06_pr348": "5f2fa29f0b71cc00cf13a112fcee8d921700c5d5"
+    "group06_pr348": "5f2fa29f0b71cc00cf13a112fcee8d921700c5d5",
+    "group12_pr355": "19f687085877a13a37158b6f9924cc66d1689c5e"
   },
   "expectedBlobSha": {
     "apps/backend/lib/arbor/runtime/timeCore.ts": "7fb33f4a8c6f201e96cc8c3f71b9a4ba584dabde",
@@ -27,7 +28,9 @@
     "apps/arbor-control-backend/src/selfModelObservations.ts": "f8f03960ee18eca6650b12b4e2ee07c3b8e34469",
     "apps/arbor-control-backend/src/selfModelClaims.ts": "9bf0d7bd2f50fe61338a8967cd1b0a0c7d3e1b52",
     "docs/integration/ONE_ARBOR_GROUP06_IDENTITY_EVIDENCE_GATE_20261007.md": "bd43f7b8a8c2e90208b6839d582d5f698fcc570c",
-    "ops/grove/source-only-ignore.mjs": "8ccd6f927d01e6d11b3dc786a1cf9e40e5095428"
+    "ops/grove/source-only-ignore.mjs": "48d27220b2c5e181ef5a75b63074fce7b75caaa4",
+    "apps/backend/lib/grove/privateTranscriptStore.ts": "5b326a18bd29275630200ebc3d4aa93abc906843",
+    "apps/backend/lib/grove/__tests__/privateTranscriptStore.test.ts": "db93918c138d167a415d6f6b45f0c3a615deee6a"
   },
-  "comment": "Git blob hashes for reviewed source snapshot; tests and hashes prove source content only, not owner approval, deployment, or behavior."
+  "comment": "Amended source-only composition snapshot including exact Group12 PR #355 replay defense and integration branch exclusion. Not owner signoff/deployment."
 }
