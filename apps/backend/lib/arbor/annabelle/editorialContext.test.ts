@@ -32,9 +32,16 @@ describe("Annabelle editorial context bounds", () => {
     expect(result.warnings[0]).toContain("exceeds the expanded safe bound");
   });
 
-  it("loads the full bounded window at the limit", async () => {
+  it("fails closed when 1000 records exceed the separate prompt character bound", async () => {
     const result = await loadEditorialContext({ supabase: client(1000), userId: "u", projectId: "p" });
+    expect(result.status).toBe("incomplete");
+    expect(result.records).toEqual([]);
+    expect(result.warnings[0]).toContain("safe size");
+  });
+
+  it("loads a bounded editorial window when both record and character limits permit", async () => {
+    const result = await loadEditorialContext({ supabase: client(300), userId: "u", projectId: "p" });
     expect(result.status).toBe("ready");
-    expect(result.records).toHaveLength(1000);
+    expect(result.records).toHaveLength(300);
   });
 });
