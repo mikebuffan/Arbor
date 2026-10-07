@@ -18,9 +18,11 @@ This lane is a child of the current One Arbor source head. It must not be merged
 - [x] Verify completion requires parent-goal evidence, not the latest successful action.
 - [x] Verify unrelated foreground work can suspend and later restore an unfinished objective.
 - [x] Verify STOP/cancel is terminal for unfinished objective/task state, including awaiting-verification objectives.
-- [x] Add the strongest safe continuity torture workflow to this lane.
+- [x] Add a scoped, idempotent durable ARK cancel RPC migration plus server adapter; keep it service-role-only and undeployed.
+- [x] Add disposable-Postgres STOP acceptance covering running-task cancellation, lease release, non-claimability, replay idempotency, foreign-owner rejection, and protected function grants.
+- [x] Add the strongest safe continuity torture workflow to this lane, including the full backend suite, standalone TypeScript, production build, focused restart suites, phone restart checks, and disposable database checks.
 - [ ] Live task submission -> worker execution -> durable result -> readback: BLOCKED by current read-only MCP grant/deployment.
-- [ ] Live durable general-ARK STOP command: BLOCKED because current source exposes terminal cancelled semantics but no owner-facing cancel RPC/tool in this lane.
+- [ ] Live owner-facing general-ARK STOP invocation: BLOCKED until the source-only migration/adapter is reconciled, deployed to Preview, and exposed behind an explicit protected owner authorization gate.
 
 ### Archive / continuity
 - [x] Preserve the existing normalized archive and completed batch-0 work. No archive ingestion is performed by this lane.
@@ -72,7 +74,7 @@ Readback remains available independently of submission.
 10. Run the lease race fixture with two workers. Require one valid lease owner; the loser must not complete or checkpoint the task.
 11. Run transient retry and exhausted retry fixtures. Require bounded backoff, stable task identity, and failed != completed.
 12. Exercise suspended-objective resume through the runtime host: interrupt with unrelated foreground work, complete it, and require restoration of the prior unresolved objective without another user trigger.
-13. For general ARK STOP, first add/review an owner-scoped durable cancel RPC/tool using the existing cancelled terminal state. Then test STOP while queued, running/checkpointed, and awaiting verification; all must prevent later claim/resume. This is not authorized in hosted state by this lane.
+13. For general ARK STOP, reconcile/apply the source-only `ark_cancel_objective` migration and adapter to Preview, then expose invocation only behind an explicit owner-scoped protected gate. Test STOP while queued, running/checkpointed, and awaiting verification; all must prevent later claim/resume and release any lease. Do not expose the service-role RPC directly to an authenticated client.
 14. For archive resume, load the existing v1 nextBatch=1 checkpoint, reverify batch 0 at destination, process exactly one next bounded batch, and require the saved checkpoint to upgrade to v2. Never restart at batch 0.
 15. Run one bounded semantic-backfill batch only if separately approved. Require owner/project/source/hash revalidation, no overwrites, and idempotent rerun.
 16. Verify a durable episode summary survives a fresh session and is recalled only as non-control context.
@@ -82,6 +84,6 @@ Readback remains available independently of submission.
 
 - Current connected ARK Preview client is read-only, so no new task can be submitted from this conversation.
 - One existing queue-bridge smoke task remains queued with zero attempts, so live worker liveness is not demonstrated now.
-- General ARK has cancelled terminal semantics but this lane does not expose a live owner-facing cancel mutation; that requires separate protected review.
+- General ARK STOP now has a source-only scoped/idempotent cancel migration and server adapter, but neither is applied nor exposed in hosted Preview; live owner-facing invocation remains a protected gate.
 - Hosted archive import, semantic provider calls, grants, migrations, deployment, inference activation, and production changes remain intentionally untouched.
 - Vercel deployment contexts have recently been rate-limited; source CI can still be evaluated independently.
