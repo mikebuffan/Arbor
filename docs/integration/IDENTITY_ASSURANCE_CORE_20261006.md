@@ -53,3 +53,46 @@ the actual Grove capability map before live integration.
 
 No raw face, fingerprint, keystroke, or voice biometric data is collected by
 this scaffold.
+
+
+## Safe phase-two source work added
+
+The isolated lane now also contains:
+
+- prompt provenance advisory assessment:
+  - naturally typed / pasted / forwarded / retrieved / generated elsewhere / unknown
+  - provenance can request review or step-up but can never grant authority
+  - an owner-authorship claim attached to non-native text is recorded as a mismatch signal, not proof of impersonation
+- opt-in longitudinal behavioral sequence assessment:
+  - before-command similarity
+  - command similarity
+  - post-command continuity
+  - freeform vs possibly scripted / highly constrained input
+  - can support recognition or record concern, never verify/elevate identity alone
+- non-diagnostic restricted-mode disclosure:
+  - sensitive requests can be unavailable without revealing which factor failed
+  - never exposes enrolled factors, thresholds, or whether duress caused restriction
+- source-only step-up challenge contracts:
+  - passkey
+  - hardware key
+  - device biometric attestation
+  - spontaneous-language challenge
+  - spontaneous language remains recognition-only; it cannot independently elevate authorization
+  - expired/malformed challenge contracts fail closed
+
+## Explicitly not built yet
+
+Still intentionally absent:
+
+- raw keystroke capture
+- raw face/fingerprint/voice storage
+- behavioral biometric training or scoring model
+- secret/duress phrase enrollment
+- live passkey verification
+- live OS biometric adapter
+- liveness/deepfake detection
+- Grove route enforcement
+- persistence of security audit receipts
+- automatic lockout or account recovery
+
+Those require separate privacy/security review and live integration design.
