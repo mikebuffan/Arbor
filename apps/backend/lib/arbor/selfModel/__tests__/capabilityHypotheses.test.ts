@@ -28,6 +28,28 @@ describe("capability hypothesis layer", () => {
     expect(identity?.overlaps).toContain("cognitive_access_language");
   });
 
+  it("matches current bench evidence without claiming live proof", () => {
+    const access = capabilityHypothesisByKey("cognitive_access_language");
+    const traceability = capabilityHypothesisByKey("operational_traceability");
+    const metacognition = capabilityHypothesisByKey("metacognitive_self_monitoring");
+    const modelIndependent = capabilityHypothesisByKey("model_independent_identity");
+
+    expect(access?.lifecycleState).toBe("bench_proven");
+    expect(access?.evidenceLevel).toBe("bench");
+    expect(traceability?.lifecycleState).toBe("bench_proven");
+    expect(traceability?.evidenceLevel).toBe("bench");
+
+    // Do not accidentally promote adjacent hypotheses merely because the
+    // combined system is green.
+    expect(metacognition?.lifecycleState).toBe("hypothesis");
+    expect(metacognition?.evidenceLevel).toBe("concept");
+    expect(modelIndependent?.lifecycleState).toBe("experiment");
+    expect(modelIndependent?.evidenceLevel).toBe("tests");
+
+    expect(access?.lifecycleState).not.toBe("live_proven");
+    expect(traceability?.lifecycleState).not.toBe("live_proven");
+  });
+
   it("does not claim disease discovery as proven", () => {
     const disease = capabilityHypothesisByKey("disease_mechanism_hypothesis_discovery");
 

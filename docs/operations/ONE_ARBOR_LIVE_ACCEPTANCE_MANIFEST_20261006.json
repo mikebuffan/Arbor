@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 1,
+  "title": "One Arbor live acceptance manifest",
+  "referenceCandidate": {
+    "pullRequest": 305,
+    "sha": "7ae62ef109f66d8300141739329764fdcbbcdffd",
+    "sourceBenchStatus": "green"
+  },
+  "currentBlocker": "vercel_build_rate_limit",
+  "gates": [
+    {
+      "key": "deployment_identity",
+      "authority": "protected",
+      "receipt": "deployed_sha_receipt"
+    },
+    {
+      "key": "fresh_session_continuity",
+      "authority": "read_or_bounded_write",
+      "receipt": "continuity_before_after"
+    },
+    {
+      "key": "correction_precedence",
+      "authority": "bounded_write",
+      "receipt": "correction_write_readback_supersession"
+    },
+    {
+      "key": "ark_bounded_submission",
+      "authority": "protected",
+      "receipt": "objective_task_worker_result_verification"
+    },
+    {
+      "key": "ark_checkpoint_resume",
+      "authority": "protected",
+      "receipt": "checkpoint_resume_completion"
+    },
+    {
+      "key": "ark_stop_fencing",
+      "authority": "protected",
+      "receipt": "stop_stale_worker_rejection"
+    },
+    {
+      "key": "duplicate_worker_prevention",
+      "authority": "protected",
+      "receipt": "single_claim_receipt"
+    },
+    {
+      "key": "grove_vertical_slice",
+      "authority": "protected",
+      "receipt": "text_grove_text_restart"
+    },
+    {
+      "key": "annabelle_persistence",
+      "authority": "protected_or_human",
+      "receipt": "workspace_checkpoint_fresh_readback"
+    },
+    {
+      "key": "archive_hydration",
+      "authority": "protected",
+      "receipt": "cursor_provenance_resume"
+    },
+    {
+      "key": "real_model_inference",
+      "authority": "protected_or_paid",
+      "receipt": "model_runtime_state_receipt"
+    },
+    {
+      "key": "model_swap_experiment",
+      "authority": "protected_or_paid",
+      "receipt": "blinded_multi_model_receipts"
+    },
+    {
+      "key": "physical_phone",
+      "authority": "human",
+      "receipt": "device_build_acceptance"
+    }
+  ]
+}
