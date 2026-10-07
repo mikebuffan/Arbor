@@ -111,6 +111,7 @@ create or replace function public.arbor_append_research_units(
 declare v_session public.arbor_research_sessions%rowtype;
         v_now timestamptz;
         v_requested integer;
+        v_pending integer;
         v_appended integer;
 begin
   if p_units is null or jsonb_typeof(p_units)<>'array' then
@@ -170,14 +171,13 @@ begin
     raise exception 'duplicate_research_append_unit';
   end if;
 
-  if (
-    select count(*)
+  select count(*) into v_pending
     from public.arbor_research_units
     where session_id=p_session_id
       and user_id=p_user_id
       and project_id=p_project_id
-      and status in ('queued','leased')
-  ) + v_requested > 256 then
+      and status in ('queued','leased');
+  if v_pending + v_requested > 256 then
     raise exception 'research_controller_pending_unit_limit';
   end if;
 
