@@ -20,6 +20,38 @@ describe("resumable agency engine", () => {
     expect(persisted.at(-1)?.status).toBe("complete");
   });
 
+
+  it("resumes a durable checkpoint after its last executed step instead of replaying from zero", async () => {
+    const assessedSteps: number[] = [];
+    let executed = 0;
+    const runtime: AgencyRuntime<{}> = {
+      loadSharedState: async () => ({}),
+      loadAgencyState: async () => ({
+        goal: "finish",
+        status: "checkpointed",
+        currentStep: 7,
+        unresolvedWork: ["verify resumed step"],
+        recurringWeaknesses: [],
+        strategyNotes: [],
+        blocker: null,
+      }),
+      assess: async ({agency}) => {
+        assessedSteps.push(agency.currentStep);
+        return {complete: agency.currentStep >= 8, unresolvedWork: []};
+      },
+      choose: async () => ({id:"should-not-replay",description:"should not replay",reversible:true}),
+      execute: async () => { executed += 1; return null; },
+      integrate: async ({shared}) => shared,
+      verify: async () => ({ok:true}),
+      selfAudit: async () => ({}),
+      persist: async () => {},
+    };
+    const out = await runAgency({goal:"finish",runtime,maxSteps:1});
+    expect(assessedSteps).toEqual([8]);
+    expect(executed).toBe(0);
+    expect(out.agency.status).toBe("complete");
+  });
+
   it("tries a safe alternate before yielding on a blocked action", async () => {
     let executed = "";
     const runtime: AgencyRuntime<{}> = {

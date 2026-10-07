@@ -4,6 +4,11 @@ import 'arbor_api_client.dart';
 import 'arbor_session.dart';
 import 'turn_id.dart';
 
+int chatContinuationRetryDelayMs(dynamic value) {
+  if (value is! int || value < 0) return 400;
+  return value.clamp(0, 2000).toInt();
+}
+
 class ChatApi {
   ChatApi(
     this._client, {
@@ -63,7 +68,26 @@ class ChatApi {
       body['conversationId'] = resolvedConversationId;
     }
 
-    final json = await _client.post('/api/chat', body: body);
+    var json = await _client.post('/api/chat', body: body);
+
+    // A 202-style continuation payload is an internal checkpoint, not an
+    // assistant turn and not a request for the user to say "go" again.
+    // Replay the exact same turn id so backend idempotency/session recovery
+    // resumes durable work instead of creating a second user action.
+    for (var continuation = 0;
+        json['status'] == 'continuing';
+        continuation += 1) {
+      if (continuation >= 119) {
+        throw Exception('Chat continuation retry budget exhausted');
+      }
+      final retryAfterMs = json['retryAfterMs'];
+      await Future<void>.delayed(
+        Duration(
+          milliseconds: chatContinuationRetryDelayMs(retryAfterMs),
+        ),
+      );
+      json = await _client.post('/api/chat', body: body);
+    }
 
     final response = ChatResponse.fromJson(
       json,

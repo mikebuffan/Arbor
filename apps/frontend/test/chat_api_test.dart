@@ -2,6 +2,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/api/chat_api.dart';
 
 void main() {
+  test('chat continuation retry delay is bounded', () {
+    expect(chatContinuationRetryDelayMs(null), 400);
+    expect(chatContinuationRetryDelayMs(-1), 400);
+    expect(chatContinuationRetryDelayMs(250), 250);
+    expect(chatContinuationRetryDelayMs(9000), 2000);
+  });
+
   test('ChatResponse accepts canonical backend response', () {
     final response = ChatResponse.fromJson(
       {

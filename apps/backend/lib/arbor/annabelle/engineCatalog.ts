@@ -5,7 +5,7 @@ export const ANNABELLE_ENGINE_STATUS_SCOPE =
 
 export const ANNABELLE_ENGINE_CATALOG: readonly AnnabelleEngineSpec[] = [
 {id:"voice-core",status:"implemented",purpose:"Gold exemplars, voice evidence, mature-Annabelle calibration and Not-Annabelle detection."},
-{id:"felt-life-atlas",status:"partial",purpose:"Embodied felt-state hypotheses and language expansion. Intentionally open-ended: executable and substantially expanded, but never treated as exhaustive human experience."},
+{id:"felt-life-atlas",status:"implemented",purpose:"Expanded embodied felt-state hypotheses with integrity checks. Intentionally non-exhaustive and always hypothesis-not-verdict."},
 {id:"embodied-perspective",status:"implemented",purpose:"Body/environment evidence before interpretation."},
 {id:"nervous-system",status:"implemented",purpose:"Stimulus to involuntary response to propagation to choice without assigning meaning."},
 {id:"raw-gravity",status:"implemented",purpose:"Reject writer-performance and emotional inflation; retain character/circumstance truth."},

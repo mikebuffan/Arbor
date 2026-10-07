@@ -108,8 +108,15 @@ export async function runAgency<SharedState>(input: {
 }): Promise<{ agency: AgencyState; shared: SharedState }> {
   let shared = await input.runtime.loadSharedState();
   const restored = await input.runtime.loadAgencyState?.(input.goal);
-  let agency: AgencyState = restored?.goal === input.goal
-    ? { ...restored, status: "active", blocker: null }
+  const restoring = restored?.goal === input.goal;
+  const resumeStep = restoring
+    ? restored!.status === "checkpointed"
+      ? restored!.currentStep + 1
+      : restored!.currentStep
+    : 0;
+
+  let agency: AgencyState = restoring
+    ? { ...restored!, status: "active", blocker: null }
     : {
         goal: input.goal,
         status: "active",
@@ -125,12 +132,12 @@ export async function runAgency<SharedState>(input: {
   const maxSteps = input.maxSteps ?? 64;
 
   for (let i = 0; i < maxSteps; i += 1) {
-    // Advance the durable step before assessment so completion checks see the
-    // work already performed on the previous iteration. Previously assessment
-    // saw the stale step and could checkpoint a goal that was actually done.
+    // Never rewind a durable checkpoint to step zero. A checkpoint is written
+    // after its last executed step, so resume from the following step; other
+    // durable states keep their recorded step instead of replaying from zero.
     agency = {
       ...agency,
-      currentStep: i,
+      currentStep: resumeStep + i,
     };
 
     const assessment = await input.runtime.assess({ agency, shared });
