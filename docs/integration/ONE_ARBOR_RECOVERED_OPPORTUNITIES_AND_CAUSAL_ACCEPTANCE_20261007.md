@@ -44,7 +44,7 @@ new worker authority, model spend, automatic activation, or research-task mutati
    Keep proposals, choices, rejected alternatives, explicit supersessions,
    corrections, and reported consequences. Missing links and competing unsuperseded
    choices must be visible. Exact retry must not count twice. An outcome ref is
-   *not* self-verifying. Sixteen isolated synthetic cases introduced with this appendix.
+   *not* self-verifying. Seventeen isolated synthetic cases introduced with this appendix.
    **Not yet host-wired or deployed.**
 2. **Failure Radar.** Reuse existing correction/prediction-error/roundabout signals.
    Initial read-only warning only: repeated correction, unreferenced outcome, missing
