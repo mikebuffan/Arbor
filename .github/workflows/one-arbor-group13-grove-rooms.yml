@@ -45,7 +45,6 @@ jobs:
           lib/environment/professional_workspace_view.dart
           test/grove_workshop_preview_test.dart
           test/grove_room_inventory_test.dart
-          test/grove_room_inventory_panel_test.dart
       - name: Workshop, room scoping, professional workspace and navigation tests
         run: >-
           flutter test
