@@ -208,6 +208,9 @@ function extractAutomaticProtectedLiterals(raw: string): string[] {
     /#\d+\b/g,
     /\b[A-Z]{1,8}[-_]?[A-Z0-9]*\d[A-Z0-9_-]*\b/g,
     /\b[a-f0-9]{7,64}\b/gi,
+    /\b(?:feature|fix|chore|docs|release|integration|develop)\/[A-Za-z0-9._/-]+\b/g,
+    /\b[A-Za-z0-9_.-]+\.(?:ts|tsx|js|jsx|json|md|txt|pdf|docx|xlsx|pptx|yaml|yml|dart|py|sql|sh|toml|lock)\b/g,
+    /`[^`\n]+`/g,
     /\b\d+(?:\.\d+)?\b/g,
   ];
 
