@@ -509,6 +509,22 @@ describe("Grove-only private conversation durability (fixtures, migration OFF)",
     expect(transcriptRowToUnverifiedReply(first, scope).workReceipts).toEqual([]);
   });
 
+  it("denies repeated request identity in model history rather than doubling old context", () => {
+    const old = row({requestId:firstId,userText:"Earlier private input",
+      assistantText:"Earlier unverified reply"});
+    expect(() => selectPrivateModelHistory({
+      completedNewestFirst: [old, {...old}],
+      scope, userText:"New message",
+    })).toThrow("grove_transcript_history_duplicate_request");
+  });
+
+  it("denies malformed missing history rather than assuming empty stored context", () => {
+    expect(() => selectPrivateModelHistory({
+      completedNewestFirst:null as never,
+      scope, userText:"Continue",
+    })).toThrow("grove_transcript_history_limit");
+  });
+
   it("honors strict LM receiver 13-message and 12,000-char limits", () => {
     const recent = Array.from({length: 6}, (_, i) => row({
       requestId: [
@@ -680,6 +696,27 @@ describe("Grove fenced DB completion contract (synthetic mock only)", () => {
 });
 
 describe("Supabase Grove service store scope (no real database)", () => {
+  it("rejects a provider returning a different request ID despite scoped query", async () => {
+    const wrong = row({
+      requestId:secondId,userText:"Same text",
+      assistantText:"A reply belonging to another request",
+    });
+    const chain:any = {
+      select:vi.fn(),eq:vi.fn(),maybeSingle:vi.fn(async()=>({
+        data:wrong,error:null,
+      })),
+    };
+    chain.select.mockReturnValue(chain);
+    chain.eq.mockReturnValue(chain);
+    const store = createSupabaseGrovePrivateTranscriptStore({
+      from:vi.fn(()=>chain),
+    } as never);
+    await expect(store.getCompleted({...scope,requestId:firstId}))
+      .rejects.toMatchObject({
+        status:409,code:"grove_transcript_request_conflict",
+      });
+  });
+
   it("includes verified owner/project/conversation in every read and insert", async () => {
     const filters: Array<[string, unknown]> = [];
     const persisted = row({
