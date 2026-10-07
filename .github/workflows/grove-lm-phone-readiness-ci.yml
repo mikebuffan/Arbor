@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - integration/one-arbor-current-20261006
+      - integration/grove-lm-phone-readiness-20261006
     types:
       - opened
       - synchronize
