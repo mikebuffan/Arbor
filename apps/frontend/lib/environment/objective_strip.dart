@@ -15,6 +15,8 @@ class ObjectiveStrip extends StatelessWidget {
         EnvironmentRunState.checkpointed => 'CHECKPOINTED',
         EnvironmentRunState.blocked => 'BLOCKED',
         EnvironmentRunState.complete => 'COMPLETE',
+        EnvironmentRunState.failed => 'FAILED',
+        EnvironmentRunState.cancelled => 'CANCELLED',
         EnvironmentRunState.degraded => 'DEGRADED',
       };
 

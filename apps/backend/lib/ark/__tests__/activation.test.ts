@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { isArkChatExecutionEnabled, isArkLiveExecutionUnlocked } from "../activation";
+import {
+  isArkChatExecutionEnabled,
+  isArkLiveExecutionUnlocked,
+  isArkObjectiveControlEnabled,
+} from "../activation";
 
 describe("ARK chat activation isolation", () => {
   it("keeps normal chat execution unchanged when all switches are absent", () => {
@@ -43,6 +47,13 @@ describe("ARK chat activation isolation", () => {
       ARBOR_ENABLE_ARK_EXECUTION: "TRUE",
       ARBOR_ENABLE_ARK_CHAT_EXECUTION: "true",
     })).toBe(false);
+  });
+
+  it("keeps STOP/resume controls behind their own exact-true switch", () => {
+    expect(isArkObjectiveControlEnabled(undefined)).toBe(false);
+    expect(isArkObjectiveControlEnabled("false")).toBe(false);
+    expect(isArkObjectiveControlEnabled("TRUE")).toBe(false);
+    expect(isArkObjectiveControlEnabled("true")).toBe(true);
   });
 
   it("never treats missing or legacy release flags as approval", () => {

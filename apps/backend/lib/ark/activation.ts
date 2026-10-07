@@ -22,3 +22,12 @@ export function isArkChatExecutionEnabled(flags: {
     && flags.ARBOR_ENABLE_ARK_EXECUTION === "true"
     && flags.ARBOR_ENABLE_ARK_CHAT_EXECUTION === "true";
 }
+
+
+/**
+ * Owner STOP/resume controls are an independent mutation surface. Shipping the
+ * route or enabling background/chat execution must not implicitly expose it.
+ */
+export function isArkObjectiveControlEnabled(value?: string): boolean {
+  return value === "true";
+}

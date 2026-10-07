@@ -9,8 +9,19 @@ describe("ARK state-machine invariants", () => {
   it("rejects terminal-state resurrection", () => {
     expect(() => assertArkObjectiveTransition("completed", "running"))
       .toThrow("ark_invalid_objective_transition:completed:running");
+    expect(() => assertArkObjectiveTransition("cancelled", "queued"))
+      .toThrow("ark_invalid_objective_transition:cancelled:queued");
     expect(() => assertArkTaskTransition("completed", "queued"))
       .toThrow("ark_invalid_task_transition:completed:queued");
+    expect(() => assertArkTaskTransition("cancelled", "running"))
+      .toThrow("ark_invalid_task_transition:cancelled:running");
+  });
+
+  it("allows only bounded blocked work to re-enter the queue", () => {
+    expect(() => assertArkObjectiveTransition("blocked", "queued")).not.toThrow();
+    expect(() => assertArkTaskTransition("blocked", "queued")).not.toThrow();
+    expect(() => assertArkObjectiveTransition("failed", "running"))
+      .toThrow("ark_invalid_objective_transition:failed:running");
   });
 
   it("accepts a dependency DAG and rejects missing, self, and cyclic edges", () => {

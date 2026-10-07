@@ -4,12 +4,17 @@ import { z } from "zod";
 import { assertProjectOwnedByUser } from "@/lib/auth/ownership";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { enqueueArkAgencyToolPlan } from "@/lib/ark/agencyBridge";
+import { SupabaseArkStore } from "@/lib/ark/supabaseStore";
 import { promptDataBlock } from "@/lib/arbor/promptData";
 import { arkMcpUserContext } from "./context";
-import { assertArkReadTaskSubmission, isArkMcpSubmissionEnabled } from "./taskPermissions";
+import {
+  assertArkReadTaskSubmission,
+  assertArkObjectiveControl,
+  isArkMcpSubmissionEnabled,
+  isArkMcpObjectiveControlEnabled,
+} from "./taskPermissions";
 import {ArchiveReadInput} from "@/lib/memory/archiveReader";
-import { registerArkPatternHopTool } from "./registerArkPatternHopTool";
-import { arkTaskReadbackFlags } from "@/lib/ark/taskStatus";
+import { registerArkPatternHopTool } from "./registerArkPatternHopTool";\nimport { arkTaskReadbackFlags } from "@/lib/ark/taskStatus";
 
 export const ArkReadTaskRequest = z.object({
   projectId: z.string().uuid(),
@@ -22,6 +27,23 @@ export const ArkReadTaskRequest = z.object({
 
 function result(value: Record<string, unknown>) {
   return {content: [{type: "text" as const, text: promptDataBlock("ARK TASK RECEIPT", value)}], structuredContent: value};
+}
+
+function objectiveControlError(error: unknown): Error {
+  const message = error instanceof Error
+    ? error.message
+    : typeof error === "object" && error !== null && "message" in error
+      ? String((error as {message?: unknown}).message ?? "")
+      : "";
+  for (const code of [
+    "ark_objective_not_found",
+    "ark_completed_objective_cannot_cancel",
+    "ark_objective_not_blocked",
+    "ark_resume_requires_blocked_task",
+  ]) {
+    if (message.includes(code)) return new Error(code);
+  }
+  return new Error("ark_objective_control_failed");
 }
 
 export function registerArkTaskTools(server: McpServer): void {
@@ -44,8 +66,7 @@ export function registerArkTaskTools(server: McpServer): void {
     if (error) throw error;
     if (!data || data.id !== input.taskId || data.user_id !== userId || data.project_id !== input.projectId)
       throw new Error("ark_task_not_found");
-    const encoded = JSON.stringify(data.result ?? null);
-    const flags=arkTaskReadbackFlags(String(data.status));
+    const encoded = JSON.stringify(data.result ?? null);\n    const flags=arkTaskReadbackFlags(String(data.status));
     return result({projectId: input.projectId, taskId: data.id, objectiveId: data.objective_id,
       status: data.status, resultJson: encoded.slice(0, 20000), resultTruncated: encoded.length > 20000,
       lastError: typeof data.last_error === "string" ? data.last_error.slice(0, 2000) : null,
@@ -53,6 +74,79 @@ export function registerArkTaskTools(server: McpServer): void {
   });
 
   registerArkPatternHopTool(server);
+
+  if (isArkMcpObjectiveControlEnabled()) {
+    server.registerTool("control_ark_objective", {
+      title: "Control an Owned ARK Objective",
+      description: "Explicitly STOP or resume one already-owned ARK objective. This is a separately granted, project-scoped mutation surface. STOP cancels unfinished durable work and fences stale leases; resume applies only to blocked work. It does not submit new work, enable a worker, execute a task, or grant broader ARK authority.",
+      inputSchema: z.object({
+        projectId: z.string().uuid(),
+        objectiveId: z.string().uuid(),
+        action: z.enum(["cancel", "resume"]),
+      }).strict(),
+      outputSchema: z.object({
+        projectId: z.string().uuid(),
+        objectiveId: z.string().uuid(),
+        action: z.enum(["cancel", "resume"]),
+        status: z.string(),
+        controlled: z.literal(true),
+      }),
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: false,
+        openWorldHint: false,
+      },
+    }, async (raw, ctx) => {
+      const input = z.object({
+        projectId: z.string().uuid(),
+        objectiveId: z.string().uuid(),
+        action: z.enum(["cancel", "resume"]),
+      }).strict().parse(raw);
+      assertArkObjectiveControl(ctx, input.projectId);
+      const {userId, supabase} = arkMcpUserContext(ctx);
+      await assertProjectOwnedByUser(supabase, userId, input.projectId);
+
+      // Verify exact objective ownership through the validated user client
+      // before acquiring a service-role client for the control RPC.
+      const {data: owned, error: readError} = await supabase
+        .from("ark_objectives")
+        .select("id,user_id,project_id,status")
+        .eq("id", input.objectiveId)
+        .eq("user_id", userId)
+        .eq("project_id", input.projectId)
+        .maybeSingle();
+      if (readError) throw readError;
+      if (!owned || owned.id !== input.objectiveId ||
+          owned.user_id !== userId || owned.project_id !== input.projectId) {
+        throw new Error("ark_objective_not_found");
+      }
+
+      const store = new SupabaseArkStore(supabaseAdmin());
+      const now = new Date().toISOString();
+      let objective;
+      try {
+        objective = input.action === "cancel"
+          ? await store.cancelObjective({objectiveId: input.objectiveId, now})
+          : await store.resumeBlockedObjective({objectiveId: input.objectiveId, now});
+      } catch (error) {
+        throw objectiveControlError(error);
+      }
+      if (objective.id !== input.objectiveId ||
+          objective.userId !== userId ||
+          objective.projectId !== input.projectId) {
+        throw new Error("ark_objective_control_scope_mismatch");
+      }
+      return result({
+        projectId: input.projectId,
+        objectiveId: objective.id,
+        action: input.action,
+        status: objective.status,
+        controlled: true,
+      });
+    });
+  }
+
   if (!isArkMcpSubmissionEnabled()) return;
   server.registerTool("submit_ark_read_task", {
     title: "Submit a Bounded ARK Read Task",

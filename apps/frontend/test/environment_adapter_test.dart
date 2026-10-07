@@ -194,6 +194,47 @@ void main() {
     expect(snapshot.objective.hasTruthfulState, isTrue);
   });
 
+  test('ARK adapter keeps failed and cancelled objective states distinct', () async {
+    Map<String, dynamic> payload(String status) => {
+          'available': true,
+          'objectives': [
+            {
+              'id': 'objective-1',
+              'goal': 'Terminal objective',
+              'status': status,
+            },
+          ],
+          'tasks': [
+            {
+              'objective_id': 'objective-1',
+              'task_key': 'execute',
+              'description': 'Terminal task',
+              'status': status,
+              if (status == 'failed') 'last_error': 'bounded failure',
+            },
+          ],
+          'checkpoints': [],
+          'events': [],
+        };
+
+    final failed = await ArkEnvironmentAdapter(
+      reader: _FakeReader(payload('failed')),
+      projectId: 'project-1',
+    ).snapshot();
+    final cancelled = await ArkEnvironmentAdapter(
+      reader: _FakeReader(payload('cancelled')),
+      projectId: 'project-1',
+    ).snapshot();
+
+    expect(failed.objective.state, EnvironmentRunState.failed);
+    expect(cancelled.objective.state, EnvironmentRunState.cancelled);
+    expect(failed.objective.state, isNot(cancelled.objective.state));
+    expect(failed.workItems.single.state, WorkItemState.failed);
+    expect(cancelled.workItems.single.state, WorkItemState.cancelled);
+    expect(failed.objective.nextAction, isNull);
+    expect(cancelled.objective.nextAction, isNull);
+  });
+
   test('canary lifecycle stays truthful from queue through verified completion', () async {
     Map<String, dynamic> payload(
       String objectiveStatus,
