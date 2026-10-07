@@ -63,6 +63,23 @@ describe("One Arbor shorthand and checkpoint return", () => {
     expect(splitAgencyWork(switched.unresolvedWork).suspended).toHaveLength(0);
   });
 
+  it("does not invert negated STOP, drop or switch instructions", () => {
+    for (const message of [
+      "Don't stop this; keep going",
+      "Do not drop that",
+      "Never switch goals",
+      "Don't forget that",
+      "Do not change the goal",
+    ]) {
+      expect(explicitlySupersedes(message)).toBe(false);
+      expect(buildAgencySessionState({ userText: message, prior: prior() }).goal)
+        .toBe(prior().goal);
+    }
+    expect(explicitlySupersedes(
+      "Don't stop this. Instead, switch to the other task",
+    )).toBe(true);
+  });
+
   it("keeps a protected blocker on shorthand resume, absent trusted clearance", () => {
     const blocked = prior("blocked");
     const next = buildAgencySessionState({
