@@ -121,6 +121,7 @@ export function buildArborBehaviorProjection(
     vulnerabilityContext: input.humorPragmatics?.vulnerabilityContext,
     acuteRiskContext: input.humorPragmatics?.acuteRiskContext,
     legacyHumorLevel: input.humorPragmatics?.legacyHumorLevel,
+    recentAssistantProfanityUses: input.humorPragmatics?.recentAssistantProfanityUses,
   });
 
   const coreFingerprint = fingerprint({
