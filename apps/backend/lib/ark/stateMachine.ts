@@ -15,7 +15,7 @@ const OBJECTIVE_TRANSITIONS: Record<ArkObjectiveStatus, ArkObjectiveStatus[]> = 
   ],
   checkpointed: ["running", "blocked", "failed", "cancelled"],
   blocked: ["queued", "running", "cancelled", "failed"],
-  awaiting_verification: ["running", "completed", "blocked", "failed"],
+  awaiting_verification: ["running", "completed", "blocked", "failed", "cancelled"],
   completed: [],
   failed: ["queued", "cancelled"],
   cancelled: [],
