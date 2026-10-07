@@ -226,7 +226,7 @@ class _GroveMemoryShelfViewState extends State<GroveMemoryShelfView> {
             ),
           if (snapshot != null) ...[
             Text(
-              'Project: ' + snapshot.projectId,
+              'Project: ${snapshot.projectId}',
               key: const ValueKey('grove-memory-project'),
               style: const TextStyle(
                 color: ArborEnvironmentTokens.textMuted,
@@ -251,7 +251,7 @@ class _GroveMemoryShelfViewState extends State<GroveMemoryShelfView> {
               ),
             for (final memory in visible)
               Padding(
-                key: ValueKey('grove-memory-' + memory.id),
+                key: ValueKey('grove-memory-${memory.id}'),
                 padding: const EdgeInsets.symmetric(vertical: 9),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
