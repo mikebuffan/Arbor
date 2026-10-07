@@ -33,7 +33,7 @@ jobs:
       - name: Verify source-only deployment fence
         run: |
           set -euo pipefail
-          VERCEL_GIT_COMMIT_REF=review/one-arbor-composed-g01-g03-g04-g05-g06-20261007 node ops/grove/source-only-ignore.mjs
+          VERCEL_GIT_COMMIT_REF=review/one-arbor-group12-integration-20261007 node ops/grove/source-only-ignore.mjs
       - name: Verify reviewed source fingerprints and owner branch exclusions
         run: node ops/integration/verify-one-arbor-composition.mjs
       - name: Restore locked dependencies
@@ -86,6 +86,44 @@ jobs:
         run: pnpm exec tsc --noEmit
       - name: Backend production build (CI only, never deploy)
         run: pnpm --filter firefly-backend build
+
+  grove-native-transcript-claims:
+    if: github.repository == 'mikebuffan/Arbor'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      CI: 'true'
+      AWS_EC2_METADATA_DISABLED: 'true'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Start disposable socket-only PostgreSQL 16
+        shell: bash
+        run: |
+          set -euo pipefail
+          pg_bin=/usr/lib/postgresql/16/bin
+          test -x "$pg_bin/initdb"
+          pg_root="/tmp/grove-native-${GITHUB_RUN_ID}"
+          mkdir -p "$pg_root/data" "$pg_root/socket"
+          sudo -n chown -R postgres:postgres "$pg_root"
+          sudo -n -u postgres "$pg_bin/initdb" -D "$pg_root/data" --auth=trust --no-locale
+          sudo -n -u postgres "$pg_bin/pg_ctl" -D "$pg_root/data" -l "$pg_root/server.log" -o "-k $pg_root/socket -p 54329 -c listen_addresses=''" -w start
+          printf 'PGHOST=%s/socket\nPGPORT=54329\nPGUSER=postgres\nPGDATABASE=grove_disposable\n' "$pg_root" >> "$GITHUB_ENV"
+          echo "$pg_bin" >> "$GITHUB_PATH"
+          "$pg_bin/createdb" -h "$pg_root/socket" -p 54329 -U postgres grove_disposable
+      - name: Test exact proposed private transcript and claim migrations offline
+        run: psql -X -v ON_ERROR_STOP=1 -f ops/grove/disposable-db/00-private-transcript-acceptance.sql
+      - name: Twelve independent claim, lease reclaim and revocation transactions
+        run: python3 ops/grove/disposable-db/native-claims.py --disposable-local
+      - name: Stop disposable local PostgreSQL
+        if: always()
+        shell: bash
+        run: |
+          pg_root="/tmp/grove-native-${GITHUB_RUN_ID}"
+          if test -f "$pg_root/data/postmaster.pid"; then
+            sudo -n -u postgres /usr/lib/postgresql/16/bin/pg_ctl -D "$pg_root/data" -m immediate -w stop
+          fi
 
   grove-memory-negative-tests:
     if: github.repository == 'mikebuffan/Arbor'
