@@ -81,3 +81,13 @@ These are fully invented cases/expected evaluations; there are NO real personal 
 Prior green exact-head runs are **historical**, not proof of this new head: #331 37680094617; #335 37689008647; #339 37692951438; #340 37694327754.
 The new Group 06 workflow `.github/workflows/one-arbor-group6-self-model.yml` covers control source banks, observation/claim regressions, TypeScript and host prompt invariants. Its conclusion must be read back for the final candidate SHA. If CI is absent/failing, mark **NOT RUN/FAILED**, not green.
 This branch contains only Group 06 source/tests/docs plus exact-branch Vercel auto-build exclusion. **No main merge, Preview/production deploy, actor grant, paid inference, real user-data training, group 05/07 shared-file changes or September 28 task mutation.**
+
+## Verified first acceptance run — exact source head
+
+At candidate commit `c6cc1611a3e8fdc88be3fc34815afc72b6edc7e4`, the following **real GitHub Actions** completed SUCCESS:
+- [One Arbor Group 06 self-model evidence boundaries — run 37702622332](https://github.com/mikebuffan/Arbor/actions/runs/37702622332): targeted **31 tests passed in 7 files**, backend prompt/host **16 tests passed in 3 files**, control-backend TypeScript build and backend standalone TypeScript both passed. Job `113069428756`.
+- [Arbor Control Backend — run 37702622114](https://github.com/mikebuffan/Arbor/actions/runs/37702622114): existing wider control suite **146 tests passed in 34 files**, build passed. Job `113069427926`.
+
+These are source/test receipts only, not model-generated outputs. Documentation changes after this head require a new exact-head CI check; do not treat the above SHA as the latest branch when a successor commit exists.
+
+Vercel GitHub statuses on this head reported account build-rate-limit failures for multiple projects. Those are external deployment checks, not source-test failure and **not** authorization to deploy. Review branch skip-list source is present; no new production release was attempted.
