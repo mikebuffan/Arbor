@@ -9,20 +9,28 @@ independent Library source inspection and new synthetic source tests.
 - Source base: open draft PR #340, SHA `595375d525cf561172449726ed0c086ab4ece7db`. This is **not deployed**.
 - The existing Annabelle owner and source engine remain authoritative; reused
   `apps/backend/lib/arbor/annabelle/*` and `subsystem/annabelleWorkspace.ts`. No second reader/engine.
-- Current authenticated Annabelle connector scoped to owned Preview project
-  `9366c350-5d82-49f5-b9ef-862af750e3a0` returned `available=true`,
-  two manuscript descriptors, **zero returned chapter rows, zero editorial records,
-  zero checkpoints**, and `truncated=false`. No write or memory promotion occurred.
+- Current authenticated Annabelle connector scoped to the owned Preview project
+  `9366c350-5d82-49f5-b9ef-862af750e3a0` returned the two manuscript descriptors
+  when queried without `manuscriptId`. This is a **descriptor-only query**, not
+  proof of missing chapters. Re-querying with canonical manuscript ID returned
+  **60 chapter rows numbered 1–60, 100 editorial records, five editorial checkpoints,
+  and `truncated=false`**. A separate read-only Preview SQL count matched all
+  four counts for that same project. No write or memory promotion occurred.
 - Its whole-book canonical manuscript descriptor is `3e6f799e-1702-4282-b134-95e59aed2bb6`,
   labeled `Ever After Finished Novel(2).zip / ever-after-STANDARD.pdf`, 60 chapters,
   metadata `proseStored=false`; Chapter One original remains a separate reference.
-- Older repository documents `ANNABELLE_CANONICAL_SOURCE_RECONCILIATION_20261006.md`
-  and `ANNABELLE_FINISH_CHECKLIST_20261006.md` say *source-bound readComplete*
-  records for Chapters 2–60 existed in their earlier read-only state, despite a stale
-  checkpoint `nextChapter=2`. The current connected Preview returned no such records.
-  **Discrepancy unresolved; do not erase old receipts, reread chapters 2–60
-  automatically, or claim current hosted complete/read/unread from this mismatch.**
-  Compare same backend/project/manifest, record IDs, exact source SHA and dates first.
+- Historical `ANNABELLE_CANONICAL_SOURCE_RECONCILIATION_20261006.md` and
+  `ANNABELLE_FINISH_CHECKLIST_20261006.md` correctly describe prior source-bound
+  completion records through Chapter 60. Current owned Preview readback confirms:
+  **92 records have a `readComplete=true` flag**, but 32 are explicitly
+  `epistemic_status=rejected` and do **not** count as valid completion evidence.
+  The other **60 observed, non-rejected records** are source-hash and locator
+  matched to the corresponding current chapter row and collectively cover **all
+  Chapters 1–60, with none missing**. The older continuous reading checkpoint
+  remains `status=in_progress` / `nextChapter=2` and is stale relative to
+  those newer records. **Do not erase the checkpoint or reread chapters 2–60
+  because of it.** Completion receipts prove documented chapter consumption,
+  not the quality of a model's generated response or completion of the editing pass.
 
 ## 2. Independent source inspection — manuscript versus working Chapter Two
 
@@ -79,8 +87,8 @@ the live project.
 
 | ID | Bounded state at this snapshot | Genuine next acceptance |
 | --- | --- | --- |
-| G01 Ever After inventory | Source and 60-chapter canonical descriptor found; independent PDF edition and source pages checked. **PARTIAL** | Full exact chapter inventory and cross-edition hash/locator reconciliation; avoid treating one descriptor as full chapter record set |
-| G02 Whole-book receipts | Historical 60-chapter read-complete claim conflicts with zero chapter/record rows in current owned connector response. **RECONCILIATION HOLD** | Same-owner/same-deployment authoritative receipt audit before claiming completed or ordering any reread |
+| G01 Ever After inventory | **VERIFIED (bounded)**: owned canonical manuscript plus 60 scoped chapter rows numbered 1–60; physical source PDF and Chapter 2/3 page locators checked. | Full manuscript-edition equivalence and chapter-level prose analysis remain separate from inventory |
+| G02 Whole-book receipts | **READ-RECEIPTS RECONCILED**: 60 distinct chapters have non-rejected, source-hash/locator-aligned `readComplete=true` evidence; 32 rejected duplicates excluded; continuous cursor remains stale. | Do not infer whole-book editing/quality, reread merely from old cursor, or promote Gold based only on a read flag |
 | G03 Workspace save/restore | Hosted disposable SQL transaction verified (Library receipt); checkpoint readback code hardened. **SOURCE REPAIR** | Exact-head CI, then approved deployed app-path save → readback → fresh-session restore |
 | G04 Chapter 2/3 acceptance | Chapter Two October 2 compressed working candidate and Chapter Three time-reset issue verified. **AUTHOR REVIEW REQUIRED** | Author approval for surgery, then comparison/lock; no current Gold or Chapter Three advancement |
 | G05 Novel/hardcover | Existing hardcover preference and publishing research is **planning only**. **GATED** | Author-approved final manuscript, format/trim/ISBN/cover/production decisions and explicit release authorization |
