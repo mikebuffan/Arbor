@@ -1,4 +1,4 @@
-enum EnvironmentRunState { unavailable, idle, working, checkpointed, blocked, complete, degraded }
+enum EnvironmentRunState { unavailable, idle, working, checkpointed, blocked, complete, failed, cancelled, degraded }
 
 class EnvironmentObjectiveView {
   const EnvironmentObjectiveView({
@@ -37,6 +37,8 @@ class EnvironmentObjectiveView {
         return completionReceipt != null && completionReceipt!.trim().isNotEmpty;
       case EnvironmentRunState.unavailable:
       case EnvironmentRunState.idle:
+      case EnvironmentRunState.failed:
+      case EnvironmentRunState.cancelled:
       case EnvironmentRunState.degraded:
         return true;
     }
