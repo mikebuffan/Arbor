@@ -60,7 +60,12 @@ export function registerArkReadTools(server: McpServer): void {
         userId: z.string().uuid(),
         email: z.string().email().nullable(),
         subsystem: z.literal("ARK"),
-        access: z.enum(["read-only", "read-and-submit-read-tasks", "read-and-submit-behavior-tests"]),
+        access: z.enum([
+          "read-only",
+          "read-and-control-objectives",
+          "read-and-submit-read-tasks",
+          "read-and-submit-behavior-tests",
+        ]),
         canSubmitReadTasks: z.boolean(),
         canSubmitBehaviorTests: z.boolean(),
         canControlObjectives: z.boolean(),
@@ -82,7 +87,9 @@ export function registerArkReadTools(server: McpServer): void {
         && auth.extra.arkObjectiveControlProjectIds.length > 0;
       return result({ userId, email, subsystem: "ARK" as const,
         access: canSubmitBehaviorTests ? "read-and-submit-behavior-tests" as const
-          : canSubmit ? "read-and-submit-read-tasks" as const : "read-only" as const,
+          : canSubmit ? "read-and-submit-read-tasks" as const
+          : canControlObjectives ? "read-and-control-objectives" as const
+          : "read-only" as const,
         canSubmitReadTasks: Boolean(canSubmit),
         canSubmitBehaviorTests: Boolean(canSubmitBehaviorTests),
         canControlObjectives: Boolean(canControlObjectives),
