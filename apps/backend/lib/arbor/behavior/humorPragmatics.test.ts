@@ -165,6 +165,24 @@ describe("Arbor humor pragmatics", () => {
     expect(encourage.humorRequired).toBe(false);
   });
 
+  it("returns naturally after a temporary humor correction is no longer active", () => {
+    const suppressed = assessHumorPragmatics({
+      latestUserText: "lol okay 🤣",
+      mode: "text",
+      activeCorrections: ["Don't make everything a joke."],
+      relationshipPermission: "established",
+    });
+    const later = assessHumorPragmatics({
+      latestUserText: "lol okay 🤣",
+      mode: "text",
+      relationshipPermission: "established",
+    });
+
+    expect(suppressed.opportunity).toBe("none");
+    expect(later.opportunity).toBe("strong");
+    expect(later.teasingSafety).toBe("allowed");
+  });
+
   it("keeps text and voice on the same humor identity decision", () => {
     const base = {
       latestUserText: "Vercel did the same bullshit again 🤣",
