@@ -65,6 +65,18 @@ AttentionSummary attentionForObjective({
         'Objective reports completion',
         'Review the recorded completion evidence in the objective workspace.',
       );
+    case EnvironmentRunState.failed:
+      return const AttentionSummary(
+        AttentionLevel.unknown,
+        'Objective failed',
+        'ARK reports failure. Do not assume the work is continuing or that you need to intervene unless a separate decision request is recorded.',
+      );
+    case EnvironmentRunState.cancelled:
+      return const AttentionSummary(
+        AttentionLevel.noRequestRecorded,
+        'Objective cancelled',
+        'The objective is stopped. No continuation or additional owner action is inferred.',
+      );
     case EnvironmentRunState.unavailable:
     case EnvironmentRunState.degraded:
       return const AttentionSummary(
