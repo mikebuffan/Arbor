@@ -90,6 +90,8 @@ jobs:
         run: >
           pnpm exec vitest run
           lib/grove/__tests__/arkSpineContinuity.test.ts
+          lib/grove/__tests__/arkSpineStartup.test.ts
+          lib/grove/__tests__/privateArkObjectiveRun.test.ts
           lib/grove/__tests__/privateCorrectionConnection.test.ts
           lib/grove/__tests__/privateConversationLoop.test.ts
           lib/grove/__tests__/privateRuntimeGoalWrite.test.ts
