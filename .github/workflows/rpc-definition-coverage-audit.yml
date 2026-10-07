@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - audit/rpc-contract-coverage-20261007
+  pull_request:
+    branches:
+      - integration/one-arbor-prelive-repaired-20261007
 
 permissions:
   contents: read
