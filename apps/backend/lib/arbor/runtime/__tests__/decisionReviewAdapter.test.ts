@@ -7,6 +7,7 @@ import { loadRuntimeState } from "../runtimeStateStore";
 import {
   projectExistingDecisionReview,
   readExistingDecisionReview,
+  compareExistingDecisionReviews,
 } from "../decisionReviewAdapter";
 
 vi.mock("../../agency/state", () => ({ loadAgencyState: vi.fn() }));
@@ -120,6 +121,56 @@ describe("existing persisted-state decision review", () => {
     })).rejects.toThrow("decision_review_source_scope_required");
     expect(loadAgencyState).not.toHaveBeenCalled();
     expect(loadRuntimeState).not.toHaveBeenCalled();
+  });
+
+  it("shows evidence-limited goal, blocker and correction visibility changes", () => {
+    const before = projectExistingDecisionReview({
+      scope, agency: agency({ status: "active", blocker: null }),
+      runtime: runtime({ corrections: [] }),
+    });
+    const after = projectExistingDecisionReview({
+      scope: { ...scope, conversationId: "new-thread" },
+      agency: agency({ goal: "new goal", status: "blocked" }),
+      runtime: runtime(),
+    });
+    const delta = compareExistingDecisionReviews(before, after);
+    expect(delta).toMatchObject({
+      conversationChanged: true, goalChanged: true, statusChanged: true,
+      introducedBlocker: "external_authority", clearedBlockerReported: false,
+      correctionIdsNewlyVisible: ["correction-a"],
+      reviewSuggested: true, grantsExecution: false,
+      verifiedCausalChangeHere: false,
+    });
+  });
+
+  it("does not interpret lost coverage or a cleared blocker as verified authority", () => {
+    const before = projectExistingDecisionReview({
+      scope, agency: agency(), runtime: runtime(),
+    });
+    const after = projectExistingDecisionReview({
+      scope, agency: agency({ blocker: null, status: "active" }), runtime: null,
+    });
+    const delta = compareExistingDecisionReviews(before, after);
+    expect(delta.runtimeCoverageLost).toBe(true);
+    expect(delta.clearedBlockerReported).toBe(true);
+    expect(delta.correctionIdsNoLongerVisible).toEqual(["correction-a"]);
+    expect(delta.reviewSuggested).toBe(true);
+    expect(delta.grantsExecution).toBe(false);
+  });
+
+  it("refuses foreign project comparison and forged execution authority", () => {
+    const before = projectExistingDecisionReview({
+      scope, agency: null, runtime: null,
+    });
+    const foreign = projectExistingDecisionReview({
+      scope: { ...scope, projectId: "foreign" },
+      agency: null, runtime: null,
+    });
+    expect(() => compareExistingDecisionReviews(before, foreign))
+      .toThrow("decision_review_delta_scope_mismatch");
+    expect(() => compareExistingDecisionReviews(before, {
+      ...before, grantsExecution: true,
+    } as unknown as typeof before)).toThrow("decision_review_delta_invalid_projection");
   });
 
   it("does not swallow an existing loader's storage or access error", async () => {
