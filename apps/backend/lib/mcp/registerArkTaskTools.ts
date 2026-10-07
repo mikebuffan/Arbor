@@ -29,6 +29,23 @@ function result(value: Record<string, unknown>) {
   return {content: [{type: "text" as const, text: promptDataBlock("ARK TASK RECEIPT", value)}], structuredContent: value};
 }
 
+function objectiveControlError(error: unknown): Error {
+  const message = error instanceof Error
+    ? error.message
+    : typeof error === "object" && error !== null && "message" in error
+      ? String((error as {message?: unknown}).message ?? "")
+      : "";
+  for (const code of [
+    "ark_objective_not_found",
+    "ark_completed_objective_cannot_cancel",
+    "ark_objective_not_blocked",
+    "ark_resume_requires_blocked_task",
+  ]) {
+    if (message.includes(code)) return new Error(code);
+  }
+  return new Error("ark_objective_control_failed");
+}
+
 export function registerArkTaskTools(server: McpServer): void {
   // Reading an already-owned result stays available even if submission is off.
   server.registerTool("get_ark_task_result", {
@@ -107,9 +124,14 @@ export function registerArkTaskTools(server: McpServer): void {
 
       const store = new SupabaseArkStore(supabaseAdmin());
       const now = new Date().toISOString();
-      const objective = input.action === "cancel"
-        ? await store.cancelObjective({objectiveId: input.objectiveId, now})
-        : await store.resumeBlockedObjective({objectiveId: input.objectiveId, now});
+      let objective;
+      try {
+        objective = input.action === "cancel"
+          ? await store.cancelObjective({objectiveId: input.objectiveId, now})
+          : await store.resumeBlockedObjective({objectiveId: input.objectiveId, now});
+      } catch (error) {
+        throw objectiveControlError(error);
+      }
       if (objective.id !== input.objectiveId ||
           objective.userId !== userId ||
           objective.projectId !== input.projectId) {
