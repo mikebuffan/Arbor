@@ -80,7 +80,7 @@ export function projectConversationRecovery(input: {
         !KINDS.includes(event.kind) ||
         !Array.isArray(event.evidenceRefs) || event.evidenceRefs.length === 0 ||
         event.evidenceRefs.length > 8 ||
-        event.evidenceRefs.some(ref => !validText(ref)))
+        event.evidenceRefs.some((ref: string) => !validText(ref)))
       throw Error("conversation_recovery_invalid_observation");
     const fingerprint = JSON.stringify([event.observedAt, event.kind,
       [...event.evidenceRefs].sort()]);
