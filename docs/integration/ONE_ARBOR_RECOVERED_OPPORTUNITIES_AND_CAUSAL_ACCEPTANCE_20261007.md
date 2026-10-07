@@ -146,7 +146,8 @@ that apply **only when a real unfinished goal already exists**.
 An explicit STOP/switch still overrides continuation, and no new goal is
 resurrected merely by the word "go". Negated instructions such as "don't stop
 this", "do not drop that" or "never switch goals" must not be misread as
-explicit cancellations. A separate, unnegated switch still takes priority.
+explicit cancellations or treated as unrelated fresh goals. A separate,
+unnegated switch still takes priority.
 
 A related hard-stop flaw existed in `buildAgencySessionState`: resuming
 a blocked objective unconditionally set status to active and erased its
@@ -163,6 +164,50 @@ repair, NOT a change to the research parser or a claim of green final CI.
 All of this needs focused AND full backend regression before acceptance.
 No live state was modified. Source tests cannot prove a deployed agent
 actually continues in a new ChatGPT thread.
+
+## Grove visual archaeology — existing source, do not rebuild
+
+Read back from the accepted #330 branch:
+
+- `apps/frontend/lib/environment/grove_house_room.dart` includes the room
+  route for Moss, desk, shelves, stairs, kitchen, guest room, window, and Arbor.
+  Its comment explicitly preserves the approved nighttime composition and
+  notes that a matching **daytime art asset remains unfinished**.
+- `grove_observatory_view.dart` is a navigable Observatory room connected to
+  the shared House Clock and a local approximate-sky model, not a live telescope.
+- `grove_living_window_panel.dart` provides the native Living Window and
+  optional-location/preview controls without changing device time or asking for GPS.
+- `grove_moss_house_visual_test.dart`, clock, observatory, sundial and window
+  widget tests exist in the source.
+
+This closes the **source-location archaeology only**. It does NOT prove an
+installed device, real daytime art, running private host, or successful
+text/voice identity transfer. UI work must start from these existing screens
+and source-tested routes rather than creating a replacement house.
+
+## Forty-item queue — evidence-based closeout interpretation
+
+The pre-existing 40-point user plan stays the reference queue; this appendix
+only records newly verified sub-results and does not mark whole phases complete.
+
+- Items 1–6: read-only Decision Ancestry, warnings, review-candidate projection,
+  decision delta and canonical stored-state read adapter are **source-built**.
+  Live owner-authenticated Preview consumption/fresh-session proof remains open.
+- Items 7–13: recovered idea mapping plus metadata-only Discovery Radar via
+  existing Pattern Hop are **source-built**; broader cross-project grant and
+  real discovery-value acceptance remain protected/unverified.
+- Items 14–22: existing curiosity, prediction-error, Body, Felt-Life, self-model,
+  humor and correction systems were located; no new behavioral claims were
+  promoted. Fresh unprimed output and voice/model holdouts remain open.
+- Items 23–28: checkpointed-goal shorthand and hard-stop preservation received
+  a **source repair**. It includes an explicit negative-switch guard. Running
+  CI proves only code behavior, not a live ChatGPT autonomous work loop.
+- Items 29–34: Grove house/world UI and LM host architecture exist in source.
+  Real private hosted inference, mobile installation and text/voice handoff
+  remain behind existing deployment/device/owner gates.
+- Items 35–40: target CI and reviewed PR provide source receipts, but integrated
+  Preview, cross-device startup, release promotion, and production remain
+  separate, unclaimed work. No new canonical queue is created.
 
 ## May architecture ideas: reconciliation, not a second anatomy
 
