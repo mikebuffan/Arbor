@@ -1,0 +1,2 @@
+import{describe,expect,it}from"vitest";import{assertOneArborIdentity,overlayMayOverrideIdentity}from"../identityContainment";
+describe("One Arbor containment",()=>{it("keeps one canonical identity through task overlays",()=>{const rows=["text","voice","annabelle","grove","ark"].map(surface=>({surface:surface as any,canonicalIdentityId:"arbor",overlay:surface==="annabelle"?"editorial":null,authority:"arbor" as const}));expect(()=>assertOneArborIdentity(rows)).not.toThrow();expect(overlayMayOverrideIdentity(rows[2])).toBe(false);});});

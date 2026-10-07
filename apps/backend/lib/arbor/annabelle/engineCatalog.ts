@@ -1,0 +1,42 @@
+export type AnnabelleEngineStatus = "implemented" | "partial" | "scaffold" | "missing";
+export type AnnabelleEngineSpec = {id:string;status:AnnabelleEngineStatus;purpose:string};
+export const ANNABELLE_ENGINE_STATUS_SCOPE =
+  "implemented means executable source coverage exists on this branch; it does not by itself mean canonical-manuscript calibration, durable live wiring, deployment, or acceptance has passed." as const;
+
+export const ANNABELLE_ENGINE_CATALOG: readonly AnnabelleEngineSpec[] = [
+{id:"voice-core",status:"implemented",purpose:"Gold exemplars, voice evidence, mature-Annabelle calibration and Not-Annabelle detection."},
+{id:"felt-life-atlas",status:"partial",purpose:"Embodied felt-state hypotheses and language expansion. Intentionally open-ended: executable and substantially expanded, but never treated as exhaustive human experience."},
+{id:"embodied-perspective",status:"implemented",purpose:"Body/environment evidence before interpretation."},
+{id:"nervous-system",status:"implemented",purpose:"Stimulus to involuntary response to propagation to choice without assigning meaning."},
+{id:"raw-gravity",status:"implemented",purpose:"Reject writer-performance and emotional inflation; retain character/circumstance truth."},
+{id:"character-integrity",status:"implemented",purpose:"Preserve character power, noticing, speech, knowledge and behavior."},
+{id:"relationship-stage",status:"implemented",purpose:"Gate intimacy, trust, touch, disclosure and repair by earned relationship state."},
+{id:"consent-agency",status:"implemented",purpose:"Keep desire/body response/attachment distinct from consent and ownership."},
+{id:"sensory-expansion",status:"implemented",purpose:"Flag default sensory vocabulary and require expansion of observation rather than synonym swapping."},
+{id:"object-environment",status:"implemented",purpose:"Scene objects, environmental action, spatial continuity and object meaning."},
+{id:"movement-mechanics",status:"implemented",purpose:"Physical geometry, injury mechanics, touch/action plausibility."},
+{id:"camera",status:"implemented",purpose:"Close-third attention and viewpoint boundary."},
+{id:"discovery-density",status:"implemented",purpose:"Control revelation rate and protect reader inference."},
+{id:"humor",status:"implemented",purpose:"Frequency-control archive humor and face-says-it shortcuts while preserving earned humor."},
+{id:"dialogue-naturalism",status:"implemented",purpose:"Flag overly clean banter/turn-taking and encourage human interruption, hesitation and silence."},
+{id:"lexical-repetition",status:"implemented",purpose:"Corpus-aware repeated defaults, sensory words, body language and constructions."},
+{id:"prose-tics",status:"implemented",purpose:"Detect clustering of internal-commentary and rhetorical macros without banning them."},
+{id:"explanation-redundancy",status:"implemented",purpose:"Detect show-then-explain and repeated interpretation."},
+{id:"atmosphere-expansion",status:"implemented",purpose:"Specific sound/light/weather/human residue without decorative insertion."},
+{id:"rhythm",status:"implemented",purpose:"Sentence/fragment/paragraph density and pacing variation."},
+{id:"touch",status:"implemented",purpose:"Initiator, placement, pressure, response, correction, residue and relationship meaning."},
+{id:"intimacy",status:"implemented",purpose:"Felt-life, mechanics, agency, character progression and stop-when-job-done compression."},
+{id:"power-response",status:"implemented",purpose:"Show threatened power through behavior rather than thematic essaying."},
+{id:"motif-payoff",status:"implemented",purpose:"Track first appearance, evolution, inversion, payoff and dropped motifs."},
+{id:"canon-timeline-knowledge",status:"implemented",purpose:"Canon, timeline, knowledge state, contradictions and supersession."},
+{id:"internal-clock",status:"implemented",purpose:"Book time, season, elapsed time, relationship/recovery progression."},
+{id:"scene-change",status:"implemented",purpose:"Require meaningful scene-state delta or explicit reason to remain."},
+{id:"screen-time-balance",status:"implemented",purpose:"Track supporting cast and relationship disappearance/overconcentration."},
+{id:"continuity-residue",status:"implemented",purpose:"Carry physical/emotional/object residue across scene boundaries."},
+{id:"repetition-intent",status:"implemented",purpose:"Distinguish motif/trauma/character habit from accidental repetition."},
+{id:"duplicate-assembly",status:"implemented",purpose:"Flag likely concatenated/repeated draft material."},
+{id:"gold-do-not-touch",status:"implemented",purpose:"Durable locks and gold exemplars; edits require explicit override."},
+{id:"downstream-impact",status:"implemented",purpose:"Identify later chapters affected by a changed chapter."},
+{id:"book-self-check",status:"implemented",purpose:"Post-rewrite regression across voice, repetition, continuity, physicality and payoff."},
+{id:"containment",status:"implemented",purpose:"Keep Annabelle, Arbor, character voices and task overlays from contaminating one another."},
+] as const;

@@ -1,0 +1,2 @@
+import{describe,expect,it}from"vitest";import{sceneStateDelta}from"../sceneStateDelta";
+describe("scene state delta",()=>{it("requires material change to call a scene changed",()=>{const base={knowledge:[],relationships:{},body:[],threats:[],goals:["leave"],objects:{},motifs:[]};expect(sceneStateDelta(base,{...base,goals:["stay"]}).dimensions).toContain("goal");expect(sceneStateDelta(base,base).changed).toBe(false);});});

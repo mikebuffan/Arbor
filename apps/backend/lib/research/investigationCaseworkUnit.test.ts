@@ -48,7 +48,7 @@ describe("trusted investigation casework unit", () => {
         });
         return {
           id: "packet-1",
-          kind: "temporal_constraints",
+          kind: "temporal_constraints" as const,
           evidenceRefs: ["evidence:a", "evidence:b", "map:route"],
           payload: {
             windows: [
@@ -104,7 +104,7 @@ describe("trusted investigation casework unit", () => {
     const store: TrustedInvestigationCaseworkStore = {
       loadPacket: vi.fn(async () => ({
         id: "packet-1",
-        kind: "missing_function",
+        kind: "missing_function" as const,
         evidenceRefs: ["evidence:not-completed"],
         payload: {
           id: "gap",
@@ -134,12 +134,12 @@ describe("trusted investigation casework unit", () => {
     const store: TrustedInvestigationCaseworkStore = {
       loadPacket: vi.fn(async () => ({
         id: "different",
-        kind: "evidence_temperature",
+        kind: "evidence_temperature" as const,
         evidenceRefs: ["evidence:a"],
         payload: {
           items: [{
             evidenceRef: "evidence:a",
-            sourceClass: "primary_record",
+            sourceClass: "primary_record" as const,
             eventAt: "2026-01-01T00:00:00Z",
             sourceCreatedAt: "2026-01-01T00:00:00Z",
           }],

@@ -1,0 +1,2 @@
+import{describe,expect,it}from"vitest";import{duplicateOwners,ONE_ARBOR_CAPABILITY_MAP}from"../capabilityMap";
+describe("One Arbor capability map",()=>{it("has one canonical owner per capability",()=>{expect(duplicateOwners()).toEqual([]);expect(ONE_ARBOR_CAPABILITY_MAP.length).toBeGreaterThan(5);});});

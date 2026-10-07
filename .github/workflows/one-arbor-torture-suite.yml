@@ -1,0 +1,164 @@
+name: One Arbor continuity torture suite
+
+on:
+  pull_request:
+    branches:
+      - integration/one-arbor-current-20261006
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+permissions:
+  contents: read
+
+concurrency:
+  group: one-arbor-torture-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  backend-continuity:
+    if: github.repository == 'mikebuffan/Arbor'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      CI: 'true'
+      OPENAI_API_KEY: ci-placeholder-not-a-real-key
+      AWS_EC2_METADATA_DISABLED: 'true'
+    steps:
+      - name: Block metadata before checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          unset HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy
+          for subnet in 169.254.0.0/16 100.100.100.200/32; do
+            sudo -n iptables -w 5 -I OUTPUT 1 -d "$subnet" -j REJECT
+            sudo -n iptables -w 5 -C OUTPUT -d "$subnet" -j REJECT
+          done
+          for subnet in fe80::/10 fc00::/7; do
+            sudo -n ip6tables -w 5 -I OUTPUT 1 -d "$subnet" -j REJECT
+            sudo -n ip6tables -w 5 -C OUTPUT -d "$subnet" -j REJECT
+          done
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install locked dependencies
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.30.3 --activate
+          pnpm install --frozen-lockfile
+      - name: Continuation and interruption contracts
+        working-directory: apps/backend
+        run: >
+          pnpm exec vitest run
+          lib/arbor/agency/__tests__/continuationContract.test.ts
+          lib/arbor/agency/__tests__/continuationRegression.test.ts
+          lib/arbor/agency/__tests__/sessionInterruption.reconciliation.test.ts
+          lib/arbor/agency/__tests__/workRunner.test.ts
+          lib/arbor/agency/__tests__/verifier.test.ts
+          lib/arbor/agency/__tests__/backlogContinuation.test.ts
+          lib/arbor/agency/__tests__/completionEvidence.test.ts
+          lib/arbor/agency/__tests__/tortureAcceptance.test.ts
+          lib/arbor/agency/__tests__/objectiveLifecycle.test.ts
+          lib/arbor/agency/__tests__/state.test.ts
+      - name: Runtime memory and correction recovery
+        working-directory: apps/backend
+        run: >
+          pnpm exec vitest run
+          lib/arbor/runtime/__tests__/memoryRestart.test.ts
+          lib/arbor/runtime/__tests__/durableCorrectionRetention.test.ts
+          lib/arbor/runtime/__tests__/correctionRecovery.test.ts
+          lib/arbor/runtime/__tests__/runtimeStateStore.test.ts
+          lib/memory/__tests__/correctionResolution.test.ts
+          lib/arbor/episodes/__tests__/summarizeEpisodeDurability.test.ts
+      - name: Archive replay and duplicate resistance
+        working-directory: apps/backend
+        run: >
+          pnpm exec vitest run
+          lib/memory/__tests__/resumableArchive.test.ts
+          lib/memory/__tests__/boundedHistoricalPlan.test.ts
+          lib/memory/__tests__/archiveReader.test.ts
+          lib/memory/__tests__/retrievalExclusion.test.ts
+          lib/memory/__tests__/retrievedContextQuarantine.test.ts
+          lib/memory/__tests__/historicalEmbeddingBackfill.test.ts
+      - name: Grove and ARK restart composition
+        working-directory: apps/backend
+        run: >
+          pnpm exec vitest run
+          lib/grove/__tests__/arkSpineContinuity.test.ts
+          lib/grove/__tests__/privateCorrectionConnection.test.ts
+          lib/grove/__tests__/privateConversationLoop.test.ts
+          lib/grove/__tests__/privateRuntimeGoalWrite.test.ts
+          lib/grove/__tests__/privateRuntimeTurnCapture.test.ts
+          lib/ark/__tests__/runner.test.ts
+          lib/ark/__tests__/stopSemantics.test.ts
+          lib/ark/__tests__/agencyDispatcher.test.ts
+          lib/ark/__tests__/agencyToolExecutor.test.ts
+          lib/ark/__tests__/agencyExecutionDelegate.test.ts
+          lib/ark/__tests__/acceptanceConnection.integration.test.ts
+      - name: Standalone TypeScript
+        working-directory: apps/backend
+        run: pnpm exec tsc --noEmit
+
+  phone-continuity:
+    if: github.repository == 'mikebuffan/Arbor'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      CI: 'true'
+      FLUTTER_SUPPRESS_ANALYTICS: 'true'
+      DART_SUPPRESS_ANALYTICS: 'true'
+      AWS_EC2_METADATA_DISABLED: 'true'
+    steps:
+      - name: Block metadata before checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          unset HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy
+          for subnet in 169.254.0.0/16 100.100.100.200/32; do
+            sudo -n iptables -w 5 -I OUTPUT 1 -d "$subnet" -j REJECT
+            sudo -n iptables -w 5 -C OUTPUT -d "$subnet" -j REJECT
+          done
+          for subnet in fe80::/10 fc00::/7; do
+            sudo -n ip6tables -w 5 -I OUTPUT 1 -d "$subnet" -j REJECT
+            sudo -n ip6tables -w 5 -C OUTPUT -d "$subnet" -j REJECT
+          done
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Install pinned Flutter
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdk_dir="$RUNNER_TEMP/one-arbor-flutter"
+          git init "$sdk_dir"
+          git -C "$sdk_dir" remote add origin https://github.com/flutter/flutter.git
+          git -C "$sdk_dir" fetch --depth=1 origin refs/tags/3.47.6:refs/tags/3.47.6
+          git -C "$sdk_dir" checkout --detach refs/tags/3.47.6
+          test "$(git -C "$sdk_dir" rev-parse HEAD)" = 5fc346839b5d0eef006ed8404392afb4dfae428d
+          echo "$sdk_dir/bin" >> "$GITHUB_PATH"
+          "$sdk_dir/bin/flutter" config --no-analytics
+      - name: Resolve locked Flutter dependencies
+        working-directory: apps/frontend
+        run: flutter pub get --enforce-lockfile
+      - name: Lockfile unchanged
+        run: git diff --exit-code -- apps/frontend/pubspec.lock
+      - name: Focused restart and private-boundary tests
+        working-directory: apps/frontend
+        run: >
+          timeout 420s flutter test --reporter expanded
+          test/arbor_session_test.dart
+          test/environment_runtime_retry_test.dart
+          test/grove_pending_turn_store_test.dart
+          test/grove_runtime_scope_test.dart
+          test/grove_private_text_page_test.dart
+          test/grove_private_ark_truth_test.dart
+          test/grove_talk_private_boundary_test.dart
+      - name: Analyze
+        working-directory: apps/frontend
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings

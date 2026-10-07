@@ -1,0 +1,2 @@
+import{describe,expect,it}from"vitest";import{inspectIntimacyBeat}from"../intimacyMechanics";
+describe("intimacy mechanics",()=>{it("keeps body response separate from consent and tracks aftermath",()=>{const r=inspectIntimacyBeat({relationship:"Ever/Will",stage:"tentative",initiation:"kiss",choiceEvidence:[],bodyResponses:["shiver"],verbalEvidence:[],corrections:[],aftermath:[]});expect(r.some(x=>x.kind==="body-equals-consent")).toBe(true);expect(r.some(x=>x.kind==="aftermath-missing")).toBe(true);});});

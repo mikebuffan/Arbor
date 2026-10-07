@@ -16,7 +16,16 @@ export type ArchiveBatch={index:number;start:number;count:number;sha256:string;b
 export type ArchiveManifest={schemaVersion:1;target:ArchiveTarget;parser:"chatgpt-normalized-active-branch-v1";
   sources:{file:string;bytes:number;sha256:string}[];options:z.infer<typeof Options>;
   uniqueTurns:number;duplicateTurns:number;normalizedSha256:string;batches:ArchiveBatch[];scope:string;fingerprint:string};
-export type ArchiveCheckpoint={schemaVersion:1;fingerprint:string;nextBatch:number};
+export type ArchiveCheckpointV1={schemaVersion:1;fingerprint:string;nextBatch:number};
+export type ArchiveCheckpointV2={schemaVersion:2;fingerprint:string;nextBatch:number;target:ArchiveTarget;
+  parser:ArchiveManifest["parser"];normalizedSha256:string};
+export type ArchiveCheckpoint=ArchiveCheckpointV1|ArchiveCheckpointV2;
+const ArchiveCheckpointSchema=z.union([
+  z.object({schemaVersion:z.literal(1),fingerprint:z.string(),nextBatch:z.number().int().nonnegative()}).strict(),
+  z.object({schemaVersion:z.literal(2),fingerprint:z.string(),nextBatch:z.number().int().nonnegative(),
+    target:Target,parser:z.literal("chatgpt-normalized-active-branch-v1"),
+    normalizedSha256:z.string().regex(/^[a-f0-9]{64}$/)}).strict(),
+]);
 export type PreparedArchive={manifest:ArchiveManifest;turns:HistoricalTurnInput[]};
 
 /** Source preparation only. Never invokes the legacy extractor or overwriting upsert. */
@@ -88,9 +97,14 @@ export async function transportResumableArchive(input:{files:string[];target:Arc
   checkpoint:ArchiveCheckpoint|null;transport:VerifiedArchiveTransport;
   saveCheckpoint:(value:ArchiveCheckpoint)=>Promise<void>;maxBatches?:number}){
   const prepared=await verifyResumableArchive(input),{manifest,turns}=prepared;
-  const checkpoint=z.object({schemaVersion:z.literal(1),fingerprint:z.string(),nextBatch:z.number().int().nonnegative()}).strict()
-    .parse(input.checkpoint??{schemaVersion:1,fingerprint:manifest.fingerprint,nextBatch:0});
+  const checkpoint=ArchiveCheckpointSchema.parse(input.checkpoint??{
+    schemaVersion:2,fingerprint:manifest.fingerprint,nextBatch:0,target:manifest.target,
+    parser:manifest.parser,normalizedSha256:manifest.normalizedSha256,
+  });
   if(checkpoint.fingerprint!==manifest.fingerprint||checkpoint.nextBatch>manifest.batches.length)throw Error("archive_checkpoint_mismatch");
+  if(checkpoint.schemaVersion===2&&(digest(checkpoint.target)!==digest(manifest.target)||
+      checkpoint.parser!==manifest.parser||checkpoint.normalizedSha256!==manifest.normalizedSha256))
+    throw Error("archive_checkpoint_binding_mismatch");
   const maxBatches=z.number().int().min(1).max(1000).parse(input.maxBatches??1);
   // A local offset alone cannot silently skip data; reverify every claimed completed batch.
   for(const batch of manifest.batches.slice(0,checkpoint.nextBatch))
@@ -100,7 +114,8 @@ export async function transportResumableArchive(input:{files:string[];target:Arc
     const payload=turns.slice(batch.start,batch.start+batch.count);
     await input.transport.applyExactBatch(manifest.target,payload);
     await input.transport.verifyExactBatch(manifest.target,payload);
-    const next:ArchiveCheckpoint={schemaVersion:1,fingerprint:manifest.fingerprint,nextBatch:batch.index+1};
+    const next:ArchiveCheckpoint={schemaVersion:2,fingerprint:manifest.fingerprint,nextBatch:batch.index+1,
+      target:manifest.target,parser:manifest.parser,normalizedSha256:manifest.normalizedSha256};
     await input.saveCheckpoint(next);nextBatch=next.nextBatch;
   }
   return {fingerprint:manifest.fingerprint,nextBatch,totalBatches:manifest.batches.length,
@@ -109,16 +124,17 @@ export async function transportResumableArchive(input:{files:string[];target:Arc
 
 /** A corrupt/unreadable checkpoint is an error, never a silent restart at zero. */
 export async function readArchiveCheckpoint(file:string):Promise<ArchiveCheckpoint|null>{
-  try{return JSON.parse(await fs.readFile(file,"utf8"));}
+  try{return ArchiveCheckpointSchema.parse(JSON.parse(await fs.readFile(file,"utf8")));}
   catch(error){if((error as NodeJS.ErrnoException).code==="ENOENT")return null;throw error;}
 }
 
 /** Caller supplies a private destination. Write + fsync + rename keeps interruption atomic. */
 export async function saveArchiveCheckpoint(file:string,value:ArchiveCheckpoint){
+  const verified=ArchiveCheckpointSchema.parse(value);
   const temporary=`${file}.${randomUUID()}.tmp`;
   try{
     const handle=await fs.open(temporary,"wx",0o600);
-    try{await handle.writeFile(JSON.stringify(value,null,2));await handle.sync();}finally{await handle.close();}
+    try{await handle.writeFile(JSON.stringify(verified,null,2));await handle.sync();}finally{await handle.close();}
     await fs.rename(temporary,file);
     const directory=await fs.open(path.dirname(file),"r");
     try{await directory.sync();}finally{await directory.close();}

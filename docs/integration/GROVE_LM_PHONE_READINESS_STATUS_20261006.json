@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "lane": "grove_lm_phone_readiness",
+  "baseSha": "3c599ffd655409d8f72116ec857b76dfa646bd50",
+  "applicationTreeChanged": false,
+  "sourceStates": {
+    "groveRuntimeGoal": "source_tested_current_exact_head",
+    "groveRuntimeTurnCapture": "source_tested_current_exact_head",
+    "groveCorrectionSave": "source_tested_current_exact_head_default_off",
+    "groveArkObjectiveRun": "source_tested_current_exact_head_separately_gated",
+    "textRestartReplay": "source_tested_current_exact_head",
+    "groveAuthOwnerGrantBoundary": "source_tested_current_exact_head",
+    "localLmManifestValidation": "tested_identical_blob_lineage",
+    "localLmCpuCompatibility": "tested_identical_blob_lineage",
+    "localLmRealTokenizer": "gated_private_artifacts",
+    "localLmRealInference": "gated_private_artifacts_and_target_runtime",
+    "transcriptLogicalIdempotency": "source_tested_current_exact_head",
+    "exactlyOnceModelGeneration": "not_proven",
+    "phoneFlutterAcceptance": "current_exact_head_193_tests_and_synthetic_apk_passed",
+    "physicalPhoneAcceptance": "gated_owner_device"
+  },
+  "childCi": {
+    "workflowPrepared": true,
+    "executed": false,
+    "reason": "new pull-request workflow is not active on the base branch; shared base was intentionally left untouched"
+  },
+  "protectedActionsNotAuthorized": [
+    "merge_main",
+    "production_deploy",
+    "hosted_grants",
+    "hosted_migrations",
+    "inference_activation",
+    "paid_inference",
+    "physical_device_install"
+  ]
+}

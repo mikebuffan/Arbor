@@ -1,0 +1,2 @@
+import{describe,expect,it}from"vitest";import{atmosphereCoverage,corpusRepetition}from"../corpusAtmosphere";
+describe("corpus atmosphere",()=>{it("finds repeated language and missing noticing dimensions",()=>{expect(corpusRepetition("wet pavement again wet pavement again wet pavement again").length).toBeGreaterThan(0);expect(atmosphereCoverage("The rain hit the window.").missing).toContain("human-residue");});});

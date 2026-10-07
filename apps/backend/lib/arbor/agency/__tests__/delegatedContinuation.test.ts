@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { runOpenAIAgencyAgent } from "../openaiAgent";
+import { runOpenAIAgencyAgent, type AgencyToolExecutionDelegate } from "../openaiAgent";
 import { AgencyToolRegistry } from "../tools";
 
 describe("delegated continuation", () => {
@@ -16,11 +16,11 @@ describe("delegated continuation", () => {
       return {id:"r2",output:[],output_text:"finished",status:"completed"};
     });
     let retries=0;
-    const executionDelegate={
+    const executionDelegate: AgencyToolExecutionDelegate={
       managesWriteIdempotency:true,
       execute:vi.fn(async()=>({
         kind:"checkpointed" as const, reason:"internal",
-        retry:async()=>{retries++;return {kind:"outcome" as const,outcome:{ok:true,result:{done:true},attempts:1,recoveredFailures:[]}};},
+        retry:async()=>{retries++;return {kind:"outcome" as const,outcome:{ok:true as const,result:{done:true},attempts:1,recoveredFailures:[]}};},
       })),
     };
     const result=await runOpenAIAgencyAgent({
@@ -30,6 +30,7 @@ describe("delegated continuation", () => {
     });
     expect(retries).toBe(1);
     expect(result.status).toBe("complete");
+    if (result.status !== "complete") throw new Error("expected_complete_result");
     expect(result.text).toBe("finished");
   });
   it("crosses two durable checkpoints and completes without a second user prompt", async () => {

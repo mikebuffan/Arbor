@@ -1,0 +1,2 @@
+import{describe,expect,it}from"vitest";import{inspectMovementMechanics}from"../movementMechanics";
+describe("movement mechanics",()=>{it("keeps injury mechanics in load-bearing actions",()=>{const r=inspectMovementMechanics({character:"Ever",action:"stood quickly",supports:[],activeInjuries:["right hip"],compensations:[]});expect(r.some(x=>x.kind==="injury-ignored")).toBe(true);expect(r.some(x=>x.kind==="support-missing")).toBe(true);});});

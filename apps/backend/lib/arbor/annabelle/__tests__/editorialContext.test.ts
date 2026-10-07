@@ -77,10 +77,10 @@ describe("editorial evidence to generation", () => {
     await expect(loadEditorialContext({ ...scope, supabase: db({ error: { code: "42501" } }).supabase })).rejects.toEqual({ code: "42501" });
   });
   it("does not silently clip locks or select from an incomplete supersession window", async () => {
-    const huge = db({ records: [record({ record_type: "do_not_touch", content: { text: "x".repeat(31000) } })] });
+    const huge = db({ records: [record({ record_type: "do_not_touch", content: { text: "x".repeat(121000) } })] });
     expect((await loadEditorialContext({ ...scope, supabase: huge.supabase })).records).toEqual([]);
     expect((await loadEditorialContext({ ...scope, supabase: huge.supabase })).status).toBe("incomplete");
-    const many = db({ records: Array.from({ length: 201 }, (_, i) => record({ id: String(i) })) });
+    const many = db({ records: Array.from({ length: 1001 }, (_, i) => record({ id: String(i) })) });
     expect((await loadEditorialContext({ ...scope, supabase: many.supabase })).status).toBe("incomplete");
   });
   it("recognizes one explicit chapter and declines multiple or invalid selections", () => {

@@ -1,0 +1,2 @@
+import{describe,expect,it}from"vitest";import{inspectRelationshipDynamics}from"../relationshipDynamics";
+describe("relationship dynamics",()=>{it("flags unearned trust and open rupture",()=>{const r=inspectRelationshipDynamics([{pair:"Ever/Will",chapter:2,trust:2,stage:"early",rupture:"lie"},{pair:"Ever/Will",chapter:3,trust:4,stage:"closer"}]);expect(r.some(x=>x.kind==="unearned-trust")).toBe(true);expect(r.some(x=>x.kind==="unrepaired-rupture")).toBe(true);});});

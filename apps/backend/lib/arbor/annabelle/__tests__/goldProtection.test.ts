@@ -1,0 +1,2 @@
+import{describe,expect,it}from"vitest";import{protectGoldEdits}from"../goldProtection";
+describe("gold protection",()=>{it("blocks silent removal and permits explicit override",()=>{const spans=[{text:"Keep this line.",sourceSha256:"a",kind:"gold" as const}];expect(protectGoldEdits({before:"Keep this line.",after:"Changed.",protectedSpans:spans}).allowed).toBe(false);expect(protectGoldEdits({before:"Keep this line.",after:"Changed.",protectedSpans:spans,explicitOverride:true}).allowed).toBe(true);});});

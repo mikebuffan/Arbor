@@ -1,0 +1,348 @@
+name: One Arbor canonical exact-head acceptance
+
+on:
+  push:
+    branches:
+      - integration/one-arbor-canonical-20261006
+  pull_request:
+    branches:
+      - integration/one-arbor-pattern-hop-research-20261006
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+permissions:
+  contents: read
+
+concurrency:
+  group: one-arbor-canonical-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    if: github.repository == 'mikebuffan/Arbor' && (github.event_name == 'push' || github.head_ref == 'integration/one-arbor-canonical-20261006')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      CI: 'true'
+      OPENAI_API_KEY: ci-placeholder-not-a-real-key
+      AWS_EC2_METADATA_DISABLED: 'true'
+    steps:
+      - name: Block metadata before checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          unset HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy
+          for subnet in 169.254.0.0/16 100.100.100.200/32; do
+            sudo -n iptables -w 5 -I OUTPUT 1 -d "$subnet" -j REJECT
+            sudo -n iptables -w 5 -C OUTPUT -d "$subnet" -j REJECT
+          done
+          for subnet in fe80::/10 fc00::/7; do
+            sudo -n ip6tables -w 5 -I OUTPUT 1 -d "$subnet" -j REJECT
+            sudo -n ip6tables -w 5 -C OUTPUT -d "$subnet" -j REJECT
+          done
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install locked dependencies
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.30.3 --activate
+          pnpm install --frozen-lockfile
+      - name: Install local PDF parser dependency
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils
+          pdfinfo -v
+          pdftotext -v
+      - name: Annabelle and Felt-Life source acceptance
+        working-directory: apps/backend
+        run: >
+          pnpm exec vitest run
+          lib/arbor/annabelle
+          lib/arbor/feltLife
+          lib/arbor/__tests__/capabilityMap.test.ts
+          lib/arbor/__tests__/identityContainment.test.ts
+          lib/arbor/__tests__/reconciliationContract.test.ts
+          lib/arbor/agency/__tests__/backlogContinuation.test.ts
+          lib/arbor/agency/__tests__/completionEvidence.test.ts
+          lib/arbor/agency/__tests__/tortureAcceptance.test.ts
+          lib/arbor/runtime/__tests__/correctionTemporalPrecedence.test.ts
+      - name: Pattern Hop and Evidence Engine focused acceptance
+        working-directory: apps/backend
+        run: >
+          pnpm exec vitest run
+          lib/research/sourceIndependence.test.ts
+          lib/research/claimEvidenceGraph.test.ts
+          lib/research/failedLeadRouting.test.ts
+          lib/research/patternHopDomainLenses.test.ts
+          lib/research/researchPatternHopBridge.test.ts
+          lib/research/researchPatternHopBridgeDomain.test.ts
+          lib/research/investigationPatternHop.test.ts
+          lib/research/arkResearchHandoff.test.ts
+          lib/research/registerArkResearchControllerExecutor.test.ts
+          lib/research/registerArkResearchSessionExecutor.test.ts
+          lib/research/researchReinsIteration.test.ts
+          lib/memory/__tests__/patternHop.test.ts
+          lib/memory/__tests__/patternHopEngine.test.ts
+          lib/memory/__tests__/patternHopRunControl.test.ts
+          lib/memory/__tests__/patternHopRunControlRunner.test.ts
+      - name: Continuity archive Grove and ARK focused acceptance
+        working-directory: apps/backend
+        run: >
+          pnpm exec vitest run
+          lib/arbor/agency/__tests__/continuationContract.test.ts
+          lib/arbor/agency/__tests__/continuationRegression.test.ts
+          lib/arbor/agency/__tests__/sessionInterruption.reconciliation.test.ts
+          lib/arbor/agency/__tests__/verifier.test.ts
+          lib/arbor/runtime/__tests__/memoryRestart.test.ts
+          lib/arbor/runtime/__tests__/durableCorrectionRetention.test.ts
+          lib/arbor/runtime/__tests__/correctionRecovery.test.ts
+          lib/memory/__tests__/resumableArchive.test.ts
+          lib/memory/__tests__/archiveReader.test.ts
+          lib/grove/__tests__/arkSpineContinuity.test.ts
+          lib/grove/__tests__/privateCorrectionConnection.test.ts
+          lib/grove/__tests__/privateConversationLoop.test.ts
+          lib/grove/__tests__/privateRuntimeGoalWrite.test.ts
+          lib/grove/__tests__/privateRuntimeTurnCapture.test.ts
+          lib/ark/__tests__/runner.test.ts
+          lib/ark/__tests__/agencyExecutionDelegate.test.ts
+          lib/ark/__tests__/acceptanceConnection.integration.test.ts
+      - name: Local LM source contracts
+        run: node --test ops/grove/local-lm/local-lm-prep.test.mjs
+      - name: Full backend regression
+        run: pnpm --filter firefly-backend test
+      - name: Production backend build
+        run: pnpm --filter firefly-backend build
+      - name: Standalone TypeScript
+        working-directory: apps/backend
+        run: pnpm exec tsc --noEmit
+
+  phone:
+    if: github.repository == 'mikebuffan/Arbor' && (github.event_name == 'push' || github.head_ref == 'integration/one-arbor-canonical-20261006')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      CI: 'true'
+      FLUTTER_SUPPRESS_ANALYTICS: 'true'
+      DART_SUPPRESS_ANALYTICS: 'true'
+      AWS_EC2_METADATA_DISABLED: 'true'
+    steps:
+      - name: Block metadata before checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          unset HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy
+          for subnet in 169.254.0.0/16 100.100.100.200/32; do
+            sudo -n iptables -w 5 -I OUTPUT 1 -d "$subnet" -j REJECT
+            sudo -n iptables -w 5 -C OUTPUT -d "$subnet" -j REJECT
+          done
+          for subnet in fe80::/10 fc00::/7; do
+            sudo -n ip6tables -w 5 -I OUTPUT 1 -d "$subnet" -j REJECT
+            sudo -n ip6tables -w 5 -C OUTPUT -d "$subnet" -j REJECT
+          done
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Install pinned Flutter
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdk_dir="$RUNNER_TEMP/one-arbor-canonical-flutter"
+          git init "$sdk_dir"
+          git -C "$sdk_dir" remote add origin https://github.com/flutter/flutter.git
+          git -C "$sdk_dir" fetch --depth=1 origin refs/tags/3.47.6:refs/tags/3.47.6
+          git -C "$sdk_dir" checkout --detach refs/tags/3.47.6
+          test "$(git -C "$sdk_dir" rev-parse HEAD)" = 5fc346839b5d0eef006ed8404392afb4dfae428d
+          echo "$sdk_dir/bin" >> "$GITHUB_PATH"
+          "$sdk_dir/bin/flutter" config --no-analytics
+      - name: Resolve locked Flutter dependencies
+        working-directory: apps/frontend
+        run: flutter pub get --enforce-lockfile
+      - name: Lockfile unchanged
+        run: git diff --exit-code -- apps/frontend/pubspec.lock
+      - name: Analyze all Flutter source
+        working-directory: apps/frontend
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+      - name: Full Flutter regression suite
+        working-directory: apps/frontend
+        run: timeout 420s flutter test --reporter expanded
+      - name: Compile synthetic Grove APK
+        working-directory: apps/frontend
+        run: >
+          timeout 600s flutter build apk --debug --flavor grove
+          --dart-define=GROVE_STANDALONE=true
+          --dart-define=GROVE_PRIVATE_TALK_PREVIEW=true
+          --dart-define=GROVE_PRIVATE_NEW_CONVERSATION_PREVIEW=false
+          --dart-define=GROVE_SUPABASE_URL=https://fqjqpuaoifgbweiguacf.supabase.co
+          --dart-define=GROVE_SUPABASE_ANON_KEY=sb_publishable_synthetic_ci_only
+          --dart-define=GROVE_API_URL=https://ci-grove-api.example.invalid
+      - name: Verify synthetic Grove build
+        working-directory: apps/frontend
+        run: test -s build/app/outputs/flutter-apk/app-grove-debug.apk
+      - name: Public alpha configuration test
+        working-directory: apps/frontend
+        run: flutter test --reporter expanded test/public_alpha_config_test.dart
+      - name: Compile isolated public alpha APK
+        working-directory: apps/frontend
+        run: >
+          timeout 600s flutter build apk --debug
+          --flavor publicalpha
+          --target lib/public/main_public.dart
+          --dart-define=SUPABASE_URL=https://aaaaaaaaaaaaaaaaaaaa.supabase.co
+          --dart-define=SUPABASE_ANON_KEY=sb_publishable_synthetic_ci_only
+          --dart-define=ARBOR_PUBLIC_API_URL=https://alpha.example.test
+      - name: Verify synthetic public alpha build
+        working-directory: apps/frontend
+        run: test -s build/app/outputs/flutter-apk/app-publicalpha-debug.apk
+
+  native-database:
+    if: github.repository == 'mikebuffan/Arbor' && (github.event_name == 'push' || github.head_ref == 'integration/one-arbor-canonical-20261006')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      CI: 'true'
+      AWS_EC2_METADATA_DISABLED: 'true'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install locked source dependencies
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.30.3 --activate
+          pnpm install --frozen-lockfile
+      - name: Start disposable PostgreSQL
+        shell: bash
+        run: |
+          set -euo pipefail
+          pg_bin=/usr/lib/postgresql/16/bin
+          pg_root="/tmp/one-arbor-canonical-${GITHUB_RUN_ID}"
+          mkdir -p "$pg_root/data" "$pg_root/socket"
+          sudo -n chown -R postgres:postgres "$pg_root"
+          sudo -n -u postgres "$pg_bin/initdb" -D "$pg_root/data" --auth=trust --no-locale
+          sudo -n -u postgres "$pg_bin/pg_ctl" -D "$pg_root/data" -l "$pg_root/server.log" -o "-k $pg_root/socket -p 54333 -c listen_addresses=''" -w start
+          printf 'PGHOST=%s/socket\nPGPORT=54333\nPGUSER=postgres\nPGDATABASE=grove_disposable\n' "$pg_root" >> "$GITHUB_ENV"
+          echo "$pg_bin" >> "$GITHUB_PATH"
+          "$pg_bin/createdb" -h "$pg_root/socket" -p 54333 -U postgres grove_disposable
+          "$pg_bin/createdb" -h "$pg_root/socket" -p 54333 -U postgres pattern_hop_control
+      - name: Grove transcript correction concurrency and recovery acceptance
+        run: |
+          psql -X -v ON_ERROR_STOP=1 -d grove_disposable -f ops/grove/disposable-db/00-private-transcript-acceptance.sql
+          psql -X -v ON_ERROR_STOP=1 -d grove_disposable -f ops/grove/disposable-db/correction-grants-acceptance.sql
+          python3 ops/grove/disposable-db/native-claims.py --disposable-local
+          cd apps/backend
+          node_modules/.bin/tsx ../../ops/grove/disposable-db/native-durable-corrections.mts --disposable-local
+      - name: Pattern Hop run-control exact SQL acceptance
+        run: psql -X -v ON_ERROR_STOP=1 -d pattern_hop_control -f ops/grove/disposable-db/pattern-hop-run-control-acceptance.sql
+      - name: Stop disposable PostgreSQL
+        if: always()
+        shell: bash
+        run: |
+          pg_root="/tmp/one-arbor-canonical-${GITHUB_RUN_ID}"
+          if test -f "$pg_root/data/postmaster.pid"; then
+            sudo -n -u postgres /usr/lib/postgresql/16/bin/pg_ctl -D "$pg_root/data" -m immediate -w stop
+          fi
+
+  windows-local-lm:
+    if: github.repository == 'mikebuffan/Arbor' && (github.event_name == 'push' || github.head_ref == 'integration/one-arbor-canonical-20261006')
+    runs-on: windows-2022
+    timeout-minutes: 40
+    env:
+      LLAMA_CPP_SHA: 5ad1c5da0ad7f6176256b823925aad19134f0263
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Local LM manifest contracts
+        shell: pwsh
+        run: node --test ops/grove/local-lm/local-lm-prep.test.mjs
+      - name: Read-only Windows hardware preflight
+        shell: pwsh
+        run: |
+          $text = Get-Content -Raw ops/grove/local-lm/windows-preflight.ps1
+          foreach ($needle in @('Invoke-WebRequest','Invoke-RestMethod','Start-BitsTransfer','winget install','choco install','pip install','npm install','curl.exe','wget')) {
+            if ($text -match [regex]::Escape($needle)) { throw "preflight contains forbidden action: $needle" }
+          }
+          $json = & ./ops/grove/local-lm/windows-preflight.ps1
+          $result = $json | ConvertFrom-Json
+          if ($result.schemaVersion -ne 1) { throw 'schema mismatch' }
+          if ($result.scope -ne 'read_only_local_hardware_preflight') { throw 'scope mismatch' }
+          if ($result.machineIdentityCollected -ne $false) { throw 'machine identity must not be collected' }
+      - name: Fetch exact llama.cpp source
+        shell: pwsh
+        run: |
+          git clone --filter=blob:none https://github.com/ggml-org/llama.cpp.git llama.cpp
+          Set-Location llama.cpp
+          git checkout --detach $env:LLAMA_CPP_SHA
+          if ((git rev-parse HEAD) -ne $env:LLAMA_CPP_SHA) { throw 'llama.cpp source mismatch' }
+      - name: Configure static CRT x64 baseline without AVX
+        shell: pwsh
+        run: |
+          $args = @(
+            '-DCMAKE_BUILD_TYPE=Release',
+            '-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded',
+            '-DBUILD_SHARED_LIBS=OFF',
+            '-DGGML_NATIVE=OFF',
+            '-DGGML_SSE42=OFF',
+            '-DGGML_AVX=OFF',
+            '-DGGML_AVX_VNNI=OFF',
+            '-DGGML_AVX2=OFF',
+            '-DGGML_BMI2=OFF',
+            '-DGGML_AVX512=OFF',
+            '-DGGML_AVX512_VBMI=OFF',
+            '-DGGML_AVX512_VNNI=OFF',
+            '-DGGML_AVX512_BF16=OFF',
+            '-DGGML_FMA=OFF',
+            '-DGGML_F16C=OFF',
+            '-DGGML_CPU_ALL_VARIANTS=OFF',
+            '-DGGML_OPENMP=OFF',
+            '-DLLAMA_CURL=OFF',
+            '-DLLAMA_OPENSSL=OFF',
+            '-DLLAMA_BUILD_SERVER=ON',
+            '-DLLAMA_BUILD_TESTS=OFF',
+            '-DLLAMA_BUILD_EXAMPLES=ON'
+          )
+          cmake -S llama.cpp -B llama.cpp/build-sse2 -A x64 @args
+      - name: Build exact local CPU runtime
+        shell: pwsh
+        run: cmake --build llama.cpp/build-sse2 --config Release --target llama-cli llama-server llama-bench --parallel 4
+      - name: Verify binaries launch and reject unpackaged C++ runtime DLLs
+        shell: pwsh
+        run: |
+          $bin = 'llama.cpp/build-sse2/bin/Release'
+          $vswhere = "${env:ProgramFiles(x86)}\\Microsoft Visual Studio\\Installer\\vswhere.exe"
+          if (-not (Test-Path -LiteralPath $vswhere)) { throw 'vswhere.exe unavailable' }
+          $vs = (& $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath).Trim()
+          if (-not $vs) { throw 'Visual Studio C++ tools unavailable' }
+          $dumpbin = Get-ChildItem -Path (Join-Path $vs 'VC\\Tools\\MSVC') -Filter dumpbin.exe -Recurse |
+            Sort-Object FullName -Descending | Select-Object -First 1 -ExpandProperty FullName
+          if (-not $dumpbin) { throw 'dumpbin.exe unavailable' }
+          foreach ($exe in @('llama-cli.exe','llama-server.exe','llama-bench.exe')) {
+            $path = Join-Path $bin $exe
+            if (-not (Test-Path -LiteralPath $path)) { throw "missing built executable: $exe" }
+            $deps = (& $dumpbin /dependents $path) |
+              Select-String -Pattern '^[ ]+[A-Za-z0-9_.-]+[.]dll$' |
+              ForEach-Object { $_.Line.Trim() } |
+              Sort-Object -Unique
+            foreach ($dep in $deps) {
+              if ($dep -match '^(VCRUNTIME|MSVCP|CONCRT|VCOMP|libomp)') {
+                throw "$exe still depends on unpackaged runtime DLL: $dep"
+              }
+            }
+          }
+          & "$bin/llama-cli.exe" --version
+          if ($LASTEXITCODE -ne 0) { throw 'llama-cli version failed' }
+          & "$bin/llama-server.exe" --version
+          if ($LASTEXITCODE -ne 0) { throw 'llama-server version failed' }

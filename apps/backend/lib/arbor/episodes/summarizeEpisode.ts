@@ -61,7 +61,8 @@ export async function summarizeEpisode(params: {
     .single();
 
   if (epErr) throw epErr;
-  if (!ep || ep.user_id !== userId) throw new Error("episode_not_found");
+  if (!ep || ep.user_id !== userId || (projectId !== undefined && ep.project_id !== projectId))
+    throw new Error("episode_not_found");
 
   if (ep.status === "summarized" || ep.summary_json) {
     return { ok: true, episodeId, already: true, summary: ep.summary_json };
@@ -146,13 +147,16 @@ ${clipText(transcript, 12000)}
   };
 
   if (ep.status === "open") {
-    await supabase
+    const { error: closeErr } = await supabase
       .from("episodes")
       .update({ status: "closed", closed_at: ep.closed_at ?? new Date().toISOString() })
-      .eq("id", episodeId);
+      .eq("id", episodeId)
+      .eq("user_id", userId)
+      .eq("project_id", ep.project_id);
+    if (closeErr) throw closeErr;
   }
 
-  const { error: uErr } = await supabase
+  const { data: persisted, error: uErr } = await supabase
     .from("episodes")
     .update({
       status: "summarized",
@@ -160,10 +164,26 @@ ${clipText(transcript, 12000)}
       updated_at: new Date().toISOString(),
     })
     .eq("id", episodeId)
-    .is("summary_json", null);
+    .eq("user_id", userId)
+    .eq("project_id", ep.project_id)
+    .is("summary_json", null)
+    .select("status,summary_json")
+    .maybeSingle();
 
-  if (uErr) {
-    console.error("[episodes] summarize update failed", uErr);
+  if (uErr) throw uErr;
+  if (!persisted) {
+    const { data: concurrent, error: readErr } = await supabase
+      .from("episodes")
+      .select("status,summary_json")
+      .eq("id", episodeId)
+      .eq("user_id", userId)
+      .eq("project_id", ep.project_id)
+      .maybeSingle();
+    if (readErr) throw readErr;
+    if (concurrent?.summary_json) {
+      return { ok: true, episodeId, already: true, summary: concurrent.summary_json };
+    }
+    throw new Error("episode_summary_not_persisted");
   }
-  return { ok: true, episodeId, already: false, summary };
+  return { ok: true, episodeId, already: false, summary: persisted.summary_json ?? summary };
 }

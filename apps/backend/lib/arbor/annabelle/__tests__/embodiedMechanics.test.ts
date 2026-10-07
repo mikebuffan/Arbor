@@ -1,0 +1,2 @@
+import{describe,expect,it}from"vitest";import{inspectEmbodiedBeat,inspectTouchBeat}from"../embodiedMechanics";
+describe("embodied mechanics",()=>{it("does not let body response substitute for consent",()=>{expect(inspectTouchBeat({initiator:"Will",placement:"hand",choiceVisible:false,response:"shiver"}).some(x=>x.kind==="choice")).toBe(true);});it("flags meaning jumps",()=>{expect(inspectEmbodiedBeat({stimulus:"door slammed",involuntary:["flinch"],propagation:[],action:["look"],declaredMeaning:"fear"}).some(x=>x.kind==="meaning-jump")).toBe(true);});});

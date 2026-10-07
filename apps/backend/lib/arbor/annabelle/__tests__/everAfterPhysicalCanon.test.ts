@@ -1,0 +1,2 @@
+import{describe,expect,it}from"vitest";import{EVER_PHYSICAL_CANON,missingPhysicalCanon}from"../everAfterPhysicalCanon";
+describe("Ever After physical canon",()=>{it("keeps persistent hip and scar facts visible to continuity checks",()=>{const missing=missingPhysicalCanon(["right hip/leg damage","hip hitch"]);expect(missing).toContain("shoulder scar");expect(EVER_PHYSICAL_CANON.character).toBe("Ever");});});

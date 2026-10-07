@@ -240,7 +240,7 @@ describe("ARK research controller executor", () => {
     const registry = new ArkExecutorRegistry();
     const planner: ResearchControllerPlanner = {
       plan: vi.fn(async () => ({
-        action: "await_review",
+        action: "await_review" as const,
         rationale: "Original source review is required.",
         unresolvedWork: ["independent original-source review"],
       })),
