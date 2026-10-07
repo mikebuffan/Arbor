@@ -19,6 +19,9 @@ function mockDb(result:Record<string,unknown>|null=record){
   query.select.mockReturnValue(query);
   query.eq.mockReturnValue(query);
   const rpc=vi.fn(async(name:string)=>{
+    if(name==="arbor_append_research_units"){
+      return {data:{appended:1,existing:1},error:null};
+    }
     if(name==="arbor_claim_research_unit"){
       return {data:{
         unitId:"unit-1",leaseToken:"lease-1",idempotencyKey:"unit-1",
@@ -62,6 +65,50 @@ describe("owner-scoped Supabase research adapter",()=>{
     const m=mockDb(null);
     const store=new SupabaseResearchStore(m.db,"owner-1","project-1","worker-1");
     expect(await store.loadSession("missing")).toBeNull();
+  });
+
+  it("uses the bounded append RPC and preserves owner/project scope",async()=>{
+    const m=mockDb();
+    const store=new SupabaseResearchStore(m.db,"owner-1","project-1","worker-1");
+    const s=(await store.loadSession("s1")) as ResearchSession;
+    const units=[{
+      unitKey:"follow-a",
+      kind:"research.synthetic",
+      description:"Follow one bounded synthetic lead.",
+      payload:{lead:"a"},
+      maxCostReservationCents:2,
+      maxAttempts:3,
+    },{
+      unitKey:"follow-b",
+      kind:"research.synthetic",
+      description:"Follow a second bounded synthetic lead.",
+      payload:{lead:"b"},
+      maxCostReservationCents:0,
+    }];
+
+    await expect(store.appendPlannedUnits({session:s,units}))
+      .resolves.toEqual({appended:1,existing:1});
+
+    expect(m.rpc).toHaveBeenCalledWith("arbor_append_research_units",{
+      p_session_id:"s1",
+      p_user_id:"owner-1",
+      p_project_id:"project-1",
+      p_units:[{
+        unitKey:"follow-a",
+        kind:"research.synthetic",
+        description:"Follow one bounded synthetic lead.",
+        payload:{lead:"a"},
+        maxCostReservationCents:2,
+        maxAttempts:3,
+      },{
+        unitKey:"follow-b",
+        kind:"research.synthetic",
+        description:"Follow a second bounded synthetic lead.",
+        payload:{lead:"b"},
+        maxCostReservationCents:0,
+        maxAttempts:3,
+      }],
+    });
   });
 
   it("includes identity, lease, and budget reservation on claims",async()=>{

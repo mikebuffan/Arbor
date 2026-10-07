@@ -24,6 +24,24 @@ describe("parseAgencyVerification", () => {
     });
   });
 
+  it("rejects complete=true when no completion evidence is returned", () => {
+    const result = parseAgencyVerification(
+      JSON.stringify({
+        complete: true,
+        score: 1,
+        unresolvedWork: [],
+        evidence: [],
+        strategyCorrection: null,
+        behaviorViolations: [],
+      }),
+    );
+
+    expect(result.complete).toBe(false);
+    expect(result.unresolvedWork).toEqual([
+      "completion claim lacked evidence",
+    ]);
+  });
+
   it("rejects complete=true when unresolved work is still listed", () => {
     const result=parseAgencyVerification(JSON.stringify({complete:true,score:1,unresolvedWork:["deploy exact head"],evidence:["source built"],strategyCorrection:null,behaviorViolations:[]}));
     expect(result.complete).toBe(false);expect(result.unresolvedWork).toEqual(["deploy exact head"]);

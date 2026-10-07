@@ -45,7 +45,7 @@ describe("isolated acceptance runner (mock provider, never live acceptance)", ()
     const createResponse = vi.fn(async (request: any) => {
       const id = `verify${++count}`;
       return response(id, String(request.instructions).includes("completion and behavioral-regression verifier")
-        ? JSON.stringify({ complete: true, score: 1, evidence: [], unresolvedWork: [], strategyCorrection: null, behaviorViolations: [] })
+        ? JSON.stringify({ complete: true, score: 1, evidence: ["mock completion evidence"], unresolvedWork: [], strategyCorrection: null, behaviorViolations: [] })
         : "Finished reply");
     });
     const result = await runAcceptanceComparison({ generation, assignment,
@@ -155,7 +155,7 @@ describe("isolated acceptance runner (mock provider, never live acceptance)", ()
       if (!isVerifier) return response(id, "Reply");
       verifications++;
       return response(id, JSON.stringify({ complete: verifications !== 1, score: 1,
-        unresolvedWork: verifications === 1 ? ["Unfinished task"] : [], evidence: [], strategyCorrection: null, behaviorViolations: [] }));
+        unresolvedWork: verifications === 1 ? ["Unfinished task"] : [], evidence: verifications === 1 ? [] : ["mock completion evidence"], strategyCorrection: null, behaviorViolations: [] }));
     };
     const result = await runAcceptanceComparison({ generation, assignment, config: { ...config, verifyCompletion: true },
       createResponse, provision: provisionAcceptanceFixture, record: async e => { events.push(e); } });
