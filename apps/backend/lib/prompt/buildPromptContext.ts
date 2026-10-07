@@ -35,7 +35,10 @@ import {
   buildArborBehaviorProjection,
   type ArborBehaviorProof,
 } from "@/lib/arbor/behavior/behaviorProjection";
-import { inferTechnicalHumorContext } from "@/lib/arbor/behavior/humorPragmatics";
+import {
+  countProfanityUses,
+  inferTechnicalHumorContext,
+} from "@/lib/arbor/behavior/humorPragmatics";
 import {
   deriveArborBodyState,
   arborBodyPromptBlock,
@@ -497,6 +500,9 @@ export async function buildPromptContext({
       latestUserText,
       technicalContext: inferTechnicalHumorContext(latestUserText, currentGoal),
       consequentialContext: Boolean(safety?.systemAddendum),
+      recentAssistantProfanityUses: countProfanityUses(
+        continuityState.lastMeaningfulArborTurn ?? "",
+      ),
     },
     continuityMaterial: [
       memoryText,
