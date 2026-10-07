@@ -1,6 +1,8 @@
 -- PROPOSAL ONLY. Do not apply without review.
 -- Adds durable STOP and one-run-at-a-time coordination to the existing
--- Pattern Hop run table. No scheduler, provider call, corpus ingestion or
+-- Pattern Hop run table. Control RPCs remain SECURITY INVOKER so existing
+-- owner-scoped RLS is still authoritative; explicit JWT scope checks remain
+-- defense in depth. No scheduler, provider call, corpus ingestion or
 -- background worker is created by this proposal.
 
 begin;
@@ -55,7 +57,7 @@ create or replace function public.arbor_pattern_hop_control_identity_ok(
 ) returns boolean
 language sql
 stable
-security definer
+security invoker
 set search_path=''
 as $identity$
   select
@@ -79,7 +81,7 @@ create or replace function public.arbor_pattern_hop_claim_run(
   p_lease_ms integer
 ) returns jsonb
 language plpgsql
-security definer
+security invoker
 set search_path=''
 as $claim$
 declare
@@ -139,7 +141,7 @@ create or replace function public.arbor_pattern_hop_heartbeat_run(
   p_lease_ms integer
 ) returns jsonb
 language plpgsql
-security definer
+security invoker
 set search_path=''
 as $heartbeat$
 declare
@@ -197,7 +199,7 @@ create or replace function public.arbor_pattern_hop_release_run(
   p_lease_token uuid
 ) returns text
 language plpgsql
-security definer
+security invoker
 set search_path=''
 as $release$
 declare
@@ -238,7 +240,7 @@ create or replace function public.arbor_pattern_hop_request_stop(
   p_project_id uuid
 ) returns text
 language plpgsql
-security definer
+security invoker
 set search_path=''
 as $stop$
 declare
@@ -273,7 +275,7 @@ create or replace function public.arbor_pattern_hop_resume_run(
   p_project_id uuid
 ) returns text
 language plpgsql
-security definer
+security invoker
 set search_path=''
 as $resume$
 declare
