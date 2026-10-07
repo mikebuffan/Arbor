@@ -58,10 +58,13 @@ function controlTool() {
 }
 
 function client(data: unknown) {
-  const q: Record<string, any> = {};
-  q.select = vi.fn(() => q);
-  q.eq = vi.fn(() => q);
-  q.maybeSingle = vi.fn(async () => ({ data, error: null }));
+  const q = {
+    select: vi.fn(),
+    eq: vi.fn(),
+    maybeSingle: vi.fn(async () => ({ data, error: null })),
+  };
+  q.select.mockReturnValue(q);
+  q.eq.mockReturnValue(q);
   return { from: vi.fn(() => q), q };
 }
 
