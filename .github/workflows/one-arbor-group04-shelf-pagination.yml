@@ -1,6 +1,9 @@
 name: One Arbor Group 4 scoped shelf paging acceptance
 
 on:
+  push:
+    branches:
+      - fix/one-arbor-group04-shelf-pagination-20261007
   pull_request:
     branches:
       - review/one-arbor-composed-g01-g03-g04-g05-g06-20261007
