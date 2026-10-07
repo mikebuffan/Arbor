@@ -309,6 +309,103 @@ describe("cognitive-access language", () => {
     expect(decision.confidenceBand).toBe("low");
   });
 
+  it("recovers a missing word when context makes the requested action clear", () => {
+    const decision = decideCognitiveAccessRecovery({
+      rawText: "can you the test again",
+      source: "typed",
+      risk: "ordinary",
+      degradationSignals: ["missing_words"],
+      candidates: [
+        {
+          text: "can you run the test again",
+          confidence: 0.92,
+          rationale: ["active test-running context", "single missing verb"],
+        },
+      ],
+    });
+
+    expect(decision.action).toBe("use_best_interpretation");
+    expect(decision.rawTextPreserved).toBe("can you the test again");
+  });
+
+  it("recovers phonetic project spelling without making it an identity signal", () => {
+    const decision = decideCognitiveAccessRecovery({
+      rawText: "ver sell is blocked again",
+      source: "typed",
+      risk: "ordinary",
+      degradationSignals: ["phonetic_spelling"],
+      candidates: [
+        {
+          text: "Vercel is blocked again",
+          confidence: 0.9,
+          rationale: ["active deployment context", "phonetic spelling"],
+        },
+      ],
+    });
+
+    expect(decision.action).toBe("use_best_interpretation");
+    expect(decision.mayAuthenticateIdentity).toBe(false);
+  });
+
+  it("recovers a speech-to-text homophone when current context resolves it", () => {
+    const decision = decideCognitiveAccessRecovery({
+      rawText: "right the release note",
+      source: "speech_to_text",
+      risk: "ordinary",
+      degradationSignals: ["speech_to_text_noise"],
+      candidates: [
+        {
+          text: "write the release note",
+          confidence: 0.93,
+          rationale: ["active documentation task", "homophone substitution"],
+        },
+      ],
+    });
+
+    expect(decision.action).toBe("use_best_interpretation");
+    expect(decision.source).toBe("speech_to_text");
+  });
+
+  it("handles abrupt topic switching without mutating the literal turn", () => {
+    const raw = "voice now the accent thing";
+    const decision = decideCognitiveAccessRecovery({
+      rawText: raw,
+      source: "typed",
+      risk: "ordinary",
+      degradationSignals: ["abrupt_topic_shift", "fragmented_thought"],
+      candidates: [
+        {
+          text: "switch to the Voice accent issue",
+          confidence: 0.9,
+          rationale: ["known unresolved Voice issue", "topic switch"],
+        },
+      ],
+    });
+
+    expect(decision.action).toBe("use_best_interpretation");
+    expect(decision.rawTextPreserved).toBe(raw);
+  });
+
+  it("preserves a short explicit no rather than asking an unnecessary question", () => {
+    const decision = decideCognitiveAccessRecovery({
+      rawText: "no",
+      source: "typed",
+      risk: "ordinary",
+      degradationSignals: ["unknown"],
+      candidates: [
+        {
+          text: "continue",
+          confidence: 0.99,
+          rationale: ["active objective"],
+        },
+      ],
+    });
+
+    expect(decision.action).toBe("use_raw");
+    expect(decision.interpretedText).toBe("no");
+    expect(decision.clarificationRequired).toBe(false);
+  });
+
   it("builds a bounded interpretation receipt without chain-of-thought", () => {
     const raw = "can yuo do it";
     const decision = decideCognitiveAccessRecovery({
