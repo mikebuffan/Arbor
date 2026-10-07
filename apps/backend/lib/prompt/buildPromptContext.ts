@@ -35,6 +35,7 @@ import {
   buildArborBehaviorProjection,
   type ArborBehaviorProof,
 } from "@/lib/arbor/behavior/behaviorProjection";
+import { inferTechnicalHumorContext } from "@/lib/arbor/behavior/humorPragmatics";
 import {
   deriveArborBodyState,
   arborBodyPromptBlock,
@@ -492,6 +493,11 @@ export async function buildPromptContext({
         ? `Tentative self-update under verification: ${pendingStrategyUnderVerification}`
         : "",
     ].filter(Boolean),
+    humorPragmatics: {
+      latestUserText,
+      technicalContext: inferTechnicalHumorContext(latestUserText, currentGoal),
+      consequentialContext: Boolean(safety?.systemAddendum),
+    },
     continuityMaterial: [
       memoryText,
       episodeRecallBlock,
