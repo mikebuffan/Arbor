@@ -263,6 +263,60 @@ describe("contextual reference resolution", () => {
     );
   });
 
+  it("keeps bare cancel as a literal cancel control", () => {
+    const decision = resolveContextualReference({
+      rawText: "cancel",
+      risk: "ordinary",
+      candidates: [],
+    });
+
+    expect(decision.action).toBe("control");
+    expect(decision.control).toBe("cancel");
+  });
+
+  it("resolves 'cancel it' only when the referent is clear", () => {
+    const decision = resolveContextualReference({
+      rawText: "cancel it",
+      risk: "ordinary",
+      candidates: [
+        candidate({
+          id: "active-action",
+          label: "the active reversible action",
+          type: "action",
+          evidenceSources: ["active_objective"],
+        }),
+      ],
+    });
+
+    expect(decision.action).toBe("resolved");
+    expect(decision.resolvedReferent?.id).toBe("active-action");
+  });
+
+  it("clarifies 'cancel it' when two targets are materially plausible", () => {
+    const decision = resolveContextualReference({
+      rawText: "cancel it",
+      risk: "ordinary",
+      candidates: [
+        candidate({
+          id: "action-a",
+          label: "action A",
+          type: "action",
+          confidence: 0.9,
+          evidenceSources: ["active_objective"],
+        }),
+        candidate({
+          id: "action-b",
+          label: "action B",
+          type: "action",
+          confidence: 0.87,
+          evidenceSources: ["active_objective"],
+        }),
+      ],
+    });
+
+    expect(decision.action).toBe("clarify");
+  });
+
   it("retries the one failed repeatable action on 'again'", () => {
     const decision = resolveContextualReference({
       rawText: "again",
