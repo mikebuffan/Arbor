@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - integration/one-arbor-canonical-20261006
+  pull_request:
+    branches:
+      - integration/one-arbor-canonical-20261006
 
 permissions:
   contents: read
