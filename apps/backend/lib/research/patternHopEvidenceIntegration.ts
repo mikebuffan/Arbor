@@ -4,14 +4,16 @@ import {
   type FireflyScope,
   type RoundaboutSignal,
 } from "@/lib/arbor/runtime/knowledgeRouting";
+import {
+  ARK_PATTERN_HOP_SUBMISSION_LIMITS,
+  ArkPatternHopRequest,
+  type ArkPatternHopSubmissionRequest,
+} from "@/lib/mcp/patternHopSubmissionContract";
 import type { ClaimEvidenceSummary } from "./claimEvidenceGraph";
 import type { PropagatedClaimConfidence } from "./contradictionPropagation";
 import type { RerouteDirective } from "./failedLeadRouting";
 import type { ResearchPatternHopCandidate } from "./researchPatternHopBridge";
 
-const ARK_MAX_DEPTH = 3;
-const ARK_MAX_HOPS = 8;
-const ARK_MAX_SEED_CHARS = 2000;
 const ROUNDABOUT_MAX_PROVENANCE = 12;
 
 const uniq = (values: readonly string[]): string[] =>
@@ -67,13 +69,7 @@ function contradictionLabels(input: {
 }
 
 export type PreparedArkPatternHopHandoff = {
-  request: {
-    projectId: string;
-    seed: string;
-    runId: null;
-    maxHops: number;
-    maxDepth: number;
-  };
+  request: ArkPatternHopSubmissionRequest;
   triggerEvidenceRefs: readonly string[];
   executionRequested: false;
   submitted: false;
@@ -98,7 +94,7 @@ export type PatternHopEvidenceIntegration = {
 /**
  * Source-only composition seam:
  * Pattern Hop candidate -> Evidence Engine review state -> existing Roundabout
- * -> prepared ARK submission envelope.
+ * -> the exact existing ARK Pattern Hop submission contract.
  *
  * It never submits a task, grants execution, resolves identity, or converts
  * association/counterevidence into a conduct verdict. Every evidence ref is
@@ -109,6 +105,7 @@ export function preparePatternHopEvidenceIntegration(input: {
   candidate: ResearchPatternHopCandidate;
   scope: FireflyScope;
   projectId: string;
+  requestId: string;
   claimSummaries?: readonly ClaimEvidenceSummary[];
   contradictionEffects?: readonly PropagatedClaimConfidence[];
   reroutes?: readonly RerouteDirective[];
@@ -118,15 +115,28 @@ export function preparePatternHopEvidenceIntegration(input: {
       candidate.status !== "prepared_not_submitted") {
     throw new Error("pattern_hop_evidence_bridge_requires_prepared_candidate");
   }
-  if (candidate.maxDepth > ARK_MAX_DEPTH ||
-      candidate.maxHopsPerAttempt > ARK_MAX_HOPS) {
+  if (candidate.maxDepth > ARK_PATTERN_HOP_SUBMISSION_LIMITS.maxDepth ||
+      candidate.maxHopsPerAttempt > ARK_PATTERN_HOP_SUBMISSION_LIMITS.maxHops) {
     throw new Error("pattern_hop_candidate_exceeds_ark_bounds");
   }
-  if (candidate.seed.requestedQuery.length > ARK_MAX_SEED_CHARS) {
+  if (candidate.seed.requestedQuery.length >
+      ARK_PATTERN_HOP_SUBMISSION_LIMITS.maxSeedChars) {
     throw new Error("pattern_hop_candidate_exceeds_ark_seed_limit");
   }
   if (!input.projectId.trim() || input.projectId !== input.scope.projectId) {
     throw new Error("pattern_hop_ark_project_scope_mismatch");
+  }
+
+  const requestResult = ArkPatternHopRequest.safeParse({
+    projectId: input.projectId,
+    requestId: input.requestId,
+    seed: candidate.seed.requestedQuery,
+    runId: null,
+    maxHops: candidate.maxHopsPerAttempt,
+    maxDepth: candidate.maxDepth,
+  });
+  if (!requestResult.success) {
+    throw new Error("pattern_hop_ark_request_invalid");
   }
 
   const evidenceRefs = collectEvidenceRefs(input);
@@ -177,13 +187,7 @@ export function preparePatternHopEvidenceIntegration(input: {
     signal,
     roundabout,
     ark: {
-      request: {
-        projectId: input.projectId,
-        seed: candidate.seed.requestedQuery,
-        runId: null,
-        maxHops: candidate.maxHopsPerAttempt,
-        maxDepth: candidate.maxDepth,
-      },
+      request: requestResult.data,
       triggerEvidenceRefs: [...candidate.seed.triggerEvidenceRefs],
       executionRequested: false,
       submitted: false,
