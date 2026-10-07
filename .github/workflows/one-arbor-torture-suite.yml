@@ -63,6 +63,8 @@ jobs:
           lib/arbor/agency/__tests__/backlogContinuation.test.ts
           lib/arbor/agency/__tests__/completionEvidence.test.ts
           lib/arbor/agency/__tests__/tortureAcceptance.test.ts
+          lib/arbor/agency/__tests__/objectiveLifecycle.test.ts
+          lib/arbor/agency/__tests__/state.test.ts
       - name: Runtime memory and correction recovery
         working-directory: apps/backend
         run: >
@@ -94,6 +96,8 @@ jobs:
           lib/grove/__tests__/privateRuntimeTurnCapture.test.ts
           lib/ark/__tests__/runner.test.ts
           lib/ark/__tests__/stopSemantics.test.ts
+          lib/ark/__tests__/agencyDispatcher.test.ts
+          lib/ark/__tests__/agencyToolExecutor.test.ts
           lib/ark/__tests__/agencyExecutionDelegate.test.ts
           lib/ark/__tests__/acceptanceConnection.integration.test.ts
       - name: Standalone TypeScript
