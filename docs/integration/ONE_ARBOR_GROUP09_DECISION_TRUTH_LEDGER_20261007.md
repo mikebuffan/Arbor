@@ -37,6 +37,7 @@ Control backend `src/group09DecisionNegative.test.ts`:
 - Duplicate and missing candidate identifiers, invalid thresholds and zero information;
 - Missing evidence, unreviewed/unspecified user priorities, optional high-utility items, blocked/irreversible choices;
 - Foreign owner/project and duplicate option IDs;
+- Matched reversible options can change *advisory ranking* when a hypothetical trusted host supplies newly reviewed consequence estimates; `valuesVerifiedHere=false` and `grantsExecution=false` remain, so this is input sensitivity and NOT proof of real reviewed learning;
 - Missing/blank causal provenance, consolidation exclusion, prediction error without execution.
 
 Backend `lib/arbor/runtime/__tests__/group09TruthConsequence.test.ts`:
