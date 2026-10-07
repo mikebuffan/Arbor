@@ -71,7 +71,8 @@ function checkEvent(event: DecisionTrailEvent, scope: DecisionTrailScope): void 
       event.evidenceRefs.length > MAX_REFS ||
       event.evidenceRefs.some(ref => !checkedText(ref, 200)) ||
       (event.supersedesEventId !== undefined &&
-        !checkedText(event.supersedesEventId, 200))) {
+        (!checkedText(event.supersedesEventId, 200) ||
+          event.supersedesEventId === event.id))) {
     throw new Error("decision_ancestry_invalid_event");
   }
 }
@@ -91,11 +92,16 @@ export function projectDecisionAncestry(input: {
   // accidentally laundering a foreign scope into a same-project projection.
   for (const event of input.events) checkEvent(event, input.scope);
   const unique = new Map<string, DecisionTrailEvent>();
+  const fingerprint = (item: DecisionTrailEvent) => JSON.stringify([
+    item.userId, item.projectId, item.id, item.decisionId, item.occurredAt,
+    item.kind, item.summary, [...item.evidenceRefs].sort(),
+    item.supersedesEventId ?? null,
+  ]);
   for (const event of input.events) {
     if (event.decisionId !== input.decisionId) continue;
     const prior = unique.get(event.id);
     if (prior) {
-      if (JSON.stringify(prior) !== JSON.stringify(event))
+      if (fingerprint(prior) !== fingerprint(event))
         throw new Error("decision_ancestry_duplicate_conflict");
       continue; // Exact retry is idempotent, not additional corroboration.
     }
@@ -112,7 +118,14 @@ export function projectDecisionAncestry(input: {
   const missingPredecessors = [...superseded].filter(id => !ids.has(id)).sort();
   const choices = events.filter(event =>
     event.kind === "choice" && !superseded.has(event.id));
-  const correctionCount = events.filter(event => event.kind === "correction").length;
+  const corrections = events.filter(event => event.kind === "correction");
+  const correctionCount = corrections.length;
+  // A later unlinked correction may invalidate the apparent latest choice.
+  // Hold the verdict rather than treating an unlinked correction as resolved.
+  const pendingUnlinkedCorrection = choices.some(choice => corrections.some(
+    correction => Date.parse(correction.occurredAt) >= Date.parse(choice.occurredAt) &&
+      !correction.supersedesEventId,
+  ));
   const reportedOutcomeRefs = [...new Set(events
     .filter(event => event.kind === "observed_outcome")
     .flatMap(event => event.evidenceRefs))].sort();
@@ -132,12 +145,59 @@ export function projectDecisionAncestry(input: {
     scope: { ...input.scope },
     decisionId: input.decisionId,
     events,
-    currentChoice: choices.length === 1 ? choices[0] : null,
+    currentChoice: choices.length === 1 && !pendingUnlinkedCorrection
+      ? choices[0] : null,
     missingPredecessors,
     reportedOutcomeRefs,
     warnings,
     evidenceVerifiedHere: false,
     grantsExecution: false,
     grantsMemoryPromotion: false,
+  };
+}
+
+/**
+ * Read-only "what changed?" between two source-bound projections. A missing
+ * older event is reported, not treated as deletion consent or silently ignored.
+ */
+export function diffDecisionAncestry(
+  before: DecisionAncestryView,
+  after: DecisionAncestryView,
+): {
+  addedEventIds: string[];
+  missingPriorEventIds: string[];
+  choiceChanged: boolean;
+  requiresReview: boolean;
+  grantsExecution: false;
+} {
+  assertScope(before.scope);
+  assertScope(after.scope);
+  if (before.scope.userId !== after.scope.userId ||
+      before.scope.projectId !== after.scope.projectId ||
+      before.decisionId !== after.decisionId)
+    throw new Error("decision_ancestry_diff_scope_mismatch");
+
+  const oldIds = new Set(before.events.map(event => event.id));
+  const newIds = new Set(after.events.map(event => event.id));
+  const priorById = new Map(before.events.map(event => [event.id, event]));
+  for (const item of after.events) {
+    const previous = priorById.get(item.id);
+    if (previous && JSON.stringify([
+      previous.occurredAt, previous.kind, previous.summary,
+      [...previous.evidenceRefs].sort(), previous.supersedesEventId ?? null,
+    ]) !== JSON.stringify([
+      item.occurredAt, item.kind, item.summary,
+      [...item.evidenceRefs].sort(), item.supersedesEventId ?? null,
+    ])) throw new Error("decision_ancestry_history_conflict");
+  }
+  const addedEventIds = after.events.filter(event => !oldIds.has(event.id))
+    .map(event => event.id);
+  const missingPriorEventIds = before.events.filter(event => !newIds.has(event.id))
+    .map(event => event.id);
+  const choiceChanged = before.currentChoice?.id !== after.currentChoice?.id;
+  return {
+    addedEventIds, missingPriorEventIds, choiceChanged,
+    requiresReview: Boolean(missingPriorEventIds.length || after.warnings.length),
+    grantsExecution: false,
   };
 }
