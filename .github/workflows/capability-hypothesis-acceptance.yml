@@ -51,8 +51,11 @@ jobs:
       - name: Guard source-only migration proposal
         run: |
           test -f docs/migrations/20261006_extend_capability_registry_hypotheses.sql
-          ! git diff --exit-code integration/one-arbor-pre-vercel-20261006...HEAD -- supabase/migrations >/dev/null || true
           test ! -f supabase/migrations/20261006_extend_capability_registry_hypotheses.sql
+          if git diff --name-only 65be4dc3ac59997d6bb0ee800648293b45932b6e...HEAD | grep -q '^supabase/migrations/'; then
+            echo "Hosted migration path changed in source-only hypothesis lane"
+            exit 1
+          fi
       - name: Standalone TypeScript
         working-directory: apps/backend
         run: pnpm exec tsc --noEmit
