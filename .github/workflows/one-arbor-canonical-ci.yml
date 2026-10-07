@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - integration/one-arbor-canonical-20261006
+      - integration/ark-finish-canonical-20261006
 
 permissions:
   contents: read
