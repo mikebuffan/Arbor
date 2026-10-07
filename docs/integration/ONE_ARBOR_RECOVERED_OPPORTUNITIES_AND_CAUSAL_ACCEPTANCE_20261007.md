@@ -144,13 +144,21 @@ The compact collaborative command "list prompt go" was not reliably
 recognized by the older policy. Added explicit bounded shorthand variants
 that apply **only when a real unfinished goal already exists**.
 An explicit STOP/switch still overrides continuation, and no new goal is
-resurrected merely by the word "go".
+resurrected merely by the word "go". Negated instructions such as "don't stop
+this", "do not drop that" or "never switch goals" must not be misread as
+explicit cancellations. A separate, unnegated switch still takes priority.
 
 A related hard-stop flaw existed in `buildAgencySessionState`: resuming
 a blocked objective unconditionally set status to active and erased its
 recorded blocker. The isolated repair now preserves that protected blocker
 until a separate, trusted clearance mechanism updates the objective.
 Conversational approval alone is not proof of privileged authorization.
+
+The first full CI pass failed only because the synthetic PDF research tests
+needed Poppler, which the isolated runner did not have: 1,941 backend tests
+passed, 5 failed on missing parser prerequisites. The source-only workflow
+now verifies Poppler before the full suite. This is a test-runner configuration
+repair, NOT a change to the research parser or a claim of green final CI.
 
 All of this needs focused AND full backend regression before acceptance.
 No live state was modified. Source tests cannot prove a deployed agent
