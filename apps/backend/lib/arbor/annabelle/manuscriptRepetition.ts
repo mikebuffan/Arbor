@@ -7,7 +7,7 @@ export function analyzeManuscriptRepetition(input:{occurrences:readonly Repetiti
  for(const o of input.occurrences){const key=norm(o.text);if(!key)continue;const row=map.get(key)??{kind:o.kind,chapters:[]};row.chapters.push(o.chapter);map.set(key,row);}
  return [...map.entries()].filter(([,v])=>v.chapters.length>=2).map(([key,v])=>{
    const chapters=[...new Set(v.chapters)].sort((a,b)=>a-b);const count=v.chapters.length;
-   const classification=motifs.has(key)?"motif-candidate":count>=5||chapters.length>=4?"high-risk":"review";
+   const classification:RepetitionFinding["classification"]=motifs.has(key)?"motif-candidate":count>=5||chapters.length>=4?"high-risk":"review";
    return{key,chapters,count,classification,kind:v.kind};
  }).sort((a,b)=>b.count-a.count);
 }
