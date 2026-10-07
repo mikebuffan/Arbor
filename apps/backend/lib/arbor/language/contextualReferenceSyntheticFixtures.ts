@@ -65,6 +65,21 @@ export const CONTEXTUAL_REFERENCE_SYNTHETIC_FIXTURES = [
     expected: "clarify",
   },
   {
+    id: "bare_cancel",
+    raw: "cancel",
+    expected: "control",
+  },
+  {
+    id: "cancel_it_unique",
+    raw: "cancel it",
+    expected: "resolved",
+  },
+  {
+    id: "cancel_it_ambiguous",
+    raw: "cancel it",
+    expected: "clarify",
+  },
+  {
     id: "again_failed",
     raw: "again",
     expected: "resolved",
