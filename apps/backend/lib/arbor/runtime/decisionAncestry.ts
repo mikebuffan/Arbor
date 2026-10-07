@@ -201,3 +201,51 @@ export function diffDecisionAncestry(
     grantsExecution: false,
   };
 }
+
+/**
+ * Read-only Human Decision Inbox candidate *projection*, not a task queue.
+ * Review signals do not imply a particular person has approved any action.
+ * Never auto-enqueue, grant objective control, change identity, or infer stakes.
+ */
+export function projectDecisionReviewCandidates(input: {
+  scope: DecisionTrailScope;
+  views: readonly DecisionAncestryView[];
+  limit?: number;
+}): {
+  items: Array<{ decisionId: string; reasons: DecisionTrailWarning[]; latestEventId: string | null }>;
+  truncated: boolean;
+  grantsExecution: false;
+  requiresHumanApprovalDetermination: true;
+} {
+  assertScope(input.scope);
+  const limit = input.limit ?? 12;
+  if (!Array.isArray(input.views) || input.views.length > 64 ||
+      !Number.isSafeInteger(limit) || limit < 1 || limit > 30)
+    throw new Error("decision_review_invalid_input");
+  const ids = new Set<string>();
+  const flagged: Array<{ decisionId: string; reasons: DecisionTrailWarning[]; latestEventId: string | null }> = [];
+  for (const view of input.views) {
+    if (!view || !view.scope ||
+        view.scope.userId !== input.scope.userId ||
+        view.scope.projectId !== input.scope.projectId)
+      throw new Error("decision_review_scope_mismatch");
+    if (!checkedText(view.decisionId, 200) || ids.has(view.decisionId))
+      throw new Error("decision_review_duplicate_or_invalid");
+    ids.add(view.decisionId);
+    // Purely informational; source and user authority must still be checked
+    // by the intended host before any specific review action is suggested.
+    if (view.warnings.length)
+      flagged.push({
+        decisionId: view.decisionId,
+        reasons: [...view.warnings],
+        latestEventId: view.events[view.events.length - 1]?.id ?? null,
+      });
+  }
+  flagged.sort((a, b) => a.decisionId.localeCompare(b.decisionId));
+  return {
+    items: flagged.slice(0, limit),
+    truncated: flagged.length > limit,
+    grantsExecution: false,
+    requiresHumanApprovalDetermination: true,
+  };
+}
