@@ -1,11 +1,9 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireUser } from "@/lib/auth/requireUser";
-import { assertProjectOwnedByUser } from "@/lib/auth/ownership";
 import { RouteAccessError, routeErrorResponse } from "@/lib/auth/routeAuthorization";
-import { supabaseAdmin } from "@/lib/supabase/admin";
-import { SupabaseArkStore } from "@/lib/ark/supabaseStore";
 import { isArkObjectiveControlEnabled } from "@/lib/ark/activation";
+import { controlOwnedArkObjective } from "@/lib/ark/objectiveControl";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -57,25 +55,13 @@ export async function POST(req: Request) {
     }
 
     const { projectId, objectiveId, action } = parsed.data;
-    await assertProjectOwnedByUser(supabase, userId, projectId);
-
-    // Prove the exact objective is visible inside the authenticated user/project
-    // scope BEFORE obtaining a service-role client for the mutation RPC.
-    const { data: owned, error: readError } = await supabase
-      .from("ark_objectives")
-      .select("id")
-      .eq("id", objectiveId)
-      .eq("user_id", userId)
-      .eq("project_id", projectId)
-      .maybeSingle();
-    if (readError) throw readError;
-    if (!owned) throw new RouteAccessError(404, "ark_objective_not_found");
-
-    const store = new SupabaseArkStore(supabaseAdmin());
-    const now = new Date().toISOString();
-    const objective = action === "cancel"
-      ? await store.cancelObjective({ objectiveId, now })
-      : await store.resumeBlockedObjective({ objectiveId, now });
+    const objective = await controlOwnedArkObjective({
+      supabase,
+      userId,
+      projectId,
+      objectiveId,
+      action,
+    });
 
     return NextResponse.json(
       {
