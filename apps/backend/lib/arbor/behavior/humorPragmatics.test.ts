@@ -8,9 +8,9 @@ import {
 } from "./humorPragmatics";
 import {
   HUMOR_BLIND_FIXTURES,
-  HUMOR_BLIND_FIXTURE_KEY,
   HUMOR_REGRESSION_FIXTURES,
 } from "./humorPragmatics.fixtures";
+import { HUMOR_BLIND_FIXTURE_KEY } from "./humorPragmatics.blindKey";
 
 describe("Arbor humor pragmatics", () => {
   it("keeps humor optional rather than converting preference into a joke quota", () => {
