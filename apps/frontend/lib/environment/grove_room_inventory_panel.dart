@@ -127,7 +127,7 @@ class _GroveRoomInventoryPanelState extends State<GroveRoomInventoryPanel> {
             children: [
               for (final room in _rooms)
                 ChoiceChip(
-                  key: ValueKey('inventory-zone-' + room.name),
+                  key: ValueKey('inventory-zone-${room.name}'),
                   label: Text(_roomLabel(room)),
                   selected: _zone == room,
                   onSelected: (_) => setState(() => _zone = room),
@@ -136,7 +136,7 @@ class _GroveRoomInventoryPanelState extends State<GroveRoomInventoryPanel> {
           ),
           const SizedBox(height: 12),
           Text(
-            _roomLabel(_zone) + ' · ' + entries.length.toString() + ' listed',
+            '${_roomLabel(_zone)} · ${entries.length} listed',
             style: const TextStyle(
               color: ArborEnvironmentTokens.textPrimary,
               fontSize: 16,
@@ -204,7 +204,7 @@ class _GroveRoomInventoryPanelState extends State<GroveRoomInventoryPanel> {
             ),
           for (final item in entries)
             Padding(
-              key: ValueKey('inventory-item-' + item.id),
+              key: ValueKey('inventory-item-${item.id}'),
               padding: const EdgeInsets.symmetric(vertical: 6),
               child: Row(
                 children: [
@@ -232,7 +232,7 @@ class _GroveRoomInventoryPanelState extends State<GroveRoomInventoryPanel> {
                         Text(
                           item.kind == GroveInventoryKind.source
                               ? 'SOURCE REFERENCE · NOT OPENED'
-                              : 'HOUSE SCENERY · ' + item.id,
+                              : 'HOUSE SCENERY · ${item.id}',
                           style: const TextStyle(
                             color: ArborEnvironmentTokens.textMuted,
                             fontSize: 11,
