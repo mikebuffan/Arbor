@@ -61,6 +61,7 @@ jobs:
           lib/ark/__tests__/supabaseStore.test.ts
           lib/ark/__tests__/objectiveControl.test.ts
           lib/ark/__tests__/objectiveControlRoute.test.ts
+          lib/ark/__tests__/objectiveControlService.test.ts
           lib/ark/__tests__/readModel.test.ts
           lib/ark/__tests__/agencyBridge.test.ts
           lib/ark/__tests__/agencyDispatcher.test.ts
@@ -153,9 +154,43 @@ jobs:
           psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261006093000_ark_stop_and_resume_controls.sql
       - name: Verify control functions and service-role-only grants
         run: |
-          psql -Atq -v ON_ERROR_STOP=1 <<'SQL'
-          select case when to_regprocedure('public.ark_cancel_objective(uuid,timestamptz)') is null then 1/0 else 1 end;
-          select case when to_regprocedure('public.ark_resume_blocked_objective(uuid,timestamptz)') is null then 1/0 else 1 end;
+          psql -v ON_ERROR_STOP=1 <<'SQL'
+          do $
+          declare
+            cancel_oid oid;
+            resume_oid oid;
+          begin
+            select p.oid into cancel_oid
+            from pg_proc p
+            join pg_namespace n on n.oid = p.pronamespace
+            where n.nspname = 'public'
+              and p.proname = 'ark_cancel_objective'
+              and p.pronargs = 2;
+
+            select p.oid into resume_oid
+            from pg_proc p
+            join pg_namespace n on n.oid = p.pronamespace
+            where n.nspname = 'public'
+              and p.proname = 'ark_resume_blocked_objective'
+              and p.pronargs = 2;
+
+            if cancel_oid is null or resume_oid is null then
+              raise exception 'ARK control function missing after migration';
+            end if;
+
+            if not has_function_privilege('service_role', cancel_oid, 'EXECUTE')
+               or not has_function_privilege('service_role', resume_oid, 'EXECUTE') then
+              raise exception 'service_role lacks ARK objective-control execute';
+            end if;
+
+            if has_function_privilege('authenticated', cancel_oid, 'EXECUTE')
+               or has_function_privilege('authenticated', resume_oid, 'EXECUTE')
+               or has_function_privilege('anon', cancel_oid, 'EXECUTE')
+               or has_function_privilege('anon', resume_oid, 'EXECUTE') then
+              raise exception 'ARK objective-control leaked to ordinary database roles';
+            end if;
+          end
+          $;
           SQL
 
   flutter:
