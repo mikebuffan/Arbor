@@ -75,14 +75,56 @@ That is a **runtime-binary receipt, not a model-inference receipt**.
 
 ### Current integrated candidate #268 @ `3c599ffd655409d8f72116ec857b76dfa646bd50`
 
-GitHub Actions run `37545923434`:
+GitHub Actions run `37545923434`.
 
 Phone job: **PASS**
 - analyzer: PASS;
 - full Flutter suite: **193 tests passed**;
 - synthetic Grove debug APK: built successfully.
 
-Backend job:
+The current exact head also ran and passed the Grove/identity tests needed by this lane before the unrelated research failures stopped the full backend job:
+
+- `privateReadBroker.test.ts`: **61 passed**;
+- `privateTranscriptStore.test.ts`: **25 passed**;
+- `privateConversationLoop.test.ts`: **17 passed**;
+- `privateLmHostTransport.test.ts`: **13 passed**;
+- `privateCorrectionRoute.test.ts`: **12 passed**;
+- `privateCorrectionWritePreparation.test.ts`: **10 passed**;
+- `privateCorrectionConnection.test.ts`: **6 passed**;
+- `privateRuntimeGoalRoute.test.ts`: **11 passed**;
+- `privateRuntimeGoalWrite.test.ts`: **3 passed**;
+- `privateRuntimeTurnCapture.test.ts`: **4 passed**;
+- `privateArkObjectiveRun.test.ts`: **5 passed**;
+- `privateArkObjectiveRunRoute.test.ts`: **7 passed**;
+- `arkSpineContinuity.test.ts`: **4 passed**;
+- `arkSpineStartup.test.ts`: **1 passed**;
+- `privateChatRoute.test.ts`: **8 passed**;
+- `privateConversationDiscovery.test.ts`: **11 passed**;
+- `privateTranscriptRoute.test.ts`: **9 passed**;
+- `privateHostIsolation.test.ts`: **5 passed**;
+- `groveDeploymentConfig.test.ts`: **2 passed**;
+- `privateReleaseComposite.test.ts`: **1 passed**;
+- `arkLayerReadContext.test.ts`: **17 passed, 1 skipped**;
+- `personalityProjection.test.ts`: **7 passed**.
+
+Login/grant source coverage on that same head includes:
+
+- private broker OFF before auth/database access;
+- Grove JWT issuer/audience/role/expiry validation;
+- Firefly token rejection in the Grove realm;
+- active owner invitation required;
+- revocable Grove -> Firefly bridge required;
+- exact project grant required before Firefly access;
+- Firefly project ownership required;
+- exact conversation ownership/project binding required before model disclosure;
+- missing/revoked/expired grants fail closed;
+- private phone realm refuses the legacy Firefly/ARK auth realms;
+- zero project grants never invent a project;
+- multiple grants require explicit project selection;
+- failed grant fetch denies access and offers retry;
+- standalone private Grove does not expose unsupported legacy chat/voice.
+
+Backend job overall:
 - focused ARK spine tests: PASS;
 - later complete regression suite failed in active **research-lane** tests:
   - `arkResearchHandoff.test.ts`;
@@ -115,6 +157,7 @@ This scratch reproduction is supporting evidence only; the authoritative source 
 - durable terminal replay without stale objective resurrection;
 - Text retry identity persistence/recovery;
 - stale history cannot silently clear an uncertain send;
+- scoped login/invitation/bridge/project/conversation denial behavior in synthetic/test environments;
 - current phone Flutter source and synthetic Android APK build;
 - local LM manifest/context/CPU compatibility checks;
 - loopback signed receiver contract;
