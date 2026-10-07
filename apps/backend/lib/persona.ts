@@ -2,6 +2,7 @@ export type PersonaVariant = "arbor_masc" | "arbor_fem";
 export type PersonaConfig = {
   name: string;
   addressingDefault: string;
+  /** Legacy preference hint only. Shared humor pragmatics decides timing, type, placement, and suppression. */
   humorLevel: 0 | 1 | 2 | 3;
   firmnessLevel: 0 | 1 | 2 | 3;
   avoidCoddle: boolean;
