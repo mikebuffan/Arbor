@@ -20,7 +20,10 @@ const OBJECTIVE = "6d108079-1a82-48e4-ac78-cc226d0684e3";
 function request(objective = OBJECTIVE, secret = "preview-machine-secret") {
   return new Request("https://preview.test/api/preview/ark/acceptance", {
     method: "POST",
-    headers: { "x-arbor-canary-objective": objective, authorization: `Bearer ${secret}` },
+    headers: {
+      "x-arbor-canary-objective": objective,
+      authorization: `Bearer ${secret}`,
+    },
   });
 }
 
@@ -48,29 +51,50 @@ describe("preview ARK acceptance trigger", () => {
     expect(mocks.run).not.toHaveBeenCalled();
   });
 
-  it("requires existing machine authentication even in Preview", async () => {\n    const response = await POST(request(OBJECTIVE, "wrong-secret"));\n    expect(response.status).toBe(401);\n    expect(mocks.run).not.toHaveBeenCalled();\n  });\n\n  it("requires a valid configured canary", async () => {
-    process.env.ARBOR_ARK_CANARY_OBJECTIVE_ID = "00000000-0000-0000-0000-000000000000";
+  it("requires existing machine authentication even in Preview", async () => {
+    const response = await POST(request(OBJECTIVE, "wrong-secret"));
+    expect(response.status).toBe(401);
+    expect(mocks.run).not.toHaveBeenCalled();
+  });
+
+  it("requires a valid configured canary", async () => {
+    process.env.ARBOR_ARK_CANARY_OBJECTIVE_ID =
+      "00000000-0000-0000-0000-000000000000";
     const response = await POST(request());
     expect(response.status).toBe(409);
     expect(mocks.run).not.toHaveBeenCalled();
   });
 
   it("rejects any objective other than the configured canary", async () => {
-    const response = await POST(request("11111111-1111-4111-8111-111111111111"));
+    const response = await POST(
+      request("11111111-1111-4111-8111-111111111111"),
+    );
     expect(response.status).toBe(403);
     expect(mocks.run).not.toHaveBeenCalled();
   });
 
   it("runs one worker task scoped to the exact configured objective", async () => {
-    mocks.run.mockResolvedValue({ status: "completed", claimed: 1, completed: 1, checkpointed: 0, blocked: 0, failed: 0, verifiedObjectives: 1 });
+    mocks.run.mockResolvedValue({
+      status: "completed",
+      claimed: 1,
+      completed: 1,
+      checkpointed: 0,
+      blocked: 0,
+      failed: 0,
+      verifiedObjectives: 1,
+    });
+
     const response = await POST(request());
+
     expect(response.status).toBe(200);
     expect(mocks.run).toHaveBeenCalledTimes(1);
-    expect(mocks.run).toHaveBeenCalledWith(expect.objectContaining({
-      objectiveId: OBJECTIVE,
-      maxTasks: 1,
-      maxRuntimeMs: 20_000,
-    }));
+    expect(mocks.run).toHaveBeenCalledWith(
+      expect.objectContaining({
+        objectiveId: OBJECTIVE,
+        maxTasks: 1,
+        maxRuntimeMs: 20_000,
+      }),
+    );
     await expect(response.json()).resolves.toMatchObject({
       ok: true,
       objectiveId: OBJECTIVE,
