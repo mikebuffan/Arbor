@@ -37,7 +37,7 @@ jobs:
           pnpm install --frozen-lockfile
       - name: Focused Evidence Engine audit tests
         working-directory: apps/backend
-        run: pnpm exec vitest run lib/research/sourceIndependence.test.ts lib/research/claimEvidenceGraph.test.ts lib/research/failedLeadRouting.test.ts lib/research/entityResolution.test.ts lib/research/investigationGraph.test.ts lib/research/timelineAnalysis.test.ts lib/research/sourceChainReview.test.ts lib/research/patternHopDomainLenses.test.ts
+        run: pnpm exec vitest run lib/research/sourceIndependence.test.ts lib/research/claimEvidenceGraph.test.ts lib/research/failedLeadRouting.test.ts lib/research/entityResolution.test.ts lib/research/investigationGraph.test.ts lib/research/timelineAnalysis.test.ts lib/research/sourceChainReview.test.ts lib/research/patternHopDomainLenses.test.ts lib/research/researchPatternHopBridgeDomain.test.ts
       - name: Full backend regression
         run: pnpm --filter firefly-backend test
       - name: Production build
