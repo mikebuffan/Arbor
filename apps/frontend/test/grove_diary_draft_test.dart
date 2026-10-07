@@ -4,6 +4,10 @@ import 'package:frontend/environment/grove_diary_draft_view.dart';
 
 void main() {
   testWidgets('manual diary preview is explicitly unsaved', (tester) async {
+    tester.view.physicalSize = const Size(1200, 1200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(const MaterialApp(
       home: Scaffold(body: SingleChildScrollView(child: GroveDiaryDraftView())),
     ));
@@ -16,21 +20,29 @@ void main() {
       'Today was busy but I got things done.',
     );
     await tester.ensureVisible(find.byKey(const ValueKey('diary-preview-button')));
+    await tester.pumpAndSettle();
+    expect(tester.widget<FilledButton>(find.byKey(const ValueKey('diary-preview-button'))).onPressed, isNotNull);
     await tester.tap(find.byKey(const ValueKey('diary-preview-button')));
-    await tester.pump();
+    await tester.pumpAndSettle();
 
     expect(find.byKey(const ValueKey('diary-preview-label')), findsOneWidget);
     expect(find.text('Today was busy but I got things done.'), findsWidgets);
   });
 
   testWidgets('editing invalidates old preview and clearing erases draft', (tester) async {
+    tester.view.physicalSize = const Size(1200, 1200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(const MaterialApp(
       home: Scaffold(body: SingleChildScrollView(child: GroveDiaryDraftView())),
     ));
     await tester.enterText(find.byKey(const ValueKey('diary-entry')), 'First wording.');
     await tester.ensureVisible(find.byKey(const ValueKey('diary-preview-button')));
+    await tester.pumpAndSettle();
+    expect(tester.widget<FilledButton>(find.byKey(const ValueKey('diary-preview-button'))).onPressed, isNotNull);
     await tester.tap(find.byKey(const ValueKey('diary-preview-button')));
-    await tester.pump();
+    await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('diary-preview-label')), findsOneWidget);
 
     await tester.enterText(find.byKey(const ValueKey('diary-entry')), 'Revised wording.');
@@ -38,8 +50,9 @@ void main() {
     expect(find.byKey(const ValueKey('diary-preview-label')), findsNothing);
 
     await tester.ensureVisible(find.byKey(const ValueKey('diary-clear-button')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('diary-clear-button')));
-    await tester.pump();
+    await tester.pumpAndSettle();
     expect(find.text('Revised wording.'), findsNothing);
     expect(find.byKey(const ValueKey('diary-preview-label')), findsNothing);
   });
