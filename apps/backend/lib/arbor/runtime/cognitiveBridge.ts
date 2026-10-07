@@ -27,7 +27,15 @@ export function bridgeEmbodiedState(input: {
   body: ArborBodyState;
   felt: FeltLifeStateSignature;
 }): EmbodiedCognitiveBridge {
-  const topFelt = input.felt.hypotheses[0] ?? null;
+  // An exploratory felt-state hypothesis is not task authority. In particular,
+  // incidental sensory words in code/admin turns must not redirect the task,
+  // nor outrank known unfinished work. This is a relevance gate, not a verdict
+  // about how the user feels.
+  const feltEligible = input.felt.guard === "hypothesis-not-verdict" &&
+    input.felt.hypotheses.length > 0 &&
+    input.body.executive.nextAction !== "continue" &&
+    !["technical", "administrative"].includes(input.body.respiratoryEndocrine.endocrine.register);
+  const topFelt = feltEligible ? input.felt.hypotheses[0] : null;
   const attention = unique([
     input.body.sensory.uncertaintyCue
       ? "increase attention to uncertainty and missing evidence"
@@ -45,10 +53,10 @@ export function bridgeEmbodiedState(input: {
 
   const interpretation = unique([
     ...input.body.hepatic.contaminationWarnings,
-    input.felt.mixed
+    feltEligible && input.felt.mixed
       ? "preserve mixed/competing experiential interpretations"
       : null,
-    input.felt.uncertainty > 0.5
+    feltEligible && input.felt.uncertainty > 0.5
       ? "keep experiential interpretation explicitly tentative"
       : null,
   ]);
@@ -72,10 +80,10 @@ export function bridgeEmbodiedState(input: {
       ? routeSignal("blocker")
       : input.body.sensory.uncertaintyCue
         ? routeSignal("uncertainty")
-        : input.felt.hypotheses.length > 0
-          ? routeSignal("felt_state")
-          : input.body.executive.nextAction === "continue"
-            ? routeSignal("unresolved_work")
+        : input.body.executive.nextAction === "continue"
+          ? routeSignal("unresolved_work")
+          : feltEligible
+            ? routeSignal("felt_state")
             : "continue";
 
   return {
