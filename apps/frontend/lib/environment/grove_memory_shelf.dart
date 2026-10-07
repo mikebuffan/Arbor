@@ -137,6 +137,12 @@ class GroveMemoryShelfReader {
         if (after != null) 'after': after,
       },
     );
+    if (response == null || !response.containsKey('nextCursor') ||
+        !response.containsKey('projectId') ||
+        !response.containsKey('conversationId')) {
+      throw const GroveMemoryShelfUnavailable(
+        'The memory server does not support scoped shelf pages.');
+    }
     return projectGroveMemoryShelf(
       response,
       projectId: projectId,
