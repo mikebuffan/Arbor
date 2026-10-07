@@ -312,14 +312,3 @@ export const HUMOR_BLIND_FIXTURES: readonly HumorBlindFixture[] = [
   },
 ] as const;
 
-/** Kept separate so an evaluator can render the pairs without revealing the key. */
-export const HUMOR_BLIND_FIXTURE_KEY: Readonly<Record<string, "left" | "right">> = {
-  "deploy-failure": "right",
-  "ordinary-question": "left",
-  "earned-callback": "right",
-  "user-typo": "right",
-  disagreement: "right",
-  "serious-loss": "left",
-  "technical-success": "left",
-  "profanity-rhythm": "left",
-};
