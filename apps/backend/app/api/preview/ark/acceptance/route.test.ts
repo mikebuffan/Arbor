@@ -17,10 +17,10 @@ import { POST } from "@/app/api/preview/ark/acceptance/route";
 
 const OBJECTIVE = "6d108079-1a82-48e4-ac78-cc226d0684e3";
 
-function request(objective = OBJECTIVE) {
+function request(objective = OBJECTIVE, secret = "preview-machine-secret") {
   return new Request("https://preview.test/api/preview/ark/acceptance", {
     method: "POST",
-    headers: { "x-arbor-canary-objective": objective },
+    headers: { "x-arbor-canary-objective": objective, authorization: `Bearer ${secret}` },
   });
 }
 
@@ -31,6 +31,7 @@ describe("preview ARK acceptance trigger", () => {
     process.env.VERCEL_ENV = "preview";
     process.env.ARBOR_ENABLE_ARK_PREVIEW_ACCEPTANCE = "true";
     process.env.ARBOR_ARK_CANARY_OBJECTIVE_ID = OBJECTIVE;
+    process.env.CRON_SECRET = "preview-machine-secret";
   });
 
   it("fails closed outside Preview", async () => {
@@ -47,7 +48,7 @@ describe("preview ARK acceptance trigger", () => {
     expect(mocks.run).not.toHaveBeenCalled();
   });
 
-  it("requires a valid configured canary", async () => {
+  it("requires existing machine authentication even in Preview", async () => {\n    const response = await POST(request(OBJECTIVE, "wrong-secret"));\n    expect(response.status).toBe(401);\n    expect(mocks.run).not.toHaveBeenCalled();\n  });\n\n  it("requires a valid configured canary", async () => {
     process.env.ARBOR_ARK_CANARY_OBJECTIVE_ID = "00000000-0000-0000-0000-000000000000";
     const response = await POST(request());
     expect(response.status).toBe(409);
