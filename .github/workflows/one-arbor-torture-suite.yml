@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - integration/one-arbor-current-20261006
+      - integration/one-arbor-canonical-20261006
     types:
       - opened
       - synchronize
@@ -46,6 +47,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Install PDF tooling
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils
       - name: Install locked dependencies
         run: |
           corepack enable
@@ -158,9 +163,9 @@ jobs:
           create role authenticated nologin;
           create role service_role nologin bypassrls;
           create schema auth;
-          create function auth.uid() returns uuid language sql stable as $
+          create function auth.uid() returns uuid language sql stable as $fn$
             select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid
-          $;
+          $fn$;
           create table auth.users (id uuid primary key);
           create table public.projects (
             id uuid primary key,
@@ -178,7 +183,7 @@ jobs:
       - name: Exercise terminal idempotent scoped STOP
         run: |
           psql -v ON_ERROR_STOP=1 <<'SQL'
-          do $
+          do $ark$
           declare
             u1 uuid := '11111111-1111-1111-1111-111111111111';
             u2 uuid := '22222222-2222-2222-2222-222222222222';
@@ -187,6 +192,12 @@ jobs:
             claim jsonb;
             stopped jsonb;
             replay jsonb;
+            retry_objective jsonb;
+            retry_claim jsonb;
+            retry_result jsonb;
+            early_retry_claim jsonb;
+            resumed_retry_claim jsonb;
+            exhausted_result jsonb;
           begin
             insert into auth.users(id) values (u1), (u2);
             insert into public.projects(id,user_id) values (p1,u1);
@@ -199,6 +210,33 @@ jobs:
             );
             claim := public.ark_claim_next_task('worker-before-stop',10000,now(),'{}'::uuid[],(objective->>'id')::uuid);
             if claim is null or claim->'task'->>'status' <> 'running' then raise exception 'task was not running before STOP'; end if;
+            if public.ark_claim_next_task('racing-worker',10000,now()+interval '1 second','{}'::uuid[],(objective->>'id')::uuid) is not null
+              then raise exception 'second worker acquired an unexpired leased task'; end if;
+
+            retry_objective := public.ark_enqueue_objective(
+              u1,p1,'retry safely',0,jsonb_build_object('maxAttemptsPerTask',2),'retry:one',
+              jsonb_build_array(jsonb_build_object(
+                'task_key','execute','kind','arbor.agency-tool','description','bounded retry task',
+                'dependencies','[]'::jsonb,'payload','{}'::jsonb,'max_attempts',2,'idempotency_key','retry:one:execute'
+              ))
+            );
+            retry_claim := public.ark_claim_next_task('retry-worker-1',10000,now(),'{}'::uuid[],(retry_objective->>'id')::uuid);
+            retry_result := public.ark_fail_task(
+              (retry_claim->'task'->>'id')::uuid,'retry-worker-1',(retry_claim->'task'->>'lease_token')::uuid,
+              'transient',now()+interval '5 seconds',now()+interval '1 second'
+            );
+            if retry_result->'task'->>'status' <> 'queued' then raise exception 'retry was not scheduled'; end if;
+            early_retry_claim := public.ark_claim_next_task('retry-worker-early',10000,now()+interval '2 seconds','{}'::uuid[],(retry_objective->>'id')::uuid);
+            if early_retry_claim is not null then raise exception 'retry ran before available_at'; end if;
+            resumed_retry_claim := public.ark_claim_next_task('retry-worker-2',10000,now()+interval '6 seconds','{}'::uuid[],(retry_objective->>'id')::uuid);
+            if resumed_retry_claim is null or (resumed_retry_claim->'task'->>'attempt_count')::integer <> 2
+              then raise exception 'bounded retry did not resume same task at attempt two'; end if;
+            exhausted_result := public.ark_fail_task(
+              (resumed_retry_claim->'task'->>'id')::uuid,'retry-worker-2',(resumed_retry_claim->'task'->>'lease_token')::uuid,
+              'still failing',now()+interval '10 seconds',now()+interval '7 seconds'
+            );
+            if exhausted_result->'task'->>'status' <> 'failed' or exhausted_result->'objective'->>'status' <> 'failed'
+              then raise exception 'exhausted retry was not terminal failed'; end if;
 
             stopped := public.ark_cancel_objective((objective->>'id')::uuid,u1,p1,'User said STOP',now());
             if stopped->>'status' <> 'cancelled' then raise exception 'objective did not cancel'; end if;
@@ -221,16 +259,16 @@ jobs:
             exception when insufficient_privilege then null;
             end;
           end
-          $;
+          $ark$;
 
-          do $
+          do $ark$
           begin
             if has_function_privilege('authenticated','public.ark_cancel_objective(uuid,uuid,uuid,text,timestamptz)','execute')
               then raise exception 'authenticated role can execute protected STOP function'; end if;
             if not has_function_privilege('service_role','public.ark_cancel_objective(uuid,uuid,uuid,text,timestamptz)','execute')
               then raise exception 'service role missing protected STOP function'; end if;
           end
-          $;
+          $ark$;
           SQL
 
   phone-continuity:
