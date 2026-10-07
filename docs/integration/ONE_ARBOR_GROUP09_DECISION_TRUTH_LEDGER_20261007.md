@@ -78,4 +78,8 @@ Before concluding the complete chain influences behavior:
 
 ## CI receipt status
 
-Historical PR #338 and #340 source CI passes apply only to their own heads. New focused workflow `.github/workflows/one-arbor-group09-decision-gates.yml` must be verified on the **exact new PR head**. Until that completes, the Group 09 candidate is **TESTS PENDING**. Source parity across Group 08/11 cannot be asserted without review of their future changes. Follow any safe independent source failure with a bounded repair/test re-run; never override a release gate.
+Historical PR #338 and #340 source CI passes apply only to their own heads. New focused workflow `.github/workflows/one-arbor-group09-decision-gates.yml` was verified **SUCCESS** on initial code+ledger head `f636f5121926b07da3b28e640d37348aa8a316db`:
+- [Group 09 run 37703655428](https://github.com/mikebuffan/Arbor/actions/runs/37703655428) — completed SUCCESS, **24 control decision tests passed across 3 files** and **51 backend truth/consequence tests passed across 5 files**; control build and backend standalone TypeScript passed. Job `113072901442`.
+- [Arbor Control Backend run 37703655434](https://github.com/mikebuffan/Arbor/actions/runs/37703655434) — completed SUCCESS, **148 tests passed across 34 files**, control build passed. Job `113072794963`.
+
+This documentation receipt creates a new source SHA; its **own exact-head** CI must be read back before claiming latest-head acceptance. These tests do not authorize execution or verify real consequence learning. The branch-specific Vercel build-skip command remains in source and searches across four linked projects found zero deployments for this branch; no release authorized. Source parity across Group 08/11 cannot be asserted without review of their future changes.
