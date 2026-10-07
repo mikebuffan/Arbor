@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   projectDecisionAncestry,
+  diffDecisionAncestry,
   type DecisionTrailEvent,
 } from "../decisionAncestry";
 
@@ -85,6 +86,50 @@ describe("bounded read-only Decision Ancestry projection", () => {
     })]);
     expect(view.events.map(item => item.id)).toEqual(["a"]);
     expect(JSON.stringify(view)).not.toContain("unrelated data");
+  });
+
+  it("does not treat a later unlinked correction as proof a choice remains settled", () => {
+    const view = project([
+      event("a", "choice", { occurredAt: "2026-10-07T12:00:00Z" }),
+      event("b", "correction", { occurredAt: "2026-10-07T12:10:00Z" }),
+    ]);
+    expect(view.currentChoice).toBeNull();
+    expect(view.warnings).toContain("correction_requires_review");
+  });
+
+  it("rejects an event that falsely supersedes itself", () => {
+    expect(() => project([event("a", "choice", {
+      supersedesEventId: "a",
+    })])).toThrow("decision_ancestry_invalid_event");
+  });
+
+  it("diffs source views without inventing missing work or authorizing changes", () => {
+    const before = project([event("a", "choice")]);
+    const after = project([event("a", "choice"), event("b", "correction", {
+      supersedesEventId: "a",
+    })]);
+    const diff = diffDecisionAncestry(before, after);
+    expect(diff.addedEventIds).toEqual(["b"]);
+    expect(diff.missingPriorEventIds).toEqual([]);
+    expect(diff.choiceChanged).toBe(true);
+    expect(diff.requiresReview).toBe(true);
+    expect(diff.grantsExecution).toBe(false);
+  });
+
+  it("flags disappearing history and refuses changed older evidence or foreign views", () => {
+    const before = project([event("a", "choice")]);
+    expect(diffDecisionAncestry(before, project([])).missingPriorEventIds)
+      .toEqual(["a"]);
+    expect(diffDecisionAncestry(before, project([])).requiresReview).toBe(true);
+    expect(() => diffDecisionAncestry(
+      before, project([event("a", "choice", { summary: "rewritten" })]),
+    )).toThrow("decision_ancestry_history_conflict");
+    const foreign = projectDecisionAncestry({
+      scope: { userId: "other", projectId: "project" },
+      decisionId: "select-runtime", events: [],
+    });
+    expect(() => diffDecisionAncestry(before, foreign))
+      .toThrow("decision_ancestry_diff_scope_mismatch");
   });
 
   it("requires bounded, plausible records and refuses oversized unreconciled histories", () => {
