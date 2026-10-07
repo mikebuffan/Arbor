@@ -335,7 +335,8 @@ EnvironmentRunState _objectiveState(String? status) => switch (status) {
       'checkpointed' => EnvironmentRunState.checkpointed,
       'blocked' => EnvironmentRunState.blocked,
       'completed' => EnvironmentRunState.complete,
-      'failed' || 'cancelled' => EnvironmentRunState.degraded,
+      'failed' => EnvironmentRunState.failed,
+      'cancelled' => EnvironmentRunState.cancelled,
       _ => EnvironmentRunState.unavailable,
     };
 
