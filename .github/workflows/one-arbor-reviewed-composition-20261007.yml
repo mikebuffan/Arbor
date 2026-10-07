@@ -34,6 +34,8 @@ jobs:
         run: |
           set -euo pipefail
           VERCEL_GIT_COMMIT_REF=review/one-arbor-composed-g01-g03-g04-g05-g06-20261007 node ops/grove/source-only-ignore.mjs
+      - name: Verify reviewed source fingerprints and owner branch exclusions
+        run: node ops/integration/verify-one-arbor-composition.mjs
       - name: Restore locked dependencies
         run: |
           corepack enable
