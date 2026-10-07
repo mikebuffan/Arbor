@@ -46,6 +46,19 @@ The original private corrective-data archive was also recovered and verified:
 
 Those two hashes exactly match the dataset and held-out hashes embedded in the trained v0.4 candidate receipt. This establishes byte-level lineage from preserved corrective data to the preserved candidate receipt; it does not establish semantic acceptance or the missing historical foundation commit.
 
+
+## Raw trained-candidate holdout output verification
+
+The preserved real-model comparison output was recovered separately from the training dataset:
+
+- `arbor_lm_v04_private_holdout_20260923_013632_257640.jsonl`
+- 14,205 bytes
+- SHA-256 `7f82055aeb8fe8b88c5873fe96653bb687a245500f44b3c7a8c2f146139725de`
+- 28 paired scenarios
+- 56 actual model generations (reference v0.3 + trained v0.4 candidate)
+
+The separate run receipt names the same holdout filename/hash and records semantic acceptance as `PENDING_HUMAN_REVIEW` and production status as `NOT_DEPLOYED`. The later semantic review remains the acceptance authority: the raw file existing and hashing correctly does not make the candidate acceptable.
+
 ## Remaining protected gates
 
 1. deliberately choose and record an exact compatible Qwen foundation revision for the next experiment;
