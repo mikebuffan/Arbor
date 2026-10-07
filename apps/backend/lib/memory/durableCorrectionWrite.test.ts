@@ -5,7 +5,7 @@ import { writeDurableBehaviorCorrection } from "./durableCorrectionWrite";
 const KEY = "behavior.correction.agency-followthrough";
 function item(text: string, observedAt: string) {
   return { key: KEY, value: { text, family: "agency-followthrough", last_observed_at: observedAt },
-    scope: "global" as const, memory_kind: "correction" as const, confidence: 1, salience: 1 };
+    scope: "global" as const, memory_kind: "correction" as const, tier: "core" as const, user_trigger_only: false, importance: 10, confidence: 1, salience: 1 };
 }
 
 function concurrentClient() {
