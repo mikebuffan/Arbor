@@ -158,6 +158,16 @@ function normalizedLower(value: string): string {
 function cleanCandidate(
   candidate: ContextualReferenceCandidate,
 ): ContextualReferenceCandidate | null {
+  // Even a typed host adapter can receive malformed serialized metadata.
+  // Unsupported evidence vocabulary must not acquire an undefined rank.
+  if (!candidate || typeof candidate.id !== "string" ||
+      typeof candidate.label !== "string" ||
+      !Array.isArray(candidate.evidenceSources) ||
+      candidate.evidenceSources.some((source) =>
+        typeof source !== "string" ||
+        !Object.prototype.hasOwnProperty.call(EVIDENCE_PRIORITY, source))) {
+    return null;
+  }
   const id = candidate.id.trim();
   const label = candidate.label.trim();
   const confidence = Number(candidate.confidence);
