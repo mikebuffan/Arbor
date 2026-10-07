@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { runDefaultArkWorkerCycle } from "@/lib/ark/defaultWorker";
-import { RouteAccessError, routeErrorResponse } from "@/lib/auth/routeAuthorization";
+import { RouteAccessError, requireMachineAuthorization, routeErrorResponse } from "@/lib/auth/routeAuthorization";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,6 +15,9 @@ function requirePreviewAcceptanceGate(req: Request): string {
   if (process.env.ARBOR_ENABLE_ARK_PREVIEW_ACCEPTANCE !== "true") {
     throw new RouteAccessError(404, "preview_acceptance_disabled");
   }
+  // Reuse the existing machine-auth boundary. Preview-only routing and the
+  // dedicated flag narrow availability; they do not make objective IDs into secrets.
+  requireMachineAuthorization(req);
 
   const configured = process.env.ARBOR_ARK_CANARY_OBJECTIVE_ID?.trim() ?? "";
   if (!UUID_RE.test(configured)) {
