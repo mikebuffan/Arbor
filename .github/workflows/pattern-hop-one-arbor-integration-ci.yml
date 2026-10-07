@@ -47,6 +47,7 @@ jobs:
         working-directory: apps/backend
         run: >
           pnpm exec vitest run
+          lib/research/sourceFamilyCollapse.test.ts
           lib/research/sourceIndependence.test.ts
           lib/research/claimEvidenceGraph.test.ts
           lib/research/failedLeadRouting.test.ts
