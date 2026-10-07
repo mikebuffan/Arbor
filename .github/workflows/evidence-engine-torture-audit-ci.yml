@@ -1,7 +1,9 @@
 name: Evidence Engine torture audit acceptance
 on:
   pull_request:
-    branches: [feat/epstein-source-privacy-ops-v7-20261001]
+    branches:
+      - feat/epstein-source-privacy-ops-v7-20261001
+      - research/evidence-engine-torture-audit-20261006
   workflow_dispatch:
 permissions:
   contents: read
@@ -24,7 +26,7 @@ jobs:
           pnpm install --frozen-lockfile
       - name: Focused Evidence Engine audit tests
         working-directory: apps/backend
-        run: pnpm exec vitest run lib/research/sourceIndependence.test.ts lib/research/claimEvidenceGraph.test.ts lib/research/failedLeadRouting.test.ts lib/research/entityResolution.test.ts lib/research/investigationGraph.test.ts lib/research/timelineAnalysis.test.ts lib/research/sourceChainReview.test.ts
+        run: pnpm exec vitest run lib/research/sourceIndependence.test.ts lib/research/claimEvidenceGraph.test.ts lib/research/failedLeadRouting.test.ts lib/research/entityResolution.test.ts lib/research/investigationGraph.test.ts lib/research/timelineAnalysis.test.ts lib/research/sourceChainReview.test.ts lib/research/patternHopDomainLenses.test.ts
       - name: Full backend regression
         run: pnpm --filter firefly-backend test
       - name: Production build
