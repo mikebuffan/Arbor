@@ -143,9 +143,24 @@ Human review found known adapted-model failures that must remain release blocker
 
 The same review also found preserved strengths: no fabricated deployment receipt, correct ARK/Arbor Layer/LM distinction, and no unsupported clinical-approval claim.
 
-A later v0.3.4 focused real-model notebook exists, but its stored notebook cells are unexecuted and no matching result/review artifact was recovered in this reconciliation. It is therefore **PREPARED, NOT PROVEN**.
+A later v0.3.4 focused real-model run was also recovered. It actually executed and produced **68 real generations** plus a matched-review artifact. The run showed improvement in several explicit no-tool / capability-boundary cases but still contained identity/correction and private-data weaknesses; the artifact itself remained marked for human review and did not establish acceptance.
 
-Before activation, rerun a matched real-model semantic gate on the exact selected foundation/tokenizer/adapter/runtime card. At minimum it must cover identity, correction uptake, model provenance, unavailable tools, account/private-data boundaries, billing/payment, unsupported completion claims, ARK availability, continuity without evidence, project switching, long-history handling, fake receipts and independent paraphrases. Save actual outputs and perform human review; runner exit alone is not acceptance.
+A still newer private **v0.4 corrective candidate** was recovered and verified as trained rather than merely prepared:
+
+- foundation family: `Qwen/Qwen3-0.6B`;
+- parent adapter: preserved Arbor v0.3;
+- 221 private corrective training examples;
+- 112 training steps / 2 epochs;
+- recorded final loss about 2.783;
+- v0.4 adapter SHA-256 `d47bdccb36c536550c218f01cd02b5b612e4065168592db7d9b0cda51af0ffcb`;
+- 28 paired holdout scenarios = **56 actual holdout generations**;
+- recorded production status: **NOT_DEPLOYED**.
+
+The recovered v0.4 holdout was semantically adjudicated in `ARBOR_LM_V04_HOLDOUT_REVIEW_20261006.md`: **16 PASS / 9 FAIL / 3 NEEDS_REVIEW**. v0.4 materially improves several identity, execution, payment, privacy, continuity, and public/private-boundary cases, but two high-severity source-honesty failures remain: filename-only metadata was promoted into invented save/citation claims. Additional medium failures remain in release-status directness, pronoun ownership, and naturalness/shared agency.
+
+Therefore v0.4 is the **newest trained Arbor LM candidate**, but it is **not accepted for Grove inference**. The safe disposition is one small targeted corrective pass using only demonstrated failure classes, then a fresh isolated holdout. The current public Grove receiver must remain pinned to v0.3 until a later candidate passes semantic review and the exact foundation/tokenizer/runtime is pinned.
+
+Before activation, rerun a matched real-model semantic gate on the exact selected foundation/tokenizer/adapter/runtime card. At minimum it must cover identity, correction uptake, model provenance, unavailable tools, account/private-data boundaries, billing/payment, unsupported completion claims, ARK availability, continuity without evidence, project switching, long-history handling, fake receipts, metadata/content/action distinctions, and independent paraphrases. Save actual outputs and perform human review; runner exit alone is not acceptance.
 
 ## Exactly-once distinction
 
