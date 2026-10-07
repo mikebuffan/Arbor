@@ -71,8 +71,17 @@ export function projectHostRecoveryRead(input: {
 
   // An existing hard stop outranks even a goal mismatch. Only the real
   // separately authorized objective-control path can remove that blocker.
-  const next = recovery.next === "respect_blocker"
-    ? "respect_blocker" as const
+  // A stale or contradictory host narrative cannot override the durable
+  // safety outcome: blockers, unverified completion, unapplied corrections,
+  // and completed objectives must retain their recovery disposition.
+  const durablePriority = [
+    "respect_blocker",
+    "hold_for_verification",
+    "review_correction",
+    "no_unfinished_goal",
+  ] as const;
+  const next = (durablePriority as readonly string[]).includes(recovery.next)
+    ? recovery.next
     : hostGoalStatus === "diverged"
       ? "reconcile_host_goal" as const : recovery.next;
 
