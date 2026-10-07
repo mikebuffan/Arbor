@@ -245,7 +245,7 @@ export function renderSelfModelObservationProjection(
   }
 
   return [
-    "ARBOR LIVE SELF-MODEL EVIDENCE",
+    "ARBOR RECORDED SELF-MODEL OBSERVATIONS — NOT LIVE-VERIFIED",
 
     "These are caller-supplied observation records, not independently authenticated behavior or automatically promoted identity.",
 
