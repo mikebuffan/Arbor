@@ -156,3 +156,63 @@ the still-moving ARK lane:
 
 This staging branch must remain explicitly non-final and must not absorb #291,
 #279, or #277 until their moving/stale-base issues are reconciled deliberately.
+
+
+## 2026-10-07 05:32 UTC reconciliation update
+
+### Newly green
+- #297 FAFO audio -> existing Evidence Engine seam: SUCCESS
+- #298 Operational Receipt source acceptance: SUCCESS
+- #300 Humor Pragmatics source acceptance: SUCCESS
+- #301 Contextual Reference source acceptance: SUCCESS
+
+### Non-final staging
+PR #302 — Stage low-conflict green One Arbor source lanes
+
+Current staging branch:
+integration/one-arbor-low-conflict-staging-20261006
+
+It starts from exact green #286 and currently composes the independently green
+low-conflict source lanes plus architecture audit material.
+
+It is explicitly NON-FINAL.
+
+### #277 reconciliation finding
+
+Direct delta review confirms #286 already contains the important Grove runtime /
+host / phone source work. The newer useful #277 delta is predominantly:
+
+- LM v0.4 semantic/reproducibility evidence
+- readiness receipts/status
+- generation idempotency contract
+- hardened source-only Grove grant proposals
+- disposable-db grant rehearsal
+
+Those non-live materials were selectively reconciled into #302 staging.
+
+No hosted grants/migrations were applied.
+
+### #279 reconciliation finding
+
+Every inspected non-ARK agency/archive delta from #279 is already byte-identical
+to #286/staging:
+
+- backlog continuation
+- completion evidence
+- agency torture acceptance
+- episode durability
+- archive reader v2 work
+- resumable archive transport/checkpoint work
+- historical embedding backfill
+
+Therefore #279 no longer requires a broad merge.
+
+Its remaining distinct family is ARK STOP/cancel/task-control, which overlaps
+the still-moving #291 workstream and remains intentionally deferred.
+
+### Current convergence bottleneck
+
+The primary source-side convergence dependency is now the latest stable exact
+head of #291 ARK offline STOP/resume/control.
+
+Do not freeze a final successor head while #291 is still changing.
