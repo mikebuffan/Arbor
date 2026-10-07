@@ -116,6 +116,15 @@ marks their original conversation **unknown**. It does not turn one snapshot
 into a chronological decision history. Loader failures propagate; no writes,
 new schema, auth grant, or publicly reachable route are added.
 
+**What Changed existing-state delta:** `compareExistingDecisionReviews`
+now compares two already-loaded, scoped source projections (including a
+different conversation within the same authorized project). It reports
+goal/status transitions, introduced/cleared blocker *claims*, correction IDs
+newly visible or no longer visible, and lost runtime coverage. It never
+interprets a missing snapshot as a deletion, a cleared blocker as authority,
+or a new correction ID as independently verified learning. This is an
+in-memory comparison, not a deployed history service.
+
 **Discovery Radar prototype:** `discoveryRadar.ts` accepts only already
 reviewed source metadata from an authenticated host, applies owner/project
 defense-in-depth checks, collapses same-family duplicates and delegates
