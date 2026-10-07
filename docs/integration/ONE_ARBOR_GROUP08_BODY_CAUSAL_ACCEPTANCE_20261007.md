@@ -48,3 +48,11 @@ Date: 2026-10-07 · D01 D02 D03 D04 D12 only · Review-only, source not deployed
 **Protected:** no fictional physiology, diagnosis, model identity mutation, automatic data capture, autonomous action, private archive ingestion, unapproved paid inference, model training, main merge, worker activation, production or Preview promotion, permission changes or September 28 research task mutation.
 
 **CI receipt:** To be populated from exact branch-head GitHub checks; tests MUST remain UNVERIFIED until completed/success on this new source head. Parent #336/#340 CI is source ancestry evidence only, not this modification's CI.
+
+
+## Follow-up: orphaned goals / orientation-safe Body hint (source candidate)
+- Source-level safety gap: `deriveArborBodyState` formerly suggested `continue` whenever `unresolvedWork` was nonempty and the digestive signal was not BLOCKED, even if `currentGoal` was null/blank or the mode and active subsystem disagreed. That suggestion is NOT an authority grant, but it can misdirect a later prompt.
+- Small repair to **existing** `bodySystem.ts`: continuation hint now requires unresolved work **and** a nonblank host-recovered current goal **and** an oriented regulation state **and** no explicit BLOCKED signal. Orphaned/mismatched work remains retained for recovery rather than erased or executed; the response hint stays conservative.
+- Added synthetic regressions in the existing `bodySystem.test.ts`: null, empty and whitespace goals; mode/subsystem mismatch; correctly restored matching goal. Scope and decision authority remain with the trusted host/other groups. No migration, automatic resume, durable write or identity change.
+- This change is a proposed **source safety refinement**, not evidence of fresh-session host-goal recovery or actual execution. The latest CI result must be read from this follow-up exact head before counting these new tests as accepted.
+
