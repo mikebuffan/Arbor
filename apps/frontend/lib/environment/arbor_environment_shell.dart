@@ -233,6 +233,7 @@ class _Navigation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => NavigationRail(
+        scrollable: true,
         backgroundColor: ArborEnvironmentTokens.midnight,
         extended: MediaQuery.sizeOf(context).width >= 1180,
         selectedIndex: selected.index,
