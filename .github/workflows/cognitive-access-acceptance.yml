@@ -1,0 +1,66 @@
+name: Cognitive access source acceptance
+
+on:
+  push:
+    branches:
+      - verification/cognitive-access-acceptance-20261006
+  pull_request:
+    branches:
+      - feature/cognitive-access-language-20261006
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    if: github.repository == 'mikebuffan/Arbor'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      CI: 'true'
+      OPENAI_API_KEY: ci-placeholder-not-a-real-key
+      AWS_EC2_METADATA_DISABLED: 'true'
+      NEXT_TELEMETRY_DISABLED: '1'
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder
+      SUPABASE_URL: https://example.supabase.co
+      SUPABASE_ANON_KEY: ci-placeholder
+      SUPABASE_SERVICE_ROLE_KEY: ci-placeholder
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install locked dependencies
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.30.3 --activate
+          pnpm install --frozen-lockfile
+      - name: Install inherited PDF tooling
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils
+      - name: Cognitive access focused tests
+        working-directory: apps/backend
+        run: >
+          pnpm exec vitest run
+          lib/arbor/accessibility/__tests__/cognitiveAccessLanguage.test.ts
+      - name: Guard identity separation
+        run: |
+          if grep -R "mayAuthenticateIdentity: true" apps/backend/lib/arbor/accessibility; then
+            echo "Accessibility lane attempted to authenticate identity"
+            exit 1
+          fi
+          if grep -R "behavioral biometric\|biometric template\|keystroke profile" apps/backend/lib/arbor/accessibility; then
+            echo "Accessibility lane introduced biometric profiling language"
+            exit 1
+          fi
+      - name: Standalone TypeScript
+        working-directory: apps/backend
+        run: pnpm exec tsc --noEmit
+      - name: Production backend build
+        working-directory: apps/backend
+        run: pnpm build
