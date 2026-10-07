@@ -48,10 +48,13 @@ jobs:
           corepack enable
           corepack prepare pnpm@10.30.3 --activate
           pnpm install --frozen-lockfile
-      - name: Install local PDF parser dependency
+      - name: Verify local PDF parser dependency (bounded install fallback)
         run: |
-          sudo apt-get update
-          sudo apt-get install -y poppler-utils
+          set -euo pipefail
+          if ! command -v pdfinfo >/dev/null || ! command -v pdftotext >/dev/null; then
+            timeout 120s sudo apt-get update
+            timeout 120s sudo apt-get install -y poppler-utils
+          fi
           pdfinfo -v
           pdftotext -v
       - name: Validate targeted correction and untouched holdout
