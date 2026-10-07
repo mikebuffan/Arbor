@@ -1,0 +1,50 @@
+name: One Arbor May-route compatibility
+
+on:
+  pull_request:
+    branches:
+      - integration/one-arbor-accepted-children-20261007
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'apps/backend/lib/learning/__tests__/maySeedRouteCompatibility.test.ts'
+      - '.github/workflows/one-arbor-may-route-compatibility.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: arbor-may-route-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  synthetic-route-regression:
+    if: github.repository == 'mikebuffan/Arbor'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 22
+    env:
+      CI: 'true'
+      AWS_EC2_METADATA_DISABLED: 'true'
+      OPENAI_API_KEY: ci-placeholder-not-a-real-key
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Locked package installation
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.30.3 --activate
+          pnpm install --frozen-lockfile
+      - name: Historic 25-route synthetic compatibility
+        working-directory: apps/backend
+        run: >-
+          pnpm exec vitest run
+          lib/learning/__tests__/maySeedRouteCompatibility.test.ts
+          lib/learning/__tests__/neuralPathwayNetwork.test.ts
+          lib/arbor/runtime/__tests__/knowledgeRouting.test.ts
+      - name: Standalone TypeScript
+        working-directory: apps/backend
+        run: pnpm exec tsc --noEmit
