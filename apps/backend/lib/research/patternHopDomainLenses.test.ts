@@ -5,6 +5,7 @@ import {crossCheckWitnessClaims} from "./witnessCrossCheck";
 import {propagateContradictionEffects} from "./contradictionPropagation";
 import {buildEvidenceCoverageMatrix} from "./evidenceCoverageMatrix";
 import {rankSourcePreference} from "./sourcePreference";
+import {planDomainResearchHops} from "./domainHopPlanner";
 
 describe("research hop domain lenses",()=>{
   it("keeps an itinerary separate from actual movement and traveler presence",()=>{
@@ -41,6 +42,7 @@ describe("research hop domain lenses",()=>{
         {recordId:"r2",claimId:"c1",kind:"calendar",sourceFamilyId:"calendar-family",evidenceRefs:["calendar"],relation:"contradicts",independentOfWitnessSource:true},
       ],
     );
+    expect(result[0].claimEvidenceRefs).toEqual(["statement"]);
     expect(result[0].independentSupportFamilies).toEqual(["phone-family"]);
     expect(result[0].independentCounterFamilies).toEqual(["calendar-family"]);
     expect(result[0].status).toBe("cross_check_not_credibility_verdict");
@@ -57,7 +59,7 @@ describe("research hop domain lenses",()=>{
     expect(result.find(x=>x.claimId==="b")?.propagatedFrom).toEqual(["a"]);
   });
 
-  it("shows event-level channel holes explicitly",()=>{
+  it("shows event-level channel holes explicitly and preserves their evidence refs",()=>{
     const result=buildEvidenceCoverageMatrix([
       {eventKey:"2005-04-05",channel:"messages",observedRefs:["m1"],checkedRefs:["m1"]},
       {eventKey:"2005-04-05",channel:"travel",observedRefs:["t1","t2"],checkedRefs:["t1"]},
@@ -67,6 +69,7 @@ describe("research hop domain lenses",()=>{
     expect(result[0].channels.travel).toBe("partial");
     expect(result[0].channels.payment).toBe("unchecked");
     expect(result[0].channels.phone).toBe("not_observed");
+    expect(result[0].evidenceRefs).toEqual(["m1","p1","t1","t2"]);
   });
 
   it("prefers originals while keeping summaries usable with explicit provenance",()=>{
@@ -77,5 +80,21 @@ describe("research hop domain lenses",()=>{
     expect(result.map(x=>x.evidenceRef)).toEqual(["original","summary"]);
     expect(result[1].reviewAction).toBe("seek_original");
     expect(result[0].status).toBe("preference_not_truth");
+  });
+
+  it("turns evidence gaps into evidence-bound next hops instead of generic more-search",()=>{
+    const travel=assessTravelVerification([{evidenceRef:"itinerary",sourceFamilyId:"family-a",tripRef:"trip-1",kind:"itinerary",origin:"PBI",destination:"TEB",departedAtUtc:null,arrivedAtUtc:null,travelerIds:[]}]);
+    const payment=assessPaymentChains([{evidenceRef:"statement",sourceFamilyId:"witness-family",paymentRef:"payment-1",kind:"witness_report",amount:200,currency:"USD",payerEntityId:null,payeeEntityId:null}]);
+    const witness=crossCheckWitnessClaims([{claimId:"claim-1",witnessId:"w1",topicKey:"appointment",evidenceRefs:["statement"]}],[]);
+    const coverage=buildEvidenceCoverageMatrix([{eventKey:"event-1",channel:"payment",observedRefs:["statement"],checkedRefs:[]}]);
+    const prefs=rankSourcePreference([{evidenceRef:"summary",sourceFamilyId:"family-a",layer:"official_summary",originalAvailable:false}]);
+    const claims=propagateContradictionEffects([{claimId:"claim-1",baseConfidence:.8,evidenceRefs:["statement"]}],[],[{claimId:"claim-1",severity:.25,evidenceRefs:["counter"]}]);
+
+    const hops=planDomainResearchHops({travel,payments:payment,witnessChecks:witness,coverage,sourcePreferences:prefs,propagatedClaims:claims});
+    expect(hops.some(x=>x.kind==="verify_actual_travel"&&x.triggerEvidenceRefs.includes("itinerary"))).toBe(true);
+    expect(hops.some(x=>x.kind==="seek_direct_payment_record"&&x.triggerEvidenceRefs.includes("statement"))).toBe(true);
+    expect(hops.some(x=>x.kind==="cross_check_witness"&&x.triggerEvidenceRefs.includes("statement"))).toBe(true);
+    expect(hops.some(x=>x.kind==="fill_coverage"&&x.triggerEvidenceRefs.includes("statement"))).toBe(true);
+    expect(hops[0].kind).toBe("review_propagated_contradiction");
   });
 });
