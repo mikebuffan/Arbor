@@ -284,7 +284,7 @@ jobs:
               when serialization_failure then null;
             end;
           end
-          $;
+          $$;
           SQL
 
       - name: Prove concurrent workers cannot claim the same task
