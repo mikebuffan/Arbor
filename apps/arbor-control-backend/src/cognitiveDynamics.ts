@@ -119,13 +119,29 @@ export interface CuriosityCandidate {
 }
 
 export function chooseExploration(candidates: CuriosityCandidate[], minimumValue = 0.15): CuriosityCandidate | null {
+  // The existing information-gain ranking is advisory. Malformed scores,
+  // duplicate identities, or an invalid threshold cannot justify exploration.
+  if (!Array.isArray(candidates) || !Number.isFinite(minimumValue) || minimumValue < 0)
+    return null;
+  const idCounts = new Map<string, number>();
+  for (const candidate of candidates) {
+    if (candidate && typeof candidate.id === "string") {
+      idCounts.set(candidate.id, (idCounts.get(candidate.id) ?? 0) + 1);
+    }
+  }
   const ranked = candidates
+    .filter((candidate) => candidate &&
+      typeof candidate.id === "string" && candidate.id.trim().length > 0 &&
+      idCounts.get(candidate.id) === 1 &&
+      [candidate.uncertainty, candidate.relevance, candidate.expectedInformationGain]
+        .every(value => Number.isFinite(value) && value >= 0 && value <= 1) &&
+      Number.isFinite(candidate.cost) && candidate.cost >= 0)
     .map((candidate) => ({
       candidate,
-      value: clamp(candidate.uncertainty)
-        * clamp(candidate.relevance)
-        * clamp(candidate.expectedInformationGain)
-        - Math.max(0, candidate.cost),
+      value: candidate.uncertainty
+        * candidate.relevance
+        * candidate.expectedInformationGain
+        - candidate.cost,
     }))
     .filter((x) => x.value >= minimumValue)
     .sort((a, b) => b.value - a.value || a.candidate.id.localeCompare(b.candidate.id));
@@ -146,7 +162,9 @@ export function consolidate(candidates: ConsolidationCandidate[]): Consolidation
   const seen = new Set<string>();
   return candidates.filter((candidate) => {
     if (!candidate.durable || candidate.transient || candidate.superseded) return false;
-    if (candidate.provenance.length === 0 || clamp(candidate.confidence) < 0.5) return false;
+    if (!Array.isArray(candidate.provenance) || !candidate.provenance.length ||
+        candidate.provenance.some(ref => typeof ref !== "string" || !ref.trim()) ||
+        !Number.isFinite(candidate.confidence) || clamp(candidate.confidence) < 0.5) return false;
     const key = `${candidate.content}\u0000${candidate.provenance.join("|")}`;
     if (seen.has(key)) return false;
     seen.add(key);
@@ -172,6 +190,8 @@ export function completeCausalTrace(trace: CausalTrace): boolean {
     && trace.attentionEffect.trim()
     && trace.expectationEffect.trim()
     && trace.interpretationEffect.trim()
-    && trace.provenance.length,
+    && Array.isArray(trace.provenance)
+    && trace.provenance.length > 0
+    && trace.provenance.every(ref => typeof ref === "string" && ref.trim().length > 0),
   );
 }

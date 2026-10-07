@@ -1,0 +1,60 @@
+name: One Arbor Group 09 decision truth gates
+on:
+  pull_request:
+    branches:
+      - integration/one-arbor-reconciled-335-339-20261007
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'apps/arbor-control-backend/src/cognitiveDynamics.ts'
+      - 'apps/arbor-control-backend/src/group09DecisionNegative.test.ts'
+      - 'apps/backend/lib/arbor/runtime/__tests__/group09TruthConsequence.test.ts'
+      - 'docs/integration/ONE_ARBOR_GROUP09_DECISION_TRUTH_LEDGER_20261007.md'
+      - '.github/workflows/one-arbor-group09-decision-gates.yml'
+      - 'ops/grove/source-only-ignore.mjs'
+permissions:
+  contents: read
+concurrency:
+  group: one-arbor-group09-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  focused-decision-gates:
+    if: github.repository == 'mikebuffan/Arbor'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      CI: 'true'
+      AWS_EC2_METADATA_DISABLED: 'true'
+      OPENAI_API_KEY: ci-placeholder-not-a-real-key
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install locked dependencies
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.30.3 --activate
+          pnpm install --frozen-lockfile
+      - name: Existing control decision & negative tests
+        working-directory: apps/arbor-control-backend
+        run: >-
+          pnpm exec vitest run
+          src/cognitiveDynamics.test.ts
+          src/glowNoiseDecision.test.ts
+          src/group09DecisionNegative.test.ts
+      - name: Control-backend TypeScript/build
+        run: pnpm --filter arbor-control-backend build
+      - name: Existing Firefly decision ancestry & new negatives
+        working-directory: apps/backend
+        run: >-
+          pnpm exec vitest run
+          lib/arbor/runtime/__tests__/knowledgeRouting.test.ts
+          lib/arbor/runtime/__tests__/decisionAncestry.test.ts
+          lib/arbor/runtime/__tests__/decisionReviewAdapter.test.ts
+          lib/arbor/runtime/__tests__/group09TruthConsequence.test.ts
+          lib/arbor/agency/__tests__/completionEvidence.test.ts
+      - name: Backend TypeScript
+        working-directory: apps/backend
+        run: pnpm exec tsc --noEmit
