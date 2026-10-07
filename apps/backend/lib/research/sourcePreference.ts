@@ -6,7 +6,14 @@ const rank:Record<SourceLayer,number>={original_record:0,authenticated_copy:1,sw
 export function rankSourcePreference(input:readonly SourcePreferenceInput[]):readonly SourcePreference[]{
  const rows=input.map(r=>({evidenceRef:req(r.evidenceRef,"evidence_ref"),sourceFamilyId:req(r.sourceFamilyId,"source_family_id"),layer:r.layer,originalAvailable:r.originalAvailable}));
  if(new Set(rows.map(r=>r.evidenceRef)).size!==rows.length)throw Error("duplicate_source_preference_evidence_ref");
- return rows.map(r=>({evidenceRef:r.evidenceRef,sourceFamilyId:r.sourceFamilyId,layer:r.layer,priority:rank[r.layer],
-   reviewAction:r.layer==="original_record"?"use_original":r.originalAvailable?"use_original":"seek_original",status:"preference_not_truth" as const}))
-   .sort((a,b)=>a.priority-b.priority||a.evidenceRef.localeCompare(b.evidenceRef));
+ const out:SourcePreference[]=rows.map(r=>{
+   const reviewAction:SourcePreference["reviewAction"]=r.layer==="original_record"
+     ?"use_original"
+     :r.originalAvailable
+       ?"use_original"
+       :"seek_original";
+   return {evidenceRef:r.evidenceRef,sourceFamilyId:r.sourceFamilyId,layer:r.layer,priority:rank[r.layer],
+     reviewAction,status:"preference_not_truth"};
+ });
+ return out.sort((a,b)=>a.priority-b.priority||a.evidenceRef.localeCompare(b.evidenceRef));
 }
