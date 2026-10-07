@@ -61,6 +61,13 @@ describe("resumable archive transport preparation",()=>{
   expect(recovered.nextBatch).toBe(1);expect(d.writes).toBe(1);
   expect(checkpoint).toMatchObject({schemaVersion:2,nextBatch:1,target,parser:p.manifest.parser,normalizedSha256:p.manifest.normalizedSha256});
  });
+ it("rejects a pre-aborted transport without reading or writing destination state",async()=>{
+  const files=[await file([conversation()])],p=await prepareResumableArchive({files,target}),controller=new AbortController();controller.abort();
+  let reads=0,writes=0,saves=0;
+  const transport:VerifiedArchiveTransport={async applyExactBatch(){writes++;},async verifyExactBatch(){reads++;}};
+  await expect(transportResumableArchive({files,target,manifest:p.manifest,checkpoint:null,transport,signal:controller.signal,saveCheckpoint:async()=>{saves++;}})).rejects.toThrow("archive_transport_aborted");
+  expect({reads,writes,saves}).toEqual({reads:0,writes:0,saves:0});
+ });
  it("honors STOP during readback and never saves a checkpoint",async()=>{
   const files=[await file([conversation()])],p=await prepareResumableArchive({files,target}),d=destination(),controller=new AbortController();let saves=0;
   const transport:VerifiedArchiveTransport={...d.transport,async verifyExactBatch(scope,turns){await d.transport.verifyExactBatch(scope,turns);controller.abort();}};
