@@ -154,8 +154,8 @@ jobs:
       - name: Verify control functions and service-role-only grants
         run: |
           psql -Atq -v ON_ERROR_STOP=1 <<'SQL'
-          select case when to_regprocedure('public.ark_cancel_objective(uuid,timestamp with time zone)') is null then 1/0 else 1 end;
-          select case when to_regprocedure('public.ark_resume_blocked_objective(uuid,timestamp with time zone)') is null then 1/0 else 1 end;
+          select case when to_regprocedure('public.ark_cancel_objective(uuid,timestamptz)') is null then 1/0 else 1 end;
+          select case when to_regprocedure('public.ark_resume_blocked_objective(uuid,timestamptz)') is null then 1/0 else 1 end;
           SQL
 
   flutter:
