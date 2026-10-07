@@ -1,10 +1,11 @@
-name: One Arbor combined child source acceptance
+name: One Arbor reconciled source acceptance
 
 on:
   pull_request:
     branches:
       - integration/one-arbor-multilane-20261007
       - investigation/one-arbor-opportunity-reconciliation-20261007
+      - test/one-arbor-host-recovery-read-20261007
     types: [opened, synchronize, reopened]
     paths:
       - 'apps/backend/lib/arbor/runtime/decisionAncestry.ts'
@@ -21,6 +22,13 @@ on:
       - 'apps/backend/lib/arbor/selfModel/**'
       - 'apps/backend/scripts/import_chatgpt/resumableArchive.ts'
       - 'apps/backend/lib/memory/__tests__/resumableArchive.test.ts'
+      - 'apps/backend/lib/arbor/continuity/conversationRecovery.ts'
+      - 'apps/backend/lib/arbor/continuity/__tests__/conversationRecovery.test.ts'
+      - 'apps/backend/lib/arbor/host/recoveryReadProjection.ts'
+      - 'apps/backend/lib/arbor/host/__tests__/recoveryReadProjection.test.ts'
+      - 'apps/backend/lib/learning/__tests__/maySeedRouteCompatibility.test.ts'
+      - 'apps/arbor-control-backend/src/glowNoiseDecision.ts'
+      - 'apps/arbor-control-backend/src/glowNoiseDecision.test.ts'
       - 'docs/integration/ARBOR_LM_V04_ARTIFACT_RECOVERY_RECEIPT_20261007.md'
       - 'docs/integration/ONE_ARBOR_COMBINED_CHILD_ACCEPTANCE_20261007.md'
       - 'ops/grove/source-only-ignore.mjs'
@@ -30,7 +38,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: arbor-children-integration-${{ github.event.pull_request.number || github.ref }}
+  group: arbor-reconciled-integration-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -62,6 +70,9 @@ jobs:
           lib/arbor/runtime/__tests__/decisionReviewAdapter.test.ts
           lib/arbor/runtime/__tests__/discoveryRadar.test.ts
           lib/memory/__tests__/resumableArchive.test.ts
+          lib/learning/__tests__/maySeedRouteCompatibility.test.ts
+          lib/arbor/continuity/__tests__/conversationRecovery.test.ts
+          lib/arbor/host/__tests__/recoveryReadProjection.test.ts
           lib/arbor/host/__tests__/oneArborHostBridge.test.ts
           lib/arbor/selfModel/__tests__/personalityProjection.test.ts
           lib/prompt/__tests__/buildPromptContext.freshness.test.ts
