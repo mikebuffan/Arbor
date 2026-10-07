@@ -26,6 +26,33 @@ CREATE TABLE public.arbor_pattern_hop_runs (
   updated_at timestamptz not null default now()
 );
 
+-- Mirror the hosted Preview table's owner-scoped RLS closely enough to prove
+-- that the proposed control RPCs work as SECURITY INVOKER, not by bypassing RLS.
+CREATE SCHEMA auth;
+CREATE OR REPLACE FUNCTION auth.uid()
+RETURNS uuid
+LANGUAGE sql
+STABLE
+AS $uid$
+  SELECT nullif(current_setting('request.jwt.claim.sub', true), '')::uuid
+$uid$;
+GRANT USAGE ON SCHEMA auth TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION auth.uid() TO authenticated, service_role;
+
+ALTER TABLE public.arbor_pattern_hop_runs ENABLE ROW LEVEL SECURITY;
+GRANT SELECT, UPDATE ON public.arbor_pattern_hop_runs TO authenticated, service_role;
+
+CREATE POLICY pattern_hop_runs_select_own
+ON public.arbor_pattern_hop_runs FOR SELECT
+TO authenticated
+USING ((SELECT auth.uid()) = user_id);
+
+CREATE POLICY pattern_hop_runs_update_own
+ON public.arbor_pattern_hop_runs FOR UPDATE
+TO authenticated
+USING ((SELECT auth.uid()) = user_id)
+WITH CHECK ((SELECT auth.uid()) = user_id);
+
 \ir ../../../docs/migrations/PROPOSED_pattern_hop_run_control_20261006.sql
 
 DO $acceptance$
@@ -135,6 +162,74 @@ BEGIN
     RAISE EXCEPTION 'owner release after resume failed: %',value;
   END IF;
 
+  IF EXISTS (
+    SELECT 1
+    FROM pg_proc p
+    JOIN pg_namespace n ON n.oid=p.pronamespace
+    WHERE n.nspname='public'
+      AND p.proname LIKE 'arbor_pattern_hop_%'
+      AND p.prosecdef
+  ) THEN
+    RAISE EXCEPTION 'Pattern Hop control proposal unexpectedly retained SECURITY DEFINER';
+  END IF;
+
   RAISE NOTICE 'PATTERN_HOP_RUN_CONTROL=PASS; LIVE_MIGRATION=HOLD';
 END
 $acceptance$;
+
+-- Exercise the same RPCs under the actual authenticated database role so the
+-- acceptance fails if SECURITY INVOKER no longer composes with owner RLS.
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.role','authenticated',false);
+SELECT set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',false);
+
+DO $foreign_invoker$
+DECLARE
+  r jsonb;
+BEGIN
+  r := public.arbor_pattern_hop_claim_run(
+    '44444444-4444-4444-8444-444444444444',
+    '11111111-1111-4111-8111-111111111111',
+    '33333333-3333-4333-8333-333333333333',
+    'foreign-authenticated-worker',
+    90000
+  );
+  IF r->>'status' <> 'no_access' THEN
+    RAISE EXCEPTION 'foreign authenticated SECURITY INVOKER claim was not denied: %', r;
+  END IF;
+END
+$foreign_invoker$;
+
+SELECT set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
+
+DO $owner_invoker$
+DECLARE
+  r jsonb;
+  token uuid;
+  value text;
+BEGIN
+  r := public.arbor_pattern_hop_claim_run(
+    '44444444-4444-4444-8444-444444444444',
+    '11111111-1111-4111-8111-111111111111',
+    '33333333-3333-4333-8333-333333333333',
+    'owner-authenticated-worker',
+    90000
+  );
+  IF r->>'status' <> 'claimed' THEN
+    RAISE EXCEPTION 'owner authenticated SECURITY INVOKER claim failed: %', r;
+  END IF;
+  token := (r->>'leaseToken')::uuid;
+  value := public.arbor_pattern_hop_release_run(
+    '44444444-4444-4444-8444-444444444444',
+    '11111111-1111-4111-8111-111111111111',
+    '33333333-3333-4333-8333-333333333333',
+    'owner-authenticated-worker',
+    token
+  );
+  IF value <> 'released' THEN
+    RAISE EXCEPTION 'owner authenticated SECURITY INVOKER release failed: %', value;
+  END IF;
+END
+$owner_invoker$;
+
+RESET ROLE;
