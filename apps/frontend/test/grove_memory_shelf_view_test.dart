@@ -7,8 +7,8 @@ import 'package:frontend/environment/grove_memory_shelf_view.dart';
 
 GroveSavedMemory saved(String id) => GroveSavedMemory(
   id: id,
-  key: 'fact.' + id,
-  text: 'Actually saved content ' + id,
+  key: 'fact.$id',
+  text: 'Actually saved content $id',
   scope: 'project',
   updatedAt: DateTime.utc(2026, 9, 21),
 );
