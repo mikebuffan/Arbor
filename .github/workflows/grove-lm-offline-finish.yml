@@ -51,6 +51,12 @@ jobs:
           corepack enable
           corepack prepare pnpm@10.30.3 --activate
           pnpm install --frozen-lockfile
+      - name: Install local PDF parser dependency
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils
+          pdfinfo -v
+          pdftotext -v
       - name: Validate targeted correction and untouched holdout
         run: node ops/grove/local-lm/validate-correction-fixtures.mjs
       - name: Existing local-LM source contracts
@@ -102,13 +108,30 @@ jobs:
         run: |
           psql -X -v ON_ERROR_STOP=1 -d grove_offline -f ops/grove/disposable-db/00-private-transcript-acceptance.sql
           psql -X -v ON_ERROR_STOP=1 -d grove_offline -f ops/grove/disposable-db/correction-grants-acceptance.sql
-      - name: Grove ARK grant proposal acceptance
-        run: psql -X -v ON_ERROR_STOP=1 -d grove_offline -f ops/grove/disposable-db/ark-spine-grants-acceptance.sql
-      - name: Stop disposable PostgreSQL
-        if: always()
+      - name: Stop transcript disposable PostgreSQL
         shell: bash
         run: |
           pg_root="/tmp/grove-offline-${GITHUB_RUN_ID}"
+          sudo -n -u postgres /usr/lib/postgresql/16/bin/pg_ctl -D "$pg_root/data" -m immediate -w stop
+      - name: Start clean grant-proposal PostgreSQL
+        shell: bash
+        run: |
+          set -euo pipefail
+          pg_bin=/usr/lib/postgresql/16/bin
+          pg_root="/tmp/grove-grants-${GITHUB_RUN_ID}"
+          mkdir -p "$pg_root/data" "$pg_root/socket"
+          sudo -n chown -R postgres:postgres "$pg_root"
+          sudo -n -u postgres "$pg_bin/initdb" -D "$pg_root/data" --auth=trust --no-locale
+          sudo -n -u postgres "$pg_bin/pg_ctl" -D "$pg_root/data" -l "$pg_root/server.log" -o "-k $pg_root/socket -p 54340 -c listen_addresses=''" -w start
+          printf 'PGHOST=%s/socket\nPGPORT=54340\nPGUSER=postgres\nPGDATABASE=grove_grants\n' "$pg_root" >> "$GITHUB_ENV"
+          "$pg_bin/createdb" -h "$pg_root/socket" -p 54340 -U postgres grove_grants
+      - name: Grove ARK grant proposal acceptance
+        run: psql -X -v ON_ERROR_STOP=1 -d grove_grants -f ops/grove/disposable-db/ark-spine-grants-acceptance.sql
+      - name: Stop clean grant-proposal PostgreSQL
+        if: always()
+        shell: bash
+        run: |
+          pg_root="/tmp/grove-grants-${GITHUB_RUN_ID}"
           if test -f "$pg_root/data/postmaster.pid"; then
             sudo -n -u postgres /usr/lib/postgresql/16/bin/pg_ctl -D "$pg_root/data" -m immediate -w stop
           fi
