@@ -351,10 +351,32 @@ function norm(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9' ]+/g, " ").replace(/\s+/g, " ").trim();
 }
 
+// Lexical matches are exploratory, not evidence of a user's actual state.
+// Whole-word boundaries prevent e.g. "pain" inside "campaign"; immediate
+// explicit negations prevent "not angry" being treated as anger evidence.
+// This is intentionally narrow: it does not pretend to solve negation or
+// context in general. Ambiguous cues remain hypotheses.
+function hasPositiveCue(text: string, cue: string): boolean {
+  const value = norm(cue);
+  if (!value) return false;
+  let index = -1;
+  while ((index = text.indexOf(value, index + 1)) !== -1) {
+    const before = index === 0 ? " " : text[index - 1];
+    const after = text[index + value.length] ?? " ";
+    if (before !== " " || after !== " ") continue;
+    const previous = text.slice(0, index).trim().split(" ").filter(Boolean);
+    // Multiword cue phrases such as "not sure" are already contextualized;
+    // suppress only a negation immediately before a single cue phrase.
+    if (["not", "never", "no"].includes(previous[previous.length - 1] ?? "")) continue;
+    return true;
+  }
+  return false;
+}
+
 export function inferFeltLife(input: { text: string; maxHypotheses?: number }): FeltLifeStateSignature {
   const text = norm(input.text);
   const scored = FELT_LIFE_ATLAS.map((entry) => {
-    const matchedCues = entry.cues.filter((cue) => text.includes(norm(cue)));
+    const matchedCues = entry.cues.filter((cue) => hasPositiveCue(text, cue));
     const raw = matchedCues.length / Math.max(1, Math.min(3, entry.cues.length));
     const score = Math.min(entry.confidenceCeiling, raw);
     return { entry, matchedCues, score };
