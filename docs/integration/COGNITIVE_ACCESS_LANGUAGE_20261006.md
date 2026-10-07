@@ -91,9 +91,14 @@ second live path.
 - **Behavior projection:** existing behavior rules continue to govern tone,
   correction handling, and continuity. Cognitive-access interpretation is input
   evidence, not identity/personality state.
-- **Prompt/context handling:** a future authorized integration may inject only
-  the bounded working interpretation/receipt alongside the raw user turn. This
-  branch does not alter `buildPromptContext` or live routing.
+- **Prompt/context handling:** the current chat route persists the literal
+  `userText` before prompt construction and uses that raw text for continuity,
+  correction detection, memory signaling, and safety context. A future authorized
+  integration must keep that raw path intact and may pass a separate bounded
+  working interpretation into prompt construction. It must never replace
+  `userText` in persistence or silently feed reconstructed text back into
+  correction/supersession state. This branch does not alter `buildPromptContext`
+  or live routing.
 - **Ambiguity handling:** clarification is emitted only when ambiguity is
   outcome-relevant, high consequence, negation-changing, or control-changing.
 
