@@ -48,6 +48,14 @@ describe("buildPromptContext freshness",()=>{
   expect(prompt.behaviorGuardRequirements).toContain("Do not become too formal");
   expect(prompt.systemPrompt).toContain("Do not become too formal");
  });
+
+ it("injects authoritative Time Core into every built prompt", async () => {
+  const result = await buildPromptContext({ supabase: promptClient(), authedUserId: "user-1", projectId: "project-1",
+    conversationId: "conversation-1", latestUserText: "What time context are you using?", timeZone: "America/Los_Angeles", timeZoneOffsetMinutes: -420 });
+  expect(result.systemPrompt).toContain("ARBOR TIME CORE — AUTHORITATIVE HOST TIME");
+  expect(result.systemPrompt).toContain("source=trusted-host-clock");
+  expect(result.systemPrompt).toContain("time_zone=America/Los_Angeles");
+ });
  it("has no prompt cache state",()=>{const filePath=fileURLToPath(new URL("../buildPromptContext.ts",import.meta.url));const source=fs.readFileSync(filePath,"utf8");expect(source).not.toMatch(/promptCache|cacheExpiry|PROMPT_CACHE_TTL/);});
  it("orients short-reply recall using the saved unfinished goal",async()=>{
   mocks.loadRuntimeState.mockResolvedValue({currentGoal:"Finish One Arbor memory integration",agency:null,corrections:[],
