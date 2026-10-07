@@ -107,6 +107,7 @@ export async function transportResumableArchive(input:{files:string[];target:Arc
     throw Error("archive_checkpoint_binding_mismatch");
   const maxBatches=z.number().int().min(1).max(1000).parse(input.maxBatches??1);
   const assertRunning=()=>{if(input.signal?.aborted)throw Error("archive_transport_aborted");};
+  assertRunning();
   // A local offset alone cannot silently skip data; reverify every claimed completed batch.
   for(const batch of manifest.batches.slice(0,checkpoint.nextBatch)){
     assertRunning();
