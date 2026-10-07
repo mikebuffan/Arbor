@@ -74,6 +74,39 @@ describe("Arbor correction routing", () => {
     },
   );
 
+  it("routes explicit General American/accent feedback acoustically despite generic drift words", () => {
+    for (const feedback of [
+      "Your voice sounds British again. It doesn't sound like you.",
+      "Your accent drifted; you've drifted away from General American.",
+      "Your cadence doesn't sound like you tonight.",
+    ]) {
+      expect(detectCorrectionKind(feedback)).toBe("acoustic");
+      const observation = createCorrection({
+        value: feedback,
+        source: "voice",
+        observedAt: "2026-10-07T12:00:00.000Z",
+      });
+      expect(observation.kind).toBe("acoustic");
+      expect(behaviorCorrections([observation])).toEqual([]);
+      expect(acousticCorrections([observation])).toEqual([feedback]);
+    }
+  });
+
+  it("keeps specific conversational criticism behavioral even when it mentions Voice", () => {
+    for (const feedback of [
+      "Your voice sounds like customer service.",
+      "Your voice is too formal.",
+      "The accent sounded foreign, and you're doing the presenter thing again.",
+    ]) {
+      expect(detectCorrectionKind(feedback)).toBe("behavior");
+    }
+  });
+
+  it("never classifies an ordinary voice observation without feedback as a correction", () => {
+    expect(detectCorrectionKind("The voice is playing normally.")).toBeNull();
+    expect(detectCorrectionKind("I am reading an article about a British accent.")).toBeNull();
+  });
+
   it("converges agency wording variants onto one correction family", () => {
     expect(correctionFamily("behavior", "Don't stop. Keep going.")).toBe(
       "agency-followthrough",
