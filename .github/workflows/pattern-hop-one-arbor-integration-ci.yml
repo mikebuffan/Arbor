@@ -1,0 +1,58 @@
+name: Pattern Hop One Arbor research integration acceptance
+
+on:
+  pull_request:
+    branches:
+      - integration/one-arbor-current-20261006
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    if: github.repository == 'mikebuffan/Arbor' && github.head_ref == 'integration/one-arbor-pattern-hop-research-20261006'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      CI: 'true'
+      OPENAI_API_KEY: ci-placeholder-not-a-real-key
+      AWS_EC2_METADATA_DISABLED: 'true'
+    steps:
+      - name: Checkout without broken submodule cleanup
+        shell: bash
+        run: |
+          git init .
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git fetch --no-tags --depth=1 origin "refs/pull/${{ github.event.pull_request.number }}/merge"
+          git checkout --detach FETCH_HEAD
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Poppler
+        run: sudo apt-get update && sudo apt-get install -y poppler-utils
+      - name: Install locked dependencies
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.30.3 --activate
+          pnpm install --frozen-lockfile
+      - name: Focused Pattern Hop research integration
+        working-directory: apps/backend
+        run: >
+          pnpm exec vitest run
+          lib/research/sourceIndependence.test.ts
+          lib/research/claimEvidenceGraph.test.ts
+          lib/research/failedLeadRouting.test.ts
+          lib/research/entityResolution.test.ts
+          lib/research/timelineAnalysis.test.ts
+          lib/research/sourceChainReview.test.ts
+          lib/research/researchPatternHopBridge.test.ts
+          lib/research/patternHopDomainLenses.test.ts
+          lib/research/researchPatternHopBridgeDomain.test.ts
+          lib/research/investigationPatternHop.test.ts
+          lib/memory/__tests__/patternHop.test.ts
+          lib/memory/__tests__/patternHopEngine.test.ts
+      - name: Full backend regression
+        run: pnpm --filter firefly-backend test
+      - name: Production build
+        run: pnpm --filter firefly-backend build
