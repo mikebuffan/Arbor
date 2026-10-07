@@ -60,6 +60,7 @@ export function resolveInteractionMode(
 
 export function projectHostStartup(
   state: OneArborHostState,
+  options: { includeIdentityAnchor?: boolean } = {},
 ): HostStartupProjection {
   const behavioralCorrections = unique(
     state.corrections
@@ -93,8 +94,7 @@ export function projectHostStartup(
     behavioralCorrections,
     acousticCorrections,
     promptBlock: [
-      renderCanonicalIdentityAnchor(),
-      "",
+      ...(options.includeIdentityAnchor === false ? [] : [renderCanonicalIdentityAnchor(), ""]),
       "ONE ARBOR HOST CONTINUITY",
       `Surface: ${state.surface}`,
       `Authority: ${state.authority}`,
