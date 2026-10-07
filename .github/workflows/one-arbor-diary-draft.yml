@@ -1,0 +1,42 @@
+name: One Arbor G11 diary draft source acceptance
+
+on:
+  pull_request:
+    branches:
+      - review/one-arbor-professional-workspace-20261007
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'apps/frontend/lib/environment/grove_diary_draft_view.dart'
+      - 'apps/frontend/lib/environment/arbor_environment_shell.dart'
+      - 'apps/frontend/test/grove_diary_draft_test.dart'
+      - 'apps/frontend/test/environment_diary_navigation_test.dart'
+      - '.github/workflows/one-arbor-diary-draft.yml'
+      - 'ops/grove/source-only-ignore.mjs'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: one-arbor-g11-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  flutter-source-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: apps/frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Analyze changed diary and shell
+        run: |
+          flutter analyze lib/environment/grove_diary_draft_view.dart lib/environment/arbor_environment_shell.dart test/grove_diary_draft_test.dart test/environment_diary_navigation_test.dart
+      - name: Diary and previous Grove safety tests
+        run: |
+          flutter test test/grove_diary_draft_test.dart test/environment_diary_navigation_test.dart test/professional_workspace_test.dart test/environment_navigation_test.dart
