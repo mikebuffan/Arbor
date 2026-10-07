@@ -511,6 +511,8 @@ export async function buildPromptContext({
 
     ${behaviorProjection.promptBlock}
 
+    ${timeCoreBlock}
+
     ${bodyBlock}
 
     ${feltLifeBlock}

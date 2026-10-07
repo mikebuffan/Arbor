@@ -49,6 +49,7 @@ export function middleware(req: NextRequest) {
     const allowed: Record<string, readonly string[]> = {
       "/api/grove/ark/status": ["GET"],
       "/api/grove/ark/projects": ["GET"],
+      "/api/grove/ark/handoff": ["GET"],
       "/api/grove/chat/conversations": ["GET", "POST"],
       "/api/grove/chat/history": ["GET"],
       "/api/grove/chat": ["POST"],

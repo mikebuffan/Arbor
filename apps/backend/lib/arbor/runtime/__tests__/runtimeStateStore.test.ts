@@ -259,3 +259,19 @@ describe("runtime save durability", () => {
     await expect(saveRuntimeState({ supabase, state: fixture("thread", "2026-10-02T18:00:00Z") })).rejects.toEqual(error);
   });
 });
+
+describe("chat runtime persistence receipt ordering", () => {
+  it("records persistence and completion only after the awaited runtime save", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { fileURLToPath } = await import("node:url");
+    const routePath = fileURLToPath(new URL("../../../../app/api/chat/route.ts", import.meta.url));
+    const route = readFileSync(routePath, "utf8");
+    const save = route.indexOf("const updatedRuntimeSession =");
+    const persist = route.indexOf('await timeline.record("persist", "state_persisted"');
+    const complete = route.indexOf('await timeline.record("complete", "turn_completed"');
+    expect(save).toBeGreaterThan(-1);
+    expect(persist).toBeGreaterThan(save);
+    expect(complete).toBeGreaterThan(persist);
+    expect(route.slice(save, persist)).toContain("await updateRuntimeSession({");
+  });
+});
