@@ -37,6 +37,47 @@ describe("Arbor Time Core", () => {
     expect(core.localTime).toBe("18:30:45");
   });
 
+  it("derives the actual IANA offset, not a fabricated UTC zero", () => {
+    const core = buildTimeCore({
+      now: new Date("2026-10-01T18:30:45.000Z"),
+      timeZone: "America/Los_Angeles",
+    });
+    expect(core.utcOffsetMinutes).toBe(-420);
+    expect(renderTimeCorePromptBlock(core)).toContain("utc_offset_minutes=-420");
+    expect(renderTimeCorePromptBlock(core)).not.toContain("utc_offset_minutes=0");
+  });
+
+  it("honors DST transition and does not reuse a stale supplied offset", () => {
+    const before = buildTimeCore({
+      now: new Date("2026-11-01T08:30:00.000Z"),
+      timeZone: "America/Los_Angeles",
+      utcOffsetMinutes: -480,
+    });
+    const after = buildTimeCore({
+      now: new Date("2026-11-01T09:30:00.000Z"),
+      timeZone: "America/Los_Angeles",
+      utcOffsetMinutes: -420,
+    });
+    expect(before.localTime).toBe("01:30:00");
+    expect(after.localTime).toBe("01:30:00");
+    expect(before.utcOffsetMinutes).toBe(-420);
+    expect(after.utcOffsetMinutes).toBe(-480);
+  });
+
+  it("supports fractional-hour IANA offsets and explicit unknown offset rendering", () => {
+    const india = buildTimeCore({
+      now: new Date("2026-10-01T18:30:00.000Z"),
+      timeZone: "Asia/Kolkata",
+    });
+    expect(india.utcOffsetMinutes).toBe(330);
+    expect(india.localDate).toBe("2026-10-02");
+    const unknown = renderTimeCorePromptBlock({
+      ...india,
+      utcOffsetMinutes: null,
+    });
+    expect(unknown).toContain("utc_offset_minutes=unknown");
+  });
+
   it("projects an explicit no-inference rule", () => {
     const block = renderTimeCorePromptBlock(buildTimeCore({
       now: new Date("2026-10-01T18:30:45.000Z"),
