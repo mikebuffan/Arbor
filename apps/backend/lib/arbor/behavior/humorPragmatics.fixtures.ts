@@ -1,6 +1,9 @@
 import type {
+  HumorClarityRisk,
+  HumorIntensity,
   HumorOpportunity,
   HumorPlacement,
+  HumorProfanityUsefulness,
   HumorTemperature,
 } from "./humorPragmatics";
 
@@ -20,9 +23,13 @@ export type HumorRegressionFixture = {
   };
   expected: {
     opportunity: HumorOpportunity;
-    temperature?: HumorTemperature;
-    callback?: "blocked" | "context-required" | "earned";
-    teasing?: "unsafe" | "context-required" | "allowed";
+    maxIntensity: HumorIntensity;
+    temperature: HumorTemperature;
+    callback: "blocked" | "context-required" | "earned";
+    teasing: "unsafe" | "context-required" | "allowed";
+    profanity: HumorProfanityUsefulness;
+    technicalClarity: HumorClarityRisk;
+    answerMustRemainPrimary: true;
     mustAllow?: HumorPlacement[];
     mustNotAllow?: HumorPlacement[];
   };
@@ -35,8 +42,14 @@ export const HUMOR_REGRESSION_FIXTURES: readonly HumorRegressionFixture[] = [
     input: { absurdityRelevance: "strong", relationshipPermission: "established" },
     expected: {
       opportunity: "strong",
+      maxIntensity: "moderate",
+      temperature: "strained",
+      callback: "context-required",
       teasing: "allowed",
-      mustAllow: ["embedded-dry-observation", "absurd-escalation"],
+      profanity: "useful",
+      technicalClarity: "low",
+      answerMustRemainPrimary: true,
+      mustAllow: ["embedded-dry-observation", "absurd-escalation", "teasing-reply", "profanity-emphasis"],
     },
   },
   {
@@ -44,7 +57,14 @@ export const HUMOR_REGRESSION_FIXTURES: readonly HumorRegressionFixture[] = [
     text: "The Vercel deploy failed again. I need the exact error state and next action.",
     expected: {
       opportunity: "possible",
-      mustAllow: ["embedded-dry-observation"],
+      maxIntensity: "light",
+      temperature: "strained",
+      callback: "context-required",
+      teasing: "context-required",
+      profanity: "neutral",
+      technicalClarity: "high",
+      answerMustRemainPrimary: true,
+      mustAllow: ["embedded-dry-observation", "trailing-button", "deadpan-correction"],
       mustNotAllow: ["opening"],
     },
   },
@@ -53,7 +73,14 @@ export const HUMOR_REGRESSION_FIXTURES: readonly HumorRegressionFixture[] = [
     text: "Ffs it did the exact same thing again lol",
     expected: {
       opportunity: "strong",
-      mustAllow: ["profanity-emphasis"],
+      maxIntensity: "moderate",
+      temperature: "strained",
+      callback: "context-required",
+      teasing: "context-required",
+      profanity: "useful",
+      technicalClarity: "low",
+      answerMustRemainPrimary: true,
+      mustAllow: ["profanity-emphasis", "opening"],
     },
   },
   {
@@ -61,7 +88,14 @@ export const HUMOR_REGRESSION_FIXTURES: readonly HumorRegressionFixture[] = [
     text: "It finally passed. Holy shit lol.",
     expected: {
       opportunity: "strong",
-      mustAllow: ["trailing-button"],
+      maxIntensity: "moderate",
+      temperature: "ordinary",
+      callback: "context-required",
+      teasing: "context-required",
+      profanity: "neutral",
+      technicalClarity: "low",
+      answerMustRemainPrimary: true,
+      mustAllow: ["trailing-button", "opening"],
     },
   },
   {
@@ -70,7 +104,14 @@ export const HUMOR_REGRESSION_FIXTURES: readonly HumorRegressionFixture[] = [
     input: { relationshipPermission: "established" },
     expected: {
       opportunity: "strong",
+      maxIntensity: "moderate",
+      temperature: "ordinary",
+      callback: "context-required",
       teasing: "allowed",
+      profanity: "neutral",
+      technicalClarity: "low",
+      answerMustRemainPrimary: true,
+      mustAllow: ["teasing-reply"],
     },
   },
   {
@@ -79,7 +120,14 @@ export const HUMOR_REGRESSION_FIXTURES: readonly HumorRegressionFixture[] = [
     input: { relationshipPermission: "established" },
     expected: {
       opportunity: "strong",
+      maxIntensity: "moderate",
+      temperature: "ordinary",
+      callback: "context-required",
       teasing: "allowed",
+      profanity: "neutral",
+      technicalClarity: "low",
+      answerMustRemainPrimary: true,
+      mustAllow: ["teasing-reply"],
     },
   },
   {
@@ -88,7 +136,14 @@ export const HUMOR_REGRESSION_FIXTURES: readonly HumorRegressionFixture[] = [
     input: { absurdityRelevance: "strong", relationshipPermission: "established" },
     expected: {
       opportunity: "strong",
-      mustAllow: ["absurd-escalation", "profanity-emphasis"],
+      maxIntensity: "moderate",
+      temperature: "strained",
+      callback: "context-required",
+      teasing: "allowed",
+      profanity: "useful",
+      technicalClarity: "medium",
+      answerMustRemainPrimary: true,
+      mustAllow: ["absurd-escalation", "profanity-emphasis", "teasing-reply", "opening"],
     },
   },
   {
@@ -101,8 +156,14 @@ export const HUMOR_REGRESSION_FIXTURES: readonly HumorRegressionFixture[] = [
     },
     expected: {
       opportunity: "strong",
+      maxIntensity: "moderate",
+      temperature: "strained",
       callback: "earned",
-      mustAllow: ["callback"],
+      teasing: "allowed",
+      profanity: "useful",
+      technicalClarity: "low",
+      answerMustRemainPrimary: true,
+      mustAllow: ["callback", "teasing-reply"],
     },
   },
   {
@@ -110,7 +171,14 @@ export const HUMOR_REGRESSION_FIXTURES: readonly HumorRegressionFixture[] = [
     text: "No. I still think that conclusion outruns the evidence.",
     expected: {
       opportunity: "none",
-      mustNotAllow: ["teasing-reply", "opening"],
+      maxIntensity: "none",
+      temperature: "ordinary",
+      callback: "context-required",
+      teasing: "context-required",
+      profanity: "neutral",
+      technicalClarity: "low",
+      answerMustRemainPrimary: true,
+      mustNotAllow: ["teasing-reply", "opening", "callback"],
     },
   },
   {
@@ -118,8 +186,14 @@ export const HUMOR_REGRESSION_FIXTURES: readonly HumorRegressionFixture[] = [
     text: "I'm grieving and I don't know what to do with today.",
     expected: {
       opportunity: "none",
+      maxIntensity: "none",
       temperature: "vulnerable",
+      callback: "context-required",
       teasing: "unsafe",
+      profanity: "neutral",
+      technicalClarity: "low",
+      answerMustRemainPrimary: true,
+      mustNotAllow: ["teasing-reply", "opening", "absurd-escalation"],
     },
   },
   {
@@ -127,9 +201,14 @@ export const HUMOR_REGRESSION_FIXTURES: readonly HumorRegressionFixture[] = [
     text: "I'm in danger right now and I need the next safe step.",
     expected: {
       opportunity: "none",
+      maxIntensity: "none",
       temperature: "acute",
       callback: "blocked",
       teasing: "unsafe",
+      profanity: "discouraged",
+      technicalClarity: "low",
+      answerMustRemainPrimary: true,
+      mustNotAllow: ["opening", "callback", "teasing-reply", "profanity-emphasis", "absurd-escalation"],
     },
   },
   {
@@ -137,7 +216,14 @@ export const HUMOR_REGRESSION_FIXTURES: readonly HumorRegressionFixture[] = [
     text: "What does ephemeral mean?",
     expected: {
       opportunity: "none",
-      mustNotAllow: ["opening", "trailing-button"],
+      maxIntensity: "none",
+      temperature: "ordinary",
+      callback: "context-required",
+      teasing: "context-required",
+      profanity: "neutral",
+      technicalClarity: "low",
+      answerMustRemainPrimary: true,
+      mustNotAllow: ["opening", "trailing-button", "callback", "teasing-reply"],
     },
   },
   {
@@ -146,6 +232,14 @@ export const HUMOR_REGRESSION_FIXTURES: readonly HumorRegressionFixture[] = [
     input: { technicalContext: true },
     expected: {
       opportunity: "possible",
+      maxIntensity: "light",
+      temperature: "ordinary",
+      callback: "context-required",
+      teasing: "context-required",
+      profanity: "neutral",
+      technicalClarity: "medium",
+      answerMustRemainPrimary: true,
+      mustAllow: ["embedded-dry-observation", "trailing-button", "deadpan-correction"],
       mustNotAllow: ["opening"],
     },
   },
