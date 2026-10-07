@@ -11,6 +11,7 @@ export type IdentityEvidenceKind =
   | "biometric_attestation"
   | "voice_attestation"
   | "behavioral_language_match"
+  | "behavioral_sequence_match"
   | "session_continuity"
   | "step_up_assertion"
   | "duress_signal"
@@ -75,6 +76,7 @@ const STRONG_OWNER_KINDS = new Set<IdentityEvidenceKind>([
 const RECOGNITION_KINDS = new Set<IdentityEvidenceKind>([
   "device_attestation",
   "behavioral_language_match",
+  "behavioral_sequence_match",
   "session_continuity",
   "voice_attestation",
 ]);
