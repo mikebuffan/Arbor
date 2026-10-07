@@ -48,6 +48,27 @@ describe("Arbor humor pragmatics", () => {
     expect(legal.suppression).toContain("consequential-facts");
   });
 
+  it("suppresses humor for evidence disputes and direct-answer moments even when the surface tone is playful", () => {
+    const evidence = assessHumorPragmatics({
+      latestUserText: "lol no, that doesn't prove the claim.",
+      mode: "text",
+      relationshipPermission: "established",
+    });
+    expect(evidence.opportunity).toBe("none");
+    expect(evidence.suppression).toContain("evidence-dispute");
+    expect(evidence.allowedPlacements).toEqual(["none"]);
+
+    const direct = assessHumorPragmatics({
+      latestUserText: "Did the migration actually run, yes or no?",
+      mode: "text",
+      technicalContext: true,
+      relationshipPermission: "established",
+    });
+    expect(direct.opportunity).toBe("none");
+    expect(direct.suppression).toContain("direct-answer-priority");
+    expect(direct.allowedPlacements).toEqual(["none"]);
+  });
+
   it("allows technical humor only around, never instead of, exact state", () => {
     const result = assessHumorPragmatics({
       latestUserText: "The Vercel deploy failed again. Give me the exact error and next action.",
