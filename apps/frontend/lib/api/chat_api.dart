@@ -4,6 +4,11 @@ import 'arbor_api_client.dart';
 import 'arbor_session.dart';
 import 'turn_id.dart';
 
+int chatContinuationRetryDelayMs(dynamic value) {
+  if (value is! int || value < 0) return 400;
+  return value.clamp(0, 2000).toInt();
+}
+
 class ChatApi {
   ChatApi(
     this._client, {
@@ -78,9 +83,7 @@ class ChatApi {
       final retryAfterMs = json['retryAfterMs'];
       await Future<void>.delayed(
         Duration(
-          milliseconds: retryAfterMs is int && retryAfterMs >= 0
-              ? retryAfterMs.clamp(0, 2000)
-              : 400,
+          milliseconds: chatContinuationRetryDelayMs(retryAfterMs),
         ),
       );
       json = await _client.post('/api/chat', body: body);
