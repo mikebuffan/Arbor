@@ -141,4 +141,28 @@ describe("Arbor correction routing", () => {
       "Do not collapse into one-word acknowledgments",
     ]);
   });
+  it.each([
+    "That joke was weird.",
+    "Don't make everything a joke.",
+    "That was actually funny. More like that.",
+    "Stop doing the gothic thing.",
+    "Don't tease me like that.",
+    "Too much profanity.",
+  ])(
+    "routes explicit humor calibration through behavior corrections: %s",
+    (text) => {
+      expect(detectCorrectionKind(text)).toBe("behavior");
+      expect(correctionFamily("behavior", text)).toBe("humor-pragmatics");
+    },
+  );
+
+  it("keeps humor calibration separate from acoustic voice correction", () => {
+    expect(
+      correctionFamily("behavior", "That joke was weird."),
+    ).toBe("humor-pragmatics");
+    expect(
+      classifyCorrection("Your voice sounds British again."),
+    ).toBe("acoustic");
+  });
+
 });
