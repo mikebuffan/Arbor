@@ -181,8 +181,11 @@ describe("cognitive-access language", () => {
       ],
     });
 
-    expect(decision.action).toBe("clarify");
-    expect(decision.reasons).toContain("interpretation_changes_negation");
+    expect(decision.action).toBe("use_raw");
+    expect(decision.interpretedText).toBe("dont merge main");
+    expect(decision.reasons).toContain(
+      "raw_negation_preserved_over_conflicting_interpretation",
+    );
   });
 
   it("never lets context silently turn an explicit wait into continue", () => {
@@ -200,9 +203,10 @@ describe("cognitive-access language", () => {
       ],
     });
 
-    expect(decision.action).toBe("clarify");
+    expect(decision.action).toBe("use_raw");
+    expect(decision.interpretedText).toBe("wait");
     expect(decision.reasons).toContain(
-      "stop_or_pause_control_cannot_be_silently_rewritten",
+      "explicit_stop_or_pause_control_preserved",
     );
   });
 
