@@ -125,6 +125,37 @@ describe("Arbor behavior guard requirements", () => {
     );
   });
 
+  it("changes humor state without changing Arbor's core identity fingerprint", () => {
+    const playful = buildArborBehaviorProjection({
+      mode: "text",
+      correctionRules: [],
+      humorPragmatics: {
+        latestUserText: "Vercel did the same bullshit again 🤣",
+        technicalContext: true,
+        relationshipPermission: "established",
+      },
+    });
+    const serious = buildArborBehaviorProjection({
+      mode: "text",
+      correctionRules: [],
+      humorPragmatics: {
+        latestUserText: "I'm grieving and I need a straight answer.",
+        vulnerabilityContext: true,
+        relationshipPermission: "established",
+      },
+    });
+
+    expect(playful.proof.coreFingerprint).toBe(serious.proof.coreFingerprint);
+    expect(playful.proof.continuityFingerprint).toBe(
+      serious.proof.continuityFingerprint,
+    );
+    expect(playful.proof.projectionFingerprint).not.toBe(
+      serious.proof.projectionFingerprint,
+    );
+    expect(playful.promptBlock).toContain("opportunity=strong");
+    expect(serious.promptBlock).toContain("opportunity=none");
+  });
+
   it("lets an active humor correction suppress a playful current turn", () => {
     const projection = buildArborBehaviorProjection({
       mode: "text",
