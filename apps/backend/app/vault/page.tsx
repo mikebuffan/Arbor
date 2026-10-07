@@ -1,20 +1,10 @@
 import Link from "next/link";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { searchVaultRows, type VaultResult } from "@/lib/arbor/vault/localVaultSearch";
 
 export const dynamic = "force-dynamic";
 
 type SearchParams = Promise<{ q?: string }>;
-
-type VaultResult = {
-  result_kind: string;
-  result_id: string;
-  result_key: string;
-  title: string;
-  domain: string;
-  summary: string | null;
-  status: string;
-  rank: number | null;
-};
 
 function n(value: unknown) {
   return Number(value ?? 0).toLocaleString();
@@ -32,7 +22,7 @@ export default async function VaultPage({ searchParams }: { searchParams: Search
   const { q = "" } = await searchParams;
   const db = supabaseAdmin();
 
-  const [overviewRes, entriesRes, capsRes, codeRes, obsRes, runRes, dossierRes, searchRes] =
+  const [overviewRes, entriesRes, capsRes, codeRes, obsRes, runRes, dossierRes] =
     await Promise.all([
       db.from("arbor_vault_dashboard_overview").select("*").single(),
       db
@@ -68,16 +58,23 @@ export default async function VaultPage({ searchParams }: { searchParams: Search
         .select("id,dossier_key,title,audience,purpose,generated_at,updated_at")
         .order("updated_at", { ascending: false })
         .limit(12),
-      q.trim()
-        ? db.rpc("arbor_vault_search", { p_query: q.trim(), p_limit: 40 })
-        : Promise.resolve({ data: [] as VaultResult[], error: null }),
     ]);
 
-  const errors = [overviewRes, entriesRes, capsRes, codeRes, obsRes, runRes, dossierRes, searchRes]
+  const errors = [overviewRes, entriesRes, capsRes, codeRes, obsRes, runRes, dossierRes]
     .map((x) => x.error?.message)
     .filter(Boolean);
   const overview = overviewRes.data ?? {};
-  const search = (searchRes.data ?? []) as VaultResult[];
+  const search: VaultResult[] = searchVaultRows(
+    {
+      entries: (entriesRes.data ?? []) as Record<string, unknown>[],
+      capabilities: (capsRes.data ?? []) as Record<string, unknown>[],
+      codeArtifacts: (codeRes.data ?? []) as Record<string, unknown>[],
+      observations: (obsRes.data ?? []) as Record<string, unknown>[],
+      dossiers: (dossierRes.data ?? []) as Record<string, unknown>[],
+    },
+    q,
+    40,
+  );
   const run = runRes.data;
 
   return (
