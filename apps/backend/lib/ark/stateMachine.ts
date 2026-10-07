@@ -23,7 +23,7 @@ const OBJECTIVE_TRANSITIONS: Record<ArkObjectiveStatus, ArkObjectiveStatus[]> = 
 
 const TASK_TRANSITIONS: Record<ArkTaskStatus, ArkTaskStatus[]> = {
   queued: ["running", "blocked", "cancelled"],
-  running: ["checkpointed", "blocked", "completed", "failed", "queued"],
+  running: ["checkpointed", "blocked", "completed", "failed", "queued", "cancelled"],
   checkpointed: ["running", "blocked", "cancelled"],
   blocked: ["queued", "cancelled", "failed"],
   completed: [],
