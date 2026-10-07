@@ -64,7 +64,7 @@ export function classifyInternalSignal(input: {
   // Explicit refusal outranks compactness or overload, even when both appear.
   // This is an advisory routing guard; host STOP authority is separate.
   if (
-    /^(?:please\\s+)?stop\\s*[.!?]*$/.test(text) ||
+    /^(?:please\s+)?stop(?:[.!?]+(?=\s|$)|$)/.test(text) ||
     includesAny(text, [
       "do not proceed",
       "don't proceed",
