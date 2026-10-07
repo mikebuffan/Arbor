@@ -1,0 +1,1 @@
+Isolated verification child for Grove / independent LM / phone readiness CI. No application source, grants, migrations, deployment, inference, or live state changed.
