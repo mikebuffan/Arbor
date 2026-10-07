@@ -160,15 +160,12 @@ function changesProtectedLiteral(
   return protectedLiterals.some((literal) => !candidate.includes(literal));
 }
 
-function negationSignature(text: string): string[] {
-  return unique(
-    (text.match(NEGATION_PATTERN) ?? [])
-      .map((token) => token.toLocaleLowerCase().replace(/[’']/g, "")),
-  ).sort();
+function hasNegation(text: string): boolean {
+  return (text.match(NEGATION_PATTERN) ?? []).length > 0;
 }
 
 function changesNegation(raw: string, candidate: string): boolean {
-  return negationSignature(raw).join("|") !== negationSignature(candidate).join("|");
+  return hasNegation(raw) !== hasNegation(candidate);
 }
 
 function rewritesStopControl(raw: string, candidate: string): boolean {
@@ -265,26 +262,26 @@ export function decideCognitiveAccessRecovery(
   if (changesNegation(rawTrimmed, best.text)) {
     return {
       ...base,
-      action: "clarify",
-      interpretedText: null,
+      action: "use_raw",
+      interpretedText: rawTrimmed,
       alternatives: candidates.slice(0, 3).map((x) => x.text),
       confidence: best.confidence,
       confidenceBand: confidenceBand(best.confidence),
-      reasons: ["interpretation_changes_negation"],
-      clarificationRequired: true,
+      reasons: ["raw_negation_preserved_over_conflicting_interpretation"],
+      clarificationRequired: false,
     };
   }
 
   if (rewritesStopControl(rawTrimmed, best.text)) {
     return {
       ...base,
-      action: "clarify",
-      interpretedText: null,
+      action: "use_raw",
+      interpretedText: rawTrimmed,
       alternatives: candidates.slice(0, 3).map((x) => x.text),
       confidence: best.confidence,
       confidenceBand: confidenceBand(best.confidence),
-      reasons: ["stop_or_pause_control_cannot_be_silently_rewritten"],
-      clarificationRequired: true,
+      reasons: ["explicit_stop_or_pause_control_preserved"],
+      clarificationRequired: false,
     };
   }
 
