@@ -75,6 +75,17 @@ Before bench/source integration is called complete, #286 must pass its own exact
 
 Component-head green receipts remain evidence, not substitutes for #286 exact-head acceptance.
 
+## Hosted schema preflight completed read-only
+
+A read-only Supabase preflight was run against the currently connected hosted projects. No DDL, migration, grant, worker, seed, or data mutation was executed.
+
+- Firefly ARK Preview: current Pattern Hop run-control columns/functions are cleanly absent (no partial apply); `ark_cancel_objective` is absent; ARK objective/task constraints already support terminal `cancelled`; required ARK tables/lease/version/event columns and `gen_random_uuid()` are present.
+- The existing Pattern Hop table has authenticated owner-scoped SELECT/UPDATE RLS. The proposal was therefore hardened before apply: control RPCs now remain `SECURITY INVOKER` so RLS stays authoritative, with explicit JWT scope checks as defense in depth.
+- The disposable PostgreSQL acceptance now exercises the control RPCs under an actual `authenticated` database role and proves owner success plus foreign-user denial.
+- The Grove: `grove_private_ark_project_grants` exists with primary key `(grove_user_id, firefly_project_id)`; RLS is enabled and forced; anon/authenticated cannot SELECT; service role can SELECT. The three proposed runtime/goal/ARK-run grant tables are cleanly absent, so there is no partial hosted grant migration to reconcile.
+
+This converts the later hosted step from discovery/debugging into a controlled apply + exact-head smoke gate after explicit approval.
+
 ## Protected/live gates intentionally left
 
 These require deployment, hosted authority, real external state, or a human-only decision:
