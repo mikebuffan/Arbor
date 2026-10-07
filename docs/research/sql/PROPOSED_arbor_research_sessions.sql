@@ -105,6 +105,117 @@ create policy arbor_research_receipts_owner_read on public.arbor_research_receip
 
 -- Service-role-only RPC. Store/route must bind the authenticated owner/project;
 -- never let a client select an arbitrary owner for a service-role call.
+create or replace function public.arbor_append_research_units(
+  p_session_id uuid,p_user_id uuid,p_project_id uuid,p_units jsonb
+) returns jsonb language plpgsql security invoker set search_path = pg_catalog, public as $
+declare v_session public.arbor_research_sessions%rowtype;
+        v_now timestamptz;
+        v_requested integer;
+        v_appended integer;
+begin
+  if p_units is null or jsonb_typeof(p_units)<>'array' then
+    raise exception 'invalid_research_append_units';
+  end if;
+  v_requested := jsonb_array_length(p_units);
+  if v_requested not between 1 and 8 then
+    raise exception 'invalid_research_append_units';
+  end if;
+
+  select * into v_session from public.arbor_research_sessions
+    where id=p_session_id and user_id=p_user_id and project_id=p_project_id
+    for update;
+  if not found then raise exception 'research_session_not_found'; end if;
+
+  v_now := clock_timestamp();
+  if v_session.status not in ('queued','running')
+     or not v_session.authorized
+     or v_session.cancellation_requested
+     or v_now < v_session.started_at
+     or v_now >= v_session.deadline_at then
+    raise exception 'research_session_not_appendable';
+  end if;
+
+  if exists(
+    select 1
+    from jsonb_to_recordset(p_units) as x(
+      "unitKey" text,
+      kind text,
+      description text,
+      payload jsonb,
+      "maxCostReservationCents" integer,
+      "maxAttempts" integer
+    )
+    where x."unitKey" is null
+       or length(btrim(x."unitKey")) not between 1 and 200
+       or x.kind is null
+       or length(btrim(x.kind)) not between 1 and 200
+       or btrim(x.kind) not like 'research.%'
+       or x.description is null
+       or length(btrim(x.description)) not between 1 and 2000
+       or x.payload is null
+       or jsonb_typeof(x.payload)<>'object'
+       or x."maxCostReservationCents" is null
+       or x."maxCostReservationCents" not between 0 and 1000000
+       or coalesce(x."maxAttempts",3) not between 1 and 20
+  ) then
+    raise exception 'invalid_research_append_unit';
+  end if;
+
+  if exists(
+    select 1
+    from jsonb_to_recordset(p_units) as x("unitKey" text)
+    group by btrim(x."unitKey")
+    having count(*)>1
+  ) then
+    raise exception 'duplicate_research_append_unit';
+  end if;
+
+  if (
+    select count(*)
+    from public.arbor_research_units
+    where session_id=p_session_id
+      and user_id=p_user_id
+      and project_id=p_project_id
+      and status in ('queued','leased')
+  ) + v_requested > 256 then
+    raise exception 'research_controller_pending_unit_limit';
+  end if;
+
+  insert into public.arbor_research_units(
+    session_id,user_id,project_id,unit_key,kind,payload,
+    max_cost_reservation_cents,max_attempts
+  )
+  select
+    p_session_id,p_user_id,p_project_id,
+    btrim(x."unitKey"),btrim(x.kind),x.payload,
+    x."maxCostReservationCents",coalesce(x."maxAttempts",3)
+  from jsonb_to_recordset(p_units) as x(
+    "unitKey" text,
+    kind text,
+    description text,
+    payload jsonb,
+    "maxCostReservationCents" integer,
+    "maxAttempts" integer
+  )
+  on conflict (session_id,unit_key) do nothing;
+
+  get diagnostics v_appended = row_count;
+
+  if v_session.unresolved_required_work + v_appended > 1000000 then
+    raise exception 'research_unresolved_work_limit';
+  end if;
+
+  update public.arbor_research_sessions
+    set unresolved_required_work=unresolved_required_work+v_appended,
+        updated_at=v_now
+    where id=p_session_id and user_id=p_user_id and project_id=p_project_id;
+
+  return jsonb_build_object(
+    'appended',v_appended,
+    'existing',v_requested-v_appended
+  );
+end $;
+
 create or replace function public.arbor_claim_research_unit(
   p_session_id uuid,p_user_id uuid,p_project_id uuid,p_worker_id text,
   p_lease_seconds integer default 240
@@ -268,6 +379,10 @@ begin
       and status not in ('completed','cancelled','timebox_ended');
   return found;
 end $$;
+revoke all on function public.arbor_append_research_units(uuid,uuid,uuid,jsonb)
+  from public,anon,authenticated;
+grant execute on function public.arbor_append_research_units(uuid,uuid,uuid,jsonb)
+  to service_role;
 revoke all on function public.arbor_claim_research_unit(uuid,uuid,uuid,text,integer)
   from public,anon,authenticated;
 revoke all on function public.arbor_settle_research_unit
