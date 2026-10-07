@@ -112,10 +112,19 @@ describe("Arbor humor pragmatics", () => {
     const corrected = assessHumorPragmatics({
       latestUserText: "Ffs this bullshit happened again lol",
       mode: "text",
-      activeCorrections: ["Stop swearing so much."],
+      activeCorrections: ["Too much profanity."],
     });
     expect(corrected.profanityUsefulness).toBe("discouraged");
     expect(corrected.allowedPlacements).not.toContain("profanity-emphasis");
+
+    const overused = assessHumorPragmatics({
+      latestUserText: "Ffs this bullshit happened again lol",
+      mode: "text",
+      recentAssistantProfanityUses: 2,
+    });
+    expect(overused.profanityUsefulness).toBe("discouraged");
+    expect(overused.suppression).toContain("profanity-overuse");
+    expect(overused.allowedPlacements).not.toContain("profanity-emphasis");
   });
 
   it("applies active humor corrections without treating a single reaction as durable identity", () => {
