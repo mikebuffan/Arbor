@@ -44,7 +44,7 @@ new worker authority, model spend, automatic activation, or research-task mutati
    Keep proposals, choices, rejected alternatives, explicit supersessions,
    corrections, and reported consequences. Missing links and competing unsuperseded
    choices must be visible. Exact retry must not count twice. An outcome ref is
-   *not* self-verifying. Nine isolated synthetic cases introduced with this appendix.
+   *not* self-verifying. Thirteen isolated synthetic cases introduced with this appendix.
    **Not yet host-wired or deployed.**
 2. **Failure Radar.** Reuse existing correction/prediction-error/roundabout signals.
    Initial read-only warning only: repeated correction, unreferenced outcome, missing
@@ -56,10 +56,11 @@ new worker authority, model spend, automatic activation, or research-task mutati
    permission treadmill; show why a decision needs human input and what safe work
    can continue. **Proof:** no action when a grant is absent, and an unrelated
    safely authorized subtask proceeds without interrupting the user.
-4. **What Changed.** Compare two exact durable checkpoints and authorized
-   action receipts, not model retellings. **Proof:** detect newer accepted corrections,
-   source revision, new blockers, completed work, and active goal; reject stale
-   or cross-owner events and do not invent background work.
+4. **What Changed.** The first **read-only in-process delta** now compares two
+   decision projections, rejects same-ID rewrites, and flags disappearing older
+   events. It is **not** a whole-project checkpoint diff: future host integration
+   must compare two exact durable checkpoints and authorized action receipts,
+   including active goals and blockers. No source-free claim of background work.
 
 **P1 — Recovered behavioral mechanisms (source ownership before coding)**
 
