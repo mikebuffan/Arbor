@@ -19,12 +19,17 @@ This is a coordination snapshot, not a deployment manifest.
 | FAFO audio evidence | #289 | `b71289870a66dd1a986a6a1081318d92c2a940d4` | **GREEN SOURCE LANE** | provenance-safe audio/transcript evidence representation | dedicated FAFO audio evidence provenance acceptance SUCCESS | Review seam into existing Evidence Engine; do not build a second evidence system |
 | Cognitive-access / Danelle-ese | #290 | `09d182901b71028770bfe3ee935ccc7295988bfc` | **SAFE SOURCE WORK** | raw-preserving intent recovery, ambiguity, protected literals, negation/STOP, speech-to-text fixtures | source lane expanded; dedicated child #295 running | Require child CI green; no real-user profiling/authentication |
 | Cognitive-access verification child | #295 | `7504725b15b768a0c3d1e8b97ff25898cb62002e` | **GREEN VERIFICATION** | focused CI only | Cognitive access source acceptance SUCCESS | Verification complete for current #290 source contract |
-| Contextual reference / short-turn resolution | #294 | `da0657eaf5b41ebb50cdf6ec82ea6e81402ea052` | **SAFE SOURCE WORK / UNVERIFIED** | bounded contextual reference resolver, short-turn references, protected literals, referential cancel semantics | mergeable; no dedicated current-head workflow at snapshot | Reconcile with #290 semantics first; then add/borrow focused acceptance rather than duplicate intent machinery |
-| ARK offline STOP/resume | #291 | `97157b670284b3a53e03c1ab1bfa3ca29a289cdc` | **MOVING** | explicit STOP, blocked-resume controls, offline acceptance | worker was still committing during this snapshot; head changed again while this pass was running | Do not reconcile until head stops moving |
+| Contextual reference / short-turn resolution | #294 | `da0657eaf5b41ebb50cdf6ec82ea6e81402ea052` | **GREEN SOURCE LANE** | bounded contextual reference resolver, short-turn references, protected literals, referential cancel semantics | dedicated verification child #301 SUCCESS | Reconcile with #290 semantics; focused acceptance complete |
+| Contextual reference verification | #301 | `13fbea7da01a6301a4bb5dd80558f0b565698887` | **GREEN VERIFICATION** | focused CI only | Contextual reference source acceptance SUCCESS | Verification complete for current #294 source contract |
+| ARK offline STOP/resume | #291 | `d235fa400ba579990fdb71d60548f48b8e43cf6d` | **MOVING** | explicit STOP, blocked-resume controls, offline acceptance | head changed repeatedly during this pass; no stable exact-head acceptance receipt yet | Do not reconcile until head stabilizes |
 | Grove / independent LM / phone | #277 | `0fe8bfc73251527021d633043d9a35de50f45cd5` | **SOURCE-STRONG / STALE-BASE CI RED** | Grove private host, LM transport/readiness, phone continuity, v0.4 semantic evidence | focused Grove suite: 236 passed + 1 skipped; local-LM prep passed; overall build red on inherited stale research parser contract | Reconcile lane-specific deltas onto #286; do not patch stale shared research files in place |
 | ARK / agency / archive | #279 | `5329ab7c3b4e85c6b4adaade6825cb87050d799d` | **SOURCE-STRONG / STALE-BASE CI RED** | agency continuation/restart/idempotency, archive cursor/checkpoint, durable STOP/readback | ARK STOP migration and phone continuity jobs passed; backend job red on stale cross-lane research/type drift plus older test signatures | Reconcile lane-specific deltas onto #286; do not use its stale shared research files as canonical |
 | Pattern Hop / Evidence seam | #282 | `a2060a522ffc29dbed9a7c33e8d1dbf7f4f3db6b` | **GREEN / ALREADY IN ANCHOR LINEAGE** | Evidence Engine / Roundabout / ARK seam | canonical exact-head acceptance SUCCESS | Treat #286 copy as canonical unless a newer Pattern Hop source lane appears |
 | Annabelle finish | #283 | `cd9f58db3e47c3a91ca8514a8f28d9d89b5a24fc` | **SOURCE COMPLETE / HUMAN-LIVE GATES** | editorial continuity, source binding, Felt-Life/voice/character continuity, auto-resume | no new current-head workflow in this snapshot; already represented in pre-Vercel integration lineage | Preserve source; remaining work is live persistence/fresh-session and human prose validation |
+| FAFO audio Evidence Engine seam | #297 | `53e5a13c62d303a4f1cae08c07a89dd1eb369ced` | **GREEN SOURCE LANE** | maps provenance-bound audio windows into existing Claim/Evidence/Counterevidence graph | dedicated seam acceptance SUCCESS; transcripts preserve original source family and cannot grant findings | Eligible for low-conflict staging reconciliation |
+| Operational receipt envelope | #298 | `f97d67358c62e8c9ad3834cbc7324dd1832b8302` | **GREEN SOURCE LANE** | shared evidence-backed operation projection; no persistence | dedicated acceptance SUCCESS | Eligible for low-conflict staging; keep domain systems canonical |
+| Simplification / ownership audit | #299 | `849ff2cab2eb1bdad68b203c96be52c58a32f34e` | **COORDINATION / AUDIT** | duplication audit + canonical state ownership matrix | docs-only, mergeable | Use during reconciliation; no deletions yet |
+| Humor / pragmatics | #300 | `c8c5fe4f0b18c7e6b002085a647072fe39dac687` | **GREEN SOURCE LANE** | contextual humor availability, timing, permission and suppression; no joke engine | humor pragmatics acceptance SUCCESS after correcting a test-string capitalization mismatch | Eligible for low-conflict staging; no live prompt wiring yet |
 
 ## Shared drift diagnosis
 
@@ -133,3 +138,21 @@ A red stale side-branch build is not allowed to overwrite stronger exact-head ev
 A green focused lane is not allowed to claim the entire system is green.
 
 Reconcile first. Then test the exact combined head.
+
+
+## Low-conflict staging status
+
+The following current heads have independent green verification and may be
+combined on a NON-FINAL successor staging branch from #286 without waiting for
+the still-moving ARK lane:
+
+- #287 Identity Assurance source @ 9ffd6d4a3d68850eb87cd1e65c5bca928dcd3834
+- #288 Capability Hypothesis source @ 5e82ead12855971b1438a972c83dd4540783e0e7
+- #289 + #297 FAFO audio provenance/Evidence seam @ 53e5a13c62d303a4f1cae08c07a89dd1eb369ced
+- #290 Cognitive Access @ 09d182901b71028770bfe3ee935ccc7295988bfc
+- #294 Contextual Reference @ da0657eaf5b41ebb50cdf6ec82ea6e81402ea052
+- #298 Operational Receipt @ f97d67358c62e8c9ad3834cbc7324dd1832b8302
+- #300 Humor Pragmatics @ c8c5fe4f0b18c7e6b002085a647072fe39dac687
+
+This staging branch must remain explicitly non-final and must not absorb #291,
+#279, or #277 until their moving/stale-base issues are reconciled deliberately.
