@@ -61,12 +61,13 @@ GroveMemoryShelfSnapshot projectGroveMemoryShelf(
     if (row['project_id'] != projectId ||
         row['deleted_at'] != null ||
         row['status'] != 'active' ||
+        row['excluded_from_memory'] != false ||
         row['user_trigger_only'] != false ||
         row['tier'] == 'sensitive') {
       continue;
     }
     final scope = row['scope'];
-    if (scope != 'project' &&
+    if (!(scope == 'project' && row['conversation_id'] == null) &&
         !(scope == 'conversation' &&
             conversationId != null &&
             row['conversation_id'] == conversationId)) {

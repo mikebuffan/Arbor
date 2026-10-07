@@ -34,6 +34,8 @@ export type SelfModelObservationSummary = {
   supportDomains: string[];
   contradictionDomains: string[];
   averageConfidence: number;
+  /** Distinct source-turn references, not independently authenticated here. */
+  distinctSupportTurnCount: number;
   status:
     | "insufficient"
     | "candidate"
@@ -62,6 +64,14 @@ export function addSelfModelObservation(
   const evidence =
     input.evidence
       .trim();
+
+  const sourceTurnId = input.sourceTurnId?.trim();
+  if (
+    input.sourceTurnId !== undefined &&
+    (!sourceTurnId || sourceTurnId.length > 200)
+  ) {
+    throw new Error("self_model_observation_source_turn_invalid");
+  }
 
   if (!domain) {
     throw new Error(
@@ -99,6 +109,7 @@ export function addSelfModelObservation(
       ...input,
       domain,
       evidence,
+      sourceTurnId,
     });
 
   const duplicate =
@@ -135,8 +146,7 @@ export function addSelfModelObservation(
     confidence:
       input.confidence,
 
-    sourceTurnId:
-      input.sourceTurnId,
+    sourceTurnId,
 
     createdAt:
       new Date()
@@ -235,11 +245,11 @@ export function renderSelfModelObservationProjection(
   }
 
   return [
-    "ARBOR LIVE SELF-MODEL EVIDENCE",
+    "ARBOR RECORDED SELF-MODEL OBSERVATIONS — NOT LIVE-VERIFIED",
 
-    "These are longitudinal observations, not automatically promoted identity.",
+    "These are caller-supplied observation records, not independently authenticated behavior or automatically promoted identity.",
 
-    "Candidate means repeated supporting behavior exists across at least two domains with no contradictory observation.",
+    "Candidate requires two distinct nonblank source-turn references across at least two domains; a source-turn ID alone does not verify its content, author, or independence.",
 
     ...summaries.map(
       (summary) =>
@@ -249,6 +259,8 @@ export function renderSelfModelObservationProjection(
           `status=${summary.status}`,
 
           `support=${summary.supportCount}`,
+
+          `distinct_source_turns=${summary.distinctSupportTurnCount}`,
 
           `contradict=${summary.contradictionCount}`,
 
@@ -291,6 +303,15 @@ function summarizeGroup(
         item.verdict ===
         "contradicts",
     );
+
+  // Several domain labels can describe ONE interaction; that is one source
+  // occurrence, not repeated behavioral evidence. Old unsourced rows remain
+  // inspectable but cannot independently qualify a candidate.
+  const distinctSupportTurnCount = new Set(
+    supports.map((item) => item.sourceTurnId?.trim()).filter(
+      (id): id is string => Boolean(id),
+    ),
+  ).size;
 
   const supportDomains =
     unique(
@@ -335,6 +356,8 @@ function summarizeGroup(
   } else if (
     supports.length >=
       2 &&
+    distinctSupportTurnCount >=
+      2 &&
     supportDomains.length >=
       2 &&
     averageConfidence >=
@@ -353,6 +376,8 @@ function summarizeGroup(
 
     supportCount:
       supports.length,
+
+    distinctSupportTurnCount,
 
     contradictionCount:
       contradictions.length,

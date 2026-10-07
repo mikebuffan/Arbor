@@ -8,6 +8,7 @@ Map<String, Object?> memory({
   String? conversation,
   String tier = 'normal',
   bool triggerOnly = false,
+  bool excluded = false,
   String status = 'active',
   Object? value,
   String? deleted,
@@ -22,6 +23,7 @@ Map<String, Object?> memory({
   'status': status,
   'deleted_at': deleted,
   'user_trigger_only': triggerOnly,
+  'excluded_from_memory': excluded,
   'updated_at': '2026-09-21T12:00:00Z',
 };
 
@@ -35,13 +37,36 @@ void main() {
         memory(id: 'tombstoned', status: 'tombstoned'),
         memory(id: 'sensitive', tier: 'sensitive'),
         memory(id: 'only-when-asked', triggerOnly: true),
+        memory(id: 'excluded', excluded: true),
+        memory(id: 'mislabeled-project', conversation: 'another-thread'),
         memory(id: 'duplicate'),
       ],
     }, projectId: 'project-a');
     expect(result.memories.map((item) => item.id), ['m1', 'duplicate']);
     expect(result.memories.first.text, 'A saved claim, not a source.');
-    expect(result.rowsReceived, 7);
+    expect(result.rowsReceived, 9);
     expect(result.possiblyMoreOnServer, isFalse);
+  });
+
+  test('shelf rejects missing exclusion metadata from a stale API', () {
+    final missing = memory(id: 'old-api')..remove('excluded_from_memory');
+    final result = projectGroveMemoryShelf({'items': [missing, memory(id: 'current')]}, projectId: 'project-a');
+    expect(result.memories.map((entry) => entry.id), ['current']);
+  });
+
+  test('excluded and missing-eligibility claims never reach the shelf', () {
+    final withoutFlag = memory(id: 'eligibility-unknown')
+      ..remove('excluded_from_memory');
+    final result = projectGroveMemoryShelf({
+      'items': [
+        memory(id: 'allowed'),
+        memory(id: 'excluded', excluded: true),
+        withoutFlag,
+        memory(id: 'foreign-excluded', project: 'project-b', excluded: true),
+      ],
+    }, projectId: 'project-a');
+    expect(result.memories.map((item) => item.id), ['allowed']);
+    expect(result.rowsReceived, 4);
   });
 
   test('conversation-scoped memory requires exact current conversation', () {

@@ -83,6 +83,43 @@ describe("memory route ownership", () => {
     expect(mocks.userClient.from).not.toHaveBeenCalled();
   });
 
+  it("filters excluded memories before the default listing limit", async () => {
+    const query: Record<string, any> = {};
+    for (const method of ["select", "eq", "is", "order", "limit"]) {
+      query[method] = vi.fn(() => query);
+    }
+    query.then = (resolve: (value: unknown) => void) =>
+      Promise.resolve({ data: [{ id: "visible" }], error: null }).then(resolve);
+    mocks.userClient.from.mockReturnValue(query);
+
+    const response = await listMemoryItems(
+      new Request("https://arbor.test/api/memory/items?projectId=project-a") as never,
+    );
+    expect(response.status).toBe(200);
+    expect(query.select.mock.calls[0][0]).toContain("excluded_from_memory");
+    expect(query.eq).toHaveBeenCalledWith("user_id", "user-a");
+    expect(query.eq).toHaveBeenCalledWith("project_id", "project-a");
+    expect(query.eq).toHaveBeenCalledWith("excluded_from_memory", false);
+    expect(query.limit).toHaveBeenCalledWith(500);
+  });
+
+  it("preserves owner-authorized discarded review without default reveal", async () => {
+    const query: Record<string, any> = {};
+    for (const method of ["select", "eq", "is", "order", "limit"]) {
+      query[method] = vi.fn(() => query);
+    }
+    query.then = (resolve: (value: unknown) => void) =>
+      Promise.resolve({ data: [], error: null }).then(resolve);
+    mocks.userClient.from.mockReturnValue(query);
+
+    const response = await listMemoryItems(
+      new Request("https://arbor.test/api/memory/items?includeDiscarded=true") as never,
+    );
+    expect(response.status).toBe(200);
+    expect(query.eq).toHaveBeenCalledWith("user_id", "user-a");
+    expect(query.eq).not.toHaveBeenCalledWith("excluded_from_memory", false);
+  });
+
   it("derives memory ownership from authentication instead of request input", async () => {
     const response = await createMemoryItem(
       new Request("https://arbor.test/api/memory/items", {
