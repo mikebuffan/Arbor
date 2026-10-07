@@ -28,7 +28,24 @@ describe("resumable archive transport preparation",()=>{
   await expect(verifyResumableArchive({files,target,manifest:{...p.manifest,uniqueTurns:7}})).rejects.toThrow("manifest_changed");
   await fs.writeFile(files[0],JSON.stringify([conversation("thread","changed")]));await expect(verifyResumableArchive({files,target,manifest:p.manifest})).rejects.toThrow("sources_or_parser_changed");
  });
- it("recovers after destination commit but failed checkpoint save without duplicates",async()=>{
+ it("upgrades legacy progress to an explicitly bound v2 checkpoint without restarting batch zero",async()=>{
+  const files=[await file([conversation("a","one","a"),conversation("b","two","b")])],p=await prepareResumableArchive({files,target,maxMessages:1}),d=destination();
+  await d.transport.applyExactBatch(target,p.turns.slice(0,1));await d.transport.verifyExactBatch(target,p.turns.slice(0,1));
+  let saved:ArchiveCheckpoint|null=null;
+  const result=await transportResumableArchive({files,target,manifest:p.manifest,
+    checkpoint:{schemaVersion:1,fingerprint:p.manifest.fingerprint,nextBatch:1},transport:d.transport,
+    saveCheckpoint:async value=>{saved=value;}});
+  expect(result.nextBatch).toBe(2);expect(d.writes).toBe(2);
+  expect(saved).toMatchObject({schemaVersion:2,nextBatch:2,target,parser:p.manifest.parser,normalizedSha256:p.manifest.normalizedSha256});
+ });
+ it("rejects a v2 checkpoint whose explicit target source version binding was changed",async()=>{
+  const files=[await file([conversation()])],p=await prepareResumableArchive({files,target}),d=destination();
+  const checkpoint:ArchiveCheckpoint={schemaVersion:2,fingerprint:p.manifest.fingerprint,nextBatch:0,target,
+    parser:p.manifest.parser,normalizedSha256:"0".repeat(64)};
+  await expect(transportResumableArchive({files,target,manifest:p.manifest,checkpoint,transport:d.transport,saveCheckpoint:async()=>{}}))
+    .rejects.toThrow("checkpoint_binding_mismatch");
+ });
+  it("recovers after destination commit but failed checkpoint save without duplicates",async()=>{
   const files=[await file([conversation("a","one","a"),conversation("b","two","b")])],p=await prepareResumableArchive({files,target,maxMessages:1}),d=destination();let checkpoint:ArchiveCheckpoint|null=null;
   const base={files,target,manifest:p.manifest,transport:d.transport};
   await expect(transportResumableArchive({...base,checkpoint,saveCheckpoint:async()=>{throw Error("disk_failed");}})).rejects.toThrow("disk_failed");expect(d.writes).toBe(1);
