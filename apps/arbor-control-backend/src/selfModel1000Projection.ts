@@ -183,7 +183,7 @@ export function renderSelfModel1000Projection(
     );
 
   return [
-    "ARBOR 1,000-QUESTION SELF-MODEL — VERIFIED RUNTIME SLICE",
+    "ARBOR 1,000-QUESTION SELF-MODEL — SOURCE-VALIDATED RUNTIME SLICE (NOT LIVE BEHAVIOR PROOF)",
 
     `source_questions=${rebuilt.summary.questions}`,
 
@@ -196,6 +196,7 @@ export function renderSelfModel1000Projection(
     "The four variants of each question count as one trait family; do not 4x-weight them.",
 
     "Unknown remains unknown. Contextual evidence does not become global identity merely because it exists.",
+    "Questionnaire confidence and evidence-basis labels are source assertions, not independent transcript scoring or proof of an intrinsic preference.",
 
     ...selected.map(
       (family) =>
