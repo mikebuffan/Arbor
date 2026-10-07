@@ -29,6 +29,7 @@ const branches = new Set([
   "fix/one-arbor-group04-memory-scope-20261007",
   "fix/group4-memory-exclusion-shelf-20261007",
   "review/one-arbor-group06-self-model-20261007",
+  "review/one-arbor-group03-archive-ledger-20261007",
   "review/one-arbor-composed-g01-g03-g04-g05-g06-20261007",
   "fix/one-arbor-group04-shelf-pagination-20261007"
 ]);
