@@ -65,7 +65,7 @@ function semanticExplanationRedundancy(text:string):AnnabelleDiagnostic[]{
     const prior=new Set(sentences[i-1].toLowerCase().match(/[a-z']{5,}/g)??[]);
     const current=sentences[i].toLowerCase().match(/[a-z']{5,}/g)??[];
     const overlap=current.filter(w=>prior.has(w));
-    if(overlap.length>=4 && /\b(because|meant|realized|understood|knew|that was|the point|the thing)\b/i.test(sentences[i])) flags.push(sentences[i].slice(0,180));
+    if(overlap.length>=2 && /\b(because|meant|realized|understood|knew|that was|the point|the thing)\b/i.test(sentences[i])) flags.push(sentences[i].slice(0,180));
   }
   return flags.length?[{engine:"explanation-redundancy",severity:flags.length>=3?"revise":"watch",message:"Interpretive sentence closely repeats evidence already delivered. Check whether the reader can be trusted without the explanation.",evidence:flags.slice(0,5),count:flags.length}]:[];
 }
