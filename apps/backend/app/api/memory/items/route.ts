@@ -99,7 +99,8 @@ export async function GET(req: NextRequest) {
         ? shelfCursor(items[items.length - 1] as Record<string, unknown>, data.user.id, projectId, conversationId)
         : null;
       if (hasNextPage && !nextCursor) return NextResponse.json({error: "memory_shelf_cursor_unavailable"}, {status: 500});
-      return NextResponse.json({projectId, conversationId, items, nextCursor});
+      return NextResponse.json({projectId, conversationId, items, nextCursor},
+        {headers: {"Cache-Control": "private, no-store"}});
     }
     // Preserve existing explicitly authenticated owner review behavior.
     if (url.searchParams.has("after") || url.searchParams.has("conversationId")) {
