@@ -82,11 +82,16 @@ export type PreparedArkPatternHopHandoff = {
   grantsExecution: false;
 };
 
+export type PatternHopRoundaboutBatch = {
+  evidenceRefs: readonly string[];
+  route: FireflyRoundaboutResult;
+};
+
 export type PatternHopEvidenceIntegration = {
   candidateId: string;
   evidenceRefs: readonly string[];
   signal: RoundaboutSignal;
-  roundabout: readonly FireflyRoundaboutResult[];
+  roundabout: readonly PatternHopRoundaboutBatch[];
   ark: PreparedArkPatternHopHandoff;
 };
 
@@ -97,8 +102,8 @@ export type PatternHopEvidenceIntegration = {
  *
  * It never submits a task, grants execution, resolves identity, or converts
  * association/counterevidence into a conduct verdict. Every evidence ref is
- * retained in the returned union even when Roundabout packets must be chunked
- * to respect the existing 12-provenance-item packet bound.
+ * retained in the returned union and in one Roundabout batch even when the
+ * existing router's 12-provenance-item packet bound requires chunking.
  */
 export function preparePatternHopEvidenceIntegration(input: {
   candidate: ResearchPatternHopCandidate;
@@ -136,8 +141,9 @@ export function preparePatternHopEvidenceIntegration(input: {
     chunks.push(evidenceRefs.slice(i, i + ROUNDABOUT_MAX_PROVENANCE));
   }
 
-  const roundabout = chunks.map((refs, index) =>
-    routeFireflyPacket({
+  const roundabout = chunks.map((refs, index) => ({
+    evidenceRefs: refs,
+    route: routeFireflyPacket({
       scope: input.scope,
       domain: "artifact",
       stage: "observe",
@@ -163,7 +169,7 @@ export function preparePatternHopEvidenceIntegration(input: {
         },
       },
     }),
-  );
+  }));
 
   return {
     candidateId: candidate.candidateId,
