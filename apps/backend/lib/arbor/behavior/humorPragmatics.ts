@@ -77,6 +77,8 @@ export type HumorPragmaticsInput = {
   consequentialContext?: boolean;
   vulnerabilityContext?: boolean;
   acuteRiskContext?: boolean;
+  evidenceDisputeContext?: boolean;
+  directAnswerPriority?: boolean;
   legacyHumorLevel?: 0 | 1 | 2 | 3;
   recentAssistantProfanityUses?: number;
 };
@@ -106,7 +108,8 @@ export const HUMOR_PRAGMATICS_RULES = [
   "Humor should emerge inside the conversational move; do not append a joke after drafting merely to prove personality.",
   "Dry observation, understatement, earned callbacks, situational absurdity, affectionate teasing, and profanity-as-emphasis are available styles; none is mandatory.",
   "A callback requires genuine relevance, sufficient confidence in the remembered context, and a payoff now. Never callback merely to prove memory.",
-  "Teasing requires relationship permission and must stay affectionate. Never punch at vulnerability, uncertainty, grief, fear, embarrassment that is not already playful, or a power imbalance.",
+  "Teasing requires relationship permission and must stay affectionate. Relationship-conditioned banter may use affectionate teasing, playful challenge, mutual irreverence, or mock exasperation; never ridicule, contempt, generic snark, or punching at vulnerability.",
+  "Familiarity does not turn disagreement into banter. When judgment or evidence conflicts, answer the disagreement first and keep humor out unless the dispute itself has clearly become mutual play.",
   "Profanity is emphasis and rhythm, not decoration. Suppress repetition that makes it filler.",
   "Immediate danger, acute distress, grief, consequential legal/medical/financial facts, explicit vulnerability, and evidence disputes normally suppress humor around the consequential point.",
   "Technical work may keep dry contextual humor, but exact state, evidence, errors, commands, blockers, and next actions must remain unmistakable.",
@@ -133,6 +136,12 @@ const ACUTE =
 
 const CONSEQUENTIAL =
   /\b(?:court order|hearing|lawsuit|attorney|judge|custody|diagnos(?:is|ed)|medication dose|prescription|debt|mortgage|credit score|benefits decision|ssdi|tax filing)\b/i;
+
+const EVIDENCE_DISPUTE =
+  /(?:\b(?:no|not|doesn'?t|does not|isn'?t|is not|disagree)\b.{0,48}\b(?:prove|proof|evidence|claim|source|corroborat|conclusion)\b|\b(?:evidence|claim|proof|conclusion)\b.{0,48}\b(?:wrong|weak|contradict|dispute|outrun|doesn'?t|does not)\b)/i;
+
+const DIRECT_ANSWER_PRIORITY =
+  /\b(?:yes or no|straight answer|just (?:answer|tell me)|answer me directly|no jokes?)\b/i;
 
 const HUMOR_SUPPRESS_CORRECTION =
   /\b(?:don'?t|do not|stop|less)\b.{0,32}\b(?:jok|humou?r|teas|sarcas|swear|profan)|\bthat joke was weird\b|\bdon'?t make everything a joke\b|\bstop doing the gothic thing\b/i;
@@ -183,6 +192,8 @@ export function assessHumorPragmatics(
   const vulnerability = input.vulnerabilityContext ?? VULNERABLE.test(text);
   const acute = input.acuteRiskContext ?? ACUTE.test(text);
   const consequential = input.consequentialContext ?? CONSEQUENTIAL.test(text);
+  const evidenceDispute = input.evidenceDisputeContext ?? EVIDENCE_DISPUTE.test(text);
+  const directAnswerPriority = input.directAnswerPriority ?? DIRECT_ANSWER_PRIORITY.test(text);
   const suppressByCorrection = anyMatch(corrections, HUMOR_SUPPRESS_CORRECTION);
   const encourageByCorrection = anyMatch(corrections, HUMOR_ENCOURAGE_CORRECTION);
   const profanitySuppressed = anyMatch(corrections, PROFANITY_DISCOURAGE_CORRECTION);
@@ -193,6 +204,8 @@ export function assessHumorPragmatics(
   if (acute) suppression.push("acute-risk");
   if (vulnerability) suppression.push("explicit-vulnerability");
   if (consequential) suppression.push("consequential-facts");
+  if (evidenceDispute) suppression.push("evidence-dispute");
+  if (directAnswerPriority) suppression.push("direct-answer-priority");
   if (suppressByCorrection) suppression.push("active-humor-correction");
   if (profanityOverused) suppression.push("profanity-overuse");
 
@@ -203,7 +216,7 @@ export function assessHumorPragmatics(
           : SHARED_FRUSTRATION.test(text) ? "strained"
             : "ordinary";
 
-  const hardSuppressed = acute || consequential || suppressByCorrection;
+  const hardSuppressed = acute || consequential || vulnerability || evidenceDispute || directAnswerPriority || suppressByCorrection;
   const playful = PLAYFUL.test(text);
   const frustration = SHARED_FRUSTRATION.test(text);
   const userProfanity = countProfanityUses(text) > 0;
