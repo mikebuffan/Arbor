@@ -14,6 +14,7 @@ const EXPLICIT_SWITCH =
 // Negating a switch command must not be treated as a new instruction to switch.
 // Remove only the directly negated phrase; an independent explicit switch remains.
 const NEGATED_SWITCH = /\b(?:don['’]?t|do not|never)\s+(?:stop\s+(?:that|this)|drop\s+that|leave\s+that|forget\s+that|switch\s+(?:to|goals?)|change\s+(?:the\s+)?goal)\b/gi;
+const NEGATED_SWITCH_CONTINUATION = new RegExp(NEGATED_SWITCH.source, "i");
 const COMPLETION_LANGUAGE =
   /(?:^|\b)(?:done|finished|complete|completed|resolved|fixed|solved)\b/i;
 const PRESENCE_TETHER = /^(?:hey\s+)?arbor[.!?\s]*$/i;
@@ -41,7 +42,9 @@ export function hasLiveAgencyGoal(prior: AgencyState | null): prior is AgencySta
 export function explicitlyContinues(userText: string) {
   const text = userText.trim();
   return EXPLICIT_CONTINUATION.test(text) ||
-    COMPACT_WORKFLOW_CONTINUATION.test(text) || CONTINUATION_SIGNAL.test(text);
+    COMPACT_WORKFLOW_CONTINUATION.test(text) ||
+    NEGATED_SWITCH_CONTINUATION.test(text) ||
+    CONTINUATION_SIGNAL.test(text);
 }
 
 export function explicitlySupersedes(userText: string) {
