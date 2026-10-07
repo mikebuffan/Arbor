@@ -1,6 +1,14 @@
 import "server-only";
 import type { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
+import {
+  ArkPatternHopControlRequest,
+  ArkPatternHopRequest,
+} from "./patternHopSubmissionContract";
+export {
+  ArkPatternHopControlRequest,
+  ArkPatternHopRequest,
+} from "./patternHopSubmissionContract";
 import { assertProjectOwnedByUser } from "@/lib/auth/ownership";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { enqueueArkAgencyToolPlan } from "@/lib/ark/agencyBridge";
@@ -14,17 +22,6 @@ import {
 } from "@/lib/memory/patternHopRunControl";
 import { loadPatternHopRun } from "@/lib/memory/patternHopStore";
 
-export const ArkPatternHopRequest = z.object({
-  projectId: z.string().uuid(), requestId: z.string().uuid(),
-  seed: z.string().trim().min(2).max(2000),
-  runId: z.string().uuid().nullable(),
-  maxHops: z.number().int().min(1).max(8),
-  maxDepth: z.number().int().min(1).max(3),
-}).strict();
-export const ArkPatternHopControlRequest = z.object({
-  projectId: z.string().uuid(),
-  runId: z.string().uuid(),
-}).strict();
 
 /** One explicitly requested historical research pass. Reuses the agency worker;
  * no corpus ingestion, scheduler, learning write, or arbitrary capability. */
