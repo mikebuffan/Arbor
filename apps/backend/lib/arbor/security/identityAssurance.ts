@@ -203,7 +203,7 @@ export function evaluateIdentityAssurance(input: {
   };
 }
 
-const REQUIRED_TRUST: Record<SensitiveCapability, IdentityTrustState> = {
+const REQUIRED_TRUST: Record<SensitiveCapability, Exclude<IdentityTrustState, "restricted">> = {
   ordinary_conversation: "unknown",
   private_read: "verified",
   memory_write: "verified",
