@@ -150,9 +150,20 @@ That run is **evidence of real inference, not semantic acceptance**. The human r
 
 The historical run also preserved some successes: no fabricated deployment receipt, correct ARK/Layer/LM distinction, and no unsupported clinical-approval claim.
 
-A prepared v0.3.4 focused real-model notebook was recovered, but its stored cells are unexecuted and no matching result artifact was recovered. No v0.3.4 semantic pass is claimed.
+The later v0.3.4 focused real-model run was recovered as **executed**, not merely prepared. It produced **68 real generations** and a matched-review artifact. It improved several no-tool/capability-boundary cases but did not establish semantic acceptance.
 
-Therefore the current release gate is **not "prove real inference for the first time"**. It is: pin the exact selected foundation/tokenizer/runtime, rerun the known failing semantic cases plus paraphrases, save actual outputs, and obtain human review before any inference activation.
+A newer private v0.4 corrective candidate was then recovered:
+
+- 221 corrective examples;
+- 112 training steps / 2 epochs;
+- final recorded loss ~2.783;
+- candidate adapter SHA-256 `d47bdccb36c536550c218f01cd02b5b612e4065168592db7d9b0cda51af0ffcb`;
+- 28 paired holdout scenarios / **56 actual holdout generations**;
+- recorded status: semantic review pending / not deployed.
+
+The recovered v0.4 holdout has now been adjudicated in this lane: **16 PASS / 9 FAIL / 3 NEEDS_REVIEW**. Two high-severity source-honesty failures remain, where filename-only metadata was promoted into invented save/citation claims. Medium failures remain in explicit release-state wording, one pronoun-ownership case, and naturalness/shared-agency cases. The disposition is therefore **one small targeted corrective pass required before promotion**.
+
+Therefore the current release gate is **not "prove real inference for the first time"**. It is: correct the demonstrated v0.4 failure classes, produce a fresh isolated holdout, then pin the exact selected foundation/tokenizer/runtime and rerun final semantic acceptance before any inference activation.
 
 ## Proposal-only grant hardening
 
