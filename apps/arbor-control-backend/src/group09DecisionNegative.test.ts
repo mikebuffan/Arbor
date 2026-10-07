@@ -64,6 +64,25 @@ describe("Group 09 curiosity, priority and evidence negative controls", () => {
     expect(view.overridesHumanChoice).toBe(false);
   });
 
+  it("can change the next advisory safe ranking when a trusted host supplies reviewed consequence estimates", () => {
+    const before = choice([
+      option("a", { prioritySource: "reviewed-plan", expectedUtility: 0.8, evidenceConfidence: 0.9, evidenceRefs: ["prior-review:a"] }),
+      option("b", { prioritySource: "reviewed-plan", expectedUtility: 0.9, evidenceConfidence: 0.5, evidenceRefs: ["prior-review:b"] }),
+    ]);
+    const after = choice([
+      option("a", { prioritySource: "reviewed-plan", expectedUtility: 0.8, evidenceConfidence: 0.2, evidenceRefs: ["outcome-review:a"] }),
+      option("b", { prioritySource: "reviewed-plan", expectedUtility: 0.9, evidenceConfidence: 0.8, evidenceRefs: ["outcome-review:b"] }),
+    ]);
+    expect(before.rankedReversibleGlowIds).toEqual(["a", "b"]);
+    expect(after.rankedReversibleGlowIds).toEqual(["b", "a"]);
+    expect(before.grantsExecution).toBe(false);
+    expect(after.grantsExecution).toBe(false);
+    expect(after.valuesVerifiedHere).toBe(false);
+    expect(after.evidenceVerifiedHere).toBe(false);
+    // Changing host inputs demonstrates sensitivity, not independently authenticated
+    // outcomes, human review or a real-model learning effect.
+  });
+
   it("rejects foreign scope and repeated priority IDs, not silently blending them", () => {
     expect(() => choice([option("foreign", { userId: "not-owner" })])).toThrow("glow_noise_scope_mismatch");
     expect(() => choice([option("duplicate"), option("duplicate")])).toThrow("glow_noise_duplicate_option");
