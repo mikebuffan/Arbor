@@ -5,6 +5,7 @@ on:
     branches:
       - integration/one-arbor-canonical-20261006
       - integration/ark-finish-canonical-20261006
+      - integration/one-arbor-machine-ready-20261006
 
 permissions:
   contents: read
