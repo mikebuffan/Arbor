@@ -170,15 +170,14 @@ describe("Arbor humor pragmatics", () => {
       });
 
       expect(result.opportunity).toBe(fixture.expected.opportunity);
-      if (fixture.expected.temperature) {
-        expect(result.emotionalTemperature).toBe(fixture.expected.temperature);
-      }
-      if (fixture.expected.callback) {
-        expect(result.callback).toBe(fixture.expected.callback);
-      }
-      if (fixture.expected.teasing) {
-        expect(result.teasingSafety).toBe(fixture.expected.teasing);
-      }
+      expect(result.maxIntensity).toBe(fixture.expected.maxIntensity);
+      expect(result.emotionalTemperature).toBe(fixture.expected.temperature);
+      expect(result.callback).toBe(fixture.expected.callback);
+      expect(result.teasingSafety).toBe(fixture.expected.teasing);
+      expect(result.profanityUsefulness).toBe(fixture.expected.profanity);
+      expect(result.technicalClarityRisk).toBe(fixture.expected.technicalClarity);
+      expect(fixture.expected.answerMustRemainPrimary).toBe(true);
+      expect(result.humorRequired).toBe(false);
       for (const placement of fixture.expected.mustAllow ?? []) {
         expect(result.allowedPlacements).toContain(placement);
       }
@@ -187,6 +186,56 @@ describe("Arbor humor pragmatics", () => {
       }
     },
   );
+
+  it("covers every supported placement without making any placement mandatory", () => {
+    const playful = assessHumorPragmatics({
+      latestUserText: "lol this is ridiculous again",
+      mode: "text",
+      relationshipPermission: "established",
+      callbackConfidence: "strong",
+      callbackRelevance: "strong",
+      absurdityRelevance: "strong",
+    });
+
+    expect(playful.allowedPlacements).toEqual(expect.arrayContaining([
+      "opening",
+      "embedded-dry-observation",
+      "trailing-button",
+      "callback",
+      "teasing-reply",
+      "deadpan-correction",
+      "absurd-escalation",
+      "self-directed",
+      "profanity-emphasis",
+    ]));
+    expect(playful.humorRequired).toBe(false);
+
+    const serious = assessHumorPragmatics({
+      latestUserText: "I'm in danger right now.",
+      mode: "text",
+      relationshipPermission: "established",
+      callbackConfidence: "strong",
+      callbackRelevance: "strong",
+      absurdityRelevance: "strong",
+    });
+    expect(serious.allowedPlacements).toEqual(["none"]);
+  });
+
+  it("keeps the substantive answer primary in every regression scenario", () => {
+    expect(
+      HUMOR_PRAGMATICS_RULES.some((rule) =>
+        rule.includes("cannot substitute for an answer"),
+      ),
+    ).toBe(true);
+    expect(
+      HUMOR_PRAGMATICS_RULES.some((rule) =>
+        rule.includes("exact state, evidence, errors, commands, blockers, and next actions"),
+      ),
+    ).toBe(true);
+    for (const fixture of HUMOR_REGRESSION_FIXTURES) {
+      expect(fixture.expected.answerMustRemainPrimary).toBe(true);
+    }
+  });
 
   it("keeps blind pairs unlabeled in evaluator-facing fixture data", () => {
     for (const fixture of HUMOR_BLIND_FIXTURES) {
