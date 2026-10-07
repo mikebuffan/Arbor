@@ -1,0 +1,86 @@
+name: One Arbor Group 4 memory privacy source acceptance
+
+on:
+  push:
+    branches:
+      - fix/group4-memory-exclusion-shelf-20261007
+  pull_request:
+    branches:
+      - integration/one-arbor-reconciled-335-339-20261007
+    paths:
+      - 'apps/backend/app/api/memory/items/route.ts'
+      - 'apps/backend/lib/memory/__tests__/routeOwnership.test.ts'
+      - 'apps/frontend/lib/environment/grove_memory_shelf.dart'
+      - 'apps/frontend/test/grove_memory_shelf_test.dart'
+      - '.github/workflows/one-arbor-group4-memory-privacy.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: group4-memory-privacy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend-memory:
+    if: github.repository == 'mikebuffan/Arbor'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      CI: 'true'
+      OPENAI_API_KEY: ci-placeholder-not-a-real-key
+      AWS_EC2_METADATA_DISABLED: 'true'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Restore locked packages
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.30.3 --activate
+          pnpm install --frozen-lockfile
+      - name: Memory privacy, scope and owner denial regressions
+        working-directory: apps/backend
+        run: >
+          pnpm exec vitest run
+          lib/memory/__tests__/routeOwnership.test.ts
+          lib/memory/__tests__/retrievalExclusion.test.ts
+          lib/memory/__tests__/projectIsolation.test.ts
+          lib/memory/__tests__/readRecall.test.ts
+      - name: Backend TypeScript
+        working-directory: apps/backend
+        run: pnpm exec tsc --noEmit
+
+  grove-memory:
+    if: github.repository == 'mikebuffan/Arbor'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      CI: 'true'
+      FLUTTER_SUPPRESS_ANALYTICS: 'true'
+      DART_SUPPRESS_ANALYTICS: 'true'
+      AWS_EC2_METADATA_DISABLED: 'true'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Restore locked Flutter packages
+        working-directory: apps/frontend
+        run: flutter pub get --enforce-lockfile
+      - name: Analyze memory shelf
+        working-directory: apps/frontend
+        run: flutter analyze lib/environment/grove_memory_shelf.dart test/grove_memory_shelf_test.dart
+      - name: Memory shelf and visible-state negative tests
+        working-directory: apps/frontend
+        run: >
+          flutter test
+          test/grove_memory_shelf_test.dart
+          test/grove_memory_shelf_view_test.dart
+          test/grove_private_project_gate_test.dart

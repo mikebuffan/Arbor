@@ -31,14 +31,14 @@ export async function GET(req: NextRequest) {
     let q = supabase
       .from("memory_items")
       .select(
-        "id, key, value, tier, scope, user_trigger_only, importance, confidence, locked, pinned, status, deleted_at, created_at, updated_at, last_seen_at, last_reinforced_at, mention_count, correction_count, project_id, conversation_id"
+        "id, key, value, tier, scope, user_trigger_only, excluded_from_memory, importance, confidence, locked, pinned, status, deleted_at, created_at, updated_at, last_seen_at, last_reinforced_at, mention_count, correction_count, project_id, conversation_id"
       )
       .eq("user_id", data.user.id);
 
     if (projectId) q = q.eq("project_id", projectId);
 
     if (!includeDiscarded) {
-      q = q.is("deleted_at", null).eq("status", "active");
+      q = q.is("deleted_at", null).eq("status", "active").eq("excluded_from_memory", false);
     }
 
     q = q

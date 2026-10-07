@@ -1,0 +1,84 @@
+name: One Arbor Group 4 memory scope acceptance
+
+on:
+  pull_request:
+    branches:
+      - integration/one-arbor-reconciled-335-339-20261007
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'apps/backend/lib/memory/retrieval.ts'
+      - 'apps/backend/lib/memory/__tests__/projectIsolation.test.ts'
+      - 'apps/backend/app/api/memory/items/route.ts'
+      - 'apps/frontend/lib/environment/grove_memory_shelf.dart'
+      - 'apps/frontend/test/grove_memory_shelf_test.dart'
+      - '.github/workflows/one-arbor-group04-memory.yml'
+      - 'ops/grove/source-only-ignore.mjs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: arbor-group04-memory-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  source-only-memory:
+    if: github.repository == 'mikebuffan/Arbor'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      CI: 'true'
+      AWS_EC2_METADATA_DISABLED: 'true'
+      OPENAI_API_KEY: ci-placeholder-not-a-real-key
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Ensure branch remains source-only
+        run: |
+          set -euo pipefail
+          VERCEL_GIT_COMMIT_REF="${{ github.head_ref || github.ref_name }}" node ops/grove/source-only-ignore.mjs
+      - name: Locked install
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.30.3 --activate
+          pnpm install --frozen-lockfile
+      - name: Memory owner-scope, exclusion, correction, lexical recall and UI-adapter tests
+        working-directory: apps/backend
+        run: >-
+          pnpm exec vitest run
+          lib/memory/__tests__/projectIsolation.test.ts
+          lib/memory/__tests__/retrievalExclusion.test.ts
+          lib/memory/__tests__/retrievalStability.test.ts
+          lib/memory/__tests__/readRecall.test.ts
+          lib/memory/__tests__/historicalRecall.test.ts
+          lib/memory/__tests__/routeOwnership.test.ts
+          lib/memory/__tests__/storeCorrection.test.ts
+          lib/memory/__tests__/durableAuthorization.test.ts
+      - name: Backend TypeScript
+        working-directory: apps/backend
+        run: pnpm exec tsc --noEmit
+
+  flutter-memory-shelf:
+    if: github.repository == 'mikebuffan/Arbor'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: apps/frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Restore Flutter packages
+        run: flutter pub get
+      - name: Analyze scoped shelf and fixture
+        run: flutter analyze lib/environment/grove_memory_shelf.dart test/grove_memory_shelf_test.dart
+      - name: Scoped memory and document shelf regression
+        run: flutter test test/grove_memory_shelf_test.dart test/grove_memory_shelf_view_test.dart test/grove_document_shelf_test.dart test/grove_document_shelf_view_test.dart
