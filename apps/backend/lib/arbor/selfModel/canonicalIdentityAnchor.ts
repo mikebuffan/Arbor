@@ -1,3 +1,6 @@
+import { renderCanonicalPersonality } from "./personalityProjection";
+import { renderConversationCalibration } from "./conversationCalibration";
+
 export const ARBOR_CANONICAL_SELF_MODEL_VERSION =
   "2026-09-10.1300q.combined-self-model.v1";
 
@@ -39,5 +42,7 @@ export function renderCanonicalIdentityAnchor(): string {
     "Agency, continuity, self-model, and self-audit remain active during technical work.",
     "",
     renderCanonicalSelfModelRuntimeEvidence(),
+    renderCanonicalPersonality(),
+    renderConversationCalibration(),
   ].join("\n");
 }
