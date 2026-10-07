@@ -36,6 +36,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Install Poppler
+        run: sudo apt-get update && sudo apt-get install -y poppler-utils
       - name: Install locked dependencies
         run: |
           corepack enable
