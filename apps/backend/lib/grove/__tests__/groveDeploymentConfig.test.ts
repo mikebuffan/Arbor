@@ -9,7 +9,8 @@ describe("private Grove deployment-only Vercel configuration", () => {
     expect(config.crons).toEqual([]);
     expect(JSON.stringify(config)).not.toContain("/api/admin/system/heartbeat");
   });
-  it("skips this source repair branch in both config scopes without changing the approved branch", () => {
+
+  it("keeps the source-only repair branches skipped in both config scopes", () => {
     for (const relative of ["../../../vercel.json", "../../../../../vercel.json"]) {
       const config = JSON.parse(readFileSync(new URL(relative, import.meta.url), "utf8"));
       expect(Buffer.byteLength(config.ignoreCommand)).toBeLessThanOrEqual(256);
@@ -24,9 +25,16 @@ describe("private Grove deployment-only Vercel configuration", () => {
       expect(run("arbor/grove-buffalo-acceptance-20261006", "any-project")).toBe(0);
       expect(run("arbor/grove-bounded-writes-20261006", "any-project")).toBe(0);
       expect(run("arbor/grove-buffalo-source-20261006", "any-project")).toBe(0);
+      expect(run("integration/grove-lm-offline-finish-20261007", "any-project")).toBe(0);
+      expect(run("fix/grove-ark-handoff-route-20261007", "any-project")).toBe(0);
       expect(run("arbor/grove-bounded-writes-20261006-extra", "any-project")).toBe(1);
       expect(run("main", "any-project")).toBe(1);
     }
   });
 
+  it("allows the private read-only Grove ARK handoff path", () => {
+    const middlewareUrl = new URL("../../../middleware.ts", import.meta.url);
+    const middleware = readFileSync(middlewareUrl, "utf8");
+    expect(middleware).toContain('"/api/grove/ark/handoff": ["GET"]');
+  });
 });
