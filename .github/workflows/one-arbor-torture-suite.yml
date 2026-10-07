@@ -60,6 +60,9 @@ jobs:
           lib/arbor/agency/__tests__/sessionInterruption.reconciliation.test.ts
           lib/arbor/agency/__tests__/workRunner.test.ts
           lib/arbor/agency/__tests__/verifier.test.ts
+          lib/arbor/agency/__tests__/backlogContinuation.test.ts
+          lib/arbor/agency/__tests__/completionEvidence.test.ts
+          lib/arbor/agency/__tests__/tortureAcceptance.test.ts
       - name: Runtime memory and correction recovery
         working-directory: apps/backend
         run: >
@@ -69,6 +72,7 @@ jobs:
           lib/arbor/runtime/__tests__/correctionRecovery.test.ts
           lib/arbor/runtime/__tests__/runtimeStateStore.test.ts
           lib/memory/__tests__/correctionResolution.test.ts
+          lib/arbor/episodes/__tests__/summarizeEpisodeDurability.test.ts
       - name: Archive replay and duplicate resistance
         working-directory: apps/backend
         run: >
@@ -77,6 +81,8 @@ jobs:
           lib/memory/__tests__/boundedHistoricalPlan.test.ts
           lib/memory/__tests__/archiveReader.test.ts
           lib/memory/__tests__/retrievalExclusion.test.ts
+          lib/memory/__tests__/retrievedContextQuarantine.test.ts
+          lib/memory/__tests__/historicalEmbeddingBackfill.test.ts
       - name: Grove and ARK restart composition
         working-directory: apps/backend
         run: >
