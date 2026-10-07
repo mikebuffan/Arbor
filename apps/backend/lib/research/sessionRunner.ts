@@ -68,7 +68,9 @@ export async function runResearchSessionTick(args: {
   if (decision.action === "stop") {
     if (decision.status === "blocked" || decision.status === "cancelled" ||
       decision.status === "timebox_ended") {
-      await args.store.stop({ session, status: decision.status, reason: decision.reason });
+      if (session.status !== decision.status) {
+        await args.store.stop({ session, status: decision.status, reason: decision.reason });
+      }
     }
     return { status: "stopped", reason: decision.reason };
   }
