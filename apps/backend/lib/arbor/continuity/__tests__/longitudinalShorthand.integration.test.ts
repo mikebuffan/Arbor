@@ -40,6 +40,25 @@ describe("One Arbor shorthand and checkpoint return", () => {
     expect(splitAgencyWork(next.unresolvedWork).suspended).toHaveLength(0);
   });
 
+  it.each([
+    "Anything else?", "is there anything else", "more?", "what else can we check?",
+  ])("treats %s as bounded follow-up only for unfinished work", text => {
+    expect(shouldCarryGoal(text, prior())).toBe(true);
+    expect(shouldCarryGoal(text, prior("checkpointed"))).toBe(true);
+    expect(shouldCarryGoal(text, prior("complete"))).toBe(false);
+    expect(shouldCarryGoal(text, null)).toBe(false);
+    const next = buildAgencySessionState({ userText: text, prior: prior() });
+    expect(next.goal).toBe(prior().goal);
+    expect(next.currentStep).toBe(7);
+  });
+
+  it("does not let a more-work follow-up clear a protected blocker", () => {
+    const next = buildAgencySessionState({ userText: "Anything else?", prior: prior("blocked") });
+    expect(next.goal).toBe(prior().goal);
+    expect(next.status).toBe("blocked");
+    expect(next.blocker).toBe("external_authority");
+  });
+
   it("resumes an explicitly checkpointed goal rather than creating a new 'go' task", () => {
     const next = buildAgencySessionState({ userText: "go", prior: prior("checkpointed") });
     expect(next.goal).toBe(prior().goal);
