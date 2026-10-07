@@ -23,7 +23,7 @@ import 'annabelle_kitchen_view.dart';
 import 'grove_observatory_view.dart';
 import 'grove_guest_room_view.dart';
 import 'benchmark_view.dart';
-import 'project_view.dart';
+import 'professional_workspace_view.dart';
 import 'memory_state_view.dart';
 import 'tools_view.dart';
 import 'focus_view.dart';
@@ -350,7 +350,13 @@ class _Surface extends StatelessWidget {
           else if (selected == EnvironmentDestination.queue)
             WorkQueueView(items: workItems)
           else if (selected == EnvironmentDestination.projects)
-            const ProjectsView()
+            ProfessionalWorkspaceView(
+              objective: objective,
+              workItems: workItems,
+              activityEvents: activityEvents,
+              runtimeSource: runtimeSource,
+              runtimeStale: runtimeStale,
+            )
           else if (selected == EnvironmentDestination.memory)
             const MemoryStateView()
           else if (selected == EnvironmentDestination.evidence)
