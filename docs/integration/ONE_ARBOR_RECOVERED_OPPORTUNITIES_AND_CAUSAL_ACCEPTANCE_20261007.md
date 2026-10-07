@@ -105,6 +105,33 @@ new worker authority, model spend, automatic activation, or research-task mutati
 15. **Public/private isolation.** Public Arbor App is a separate user realm;
     private context, weights and ARK grants do not flow into it by default.
 
+## Source acceptance continuation — phase 1 and first phase 2 slice
+
+**Existing-state read adapter:** `decisionReviewAdapter.ts` calls the
+existing `loadAgencyState` and `loadRuntimeState` readers. Its results
+expose only stored goal, explicit blocker, next action, objective revision,
+completion-verification flag and correction identifiers/occurrence counts.
+Because the runtime loader merges cross-thread corrections, the adapter
+marks their original conversation **unknown**. It does not turn one snapshot
+into a chronological decision history. Loader failures propagate; no writes,
+new schema, auth grant, or publicly reachable route are added.
+
+**Discovery Radar prototype:** `discoveryRadar.ts` accepts only already
+reviewed source metadata from an authenticated host, applies owner/project
+defense-in-depth checks, collapses same-family duplicates and delegates
+ranking to the EXISTING Pattern Hop scorer. A trusted host must check
+project authorization and safe metadata disclosure; a passed allowlist
+argument is not proof of authentication. All recommendations remain
+heuristic leads with explicit non-corroboration/non-execution markers.
+It does not crawl, import records, create tasks, authorize cross-project
+access, or claim autonomous discovery.
+
+The tests here are synthetic. The independent targeted workflow checks
+Decision Ancestry, the existing-state reader, Discovery Radar, and TypeScript.
+A green result is source acceptance only; next useful real proof is an
+authenticated Preview read through an approved host caller, preserving
+original sources, without altering any private data or ARK worker flags.
+
 ## May architecture ideas: reconciliation, not a second anatomy
 
 The historical May 12 burst mentioned a Memory Review UI, Debug Proof UI,
