@@ -11,7 +11,7 @@ describe("verified editorial persistence",()=>{
   };
   const cp={manuscriptId:"m",chapterNumber:2,sourceSha256:"a".repeat(64),diagnosticFingerprint:"d",nextStage:"diagnostics" as const,completedRecordKeys:[],sequence:1};
   const out=await persistDiagnosticCheckpointVerified({port,manuscriptId:"m",chapterNumber:2,sourceSha256:"a".repeat(64),checkpoint:cp,diagnostics:[{engine:"rhythm",severity:"watch",message:"x",evidence:[]}]});
-  expect(out.verified).toBe(true);expect(out.records[0].recordKey).toContain("m|2|editor_note|rhythm");
+  expect(out.verified).toBe(true);expect(out.records[0].recordKey).toContain("m|2|editor_note|diagnostic:rhythm");
   expect(checkpoint.completedRecordKeys).toEqual([...stored]);
  });
 });
