@@ -33,7 +33,7 @@ function sourceFiles(): string[] {
   return walk(path.join(ROOT, "apps/backend"), (file) => {
     if (!/\.(?:ts|tsx)$/.test(file)) return false;
     if (/\.(?:test|spec)\.(?:ts|tsx)$/.test(file)) return false;
-    if (file.includes(\`\${path.sep}__tests__\${path.sep}\`)) return false;
+    if (file.includes(`${path.sep}__tests__${path.sep}`)) return false;
     return true;
   });
 }
@@ -151,7 +151,7 @@ describe("runtime RPC definition coverage", () => {
       const matching = defs.filter((def) => def.name === call.name);
       if (!matching.length) {
         failures.push(
-          \`missing SQL definition: \${call.name} <- \${call.caller}\`,
+          `missing SQL definition: ${call.name} <- ${call.caller}`,
         );
         continue;
       }
@@ -163,13 +163,13 @@ describe("runtime RPC definition coverage", () => {
         if (!compatible) {
           failures.push(
             [
-              \`RPC parameter mismatch: \${call.name} <- \${call.caller}\`,
-              \`caller keys=[\${call.argumentKeys.join(",")}]\`,
+              `RPC parameter mismatch: ${call.name} <- ${call.caller}`,
+              `caller keys=[${call.argumentKeys.join(",")}]`,
               "definitions=" +
                 matching
                   .map(
                     (def) =>
-                      \`\${def.path}:[\${def.parameterNames.join(",")}]\`,
+                      `${def.path}:[${def.parameterNames.join(",")}]`,
                   )
                   .join(" | "),
             ].join(" "),
