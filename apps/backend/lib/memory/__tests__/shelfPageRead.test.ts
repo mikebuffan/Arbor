@@ -59,6 +59,7 @@ describe("owner-only paged Grove memory shelf read", () => {
     const q = harness([entry(1)]);
     const response = await call();
     expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
     expect((await response.json()).nextCursor).toBeNull();
     expect(q.eq).toHaveBeenCalledWith("user_id", "owner-a");
     expect(q.eq).toHaveBeenCalledWith("project_id", P);
