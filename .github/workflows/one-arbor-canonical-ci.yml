@@ -220,7 +220,7 @@ jobs:
         run: |
           set -euo pipefail
           pg_bin=/usr/lib/postgresql/16/bin
-          pg_root="/tmp/one-arbor-canonical-${GITHUB_RUN_ID}"
+          pg_root="/tmp/grove-native-${GITHUB_RUN_ID}"
           mkdir -p "$pg_root/data" "$pg_root/socket"
           sudo -n chown -R postgres:postgres "$pg_root"
           sudo -n -u postgres "$pg_bin/initdb" -D "$pg_root/data" --auth=trust --no-locale
@@ -242,7 +242,7 @@ jobs:
         if: always()
         shell: bash
         run: |
-          pg_root="/tmp/one-arbor-canonical-${GITHUB_RUN_ID}"
+          pg_root="/tmp/grove-native-${GITHUB_RUN_ID}"
           if test -f "$pg_root/data/postmaster.pid"; then
             sudo -n -u postgres /usr/lib/postgresql/16/bin/pg_ctl -D "$pg_root/data" -m immediate -w stop
           fi
