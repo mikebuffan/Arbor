@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "lane": "grove_lm_phone_readiness",
+  "baseSha": "3c599ffd655409d8f72116ec857b76dfa646bd50",
+  "sourceStates": {
+    "groveRuntimeGoal": "source_present",
+    "groveRuntimeTurnCapture": "source_present",
+    "groveCorrectionSave": "source_present_default_off",
+    "groveArkObjectiveRun": "source_present_separately_gated",
+    "textRestartReplay": "source_present",
+    "localLmManifestValidation": "source_present",
+    "localLmCpuCompatibility": "source_present",
+    "localLmRealTokenizer": "gated_private_artifacts",
+    "localLmRealInference": "gated_private_artifacts_and_target_runtime",
+    "transcriptLogicalIdempotency": "source_present",
+    "exactlyOnceModelGeneration": "not_proven",
+    "phoneFlutterAcceptance": "pending_exact_child_ci",
+    "physicalPhoneAcceptance": "gated_owner_device"
+  },
+  "protectedActionsNotAuthorized": [
+    "merge_main",
+    "production_deploy",
+    "hosted_grants",
+    "hosted_migrations",
+    "inference_activation",
+    "paid_inference",
+    "physical_device_install"
+  ]
+}
