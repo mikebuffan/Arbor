@@ -1,9 +1,6 @@
 name: Grove LM offline finish acceptance
 
 on:
-  push:
-    branches:
-      - integration/grove-lm-offline-finish-20261007
   pull_request:
     branches:
       - integration/one-arbor-prelive-final-20261007
@@ -14,7 +11,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: grove-lm-offline-finish-${{ github.ref }}
+  group: grove-lm-offline-finish-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
