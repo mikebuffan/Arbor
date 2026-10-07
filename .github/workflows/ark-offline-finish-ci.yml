@@ -40,7 +40,7 @@ jobs:
         env:
           OPENAI_API_KEY: ci-placeholder-key
         run: |
-          pnpm --filter firefly-backend exec vitest run lib/ark/__tests__/stateMachine.test.ts lib/ark/__tests__/runner.test.ts lib/ark/__tests__/supabaseStore.test.ts lib/ark/__tests__/objectiveControl.test.ts lib/ark/__tests__/objectiveControlRoute.test.ts lib/ark/__tests__/readModel.test.ts lib/ark/__tests__/agencyBridge.test.ts lib/ark/__tests__/agencyDispatcher.test.ts lib/ark/__tests__/agencyExecutionDelegate.test.ts lib/ark/__tests__/agencyToolExecutor.test.ts
+          pnpm --filter firefly-backend exec vitest run lib/ark/__tests__/stateMachine.test.ts lib/ark/__tests__/runner.test.ts lib/ark/__tests__/supabaseStore.test.ts lib/ark/__tests__/objectiveControl.test.ts lib/ark/__tests__/objectiveControlRoute.test.ts lib/ark/__tests__/readModel.test.ts lib/ark/__tests__/agencyBridge.test.ts lib/ark/__tests__/agencyDispatcher.test.ts lib/ark/__tests__/agencyExecutionDelegate.test.ts lib/ark/__tests__/agencyToolExecutor.test.ts lib/ark/__tests__/activation.test.ts lib/ark/__tests__/handoff.test.ts lib/mcp/__tests__/taskBridge.test.ts lib/mcp/__tests__/fullStackCanary.test.ts lib/system/__tests__/loop.test.ts
 
       - name: Focused lint
         run: |
