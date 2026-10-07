@@ -1,3 +1,5 @@
+import type {DomainHopDirective} from "./domainHopPlanner";
+
 export type ResearchPatternHopCandidate={
   candidateId:string;
   objective:string;
@@ -45,4 +47,26 @@ export function preparePatternHopCandidate(input:{
     executionRequested:false,
     status:"prepared_not_submitted",
   };
+}
+
+export function prepareDomainPatternHopCandidates(
+  directives:readonly DomainHopDirective[],
+  limits:{maxDepth?:number;maxHopsPerAttempt?:number}={},
+):readonly ResearchPatternHopCandidate[]{
+  const maxDepth=limits.maxDepth??3;
+  const maxHopsPerAttempt=limits.maxHopsPerAttempt??6;
+  const seen=new Set<string>();
+  return directives.map(d=>{
+    if(seen.has(d.hopId))throw new Error("duplicate_domain_pattern_hop_id");
+    seen.add(d.hopId);
+    return preparePatternHopCandidate({
+      candidateId:"domain-hop:"+d.hopId,
+      anomalyRef:d.hopId,
+      objective:"Resolve evidence-bound research gap: "+d.reason,
+      requestedQuery:d.query,
+      triggerEvidenceRefs:d.triggerEvidenceRefs,
+      maxDepth,
+      maxHopsPerAttempt,
+    });
+  });
 }
