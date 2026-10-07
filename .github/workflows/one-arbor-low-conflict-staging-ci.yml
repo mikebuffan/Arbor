@@ -1,12 +1,12 @@
-name: One Arbor low-conflict staging acceptance
+name: One Arbor ARK reconciliation staging acceptance
 
 on:
   push:
     branches:
-      - integration/one-arbor-low-conflict-staging-20261006
+      - integration/one-arbor-ark-reconcile-staging-20261006
   pull_request:
     branches:
-      - integration/one-arbor-pre-vercel-20261006
+      - integration/one-arbor-low-conflict-staging-20261006
 
 permissions:
   contents: read
@@ -15,7 +15,7 @@ jobs:
   backend:
     if: github.repository == 'mikebuffan/Arbor'
     runs-on: ubuntu-24.04
-    timeout-minutes: 35
+    timeout-minutes: 40
     env:
       CI: 'true'
       OPENAI_API_KEY: ci-placeholder-not-a-real-key
@@ -41,7 +41,7 @@ jobs:
           pnpm install --frozen-lockfile
       - name: Install inherited PDF tooling
         run: sudo apt-get update && sudo apt-get install -y poppler-utils
-      - name: Focused combined acceptance
+      - name: Focused combined and ARK acceptance
         working-directory: apps/backend
         run: >
           pnpm exec vitest run
@@ -56,7 +56,25 @@ jobs:
           lib/arbor/operations/__tests__/operationalReceipt.test.ts
           lib/arbor/pragmatics/__tests__/humorPolicy.test.ts
           lib/arbor/selfModel/__tests__/personalityProjection.test.ts
-      - name: Guard source-only boundaries
+          lib/ark/__tests__/stateMachine.test.ts
+          lib/ark/__tests__/runner.test.ts
+          lib/ark/__tests__/supabaseStore.test.ts
+          lib/ark/__tests__/objectiveControl.test.ts
+          lib/ark/__tests__/objectiveControlRoute.test.ts
+          lib/ark/__tests__/readModel.test.ts
+          lib/ark/__tests__/agencyBridge.test.ts
+          lib/ark/__tests__/agencyDispatcher.test.ts
+          lib/ark/__tests__/agencyExecutionDelegate.test.ts
+          lib/ark/__tests__/agencyToolExecutor.test.ts
+          lib/ark/__tests__/activation.test.ts
+          lib/ark/__tests__/handoff.test.ts
+          lib/mcp/__tests__/taskBridge.test.ts
+          lib/mcp/__tests__/objectiveControlBridge.test.ts
+          lib/mcp/__tests__/auth.test.ts
+          lib/mcp/__tests__/registerArkReadTools.test.ts
+          lib/mcp/__tests__/fullStackCanary.test.ts
+          lib/system/__tests__/loop.test.ts
+      - name: Guard authority boundaries
         run: |
           test ! -f supabase/migrations/20261006_extend_capability_registry_hypotheses.sql
           if grep -R "mayAuthenticateIdentity: true" apps/backend/lib/arbor/accessibility apps/backend/lib/arbor/language; then
@@ -78,3 +96,124 @@ jobs:
         run: pnpm --filter firefly-backend test
       - name: Production backend build
         run: pnpm --filter firefly-backend build
+
+  ark-migration-compatibility:
+    if: github.repository == 'mikebuffan/Arbor'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: arbor_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d arbor_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: arbor_test
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          ref: ${{ github.sha }}
+      - name: Seed minimal Supabase-compatible schema
+        run: |
+          psql -v ON_ERROR_STOP=1 <<'SQL'
+          create role anon nologin;
+          create role authenticated nologin;
+          create role service_role nologin bypassrls;
+          create schema auth;
+          create function auth.uid() returns uuid
+          language sql stable
+          as $$
+            select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid
+          $$;
+          create table auth.users (id uuid primary key);
+          create table public.projects (
+            id uuid primary key,
+            user_id uuid not null references auth.users(id) on delete cascade
+          );
+          grant usage on schema public, auth to anon, authenticated, service_role;
+          grant select on public.projects to service_role;
+          SQL
+      - name: Apply canonical ARK schema plus reconciled controls
+        run: |
+          psql -v ON_ERROR_STOP=1 -f supabase/migrations/20260918143000_create_ark_autonomous_work_runner.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/migrations/20260918203000_ark_targeted_objective_claim.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/migrations/20260918210000_ark_owner_integrity.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261006093000_ark_stop_and_resume_controls.sql
+      - name: Verify control functions and service-role-only grants
+        run: |
+          psql -Atq -v ON_ERROR_STOP=1 <<'SQL'
+          select case when to_regprocedure('public.ark_cancel_objective(uuid,timestamp with time zone)') is null then 1/0 else 1 end;
+          select case when to_regprocedure('public.ark_resume_blocked_objective(uuid,timestamp with time zone)') is null then 1/0 else 1 end;
+          SQL
+
+  flutter:
+    if: github.repository == 'mikebuffan/Arbor'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      CI: 'true'
+      FLUTTER_SUPPRESS_ANALYTICS: 'true'
+      DART_SUPPRESS_ANALYTICS: 'true'
+      AWS_EC2_METADATA_DISABLED: 'true'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          ref: ${{ github.sha }}
+      - name: Install pinned Flutter
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdk_dir="$RUNNER_TEMP/arbor-reconcile-flutter"
+          git init "$sdk_dir"
+          git -C "$sdk_dir" remote add origin https://github.com/flutter/flutter.git
+          git -C "$sdk_dir" fetch --depth=1 origin refs/tags/3.47.6:refs/tags/3.47.6
+          git -C "$sdk_dir" checkout --detach refs/tags/3.47.6
+          test "$(git -C "$sdk_dir" rev-parse HEAD)" = 5fc346839b5d0eef006ed8404392afb4dfae428d
+          echo "$sdk_dir/bin" >> "$GITHUB_PATH"
+          "$sdk_dir/bin/flutter" config --no-analytics
+      - name: Resolve locked dependencies
+        working-directory: apps/frontend
+        run: flutter pub get --enforce-lockfile
+      - name: Lockfile unchanged
+        run: git diff --exit-code -- apps/frontend/pubspec.lock
+      - name: Analyze reconciled ARK Environment surface
+        working-directory: apps/frontend
+        run: >-
+          flutter analyze --no-fatal-infos --no-fatal-warnings
+          lib/environment/environment_state.dart
+          lib/environment/environment_adapter.dart
+          lib/environment/attention_status.dart
+          lib/environment/objective_strip.dart
+          test/environment_adapter_test.dart
+          test/environment_state_test.dart
+          test/environment_live_ark_test.dart
+          test/environment_shared_canary_fixture_test.dart
+      - name: Full Flutter regression
+        working-directory: apps/frontend
+        run: timeout 420s flutter test --reporter expanded
+      - name: Compile synthetic Grove APK
+        working-directory: apps/frontend
+        run: >-
+          timeout 600s flutter build apk --debug --flavor grove
+          --dart-define=GROVE_STANDALONE=true
+          --dart-define=GROVE_PRIVATE_TALK_PREVIEW=true
+          --dart-define=GROVE_PRIVATE_NEW_CONVERSATION_PREVIEW=false
+          --dart-define=GROVE_SUPABASE_URL=https://fqjqpuaoifgbweiguacf.supabase.co
+          --dart-define=GROVE_SUPABASE_ANON_KEY=sb_publishable_synthetic_ci_only
+          --dart-define=GROVE_API_URL=https://ci-grove-api.example.invalid
+      - name: Verify synthetic build exists
+        working-directory: apps/frontend
+        run: test -s build/app/outputs/flutter-apk/app-grove-debug.apk
