@@ -117,7 +117,7 @@ function cleanCandidate(
   };
 }
 
-function unique(values: readonly string[]): string[] {
+function unique<T extends string>(values: readonly T[]): T[] {
   return Array.from(new Set(values.filter(Boolean)));
 }
 
