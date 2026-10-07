@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - integration/one-arbor-pattern-hop-research-20261006
+      - integration/one-arbor-pre-vercel-20261006
   pull_request:
     branches:
       - integration/one-arbor-current-20261006
