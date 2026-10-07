@@ -9,6 +9,7 @@ export type PersistableDiagnosticRecord=AnnabelleDiagnosticRecord&{
  recordType:"editor_note";
  subject:string;
  sourceLocator:{chapterNumber:number;diagnosticIndex:number};
+ recordKey:string;
 };
 
 export type EditorialPersistencePort={
