@@ -37,7 +37,7 @@ const adminClient = { role: "service" };
 
 function ownedObjectiveClient(found = true) {
   const maybeSingle = vi.fn().mockResolvedValue({
-    data: found ? { id: objectiveId } : null,
+    data: found ? { id: objectiveId, user_id: userId, project_id: projectId, status: "running" } : null,
     error: null,
   });
   const eqProject = vi.fn(() => ({ maybeSingle }));
@@ -125,6 +125,8 @@ describe("ARK objective owner controls", () => {
   it("proves user/project/objective scope before durable STOP", async () => {
     mocks.cancelObjective.mockResolvedValue({
       id: objectiveId,
+      userId,
+      projectId,
       status: "cancelled",
     });
 
@@ -158,6 +160,8 @@ describe("ARK objective owner controls", () => {
   it("uses the same exact-owner boundary for explicit blocked resume", async () => {
     mocks.resumeBlockedObjective.mockResolvedValue({
       id: objectiveId,
+      userId,
+      projectId,
       status: "queued",
     });
 
