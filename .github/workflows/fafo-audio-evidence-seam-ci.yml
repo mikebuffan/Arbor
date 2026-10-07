@@ -1,0 +1,49 @@
+name: FAFO audio Evidence Engine seam acceptance
+
+on:
+  push:
+    branches:
+      - integration/fafo-audio-evidence-seam-20261006
+  pull_request:
+    branches:
+      - research/fafo-audio-evidence-20261006
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    if: github.repository == 'mikebuffan/Arbor'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      CI: 'true'
+      OPENAI_API_KEY: ci-placeholder-not-a-real-key
+      AWS_EC2_METADATA_DISABLED: 'true'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Poppler
+        run: sudo apt-get update && sudo apt-get install -y poppler-utils
+      - name: Install locked dependencies
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.30.3 --activate
+          pnpm install --frozen-lockfile
+      - name: Audio provenance and Evidence Engine seam tests
+        working-directory: apps/backend
+        run: >
+          pnpm exec vitest run
+          lib/research/audioEvidence.test.ts
+          lib/research/audioEvidenceGraphBridge.test.ts
+          lib/research/claimEvidenceGraph.test.ts
+      - name: Standalone TypeScript
+        working-directory: apps/backend
+        run: pnpm exec tsc --noEmit
+      - name: Production build
+        run: pnpm --filter firefly-backend build
