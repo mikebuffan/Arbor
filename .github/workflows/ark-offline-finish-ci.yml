@@ -40,11 +40,11 @@ jobs:
         env:
           OPENAI_API_KEY: ci-placeholder-key
         run: |
-          pnpm --filter firefly-backend exec vitest run             lib/ark/__tests__/stateMachine.test.ts             lib/ark/__tests__/runner.test.ts             lib/ark/__tests__/supabaseStore.test.ts             lib/ark/__tests__/objectiveControl.test.ts             lib/ark/__tests__/readModel.test.ts             lib/ark/__tests__/agencyBridge.test.ts             lib/ark/__tests__/agencyDispatcher.test.ts             lib/ark/__tests__/agencyExecutionDelegate.test.ts             lib/ark/__tests__/agencyToolExecutor.test.ts
+          pnpm --filter firefly-backend exec vitest run \\\n            lib/ark/__tests__/stateMachine.test.ts \\\n            lib/ark/__tests__/runner.test.ts \\\n            lib/ark/__tests__/supabaseStore.test.ts \\\n            lib/ark/__tests__/objectiveControl.test.ts \\\n            lib/ark/__tests__/objectiveControlRoute.test.ts \\\n            lib/ark/__tests__/readModel.test.ts \\\n            lib/ark/__tests__/agencyBridge.test.ts \\\n            lib/ark/__tests__/agencyDispatcher.test.ts \\\n            lib/ark/__tests__/agencyExecutionDelegate.test.ts \\\n            lib/ark/__tests__/agencyToolExecutor.test.ts
 
       - name: Focused lint
         run: |
-          pnpm --filter firefly-backend exec eslint             lib/ark/supabaseStore.ts             lib/ark/__tests__/stateMachine.test.ts             lib/ark/__tests__/objectiveControl.test.ts
+          pnpm --filter firefly-backend exec eslint \\\n            app/api/ark/objective-control/route.ts \\\n            lib/ark/supabaseStore.ts \\\n            lib/ark/__tests__/stateMachine.test.ts \\\n            lib/ark/__tests__/objectiveControl.test.ts \\\n            lib/ark/__tests__/objectiveControlRoute.test.ts
 
   stop-resume-migration-smoke:
     runs-on: ubuntu-latest
