@@ -57,6 +57,9 @@ jobs:
           lib/learning/__tests__/neuralPathwayNetwork.test.ts
           lib/learning/__tests__/cognitiveBodyPreview.test.ts
           lib/learning/__tests__/cognitiveAssembly.test.ts
+      - name: Full backend regression (source only, no deployment)
+        working-directory: apps/backend
+        run: pnpm exec vitest run
       - name: Standalone backend TypeScript
         working-directory: apps/backend
         run: pnpm exec tsc --noEmit
