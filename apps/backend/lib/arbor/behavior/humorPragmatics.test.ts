@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   assessHumorPragmatics,
+  countProfanityUses,
   HUMOR_PRAGMATICS_RULES,
   renderHumorPragmaticsContract,
 } from "./humorPragmatics";
@@ -99,6 +100,11 @@ describe("Arbor humor pragmatics", () => {
       relationshipPermission: "established",
     });
     expect(vulnerable.teasingSafety).toBe("unsafe");
+  });
+
+  it("counts recent profanity without treating ordinary intensity words as profanity", () => {
+    expect(countProfanityUses("Well fuck, that shit broke again.")).toBe(2);
+    expect(countProfanityUses("This is ridiculous, but technically fine.")).toBe(0);
   });
 
   it("uses profanity as emphasis and suppresses it when corrected", () => {
