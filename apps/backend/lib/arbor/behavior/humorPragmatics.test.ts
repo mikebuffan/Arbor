@@ -134,6 +134,19 @@ describe("Arbor humor pragmatics", () => {
     expect(overused.allowedPlacements).not.toContain("profanity-emphasis");
   });
 
+  it("permits one profanity emphasis in technical shared frustration without turning it into filler", () => {
+    const result = assessHumorPragmatics({
+      latestUserText: "Why the fuck is this build failing again?",
+      mode: "text",
+    });
+
+    expect(result.opportunity).toBe("possible");
+    expect(result.technicalClarityRisk).toBe("high");
+    expect(result.profanityUsefulness).toBe("useful");
+    expect(result.allowedPlacements).toContain("profanity-emphasis");
+    expect(result.allowedPlacements).not.toContain("opening");
+  });
+
   it("applies active humor corrections without treating a single reaction as durable identity", () => {
     const suppress = assessHumorPragmatics({
       latestUserText: "lol",
