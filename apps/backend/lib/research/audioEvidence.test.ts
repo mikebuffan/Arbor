@@ -1,5 +1,5 @@
 import {describe,expect,it} from "vitest";
-import {audioQuoteWindow,audioTranscriptSourceIndependence,bindDerivedAudioTranscript,type OriginalAudioEvidence} from "./audioEvidence";
+import {audioQuoteWindow,audioTranscriptSourceIndependence,bindDerivedAudioTranscript,type DerivedAudioTranscript,type OriginalAudioEvidence} from "./audioEvidence";
 
 const audio:OriginalAudioEvidence={
   audioRef:"audio-controlled-call-1",
@@ -11,14 +11,14 @@ const audio:OriginalAudioEvidence={
   capturedAtUtc:"2005-04-05T15:00:00Z",
 };
 
-function transcript(ref="tx-1",hash="b".repeat(64)){
+function transcript(ref="tx-1",hash="b".repeat(64)):Omit<DerivedAudioTranscript,"status">{
   return {
     transcriptRef:ref,audioRef:audio.audioRef,sourceFamilyId:audio.sourceFamilyId,transcriptSha256:hash,
     producedAtUtc:"2026-10-07T04:00:00Z",producer:"transcription-pass-1",language:"en",supersedesTranscriptRef:null,
     segments:[
-      {segmentId:"s1",startMs:1000,endMs:4000,text:"Hello",speakerLabel:"speaker-1",speakerStatus:"candidate" as const,
+      {segmentId:"s1",startMs:1000,endMs:4000,text:"Hello",speakerLabel:"speaker-1",speakerStatus:"candidate",
         resolvedEntityId:null,attributionEvidenceRefs:["voice-label-only"]},
-      {segmentId:"s2",startMs:5000,endMs:9000,text:"Second segment",speakerLabel:"speaker-2",speakerStatus:"unknown" as const,
+      {segmentId:"s2",startMs:5000,endMs:9000,text:"Second segment",speakerLabel:"speaker-2",speakerStatus:"unknown",
         resolvedEntityId:null,attributionEvidenceRefs:[]},
     ],
   };
@@ -38,20 +38,20 @@ describe("audio evidence provenance",()=>{
   });
 
   it("rejects transcript segments outside the original recording duration",()=>{
-    const t=transcript();
-    t.segments=[{...t.segments[0],endMs:120001}];
+    const base=transcript();
+    const t={...base,segments:[{...base.segments[0],endMs:120001}]};
     expect(()=>bindDerivedAudioTranscript({audio,transcript:t})).toThrow("invalid_audio_segment_range");
   });
 
   it("does not silently resolve a speaker identity",()=>{
-    const t=transcript();
-    t.segments=[{...t.segments[0],speakerStatus:"candidate" as const,resolvedEntityId:"person-1"}];
+    const base=transcript();
+    const t={...base,segments:[{...base.segments[0],speakerStatus:"candidate" as const,resolvedEntityId:"person-1"}]};
     expect(()=>bindDerivedAudioTranscript({audio,transcript:t})).toThrow("unresolved_audio_speaker_cannot_merge_entity");
   });
 
   it("requires evidence references before a speaker can be resolved",()=>{
-    const t=transcript();
-    t.segments=[{...t.segments[0],speakerStatus:"resolved" as const,resolvedEntityId:"person-1",attributionEvidenceRefs:[]}];
+    const base=transcript();
+    const t={...base,segments:[{...base.segments[0],speakerStatus:"resolved" as const,resolvedEntityId:"person-1",attributionEvidenceRefs:[]}]};
     expect(()=>bindDerivedAudioTranscript({audio,transcript:t})).toThrow("resolved_audio_speaker_requires_evidence");
   });
 
