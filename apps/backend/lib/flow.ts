@@ -1,5 +1,6 @@
 import type { PersonaConfig } from "@/lib/persona";
 import type { CueSignals } from "@/lib/cues";
+import { assessHumorPragmatics } from "@/lib/arbor/behavior/humorPragmatics";
 
 export type Memory = {
   addressAs?: string;
@@ -11,10 +12,15 @@ export function buildNextMove(args: {
   persona: PersonaConfig;
   cues: CueSignals;
   memory: Memory;
+  latestUserText?: string;
 }) {
   const { persona, cues, memory } = args;
   const firmness = persona.firmnessLevel;
-  const humor = persona.humorLevel;
+  const humor = assessHumorPragmatics({
+    latestUserText: args.latestUserText ?? "",
+    mode: "text",
+    legacyHumorLevel: persona.humorLevel,
+  });
   const address = memory.addressAs || persona.addressingDefault;
 
   if (cues.goingDownScore >= 35) {
@@ -31,7 +37,7 @@ export function buildNextMove(args: {
 
   if (cues.comingUpScore >= 25) {
     const hook = memory.redirectHook;
-    const playfulLine = humor >= 2
+    const playfulLine = humor.opportunity !== "none"
       ? `Quick detour—because I can hear you coming back up.`
       : `Quick detour.`;
 
