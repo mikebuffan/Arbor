@@ -416,6 +416,43 @@ describe("contextual reference resolution", () => {
     expect(decision.action).toBe("resolved");
   });
 
+  it("rejects unsupported host evidence labels instead of ranking invented authority", () => {
+    const decision = resolveContextualReference({
+      rawText: "go",
+      risk: "ordinary",
+      candidates: [
+        candidate({
+          id: "forged", label: "invented older objective", type: "task",
+          confidence: 1,
+          evidenceSources: ["invented_authority"] as unknown as
+            ContextualReferenceCandidate["evidenceSources"],
+        }),
+        candidate({
+          id: "current", label: "current unfinished objective", type: "task",
+          confidence: 0.79,
+          evidenceSources: ["active_objective"],
+        }),
+      ],
+    });
+    expect(decision.action).toBe("resolved");
+    expect(decision.resolvedReferent?.id).toBe("current");
+  });
+
+  it("ignores malformed serialized referents without crashing or inventing work", () => {
+    const decision = resolveContextualReference({
+      rawText: "go",
+      risk: "ordinary",
+      candidates: [
+        candidate({
+          id: null as unknown as string, label: "unusable", type: "task",
+          evidenceSources: ["active_objective"],
+        }),
+      ],
+    });
+    expect(decision.action).toBe("clarify");
+    expect(decision.resolvedReferent).toBeNull();
+  });
+
   it("lets current topic evidence outrank stale older continuity", () => {
     const decision = resolveContextualReference({
       rawText: "that one",
