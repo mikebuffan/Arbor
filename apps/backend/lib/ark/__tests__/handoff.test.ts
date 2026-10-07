@@ -85,6 +85,49 @@ describe("read-only ARK continuity handoff", () => {
     expect(JSON.stringify(handoff)).not.toContain("Unrelated");
   });
 
+  it("shows the newest terminal objective so STOP is not masked by older completion", () => {
+    const handoff = buildArkHandoff(snapshot({
+      objectives: [
+        {
+          id: "older-completed",
+          goal: "Earlier work",
+          status: "completed",
+          completion_evidence: { gate: "verified" },
+          updated_at: "2026-10-06T10:00:00Z",
+        },
+        {
+          id: "newer-cancelled",
+          goal: "Stopped work",
+          status: "cancelled",
+          updated_at: "2026-10-06T11:00:00Z",
+        },
+      ],
+      tasks: [
+        {
+          objective_id: "newer-cancelled",
+          status: "cancelled",
+        },
+      ],
+      events: [
+        {
+          id: 99,
+          objective_id: "newer-cancelled",
+          event_type: "objective_cancelled",
+          created_at: "2026-10-06T11:00:00Z",
+        },
+      ],
+    }));
+
+    expect(handoff.objective).toMatchObject({
+      id: "newer-cancelled",
+      status: "cancelled",
+    });
+    expect(handoff.taskCounts.cancelled).toBe(1);
+    expect(handoff.nextAction).toBeNull();
+    expect(handoff.completionEvidenceRecorded).toBe(false);
+    expect(handoff.lastEvent?.kind).toBe("objective_cancelled");
+  });
+
   it("records only explicit authority blockers as decisions, not generic errors", () => {
     const base = { id: "a", goal: "Continue",
       status: "blocked", blocker: {
