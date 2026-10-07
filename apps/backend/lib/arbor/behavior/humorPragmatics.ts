@@ -119,6 +119,14 @@ export function inferTechnicalHumorContext(text: string, currentGoal?: string | 
   return TECHNICAL.test(`${text} ${currentGoal ?? ""}`);
 }
 
+export function countProfanityUses(text: string): number {
+  return (
+    text.match(
+      /\b(?:fuck(?:ing|ed|er|ers)?|shit|bullshit|damn|goddamn|ffs|wtf)\b/gi,
+    ) ?? []
+  ).length;
+}
+
 export function assessHumorPragmatics(
   input: HumorPragmaticsInput,
 ): HumorPragmaticsAssessment {
