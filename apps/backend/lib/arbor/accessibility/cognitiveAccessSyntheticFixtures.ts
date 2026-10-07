@@ -12,8 +12,20 @@ export const COGNITIVE_ACCESS_SYNTHETIC_FIXTURES = [
     risk: "ordinary",
   },
   {
+    id: "multi_error_fatigue",
+    raw: "can yuo chck wher we ar on pr 290",
+    expectedIntent: "can you check where we are on PR 290",
+    risk: "ordinary",
+  },
+  {
     id: "fragment_ambiguous",
     raw: "after ark maybe move it",
+    expectedIntent: null,
+    risk: "ordinary",
+  },
+  {
+    id: "word_finding_gap",
+    raw: "the thing after the... project one",
     expectedIntent: null,
     risk: "ordinary",
   },
@@ -30,9 +42,45 @@ export const COGNITIVE_ACCESS_SYNTHETIC_FIXTURES = [
     risk: "ordinary",
   },
   {
+    id: "protected_money_date",
+    raw: "send $12 on 10/06/2026 after H214",
+    expectedIntent: "send $12 on 10/06/2026 after H214",
+    risk: "ordinary",
+  },
+  {
+    id: "negation_trap",
+    raw: "dont merge main",
+    expectedIntent: null,
+    risk: "ordinary",
+  },
+  {
     id: "high_consequence_typo",
     raw: "delte prod pls",
     expectedIntent: null,
     risk: "high_consequence",
+  },
+  {
+    id: "continuity_go",
+    raw: "go",
+    expectedIntent: "continue the active task",
+    risk: "ordinary",
+  },
+  {
+    id: "continuity_that_one",
+    raw: "that one",
+    expectedIntent: null,
+    risk: "ordinary",
+  },
+  {
+    id: "control_wait",
+    raw: "wait",
+    expectedIntent: "wait",
+    risk: "ordinary",
+  },
+  {
+    id: "correction_after_misread",
+    raw: "no I meant H214",
+    expectedIntent: "no I meant H214",
+    risk: "ordinary",
   },
 ] as const;
