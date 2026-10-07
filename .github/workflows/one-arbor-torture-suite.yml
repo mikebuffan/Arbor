@@ -102,9 +102,22 @@ jobs:
           lib/ark/__tests__/agencyToolExecutor.test.ts
           lib/ark/__tests__/agencyExecutionDelegate.test.ts
           lib/ark/__tests__/acceptanceConnection.integration.test.ts
+      - name: Full backend suite
+        working-directory: apps/backend
+        run: pnpm test
       - name: Standalone TypeScript
         working-directory: apps/backend
         run: pnpm exec tsc --noEmit
+      - name: Production build
+        working-directory: apps/backend
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder
+          SUPABASE_URL: https://example.supabase.co
+          SUPABASE_ANON_KEY: ci-placeholder
+          SUPABASE_SERVICE_ROLE_KEY: ci-placeholder
+        run: pnpm build
 
   phone-continuity:
     if: github.repository == 'mikebuffan/Arbor'
