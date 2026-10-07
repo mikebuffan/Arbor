@@ -13,13 +13,14 @@ This is a coordination snapshot, not a deployment manifest.
 | Lane | PR | Exact head at snapshot | State | What it owns | Proof / blocker | Safe next action |
 |---|---:|---|---|---|---|---|
 | Identity Assurance | #287 | `9ffd6d4a3d68850eb87cd1e65c5bca928dcd3834` | **SAFE SOURCE WORK** | trust states, authorization boundary, provenance, behavioral sequence recognition, restricted disclosure, step-up contracts | 14 focused tests passed on verification child; first TypeScript run exposed a real `restricted` union typing hole, now fixed in source and verification branch | Let #292 rerun; do not activate live auth/biometrics |
-| Identity verification child | #292 | `dd3bd0c656ff7800dc92f6f57e81820011a8fb9d` | **MOVING / VERIFYING** | focused CI only | rerun expected after source type fix | Require focused tests + TypeScript + production build green |
+| Identity verification child | #292 | `dd3bd0c656ff7800dc92f6f57e81820011a8fb9d` | **GREEN VERIFICATION** | focused CI only | Identity assurance source acceptance SUCCESS after source type repair | Verification complete for current #287 source contract |
 | Capability Hypothesis layer | #288 | `5e82ead12855971b1438a972c83dd4540783e0e7` | **SAFE SOURCE WORK** | lifecycle/evidence ladder, shared primitives, future hypotheses, source-only Vault extension proposal | mergeable; dedicated acceptance child #293 running | Keep hosted migration unapplied; require child CI green |
-| Capability verification child | #293 | `be82a3ffe17a7d7223702afaa45a67ce6168f09a` | **MOVING / VERIFYING** | focused CI only | acceptance run in progress at snapshot | Wait for result; repair source only if CI finds a real defect |
+| Capability verification child | #293 | `be82a3ffe17a7d7223702afaa45a67ce6168f09a` | **GREEN VERIFICATION** | focused CI only | Capability hypothesis source acceptance SUCCESS | Verification complete for current #288 source contract |
 | FAFO audio evidence | #289 | `b71289870a66dd1a986a6a1081318d92c2a940d4` | **GREEN SOURCE LANE** | provenance-safe audio/transcript evidence representation | dedicated FAFO audio evidence provenance acceptance SUCCESS | Review seam into existing Evidence Engine; do not build a second evidence system |
 | Cognitive-access / Danelle-ese | #290 | `09d182901b71028770bfe3ee935ccc7295988bfc` | **SAFE SOURCE WORK** | raw-preserving intent recovery, ambiguity, protected literals, negation/STOP, speech-to-text fixtures | source lane expanded; dedicated child #295 running | Require child CI green; no real-user profiling/authentication |
-| Cognitive-access verification child | #295 | `7504725b15b768a0c3d1e8b97ff25898cb62002e` | **MOVING / VERIFYING** | focused CI only | acceptance run in progress at snapshot | Wait for result; repair only demonstrated defects |
-| ARK offline STOP/resume | #291 | `3d096f8027ab507807a670d2e09841c005016d25` | **MOVING** | explicit STOP, blocked-resume controls, offline acceptance | worker was still committing during this snapshot; no stable verification result yet | Do not reconcile until head stops moving |
+| Cognitive-access verification child | #295 | `7504725b15b768a0c3d1e8b97ff25898cb62002e` | **GREEN VERIFICATION** | focused CI only | Cognitive access source acceptance SUCCESS | Verification complete for current #290 source contract |
+| Contextual reference / short-turn resolution | #294 | `da0657eaf5b41ebb50cdf6ec82ea6e81402ea052` | **SAFE SOURCE WORK / UNVERIFIED** | bounded contextual reference resolver, short-turn references, protected literals, referential cancel semantics | mergeable; no dedicated current-head workflow at snapshot | Reconcile with #290 semantics first; then add/borrow focused acceptance rather than duplicate intent machinery |
+| ARK offline STOP/resume | #291 | `97157b670284b3a53e03c1ab1bfa3ca29a289cdc` | **MOVING** | explicit STOP, blocked-resume controls, offline acceptance | worker was still committing during this snapshot; head changed again while this pass was running | Do not reconcile until head stops moving |
 | Grove / independent LM / phone | #277 | `0fe8bfc73251527021d633043d9a35de50f45cd5` | **SOURCE-STRONG / STALE-BASE CI RED** | Grove private host, LM transport/readiness, phone continuity, v0.4 semantic evidence | focused Grove suite: 236 passed + 1 skipped; local-LM prep passed; overall build red on inherited stale research parser contract | Reconcile lane-specific deltas onto #286; do not patch stale shared research files in place |
 | ARK / agency / archive | #279 | `5329ab7c3b4e85c6b4adaade6825cb87050d799d` | **SOURCE-STRONG / STALE-BASE CI RED** | agency continuation/restart/idempotency, archive cursor/checkpoint, durable STOP/readback | ARK STOP migration and phone continuity jobs passed; backend job red on stale cross-lane research/type drift plus older test signatures | Reconcile lane-specific deltas onto #286; do not use its stale shared research files as canonical |
 | Pattern Hop / Evidence seam | #282 | `a2060a522ffc29dbed9a7c33e8d1dbf7f4f3db6b` | **GREEN / ALREADY IN ANCHOR LINEAGE** | Evidence Engine / Roundabout / ARK seam | canonical exact-head acceptance SUCCESS | Treat #286 copy as canonical unless a newer Pattern Hop source lane appears |
@@ -59,6 +60,12 @@ Other #279 backend errors also show stale test/type signatures from research and
 These mostly add isolated files/modules and are suitable for selective reconciliation after their own acceptance passes.
 
 ### Moderate overlap
+- #290 Cognitive Access <-> #294 Contextual Reference
+  - both interpret underspecified/noisy short turns
+  - #294 should own referential resolution; #290 should own noisy-language recovery
+  - protected literals, STOP/negation, and clarification policy must remain consistent
+  - avoid two competing intent resolvers
+
 - #287 Identity Assurance <-> #290 Cognitive Access
   - may share observations later
   - MUST keep conclusions separate
@@ -88,6 +95,7 @@ Do **not** execute until moving heads stabilize.
    - #287 after #292 green
    - #288 after #293 green
    - #290 after #295 green
+   - #294 only after overlap reconciliation with #290 and focused acceptance
    - #289 (already dedicated-green)
 3. Reconcile latest ARK lane:
    - prefer newest non-duplicative #291 controls over older overlapping copies
