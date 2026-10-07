@@ -2,6 +2,12 @@ import type { WorkOrderDecision } from "./workOrderBoundary";
 import { createHash } from "node:crypto";
 import { canonicalPersonalityRules, requestedPersonalityRules, PERSONALITY_STABILITY_RULE } from "../selfModel/personalityProjection";
 import { ARBOR_CONVERSATION_CALIBRATION } from "../selfModel/conversationCalibration";
+import {
+  assessHumorPragmatics,
+  HUMOR_PRAGMATICS_RULES,
+  renderHumorPragmaticsContract,
+  type HumorPragmaticsInput,
+} from "./humorPragmatics";
 
 export type ArborInteractionMode = "text" | "voice" | "annabelle";
 
@@ -28,9 +34,10 @@ export type BuildArborBehaviorProjectionInput = {
   continuityMaterial?: string[];
   workOrderDecision?: WorkOrderDecision | null;
   includeContextInPromptBlock?: boolean;
+  humorPragmatics?: Omit<HumorPragmaticsInput, "mode" | "activeCorrections">;
 };
 
-export const ARBOR_BEHAVIOR_CONTRACT_VERSION = "2026-10-05.1";
+export const ARBOR_BEHAVIOR_CONTRACT_VERSION = "2026-10-06.1";
 
 const CORE_RULES = [
   "There is one Arbor across Text, Voice, and Annabelle. The medium may change delivery, never identity.",
@@ -101,6 +108,20 @@ export function buildArborBehaviorProjection(
   const continuityMaterial = clean(input.continuityMaterial);
   const modeRules = [...MODE_RULES[input.mode]];
   const personalityRules = [...canonicalPersonalityRules(), ...requestedPersonalityRules()];
+  const humorAssessment = assessHumorPragmatics({
+    latestUserText: input.humorPragmatics?.latestUserText ?? "",
+    mode: input.mode,
+    activeCorrections: correctionRules,
+    relationshipPermission: input.humorPragmatics?.relationshipPermission,
+    callbackConfidence: input.humorPragmatics?.callbackConfidence,
+    callbackRelevance: input.humorPragmatics?.callbackRelevance,
+    absurdityRelevance: input.humorPragmatics?.absurdityRelevance,
+    technicalContext: input.humorPragmatics?.technicalContext,
+    consequentialContext: input.humorPragmatics?.consequentialContext,
+    vulnerabilityContext: input.humorPragmatics?.vulnerabilityContext,
+    acuteRiskContext: input.humorPragmatics?.acuteRiskContext,
+    legacyHumorLevel: input.humorPragmatics?.legacyHumorLevel,
+  });
 
   const coreFingerprint = fingerprint({
     contractVersion: ARBOR_BEHAVIOR_CONTRACT_VERSION,
@@ -120,6 +141,7 @@ export function buildArborBehaviorProjection(
     coreFingerprint,
     continuityFingerprint,
     modeRules,
+    humorAssessment,
     ...(input.workOrderDecision ? { workOrderDisposition: input.workOrderDecision.disposition } : {}),
     ...(input.includeContextInPromptBlock === true ? { includeContextInPromptBlock: true } : {}),
   });
@@ -136,12 +158,14 @@ export function buildArborBehaviorProjection(
     input.workOrderDecision
       ? `Work-order coordination: ${input.workOrderDecision.disposition}; requires reconciliation: ${input.workOrderDecision.requiresReconciliation}; execution authorization: NOT GRANTED.` : "",
     renderRules("Active correction rules:", correctionRules),
+    renderHumorPragmaticsContract(humorAssessment),
     renderRules("Mode projection:", modeRules),
   ].filter(Boolean);
 
   const guardRequirements = clean([
     ...CORE_RULES,
     ...personalityRules,
+    ...HUMOR_PRAGMATICS_RULES,
     ...modeRules,
     ...correctionRules,
   ]);
