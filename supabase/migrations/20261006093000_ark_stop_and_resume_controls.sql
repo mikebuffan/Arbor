@@ -29,14 +29,37 @@ declare
   v_objective public.ark_objectives;
   v_cancelled_tasks integer := 0;
 begin
+  -- Read once without a lock so we can fail missing/terminal requests cheaply.
+  -- The status is rechecked after task locks are acquired below.
   select * into v_objective
   from public.ark_objectives
-  where id = p_objective_id
-  for update;
+  where id = p_objective_id;
 
   if v_objective.id is null then
     raise exception 'ark_objective_not_found' using errcode = 'P0002';
   end if;
+
+  if v_objective.status = 'completed' then
+    raise exception 'ark_completed_objective_cannot_cancel' using errcode = '40001';
+  end if;
+
+  if v_objective.status = 'cancelled' then
+    return to_jsonb(v_objective);
+  end if;
+
+  -- Match worker completion's lock order: task row(s) first, objective second.
+  -- This avoids STOP<->completion lock inversion while still fencing all
+  -- unfinished tasks at one durable transaction boundary.
+  perform 1
+  from public.ark_tasks
+  where objective_id = p_objective_id
+    and status not in ('completed', 'cancelled')
+  for update;
+
+  select * into v_objective
+  from public.ark_objectives
+  where id = p_objective_id
+  for update;
 
   if v_objective.status = 'completed' then
     raise exception 'ark_completed_objective_cannot_cancel' using errcode = '40001';
