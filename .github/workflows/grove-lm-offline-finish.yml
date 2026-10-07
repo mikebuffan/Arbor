@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - integration/one-arbor-prelive-final-20261007
+      - integration/one-arbor-multilane-20261007
     types: [opened, synchronize, reopened]
   workflow_dispatch:
 
