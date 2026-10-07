@@ -16,8 +16,17 @@ jobs:
       OPENAI_API_KEY: ci-placeholder-not-a-real-key
       AWS_EC2_METADATA_DISABLED: "true"
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-        with: {persist-credentials: false}
+      - name: Checkout without submodule cleanup
+        shell: bash
+        run: |
+          git init .
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
+            git fetch --no-tags --depth=1 origin "refs/pull/${{ github.event.pull_request.number }}/merge"
+          else
+            git fetch --no-tags --depth=1 origin "${GITHUB_REF}"
+          fi
+          git checkout --detach FETCH_HEAD
       - uses: actions/setup-node@v4
         with: {node-version: 22}
       - run: |
