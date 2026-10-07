@@ -63,7 +63,7 @@ The contract represents these dimensions independently:
 - technical clarity risk,
 - allowed placement/type.
 
-Supported placement/types:
+Each placement has an explicit **works-when** and **damages-when** rule rendered from the same shared contract. Supported placement/types:
 - opening,
 - embedded dry observation,
 - trailing button,
@@ -214,7 +214,7 @@ Additional tests cover every placement/type and prove a hard-serious context col
 
 `humorPragmatics.fixtures.ts` contains paired `left` / `right` responses without generic/Arbor labels in evaluator-facing fixture data.
 
-A separate answer key permits evaluation without revealing the intended choice during presentation.
+The evaluator-facing fixture module contains no answer labels. A physically separate answer-key module is imported only for post-choice scoring, so evaluation can present the pairs without exposing which side is intended.
 
 The pairs test recognition from:
 - judgment,
