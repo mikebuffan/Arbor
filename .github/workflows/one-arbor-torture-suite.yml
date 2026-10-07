@@ -110,9 +110,11 @@ jobs:
         working-directory: apps/backend
         run: pnpm test
       - name: Standalone TypeScript
+        if: ${{ always() }}
         working-directory: apps/backend
         run: pnpm exec tsc --noEmit
       - name: Production build
+        if: ${{ always() }}
         working-directory: apps/backend
         env:
           NEXT_TELEMETRY_DISABLED: '1'
