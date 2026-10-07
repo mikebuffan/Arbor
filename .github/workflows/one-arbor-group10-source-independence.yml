@@ -1,0 +1,45 @@
+name: One Arbor Group 10 source-independence acceptance
+
+on:
+  pull_request:
+    branches:
+      - integration/one-arbor-reconciled-335-339-20261007
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'apps/backend/lib/memory/patternHopSourceIndependence.ts'
+      - 'apps/backend/lib/memory/__tests__/patternHopSourceIndependence.test.ts'
+      - '.github/workflows/one-arbor-group10-source-independence.yml'
+      - 'ops/grove/source-only-ignore.mjs'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: group10-source-audit-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  source-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.30.3
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Pattern Hop source independence + existing path safety
+        env:
+          OPENAI_API_KEY: ci-placeholder-key
+        run: |
+          pnpm --filter firefly-backend exec vitest run \
+            lib/memory/__tests__/patternHopSourceIndependence.test.ts \
+            lib/memory/__tests__/patternHopEngine.test.ts \
+            lib/memory/__tests__/patternHop.test.ts
+      - name: Backend TypeScript
+        run: pnpm --filter firefly-backend exec tsc --noEmit
