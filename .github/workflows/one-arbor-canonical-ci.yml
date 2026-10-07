@@ -4,6 +4,11 @@ on:
   push:
     branches:
       - integration/one-arbor-canonical-20261006
+      - integration/ark-finish-canonical-20261006
+      - integration/one-arbor-pre-vercel-20261006
+  pull_request:
+    branches:
+      - integration/one-arbor-canonical-20261006
 
 permissions:
   contents: read
@@ -73,10 +78,23 @@ jobs:
           lib/research/sourceIndependence.test.ts
           lib/research/claimEvidenceGraph.test.ts
           lib/research/failedLeadRouting.test.ts
+          lib/research/sourceFamilyCollapse.test.ts
+          lib/research/entityResolution.test.ts
+          lib/research/timelineAnalysis.test.ts
+          lib/research/sourceChainReview.test.ts
           lib/research/patternHopDomainLenses.test.ts
           lib/research/researchPatternHopBridge.test.ts
           lib/research/researchPatternHopBridgeDomain.test.ts
+          lib/research/patternHopEvidenceIntegration.test.ts
           lib/research/investigationPatternHop.test.ts
+          lib/research/sessionPolicy.test.ts
+          lib/research/sessionRestart.test.ts
+          lib/research/syntheticWorkerRehearsal.test.ts
+          lib/research/leadDedupe.test.ts
+          lib/research/sourceVersion.test.ts
+          lib/research/completionVerification.test.ts
+          lib/research/reproducibilityScaleV4.test.ts
+          lib/ark/__tests__/stopSemantics.test.ts
           lib/research/arkResearchHandoff.test.ts
           lib/research/registerArkResearchControllerExecutor.test.ts
           lib/research/registerArkResearchSessionExecutor.test.ts
