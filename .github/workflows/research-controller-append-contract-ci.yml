@@ -1,0 +1,89 @@
+name: Research controller append contract acceptance
+
+on:
+  push:
+    branches:
+      - verification/research-controller-append-contract-20261006
+  pull_request:
+    branches:
+      - fix/research-controller-append-contract-20261006
+
+permissions:
+  contents: read
+
+concurrency:
+  group: research-controller-append-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    if: github.repository == 'mikebuffan/Arbor'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      CI: 'true'
+      OPENAI_API_KEY: ci-placeholder-not-a-real-key
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install locked dependencies
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.30.3 --activate
+          pnpm install --frozen-lockfile
+      - name: Install local PDF parser dependency
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils
+      - name: Focused research controller append tests
+        working-directory: apps/backend
+        run: >
+          pnpm exec vitest run
+          lib/research/supabaseResearchStore.test.ts
+          lib/research/researchController.test.ts
+          lib/research/researchControllerSqlContract.test.ts
+      - name: Full backend regression
+        run: pnpm --filter firefly-backend test
+      - name: Production backend build
+        run: pnpm --filter firefly-backend build
+      - name: Standalone TypeScript
+        working-directory: apps/backend
+        run: pnpm exec tsc --noEmit
+
+  postgres:
+    if: github.repository == 'mikebuffan/Arbor'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          ref: ${{ github.sha }}
+      - name: Start disposable PostgreSQL
+        shell: bash
+        run: |
+          set -euo pipefail
+          pg_bin=/usr/lib/postgresql/16/bin
+          pg_root="/tmp/research-append-${GITHUB_RUN_ID}"
+          mkdir -p "$pg_root/data" "$pg_root/socket"
+          sudo -n chown -R postgres:postgres "$pg_root"
+          sudo -n -u postgres "$pg_bin/initdb" -D "$pg_root/data" --auth=trust --no-locale
+          sudo -n -u postgres "$pg_bin/pg_ctl" -D "$pg_root/data" -l "$pg_root/server.log" -o "-k $pg_root/socket -p 54336 -c listen_addresses=''" -w start
+          printf 'PGHOST=%s/socket\nPGPORT=54336\nPGUSER=postgres\nPGDATABASE=research_append\n' "$pg_root" >> "$GITHUB_ENV"
+          echo "$pg_bin" >> "$GITHUB_PATH"
+          "$pg_bin/createdb" -h "$pg_root/socket" -p 54336 -U postgres research_append
+      - name: Prove bounded idempotent append contract
+        run: psql -X -v ON_ERROR_STOP=1 -d research_append -f ops/grove/disposable-db/research-controller-append-acceptance.sql
+      - name: Stop disposable PostgreSQL
+        if: always()
+        shell: bash
+        run: |
+          pg_root="/tmp/research-append-${GITHUB_RUN_ID}"
+          if test -f "$pg_root/data/postmaster.pid"; then
+            sudo -n -u postgres /usr/lib/postgresql/16/bin/pg_ctl -D "$pg_root/data" -m immediate -w stop
+          fi
