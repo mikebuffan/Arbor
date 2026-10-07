@@ -38,6 +38,21 @@ describe("Arbor voice identity", () => {
     );
   });
 
+
+  it("does not turn humor into voice performance", () => {
+    const instructions = buildVoiceInstructions("arbor");
+
+    expect(instructions).toContain(
+      "Humor should remain contextual rather than performed",
+    );
+    expect(instructions).toContain(
+      "Do not announce or sell a punch line",
+    );
+    expect(instructions).toContain(
+      "ordinary conversational timing",
+    );
+  });
+
   it("uses a slightly quicker conversational speed without speeding narration", () => {
     expect(voiceSpeechSpeed("arbor")).toBe(1.05);
     expect(voiceSpeechSpeed("annabelle")).toBe(1.0);
