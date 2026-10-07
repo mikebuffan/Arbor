@@ -837,12 +837,6 @@ export async function POST(req: Request) {
       },
     );
 
-    await timeline.record("persist", "state_persisted", {
-      agencyStatus: agencyState.status,
-    });
-
-    await timeline.record("complete", "turn_completed");
-
     const assistantText = finalAssistant.assistantText;
 
     const updatedRuntimeSession =
@@ -859,6 +853,12 @@ export async function POST(req: Request) {
       pendingSelfUpdate,
       now: new Date().toISOString(),
     });
+
+    await timeline.record("persist", "state_persisted", {
+      agencyStatus: agencyState.status,
+    });
+
+    await timeline.record("complete", "turn_completed");
 
     const traceId = crypto.randomUUID();
 
