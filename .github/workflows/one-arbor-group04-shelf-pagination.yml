@@ -46,6 +46,8 @@ jobs:
         run: |
           set -euo pipefail
           VERCEL_GIT_COMMIT_REF="${{ github.head_ref || github.ref_name }}" node ops/grove/source-only-ignore.mjs
+      - name: Verify expanded reviewed source fingerprints (21 exact blobs)
+        run: node ops/integration/verify-one-arbor-composition.mjs
       - name: Restore locked packages
         run: |
           corepack enable
