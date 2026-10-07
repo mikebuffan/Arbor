@@ -94,6 +94,39 @@ describe("One Arbor host reads recovery without inventing authority", () => {
     expect(result.recovery.known.blocker).toBe("external_authority");
   });
 
+  it("never reopens completed work merely because a stale host goal diverges", () => {
+    const result = project({
+      agency: agency({ status: "complete", unresolvedWork: [] }),
+      host: host({ currentGoal: "Unrelated stale task" }),
+    });
+    expect(result.hostGoalStatus).toBe("diverged");
+    expect(result.next).toBe("no_unfinished_goal");
+    expect(result.recovery.known.status).toBe("complete");
+    expect(result.grantsExecution).toBe(false);
+  });
+
+  it("keeps contradictory completion under verification hold before reconciling a host summary", () => {
+    const result = project({
+      agency: agency({ status: "checkpointed" }),
+      host: host({ currentGoal: "Different host objective" }),
+      observations: [event("unverified", "contradictory_completion_claim")],
+    });
+    expect(result.hostGoalStatus).toBe("diverged");
+    expect(result.next).toBe("hold_for_verification");
+    expect(result.recovery.unknown).toContain("completion_requires_proof");
+  });
+
+  it("prioritizes a witnessed unapplied correction over a host-goal mismatch", () => {
+    const result = project({
+      host: host({ currentGoal: "Old unrelated objective" }),
+      observations: [event("missed-correction", "correction_not_applied")],
+    });
+    expect(result.hostGoalStatus).toBe("diverged");
+    expect(result.next).toBe("review_correction");
+    expect(result.recovery.unknown).toContain("correction_needs_recheck");
+    expect(result.observationsVerifiedHere).toBe(false);
+  });
+
   it("does not turn a host-only narrative into a missing durable agency goal", () => {
     const result = project({ agency: null });
     expect(result.hostGoalStatus).toBe("not_comparable");

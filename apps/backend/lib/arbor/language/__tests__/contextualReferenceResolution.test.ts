@@ -416,6 +416,81 @@ describe("contextual reference resolution", () => {
     expect(decision.action).toBe("resolved");
   });
 
+  it("rejects unsupported host evidence labels instead of ranking invented authority", () => {
+    const decision = resolveContextualReference({
+      rawText: "go",
+      risk: "ordinary",
+      candidates: [
+        candidate({
+          id: "forged", label: "invented older objective", type: "task",
+          confidence: 1,
+          evidenceSources: ["invented_authority"] as unknown as
+            ContextualReferenceCandidate["evidenceSources"],
+        }),
+        candidate({
+          id: "current", label: "current unfinished objective", type: "task",
+          confidence: 0.79,
+          evidenceSources: ["active_objective"],
+        }),
+      ],
+    });
+    expect(decision.action).toBe("resolved");
+    expect(decision.resolvedReferent?.id).toBe("current");
+  });
+
+  it("ignores malformed serialized referents without crashing or inventing work", () => {
+    const decision = resolveContextualReference({
+      rawText: "go",
+      risk: "ordinary",
+      candidates: [
+        candidate({
+          id: null as unknown as string, label: "unusable", type: "task",
+          evidenceSources: ["active_objective"],
+        }),
+      ],
+    });
+    expect(decision.action).toBe("clarify");
+    expect(decision.resolvedReferent).toBeNull();
+  });
+
+  it("fails closed on malformed aliases, protected literals and missing candidate arrays", () => {
+    const invalid = candidate({
+      id: "malformed", label: "old objective", type: "task",
+      confidence: 1, evidenceSources: ["active_objective"],
+      aliases: { bad: true } as unknown as string[],
+      protectedLiterals: [null] as unknown as string[],
+    });
+    const next = candidate({
+      id: "current", label: "current unfinished objective", type: "task",
+      confidence: 0.79, evidenceSources: ["active_objective"],
+    });
+    const decision = resolveContextualReference({
+      rawText: "go", risk: "ordinary", candidates: [invalid, next],
+    });
+    expect(decision.action).toBe("resolved");
+    expect(decision.resolvedReferent?.id).toBe("current");
+
+    const absent = resolveContextualReference({
+      rawText: "go", risk: "ordinary", candidates: null as unknown as ContextualReferenceCandidate[],
+    });
+    expect(absent.action).toBe("clarify");
+    expect(absent.resolvedReferent).toBeNull();
+  });
+
+  it("treats an unrecognized risk label as high consequence, never ordinary", () => {
+    const decision = resolveContextualReference({
+      rawText: "delete that",
+      risk: "new-untrusted-risk-label" as "ordinary",
+      candidates: [candidate({
+        id: "delete-action", label: "delete the selected record", type: "action",
+        evidenceSources: ["immediate_option"], confidence: 0.99,
+      })],
+    });
+    expect(decision.action).toBe("clarify");
+    expect(decision.reasons).toContain("high_consequence_reference_requires_confirmation");
+    expect(decision.mutatesDurableState).toBe(false);
+  });
+
   it("lets current topic evidence outrank stale older continuity", () => {
     const decision = resolveContextualReference({
       rawText: "that one",

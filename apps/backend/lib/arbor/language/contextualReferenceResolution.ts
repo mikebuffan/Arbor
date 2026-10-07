@@ -158,6 +158,24 @@ function normalizedLower(value: string): string {
 function cleanCandidate(
   candidate: ContextualReferenceCandidate,
 ): ContextualReferenceCandidate | null {
+  // Even a typed host adapter can receive malformed serialized metadata.
+  // Unsupported evidence vocabulary must not acquire an undefined rank.
+  if (!candidate || typeof candidate.id !== "string" ||
+      typeof candidate.label !== "string" ||
+      !Array.isArray(candidate.evidenceSources) ||
+      candidate.evidenceSources.some((source) =>
+        typeof source !== "string" ||
+        !Object.prototype.hasOwnProperty.call(EVIDENCE_PRIORITY, source)) ||
+      (candidate.aliases !== undefined &&
+        (!Array.isArray(candidate.aliases) ||
+          candidate.aliases.some((value) => typeof value !== "string"))) ||
+      (candidate.protectedLiterals !== undefined &&
+        (!Array.isArray(candidate.protectedLiterals) ||
+          candidate.protectedLiterals.some((value) => typeof value !== "string"))) ||
+      (candidate.meaningKey !== undefined &&
+        typeof candidate.meaningKey !== "string")) {
+    return null;
+  }
   const id = candidate.id.trim();
   const label = candidate.label.trim();
   const confidence = Number(candidate.confidence);
@@ -523,11 +541,12 @@ function requiresConcreteReferent(kind: ContextualTurnKind): boolean {
 export function resolveContextualReference(
   input: ContextualReferenceInput,
 ): ContextualReferenceDecision {
-  const raw = input.rawText ?? "";
+  const raw = typeof input.rawText === "string" ? input.rawText : "";
   const rawTrimmed = raw.trim();
   const workingText =
-    normalize(input.workingText ?? "") ||
+    normalize(typeof input.workingText === "string" ? input.workingText : "") ||
     normalize(raw);
+  const candidates = Array.isArray(input.candidates) ? input.candidates : [];
   const protectedValues = protectedLiterals(raw, input.protectedTokens);
 
   if (!rawTrimmed) {
@@ -569,7 +588,7 @@ export function resolveContextualReference(
   );
 
   if (compoundControlNeedsResolution(raw)) {
-    const alternatives = input.candidates
+    const alternatives = candidates
       .map(cleanCandidate)
       .filter((candidate): candidate is ContextualReferenceCandidate =>
         candidate !== null,
@@ -590,7 +609,7 @@ export function resolveContextualReference(
     };
   }
 
-  const cleaned = input.candidates
+  const cleaned = candidates
     .map(cleanCandidate)
     .filter((candidate): candidate is ContextualReferenceCandidate =>
       candidate !== null,
@@ -670,7 +689,7 @@ export function resolveContextualReference(
   }
 
   if (
-    input.risk === "high_consequence" &&
+    input.risk !== "ordinary" && input.risk !== "sensitive" &&
     (turnKind !== "explicit_literal" ||
       normalize(raw) !== workingText)
   ) {

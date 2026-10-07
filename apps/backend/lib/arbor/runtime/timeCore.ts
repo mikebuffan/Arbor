@@ -39,6 +39,9 @@ export function buildTimeCore(input: {
 
   let localDate: string;
   let localTime: string;
+  // An IANA zone determines the offset at the supplied instant (including DST).
+  // A host-provided numeric offset may be stale if both are supplied.
+  let resolvedOffset: number | null = offset;
 
   if (input.timeZone?.trim()) {
     const parts = new Intl.DateTimeFormat("en-CA", {
@@ -54,6 +57,19 @@ export function buildTimeCore(input: {
     const byType = new Map(parts.map((part) => [part.type, part.value]));
     localDate = `${byType.get("year")}-${byType.get("month")}-${byType.get("day")}`;
     localTime = `${byType.get("hour")}:${byType.get("minute")}:${byType.get("second")}`;
+    // Intl exposes civil components, not the offset. Reconstruct the matching
+    // UTC wall clock to derive the zone's actual offset at this exact instant.
+    const localAsUtc = Date.UTC(
+      Number(byType.get("year")),
+      Number(byType.get("month")) - 1,
+      Number(byType.get("day")),
+      Number(byType.get("hour")),
+      Number(byType.get("minute")),
+      Number(byType.get("second")),
+    );
+    resolvedOffset = Math.round(
+      (localAsUtc - Math.trunc(now.getTime() / 1_000) * 1_000) / 60_000,
+    );
   } else {
     const shifted = new Date(now.getTime() + (offset ?? 0) * 60_000);
     localDate = shifted.toISOString().slice(0, 10);
@@ -67,7 +83,7 @@ export function buildTimeCore(input: {
     unixMs: now.getTime(),
     utcDate: now.toISOString().slice(0, 10),
     timeZone,
-    utcOffsetMinutes: offset,
+    utcOffsetMinutes: resolvedOffset,
     localDate,
     localTime,
   };
@@ -81,7 +97,7 @@ export function renderTimeCorePromptBlock(core: ArborTimeCore): string {
     `unix_ms=${core.unixMs}`,
     `utc_date=${core.utcDate}`,
     `time_zone=${core.timeZone}`,
-    `utc_offset_minutes=${core.utcOffsetMinutes ?? 0}`,
+    `utc_offset_minutes=${core.utcOffsetMinutes === null ? "unknown" : core.utcOffsetMinutes}`,
     `local_date=${core.localDate}`,
     `local_time=${core.localTime}`,
     "Use this host-supplied instant for current-date/time and duration reasoning. Do not infer 'now' from model training data, retrieved history, or message wording.",
