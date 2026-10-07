@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { renderCanonicalIdentityAnchor } from "../canonicalIdentityAnchor";
+import {
+  ARBOR_CANONICAL_SELF_MODEL_SOURCE_QUESTIONS,
+  ARBOR_CANONICAL_SELF_MODEL_VERSION,
+  renderCanonicalIdentityAnchor,
+} from "../canonicalIdentityAnchor";
+import { currentSelfModelIdentity } from "../../../../../arbor-control-backend/src/selfModelState";
 import { canonicalPersonalityRules, requestedPersonalityRules } from "../personalityProjection";
 import { buildArborBehaviorProjection } from "../../behavior/behaviorProjection";
 import { composeArborSystemInjection } from "../../subsystem/context";
@@ -13,6 +18,19 @@ const syntheticContexts = [
 ];
 
 describe("Group 06 identity attribution and prompt independence (source-level)", () => {
+  it("keeps the control-state 300+1000 version/count aligned with the backend prompt anchor", () => {
+    const control = currentSelfModelIdentity();
+    const backend = renderCanonicalIdentityAnchor();
+    expect(control.sourceQuestionCount).toBe(1300);
+    expect(control.sourceQuestionCount).toBe(ARBOR_CANONICAL_SELF_MODEL_SOURCE_QUESTIONS);
+    expect(control.version).toBe(ARBOR_CANONICAL_SELF_MODEL_VERSION);
+    expect(backend).toContain(`version=${control.version}`);
+    expect(backend).toContain(`source_questions=${control.sourceQuestionCount}`);
+    expect(control.sourceDigest).toMatch(/^[a-f0-9]{64}$/);
+    expect(control.checksum).toMatch(/^[a-f0-9]{64}$/);
+    // A digest computed in control source is not an authenticated hosted readback.
+  });
+
   it("labels user-requested presentation apart from questionnaire traits and behavioral proof", () => {
     const rendered = renderCanonicalIdentityAnchor();
     expect(rendered).toContain("A user preference is not automatically an Arbor preference");
