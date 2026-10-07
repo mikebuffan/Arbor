@@ -41,6 +41,31 @@ describe("memory project isolation", () => {
     expect(isMemoryInProjectScope({ project_id: "project-a", conversation_id: "conversation-b", scope: "conversation" }, "project-a", "conversation-a")).toBe(false);
   });
 
+  it("rejects malformed scope metadata instead of treating foreign or conversation rows as global", () => {
+    expect(isMemoryInProjectScope({ scope: "global", project_id: null, conversation_id: null }, "project-a")).toBe(true);
+    expect(isMemoryInProjectScope({ scope: "global", project_id: "project-b", conversation_id: null }, "project-a")).toBe(false);
+    expect(isMemoryInProjectScope({ scope: "global", project_id: null, conversation_id: "conversation-b" }, "project-a")).toBe(false);
+    expect(isMemoryInProjectScope({ scope: "project", project_id: null, conversation_id: null }, null)).toBe(false);
+    expect(isMemoryInProjectScope({ scope: "project", project_id: "project-a", conversation_id: "conversation-b" }, "project-a")).toBe(false);
+    expect(isMemoryInProjectScope({ scope: "conversation", project_id: "project-a", conversation_id: "conversation-b" }, "project-a", "conversation-a")).toBe(false);
+    expect(isMemoryInProjectScope({ scope: "conversation", project_id: "project-a", conversation_id: "conversation-a" }, "project-a", "conversation-a")).toBe(true);
+    expect(isMemoryInProjectScope({ scope: "unknown" as "global", project_id: null }, "project-a")).toBe(false);
+  });
+
+  it("does not return a mislabeled project memory through the lexical fallback", async () => {
+    const response = { data: [
+      { id: "good-global", project_id: null, conversation_id: null, key: "safe-global", value: { text: "safe" }, tier: "normal", scope: "global", status: "active", deleted_at: null },
+      { id: "foreign-global", project_id: "project-b", conversation_id: null, key: "foreign", value: { text: "private" }, tier: "normal", scope: "global", status: "active", deleted_at: null },
+      { id: "conversation-masquerade", project_id: null, conversation_id: "conversation-b", key: "leak", value: { text: "private" }, tier: "normal", scope: "global", status: "active", deleted_at: null },
+    ], error: null };
+    const query = { select: vi.fn(), eq: vi.fn(), is: vi.fn(), order: vi.fn(), or: vi.fn(), limit: vi.fn(), then: (resolve: (value: typeof response) => unknown) => Promise.resolve(response).then(resolve) };
+    query.select.mockReturnValue(query); query.eq.mockReturnValue(query); query.is.mockReturnValue(query); query.order.mockReturnValue(query); query.or.mockReturnValue(query); query.limit.mockReturnValue(query);
+    const supabase = { from: vi.fn().mockReturnValue(query) } as unknown as SupabaseClient;
+    const result = await getMemoryContext({ supabase, authedUserId: "user-a", projectId: "project-a", latestUserText: "What did I save?" });
+    expect(result.keysUsed).toEqual(["safe-global"]);
+    expect(JSON.stringify(result)).not.toContain("private");
+  });
+
   it("falls back from a failed scoped vector RPC and filters direct retrieval to the authenticated project", async () => {
     const response = { data: [
       { id: "memory-a", project_id: "project-a", key: "project-a-key", value: { text: "project A" }, tier: "normal", scope: "project", status: "active", deleted_at: null },
