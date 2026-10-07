@@ -1,0 +1,57 @@
+name: One Arbor Group 13 Grove rooms and Workshop source acceptance
+
+on:
+  pull_request:
+    branches:
+      - review/one-arbor-professional-workspace-20261007
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'apps/frontend/lib/environment/grove_room_inventory_panel.dart'
+      - 'apps/frontend/test/grove_workshop_preview_test.dart'
+      - '.github/workflows/one-arbor-group13-grove-rooms.yml'
+      - 'docs/integration/ONE_ARBOR_GROUP13_GROVE_PHONE_ROOMS_ACCEPTANCE_20261007.md'
+      - 'ops/grove/source-only-ignore.mjs'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: one-arbor-group13-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  flutter-source-only:
+    if: github.repository == 'mikebuffan/Arbor'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: apps/frontend
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Resolve existing Flutter dependencies
+        run: flutter pub get
+      - name: Analyze Workshop, room inventory and existing G09 view
+        run: >-
+          flutter analyze
+          lib/environment/grove_room_inventory_panel.dart
+          lib/environment/grove_room_inventory.dart
+          lib/environment/professional_workspace_view.dart
+          test/grove_workshop_preview_test.dart
+          test/grove_room_inventory_test.dart
+          test/grove_room_inventory_panel_test.dart
+      - name: Workshop, room scoping, professional workspace and navigation tests
+        run: >-
+          flutter test
+          test/grove_workshop_preview_test.dart
+          test/grove_room_inventory_test.dart
+          test/grove_room_inventory_panel_test.dart
+          test/professional_workspace_test.dart
+          test/environment_navigation_test.dart
+          test/environment_live_ark_test.dart
