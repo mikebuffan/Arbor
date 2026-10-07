@@ -2,7 +2,8 @@
   "schemaVersion": 1,
   "lane": "grove_lm_phone_readiness",
   "baseSha": "3c599ffd655409d8f72116ec857b76dfa646bd50",
-  "applicationTreeChanged": false,
+  "runtimeApplicationSourceChanged": false,
+  "grantProposalSourceChanged": true,
   "sourceStates": {
     "groveRuntimeGoal": "source_tested_current_exact_head",
     "groveRuntimeTurnCapture": "source_tested_current_exact_head",
@@ -10,6 +11,8 @@
     "groveArkObjectiveRun": "source_tested_current_exact_head_separately_gated",
     "textRestartReplay": "source_tested_current_exact_head",
     "groveAuthOwnerGrantBoundary": "source_tested_current_exact_head",
+    "runtimeGrantProposals": "hardened_force_rls_client_revoked_service_role_project_fk",
+    "runtimeGrantDisposableAcceptance": "test_prepared_not_executed",
     "localLmManifestValidation": "tested_identical_blob_lineage",
     "localLmCpuCompatibility": "tested_identical_blob_lineage",
     "localLmRealTokenizer": "gated_private_artifacts",
@@ -22,7 +25,7 @@
   "childCi": {
     "workflowPrepared": true,
     "executed": false,
-    "reason": "new pull-request workflow is not active on the base branch; shared base was intentionally left untouched"
+    "reason": "GitHub did not schedule the newly introduced pull-request workflow because it is not present in the repository workflow source used for that event; shared integration base was intentionally left untouched"
   },
   "protectedActionsNotAuthorized": [
     "merge_main",
