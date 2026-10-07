@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   bounded-backend-lm:
-    if: github.repository == 'mikebuffan/Arbor' && github.head_ref == 'integration/grove-lm-phone-readiness-20261006'
+    if: github.repository == 'mikebuffan/Arbor' && (github.head_ref == 'integration/grove-lm-phone-readiness-20261006' || github.head_ref == 'verification/grove-lm-phone-readiness-ci-20261006')
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     env:
@@ -84,7 +84,7 @@ jobs:
         run: pnpm exec tsc --noEmit
 
   grant-proposals:
-    if: github.repository == 'mikebuffan/Arbor' && github.head_ref == 'integration/grove-lm-phone-readiness-20261006'
+    if: github.repository == 'mikebuffan/Arbor' && (github.head_ref == 'integration/grove-lm-phone-readiness-20261006' || github.head_ref == 'verification/grove-lm-phone-readiness-ci-20261006')
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     env:
@@ -140,7 +140,7 @@ jobs:
           fi
 
   phone:
-    if: github.repository == 'mikebuffan/Arbor' && github.head_ref == 'integration/grove-lm-phone-readiness-20261006'
+    if: github.repository == 'mikebuffan/Arbor' && (github.head_ref == 'integration/grove-lm-phone-readiness-20261006' || github.head_ref == 'verification/grove-lm-phone-readiness-ci-20261006')
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     env:
