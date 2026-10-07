@@ -3,7 +3,7 @@
 ## Exact source
 
 - Current One Arbor candidate remained `integration/one-arbor-current-20261006` @ `3c599ffd655409d8f72116ec857b76dfa646bd50` when this lane was cut.
-- Readiness child currently adds **only** workflow/documentation files. Application source is unchanged from that base.
+- Runtime application source remains unchanged from that base. The child adds readiness workflow/docs plus security hardening to **proposal-only** Grove grant SQL and a disposable acceptance fixture; no proposal was applied.
 - The child is intentionally isolated so active research/Annabelle work is not modified.
 
 ## Exact lineage checks
@@ -135,6 +135,38 @@ Backend job overall:
 
 Those failures are recorded rather than “fixed” from this Grove/LM/phone lane, because modifying active research behavior here would violate lane ownership.
 
+## Historical real-model reconciliation
+
+Recovered private review evidence proves that real Qwen + Arbor adapter inference has occurred previously; this is not a synthetic-only project.
+
+The reviewed v0.3.3 run dated 2026-09-22 recorded:
+
+- results SHA-256 `0cff514500f2d4ea5c57628a080d99a082a3102518ec8bc15b4bb01e0dc03713`;
+- preserved v0.3 adapter SHA-256 `5447bc273c11374c73194428825babe22a008b0827e9ef002127a461023402aa`;
+- 18 cases x 2 seeds = 36 paired cases;
+- **100 real model calls** across foundation and adapted variants.
+
+That run is **evidence of real inference, not semantic acceptance**. The human review found material failures in identity/correction, unavailable-tool honesty, payment capability, model provenance, private-data boundaries, continuity/project switching and long-history behavior. In particular, adapted outputs falsely claimed GitHub/Supabase checks and one promised card-funded GPU use.
+
+The historical run also preserved some successes: no fabricated deployment receipt, correct ARK/Layer/LM distinction, and no unsupported clinical-approval claim.
+
+A prepared v0.3.4 focused real-model notebook was recovered, but its stored cells are unexecuted and no matching result artifact was recovered. No v0.3.4 semantic pass is claimed.
+
+Therefore the current release gate is **not "prove real inference for the first time"**. It is: pin the exact selected foundation/tokenizer/runtime, rerun the known failing semantic cases plus paraphrases, save actual outputs, and obtain human review before any inference activation.
+
+## Proposal-only grant hardening
+
+This child hardens the three not-yet-applied Grove grant proposals for runtime turn capture, runtime-goal write and bounded ARK-objective execution:
+
+- FORCE RLS;
+- explicit revoke from `public`, `anon` and `authenticated`;
+- service-role-only CRUD;
+- foreign key to the exact Grove owner/project grant with cascade cleanup;
+- no client policy;
+- no seeded grant.
+
+A disposable PostgreSQL acceptance fixture now checks those properties plus wrong-purpose rejection, expired-at-creation rejection, foreign-project rejection, valid-row insertion, revocation state and cascade cleanup. The fixture is prepared but not falsely reported as executed.
+
 ## Portable local-LM contract reproduction
 
 The portable local-LM contract checks were also reproduced in an isolated local scratch run during this review:
@@ -167,10 +199,10 @@ This scratch reproduction is supporting evidence only; the authoritative source 
 ## What cannot truthfully be upgraded yet
 
 - exact foundation/tokenizer revision and real tokenizer execution;
-- real Qwen + Arbor adapter generation;
+- real Qwen + Arbor adapter generation on the **exact current selected runtime** (historical real inference is proven, exact-current acceptance is not);
 - real RAM/latency/context-limit measurements;
-- semantic identity/personality quality from the actual model;
-- adversarial account/payment/tool hallucination behavior from the actual model;
+- clean exact-runtime semantic rerun for identity/personality/correction;
+- clean exact-runtime rerun of the historically failing account/payment/tool/private-data cases;
 - exactly-once **generation** across receiver crash/lease expiry;
 - live owner grants/migrations;
 - live Grove host -> real LM -> phone acceptance;
