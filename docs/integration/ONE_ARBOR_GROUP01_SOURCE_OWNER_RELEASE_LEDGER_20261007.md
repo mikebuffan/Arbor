@@ -46,6 +46,8 @@ Existing source files from #340 audited read-only:
 
 Deployment and Vercel project IDs are **observations**, not permissions to promote aliases. Additional attempts may appear after this snapshot.
 
+**Additional read-only log proof (same day):** Vercel build events for sandbox deployment `dpl_5E3nGo82vyd2oVWL9jaifhqPvVxY` explicitly show `Running "node ../../ops/grove/source-only-ignore.mjs"` followed by `The deployment was canceled because the Ignored Build Step command returned exit code 0.` This proves the configured skip command executed correctly **for that sandbox project and #341 branch revision `36ffe15...`**, not for every Vercel project, newer Group 01 commit or public/private release. The current Group 01 branch is independently on the exact-name skip list; no build was found for it on the checked projects. The ARK MCP failed-build event retrieval returned 404, therefore its precise build-error cause remains **UNKNOWN**, not inferred from the sandbox log.
+
 ## 4. Authenticated ARK permission and completion receipts
 
 Fresh App profile readback: access=read-and-submit-read-tasks; canSubmitReadTasks=true; canSubmitBehaviorTests=false; canControlObjectives=false. These are **effective connector capabilities now**, not global host or worker grant. No objective-control invocation is available. Fresh App read-task contract only allows arbor_read_runtime_state, annabelle_read_workspace or arbor_read_historical_archive_page, requires server-owned client/project grant and a UUID requestId reused on retries. Changed payload with the same requestId is rejected by contract.
