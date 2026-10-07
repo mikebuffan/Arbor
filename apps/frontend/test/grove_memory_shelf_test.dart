@@ -8,6 +8,7 @@ Map<String, Object?> memory({
   String? conversation,
   String tier = 'normal',
   bool triggerOnly = false,
+  bool excluded = false,
   String status = 'active',
   Object? value,
   String? deleted,
@@ -22,6 +23,7 @@ Map<String, Object?> memory({
   'status': status,
   'deleted_at': deleted,
   'user_trigger_only': triggerOnly,
+  'excluded_from_memory': excluded,
   'updated_at': '2026-09-21T12:00:00Z',
 };
 
@@ -42,6 +44,21 @@ void main() {
     expect(result.memories.first.text, 'A saved claim, not a source.');
     expect(result.rowsReceived, 7);
     expect(result.possiblyMoreOnServer, isFalse);
+  });
+
+  test('excluded and missing-eligibility claims never reach the shelf', () {
+    final withoutFlag = memory(id: 'eligibility-unknown')
+      ..remove('excluded_from_memory');
+    final result = projectGroveMemoryShelf({
+      'items': [
+        memory(id: 'allowed'),
+        memory(id: 'excluded', excluded: true),
+        withoutFlag,
+        memory(id: 'foreign-excluded', project: 'project-b', excluded: true),
+      ],
+    }, projectId: 'project-a');
+    expect(result.memories.map((item) => item.id), ['allowed']);
+    expect(result.rowsReceived, 4);
   });
 
   test('conversation-scoped memory requires exact current conversation', () {
