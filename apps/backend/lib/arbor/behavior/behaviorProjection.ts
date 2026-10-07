@@ -120,6 +120,8 @@ export function buildArborBehaviorProjection(
     consequentialContext: input.humorPragmatics?.consequentialContext,
     vulnerabilityContext: input.humorPragmatics?.vulnerabilityContext,
     acuteRiskContext: input.humorPragmatics?.acuteRiskContext,
+    evidenceDisputeContext: input.humorPragmatics?.evidenceDisputeContext,
+    directAnswerPriority: input.humorPragmatics?.directAnswerPriority,
     legacyHumorLevel: input.humorPragmatics?.legacyHumorLevel,
     recentAssistantProfanityUses: input.humorPragmatics?.recentAssistantProfanityUses,
   });
