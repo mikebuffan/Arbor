@@ -52,6 +52,15 @@ describe("resumable archive transport preparation",()=>{
   const saveCheckpoint=async(v:ArchiveCheckpoint)=>{checkpoint=v;};await transportResumableArchive({...base,checkpoint,saveCheckpoint});expect(d.writes).toBe(1);
   const result=await transportResumableArchive({...base,checkpoint,saveCheckpoint});expect(result).toMatchObject({transportComplete:true,readingComplete:false,modelCalls:false});expect(d.writes).toBe(2);
  });
+ it("honors STOP after destination write without advancing the durable v2 checkpoint",async()=>{
+  const files=[await file([conversation("a","one","a"),conversation("b","two","b")])],p=await prepareResumableArchive({files,target,maxMessages:1}),d=destination(),controller=new AbortController();let checkpoint:ArchiveCheckpoint|null=null;
+  const transport:VerifiedArchiveTransport={...d.transport,async applyExactBatch(scope,turns){await d.transport.applyExactBatch(scope,turns);controller.abort();}};
+  await expect(transportResumableArchive({files,target,manifest:p.manifest,checkpoint,transport,signal:controller.signal,saveCheckpoint:async(v)=>{checkpoint=v;}})).rejects.toThrow("archive_transport_aborted");
+  expect(d.writes).toBe(1);expect(checkpoint).toBeNull();
+  const recovered=await transportResumableArchive({files,target,manifest:p.manifest,checkpoint,transport:d.transport,saveCheckpoint:async(v)=>{checkpoint=v;}});
+  expect(recovered.nextBatch).toBe(1);expect(d.writes).toBe(1);
+  expect(checkpoint).toMatchObject({schemaVersion:2,nextBatch:1,target,parser:p.manifest.parser,normalizedSha256:p.manifest.normalizedSha256});
+ });
  it("does not advance after a failed write or readback and refuses forged completed coverage",async()=>{
   const files=[await file([conversation()])],p=await prepareResumableArchive({files,target}),d=destination();let saves=0;const saveCheckpoint=async()=>{saves++;};
   await expect(transportResumableArchive({files,target,manifest:p.manifest,checkpoint:null,saveCheckpoint,transport:{...d.transport,applyExactBatch:async()=>{throw Error("offline");}}})).rejects.toThrow("offline");
