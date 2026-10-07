@@ -105,7 +105,12 @@ export async function loadEditorialContext(input: {
     if ((row.source_sha256 && row.source_sha256 !== sourceHash) || (sourceEvidence && !hasSource)) {
       warnings.push(`Record ${String(row.id)} omitted: missing or stale source binding.`); continue;
     }
-    const evidenceCount = Number((row.content as Row | null)?.evidenceCount ?? 0);
+    const content = (row.content as Row | null) ?? {};
+    if (row.record_type === "gold_exemplar" &&
+        (typeof content.invalidatedReason === "string" || content.valid === false || content.status === "invalidated")) {
+      warnings.push(`Record ${String(row.id)} omitted: Gold exemplar is explicitly invalidated.`); continue;
+    }
+    const evidenceCount = Number(content.evidenceCount ?? 0);
     if (row.record_type === "voice_evidence" && row.epistemic_status === "confirmed" &&
         (!Number.isSafeInteger(evidenceCount) || evidenceCount < 2)) {
       warnings.push(`Record ${String(row.id)} omitted: voice confirmation lacks repeated evidence.`); continue;
