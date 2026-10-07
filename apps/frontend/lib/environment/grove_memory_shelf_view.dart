@@ -11,7 +11,10 @@ import 'environment_tokens.dart';
 import 'grove_memory_shelf.dart';
 
 /// One foreground read of the current signed-in project's memory items.
-Future<GroveMemoryShelfSnapshot> readCurrentGroveMemoryShelf() async {
+Future<GroveMemoryShelfSnapshot> readCurrentGroveMemoryShelf() =>
+    readCurrentGroveMemoryShelfPage(null);
+
+Future<GroveMemoryShelfSnapshot> readCurrentGroveMemoryShelfPage(String? after) async {
   final userId = Supabase.instance.client.auth.currentUser?.id;
   if (userId == null) {
     throw const GroveMemoryShelfUnavailable(
@@ -32,6 +35,7 @@ Future<GroveMemoryShelfSnapshot> readCurrentGroveMemoryShelf() async {
     final result = await GroveMemoryShelfReader(api).load(
       projectId: session.projectId,
       conversationId: session.conversationId,
+      after: after,
     );
     final currentUserId = Supabase.instance.client.auth.currentUser?.id;
     final current = await ArborSession.instance.contextFor(userId);
@@ -50,10 +54,11 @@ Future<GroveMemoryShelfSnapshot> readCurrentGroveMemoryShelf() async {
 
 /// Read-only Firefly memory cards, not original evidence documents.
 class GroveMemoryShelfView extends StatefulWidget {
-  const GroveMemoryShelfView({super.key, this.load, this.invalidations});
+  const GroveMemoryShelfView({super.key, this.load, this.loadMore, this.invalidations});
 
   /// Injected only for tests or controlled embedding.
   final Future<GroveMemoryShelfSnapshot> Function()? load;
+  final Future<GroveMemoryShelfSnapshot> Function(String cursor)? loadMore;
   /// Optional scope-change signal for embedder/tests; no personal data carried.
   final Stream<void>? invalidations;
 
@@ -65,6 +70,7 @@ class _GroveMemoryShelfViewState extends State<GroveMemoryShelfView> {
   GroveMemoryShelfSnapshot? _snapshot;
   String? _unavailable;
   bool _loading = true;
+  bool _loadingMore = false;
   int _request = 0;
   int _displayCount = 15;
   StreamSubscription<dynamic>? _authChanges;
@@ -82,6 +88,7 @@ class _GroveMemoryShelfViewState extends State<GroveMemoryShelfView> {
   void didUpdateWidget(GroveMemoryShelfView oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.load != widget.load ||
+        oldWidget.loadMore != widget.loadMore ||
         oldWidget.invalidations != widget.invalidations) {
       _bindInvalidations();
       _refresh();
@@ -116,6 +123,7 @@ class _GroveMemoryShelfViewState extends State<GroveMemoryShelfView> {
     final request = ++_request;
     setState(() {
       _loading = true;
+      _loadingMore = false;
       _snapshot = null; // Never leave a previous project's facts visible.
       _unavailable = null;
       _displayCount = 15;
@@ -138,6 +146,44 @@ class _GroveMemoryShelfViewState extends State<GroveMemoryShelfView> {
       setState(() {
         _unavailable = 'Memory read unavailable. No saved facts were assumed.';
         _loading = false;
+      });
+    }
+  }
+
+  Future<void> _loadNextPage() async {
+    final prior = _snapshot;
+    final cursor = prior?.nextCursor;
+    if (_loading || _loadingMore || prior == null || cursor == null) return;
+    final request = ++_request;
+    setState(() => _loadingMore = true);
+    try {
+      final next = await (widget.loadMore ?? readCurrentGroveMemoryShelfPage)(cursor);
+      if (!mounted || request != _request) return;
+      final seen = prior.memories.map((memory) => memory.id).toSet();
+      if (next.projectId != prior.projectId ||
+          next.conversationId != prior.conversationId ||
+          next.nextCursor == cursor ||
+          next.memories.any((memory) => !seen.add(memory.id))) {
+        throw const GroveMemoryShelfUnavailable(
+            'Memory page changed during retrieval. Refresh the shelf.');
+      }
+      setState(() {
+        _snapshot = GroveMemoryShelfSnapshot(
+          projectId: prior.projectId,
+          conversationId: prior.conversationId,
+          memories: List.unmodifiable([...prior.memories, ...next.memories]),
+          rowsReceived: prior.rowsReceived + next.rowsReceived,
+          possiblyMoreOnServer: next.possiblyMoreOnServer,
+          nextCursor: next.nextCursor,
+        );
+        _loadingMore = false;
+      });
+    } catch (_) {
+      if (!mounted || request != _request) return;
+      setState(() {
+        _snapshot = null; // Fail closed rather than mixing stale/private pages.
+        _loadingMore = false;
+        _unavailable = 'Memory page unavailable. Refresh the shelf.';
       });
     }
   }
@@ -180,7 +226,7 @@ class _GroveMemoryShelfViewState extends State<GroveMemoryShelfView> {
             ),
           if (snapshot != null) ...[
             Text(
-              'Project: ' + snapshot.projectId,
+              'Project: ${snapshot.projectId}',
               key: const ValueKey('grove-memory-project'),
               style: const TextStyle(
                 color: ArborEnvironmentTokens.textMuted,
@@ -205,7 +251,7 @@ class _GroveMemoryShelfViewState extends State<GroveMemoryShelfView> {
               ),
             for (final memory in visible)
               Padding(
-                key: ValueKey('grove-memory-' + memory.id),
+                key: ValueKey('grove-memory-${memory.id}'),
                 padding: const EdgeInsets.symmetric(vertical: 9),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -236,6 +282,14 @@ class _GroveMemoryShelfViewState extends State<GroveMemoryShelfView> {
                   ],
                 ),
               ),
+            if (snapshot.nextCursor != null)
+              TextButton(
+                onPressed: _loadingMore ? null : _loadNextPage,
+                child: const Text('Load more saved memories'),
+              ),
+            if (_loadingMore)
+              const Text('Reading next memory page…',
+                key: ValueKey('grove-memory-more-loading')),
             if (_displayCount < memories.length)
               TextButton(
                 onPressed: () => setState(() => _displayCount += 15),

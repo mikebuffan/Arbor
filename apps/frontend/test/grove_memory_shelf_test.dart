@@ -114,6 +114,41 @@ void main() {
         .memories, isEmpty);
   });
 
+  test('paged shelf verifies project, conversation and opaque continuation', () {
+    final response = {
+      'projectId': 'project-a',
+      'conversationId': 'thread-one',
+      'items': [memory(id: 'first', scope: 'conversation', conversation: 'thread-one')],
+      'nextCursor': 'eyJ2IjoxfQ',
+    };
+    final result = projectGroveMemoryShelf(response,
+        projectId: 'project-a', conversationId: 'thread-one');
+    expect(result.memories.map((item) => item.id), ['first']);
+    expect(result.nextCursor, 'eyJ2IjoxfQ');
+    expect(result.possiblyMoreOnServer, isTrue);
+    expect(result.conversationId, 'thread-one');
+
+    expect(() => projectGroveMemoryShelf(response,
+        projectId: 'project-b', conversationId: 'thread-one'), throwsFormatException);
+    expect(() => projectGroveMemoryShelf(response,
+        projectId: 'project-a', conversationId: 'thread-two'), throwsFormatException);
+    expect(() => projectGroveMemoryShelf({...response, 'nextCursor': 'bad,inject'},
+        projectId: 'project-a', conversationId: 'thread-one'), throwsFormatException);
+  });
+
+  test('terminal page does not claim the 500-row ceiling or another page', () {
+    final response = {
+      'projectId': 'project-a',
+      'conversationId': null,
+      'items': List.generate(100, (i) => memory(id: 'saved-$i')),
+      'nextCursor': null,
+    };
+    final result = projectGroveMemoryShelf(response, projectId: 'project-a');
+    expect(result.memories, hasLength(100));
+    expect(result.possiblyMoreOnServer, isFalse);
+    expect(result.nextCursor, isNull);
+  });
+
   test('500 rows is explicitly marked potentially truncated', () {
     final records = List.generate(
       500, (i) => memory(id: 'memory-$i'),

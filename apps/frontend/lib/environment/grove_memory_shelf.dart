@@ -25,6 +25,8 @@ class GroveMemoryShelfSnapshot {
     required this.memories,
     required this.rowsReceived,
     required this.possiblyMoreOnServer,
+    this.nextCursor,
+    this.conversationId,
   });
 
   final String projectId;
@@ -33,6 +35,8 @@ class GroveMemoryShelfSnapshot {
   /// Existing GET /api/memory/items currently returns at most 500 rows and
   /// has no page cursor. Never call a 500-row response a complete archive.
   final bool possiblyMoreOnServer;
+  final String? nextCursor;
+  final String? conversationId;
 }
 
 class GroveMemoryShelfUnavailable implements Exception {
@@ -49,6 +53,17 @@ GroveMemoryShelfSnapshot projectGroveMemoryShelf(
 }) {
   if (projectId.trim().isEmpty) {
     throw const FormatException('A project must be selected');
+  }
+  final isPagedShelf = response?.containsKey('nextCursor') ?? false;
+  if (isPagedShelf && (response?['projectId'] != projectId ||
+      response?['conversationId'] != conversationId)) {
+    throw const FormatException('Shelf page scope mismatch');
+  }
+  final cursor = response?['nextCursor'];
+  if (isPagedShelf && cursor != null &&
+      (cursor is! String || cursor.isEmpty || cursor.length > 1024 ||
+          !RegExp(r'^[a-zA-Z0-9_-]+$').hasMatch(cursor))) {
+    throw const FormatException('Invalid memory shelf cursor');
   }
   final raw = response?['items'];
   if (raw is! List) {
@@ -98,7 +113,9 @@ GroveMemoryShelfSnapshot projectGroveMemoryShelf(
     projectId: projectId,
     memories: List.unmodifiable(kept),
     rowsReceived: raw.length,
-    possiblyMoreOnServer: raw.length >= 500,
+    possiblyMoreOnServer: isPagedShelf ? cursor != null : raw.length >= 500,
+    nextCursor: isPagedShelf ? cursor as String? : null,
+    conversationId: conversationId,
   );
 }
 
@@ -112,11 +129,23 @@ class GroveMemoryShelfReader {
   Future<GroveMemoryShelfSnapshot> load({
     required String projectId,
     String? conversationId,
+    String? after,
   }) async {
     final response = await api.get(
       '/api/memory/items',
-      queryParameters: {'projectId': projectId},
+      queryParameters: {
+        'view': 'shelf',
+        'projectId': projectId,
+        if (conversationId != null) 'conversationId': conversationId,
+        if (after != null) 'after': after,
+      },
     );
+    if (response == null || !response.containsKey('nextCursor') ||
+        !response.containsKey('projectId') ||
+        !response.containsKey('conversationId')) {
+      throw const GroveMemoryShelfUnavailable(
+        'The memory server does not support scoped shelf pages.');
+    }
     return projectGroveMemoryShelf(
       response,
       projectId: projectId,

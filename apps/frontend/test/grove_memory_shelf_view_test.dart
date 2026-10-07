@@ -7,8 +7,8 @@ import 'package:frontend/environment/grove_memory_shelf_view.dart';
 
 GroveSavedMemory saved(String id) => GroveSavedMemory(
   id: id,
-  key: 'fact.' + id,
-  text: 'Actually saved content ' + id,
+  key: 'fact.$id',
+  text: 'Actually saved content $id',
   scope: 'project',
   updatedAt: DateTime.utc(2026, 9, 21),
 );
@@ -17,22 +17,28 @@ GroveMemoryShelfSnapshot snapshot(
   String project, {
   List<GroveSavedMemory> memories = const [],
   bool partial = false,
+  String? cursor,
+  String? conversationId,
 }) => GroveMemoryShelfSnapshot(
   projectId: project,
   memories: memories,
   rowsReceived: memories.length,
-  possiblyMoreOnServer: partial,
+  possiblyMoreOnServer: partial || cursor != null,
+  nextCursor: cursor,
+  conversationId: conversationId,
 );
 
 Future<void> showShelf(
   WidgetTester tester,
   Future<GroveMemoryShelfSnapshot> Function() loader, {
   Stream<void>? invalidations,
+  Future<GroveMemoryShelfSnapshot> Function(String cursor)? loadMore,
 }) => tester.pumpWidget(MaterialApp(
   home: Scaffold(
     body: SingleChildScrollView(
       child: GroveMemoryShelfView(
         load: loader,
+        loadMore: loadMore,
         invalidations: invalidations,
       ),
     ),
@@ -80,6 +86,59 @@ void main() {
     await tester.pump();
     expect(find.textContaining('SERVER RESULT MAY BE PARTIAL'),
         findsOneWidget);
+  });
+
+  testWidgets('loads another owner-scoped page only on user action', (tester) async {
+    var calls = 0;
+    await showShelf(tester, () async =>
+      snapshot('project-a', memories: [saved('one')], cursor: 'cursor-one'),
+      loadMore: (cursor) async {
+        expect(cursor, 'cursor-one');
+        calls++;
+        return snapshot('project-a', memories: [saved('two')]);
+      });
+    await tester.pump();
+    expect(calls, 0);
+    expect(find.text('Load more saved memories'), findsOneWidget);
+    await tester.tap(find.text('Load more saved memories'));
+    await tester.pump();
+    expect(calls, 1);
+    expect(find.text('Actually saved content one'), findsOneWidget);
+    expect(find.text('Actually saved content two'), findsOneWidget);
+    expect(find.text('Load more saved memories'), findsNothing);
+  });
+
+  testWidgets('a mismatched second page clears all previously visible claims', (tester) async {
+    await showShelf(tester, () async =>
+      snapshot('project-a', memories: [saved('one')], cursor: 'cursor-one'),
+      loadMore: (_) async => snapshot('project-b', memories: [saved('foreign')]));
+    await tester.pump();
+    await tester.tap(find.text('Load more saved memories'));
+    await tester.pump();
+    expect(find.text('Actually saved content one'), findsNothing);
+    expect(find.text('Actually saved content foreign'), findsNothing);
+    expect(find.byKey(const ValueKey('grove-memory-unavailable')), findsOneWidget);
+  });
+
+  testWidgets('stale pending page cannot overwrite refreshed memory scope', (tester) async {
+    final pending = Completer<GroveMemoryShelfSnapshot>();
+    var loads = 0;
+    await showShelf(tester, () async {
+      loads++;
+      if (loads == 1) {
+        return snapshot('project-a', memories: [saved('one')], cursor: 'cursor-one');
+      }
+      return snapshot('project-b', memories: [saved('b')]);
+    }, loadMore: (_) => pending.future);
+    await tester.pump();
+    await tester.tap(find.text('Load more saved memories'));
+    await tester.pump();
+    await tester.tap(find.text('Refresh saved memory'));
+    await tester.pump();
+    pending.complete(snapshot('project-a', memories: [saved('late')]));
+    await tester.pump();
+    expect(find.text('Actually saved content b'), findsOneWidget);
+    expect(find.text('Actually saved content late'), findsNothing);
   });
 
   testWidgets('failed refresh clears prior project data', (tester) async {
