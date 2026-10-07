@@ -5,8 +5,9 @@ export type WitnessCrossCheckRecord={
   relation:"supports"|"contradicts"|"contextualizes";independentOfWitnessSource:boolean;
 };
 export type WitnessClaimCheck={
-  claimId:string;witnessId:string;topicKey:string;supportRefs:readonly string[];counterRefs:readonly string[];
-  contextualRefs:readonly string[];independentSupportFamilies:readonly string[];independentCounterFamilies:readonly string[];
+  claimId:string;witnessId:string;topicKey:string;claimEvidenceRefs:readonly string[];
+  supportRefs:readonly string[];counterRefs:readonly string[];contextualRefs:readonly string[];
+  independentSupportFamilies:readonly string[];independentCounterFamilies:readonly string[];
   checkedKinds:readonly WitnessRecordKind[];status:"cross_check_not_credibility_verdict";
 };
 const req=(v:unknown,k:string,max=1000)=>{if(typeof v!=="string"||!v.trim()||v.length>max)throw Error("invalid_witness_"+k);return v.trim();};
@@ -26,7 +27,7 @@ export function crossCheckWitnessClaims(claims:readonly WitnessClaim[],records:r
   return cs.map(c=>{
     const x=rs.filter(r=>r.claimId===c.claimId),pick=(d:WitnessCrossCheckRecord["relation"])=>x.filter(r=>r.relation===d);
     const s=pick("supports"),k=pick("contradicts"),ctx=pick("contextualizes");
-    return {claimId:c.claimId,witnessId:c.witnessId,topicKey:c.topicKey,
+    return {claimId:c.claimId,witnessId:c.witnessId,topicKey:c.topicKey,claimEvidenceRefs:c.evidenceRefs,
       supportRefs:uniq(s.flatMap(r=>r.evidenceRefs)),counterRefs:uniq(k.flatMap(r=>r.evidenceRefs)),
       contextualRefs:uniq(ctx.flatMap(r=>r.evidenceRefs)),
       independentSupportFamilies:uniq(s.filter(r=>r.independentOfWitnessSource).map(r=>r.sourceFamilyId)),
