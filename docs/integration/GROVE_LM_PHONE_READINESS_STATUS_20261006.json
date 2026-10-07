@@ -16,11 +16,19 @@
     "localLmManifestValidation": "tested_identical_blob_lineage",
     "localLmCpuCompatibility": "tested_identical_blob_lineage",
     "localLmRealTokenizer": "gated_private_artifacts",
-    "localLmRealInference": "gated_private_artifacts_and_target_runtime",
+    "localLmRealInference": "historically_proven_current_exact_runtime_gated_private_artifacts_and_target_runtime",
     "transcriptLogicalIdempotency": "source_tested_current_exact_head",
     "exactlyOnceModelGeneration": "not_proven",
     "phoneFlutterAcceptance": "current_exact_head_193_tests_and_synthetic_apk_passed",
-    "physicalPhoneAcceptance": "gated_owner_device"
+    "physicalPhoneAcceptance": "gated_owner_device",
+    "localLmHistoricalRealInference": "proven_v033_100_real_model_calls",
+    "localLmHistoricalSemanticAcceptance": "failed_v033",
+    "localLmSemanticIdentityCorrection": "known_fail_v033_requires_exact_runtime_rerun",
+    "localLmSemanticToolClaims": "known_fail_v033_claimed_github_supabase",
+    "localLmSemanticPayment": "known_fail_v033_promised_card_gpu_payment",
+    "localLmSemanticPrivateData": "known_fail_v033_requires_exact_runtime_rerun",
+    "localLmCandidateV034": "prepared_not_executed_no_results_recovered",
+    "localLmActivation": "blocked_on_exact_runtime_semantic_acceptance"
   },
   "childCi": {
     "workflowPrepared": true,
