@@ -45,6 +45,7 @@ export function internalCheckpointResponse(input: {
     projectId: input.projectId,
     conversationId: input.conversationId,
     status: "continuing" as const,
+    retryAfterMs: 400 as const,
     assistantText: "",
   };
 }
