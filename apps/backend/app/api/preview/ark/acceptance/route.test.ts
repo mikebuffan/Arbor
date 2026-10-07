@@ -61,7 +61,7 @@ describe("preview ARK acceptance trigger", () => {
   });
 
   it("runs one worker task scoped to the exact configured objective", async () => {
-    mocks.run.mockResolvedValue({ status: "completed", processed: 1 });
+    mocks.run.mockResolvedValue({ status: "completed", claimed: 1, completed: 1, checkpointed: 0, blocked: 0, failed: 0, verifiedObjectives: 1 });
     const response = await POST(request());
     expect(response.status).toBe(200);
     expect(mocks.run).toHaveBeenCalledTimes(1);
@@ -74,7 +74,8 @@ describe("preview ARK acceptance trigger", () => {
       ok: true,
       objectiveId: OBJECTIVE,
       status: "completed",
-      processed: 1,
+      claimed: 1,
+      completed: 1,
     });
   });
 });
