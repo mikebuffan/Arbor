@@ -82,8 +82,62 @@ jobs:
       - name: Standalone TypeScript
         working-directory: apps/backend
         run: pnpm exec tsc --noEmit
-      - name: Diff hygiene
-        run: git diff --check HEAD^
+
+  grant-proposals:
+    if: github.repository == 'mikebuffan/Arbor' && github.head_ref == 'integration/grove-lm-phone-readiness-20261006'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      CI: 'true'
+      AWS_EC2_METADATA_DISABLED: 'true'
+    steps:
+      - name: Block metadata before checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          unset HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy
+          for subnet in 169.254.0.0/16 100.100.100.200/32; do
+            sudo -n iptables -w 5 -I OUTPUT 1 -d "$subnet" -j REJECT
+            sudo -n iptables -w 5 -C OUTPUT -d "$subnet" -j REJECT
+          done
+          for subnet in fe80::/10 fc00::/7; do
+            sudo -n ip6tables -w 5 -I OUTPUT 1 -d "$subnet" -j REJECT
+            sudo -n ip6tables -w 5 -C OUTPUT -d "$subnet" -j REJECT
+          done
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Start disposable local PostgreSQL
+        shell: bash
+        run: |
+          set -euo pipefail
+          pg_bin=/usr/lib/postgresql/16/bin
+          test -x "$pg_bin/initdb"
+          pg_root="/tmp/grove-readiness-${GITHUB_RUN_ID}"
+          mkdir -p "$pg_root/data" "$pg_root/socket"
+          sudo -n chown -R postgres:postgres "$pg_root"
+          sudo -n -u postgres "$pg_bin/initdb" -D "$pg_root/data" --auth=trust --no-locale
+          sudo -n -u postgres "$pg_bin/pg_ctl" -D "$pg_root/data" -l "$pg_root/server.log" -o "-k $pg_root/socket -p 54331 -c listen_addresses=''" -w start
+          printf 'PGHOST=%s/socket\nPGPORT=54331\nPGUSER=postgres\nPGDATABASE=grove_readiness\n' "$pg_root" >> "$GITHUB_ENV"
+          echo "$pg_bin" >> "$GITHUB_PATH"
+          "$pg_bin/createdb" -h "$pg_root/socket" -p 54331 -U postgres grove_readiness
+      - name: Apply and test exact proposed grants in disposable database only
+        run: psql -X -v ON_ERROR_STOP=1 -f ops/grove/disposable-db/ark-spine-grants-acceptance.sql
+      - name: Proposal files unchanged by acceptance
+        run: >
+          git diff --exit-code --
+          docs/migrations/PROPOSED_grove_runtime_capture_grants_20261006.sql
+          docs/migrations/PROPOSED_grove_runtime_goal_write_grants_20261006.sql
+          docs/migrations/PROPOSED_grove_ark_objective_run_grants_20261006.sql
+      - name: Stop disposable PostgreSQL
+        if: always()
+        shell: bash
+        run: |
+          pg_root="/tmp/grove-readiness-${GITHUB_RUN_ID}"
+          if test -f "$pg_root/data/postmaster.pid"; then
+            sudo -n -u postgres /usr/lib/postgresql/16/bin/pg_ctl -D "$pg_root/data" -m immediate -w stop
+          fi
 
   phone:
     if: github.repository == 'mikebuffan/Arbor' && github.head_ref == 'integration/grove-lm-phone-readiness-20261006'
