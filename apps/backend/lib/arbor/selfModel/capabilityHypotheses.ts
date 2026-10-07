@@ -82,8 +82,8 @@ export const ARBOR_CAPABILITY_HYPOTHESES: CapabilityHypothesisRecord[] = [
       "Inspect strategy quality, confidence, stuckness, and evidence-use before changing course.",
     problem:
       "Agency can act without fully modeling why a strategy is failing or when familiarity is being mistaken for evidence.",
-    lifecycleState: "hypothesis",
-    evidenceLevel: "concept",
+    lifecycleState: "bench_proven",
+    evidenceLevel: "bench",
     dependencies: ["agency", "epistemics", "continuity"],
     overlaps: ["adversarial_self_review", "operational_traceability"],
     primitives: ["observe","interpret","model_uncertainty","compare","update_state","verify"],
@@ -116,13 +116,16 @@ export const ARBOR_CAPABILITY_HYPOTHESES: CapabilityHypothesisRecord[] = [
     primitives: ["observe","interpret","compare","model_uncertainty","preserve_provenance"],
     supportingEvidence: [
       "Longitudinal context can disambiguate misspellings and fragmented intent in conversation.",
+      "PR #290 implemented raw-preserving cognitive-access recovery with protected literals, negation/STOP preservation, ambiguity handling, and high-consequence clarification boundaries.",
+      "Dedicated cognitive-access acceptance passed and the implementation passed the combined #305 exact-head backend regression/build/TypeScript acceptance.",
     ],
     counterEvidence: [],
     unknowns: [
-      "How much recovery can be performed safely before clarification becomes necessary.",
+      "Real-user false-interpretation rates remain unknown because live route integration and profiling were intentionally not activated.",
+      "How much recovery can be performed safely before clarification becomes necessary in live use.",
     ],
     nextExperiment:
-      "Build anonymized paired intent-recovery fixtures containing transpositions, omissions, phonetic spelling, fragments, and speech-to-text errors.",
+      "Run a blinded anonymized holdout against the deployed current head, then evaluate false interpretation, clarification rate, protected-literal preservation, and high-consequence behavior before any live enablement.",
     falsifier:
       "Recovery accuracy is not better than ordinary context use or introduces unacceptable false interpretation.",
     risks: ["overconfident reconstruction", "accessibility bias", "silent meaning changes"],
@@ -467,18 +470,23 @@ export const ARBOR_CAPABILITY_HYPOTHESES: CapabilityHypothesisRecord[] = [
       "Produce an auditable external receipt of which state, evidence, correction, permission, action, and result affected an operation.",
     problem:
       "Complex behavior is hard to debug when the system cannot explain the operational inputs and verified effects that mattered.",
-    lifecycleState: "design",
-    evidenceLevel: "source",
+    lifecycleState: "bench_proven",
+    evidenceLevel: "bench",
     dependencies: ["continuity", "authorization", "audit_receipts"],
     overlaps: ["metacognitive_self_monitoring", "model_independent_identity"],
     primitives: ["preserve_provenance","update_state","act","verify","carry_consequence_forward"],
     supportingEvidence: [
       "ARK, agency, research, and continuity already persist partial receipts/checkpoints.",
+      "PR #298 implemented a shared operational receipt envelope as a projection contract without creating a second durable truth store.",
+      "Operational receipt tests and the combined #305 exact-head acceptance passed.",
     ],
     counterEvidence: [],
-    unknowns: ["Best common envelope across subsystems without duplicating private chain-of-thought."],
+    unknowns: [
+      "The best live read-path projection across subsystems still needs deployed verification.",
+      "No new durable operational-receipt store has been authorized or proven necessary.",
+    ],
     nextExperiment:
-      "Define a minimal operational receipt envelope and map existing ARK/agency/research receipts into it.",
+      "Project existing canonical ARK/agency/research receipts into the common envelope in a read-only deployed acceptance path and verify that no duplicate persistence or private reasoning leakage is introduced.",
     falsifier:
       "A common envelope creates more duplication than clarity or exposes sensitive internal reasoning.",
     risks: ["over-logging", "privacy leakage", "schema sprawl"],
