@@ -34,7 +34,10 @@ function candidate(
 
 describe("Pattern Hop -> Evidence Engine -> Roundabout -> ARK composition", () => {
   it("preserves all provenance while chunking the existing Roundabout packet bound", () => {
-    const supportRefs = Array.from({ length: 11 }, (_, i) => "evidence-" + (i + 2));
+    const supportRefs = Array.from(
+      { length: 11 },
+      (_, i) => "evidence-" + (i + 2),
+    );
     const claims: ClaimEvidenceSummary[] = [{
       claimId: "claim-a",
       supportRefs,
@@ -65,22 +68,19 @@ describe("Pattern Hop -> Evidence Engine -> Roundabout -> ARK composition", () =
     expect(result.signal).toBe("contradiction");
     expect(result.evidenceRefs).toHaveLength(15);
     expect(result.roundabout).toHaveLength(2);
-    expect(result.roundabout.every(route =>
-      route.decision === "hold" &&
-      route.reason === "contradiction_hold" &&
-      route.grantsExecution === false &&
-      route.requiresReview === true
+    expect(result.roundabout.every(batch =>
+      batch.route.decision === "hold" &&
+      batch.route.reason === "contradiction_hold" &&
+      batch.route.grantsExecution === false &&
+      batch.route.requiresReview === true &&
+      batch.evidenceRefs.length <= 12
     )).toBe(true);
 
-    const routedRefs = result.roundabout.flatMap(route =>
-      route.signal === "contradiction"
-        ? route.scope && []
-        : []
-    );
-    void routedRefs;
-
-    const packetRefs = result.evidenceRefs;
-    expect(packetRefs).toEqual(
+    const routedRefs = [...new Set(
+      result.roundabout.flatMap(batch => batch.evidenceRefs),
+    )].sort();
+    expect(routedRefs).toEqual(result.evidenceRefs);
+    expect(result.evidenceRefs).toEqual(
       Array.from({ length: 15 }, (_, i) => "evidence-" + i).sort(),
     );
     expect(result.ark).toMatchObject({
@@ -138,7 +138,7 @@ describe("Pattern Hop -> Evidence Engine -> Roundabout -> ARK composition", () =
     });
 
     expect(result.signal).toBe("unresolved_work");
-    expect(result.roundabout[0]).toMatchObject({
+    expect(result.roundabout[0].route).toMatchObject({
       decision: "continue",
       grantsExecution: false,
       learningApplied: false,
