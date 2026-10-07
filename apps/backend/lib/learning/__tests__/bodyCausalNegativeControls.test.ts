@@ -43,6 +43,32 @@ function resultFor(label:"verified_helpful"|"verified_unhelpful",id="synthetic-r
 }
 
 describe("Group 08 causal body/felt routing and reviewed outcome boundaries",()=>{
+ it("bounds Felt-Life hypotheses without inferring invalid or unlimited states",()=>{
+   expect(inferFeltLife({text:"music and sunset",maxHypotheses:0}).hypotheses).toEqual([]);
+   expect(inferFeltLife({text:"music and sunset",maxHypotheses:1}).hypotheses.length).toBeLessThanOrEqual(1);
+   for(const maxHypotheses of [-1, 9, Infinity, NaN, 1.5]){
+     expect(()=>inferFeltLife({text:"music",maxHypotheses}))
+       .toThrow("felt_life_hypothesis_limit_invalid");
+   }
+ });
+ it("keeps STOP ahead of simultaneous overload and unfinished objectives",()=>{
+   const r=bridge("This is too much. Keep it simple. Do not proceed.",true);
+   expect(r.body.digestive.state).toBe("BLOCKED");
+   expect(r.body.executive.nextAction).toBe("respond");
+   expect(r.projected.route).toBe("escalate");
+   expect(r.projected.authorizationGranted).toBe(false);
+   expect(r.body.renal.retain).toContain("Finish the reviewed task");
+ });
+ it("a standalone STOP suppresses continuation, but do-not-stop does not",()=>{
+   const stopped=bridge("STOP!",true);
+   expect(stopped.body.digestive.state).toBe("BLOCKED");
+   expect(stopped.body.executive.nextAction).toBe("respond");
+   expect(stopped.projected.authorizationGranted).toBe(false);
+   const keepGoing=bridge("Do not stop the authorized tests",true);
+   expect(keepGoing.body.digestive.state).not.toBe("BLOCKED");
+   expect(keepGoing.body.executive.nextAction).toBe("continue");
+ });
+
  it("ignores bare substrings and explicit negations while retaining positive felt evidence",()=>{
    expect(inferFeltLife({text:"Update the workflow chart"}).hypotheses.some(x=>x.entryId==="movement-flow")).toBe(false);
    const negated=inferFeltLife({text:"I am not angry; I am annoyed"});
