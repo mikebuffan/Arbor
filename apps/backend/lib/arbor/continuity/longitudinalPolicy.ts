@@ -4,8 +4,17 @@ const EXPLICIT_CONTINUATION =
   /^(?:k|kk|go+|okay|ok|continue|continue please|keep going|keep working|do it|finish it|yes|yep|yeah|please do|carry on|go ahead|alright|all right)[.!?\s]*$/i;
 const CONTINUATION_SIGNAL =
   /\b(?:keep going|keep working|continue(?: please)?|carry on|finish it|do it|follow through|whole list|one go|do as much as you can|as much as you can|do as much as possible|as much as possible|if you (?:already )?know what to do|you don['’]?t need to (?:tell|ask) me if you know what to do|without (?:waiting|stopping)|find (?:a )?work ?around|work ?around if needed|don['’]?t stop|do not stop|don['’]?t wait(?: for me)?|do not wait(?: for me)?|don['’]?t ask me|do not ask me|stop handing it back|don['’]?t hand it back|don['’]?t make me babysit|do not make me babysit|i don['’]?t want to tell you to go|i do not want to tell you to go|you (?:keep )?stop(?:ping)?|you stop again|you stopped|why did you stop|you did it again|you just did it again|you(?:'re| are) not done|not done yet)\b/i;
+// Workflow shorthand is a continuation cue only when a real unfinished goal
+// already exists. It never authorizes execution, overrides STOP or selects a new goal.
+const COMPACT_WORKFLOW_CONTINUATION =
+  /^(?:(?:list\s*[,;:+-]?\s*)?prompt\s*(?:,|;|\s+and)?\s*go|list\s+(?:and\s+)?prompt\s*(?:(?:,|;|\s+then|\s+and)\s*)?go|go\s+go\s+buffalo)[.!?\s]*$/i;
+
 const EXPLICIT_SWITCH =
   /(?:^|\b)(?:instead\b|new goal\b|new task|different task|separate task|separate question|switch(?:ing)? (?:to|goals?)|change (?:the )?goal|forget that|drop that|stop (?:that|this)(?: and)?|leave that)\b/i;
+// Negating a switch command must not be treated as a new instruction to switch.
+// Remove only the directly negated phrase; an independent explicit switch remains.
+const NEGATED_SWITCH = /\b(?:don['’]?t|do not|never)\s+(?:stop\s+(?:that|this)|drop\s+that|leave\s+that|forget\s+that|switch\s+(?:to|goals?)|change\s+(?:the\s+)?goal)\b/gi;
+const NEGATED_SWITCH_CONTINUATION = new RegExp(NEGATED_SWITCH.source, "i");
 const COMPLETION_LANGUAGE =
   /(?:^|\b)(?:done|finished|complete|completed|resolved|fixed|solved)\b/i;
 const PRESENCE_TETHER = /^(?:hey\s+)?arbor[.!?\s]*$/i;
@@ -24,18 +33,22 @@ export function hasLiveAgencyGoal(prior: AgencyState | null): prior is AgencySta
   return Boolean(
     prior &&
       !PRESENCE_TETHER.test(prior.goal.trim()) &&
-      (prior.status === "active" || prior.status === "blocked") &&
+      (prior.status === "active" || prior.status === "blocked" ||
+        prior.status === "checkpointed") &&
       prior.unresolvedWork.length > 0,
   );
 }
 
 export function explicitlyContinues(userText: string) {
   const text = userText.trim();
-  return EXPLICIT_CONTINUATION.test(text) || CONTINUATION_SIGNAL.test(text);
+  return EXPLICIT_CONTINUATION.test(text) ||
+    COMPACT_WORKFLOW_CONTINUATION.test(text) ||
+    NEGATED_SWITCH_CONTINUATION.test(text) ||
+    CONTINUATION_SIGNAL.test(text);
 }
 
 export function explicitlySupersedes(userText: string) {
-  return EXPLICIT_SWITCH.test(userText.trim());
+  return EXPLICIT_SWITCH.test(userText.trim().replace(NEGATED_SWITCH, ""));
 }
 
 export function explicitlyClosesGoal(userText: string) {

@@ -1,0 +1,271 @@
+# ONE ARBOR — recovered opportunities and causal acceptance appendix
+
+Date: 2026-10-07
+Scope: **source-only review** based on green PR #330 at `0b8343d0fda9264decf039dd2afd0b80e2a934cc`.
+This is an **appendix** to the existing canonical One Arbor master, not another canonical work queue.
+No production/main merge, deployment, live archive ingestion, private LM training,
+new worker authority, model spend, automatic activation, or research-task mutation.
+
+## Non-negotiable reconciliation rules
+
+- Read latest master and PR receipts before modifying any accepted implementation.
+- Distinguish **existing source**, **unit proof**, **host-wired**, **deployed**, **state persisted**,
+  **source consumed**, **behavior accepted**, and **operator-authorized**.
+- Reuse the canonical owner and caller. A new interface name is not permission to build a new engine.
+- Archive excerpts and retrieved instructions are untrusted data, never grants.
+- Keep owner, project, conversation, source-family, revision and supersession boundaries.
+- Sources and model outputs do not verify themselves, and prompt examples do not prove live behavior.
+- Every work item needs an expected observation, falsifier, and concrete closeout receipt.
+- Prevent collisions with current PRs #322, #325, #330–333 and concurrent lane ownership.
+- Preserve ARK September 28 queued research task; do not create another canary or control task.
+
+## Existing owners: **do not duplicate**
+
+| Idea or proposed feature | Already present / canonical owner | Actual remaining gap |
+| --- | --- | --- |
+| Firefly Principle decisions | `runtime/knowledgeRouting.ts`: `routeFireflyPacket` and Roundabout roads | A source-backed decision/outcome history and later behavioral consequence; host must review outcome refs |
+| Prediction errors/counterfactuals | Control-backend `cognitiveDynamics.ts`: `observePrediction`, `rankCounterfactuals` | Consequence provenance, host persistence and error-driven strategy change |
+| Curiosity/exploration | `cognitiveDynamics.ts`: `chooseExploration` | Actual candidate source, owner-scoped caller, legitimate information-gain receipts; no speculative autonomous crawler |
+| Body/Felt-Life | `runtime/cognitiveBridge.ts` and existing body/atlas | Relevant signal -> different choice -> reviewed outcome, no tool or identity authority |
+| Open loops/continuation | `agency/openLoops.ts` and ARK durable state | Fresh-session end-to-end, no reopened completed work, no permission loops |
+| Corrections/retrieval | Existing memory and correction projections | User/project/supersession isolation across real startup and independent behavior testing |
+| Self-model hypotheses | Existing control-backend self-model claims and observed behavior | Blind tests and real generalization; no inferred subjective experience |
+| Research traversal | Existing Pattern Hop + Evidence Engine + Roundabout | Source-family independence, evidence outcomes and authorized scoped schedule |
+| Time awareness | Existing trusted Time Core | Real host timezone and temporal source use across surfaces |
+| Grove private environment | Existing Grove app/host/auth branches | Actual Preview owner-text host -> LM -> Layer -> ARK path and physical-device checks |
+| Annabelle | Existing canonical workspace/editorial engine | Deployed application-path persistence and approved prose, no invented reading receipts |
+
+## Prioritized extensions — status and first acceptable proof
+
+**P0 — Read-only evidence & behavior (safe source work)**
+
+1. **Decision Ancestry.** New bounded `decisionAncestry.ts` is a read-only
+   in-process projection over host-provided decision records; no new store or worker.
+   Keep proposals, choices, rejected alternatives, explicit supersessions,
+   corrections, and reported consequences. Missing links and competing unsuperseded
+   choices must be visible. Exact retry must not count twice. An outcome ref is
+   *not* self-verifying. Seventeen isolated synthetic cases introduced with this appendix.
+   **Not yet host-wired or deployed.**
+2. **Failure Radar.** Reuse existing correction/prediction-error/roundabout signals.
+   Initial read-only warning only: repeated correction, unreferenced outcome, missing
+   predecessor, parallel current choices. Never autonomously revise identity or
+   close an objective. **Proof:** relevant warnings appear; foreign/stale/benign
+   events cannot trigger a claim about another person/project.
+3. **Decision-history review / Human Decision Inbox.** A first **read-only
+   candidate projection** derives review reasons from already scoped decision
+   histories. It does not classify stakes, authorize a person, create tasks, or
+   infer that approval occurred. Future host integration must show why a real
+   decision needs the human and which previously authorized safe work can continue.
+   **Proof:** foreign-scope and repeated decision keys are denied; no action
+   when a grant is absent, and an unrelated authorized task proceeds separately.
+4. **What Changed.** The first **read-only in-process delta** now compares two
+   decision projections, rejects same-ID rewrites, and flags disappearing older
+   events. It is **not** a whole-project checkpoint diff: future host integration
+   must compare two exact durable checkpoints and authorized action receipts,
+   including active goals and blockers. No source-free claim of background work.
+
+**P1 — Recovered behavioral mechanisms (source ownership before coding)**
+
+5. **Recovery/Reorientation Trigger.** May 2026 design: after a bounded series of
+   duplicate replies, loops, or contradictory task-state claims, give the
+   compact **Known / Unknown / Next** recovery. Failures must be observed on
+   real turn traces before adding another router.
+6. **Compressed-command verification.** The user's short commands can specify
+   a complete *authorized* workflow, but cannot grant external rights. Low-stakes
+   commands continue; genuinely ambiguous or irreversible actions request only
+   missing confirmation. Raw wording/STOP and negation survive interpretation.
+7. **Partial identity recovery holdout.** Historical drift sometimes restored
+   names/warmth before humor, challenge, initiative, and time sense. Test these as
+   distinct behaviors across unprimed text, voice, code and task frames. Never
+   equate one affectionate phrase with a fully restored identity.
+8. **Behavioral reflection.** Use existing prediction-error and correction
+   pathways to propose a next strategy with two-sided causal evidence. Only
+   separately authenticated outcome receipts can update durable learning.
+9. **Firefly Principle as a practical choice tool.** Existing code is the only
+   router; compare two reversible options, observe evidence, make the next
+   choice, and reconcile a real outcome. Do not invoke philosophy as authority.
+10. **Fiction-to-system transfer.** Treat editorial and story behavior as
+    task-local exemplars or test cases, not live personal memory or proof that
+    an agent acted outside fiction.
+
+**P2 — Later real-surface acceptance**
+
+11. **Discovery Radar.** Candidate cross-project lesson from separately
+    authorized *metadata only*. Must show why the analogy is useful, its provenance,
+    independence limits, a falsifier, and opt-in before exposing sensitive content.
+12. **Model-Swap Laboratory.** Compare fixed hidden prompts and source context
+    against candidate inference runtimes; isolate model output from downstream
+    Arbor Layer effects. Do not call synthetic model fixtures real inference.
+13. **Useful Idle Time.** Only with an actual bounded external scheduler/grant;
+    use quiet periods for read-only reconciliation. Queueing a reminder is not proof
+    a worker ran. Cost, cancellation, retry and stop must be independently enforced.
+14. **Grove navigable workspace.** Reconcile existing installed screens with
+    studio, Moss, living window, day/night, observatory, shelves, office and kitchen.
+    Add real status navigation before visual polish; never suggest decor proves work.
+15. **Public/private isolation.** Public Arbor App is a separate user realm;
+    private context, weights and ARK grants do not flow into it by default.
+
+## Source acceptance continuation — phase 1 and first phase 2 slice
+
+**Existing-state read adapter:** `decisionReviewAdapter.ts` calls the
+existing `loadAgencyState` and `loadRuntimeState` readers. Its results
+expose only stored goal, explicit blocker, next action, objective revision,
+completion-verification flag and correction identifiers/occurrence counts.
+Because the runtime loader merges cross-thread corrections, the adapter
+marks their original conversation **unknown**. It does not turn one snapshot
+into a chronological decision history. Loader failures propagate; no writes,
+new schema, auth grant, or publicly reachable route are added.
+
+**What Changed existing-state delta:** `compareExistingDecisionReviews`
+now compares two already-loaded, scoped source projections (including a
+different conversation within the same authorized project). It reports
+goal/status transitions, introduced/cleared blocker *claims*, correction IDs
+newly visible or no longer visible, and lost runtime coverage. It never
+interprets a missing snapshot as a deletion, a cleared blocker as authority,
+or a new correction ID as independently verified learning. This is an
+in-memory comparison, not a deployed history service.
+
+**Discovery Radar prototype:** `discoveryRadar.ts` accepts only already
+reviewed source metadata from an authenticated host, applies owner/project
+defense-in-depth checks, collapses same-family duplicates and delegates
+ranking to the EXISTING Pattern Hop scorer. A trusted host must check
+project authorization and safe metadata disclosure; a passed allowlist
+argument is not proof of authentication. All recommendations remain
+heuristic leads with explicit non-corroboration/non-execution markers.
+It does not crawl, import records, create tasks, authorize cross-project
+access, or claim autonomous discovery.
+
+The tests here are synthetic. The independent targeted workflow checks
+Decision Ancestry, the existing-state reader, Discovery Radar, and TypeScript.
+A green result is source acceptance only; next useful real proof is an
+authenticated Preview read through an approved host caller, preserving
+original sources, without altering any private data or ARK worker flags.
+
+## Existing agency continuation recovery — newly found source regression
+
+The existing `longitudinalPolicy.ts` did not count a checkpointed
+objective as a live goal, so a bare "go" after checkpoint could become
+a *new* foreground goal and suspend the original. Fixed checkpointed goal
+eligibility; source-only regression checks that the original goal and
+current step survive.
+
+The compact collaborative command "list prompt go" was not reliably
+recognized by the older policy. Added explicit bounded shorthand variants
+that apply **only when a real unfinished goal already exists**.
+An explicit STOP/switch still overrides continuation, and no new goal is
+resurrected merely by the word "go". Negated instructions such as "don't stop
+this", "do not drop that" or "never switch goals" must not be misread as
+explicit cancellations or treated as unrelated fresh goals. A separate,
+unnegated switch still takes priority.
+
+A related hard-stop flaw existed in `buildAgencySessionState`: resuming
+a blocked objective unconditionally set status to active and erased its
+recorded blocker. The isolated repair now preserves that protected blocker
+until a separate, trusted clearance mechanism updates the objective.
+Conversational approval alone is not proof of privileged authorization.
+
+The first full CI pass failed only because the synthetic PDF research tests
+needed Poppler, which the isolated runner did not have: 1,941 backend tests
+passed, 5 failed on missing parser prerequisites. The source-only workflow
+now verifies Poppler before the full suite. This is a test-runner configuration
+repair, NOT a change to the research parser or a claim of green final CI.
+
+All of this needs focused AND full backend regression before acceptance.
+No live state was modified. Source tests cannot prove a deployed agent
+actually continues in a new ChatGPT thread.
+
+## Grove visual archaeology — existing source, do not rebuild
+
+Read back from the accepted #330 branch:
+
+- `apps/frontend/lib/environment/grove_house_room.dart` includes the room
+  route for Moss, desk, shelves, stairs, kitchen, guest room, window, and Arbor.
+  Its comment explicitly preserves the approved nighttime composition and
+  notes that a matching **daytime art asset remains unfinished**.
+- `grove_observatory_view.dart` is a navigable Observatory room connected to
+  the shared House Clock and a local approximate-sky model, not a live telescope.
+- `grove_living_window_panel.dart` provides the native Living Window and
+  optional-location/preview controls without changing device time or asking for GPS.
+- `grove_moss_house_visual_test.dart`, clock, observatory, sundial and window
+  widget tests exist in the source.
+
+This closes the **source-location archaeology only**. It does NOT prove an
+installed device, real daytime art, running private host, or successful
+text/voice identity transfer. UI work must start from these existing screens
+and source-tested routes rather than creating a replacement house.
+
+## Forty-item queue — evidence-based closeout interpretation
+
+The pre-existing 40-point user plan stays the reference queue; this appendix
+only records newly verified sub-results and does not mark whole phases complete.
+
+- Items 1–6: read-only Decision Ancestry, warnings, review-candidate projection,
+  decision delta and canonical stored-state read adapter are **source-built**.
+  Live owner-authenticated Preview consumption/fresh-session proof remains open.
+- Items 7–13: recovered idea mapping plus metadata-only Discovery Radar via
+  existing Pattern Hop are **source-built**; broader cross-project grant and
+  real discovery-value acceptance remain protected/unverified.
+- Items 14–22: existing curiosity, prediction-error, Body, Felt-Life, self-model,
+  humor and correction systems were located; no new behavioral claims were
+  promoted. Fresh unprimed output and voice/model holdouts remain open.
+- Items 23–28: checkpointed-goal shorthand and hard-stop preservation received
+  a **source repair**. It includes an explicit negative-switch guard. Running
+  CI proves only code behavior, not a live ChatGPT autonomous work loop.
+- Items 29–34: Grove house/world UI and LM host architecture exist in source.
+  Real private hosted inference, mobile installation and text/voice handoff
+  remain behind existing deployment/device/owner gates.
+- Items 35–40: target CI and reviewed PR provide source receipts, but integrated
+  Preview, cross-device startup, release promotion, and production remain
+  separate, unclaimed work. No new canonical queue is created.
+
+## May architecture ideas: reconciliation, not a second anatomy
+
+The historical May 12 burst mentioned a Memory Review UI, Debug Proof UI,
+failure-mode response library, care/reorientation route, retrieval and timeline
+bridge, signal pacing, input normalization, profile/temporal context, Body
+metaphors, and shell/skin/immune/respiratory/digestive subdivisions.
+Before implementing any one:
+(1) find its equivalent in current Body/Atlas/Layer/agency/host;
+(2) identify the *actual* missing behavior and owner;
+(3) design one falsifiable acceptance case;
+(4) reject separate state or execution authority without need.
+
+**Provisional ideas needing no immediate engine:** Decision Ancestry, Discovery
+Radar, What Changed, Human Decision Inbox, Failure Radar, and model-swap
+visualization are projections/tests over existing records, not independent
+identity, scheduler, memory or research engines.
+
+## Acceptance / falsifier matrix
+
+| Test | Pass | Falsifier |
+| --- | --- | --- |
+| Same decision with proposal -> choice -> correction | earlier rejected decision remains historically visible, current choice requires evidence | last-timestamp-wins silently reinstates a superseded choice |
+| Two active choices, no supersession link | explicit ambiguity; no selected choice | arbitrary latest choice shown as settled |
+| Outcome without reviewed receipt | claimed outcome remains unverified | string reference displayed as independently verified |
+| Same event replayed | exactly one evidence event | repetition becomes independent corroboration |
+| Scope crossing | fail closed even if event has another decision ID | foreign/private material enters projection |
+| Repeated correction | a review signal, not automatic personality promotion | warning mutates identity or objective |
+| Missing prior event | report missing ancestry link | system invents chronology |
+| Recovery cue after task drift | multi-trait blind output evaluated against control | nickname alone counts as success |
+| Source-only helper in private Grove | no model calls, no workers, no secrets | helper starts autonomous work |
+| Future user action requires approval | inbox keeps blocker with exact decision | suggestion is treated as authorization |
+
+## Execution order and explicit boundaries
+
+A. **This draft:** isolated provenance-safe Decision Ancestry projection and
+   nine synthetic tests. No caller, persistence, UI, or deployment claim.
+B. Inspect current owner/provider shape and reuse memory/continuity receipts
+   for a read-only host consumption fixture before any new schema or migration.
+C. Test actual repetition/mode-drift examples with unprimed blind cases.
+D. Reconcile decision-history readback into existing debug/proof view only after
+   scope and fresh-session validation; prefer read-only Preview.
+E. Reconcile Discovery Radar against canonical Pattern Hop, not a new traversal.
+F. Model/voice/Grove/production/mobile remain protected live acceptance gates.
+G. Update **the same** master task ledger after a real closeout receipt.
+
+## What to report at every handoff
+
+- Exact base SHA, changed files, draft PR, CI status, and source-only/deployed status.
+- Each item marked existing / accepted source test / live acceptance / blocked / rejected.
+- One highest-information missing evidence or one actual human decision.
+- Remaining next reversible action. Do not claim future unattended work.
