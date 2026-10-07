@@ -1,12 +1,16 @@
 import { NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase/admin";
-import { runDefaultArkWorkerCycle } from "@/lib/ark/defaultWorker";
-import { RouteAccessError, requireMachineAuthorization, routeErrorResponse } from "@/lib/auth/routeAuthorization";
+import {
+  RouteAccessError,
+  requireMachineAuthorization,
+  routeErrorResponse,
+} from "@/lib/auth/routeAuthorization";
+import { runPreviewArkAcceptanceCycle } from "@/lib/ark/previewAcceptance";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function requirePreviewAcceptanceGate(req: Request): string {
   if (process.env.VERCEL_ENV !== "preview") {
@@ -15,6 +19,7 @@ function requirePreviewAcceptanceGate(req: Request): string {
   if (process.env.ARBOR_ENABLE_ARK_PREVIEW_ACCEPTANCE !== "true") {
     throw new RouteAccessError(404, "preview_acceptance_disabled");
   }
+
   // Reuse the existing machine-auth boundary. Preview-only routing and the
   // dedicated flag narrow availability; they do not make objective IDs into secrets.
   requireMachineAuthorization(req);
@@ -35,13 +40,7 @@ function requirePreviewAcceptanceGate(req: Request): string {
 export async function POST(req: Request) {
   try {
     const objectiveId = requirePreviewAcceptanceGate(req);
-    const result = await runDefaultArkWorkerCycle({
-      supabase: supabaseAdmin(),
-      workerId: `preview-acceptance:${crypto.randomUUID()}`,
-      objectiveId,
-      maxTasks: 1,
-      maxRuntimeMs: 20_000,
-    });
+    const result = await runPreviewArkAcceptanceCycle(objectiveId);
 
     return NextResponse.json({
       ok: true,
