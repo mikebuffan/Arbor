@@ -276,7 +276,7 @@ function literalControl(
   }
 
   if (/^(?:stop|stop now)[.!?]*$/.test(text)) return "stop";
-  if (/^(?:cancel|cancel it)[.!?]*$/.test(text)) return "cancel";
+  if (/^cancel[.!?]*$/.test(text)) return "cancel";
 
   return null;
 }
@@ -346,6 +346,7 @@ function classifyTurn(text: string): ContextualTurnKind {
 
   if (
     asksForOther(text) ||
+    /^(?:cancel it|stop it|do it)[.!?]*$/i.test(normalize(text)) ||
     /\b(?:that one|this one|that|this|not that|the one before|go back)\b/i.test(
       normalize(text),
     )
