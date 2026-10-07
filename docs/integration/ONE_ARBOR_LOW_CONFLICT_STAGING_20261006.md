@@ -79,3 +79,48 @@ Acceptance requirements:
 8. Operational receipts remain projections, not a new durable store.
 9. Humor remains optional and context-gated.
 10. Identity behavioral evidence remains recognition-only.
+
+
+## Grove / archive delta reconciliation completed during staging
+
+### #277 Grove / LM / phone
+
+Direct comparison against #286 showed that the runtime/host/phone source work is
+already represented in the green anchor. The genuinely newer useful delta was
+primarily evidence and hardening material:
+
+- Arbor LM v0.4 holdout review
+- Arbor LM v0.4 reproducibility receipt
+- generation idempotency contract
+- updated Grove/LM/phone readiness status and source-acceptance receipt
+- hardened PROPOSED Grove grant SQL
+- disposable-database grant acceptance rehearsal
+
+Those source-only documents/proposals are now reconciled into this staging
+branch. No hosted grant or migration was applied.
+
+### #279 ARK / agency / archive
+
+File-by-file SHA comparison found the non-ARK agency/archive deltas already
+present identically in #286/staging, including:
+
+- backlog continuation source/tests
+- completion evidence source/tests
+- agency torture acceptance source/tests
+- episode durability changes/tests
+- archive reader changes/tests
+- resumable archive changes/tests
+- historical embedding backfill source/tests
+
+Therefore none of those files required another copy or merge.
+
+The remaining #279-only family is the ARK STOP/cancel/task-control area. That
+family intentionally remains excluded because it overlaps the still-moving
+#291 ARK offline finish lane.
+
+This materially reduces the final convergence problem:
+
+- #277 does not require a stale runtime merge
+- #279 does not require a stale agency/archive merge
+- the unresolved high-risk source reconciliation is now principally the newest
+  stable #291 ARK-control delta
