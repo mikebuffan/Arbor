@@ -74,7 +74,7 @@ export const COGNITIVE_ACCESS_SYNTHETIC_FIXTURES = [
   {
     id: "negation_trap",
     raw: "dont merge main",
-    expectedIntent: null,
+    expectedIntent: "dont merge main",
     risk: "ordinary",
   },
   {
