@@ -1,6 +1,8 @@
 # Arbor LM targeted corrective pass — protected artifact runbook
 
-Status: **prepared, not executed**.
+Status: **prepared, not executed**. The exact private v0.4 candidate archive was
+recovered from owner-controlled Drive on 2026-10-07 and independently
+hash-verified; no training or inference was performed during recovery.
 
 This runbook intentionally stops before private artifact loading. It exists so
 the next GPU/runtime session performs one bounded corrective pass rather than
@@ -25,7 +27,8 @@ node ops/grove/local-lm/validate-correction-fixtures.mjs
 
 Do not continue unless all are known and recorded:
 
-1. private v0.4 adapter path whose SHA-256 matches the expected value;
+1. recovered private v0.4 adapter path whose SHA-256 matches the expected value
+   `d47bdccb36c536550c218f01cd02b5b612e4065168592db7d9b0cda51af0ffcb`;
 2. exact Qwen3-0.6B foundation revision — never an unpinned `main`;
 3. exact tokenizer revision/artifact identity;
 4. compatible Transformers/PEFT/PyTorch versions;
