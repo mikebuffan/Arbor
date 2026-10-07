@@ -245,6 +245,25 @@ The focused suite explicitly covers:
 - text and Voice preserve the same humor decision,
 - Voice does not become a performer.
 
+## Acceptance note: unrelated TypeScript blocker
+
+Full backend regression is green with the runner dependencies installed.
+
+A standalone full-project `tsc --noEmit` currently reports one error in:
+`apps/backend/lib/arbor/annabelle/manuscriptRepetition.ts`
+
+The error is a pre-existing/parallel-work type widening:
+`classification: string` is not assignable to the declared
+`"review" | "motif-candidate" | "high-risk"` union.
+
+This humor branch does not modify that Annabelle source file. It is intentionally
+left to the active Annabelle workstream rather than creating a cross-thread edit.
+
+The isolated humor acceptance workflow therefore:
+1. records the full-project TypeScript result,
+2. hard-fails if any TypeScript error exists outside that exact Annabelle blocker,
+3. continues to the production backend build.
+
 ## What unit tests can and cannot prove
 
 **Unit tests can prove routing, suppression gates, ownership, correction precedence, text/Voice decision parity, legacy-switch removal, fixture completeness, and structural protection of exact facts/state.**
