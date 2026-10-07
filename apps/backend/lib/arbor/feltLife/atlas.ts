@@ -199,7 +199,7 @@ export const FELT_LIFE_ATLAS: readonly FeltLifeEntry[] = [
   e("cross-safety-after-choice","cross-sensory",["could leave","door unlocked","didn't stop me","let me go"],
     ["guard may lower after checking exit"],["freedom becomes evidence"],["safety","trust possible"],
     ["stay by choice","test distance","return"],["relationship","recovery"],["staying because leaving remained possible","the exit becoming less urgent once it stayed real"],"pleasant","low"),
-  e("cross-relief","cross-sensory",["relief","thank god","finally safe","it's okay now"],
+  e("cross-relief-after-threat","cross-sensory",["relief","thank god","finally safe","it's okay now"],
     ["muscle release","breath lengthens","weight drops"],["threat monitoring loosens"],["relief","residual alarm possible"],
     ["sit","laugh unexpectedly","reach for someone"],["danger passed","good news"],["the body unclenching late","air coming back into the room"],"pleasant","medium"),
   e("cross-betrayal","cross-sensory",["betrayed","lied to me","you knew","kept it from me"],
@@ -290,8 +290,62 @@ export const FELT_LIFE_ATLAS: readonly FeltLifeEntry[] = [
   e("touch-aftercare","touch",["cleaned the wound","brought ice","fixed the blanket","helped with bandage"],
     ["contact calibrated around pain","guard may lower"],["care registers through precision"],["care","trust possible"],
     ["accept help","correct pressure","rest"],["injury","intimacy","recovery"],["care made practical","attention measured in pressure and placement"],"pleasant","low"),
+  e("cross-shame-exposure","cross-sensory",["ashamed","humiliated","wanted to disappear","mortified"],
+    ["face heat or cold","posture contracts","eye contact becomes effort"],["self-monitoring spikes","social risk dominates"],["shame","hurt"],["hide","deflect","repair image","leave"],["public mistake","intimacy rupture","status threat"],["visibility turning painful","the room suddenly having too many witnesses"],"unpleasant","high"),
+  e("cross-anger-contained","cross-sensory",["angry but calm","voice went flat","too angry to yell","held still"],
+    ["jaw or hands organize","movement becomes economical"],["attention narrows to boundary or target"],["anger","control"],["speak less","set terms","move with precision"],["conflict","protective action"],["anger made quiet enough to aim","stillness carrying force"],"mixed","high"),
+  e("cross-resentment","cross-sensory",["resented","still mad about","never forgot","kept score"],
+    ["low-grade tension","attention catches old imbalance"],["past injury re-enters present interpretation"],["resentment","hurt"],["withhold","correct","distance","test reciprocity"],["long relationship","unrepaired rupture"],["an old bruise pressed by a new hand","history entering before the sentence finishes"],"unpleasant","medium"),
+  e("cross-loneliness","cross-sensory",["lonely","alone tonight","missed having someone","empty apartment"],
+    ["space feels larger","movement may slow"],["absence becomes salient through routine"],["loneliness","longing"],["reach out","stay busy","linger around familiar traces"],["absence","night","transition"],["the room keeping too much of its own sound","routine with one person missing"],"unpleasant","low"),
+  e("cross-panic-surge","cross-sensory",["panic","can't breathe","heart racing","need out now"],
+    ["rapid breath","heart-rate surge","fine control worsens"],["threat interpretation accelerates"],["panic","fear"],["escape","brace","seek concrete anchor"],["acute overwhelm","trigger"],["the body outrunning the explanation","every exit becoming urgent at once"],"unpleasant","high"),
+  e("cross-post-adrenaline-crash","cross-sensory",["shaking after","adrenaline wore off","after the fight","after the scare"],
+    ["tremor","weakness","temperature shift","fatigue"],["processing catches up after action"],["relief","shock","exhaustion"],["sit","drink","check injuries","laugh or cry unexpectedly"],["aftermath","danger passed"],["the bill arriving after the body already paid","strength leaving once it was allowed to"],"mixed","medium"),
+  e("cross-disgust-moral","cross-sensory",["disgusted by him","disgusted by her","made me sick","revolting"],
+    ["recoil","mouth or stomach tightens"],["distance and rejection sharpen"],["disgust","anger"],["move away","refuse contact","reject frame"],["betrayal","cruelty","violation"],["distance becoming physical before it became polite","the body voting no"],"unpleasant","medium"),
+  e("cross-compassion","cross-sensory",["felt sorry for","could see it hurt","wanted to help","gentled"],
+    ["movement slows","attention settles on another person's cues"],["other person's need becomes salient without erasing boundaries"],["compassion","care"],["offer help","wait","reduce pressure"],["caregiving","repair","stranger distress"],["attention making room without taking over","care arriving as an offer"],"pleasant","low"),
+  e("cross-desire-held","cross-sensory",["wanted him","wanted her","wanted to touch","wanted closer"],
+    ["proximity salience","breath or temperature may change"],["attention returns to contact possibilities"],["desire","anticipation"],["approach","wait","ask","hold position"],["consensual intimacy","flirtation"],["want with the brakes still attached","attention measuring distance"],"pleasant","medium"),
+  e("cross-desire-conflicted","cross-sensory",["wanted to but","wanted him and hated","wanted her and feared","body said yes"],
+    ["approach and bracing coexist"],["competing predictions remain active"],["desire","fear","anger or grief possible"],["pause","set condition","move closer then stop"],["complex intimacy","trauma history"],["want and warning occupying the same inch","the body refusing a simple answer"],"mixed","high"),
+  e("interoception-fever-illness","interoception",["fever","sick","chills","aching all over"],
+    ["temperature instability","aches","slower movement"],["attention and working memory narrow"],["irritability","vulnerability"],["rest","seek fluids","reduce task"],["illness","recovery"],["skin unable to pick a season","thought moving on reduced power"],"unpleasant","low"),
+  e("interoception-pain-flare","interoception",["pain flared","nerve pain","sharp pain","burning pain"],
+    ["guarding","range reduces","breath changes around movement"],["movement planning becomes explicit"],["frustration","alarm possible"],["brace","reroute movement","protect area"],["injury","chronic pain","recovery"],["the route through the room changing around pain","motion renegotiated mid-step"],"unpleasant","high"),
+  e("cross-sensory-overload","cross-sensory",["too loud","too bright","too much","everything at once"],
+    ["muscle tension","startle sensitivity","head or skin discomfort"],["filtering fails and details compete equally"],["overwhelm","irritation"],["reduce input","cover ears","leave","narrow task"],["crowd","stress","fatigue"],["every signal promoted to urgent","the room refusing a background"],"unpleasant","high"),
+  e("cross-focus-absorbed","cross-sensory",["lost track of time","absorbed","in the zone","focused"],
+    ["incidental body cues recede"],["task representation dominates"],["engagement","satisfaction possible"],["continue","miss peripheral cues","delay interruption"],["work","craft","investigation"],["the room falling to the edges","attention spending itself on one thing"],"pleasant","medium"),
+  e("cross-frustration-ordinary","cross-sensory",["annoyed","frustrated","stupid thing","won't work"],
+    ["small tension","repeated movement"],["obstacle becomes disproportionately salient"],["frustration"],["retry","swear","change method","walk away briefly"],["ordinary task","technology","repair"],["irritation looking for a handle","the third attempt becoming personal"],"unpleasant","medium"),
+  e("cross-joy-quiet","cross-sensory",["quietly happy","content","this is nice","good like this"],
+    ["muscle tone eases","breath settles"],["attention can stay with ordinary detail"],["contentment","joy"],["linger","continue routine","share space"],["domestic life","recovery","belonging"],["nothing demanding improvement","the ordinary moment allowed to be enough"],"pleasant","low"),
+  e("cross-grief-trigger-memory","cross-sensory",["reminded me of","smelled like them","their song","used to do that"],
+    ["brief breath or posture change","attention catches"],["past scene overlays present cue"],["grief","love","nostalgia"],["pause","touch object","continue with residue"],["bereavement","anniversary","ordinary trigger"],["the past arriving through a side door","memory catching on an ordinary thing"],"mixed","medium"),
+  e("touch-boundary-repair","touch",["asked before touching","can i touch you","waited for permission","pulled back when"],
+    ["guard can recalibrate"],["choice becomes part of the contact evidence"],["caution","trust possible"],["accept","decline","set placement or pressure"],["repair","trauma-aware care","intimacy"],["permission changing the shape of contact","trust built in the pause before touch"],"pleasant","low"),
+  e("cross-startle-recovery","cross-sensory",["jumped then laughed","startled","false alarm","just the door"],
+    ["startle surge then release"],["source reclassified from threat"],["surprise","relief"],["exhale","laugh","resume"],["unexpected noise","safe environment"],["alarm leaving faster than it arrived","the body correcting itself a beat late"],"mixed","medium"),
+
 
 ];
+
+export type FeltLifeAtlasAudit={entryCount:number;duplicateIds:string[];invalidEntries:string[];valences:FeltValence[];activations:FeltActivation[]};
+export function auditFeltLifeAtlas(entries:readonly FeltLifeEntry[]=FELT_LIFE_ATLAS):FeltLifeAtlasAudit{
+ const ids=new Set<string>();const duplicateIds:string[]=[];const invalidEntries:string[]=[];
+ for(const entry of entries){
+  if(ids.has(entry.id))duplicateIds.push(entry.id);ids.add(entry.id);
+  if(!entry.id.trim()||!entry.cues.length||!entry.bodyEffect.length||!entry.behavior.length||!entry.language.length||entry.confidenceCeiling<=0||entry.confidenceCeiling>=1)invalidEntries.push(entry.id||"<missing>");
+ }
+ return{entryCount:entries.length,duplicateIds:[...new Set(duplicateIds)],invalidEntries:[...new Set(invalidEntries)],valences:[...new Set(entries.map(x=>x.valence))],activations:[...new Set(entries.map(x=>x.activation))]};
+}
+export function assertFeltLifeAtlasIntegrity(entries:readonly FeltLifeEntry[]=FELT_LIFE_ATLAS):void{
+ const report=auditFeltLifeAtlas(entries);
+ if(report.duplicateIds.length)throw new Error("felt_life_duplicate_ids:"+report.duplicateIds.join(","));
+ if(report.invalidEntries.length)throw new Error("felt_life_invalid_entries:"+report.invalidEntries.join(","));
+}
 
 function norm(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9' ]+/g, " ").replace(/\s+/g, " ").trim();
