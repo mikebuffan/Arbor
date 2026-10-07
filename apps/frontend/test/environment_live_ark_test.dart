@@ -69,6 +69,24 @@ void main() {
     expect(find.text('DEMO'), findsNothing);
   });
 
+  testWidgets('cancelled ARK objective is labeled CANCELLED, not failed or complete', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: ArborEnvironmentShell(
+          objective: EnvironmentObjectiveView(
+            title: 'Stopped objective',
+            state: EnvironmentRunState.cancelled,
+          ),
+          runtimeSource: 'ARK • READ ONLY',
+        ),
+      ),
+    );
+
+    expect(find.text('CANCELLED'), findsOneWidget);
+    expect(find.text('FAILED'), findsNothing);
+    expect(find.text('COMPLETE'), findsNothing);
+  });
+
   testWidgets('blocked ARK objective is not labeled complete', (tester) async {
     await tester.pumpWidget(
       const MaterialApp(
