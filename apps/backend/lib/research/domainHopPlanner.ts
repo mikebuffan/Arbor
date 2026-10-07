@@ -56,7 +56,8 @@ export function planDomainResearchHops(input:{
   for(const w of input.witnessChecks??[]){
     if(w.independentSupportFamilies.length===0&&w.independentCounterFamilies.length===0)
       add("cross_check_witness",w.claimId,w.topicKey+" phone calendar travel payment message independent witness",
-        "witness_claim_lacks_independent_cross_check",.86,[...w.supportRefs,...w.counterRefs,...w.contextualRefs]);
+        "witness_claim_lacks_independent_cross_check",.86,
+        [...w.claimEvidenceRefs,...w.supportRefs,...w.counterRefs,...w.contextualRefs]);
   }
 
   const channelPriority:Record<EvidenceChannel,number>={
@@ -64,7 +65,7 @@ export function planDomainResearchHops(input:{
   };
   for(const row of input.coverage??[])for(const channel of row.openChannels)
     add("fill_coverage",row.eventKey+":"+channel,row.eventKey+" "+channel+" source record",
-      "event_channel_not_fully_checked",channelPriority[channel],[row.eventKey]);
+      "event_channel_not_fully_checked",channelPriority[channel],row.evidenceRefs);
 
   for(const s of input.sourcePreferences??[])if(s.reviewAction==="seek_original")
     add("seek_original_source",s.evidenceRef,s.evidenceRef+" original record exhibit scan ledger log transcript",
