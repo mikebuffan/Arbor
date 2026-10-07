@@ -686,6 +686,106 @@ describe("contextual reference resolution", () => {
     expect(decision.reasons).toContain("reference_has_no_supported_target");
   });
 
+  it("protects an explicit file name from silent file substitution", () => {
+    const decision = resolveContextualReference({
+      rawText: "use buildPromptContext.ts",
+      risk: "ordinary",
+      candidates: [
+        candidate({
+          id: "other-file",
+          label: "behaviorProjection.ts",
+          type: "file",
+          evidenceSources: ["recent_arbor_turn"],
+        }),
+      ],
+    });
+
+    expect(decision.action).toBe("use_literal");
+    expect(decision.protectedLiterals).toContain("buildPromptContext.ts");
+  });
+
+  it("protects an explicit commit hash from silent commit substitution", () => {
+    const decision = resolveContextualReference({
+      rawText: "use 65be4dc3ac59997d6bb0ee800648293b45932b6e",
+      risk: "ordinary",
+      candidates: [
+        candidate({
+          id: "other-sha",
+          label: "09d182901b71028770bfe3ee935ccc7295988bfc",
+          type: "result",
+          evidenceSources: ["recent_arbor_turn"],
+        }),
+      ],
+    });
+
+    expect(decision.action).toBe("use_literal");
+    expect(decision.protectedLiterals).toContain(
+      "65be4dc3ac59997d6bb0ee800648293b45932b6e",
+    );
+  });
+
+  it("protects an inline command literal from silent command substitution", () => {
+    const decision = resolveContextualReference({
+      rawText: "run `pnpm test`",
+      risk: "ordinary",
+      candidates: [
+        candidate({
+          id: "other-command",
+          label: "`pnpm build`",
+          type: "action",
+          evidenceSources: ["recent_arbor_turn"],
+        }),
+      ],
+    });
+
+    expect(decision.action).toBe("use_literal");
+    expect(decision.protectedLiterals).toContain("`pnpm test`");
+  });
+
+  it("lets a current correction beat a prior mistaken 'not that' referent", () => {
+    const decision = resolveContextualReference({
+      rawText: "not that",
+      risk: "ordinary",
+      candidates: [
+        candidate({
+          id: "wrong",
+          label: "previously chosen option",
+          type: "option",
+          confidence: 0.99,
+          evidenceSources: ["recent_arbor_turn"],
+        }),
+        candidate({
+          id: "corrected",
+          label: "corrected current option",
+          type: "option",
+          confidence: 0.8,
+          evidenceSources: ["current_correction"],
+        }),
+      ],
+    });
+
+    expect(decision.action).toBe("resolved");
+    expect(decision.resolvedReferent?.id).toBe("corrected");
+  });
+
+  it("can resolve 'go back' to one current conversation location", () => {
+    const decision = resolveContextualReference({
+      rawText: "go back",
+      risk: "ordinary",
+      candidates: [
+        candidate({
+          id: "prior-point",
+          label: "the immediately prior conversation point",
+          type: "conversation_location",
+          evidenceSources: ["recent_user_turn"],
+        }),
+      ],
+    });
+
+    expect(decision.action).toBe("resolved");
+    expect(decision.resolvedReferent?.id).toBe("prior-point");
+  });
+
   it("builds a bounded receipt without hidden rationale or state mutation authority", () => {
     const decision = resolveContextualReference({
       rawText: "that one",
