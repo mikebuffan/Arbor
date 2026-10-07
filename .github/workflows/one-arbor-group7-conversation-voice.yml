@@ -50,10 +50,13 @@ jobs:
           lib/arbor/runtime/__tests__/corrections.test.ts
           lib/arbor/pragmatics/__tests__/humorPolicy.test.ts
           lib/arbor/behavior/behaviorProjection.test.ts
+          lib/arbor/behavior/__tests__/group07ConversationSurface.test.ts
           lib/arbor/voice/__tests__/acousticProjection.test.ts
           lib/arbor/voice/__tests__/canonicalTurn.test.ts
           lib/arbor/voice/__tests__/identity.test.ts
           lib/arbor/voice/__tests__/speechPipeline.test.ts
+      - name: Offline blind-evaluation harness contract (no provider inference)
+        run: node --test scripts/behavior-acceptance.test.mjs
       - name: Backend typecheck
         working-directory: apps/backend
         run: pnpm exec tsc --noEmit
