@@ -11,7 +11,10 @@ on:
       - 'apps/backend/lib/arbor/runtime/decisionReviewAdapter.ts'
       - 'apps/backend/lib/arbor/runtime/__tests__/decisionReviewAdapter.test.ts'
       - 'apps/backend/lib/arbor/runtime/discoveryRadar.ts'
-      - 'apps/backend/lib/arbor/runtime/__tests__/discoveryRadar.test.ts'
+      - 'apps/backend/lib/arbor/runtime/__tests__/discoveryRadar.test.ts lib/arbor/continuity/__tests__/longitudinalShorthand.integration.test.ts'
+      - 'apps/backend/lib/arbor/continuity/longitudinalPolicy.ts'
+      - 'apps/backend/lib/arbor/agency/session.ts'
+      - 'apps/backend/lib/arbor/continuity/__tests__/longitudinalShorthand.integration.test.ts'
       - '.github/workflows/one-arbor-decision-ancestry.yml'
   workflow_dispatch:
 
