@@ -105,6 +105,7 @@ const DURABLE_BEHAVIOR_KEYS = [
   "behavior.correction.agency-followthrough",
   "behavior.correction.identity-drift",
   "behavior.correction.continuity",
+  "behavior.correction.humor-pragmatics",
 ];
 
 /** Read existing authorized permanent corrections independently of conversation
