@@ -5,6 +5,7 @@ import { assertProjectOwnedByUser } from "@/lib/auth/ownership";
 import { RouteAccessError, routeErrorResponse } from "@/lib/auth/routeAuthorization";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { SupabaseArkStore } from "@/lib/ark/supabaseStore";
+import { isArkObjectiveControlEnabled } from "@/lib/ark/activation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -42,6 +43,11 @@ export async function POST(req: Request) {
     // Authenticate before parsing so malformed unauthenticated requests do not
     // gain an input-validation oracle.
     const { userId, supabase } = await requireUser(req);
+    if (!isArkObjectiveControlEnabled(
+      process.env.ARBOR_ENABLE_ARK_OBJECTIVE_CONTROL,
+    )) {
+      throw new RouteAccessError(404, "ark_objective_control_not_enabled");
+    }
     const parsed = Body.safeParse(await req.json().catch(() => ({})));
     if (!parsed.success) {
       return NextResponse.json(
