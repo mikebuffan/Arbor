@@ -154,56 +154,50 @@ jobs:
           psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261006093000_ark_stop_and_resume_controls.sql
           psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261007005500_add_ark_cancel_objective.sql
       - name: Verify control functions and service-role-only grants
+        shell: bash
         run: |
-          psql -v ON_ERROR_STOP=1 <<'SQL'
-          do $
-          declare
-            cancel_oid oid;
-            legacy_cancel_oid oid;
-            resume_oid oid;
-          begin
-            select p.oid into cancel_oid
+          set -euo pipefail
+
+          function_count="$(psql -Atq -v ON_ERROR_STOP=1 -c "
+            select count(*)
             from pg_proc p
             join pg_namespace n on n.oid = p.pronamespace
             where n.nspname = 'public'
-              and p.proname = 'ark_cancel_objective'
-              and p.pronargs = 2;
+              and (
+                (p.proname = 'ark_cancel_objective' and p.pronargs in (2,5))
+                or (p.proname = 'ark_resume_blocked_objective' and p.pronargs = 2)
+              );
+          ")"
+          test "$function_count" = "3"
 
-            select p.oid into legacy_cancel_oid
+          service_grants="$(psql -Atq -v ON_ERROR_STOP=1 -c "
+            select count(*)
             from pg_proc p
             join pg_namespace n on n.oid = p.pronamespace
             where n.nspname = 'public'
-              and p.proname = 'ark_cancel_objective'
-              and p.pronargs = 5;
+              and (
+                (p.proname = 'ark_cancel_objective' and p.pronargs in (2,5))
+                or (p.proname = 'ark_resume_blocked_objective' and p.pronargs = 2)
+              )
+              and has_function_privilege('service_role', p.oid, 'EXECUTE');
+          ")"
+          test "$service_grants" = "3"
 
-            select p.oid into resume_oid
+          ordinary_grants="$(psql -Atq -v ON_ERROR_STOP=1 -c "
+            select count(*)
             from pg_proc p
             join pg_namespace n on n.oid = p.pronamespace
             where n.nspname = 'public'
-              and p.proname = 'ark_resume_blocked_objective'
-              and p.pronargs = 2;
-
-            if cancel_oid is null or legacy_cancel_oid is null or resume_oid is null then
-              raise exception 'ARK control function missing after ordered migrations';
-            end if;
-
-            if not has_function_privilege('service_role', cancel_oid, 'EXECUTE')
-               or not has_function_privilege('service_role', legacy_cancel_oid, 'EXECUTE')
-               or not has_function_privilege('service_role', resume_oid, 'EXECUTE') then
-              raise exception 'service_role lacks ARK objective-control execute';
-            end if;
-
-            if has_function_privilege('authenticated', cancel_oid, 'EXECUTE')
-               or has_function_privilege('authenticated', legacy_cancel_oid, 'EXECUTE')
-               or has_function_privilege('authenticated', resume_oid, 'EXECUTE')
-               or has_function_privilege('anon', cancel_oid, 'EXECUTE')
-               or has_function_privilege('anon', legacy_cancel_oid, 'EXECUTE')
-               or has_function_privilege('anon', resume_oid, 'EXECUTE') then
-              raise exception 'ARK objective-control leaked to ordinary database roles';
-            end if;
-          end
-          $;
-          SQL
+              and (
+                (p.proname = 'ark_cancel_objective' and p.pronargs in (2,5))
+                or (p.proname = 'ark_resume_blocked_objective' and p.pronargs = 2)
+              )
+              and (
+                has_function_privilege('authenticated', p.oid, 'EXECUTE')
+                or has_function_privilege('anon', p.oid, 'EXECUTE')
+              );
+          ")"
+          test "$ordinary_grants" = "0"
 
   flutter:
     if: github.repository == 'mikebuffan/Arbor'
