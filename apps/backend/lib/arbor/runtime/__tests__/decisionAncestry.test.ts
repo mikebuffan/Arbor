@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   projectDecisionAncestry,
   diffDecisionAncestry,
+  projectDecisionReviewCandidates,
   type DecisionTrailEvent,
 } from "../decisionAncestry";
 
@@ -130,6 +131,43 @@ describe("bounded read-only Decision Ancestry projection", () => {
     });
     expect(() => diffDecisionAncestry(before, foreign))
       .toThrow("decision_ancestry_diff_scope_mismatch");
+  });
+
+  it("projects only review-worthy decision candidates with no automatic approval", () => {
+    const clean = project([event("a", "choice")]);
+    const flagged = project([event("a", "choice"), event("b", "choice")]);
+    const item = projectDecisionReviewCandidates({
+      scope, views: [clean, { ...flagged, decisionId: "another-decision" }],
+    });
+    expect(item.items).toHaveLength(1);
+    expect(item.items[0].decisionId).toBe("another-decision");
+    expect(item.items[0].reasons).toContain("parallel_choices");
+    expect(item.grantsExecution).toBe(false);
+    expect(item.requiresHumanApprovalDetermination).toBe(true);
+  });
+
+  it("fails closed on cross-owner review candidates and repeated decision keys", () => {
+    const one = project([event("a", "correction")]);
+    expect(() => projectDecisionReviewCandidates({
+      scope, views: [one, { ...one, scope: { userId: "intruder", projectId: "project" } }],
+    })).toThrow("decision_review_scope_mismatch");
+    expect(() => projectDecisionReviewCandidates({
+      scope, views: [one, one],
+    })).toThrow("decision_review_duplicate_or_invalid");
+  });
+
+  it("keeps the candidate view bounded and honestly reports truncation", () => {
+    const base = project([event("a", "correction")]);
+    const one = { ...base, decisionId: "one" };
+    const two = { ...base, decisionId: "two" };
+    const result = projectDecisionReviewCandidates({
+      scope, views: [two, one], limit: 1,
+    });
+    expect(result.items.map(item => item.decisionId)).toEqual(["one"]);
+    expect(result.truncated).toBe(true);
+    expect(() => projectDecisionReviewCandidates({
+      scope, views: [one], limit: 0,
+    })).toThrow("decision_review_invalid_input");
   });
 
   it("requires bounded, plausible records and refuses oversized unreconciled histories", () => {
