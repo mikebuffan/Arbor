@@ -132,6 +132,30 @@ A green result is source acceptance only; next useful real proof is an
 authenticated Preview read through an approved host caller, preserving
 original sources, without altering any private data or ARK worker flags.
 
+## Existing agency continuation recovery — newly found source regression
+
+The existing `longitudinalPolicy.ts` did not count a checkpointed
+objective as a live goal, so a bare "go" after checkpoint could become
+a *new* foreground goal and suspend the original. Fixed checkpointed goal
+eligibility; source-only regression checks that the original goal and
+current step survive.
+
+The compact collaborative command "list prompt go" was not reliably
+recognized by the older policy. Added explicit bounded shorthand variants
+that apply **only when a real unfinished goal already exists**.
+An explicit STOP/switch still overrides continuation, and no new goal is
+resurrected merely by the word "go".
+
+A related hard-stop flaw existed in `buildAgencySessionState`: resuming
+a blocked objective unconditionally set status to active and erased its
+recorded blocker. The isolated repair now preserves that protected blocker
+until a separate, trusted clearance mechanism updates the objective.
+Conversational approval alone is not proof of privileged authorization.
+
+All of this needs focused AND full backend regression before acceptance.
+No live state was modified. Source tests cannot prove a deployed agent
+actually continues in a new ChatGPT thread.
+
 ## May architecture ideas: reconciliation, not a second anatomy
 
 The historical May 12 burst mentioned a Memory Review UI, Debug Proof UI,
