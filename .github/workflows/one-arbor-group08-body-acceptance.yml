@@ -1,0 +1,62 @@
+name: One Arbor Group 08 source-only body acceptance
+
+on:
+  pull_request:
+    branches:
+      - integration/one-arbor-reconciled-335-339-20261007
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'apps/backend/lib/arbor/body/**'
+      - 'apps/backend/lib/arbor/feltLife/**'
+      - 'apps/backend/lib/arbor/runtime/cognitiveBridge.ts'
+      - 'apps/backend/lib/learning/__tests__/bodyCausalNegativeControls.test.ts'
+      - '.github/workflows/one-arbor-group08-body-acceptance.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: one-arbor-group08-body-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  bounded-source-tests:
+    if: github.repository == 'mikebuffan/Arbor'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      CI: 'true'
+      AWS_EC2_METADATA_DISABLED: 'true'
+      OPENAI_API_KEY: ci-placeholder-not-a-real-key
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Locked package installation
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.30.3 --activate
+          pnpm install --frozen-lockfile
+      - name: Existing Body, Felt-Life, cognitive bridge, May-route, neural and reviewed outcome regressions
+        working-directory: apps/backend
+        run: >-
+          pnpm exec vitest run
+          lib/learning/__tests__/bodyCausalNegativeControls.test.ts
+          lib/arbor/body/__tests__/bodySystem.test.ts
+          lib/arbor/body/__tests__/functionalSystems.test.ts
+          lib/arbor/body/__tests__/gastricSignals.test.ts
+          lib/arbor/body/__tests__/regulation.test.ts
+          lib/arbor/feltLife/__tests__/atlas.test.ts
+          lib/arbor/feltLife/__tests__/atlasIntegrity.test.ts
+          lib/arbor/feltLife/__tests__/atlasRegression.test.ts
+          lib/arbor/runtime/__tests__/cognitiveBridge.test.ts
+          lib/learning/__tests__/maySeedRouteCompatibility.test.ts
+          lib/learning/__tests__/neuralPathwayNetwork.test.ts
+          lib/learning/__tests__/cognitiveBodyPreview.test.ts
+          lib/learning/__tests__/cognitiveAssembly.test.ts
+      - name: Standalone backend TypeScript
+        working-directory: apps/backend
+        run: pnpm exec tsc --noEmit
