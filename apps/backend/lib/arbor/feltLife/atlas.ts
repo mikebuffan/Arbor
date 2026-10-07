@@ -374,6 +374,11 @@ function hasPositiveCue(text: string, cue: string): boolean {
 }
 
 export function inferFeltLife(input: { text: string; maxHypotheses?: number }): FeltLifeStateSignature {
+  const maxHypotheses = input.maxHypotheses ?? 4;
+  // A negative slice(-N), Infinity or unbounded value must not expand a
+  // tentative hypothesis list. Zero is an explicit opt-out.
+  if (!Number.isSafeInteger(maxHypotheses) || maxHypotheses < 0 || maxHypotheses > 8)
+    throw new Error("felt_life_hypothesis_limit_invalid");
   const text = norm(input.text);
   const scored = FELT_LIFE_ATLAS.map((entry) => {
     const matchedCues = entry.cues.filter((cue) => hasPositiveCue(text, cue));
@@ -382,7 +387,7 @@ export function inferFeltLife(input: { text: string; maxHypotheses?: number }): 
     return { entry, matchedCues, score };
   }).filter((x) => x.score > 0)
     .sort((a,b) => b.score - a.score)
-    .slice(0, input.maxHypotheses ?? 4);
+    .slice(0, maxHypotheses);
 
   const hypotheses = scored.map(({entry,matchedCues,score}) => ({
     entryId: entry.id,
