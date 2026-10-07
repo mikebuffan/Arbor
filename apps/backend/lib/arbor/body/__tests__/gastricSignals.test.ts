@@ -36,7 +36,7 @@ describe("gastric internal signals", () => {
     expect(result.responseGuidance).toContain("preserve the parent objective");
   });
 
-  it.each(["STOP", "Stop!", "Please STOP."])(
+  it.each(["STOP", "Stop!", "Please STOP.", "STOP! Enough already."])(
     "treats a standalone STOP as a rejected route: %s",
     userMessage => {
       expect(classifyInternalSignal({userMessage}).state).toBe("BLOCKED");
