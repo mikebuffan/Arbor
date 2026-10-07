@@ -61,6 +61,7 @@ GroveMemoryShelfSnapshot projectGroveMemoryShelf(
     if (row['project_id'] != projectId ||
         row['deleted_at'] != null ||
         row['status'] != 'active' ||
+        row['excluded_from_memory'] != false ||
         row['user_trigger_only'] != false ||
         row['tier'] == 'sensitive') {
       continue;
