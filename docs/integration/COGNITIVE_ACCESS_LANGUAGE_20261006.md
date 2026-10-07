@@ -8,17 +8,20 @@ message history and without performing identity authentication.
 Help Arbor recover likely intended meaning from noisy or atypical language while
 preserving uncertainty and the original wording.
 
-Examples of supported future input conditions:
+Supported synthetic conditions now include:
 
 - transposed letters
 - missing letters / words
 - fragmented thoughts
 - punctuation disruption
 - phonetic spelling
-- speech-to-text substitutions
+- speech-to-text substitutions / homophones
 - word-finding gaps
 - abrupt topic transitions
 - motor-input mistakes
+- fatigue / noisy-input combinations
+- multi-error messages
+- continuity-dependent short turns such as `go`, `that one`, `no`, and `wait`
 
 ## Hard boundaries
 
@@ -26,46 +29,134 @@ Examples of supported future input conditions:
 - Reconstructed text is interpretation, not a replacement source record.
 - Accessibility interpretation may NEVER authenticate identity.
 - Atypical language must never be treated as evidence of lower intelligence.
-- Names, identifiers, amounts, codes, and other protected literal tokens are not
-  silently changed.
+- Names and project names supplied as protected literals are not silently changed.
+- Numbers, money amounts, dates, code-like identifiers, hashes, and issue/PR-style
+  number literals are automatically protected from silent substitution.
+- Negation may not be silently flipped by a reconstruction.
+- Explicit stop/pause controls may not be silently rewritten into continuation.
 - High-consequence reconstructed instructions require confirmation.
-- Multiple plausible interpretations require clarification.
+- Clarification is required only when unresolved ambiguity materially affects the
+  answer/action; equivalent wording can share an explicit meaning key.
 - This source lane does not profile real user messages.
 - No behavioral biometric data is collected.
 
 ## Current decision contract
 
-The scaffold can produce:
+The scaffold produces:
 
-- use_raw
-- use_best_interpretation
-- clarify
+- `use_raw`
+- `use_best_interpretation`
+- `clarify`
 
-It receives candidate interpretations from a future contextual interpreter and
-applies conservative decision rules. This first pass deliberately does NOT build
-an autocorrect engine or a user-specific language model.
+It receives candidate interpretations from a contextual interpreter and applies
+conservative selection/ambiguity rules. It deliberately does NOT build a second
+autocorrect engine, continuity engine, correction store, transcription pipeline,
+or user-specific language model.
 
-## Why separate this from Identity Assurance
+Candidate numeric scores are treated only as ranking signals. User-facing/source
+receipts expose a coarse confidence band instead of presenting a score as a
+calibrated probability.
 
-The same observed language patterns may someday inform:
+## Interpretation receipt
 
-1. accessibility: "what did the user probably mean?"
-2. security: "is this interaction behaviorally consistent with the owner?"
+The bounded source receipt contains only:
 
-Those are different questions.
+- raw text
+- working interpretation
+- decision
+- confidence band
+- alternatives
+- whether clarification is required and reason codes
+- protected literals
+- source type: typed / speech-to-text / unknown
+- degradation-signal labels
+- `mayAuthenticateIdentity: false`
 
-Accessibility must not become a covert authentication system, and security must
-not treat disability/noisy communication as impersonation.
+It intentionally excludes hidden reasoning/rationale.
 
-## Next safe experiment
+## Reconciliation with existing One Arbor systems
 
-Run only synthetic and explicitly consented fixtures first. Measure:
+This branch remains a source-only accessibility component and does not create a
+second live path.
 
-- correct intent recovery
-- false reconstruction
-- unnecessary clarification
-- dangerous silent changes
-- performance under speech-to-text noise
-- performance with protected names/codes
+- **Conversation continuity:** continuity may supply candidate interpretations
+  for short turns such as `go` or `that one`; the cognitive-access layer
+  never mutates continuity state and always preserves the literal turn.
+- **Correction/supersession:** explicit user correction remains authoritative.
+  The cognitive-access layer must not overwrite corrected identifiers or write
+  memory/supersession state.
+- **Voice transcription:** the existing voice/STT path remains the transcription
+  authority. This layer can mark `speech_to_text` as source provenance and
+  evaluate candidate recovery without rewriting the transcript record.
+- **Behavior projection:** existing behavior rules continue to govern tone,
+  correction handling, and continuity. Cognitive-access interpretation is input
+  evidence, not identity/personality state.
+- **Prompt/context handling:** a future authorized integration may inject only
+  the bounded working interpretation/receipt alongside the raw user turn. This
+  branch does not alter `buildPromptContext` or live routing.
+- **Ambiguity handling:** clarification is emitted only when ambiguity is
+  outcome-relevant, high consequence, negation-changing, or control-changing.
+
+## Capability Hypothesis primitive alignment
+
+PR #288 defines reusable primitives:
+
+- OBSERVE
+- INTERPRET
+- PRESERVE PROVENANCE
+- COMPARE
+- MODEL UNCERTAINTY
+- UPDATE STATE
+- VERIFY
+
+This branch aligns to those primitives conceptually:
+
+1. **OBSERVE** raw text/source labels without profiling the user.
+2. **INTERPRET** supplied candidates.
+3. **PRESERVE PROVENANCE** by retaining raw text and protected literals.
+4. **COMPARE** candidate scores/alternatives and literal constraints.
+5. **MODEL UNCERTAINTY** with clarification decisions and coarse confidence bands.
+6. **UPDATE STATE** is intentionally *not* performed here; continuity/correction
+   owners remain authoritative.
+7. **VERIFY** through synthetic fixtures and focused tests.
+
+No code dependency on PR #288 is introduced because both branches currently
+share the same base and must be reconciled in the next One Arbor candidate
+instead of duplicating shared primitives.
+
+## Synthetic coverage
+
+Focused tests cover:
+
+- obvious typo recovery
+- multi-typo / multi-error recovery
+- wrong-but-plausible substitutions
+- context-dependent interpretation
+- ambiguous fragments
+- speech-to-text substitutions
+- named/project literals
+- numbers / money / dates
+- H214/H216-style identifiers
+- negation traps
+- dangerous/high-consequence command ambiguity
+- correction-after-misinterpretation
+- topic switching / word-finding gaps
+- short continuity-dependent turns
+- stop/pause control preservation
+- bounded receipt output
+- accessibility/authentication separation
+
+## Still intentionally not live
 
 No live route integration is authorized by this lane.
+
+Do not:
+
+- silently profile user history
+- collect behavioral biometrics
+- mutate correction or continuity state
+- change voice transcription records
+- use accessibility evidence for identity authentication
+- merge main
+- deploy production
+- apply hosted migrations
