@@ -28,7 +28,7 @@ export function reconcileSelfModelClaims(state: ArborState): ArborState {
           : "insufficient";
 
     const confidence = claimConfidence(
-      summary.supportCount,
+      summary.distinctSupportTurnCount,
       summary.contradictionCount,
       summary.averageConfidence,
       summary.supportDomains.length,
