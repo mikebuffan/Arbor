@@ -11,6 +11,9 @@ const COMPACT_WORKFLOW_CONTINUATION =
 
 const EXPLICIT_SWITCH =
   /(?:^|\b)(?:instead\b|new goal\b|new task|different task|separate task|separate question|switch(?:ing)? (?:to|goals?)|change (?:the )?goal|forget that|drop that|stop (?:that|this)(?: and)?|leave that)\b/i;
+// Negating a switch command must not be treated as a new instruction to switch.
+// Remove only the directly negated phrase; an independent explicit switch remains.
+const NEGATED_SWITCH = /\b(?:don['’]?t|do not|never)\s+(?:stop\s+(?:that|this)|drop\s+that|leave\s+that|forget\s+that|switch\s+(?:to|goals?)|change\s+(?:the\s+)?goal)\b/gi;
 const COMPLETION_LANGUAGE =
   /(?:^|\b)(?:done|finished|complete|completed|resolved|fixed|solved)\b/i;
 const PRESENCE_TETHER = /^(?:hey\s+)?arbor[.!?\s]*$/i;
@@ -42,7 +45,7 @@ export function explicitlyContinues(userText: string) {
 }
 
 export function explicitlySupersedes(userText: string) {
-  return EXPLICIT_SWITCH.test(userText.trim());
+  return EXPLICIT_SWITCH.test(userText.trim().replace(NEGATED_SWITCH, ""));
 }
 
 export function explicitlyClosesGoal(userText: string) {
