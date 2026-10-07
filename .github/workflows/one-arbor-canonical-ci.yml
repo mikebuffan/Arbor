@@ -86,7 +86,12 @@ jobs:
           lib/research/patternHopEvidenceIntegration.test.ts
           lib/research/investigationPatternHop.test.ts
           lib/research/sessionPolicy.test.ts
+          lib/research/sessionRestart.test.ts
           lib/research/syntheticWorkerRehearsal.test.ts
+          lib/research/leadDedupe.test.ts
+          lib/research/sourceVersion.test.ts
+          lib/research/completionVerification.test.ts
+          lib/research/reproducibilityScaleV4.test.ts
           lib/ark/__tests__/stopSemantics.test.ts
           lib/research/arkResearchHandoff.test.ts
           lib/research/registerArkResearchControllerExecutor.test.ts
