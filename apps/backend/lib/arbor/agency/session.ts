@@ -117,17 +117,27 @@ export function buildAgencySessionState(input: {
         )
       : foregroundWork;
 
+  // An ordinary continuation prompt does not prove external authorization.
+  // Preserve existing protected blockers until a separate trusted clearance path
+  // changes the durable objective; words such as "go" cannot waive hard stops.
+  const existingProtectedBlocker =
+    resume && input.prior?.status === "blocked"
+      ? input.prior.blocker ?? null : null;
+  const objective = nextObjective(input.prior, goal, unresolvedWork, resume);
+
   return {
     goal,
-    status: "active",
+    status: existingProtectedBlocker ? "blocked" : "active",
     currentStep: resume && input.prior ? input.prior.currentStep : 0,
     unresolvedWork,
     recurringWeaknesses: input.prior?.recurringWeaknesses ?? [],
     strategyNotes: input.prior?.strategyNotes ?? [],
-    blocker: null,
+    blocker: existingProtectedBlocker,
     attemptedActionIds: resume ? input.prior?.attemptedActionIds ?? [] : [],
     lastVerification: resume ? input.prior?.lastVerification ?? null : null,
-    objective: nextObjective(input.prior, goal, unresolvedWork, resume),
+    objective: existingProtectedBlocker && objective
+      ? { ...objective, status: "blocked" as const }
+      : objective,
   };
 }
 
