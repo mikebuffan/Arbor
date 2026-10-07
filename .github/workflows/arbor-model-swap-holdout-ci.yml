@@ -1,0 +1,46 @@
+name: Arbor model-swap holdout acceptance
+
+on:
+  push:
+    branches:
+      - experiment/model-swap-holdout-harness-20261006
+  pull_request:
+    branches:
+      - integration/one-arbor-low-conflict-plus-ark-20261006
+
+permissions:
+  contents: read
+
+concurrency:
+  group: arbor-model-swap-holdout-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  control-backend:
+    if: github.repository == 'mikebuffan/Arbor'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install locked dependencies
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.30.3 --activate
+          pnpm install --frozen-lockfile
+      - name: Model-swap and transplant acceptance
+        working-directory: apps/arbor-control-backend
+        run: >
+          pnpm exec vitest run
+          src/modelSwap.test.ts
+          src/modelSwapHoldout.test.ts
+          src/transplant.test.ts
+      - name: Full Arbor control regression
+        run: pnpm --filter arbor-control-backend test
+      - name: Arbor control build
+        run: pnpm --filter arbor-control-backend build
