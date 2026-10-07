@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: one-arbor-canonical-${{ github.event.pull_request.number }}
+  group: one-arbor-canonical-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
