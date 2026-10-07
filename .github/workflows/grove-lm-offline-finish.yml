@@ -1,0 +1,237 @@
+name: Grove LM offline finish acceptance
+
+on:
+  push:
+    branches:
+      - integration/grove-lm-offline-finish-20261007
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: grove-lm-offline-finish-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    if: github.repository == 'mikebuffan/Arbor'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      CI: 'true'
+      OPENAI_API_KEY: ci-placeholder-not-a-real-key
+      AWS_EC2_METADATA_DISABLED: 'true'
+    steps:
+      - name: Block cloud metadata before checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          unset HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy
+          for subnet in 169.254.0.0/16 100.100.100.200/32; do
+            sudo -n iptables -w 5 -I OUTPUT 1 -d "$subnet" -j REJECT
+            sudo -n iptables -w 5 -C OUTPUT -d "$subnet" -j REJECT
+          done
+          for subnet in fe80::/10 fc00::/7; do
+            sudo -n ip6tables -w 5 -I OUTPUT 1 -d "$subnet" -j REJECT
+            sudo -n ip6tables -w 5 -C OUTPUT -d "$subnet" -j REJECT
+          done
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install locked dependencies
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.30.3 --activate
+          pnpm install --frozen-lockfile
+      - name: Validate targeted correction and untouched holdout
+        run: node ops/grove/local-lm/validate-correction-fixtures.mjs
+      - name: Existing local-LM source contracts
+        run: node --test ops/grove/local-lm/local-lm-prep.test.mjs
+      - name: Grove host continuity correction and ARK contracts
+        working-directory: apps/backend
+        run: >-
+          pnpm exec vitest run
+          lib/grove/__tests__
+          lib/arbor/runtime/__tests__/memoryRestart.test.ts
+          lib/arbor/runtime/__tests__/durableCorrectionRetention.test.ts
+          lib/arbor/runtime/__tests__/correctionRecovery.test.ts
+          lib/ark/__tests__/taskStatus.test.ts
+      - name: Model-swap harness and control backend
+        run: |
+          pnpm --filter arbor-control-backend test
+          pnpm --filter arbor-control-backend build
+      - name: Full backend regression
+        run: pnpm --filter firefly-backend test
+      - name: Production backend build
+        run: pnpm --filter firefly-backend build
+      - name: Standalone TypeScript
+        working-directory: apps/backend
+        run: pnpm exec tsc --noEmit
+
+  grove-database:
+    if: github.repository == 'mikebuffan/Arbor'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      CI: 'true'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Start disposable PostgreSQL
+        shell: bash
+        run: |
+          set -euo pipefail
+          pg_bin=/usr/lib/postgresql/16/bin
+          pg_root="/tmp/grove-offline-${GITHUB_RUN_ID}"
+          mkdir -p "$pg_root/data" "$pg_root/socket"
+          sudo -n chown -R postgres:postgres "$pg_root"
+          sudo -n -u postgres "$pg_bin/initdb" -D "$pg_root/data" --auth=trust --no-locale
+          sudo -n -u postgres "$pg_bin/pg_ctl" -D "$pg_root/data" -l "$pg_root/server.log" -o "-k $pg_root/socket -p 54339 -c listen_addresses=''" -w start
+          printf 'PGHOST=%s/socket\nPGPORT=54339\nPGUSER=postgres\nPGDATABASE=grove_offline\n' "$pg_root" >> "$GITHUB_ENV"
+          "$pg_bin/createdb" -h "$pg_root/socket" -p 54339 -U postgres grove_offline
+      - name: Transcript and correction durability acceptance
+        run: |
+          psql -X -v ON_ERROR_STOP=1 -d grove_offline -f ops/grove/disposable-db/00-private-transcript-acceptance.sql
+          psql -X -v ON_ERROR_STOP=1 -d grove_offline -f ops/grove/disposable-db/correction-grants-acceptance.sql
+      - name: Grove ARK grant proposal acceptance
+        run: psql -X -v ON_ERROR_STOP=1 -d grove_offline -f ops/grove/disposable-db/ark-spine-grants-acceptance.sql
+      - name: Stop disposable PostgreSQL
+        if: always()
+        shell: bash
+        run: |
+          pg_root="/tmp/grove-offline-${GITHUB_RUN_ID}"
+          if test -f "$pg_root/data/postmaster.pid"; then
+            sudo -n -u postgres /usr/lib/postgresql/16/bin/pg_ctl -D "$pg_root/data" -m immediate -w stop
+          fi
+
+  phone:
+    if: github.repository == 'mikebuffan/Arbor'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      CI: 'true'
+      FLUTTER_SUPPRESS_ANALYTICS: 'true'
+      DART_SUPPRESS_ANALYTICS: 'true'
+      AWS_EC2_METADATA_DISABLED: 'true'
+    steps:
+      - name: Block cloud metadata before checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          unset HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy
+          for subnet in 169.254.0.0/16 100.100.100.200/32; do
+            sudo -n iptables -w 5 -I OUTPUT 1 -d "$subnet" -j REJECT
+          done
+          for subnet in fe80::/10 fc00::/7; do
+            sudo -n ip6tables -w 5 -I OUTPUT 1 -d "$subnet" -j REJECT
+          done
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Install pinned Flutter
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdk_dir="$RUNNER_TEMP/grove-flutter"
+          git init "$sdk_dir"
+          git -C "$sdk_dir" remote add origin https://github.com/flutter/flutter.git
+          git -C "$sdk_dir" fetch --depth=1 origin refs/tags/3.47.6:refs/tags/3.47.6
+          git -C "$sdk_dir" checkout --detach refs/tags/3.47.6
+          test "$(git -C "$sdk_dir" rev-parse HEAD)" = 5fc346839b5d0eef006ed8404392afb4dfae428d
+          echo "$sdk_dir/bin" >> "$GITHUB_PATH"
+          "$sdk_dir/bin/flutter" config --no-analytics
+      - name: Resolve locked dependencies
+        working-directory: apps/frontend
+        run: flutter pub get --enforce-lockfile
+      - name: Lockfile unchanged
+        run: git diff --exit-code -- apps/frontend/pubspec.lock
+      - name: Analyze Flutter source
+        working-directory: apps/frontend
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+      - name: Grove retry continuity and ARK path tests
+        working-directory: apps/frontend
+        run: >-
+          timeout 240s flutter test --reporter expanded --concurrency=1
+          test/grove_pending_turn_store_test.dart
+          test/grove_private_text_page_test.dart
+          test/grove_private_conversations_test.dart
+          test/grove_ark_handoff_test.dart
+          test/grove_runtime_scope_test.dart
+      - name: Full Flutter regression
+        working-directory: apps/frontend
+        run: timeout 480s flutter test --reporter expanded
+      - name: Compile synthetic Grove APK
+        working-directory: apps/frontend
+        run: >-
+          timeout 600s flutter build apk --debug --flavor grove
+          --dart-define=GROVE_STANDALONE=true
+          --dart-define=GROVE_PRIVATE_TALK_PREVIEW=true
+          --dart-define=GROVE_PRIVATE_NEW_CONVERSATION_PREVIEW=false
+          --dart-define=GROVE_SUPABASE_URL=https://aaaaaaaaaaaaaaaaaaaa.supabase.co
+          --dart-define=GROVE_SUPABASE_ANON_KEY=sb_publishable_synthetic_ci_only
+          --dart-define=GROVE_API_URL=https://ci-grove-api.example.invalid
+      - name: Verify synthetic APK
+        working-directory: apps/frontend
+        run: test -s build/app/outputs/flutter-apk/app-grove-debug.apk
+
+  windows-local-lm:
+    if: github.repository == 'mikebuffan/Arbor'
+    runs-on: windows-2022
+    timeout-minutes: 45
+    env:
+      LLAMA_CPP_SHA: 5ad1c5da0ad7f6176256b823925aad19134f0263
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Local LM contracts
+        shell: pwsh
+        run: |
+          node ops/grove/local-lm/validate-correction-fixtures.mjs
+          node --test ops/grove/local-lm/local-lm-prep.test.mjs
+      - name: Fetch exact llama.cpp source
+        shell: pwsh
+        run: |
+          git clone --filter=blob:none https://github.com/ggml-org/llama.cpp.git llama.cpp
+          Set-Location llama.cpp
+          git checkout --detach $env:LLAMA_CPP_SHA
+          if ((git rev-parse HEAD) -ne $env:LLAMA_CPP_SHA) { throw 'llama.cpp source mismatch' }
+      - name: Configure no-AVX static x64 runtime
+        shell: pwsh
+        run: |
+          $args = @(
+            '-DCMAKE_BUILD_TYPE=Release',
+            '-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded',
+            '-DBUILD_SHARED_LIBS=OFF',
+            '-DGGML_NATIVE=OFF',
+            '-DGGML_SSE42=OFF',
+            '-DGGML_AVX=OFF',
+            '-DGGML_AVX_VNNI=OFF',
+            '-DGGML_AVX2=OFF',
+            '-DGGML_BMI2=OFF',
+            '-DGGML_AVX512=OFF',
+            '-DGGML_FMA=OFF',
+            '-DGGML_F16C=OFF',
+            '-DGGML_CPU_ALL_VARIANTS=OFF',
+            '-DGGML_OPENMP=OFF',
+            '-DLLAMA_CURL=OFF',
+            '-DLLAMA_OPENSSL=OFF',
+            '-DLLAMA_BUILD_SERVER=ON',
+            '-DLLAMA_BUILD_TESTS=OFF',
+            '-DLLAMA_BUILD_EXAMPLES=ON'
+          )
+          cmake -S llama.cpp -B llama.cpp/build-sse2 -A x64 @args
+      - name: Build and launch-check local runtime
+        shell: pwsh
+        run: |
+          cmake --build llama.cpp/build-sse2 --config Release --target llama-cli llama-server llama-bench --parallel 4
+          $bin = 'llama.cpp/build-sse2/bin/Release'
+          & "$bin/llama-cli.exe" --version
+          if ($LASTEXITCODE -ne 0) { throw 'llama-cli version failed' }
+          & "$bin/llama-server.exe" --version
+          if ($LASTEXITCODE -ne 0) { throw 'llama-server version failed' }
