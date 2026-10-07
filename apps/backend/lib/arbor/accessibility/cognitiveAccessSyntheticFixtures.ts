@@ -18,6 +18,30 @@ export const COGNITIVE_ACCESS_SYNTHETIC_FIXTURES = [
     risk: "ordinary",
   },
   {
+    id: "missing_word_contextual",
+    raw: "can you the test again",
+    expectedIntent: "can you run the test again",
+    risk: "ordinary",
+  },
+  {
+    id: "phonetic_project_spelling",
+    raw: "ver sell is blocked again",
+    expectedIntent: "Vercel is blocked again",
+    risk: "ordinary",
+  },
+  {
+    id: "speech_to_text_homophone",
+    raw: "right the release note",
+    expectedIntent: "write the release note",
+    risk: "ordinary",
+  },
+  {
+    id: "abrupt_topic_switch",
+    raw: "voice now the accent thing",
+    expectedIntent: "switch to the Voice accent issue",
+    risk: "ordinary",
+  },
+  {
     id: "fragment_ambiguous",
     raw: "after ark maybe move it",
     expectedIntent: null,
