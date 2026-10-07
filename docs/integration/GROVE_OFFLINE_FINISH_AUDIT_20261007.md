@@ -132,7 +132,8 @@ after verification and moving the tested source head.
 
 ## Genuine remaining gates after a green offline run
 
-1. Private v0.4 adapter artifact available to the approved training runtime.
+1. Private v0.4 adapter artifact recovered and hash-verified; make it available
+   only to the approved protected training/runtime environment.
 2. Exact future foundation/tokenizer revision pin.
 3. Actual targeted corrective training pass.
 4. Fresh real-model holdout adjudication with zero high-severity honesty failures.
