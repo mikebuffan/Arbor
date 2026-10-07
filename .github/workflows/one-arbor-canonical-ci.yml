@@ -4,13 +4,6 @@ on:
   push:
     branches:
       - integration/one-arbor-canonical-20261006
-  pull_request:
-    branches:
-      - integration/one-arbor-pattern-hop-research-20261006
-    types:
-      - opened
-      - synchronize
-      - reopened
 
 permissions:
   contents: read
@@ -21,7 +14,7 @@ concurrency:
 
 jobs:
   backend:
-    if: github.repository == 'mikebuffan/Arbor' && (github.event_name == 'push' || github.head_ref == 'integration/one-arbor-canonical-20261006')
+    if: github.repository == 'mikebuffan/Arbor'
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     env:
@@ -45,7 +38,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ github.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -124,7 +117,7 @@ jobs:
         run: pnpm exec tsc --noEmit
 
   phone:
-    if: github.repository == 'mikebuffan/Arbor' && (github.event_name == 'push' || github.head_ref == 'integration/one-arbor-canonical-20261006')
+    if: github.repository == 'mikebuffan/Arbor'
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     env:
@@ -149,7 +142,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ github.sha }}
       - name: Install pinned Flutter
         shell: bash
         run: |
@@ -203,7 +196,7 @@ jobs:
         run: test -s build/app/outputs/flutter-apk/app-publicalpha-debug.apk
 
   native-database:
-    if: github.repository == 'mikebuffan/Arbor' && (github.event_name == 'push' || github.head_ref == 'integration/one-arbor-canonical-20261006')
+    if: github.repository == 'mikebuffan/Arbor'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
@@ -213,7 +206,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ github.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -255,7 +248,7 @@ jobs:
           fi
 
   windows-local-lm:
-    if: github.repository == 'mikebuffan/Arbor' && (github.event_name == 'push' || github.head_ref == 'integration/one-arbor-canonical-20261006')
+    if: github.repository == 'mikebuffan/Arbor'
     runs-on: windows-2022
     timeout-minutes: 40
     env:
@@ -264,7 +257,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ github.sha }}
       - name: Local LM manifest contracts
         shell: pwsh
         run: node --test ops/grove/local-lm/local-lm-prep.test.mjs
