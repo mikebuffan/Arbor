@@ -40,3 +40,14 @@ Direct readback checked both memory tests, project-scope and excluded-from-memor
 ## Protected checkpoint
 
 Never touch September 28 research task, Group 02 queued STOP/canary, unapproved archive exports, excluded memories, public/private realm boundaries, model training, production aliases, main branch or release secrets. A blocker in any live gate remains **BLOCKED**, not silently waived by this review composition.
+
+
+## Post-composition freshness and fingerprint verification
+
+Group 06's initially composed source head `c6cc1611a3e8fdc88be3fc34815afc72b6edc7e4` received a single additive **documentation-only** owner successor `5f2fa29f0b71cc00cf13a112fcee8d921700c5d5` after the original source freeze. Latest Group 06 acceptance receipt is incorporated unchanged; no newer executable Group 06 source edits were identified in that comparison.
+
+A dedicated read-only composition guard now checks **17 exact Git blob IDs**, including Time Core, contextual referents, host recovery, longitudinal continuation, owner/project retrieval, default memory eligibility, Grove excluded-memory/scope behavior and their combined negative tests, archive inventory, self-model evidence and the source-only Vercel fence. The matching hashes are recorded in `ONE_ARBOR_COMPOSED_SOURCE_FINGERPRINTS_20261007.json`; `ops/integration/verify-one-arbor-composition.mjs` is called before dependency installation in the existing combined CI. A changed file fails the gate until a deliberate manifest review updates its expected blob. The guard checks local source identity, not external provenance, independent approval, deployed code or behavioral acceptance.
+
+The additive Vercel source-only exclusion set also includes the Group 03 archive-review branch `review/one-arbor-group03-archive-ledger-20261007`, which was missing from the earlier union. No deployment, alias change, worker/task submission, full archive transport, memory promotion or live model testing happened in this update.
+
+**Fresh acceptance rule:** run the exact-final-head composition workflow again; an older passing CI run cannot certify changed guard/docs. The owner's listed PRs stay separate and must be rechecked immediately before any actual source promotion.

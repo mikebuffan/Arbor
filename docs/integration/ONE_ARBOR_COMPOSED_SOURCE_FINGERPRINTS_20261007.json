@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "mode": "source-only-review-no-deployment",
+  "baseSource": "e9077a66bac293437916c4ab11228752cfd2e6da",
+  "owners": {
+    "group01_pr344": "79d1810a605d96577b1307bbf4eb3c8047828638",
+    "group03_pr346": "6b733602eae8b78a54cec53379fea2765a460261",
+    "group04_pr345": "e725265533123b5ca2296bc94f16810594fea114",
+    "group04_pr347": "bc1f1ebbdb2a23f11abf5dff5d4dbc2112528f4e",
+    "group05_pr343": "e9077a66bac293437916c4ab11228752cfd2e6da",
+    "group06_pr348": "5f2fa29f0b71cc00cf13a112fcee8d921700c5d5",
+    "group04_pr352": "49acefdd8c7b2730d004071efc96c8d057c757c1"
+  },
+  "expectedBlobSha": {
+    "apps/backend/lib/arbor/runtime/timeCore.ts": "7fb33f4a8c6f201e96cc8c3f71b9a4ba584dabde",
+    "apps/backend/lib/arbor/runtime/__tests__/timeCore.test.ts": "f5f4db35169429f949ee0d8561bb3b2a0c402420",
+    "apps/backend/lib/arbor/language/contextualReferenceResolution.ts": "e124f09ec1a2b3bf4ead159f01f33ea75a4ff66e",
+    "apps/backend/lib/arbor/host/recoveryReadProjection.ts": "edab4f84206558b04140a12affc3c26af71ecec3",
+    "apps/backend/lib/arbor/continuity/longitudinalPolicy.ts": "b2c73a08b89baca0321d5966201012865fe5656a",
+    "apps/backend/lib/memory/retrieval.ts": "3541a30b33d9b2ab0eebcf0d370bbfd66337129c",
+    "apps/backend/lib/memory/__tests__/projectIsolation.test.ts": "b34d7042f43a17b77676b4f184c6e05bd2fc4259",
+    "apps/backend/app/api/memory/items/route.ts": "f5d81852a6e4ea97e55825040f60b75484f6c39c",
+    "apps/frontend/lib/environment/grove_memory_shelf.dart": "17e98e461846bac6189a853ea9a96e782ca9ba20",
+    "apps/frontend/test/grove_memory_shelf_test.dart": "d5e9abadd7a1312469e0f6d02d4f6b54cfccfee8",
+    "apps/backend/scripts/import_chatgpt/archiveSourceInventory.ts": "eed2e5b2c1e7ee20f06619339b1b009fd07390b0",
+    "apps/backend/lib/memory/__tests__/archiveSourceInventory.test.ts": "fa351ae6e07af4202707a3579aef2af6c492044e",
+    "apps/backend/lib/arbor/selfModel/canonicalIdentityAnchor.ts": "636a4bab9f01689ddf546bf8331950e4a7dc30ef",
+    "apps/arbor-control-backend/src/selfModelObservations.ts": "f8f03960ee18eca6650b12b4e2ee07c3b8e34469",
+    "apps/arbor-control-backend/src/selfModelClaims.ts": "9bf0d7bd2f50fe61338a8967cd1b0a0c7d3e1b52",
+    "docs/integration/ONE_ARBOR_GROUP06_IDENTITY_EVIDENCE_GATE_20261007.md": "bd43f7b8a8c2e90208b6839d582d5f698fcc570c",
+    "ops/grove/source-only-ignore.mjs": "865206f47d49c4f152319bf348e9e5a226cfa521",
+    ".github/workflows/one-arbor-group04-shelf-pagination.yml": "a5e439673e9b0c81c1c2cbc545aa3375599f8a11",
+    "apps/backend/lib/memory/__tests__/shelfPageRead.test.ts": "35b5c43abb6b2c774a1ae3aa75b33507c1e4d3bb",
+    "apps/frontend/lib/environment/grove_memory_shelf_view.dart": "31e54c5c459cadce0eeba4bb577922c419cde71a",
+    "apps/frontend/test/grove_memory_shelf_view_test.dart": "f01802b64c9ee0ed0116ee66e81344499fdcdf25"
+  },
+  "comment": "Source-only reviewed merge candidate: original 17 source fingerprints remain enforced, 4 Group 4 pins updated to exact owned pagination revisions and 4 additional Group 4 paths pinned. New source identifiers are review candidates, not owner approval, live memory use, release, or behavioral proof."
+}
