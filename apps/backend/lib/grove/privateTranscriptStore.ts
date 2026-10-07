@@ -116,6 +116,10 @@ export function createSupabaseGrovePrivateTranscriptStore(
       if (error) throw error;
       if (!data) return null;
       assertRow(data as GrovePrivateTranscriptRow, input);
+      // A scoped query does not justify trusting a stale/misrouted provider
+      // result. Never replay a different request ID, even with identical text.
+      if ((data as GrovePrivateTranscriptRow).request_id !== input.requestId)
+        conflict();
       return data as GrovePrivateTranscriptRow;
     },
     async claimPending(input) {
@@ -223,10 +227,16 @@ export function selectPrivateModelHistory(input: {
     throw new RouteAccessError(409, "grove_transcript_reply_invalid");
   const selected: Array<{ user: string; assistant: string }> = [];
   let budget = 12000 - input.userText.length;
-  if (input.completedNewestFirst.length > 6)
+  if (!Array.isArray(input.completedNewestFirst) ||
+      input.completedNewestFirst.length > 6)
     throw new Error("grove_transcript_history_limit");
+  const seenRequests = new Set<string>();
   for (const row of input.completedNewestFirst) {
     assertRow(row, input.scope);
+    // A repeated source pair must not become two independent LM memories.
+    if (seenRequests.has(row.request_id))
+      throw new Error("grove_transcript_history_duplicate_request");
+    seenRequests.add(row.request_id);
     // Preserve the latest context before older context. Truncation is for
     // the LM-only context window, never the durable stored record.
     const user = row.user_text.slice(0, 3000);
