@@ -1,0 +1,59 @@
+name: Pre-live RPC contract acceptance
+
+on:
+  push:
+    branches:
+      - verification/prelive-rpc-contracts-20261007
+  pull_request:
+    branches:
+      - fix/prelive-rpc-contracts-20261007
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prelive-rpc-contracts-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    if: github.repository == 'mikebuffan/Arbor'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      CI: 'true'
+      OPENAI_API_KEY: ci-placeholder-not-a-real-key
+      AWS_EC2_METADATA_DISABLED: 'true'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install locked dependencies
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.30.3 --activate
+          pnpm install --frozen-lockfile
+      - name: Install local PDF parser dependency
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils
+      - name: Focused RPC, Vault, and memory acceptance
+        working-directory: apps/backend
+        run: >
+          pnpm exec vitest run
+          lib/__tests__/rpcDefinitionCoverage.test.ts
+          lib/arbor/vault/localVaultSearch.test.ts
+          lib/memory/__tests__/matchMemoriesV3Contract.test.ts
+          lib/memory/__tests__/projectIsolation.test.ts
+          lib/memory/__tests__/retrievalStability.test.ts
+      - name: Full backend regression
+        run: pnpm --filter firefly-backend test
+      - name: Production backend build
+        run: pnpm --filter firefly-backend build
+      - name: Standalone TypeScript
+        working-directory: apps/backend
+        run: pnpm exec tsc --noEmit
