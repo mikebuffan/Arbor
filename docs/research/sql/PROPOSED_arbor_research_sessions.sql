@@ -107,7 +107,7 @@ create policy arbor_research_receipts_owner_read on public.arbor_research_receip
 -- never let a client select an arbitrary owner for a service-role call.
 create or replace function public.arbor_append_research_units(
   p_session_id uuid,p_user_id uuid,p_project_id uuid,p_units jsonb
-) returns jsonb language plpgsql security invoker set search_path = pg_catalog, public as $
+) returns jsonb language plpgsql security invoker set search_path = pg_catalog, public as $append$
 declare v_session public.arbor_research_sessions%rowtype;
         v_now timestamptz;
         v_requested integer;
@@ -214,7 +214,7 @@ begin
     'appended',v_appended,
     'existing',v_requested-v_appended
   );
-end $;
+end $append$;
 
 create or replace function public.arbor_claim_research_unit(
   p_session_id uuid,p_user_id uuid,p_project_id uuid,p_worker_id text,
