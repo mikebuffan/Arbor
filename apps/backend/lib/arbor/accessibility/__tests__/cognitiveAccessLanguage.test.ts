@@ -166,7 +166,7 @@ describe("cognitive-access language", () => {
     );
   });
 
-  it("clarifies when a plausible reconstruction flips negation", () => {
+  it("preserves raw wording when a plausible reconstruction flips negation", () => {
     const decision = decideCognitiveAccessRecovery({
       rawText: "dont merge main",
       source: "typed",
