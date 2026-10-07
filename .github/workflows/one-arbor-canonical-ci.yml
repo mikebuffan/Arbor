@@ -5,6 +5,7 @@ on:
     branches:
       - integration/one-arbor-canonical-20261006
       - integration/ark-finish-canonical-20261006
+      - integration/one-arbor-machine-ready-20261006
       - integration/one-arbor-pre-vercel-20261006
   pull_request:
     branches:
@@ -14,7 +15,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: one-arbor-canonical-${{ github.event.pull_request.number }}
+  group: one-arbor-canonical-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
