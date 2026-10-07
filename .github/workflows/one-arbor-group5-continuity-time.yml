@@ -1,0 +1,61 @@
+name: One Arbor Group 5 continuity and Time Core source gate
+
+on:
+  pull_request:
+    branches:
+      - integration/one-arbor-reconciled-335-339-20261007
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'apps/backend/lib/arbor/runtime/timeCore.ts'
+      - 'apps/backend/lib/arbor/runtime/__tests__/timeCore.test.ts'
+      - 'apps/backend/lib/arbor/language/**'
+      - 'apps/backend/lib/arbor/host/**'
+      - 'apps/backend/lib/arbor/continuity/**'
+      - '.github/workflows/one-arbor-group5-continuity-time.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: one-arbor-group5-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  continuity-source-only:
+    if: github.repository == 'mikebuffan/Arbor'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      CI: 'true'
+      OPENAI_API_KEY: ci-placeholder-not-a-real-key
+      AWS_EC2_METADATA_DISABLED: 'true'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify source-only Vercel branch fence
+        run: |
+          VERCEL_GIT_COMMIT_REF=test/one-arbor-group5-continuity-time-20261007 node ops/grove/source-only-ignore.mjs
+      - name: Install locked dependencies
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.30.3 --activate
+          pnpm install --frozen-lockfile
+      - name: Time, referents and continuity regression
+        working-directory: apps/backend
+        run: >-
+          pnpm exec vitest run
+          lib/arbor/runtime/__tests__/timeCore.test.ts
+          lib/arbor/language/__tests__/contextualReferenceResolution.test.ts
+          lib/arbor/host/__tests__
+          lib/arbor/continuity/__tests__
+          lib/arbor/runtime/__tests__/correctionRecovery.test.ts
+          lib/arbor/runtime/__tests__/durableCorrectionRetention.test.ts
+          lib/arbor/runtime/__tests__/decisionAncestry.test.ts
+      - name: Standalone backend TypeScript
+        working-directory: apps/backend
+        run: pnpm exec tsc --noEmit
