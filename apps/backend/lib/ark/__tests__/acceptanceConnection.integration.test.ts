@@ -27,7 +27,7 @@ it("connects the real ARK executor, acceptance runner, agent and verifier throug
   let count = 0;
   mocks.create.mockImplementation(async (request: any) => ({ id: `mock-only-${++count}`, model: "test-model", status: "completed", output: [], usage: null,
     output_text: String(request.instructions).includes("completion and behavioral-regression verifier")
-      ? JSON.stringify({ complete: true, score: 1, unresolvedWork: [], evidence: [], strategyCorrection: null, behaviorViolations: [] })
+      ? JSON.stringify({ complete: true, score: 1, unresolvedWork: [], evidence: ["mock acceptance response set completed"], strategyCorrection: null, behaviorViolations: [] })
       : `Mock reply ${count}` }));
   const registry = new ArkExecutorRegistry(); registerArkAcceptanceExecutor({ registry, supabase: supabase as never });
   const claim = { objective: { id: "objective", userId, projectId }, task: { id: "task", userId, projectId,
