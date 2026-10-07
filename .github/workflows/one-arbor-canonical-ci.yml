@@ -76,6 +76,7 @@ jobs:
           lib/research/patternHopDomainLenses.test.ts
           lib/research/researchPatternHopBridge.test.ts
           lib/research/researchPatternHopBridgeDomain.test.ts
+          lib/research/patternHopEvidenceIntegration.test.ts
           lib/research/investigationPatternHop.test.ts
           lib/research/arkResearchHandoff.test.ts
           lib/research/registerArkResearchControllerExecutor.test.ts
