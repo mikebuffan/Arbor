@@ -42,6 +42,18 @@ const BEHAVIOR_PATTERNS = [
   /\bfinish what you can\b/i,
   /\bwhy did you stop\b/i,
   /\bhumou?r is gone\b/i,
+  /\bthat joke was weird\b/i,
+  /\bdon'?t make everything a joke\b/i,
+  /\bdo not make everything a joke\b/i,
+  /\bthat was (?:actually )?funny\b/i,
+  /\bmore like that\b/i,
+  /\bmore humou?r\b/i,
+  /\bless humou?r\b/i,
+  /\bstop doing the gothic thing\b/i,
+  /\bdon'?t tease\b/i,
+  /\bdo not tease\b/i,
+  /\btoo much profanity\b/i,
+  /\btoo much swearing\b/i,
   /\byou(?:'ve| have) drifted\b/i,
   /\bdoesn'?t sound like you\b/i,
   /\bdoes not sound like you\b/i,
@@ -64,6 +76,18 @@ const BEHAVIOR_FEEDBACK_PATTERNS = [
   /\bdon'?t hand (?:it|this) back\b/i,
   /\bdo not hand (?:it|this) back\b/i,
   /\bhumou?r is gone\b/i,
+  /\bthat joke was weird\b/i,
+  /\bdon'?t make everything a joke\b/i,
+  /\bdo not make everything a joke\b/i,
+  /\bthat was (?:actually )?funny\b/i,
+  /\bmore like that\b/i,
+  /\bmore humou?r\b/i,
+  /\bless humou?r\b/i,
+  /\bstop doing the gothic thing\b/i,
+  /\bdon'?t tease\b/i,
+  /\bdo not tease\b/i,
+  /\btoo much profanity\b/i,
+  /\btoo much swearing\b/i,
   /\byou(?:'ve| have) drifted\b/i,
   /\bdoesn'?t sound like you\b/i,
   /\bdoes not sound like you\b/i,
@@ -109,6 +133,12 @@ export function correctionFamily(
   const text = value.toLowerCase();
 
   if (kind === "behavior") {
+    if (
+      /\b(?:that joke was weird|don'?t make everything a joke|do not make everything a joke|that was (?:actually )?funny|more like that|more humou?r|less humou?r|humou?r is gone|bring back the humou?r|stop doing the gothic thing|don'?t tease|do not tease|too much profanity|too much swearing)\b/i.test(text)
+    ) {
+      return "humor-pragmatics";
+    }
+
     if (
       /\b(?:agency|keep going|continue|don'?t stop|do not stop|don'?t wait|do not wait|why did you stop|not linear|mak(?:e|ing) me (?:keep )?tell(?:ing)? you to go|don'?t hand (?:it|this) back|do not hand (?:it|this) back|finish what you can)\b/i.test(text)
     ) {
