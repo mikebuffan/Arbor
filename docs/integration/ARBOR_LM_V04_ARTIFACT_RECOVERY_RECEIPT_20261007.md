@@ -34,6 +34,18 @@ The historical exact foundation commit remains unrecoverable from this artifact 
 
 The preserved tokenizer bytes can therefore be pinned exactly for compatibility checks even though the historical upstream foundation revision is missing.
 
+
+## Original corrective-data package verification
+
+The original private corrective-data archive was also recovered and verified:
+
+- archive SHA-256: `d6d91a323b5cb1fd07c8cae87203c7660eee74a60eb734d7a34e8f09ca747f8e`
+- ZIP CRC/integrity check: PASS
+- `synthetic_private_training_v04.jsonl`: 66,244 bytes; SHA-256 `80c206ae6cfc629f6e9d4e41e1bd18eb151ff447a6ba29a266468be07fc5ffd6`
+- `independent_private_holdout_v04.jsonl`: 3,028 bytes; SHA-256 `1d3e95787b8335bca295f2018a1dce6d289a8f6c42d4196344622adf0f32cd0c`
+
+Those two hashes exactly match the dataset and held-out hashes embedded in the trained v0.4 candidate receipt. This establishes byte-level lineage from preserved corrective data to the preserved candidate receipt; it does not establish semantic acceptance or the missing historical foundation commit.
+
 ## Remaining protected gates
 
 1. deliberately choose and record an exact compatible Qwen foundation revision for the next experiment;
