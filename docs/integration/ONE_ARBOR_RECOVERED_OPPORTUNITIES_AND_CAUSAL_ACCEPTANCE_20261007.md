@@ -44,18 +44,20 @@ new worker authority, model spend, automatic activation, or research-task mutati
    Keep proposals, choices, rejected alternatives, explicit supersessions,
    corrections, and reported consequences. Missing links and competing unsuperseded
    choices must be visible. Exact retry must not count twice. An outcome ref is
-   *not* self-verifying. Thirteen isolated synthetic cases introduced with this appendix.
+   *not* self-verifying. Sixteen isolated synthetic cases introduced with this appendix.
    **Not yet host-wired or deployed.**
 2. **Failure Radar.** Reuse existing correction/prediction-error/roundabout signals.
    Initial read-only warning only: repeated correction, unreferenced outcome, missing
    predecessor, parallel current choices. Never autonomously revise identity or
    close an objective. **Proof:** relevant warnings appear; foreign/stale/benign
    events cannot trigger a claim about another person/project.
-3. **Decision-history review / Human Decision Inbox.** A review surface derived
-   from *actual* unresolved high-stakes choices and explicit grants. No generic
-   permission treadmill; show why a decision needs human input and what safe work
-   can continue. **Proof:** no action when a grant is absent, and an unrelated
-   safely authorized subtask proceeds without interrupting the user.
+3. **Decision-history review / Human Decision Inbox.** A first **read-only
+   candidate projection** derives review reasons from already scoped decision
+   histories. It does not classify stakes, authorize a person, create tasks, or
+   infer that approval occurred. Future host integration must show why a real
+   decision needs the human and which previously authorized safe work can continue.
+   **Proof:** foreign-scope and repeated decision keys are denied; no action
+   when a grant is absent, and an unrelated authorized task proceeds separately.
 4. **What Changed.** The first **read-only in-process delta** now compares two
    decision projections, rejects same-ID rewrites, and flags disappearing older
    events. It is **not** a whole-project checkpoint diff: future host integration
