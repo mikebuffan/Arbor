@@ -68,23 +68,38 @@ const emptyCounts = () => ({
 });
 
 function chooseObjective(objectives: Row[]): Row | null {
-  const priority = [
+  // Active durable work outranks terminal history regardless of recency.
+  const activePriority = [
     "running",
     "checkpointed",
     "blocked",
     "awaiting_verification",
     "queued",
-    "failed",
-    "completed",
-    "cancelled",
   ];
-  for (const status of priority) {
+  for (const status of activePriority) {
     const match = objectives.find(
       (row) => id(row.id) && text(row.goal) && row.status === status,
     );
     if (match) return match;
   }
-  return null;
+
+  // Once no active work exists, terminal status must reflect the newest
+  // durable objective. Never let an old completion mask a newer STOP/failure.
+  const terminals = objectives
+    .map((row, index) => ({ row, index, updatedAt: date(row.updated_at) }))
+    .filter(({ row }) =>
+      id(row.id) && text(row.goal) &&
+      ["failed", "completed", "cancelled"].includes(String(row.status)),
+    )
+    .sort((a, b) => {
+      if (a.updatedAt && b.updatedAt) {
+        return Date.parse(b.updatedAt) - Date.parse(a.updatedAt);
+      }
+      if (a.updatedAt) return -1;
+      if (b.updatedAt) return 1;
+      return a.index - b.index;
+    });
+  return terminals[0]?.row ?? null;
 }
 
 function recordedEvidence(value: unknown): boolean {

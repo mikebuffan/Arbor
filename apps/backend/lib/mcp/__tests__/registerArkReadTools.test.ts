@@ -37,6 +37,47 @@ describe("ARK MCP tool boundary", () => {
     expect(r.structuredContent).toMatchObject({ access: "read-and-submit-behavior-tests", canSubmitBehaviorTests: true,
       canSubmitReadTasks: false, oauthClientId: "verified-client" });
   });
+  it("reports objective control separately only when feature and grant both exist", async () => {
+    vi.stubEnv("ARBOR_ENABLE_ARK_MCP_OBJECTIVE_CONTROL", "true");
+    const registerTool = vi.fn();
+    registerArkReadTools({ registerTool } as never);
+    const [, , run] = registerTool.mock.calls
+      .find(c => c[0] === "get_arbor_profile")!;
+    const r = await run({}, {
+      http: {
+        authInfo: {
+          scopes: ["ark.control.objectives"],
+          extra: {
+            arkObjectiveControlProjectIds: ["project"],
+            oauthClientId: "verified-client",
+          },
+        },
+      },
+    });
+    expect(r.structuredContent).toMatchObject({
+      access: "read-and-control-objectives",
+      canSubmitReadTasks: false,
+      canSubmitBehaviorTests: false,
+      canControlObjectives: true,
+      oauthClientId: "verified-client",
+    });
+
+    vi.stubEnv("ARBOR_ENABLE_ARK_MCP_OBJECTIVE_CONTROL", "false");
+    const registerDisabled = vi.fn();
+    registerArkReadTools({ registerTool: registerDisabled } as never);
+    const [, , runDisabled] = registerDisabled.mock.calls
+      .find(c => c[0] === "get_arbor_profile")!;
+    const disabled = await runDisabled({}, {
+      http: {
+        authInfo: {
+          scopes: ["ark.control.objectives"],
+          extra: { arkObjectiveControlProjectIds: ["project"] },
+        },
+      },
+    });
+    expect(disabled.structuredContent.canControlObjectives).toBe(false);
+  });
+
   it("does not report an effective behavior permission while the feature is disabled", async () => {
     vi.stubEnv("ARBOR_ENABLE_ARK_MCP_ACCEPTANCE", "false");
     const registerTool = vi.fn(); registerArkReadTools({ registerTool } as never);

@@ -259,6 +259,34 @@ export class SupabaseArkStore implements ArkStore {
     return objectiveFromRow(object(data));
   }
 
+  /** Explicit durable STOP. Protected callers must authorize ownership before
+   * passing a service-role client. Repeated STOP is idempotent in SQL. */
+  async cancelObjective(input: {
+    objectiveId: string;
+    now: string;
+  }): Promise<ArkObjective> {
+    const { data, error } = await this.supabase.rpc("ark_cancel_objective", {
+      p_objective_id: input.objectiveId,
+      p_now: input.now,
+    });
+    if (error) throw error;
+    return objectiveFromRow(object(data));
+  }
+
+  /** Resume only an objective blocked on a resumable blocked task.
+   * Failed/cancelled/completed work is intentionally not resurrected. */
+  async resumeBlockedObjective(input: {
+    objectiveId: string;
+    now: string;
+  }): Promise<ArkObjective> {
+    const { data, error } = await this.supabase.rpc("ark_resume_blocked_objective", {
+      p_objective_id: input.objectiveId,
+      p_now: input.now,
+    });
+    if (error) throw error;
+    return objectiveFromRow(object(data));
+  }
+
   async assessObjectiveCompletion(objectiveId: string): Promise<ArkVerification> {
     const { data, error } = await this.supabase
       .from("ark_tasks")

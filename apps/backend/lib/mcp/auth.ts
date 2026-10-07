@@ -4,7 +4,9 @@ import type { AuthInfo } from "@modelcontextprotocol/server";
 import { createUserClientForBearerToken } from "@/lib/supabase/user";
 import {
   arkReadTaskProjects, arkPatternHopProjects, arkAcceptanceProjects,
-  ARK_READ_TASK_SUBMIT_PERMISSION, ARK_PATTERN_HOP_SUBMIT_PERMISSION, ARK_ACCEPTANCE_SUBMIT_PERMISSION,
+  arkObjectiveControlProjects,
+  ARK_READ_TASK_SUBMIT_PERMISSION, ARK_PATTERN_HOP_SUBMIT_PERMISSION,
+  ARK_ACCEPTANCE_SUBMIT_PERMISSION, ARK_OBJECTIVE_CONTROL_PERMISSION,
 } from "./taskPermissions";
 
 type VerifiedTokenClaims = {
@@ -42,6 +44,10 @@ export async function verifyArkMcpToken(
   const grantedProjects = arkReadTaskProjects(user.app_metadata, claims.client_id);
   const patternHopProjects = arkPatternHopProjects(user.app_metadata, claims.client_id);
   const acceptanceProjects = arkAcceptanceProjects(user.app_metadata, claims.client_id);
+  const objectiveControlProjects = arkObjectiveControlProjects(
+    user.app_metadata,
+    claims.client_id,
+  );
 
   return {
     token,
@@ -51,7 +57,8 @@ export async function verifyArkMcpToken(
         : "supabase-oauth-client",
     scopes: ["ark.read", ...(grantedProjects.length ? [ARK_READ_TASK_SUBMIT_PERMISSION] : []),
       ...(patternHopProjects.length ? [ARK_PATTERN_HOP_SUBMIT_PERMISSION] : []),
-      ...(acceptanceProjects.length ? [ARK_ACCEPTANCE_SUBMIT_PERMISSION] : [])],
+      ...(acceptanceProjects.length ? [ARK_ACCEPTANCE_SUBMIT_PERMISSION] : []),
+      ...(objectiveControlProjects.length ? [ARK_OBJECTIVE_CONTROL_PERMISSION] : [])],
     expiresAt: typeof claims.exp === "number" ? claims.exp : undefined,
     extra: {
       userId: user.id,
@@ -60,6 +67,9 @@ export async function verifyArkMcpToken(
       ...(grantedProjects.length ? {arkReadTaskProjectIds: grantedProjects} : {}),
       ...(patternHopProjects.length ? {arkPatternHopProjectIds: patternHopProjects} : {}),
       ...(acceptanceProjects.length ? {arkAcceptanceProjectIds: acceptanceProjects} : {}),
+      ...(objectiveControlProjects.length
+        ? {arkObjectiveControlProjectIds: objectiveControlProjects}
+        : {}),
     },
   };
 }

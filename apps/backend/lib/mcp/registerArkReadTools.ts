@@ -12,8 +12,14 @@ import { behaviorCorrections } from "@/lib/arbor/runtime/corrections";
 import { promptDataBlock } from "@/lib/arbor/promptData";
 import { renderCanonicalIdentityAnchor } from "@/lib/arbor/selfModel/canonicalIdentityAnchor";
 import { arkMcpUserContext } from "./context";
-import { isArkMcpSubmissionEnabled, ARK_READ_TASK_SUBMIT_PERMISSION } from "./taskPermissions";
-import { isArkAcceptanceSubmissionEnabled, ARK_ACCEPTANCE_SUBMIT_PERMISSION } from "./taskPermissions";
+import {
+  isArkMcpSubmissionEnabled,
+  ARK_READ_TASK_SUBMIT_PERMISSION,
+  isArkAcceptanceSubmissionEnabled,
+  ARK_ACCEPTANCE_SUBMIT_PERMISSION,
+  isArkMcpObjectiveControlEnabled,
+  ARK_OBJECTIVE_CONTROL_PERMISSION,
+} from "./taskPermissions";
 import { readArborMemoryRecall } from "@/lib/memory/readRecall";
 import {ArchiveReadInput,ArchiveReadOutput,readHistoricalArchivePage} from "@/lib/memory/archiveReader";
 
@@ -54,9 +60,15 @@ export function registerArkReadTools(server: McpServer): void {
         userId: z.string().uuid(),
         email: z.string().email().nullable(),
         subsystem: z.literal("ARK"),
-        access: z.enum(["read-only", "read-and-submit-read-tasks", "read-and-submit-behavior-tests"]),
+        access: z.enum([
+          "read-only",
+          "read-and-control-objectives",
+          "read-and-submit-read-tasks",
+          "read-and-submit-behavior-tests",
+        ]),
         canSubmitReadTasks: z.boolean(),
         canSubmitBehaviorTests: z.boolean(),
+        canControlObjectives: z.boolean(),
         oauthClientId: z.string().nullable(),
       }),
       annotations: ReadOnlyAnnotations,
@@ -69,11 +81,18 @@ export function registerArkReadTools(server: McpServer): void {
         && Array.isArray(auth.extra?.arkReadTaskProjectIds) && auth.extra.arkReadTaskProjectIds.length > 0;
       const canSubmitBehaviorTests = isArkAcceptanceSubmissionEnabled() && auth?.scopes.includes(ARK_ACCEPTANCE_SUBMIT_PERMISSION)
         && Array.isArray(auth.extra?.arkAcceptanceProjectIds) && auth.extra.arkAcceptanceProjectIds.length > 0;
+      const canControlObjectives = isArkMcpObjectiveControlEnabled()
+        && auth?.scopes.includes(ARK_OBJECTIVE_CONTROL_PERMISSION)
+        && Array.isArray(auth.extra?.arkObjectiveControlProjectIds)
+        && auth.extra.arkObjectiveControlProjectIds.length > 0;
       return result({ userId, email, subsystem: "ARK" as const,
         access: canSubmitBehaviorTests ? "read-and-submit-behavior-tests" as const
-          : canSubmit ? "read-and-submit-read-tasks" as const : "read-only" as const,
+          : canSubmit ? "read-and-submit-read-tasks" as const
+          : canControlObjectives ? "read-and-control-objectives" as const
+          : "read-only" as const,
         canSubmitReadTasks: Boolean(canSubmit),
         canSubmitBehaviorTests: Boolean(canSubmitBehaviorTests),
+        canControlObjectives: Boolean(canControlObjectives),
         oauthClientId: typeof auth?.extra?.oauthClientId === "string" ? auth.extra.oauthClientId : null });
     },
   );

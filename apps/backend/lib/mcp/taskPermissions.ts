@@ -3,6 +3,7 @@ import type { ServerContext } from "@modelcontextprotocol/server";
 export const ARK_READ_TASK_SUBMIT_PERMISSION = "ark.submit.read_tasks";
 export const ARK_PATTERN_HOP_SUBMIT_PERMISSION = "ark.submit.pattern_hop";
 export const ARK_ACCEPTANCE_SUBMIT_PERMISSION = "ark.submit.behavior_acceptance";
+export const ARK_OBJECTIVE_CONTROL_PERMISSION = "ark.control.objectives";
 
 export function isArkMcpSubmissionEnabled(): boolean {
   return process.env.ARBOR_ENABLE_ARK_MCP_SUBMISSION === "true";
@@ -26,6 +27,10 @@ export function arkPatternHopProjects(appMetadata: unknown, clientId: unknown): 
 
 export function arkAcceptanceProjects(appMetadata: unknown, clientId: unknown): string[] {
   return arkGrantedProjects(appMetadata, clientId, ARK_ACCEPTANCE_SUBMIT_PERMISSION);
+}
+
+export function arkObjectiveControlProjects(appMetadata: unknown, clientId: unknown): string[] {
+  return arkGrantedProjects(appMetadata, clientId, ARK_OBJECTIVE_CONTROL_PERMISSION);
 }
 
 function arkGrantedProjects(appMetadata: unknown, clientId: unknown, permission: string): string[] {
@@ -70,4 +75,21 @@ export function assertArkReadTaskSubmission(ctx: ServerContext, projectId: strin
       || !Array.isArray(auth.extra?.arkReadTaskProjectIds)
       || !auth.extra.arkReadTaskProjectIds.includes(projectId))
     throw new Error("ark_mcp_submission_not_granted");
+}
+
+
+export function isArkMcpObjectiveControlEnabled(): boolean {
+  return process.env.ARBOR_ENABLE_ARK_MCP_OBJECTIVE_CONTROL === "true";
+}
+
+export function assertArkObjectiveControl(ctx: ServerContext, projectId: string): void {
+  const auth = ctx.http?.authInfo;
+  if (!isArkMcpObjectiveControlEnabled()) {
+    throw new Error("ark_objective_control_disabled");
+  }
+  if (!auth?.scopes.includes(ARK_OBJECTIVE_CONTROL_PERMISSION)
+      || !Array.isArray(auth.extra?.arkObjectiveControlProjectIds)
+      || !auth.extra.arkObjectiveControlProjectIds.includes(projectId)) {
+    throw new Error("ark_objective_control_not_granted");
+  }
 }
