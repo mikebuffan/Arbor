@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feature/annabelle-finish-20261006
+      - integration/one-arbor-machine-ready-20261006
 
 permissions:
   contents: read
