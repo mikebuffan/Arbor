@@ -28,6 +28,27 @@ describe("gastric internal signals", () => {
     expect(signal.responseGuidance).toContain("preserve the parent objective");
   });
 
+  it("prioritizes explicit do-not-proceed over simultaneous overload cues", () => {
+    const result = classifyInternalSignal({
+      userMessage: "This is too much. Keep it simple. Do not proceed.",
+    });
+    expect(result.state).toBe("BLOCKED");
+    expect(result.responseGuidance).toContain("preserve the parent objective");
+  });
+
+  it.each(["STOP", "Stop!", "Please STOP."])(
+    "treats a standalone STOP as a rejected route: %s",
+    userMessage => {
+      expect(classifyInternalSignal({userMessage}).state).toBe("BLOCKED");
+    },
+  );
+
+  it("does not turn ordinary stop-adding or do-not-stop phrases into STOP", () => {
+    expect(classifyInternalSignal({userMessage:"Stop adding extra details"}).state).toBe("FULL");
+    expect(classifyInternalSignal({userMessage:"Do not stop the authorized test"}).state)
+      .not.toBe("BLOCKED");
+  });
+
   it("classifies challenge requests as SOUR", () => {
     expect(
       classifyInternalSignal({
