@@ -51,14 +51,20 @@ jobs:
           corepack enable
           corepack prepare pnpm@10.30.3 --activate
           pnpm install --frozen-lockfile
-      - name: Grove continuity, bounded writes, LM and ARK acceptance
+      - name: Grove auth, continuity, bounded writes, LM and ARK acceptance
         working-directory: apps/backend
         run: >
           pnpm exec vitest run
+          lib/grove/__tests__/privateReadBroker.test.ts
+          lib/grove/__tests__/privateChatRoute.test.ts
+          lib/grove/__tests__/privateConversationDiscovery.test.ts
           lib/grove/__tests__/privateConversationLoop.test.ts
+          lib/grove/__tests__/privateTranscriptRoute.test.ts
           lib/grove/__tests__/privateTranscriptStore.test.ts
+          lib/grove/__tests__/privateHostIsolation.test.ts
           lib/grove/__tests__/privateLmHostTransport.test.ts
           lib/grove/__tests__/privateCorrectionRoute.test.ts
+          lib/grove/__tests__/privateCorrectionWritePreparation.test.ts
           lib/grove/__tests__/privateCorrectionConnection.test.ts
           lib/grove/__tests__/privateRuntimeGoalWrite.test.ts
           lib/grove/__tests__/privateRuntimeGoalRoute.test.ts
