@@ -23,6 +23,7 @@ const branches = new Set([
   "test/one-arbor-may-route-compatibility-20261007",
   "test/one-arbor-recovery-glow-noise-20261007",
   "test/one-arbor-host-recovery-read-20261007",
-  "integration/one-arbor-reconciled-335-339-20261007"
+  "integration/one-arbor-reconciled-335-339-20261007",
+  "test/one-arbor-group5-continuity-time-20261007"
 ]);
 process.exitCode = branches.has(process.env.VERCEL_GIT_COMMIT_REF) ? 0 : 1;
