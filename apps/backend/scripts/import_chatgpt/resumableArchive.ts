@@ -122,6 +122,7 @@ export async function transportResumableArchive(input:{files:string[];target:Arc
     assertRunning();
     const next:ArchiveCheckpoint={schemaVersion:2,fingerprint:manifest.fingerprint,nextBatch:batch.index+1,
       target:manifest.target,parser:manifest.parser,normalizedSha256:manifest.normalizedSha256};
+    assertRunning();
     await input.saveCheckpoint(next);nextBatch=next.nextBatch;
   }
   return {fingerprint:manifest.fingerprint,nextBatch,totalBatches:manifest.batches.length,
