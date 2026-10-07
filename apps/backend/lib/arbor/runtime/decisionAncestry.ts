@@ -156,6 +156,24 @@ export function projectDecisionAncestry(input: {
   };
 }
 
+function assertConsistentView(view: DecisionAncestryView): void {
+  if (!view || !view.scope || !Array.isArray(view.events))
+    throw new Error("decision_ancestry_view_invalid");
+  const computed = projectDecisionAncestry({
+    scope: view.scope, decisionId: view.decisionId, events: view.events,
+  });
+  if (computed.events.length !== view.events.length ||
+      computed.events.some((event, index) => event.id !== view.events[index]?.id) ||
+      JSON.stringify(computed.warnings) !== JSON.stringify(view.warnings) ||
+      computed.currentChoice?.id !== view.currentChoice?.id ||
+      JSON.stringify(computed.missingPredecessors) !==
+        JSON.stringify(view.missingPredecessors) ||
+      view.grantsExecution !== false ||
+      view.grantsMemoryPromotion !== false ||
+      view.evidenceVerifiedHere !== false)
+    throw new Error("decision_ancestry_view_invalid");
+}
+
 /**
  * Read-only "what changed?" between two source-bound projections. A missing
  * older event is reported, not treated as deletion consent or silently ignored.
@@ -170,8 +188,8 @@ export function diffDecisionAncestry(
   requiresReview: boolean;
   grantsExecution: false;
 } {
-  assertScope(before.scope);
-  assertScope(after.scope);
+  assertConsistentView(before);
+  assertConsistentView(after);
   if (before.scope.userId !== after.scope.userId ||
       before.scope.projectId !== after.scope.projectId ||
       before.decisionId !== after.decisionId)
@@ -225,8 +243,8 @@ export function projectDecisionReviewCandidates(input: {
   const ids = new Set<string>();
   const flagged: Array<{ decisionId: string; reasons: DecisionTrailWarning[]; latestEventId: string | null }> = [];
   for (const view of input.views) {
-    if (!view || !view.scope ||
-        view.scope.userId !== input.scope.userId ||
+    assertConsistentView(view);
+    if (view.scope.userId !== input.scope.userId ||
         view.scope.projectId !== input.scope.projectId)
       throw new Error("decision_review_scope_mismatch");
     if (!checkedText(view.decisionId, 200) || ids.has(view.decisionId))
