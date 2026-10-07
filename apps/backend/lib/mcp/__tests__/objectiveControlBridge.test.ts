@@ -209,6 +209,46 @@ describe("ARK MCP objective-control boundary", () => {
     expect(mocks.cancel).not.toHaveBeenCalled();
   });
 
+  it("does not expose raw privileged database failures", async () => {
+    mocks.context.mockReturnValue({
+      userId: user,
+      supabase: client({
+        id: objective,
+        user_id: user,
+        project_id: project,
+        status: "running",
+      }),
+    });
+    mocks.cancel.mockRejectedValue(
+      new Error("provider secret table detail and internal SQL"),
+    );
+
+    await expect(controlTool().run(
+      { projectId: project, objectiveId: objective, action: "cancel" },
+      ctx,
+    )).rejects.toThrow("ark_objective_control_failed");
+  });
+
+  it("preserves only known bounded conflict codes", async () => {
+    mocks.context.mockReturnValue({
+      userId: user,
+      supabase: client({
+        id: objective,
+        user_id: user,
+        project_id: project,
+        status: "completed",
+      }),
+    });
+    mocks.cancel.mockRejectedValue(
+      new Error("rpc: ark_completed_objective_cannot_cancel internal detail"),
+    );
+
+    await expect(controlTool().run(
+      { projectId: project, objectiveId: objective, action: "cancel" },
+      ctx,
+    )).rejects.toThrow(/^ark_completed_objective_cannot_cancel$/);
+  });
+
   it("rejects a privileged control result that crosses scope", async () => {
     mocks.context.mockReturnValue({
       userId: user,
