@@ -1,0 +1,34 @@
+name: One Arbor self-model recovery
+on:
+  pull_request:
+    branches:
+      - integration/one-arbor-multilane-20261007
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  focused:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      CI: 'true'
+      OPENAI_API_KEY: ci-placeholder-not-a-real-key
+      AWS_EC2_METADATA_DISABLED: 'true'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: |
+          corepack enable
+          corepack prepare pnpm@10.30.3 --activate
+          pnpm install --frozen-lockfile
+      - name: Self-model, host, and prompt regressions
+        working-directory: apps/backend
+        run: pnpm exec vitest run lib/arbor/host/__tests__/oneArborHostBridge.test.ts lib/arbor/selfModel/__tests__/personalityProjection.test.ts lib/prompt/__tests__/buildPromptContext.freshness.test.ts lib/arbor/behavior/__tests__/arkLayerReadContext.test.ts
+      - name: Standalone TypeScript
+        working-directory: apps/backend
+        run: pnpm exec tsc --noEmit
