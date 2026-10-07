@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RouteAccessError } from "@/lib/auth/routeAuthorization";
 
 const mocks = vi.hoisted(() => ({
@@ -62,10 +62,33 @@ function request(body: unknown) {
 describe("ARK objective owner controls", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.stubEnv("ARBOR_ENABLE_ARK_OBJECTIVE_CONTROL", "true");
     const scoped = ownedObjectiveClient();
     mocks.requireUser.mockResolvedValue({ userId, supabase: scoped });
     mocks.assertProjectOwnedByUser.mockResolvedValue(undefined);
     mocks.supabaseAdmin.mockReturnValue(adminClient);
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("keeps owner mutation controls default-off even for an authenticated owner", async () => {
+    vi.stubEnv("ARBOR_ENABLE_ARK_OBJECTIVE_CONTROL", "false");
+
+    const response = await POST(request({
+      projectId,
+      objectiveId,
+      action: "cancel",
+    }));
+
+    expect(response.status).toBe(404);
+    expect(await response.json()).toEqual({
+      ok: false,
+      error: "ark_objective_control_not_enabled",
+    });
+    expect(mocks.assertProjectOwnedByUser).not.toHaveBeenCalled();
+    expect(mocks.supabaseAdmin).not.toHaveBeenCalled();
   });
 
   it("authenticates before validating malformed input", async () => {
