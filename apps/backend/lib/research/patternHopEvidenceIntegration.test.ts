@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { ArkPatternHopRequest } from "@/lib/mcp/patternHopSubmissionContract";
 import type { ClaimEvidenceSummary } from "./claimEvidenceGraph";
 import type { PropagatedClaimConfidence } from "./contradictionPropagation";
 import type { RerouteDirective } from "./failedLeadRouting";
@@ -8,9 +9,12 @@ import {
 } from "./researchPatternHopBridge";
 import { preparePatternHopEvidenceIntegration } from "./patternHopEvidenceIntegration";
 
+const projectId = "11111111-1111-4111-8111-111111111111";
+const requestId = "22222222-2222-4222-8222-222222222222";
+const otherProjectId = "33333333-3333-4333-8333-333333333333";
 const scope = {
   userId: "owner",
-  projectId: "project",
+  projectId,
   conversationId: "conversation",
   turnId: "turn",
 };
@@ -60,7 +64,8 @@ describe("Pattern Hop -> Evidence Engine -> Roundabout -> ARK composition", () =
     const result = preparePatternHopEvidenceIntegration({
       candidate: candidate(),
       scope,
-      projectId: "project",
+      projectId,
+      requestId,
       claimSummaries: claims,
       contradictionEffects: effects,
     });
@@ -90,13 +95,17 @@ describe("Pattern Hop -> Evidence Engine -> Roundabout -> ARK composition", () =
       independentCorroborationVerified: false,
       grantsExecution: false,
       request: {
-        projectId: "project",
+        projectId,
+        requestId,
         seed: "synthetic bounded evidence query",
         runId: null,
         maxHops: 6,
         maxDepth: 3,
       },
     });
+    expect(ArkPatternHopRequest.parse(result.ark.request)).toEqual(
+      result.ark.request,
+    );
   });
 
   it("deduplicates provenance without treating repetition as independent corroboration", () => {
@@ -113,7 +122,8 @@ describe("Pattern Hop -> Evidence Engine -> Roundabout -> ARK composition", () =
     const result = preparePatternHopEvidenceIntegration({
       candidate: candidate(),
       scope,
-      projectId: "project",
+      projectId,
+      requestId,
       claimSummaries: claims,
     });
 
@@ -133,7 +143,8 @@ describe("Pattern Hop -> Evidence Engine -> Roundabout -> ARK composition", () =
     const result = preparePatternHopEvidenceIntegration({
       candidate: candidate(),
       scope,
-      projectId: "project",
+      projectId,
+      requestId,
       reroutes,
     });
 
@@ -147,11 +158,40 @@ describe("Pattern Hop -> Evidence Engine -> Roundabout -> ARK composition", () =
     expect(result.ark.submitted).toBe(false);
   });
 
+  it("keeps Roundabout batches bounded without dropping a larger provenance set", () => {
+    const supportRefs = Array.from(
+      { length: 257 },
+      (_, i) => "scale-evidence-" + i,
+    );
+    const claims: ClaimEvidenceSummary[] = [{
+      claimId: "scale-claim",
+      supportRefs,
+      counterRefs: [],
+      contextRefs: [],
+      supportFamilies: ["scale-family"],
+      counterFamilies: [],
+      status: "graph_not_verdict",
+    }];
+    const result = preparePatternHopEvidenceIntegration({
+      candidate: candidate(),
+      scope,
+      projectId,
+      requestId,
+      claimSummaries: claims,
+    });
+    expect(result.roundabout.every(batch => batch.evidenceRefs.length <= 12))
+      .toBe(true);
+    expect([...new Set(result.roundabout.flatMap(batch => batch.evidenceRefs))].sort())
+      .toEqual(result.evidenceRefs);
+    expect(result.evidenceRefs).toHaveLength(259);
+  });
+
   it("fails closed when a prepared candidate cannot fit the existing ARK submission contract", () => {
     expect(() => preparePatternHopEvidenceIntegration({
       candidate: candidate({ maxDepth: 4 }),
       scope,
-      projectId: "project",
+      projectId,
+      requestId,
     })).toThrow("pattern_hop_candidate_exceeds_ark_bounds");
 
     expect(() => preparePatternHopEvidenceIntegration({
@@ -165,15 +205,24 @@ describe("Pattern Hop -> Evidence Engine -> Roundabout -> ARK composition", () =
         maxHopsPerAttempt: 6,
       }),
       scope,
-      projectId: "project",
+      projectId,
+      requestId,
     })).toThrow("pattern_hop_candidate_exceeds_ark_seed_limit");
+
+    expect(() => preparePatternHopEvidenceIntegration({
+      candidate: candidate(),
+      scope,
+      projectId,
+      requestId: "not-a-uuid",
+    })).toThrow("pattern_hop_ark_request_invalid");
   });
 
   it("refuses a cross-project ARK projection", () => {
     expect(() => preparePatternHopEvidenceIntegration({
       candidate: candidate(),
       scope,
-      projectId: "other-project",
+      projectId: otherProjectId,
+      requestId,
     })).toThrow("pattern_hop_ark_project_scope_mismatch");
   });
 });
