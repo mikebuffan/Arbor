@@ -68,6 +68,13 @@ describe("editorial evidence to generation", () => {
     expect(result.records.map(row => row.id)).toEqual(["valid"]);
     expect(result.warnings).toHaveLength(4);
   });
+  it("never reactivates explicitly invalidated Gold evidence", async () => {
+    const gold = record({ id: "old-gold", record_type: "gold_exemplar", source_sha256: "book-hash", source_locator: { chapter: "book" },
+      content: { evidenceCount: 8, invalidatedReason: "Generated before the complete manuscript was actually read." } });
+    const result = await loadEditorialContext({ ...scope, supabase: db({ records: [gold] }).supabase });
+    expect(result.records).toEqual([]);
+    expect(result.warnings.join(" ")).toMatch(/explicitly invalidated/i);
+  });
   it("preserves hypotheses and contradictory evidence as unresolved rather than confirmed canon", async () => {
     const result = await loadEditorialContext({ ...scope, supabase: db({ records: [record({ epistemic_status: "hypothesis" })] }).supabase });
     expect(result.records[0].epistemicStatus).toBe("hypothesis");
