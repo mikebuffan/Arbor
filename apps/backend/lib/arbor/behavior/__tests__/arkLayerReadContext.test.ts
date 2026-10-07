@@ -348,7 +348,7 @@ describe("owner-scoped ARK -> Arbor Layer read crossing", () => {
       supabase: {} as never, authenticatedUserId: owner,
       projectId: project, conversationId: conversation, mode: "text",
     });
-    expect(context.behavior.proof.contractVersion).toBe("2026-10-05.1");
+    expect(context.behavior.proof.contractVersion).toBe("2026-10-06.1");
     context.behavior.proof.contractVersion = "2026-09-21.1";
     const request = vi.fn();
     await expect(sendPrivateGroveLmTurnFromVerifiedHost({
