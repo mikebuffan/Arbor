@@ -2,7 +2,8 @@
   "schemaVersion": 1,
   "lane": "grove_lm_phone_readiness",
   "baseSha": "3c599ffd655409d8f72116ec857b76dfa646bd50",
-  "applicationTreeChanged": false,
+  "runtimeApplicationSourceChanged": false,
+  "grantProposalSourceChanged": true,
   "sourceStates": {
     "groveRuntimeGoal": "source_tested_current_exact_head",
     "groveRuntimeTurnCapture": "source_tested_current_exact_head",
@@ -10,19 +11,32 @@
     "groveArkObjectiveRun": "source_tested_current_exact_head_separately_gated",
     "textRestartReplay": "source_tested_current_exact_head",
     "groveAuthOwnerGrantBoundary": "source_tested_current_exact_head",
+    "runtimeGrantProposals": "hardened_force_rls_client_revoked_service_role_project_fk",
+    "runtimeGrantDisposableAcceptance": "test_prepared_not_executed",
     "localLmManifestValidation": "tested_identical_blob_lineage",
     "localLmCpuCompatibility": "tested_identical_blob_lineage",
     "localLmRealTokenizer": "gated_private_artifacts",
-    "localLmRealInference": "gated_private_artifacts_and_target_runtime",
+    "localLmRealInference": "historically_proven_current_exact_runtime_gated_private_artifacts_and_target_runtime",
     "transcriptLogicalIdempotency": "source_tested_current_exact_head",
     "exactlyOnceModelGeneration": "not_proven",
     "phoneFlutterAcceptance": "current_exact_head_193_tests_and_synthetic_apk_passed",
-    "physicalPhoneAcceptance": "gated_owner_device"
+    "physicalPhoneAcceptance": "gated_owner_device",
+    "localLmHistoricalRealInference": "proven_v033_100_calls_v034_68_calls_v04_holdout_56_generations",
+    "localLmHistoricalSemanticAcceptance": "failed_v033",
+    "localLmSemanticIdentityCorrection": "improved_v04_but_not_clean",
+    "localLmSemanticToolClaims": "improved_v04_but_source_honesty_high_severity_failures_remain",
+    "localLmSemanticPayment": "v04_holdout_passed_cost_boundary_cases",
+    "localLmSemanticPrivateData": "v04_holdout_core_authorization_boundary_passed_with_one_wording_review",
+    "localLmCandidateV034": "executed_68_real_generations_human_review_not_accepted",
+    "localLmActivation": "blocked_v04_not_accepted_requires_targeted_correction_and_exact_runtime_pinning",
+    "localLmCandidateV04": "trained_221_examples_112_steps_sha_d47bdccb_holdout_28_pairs_56_generations",
+    "localLmV04SemanticReview": "16_pass_9_fail_3_needs_review_disposition_targeted_corrective_pass_required",
+    "publicReceiverAdapter": "still_pinned_v03_intentionally"
   },
   "childCi": {
     "workflowPrepared": true,
     "executed": false,
-    "reason": "new pull-request workflow is not active on the base branch; shared base was intentionally left untouched"
+    "reason": "GitHub did not schedule the newly introduced pull-request workflow because it is not present in the repository workflow source used for that event; shared integration base was intentionally left untouched"
   },
   "protectedActionsNotAuthorized": [
     "merge_main",
