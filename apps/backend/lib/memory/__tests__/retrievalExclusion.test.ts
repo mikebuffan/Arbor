@@ -2,6 +2,7 @@ import {describe, expect, it, vi} from "vitest";
 vi.mock("@/lib/providers/openai", () => ({openAIEmbed: vi.fn().mockResolvedValue([0.1])}));
 import {getAlwaysIncludedMemoryAnchors, getMemoryContext} from "../retrieval";
 import {selectItemsForPrompt} from "../selectForPrompt";
+import {getProjectAnchors} from "../anchors";
 
 const row=(id:string, excluded=false)=>({id,project_id:"project",scope:"project",key:id,
  value:{text:id},tier:"core" as const,pinned:true,locked:true,user_trigger_only:false,
@@ -39,6 +40,31 @@ describe("memory exclusion across retrieval routes",()=>{
   expect(recalled.keysUsed).toContain("trigger");
   expect(selectItemsForPrompt(recalled.sensitive,"unrelated question")).toEqual([]);
   expect(selectItemsForPrompt(recalled.sensitive,"secret trigger phrase").map(x=>x.id)).toContain("trigger");
+ });
+ it("project anchors reject forgotten, trigger-only, foreign, and conversation-mislabeled rows",async()=>{
+  const good={id:"safe",user_id:"owner",project_id:"project",conversation_id:null,
+    key:"pref.safe",value:{text:"approved"},scope:"project",tier:"core",
+    pinned:true,locked:true,user_trigger_only:false,excluded_from_memory:false,
+    status:"active",deleted_at:null,updated_at:"2026-10-07T00:00:00.000Z"};
+  const rows=[
+    good,
+    {...good,id:"forgotten",excluded_from_memory:true,value:{text:"old excluded content"}},
+    {...good,id:"trigger",user_trigger_only:true,value:{text:"hidden cue"}},
+    {...good,id:"foreign",project_id:"elsewhere",value:{text:"foreign"}},
+    {...good,id:"stray-thread",conversation_id:"thread-2",value:{text:"thread-only"}},
+    {...good,id:"retired",status:"tombstoned",value:{text:"retired"}},
+    {...good,id:"deleted",deleted_at:"2026-10-07T01:00:00.000Z",value:{text:"deleted"}},
+    {...good,id:"other-user",user_id:"someone-else",value:{text:"other user"}},
+  ];
+  const d=db([{data:rows,error:null}]);
+  const anchors=await getProjectAnchors({supabase:d.client,authedUserId:"owner",projectId:"project"});
+  expect(anchors.map(x=>x.id)).toEqual(["safe"]);
+  const query=d.queries[0];
+  expect(query.eq).toHaveBeenCalledWith("excluded_from_memory",false);
+  expect(query.eq).toHaveBeenCalledWith("user_trigger_only",false);
+  expect(query.is).toHaveBeenCalledWith("conversation_id",null);
+  expect(JSON.stringify(anchors)).not.toContain("hidden cue");
+  expect(JSON.stringify(anchors)).not.toContain("old excluded content");
  });
  it("revalidates vector eligibility even when RPC results omit exclusion fields",async()=>{
   const legacy=[row("allowed"),row("excluded"),row("disappeared")];
