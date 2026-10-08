@@ -45,7 +45,7 @@ function validateCases(cases: readonly IndependentJudgmentCase[]): void {
       typeof c.prompt !== "string" || c.prompt.trim().length < 5 ||
       c.prompt.length > 1200 || !Array.isArray(c.trustedEvidence) ||
       c.trustedEvidence.length > 3 ||
-      c.trustedEvidence.some(e => typeof e !== "string" || !e.trim() || e.length > 600) ||
+      c.trustedEvidence.some((e: unknown) => typeof e !== "string" || !e.trim() || e.length > 600) ||
       !c.expectedDisposition || !c.explanation?.trim() || !c.forbiddenFailure?.trim())
       throw new Error("judgment_pack_invalid_case");
     ids.add(c.id);
