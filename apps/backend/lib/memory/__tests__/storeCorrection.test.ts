@@ -16,7 +16,7 @@ vi.mock("@/lib/memory/embeddings", () => ({
 vi.mock("@/lib/memory/logger", () => ({ logMemoryEvent: mocks.logMemoryEvent }));
 vi.mock("@/lib/supabase/server", () => ({ getServerSupabase: vi.fn() }));
 
-import { correctMemoryItem, supersedeMemoryAliases } from "@/lib/memory/store";
+import { correctMemoryItem, reinforceMemoryUse, supersedeMemoryAliases, upsertMemoryItems } from "@/lib/memory/store";
 
 describe("memory correction storage semantics", () => {
   beforeEach(() => {
@@ -85,6 +85,70 @@ describe("memory correction storage semantics", () => {
       event_type: "lock",
       payload: { correction_count: 2 },
     }));
+  });
+
+  it("does not silently reactivate a superseded alias via ordinary ingestion", async () => {
+    const retired = {
+      id: "old-alias", status: "tombstoned", deleted_at: "2026-10-07T00:00:00.000Z",
+      locked: false,
+    };
+    const read = {
+      select: vi.fn(), eq: vi.fn(), is: vi.fn(),
+      maybeSingle: vi.fn().mockResolvedValue({ data: retired, error: null }),
+    };
+    read.select.mockReturnValue(read);
+    read.eq.mockReturnValue(read);
+    read.is.mockReturnValue(read);
+    const supabase = {
+      from: vi.fn(() => read),
+    } as unknown as SupabaseClient;
+    const result = await upsertMemoryItems("user-a", [{
+      key: "alias.retired", value: "stale assertion", tier: "normal",
+      importance: 5, confidence: 0.8, user_trigger_only: false, scope: "project",
+    }], "project-a", supabase);
+    expect(result).toEqual({ created: [], updated: [], locked: [], ignored: ["alias.retired"] });
+    expect(supabase.from).toHaveBeenCalledTimes(1);
+    expect(read.maybeSingle).toHaveBeenCalledTimes(1);
+    expect(mocks.logMemoryEvent).not.toHaveBeenCalled();
+  });
+
+  it("rejects correcting an already retired alias without explicit restore authority", async () => {
+    const retired = {
+      id: "old-alias", status: "tombstoned", deleted_at: "2026-10-07T00:00:00.000Z",
+      locked: false,
+    };
+    const read = {
+      select: vi.fn(), eq: vi.fn(), is: vi.fn(),
+      maybeSingle: vi.fn().mockResolvedValue({ data: retired, error: null }),
+    };
+    read.select.mockReturnValue(read);
+    read.eq.mockReturnValue(read);
+    read.is.mockReturnValue(read);
+    const supabase = { from: vi.fn(() => read) } as unknown as SupabaseClient;
+    await expect(correctMemoryItem({
+      supabase, authedUserId: "user-a", projectId: "project-a",
+      key: "alias.retired", newValue: "new wording",
+    })).rejects.toThrow("memory_tombstoned_requires_explicit_restore");
+    expect(supabase.from).toHaveBeenCalledTimes(1);
+    expect(mocks.logMemoryEvent).not.toHaveBeenCalled();
+  });
+
+  it("does not reinforce a retired memory during mention counting", async () => {
+    const retired = {
+      id: "old-alias", status: "active", deleted_at: "2026-10-07T00:00:00.000Z",
+      locked: false,
+    };
+    const read = {
+      select: vi.fn(), eq: vi.fn(), is: vi.fn(),
+      maybeSingle: vi.fn().mockResolvedValue({ data: retired, error: null }),
+    };
+    read.select.mockReturnValue(read);
+    read.eq.mockReturnValue(read);
+    read.is.mockReturnValue(read);
+    const supabase = { from: vi.fn(() => read) } as unknown as SupabaseClient;
+    await reinforceMemoryUse("user-a", ["alias.retired"], "project-a", supabase);
+    expect(supabase.from).toHaveBeenCalledTimes(1);
+    expect(mocks.logMemoryEvent).not.toHaveBeenCalled();
   });
 
   it("soft-tombstones exact same-project aliases and records auditable events", async () => {
