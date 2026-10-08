@@ -40,7 +40,7 @@
     "apps/arbor-control-backend/src/selfModelObservations.ts": "f8f03960ee18eca6650b12b4e2ee07c3b8e34469",
     "apps/arbor-control-backend/src/selfModelClaims.ts": "9bf0d7bd2f50fe61338a8967cd1b0a0c7d3e1b52",
     "docs/integration/ONE_ARBOR_GROUP06_IDENTITY_EVIDENCE_GATE_20261007.md": "bd43f7b8a8c2e90208b6839d582d5f698fcc570c",
-    "ops/grove/source-only-ignore.mjs": "ea4d52c046286ee7671312e7ace585d3194a1c21",
+    "ops/grove/source-only-ignore.mjs": "4b2ae1a94e8d3785b3ea9349e07db471f23f5bfd",
     ".github/workflows/one-arbor-group04-shelf-pagination.yml": "41790290a7fa86974dcca3fbbcc15bc96e0cac88",
     "apps/backend/lib/memory/__tests__/shelfPageRead.test.ts": "35b5c43abb6b2c774a1ae3aa75b33507c1e4d3bb",
     "apps/frontend/lib/environment/grove_memory_shelf_view.dart": "31e54c5c459cadce0eeba4bb577922c419cde71a",
@@ -128,5 +128,5 @@
     "apps/backend/lib/memory/candidateContext.ts": "16b6fbe1e1d5ecb8e814ebb2a91aeaef368fe37e",
     "apps/backend/lib/memory/__tests__/candidateContext.test.ts": "231221a4113f30c94ec5853597d767bb8e3abe61"
   },
-  "comment": "B12 candidate-context malformed record shape fails closed; 103 exact reviewed source pins, source-only review no deployment. This child follows independent judgment #368 and does not authorize live memory reads/forget or user data mutation."
+  "comment": "103 exact source pins; isolated ARK Preview branch preparation only. Guard includes prep/one-arbor-ark-preview-20261008 as skip-by-default on every Vercel project. No deploy, no grants, no env/secret changes, no worker execution. Prior PR #369 executable source is preserved."
 }
