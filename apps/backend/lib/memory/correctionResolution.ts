@@ -457,7 +457,10 @@ export async function loadActiveCorrectionCandidates(params: {
 
   const { data, error } = await query;
   if (error) throw error;
-  return (data ?? []) as CorrectionCandidate[];
+  return (data ?? []).filter((item: CorrectionCandidate) =>
+    item.status === "active" && item.deleted_at === null &&
+    item.excluded_from_memory !== true,
+  ) as CorrectionCandidate[];
 }
 
 const emptyUpsertResult = (): MemoryUpsertResult => ({
