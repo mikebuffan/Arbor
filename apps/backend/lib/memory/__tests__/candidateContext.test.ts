@@ -16,7 +16,7 @@ const candidate = (id: string, overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
-function mockedAdmin(rows: unknown[], error: unknown = null) {
+function mockedAdmin(rows: unknown, error: unknown = null) {
   const query = {
     select: vi.fn(), eq: vi.fn(), order: vi.fn(),
     limit: vi.fn().mockResolvedValue({ data: rows, error }),
@@ -75,4 +75,52 @@ describe("provisional candidate owner and forgetting guards", () => {
     });
     expect(result).toEqual({ promptBlock: "", selected: [] });
   });
+  it("skips malformed candidate content and cue phrases without dropping valid memory", async () => {
+    mockedAdmin([
+      candidate("valid-signal"),
+      candidate("numeric-content", { candidate_json: {
+        category: "project", content: 42, score: 1, confidence: 1,
+        confirm_count: 2,
+      } }),
+      candidate("object-content", { candidate_json: {
+        category: "project", content: { text: "not a string" },
+        score: 1, confidence: 1, confirm_count: 2,
+      } }),
+      candidate("malformed-cue-collection", { candidate_json: {
+        category: "cue", content: "not-a-safe-cue",
+        source_phrases: { text: "hello" }, score: 1,
+        confidence: 1, confirm_count: 2,
+      } }),
+      candidate("malformed-cue-values", { candidate_json: {
+        category: "cue", content: "also-not-a-safe-cue",
+        source_phrases: [null, 7, { phrase: "hello" }],
+        score: 1, confidence: 1, confirm_count: 2,
+      } }),
+      candidate("valid-cue", { candidate_json: {
+        category: "cue", content: "valid-cue",
+        source_phrases: [null, "hello"], score: 0.9,
+        confidence: 0.85, confirm_count: 2,
+      } }),
+    ]);
+    const result = await getProvisionalMemoryCandidateContext({
+      userId, projectId, latestUserText: "hello, please continue",
+    });
+    expect(result.selected.map((item) => item.id)).toEqual([
+      "valid-signal", "valid-cue",
+    ]);
+    for (const disallowed of [
+      "numeric-content", "object-content", "not-a-safe-cue",
+      "also-not-a-safe-cue",
+    ]) expect(result.promptBlock).not.toContain(disallowed);
+    expect(result.promptBlock).toContain("valid-cue");
+  });
+
+  it("treats an invalid administrative result collection as no optional candidates", async () => {
+    mockedAdmin({ unexpected: "not a row array" });
+    const result = await getProvisionalMemoryCandidateContext({
+      userId, projectId, latestUserText: "continue",
+    });
+    expect(result).toEqual({ promptBlock: "", selected: [] });
+  });
+
 });

@@ -38,7 +38,11 @@ function candidateRank(json: CandidateJson): number {
 function cueMatches(json: CandidateJson, latestUserText: string): boolean {
   if (json.category !== "cue") return true;
   const user = normalize(latestUserText);
-  return (json.source_phrases ?? []).some((phrase) => {
+  // Optional candidate metadata may be malformed or mixed-version. Fail
+  // closed on that candidate, not on the user's entire chat request.
+  const phrases = Array.isArray(json.source_phrases) ? json.source_phrases : [];
+  return phrases.some((phrase) => {
+    if (typeof phrase !== "string") return false;
     const normalizedPhrase = normalize(phrase);
     return normalizedPhrase.length >= 3 && user.includes(normalizedPhrase);
   });
@@ -76,6 +80,9 @@ export async function getProvisionalMemoryCandidateContext(input: {
     return EMPTY_CONTEXT;
   }
 
+  // A storage adapter returning a malformed shape must not crash the chat.
+  if (!Array.isArray(data)) return EMPTY_CONTEXT;
+
   // The administrative client bypasses RLS. Recheck each returned row's
   // owner, project and status before any candidate text enters the prompt.
   const selected = data
@@ -95,7 +102,7 @@ export async function getProvisionalMemoryCandidateContext(input: {
     .filter((candidate) => {
       const { json } = candidate;
       if (json.sensitive || json.excluded_from_memory) return false;
-      if (!json.content?.trim()) return false;
+      if (typeof json.content !== "string" || !json.content.trim()) return false;
       if (!cueMatches(json, input.latestUserText)) return false;
       return candidate.rank >= 0.48 || Number(json.confirm_count ?? 0) > 0;
     })

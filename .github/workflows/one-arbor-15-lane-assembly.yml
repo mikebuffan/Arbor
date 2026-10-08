@@ -5,10 +5,12 @@ on:
       - review/one-arbor-15-lane-source-assembly-20261007
       - review/one-arbor-group11-assembly-followon-20261007
       - test/one-arbor-judgment-blind-pack-20261007
+      - review/one-arbor-b12-candidate-shape-20261007
   pull_request:
     branches:
       - fix/one-arbor-group04-shelf-pagination-20261007
       - review/one-arbor-15-lane-source-assembly-20261007
+      - test/one-arbor-judgment-blind-pack-20261007
     paths:
       - 'apps/**'
       - 'ops/grove/source-only-ignore.mjs'
@@ -55,6 +57,7 @@ jobs:
         working-directory: apps/backend
         run: >-
           pnpm exec vitest run
+          lib/memory/__tests__/candidateContext.test.ts
           lib/memory/__tests__/shelfPageRead.test.ts
           lib/memory/__tests__/projectIsolation.test.ts
           lib/memory/__tests__/retrievalExclusion.test.ts

@@ -40,12 +40,12 @@
     "apps/arbor-control-backend/src/selfModelObservations.ts": "f8f03960ee18eca6650b12b4e2ee07c3b8e34469",
     "apps/arbor-control-backend/src/selfModelClaims.ts": "9bf0d7bd2f50fe61338a8967cd1b0a0c7d3e1b52",
     "docs/integration/ONE_ARBOR_GROUP06_IDENTITY_EVIDENCE_GATE_20261007.md": "bd43f7b8a8c2e90208b6839d582d5f698fcc570c",
-    "ops/grove/source-only-ignore.mjs": "85fa1c322643cbec7e672da1fcb9ac3298b51dec",
+    "ops/grove/source-only-ignore.mjs": "ea4d52c046286ee7671312e7ace585d3194a1c21",
     ".github/workflows/one-arbor-group04-shelf-pagination.yml": "41790290a7fa86974dcca3fbbcc15bc96e0cac88",
     "apps/backend/lib/memory/__tests__/shelfPageRead.test.ts": "35b5c43abb6b2c774a1ae3aa75b33507c1e4d3bb",
     "apps/frontend/lib/environment/grove_memory_shelf_view.dart": "31e54c5c459cadce0eeba4bb577922c419cde71a",
     "apps/frontend/test/grove_memory_shelf_view_test.dart": "f01802b64c9ee0ed0116ee66e81344499fdcdf25",
-    ".github/workflows/one-arbor-15-lane-assembly.yml": "c3a82deff1a31cc03c794c2805dfcd5ef9d39375",
+    ".github/workflows/one-arbor-15-lane-assembly.yml": "e7455eebf2aefe0511bdceec5d5796d82a3c3257",
     ".github/workflows/one-arbor-diary-draft.yml": "8923e47d0d69562a86a7c210b10efaaf0c5fd624",
     ".github/workflows/one-arbor-group08-body-acceptance.yml": "d4dc36baef71d379f6a769d7f0416cd755d7252a",
     ".github/workflows/one-arbor-group09-decision-gates.yml": "8c6a9996d12fc1624e8e1ef997d8c04d34ee0ffe",
@@ -105,7 +105,7 @@
     "apps/backend/lib/arbor/behavior/behaviorProjection.ts": "cd52561933f57ff41daf2ca1497d2dc8d414bfe8",
     "apps/backend/lib/arbor/behavior/__tests__/independentJudgmentCases.ts": "7d9b8eb3f6952812c893c5a5bd228395888e5da3",
     "apps/backend/lib/arbor/behavior/__tests__/independentJudgmentCases.test.ts": "045e1782fbacbad032738232bf960962345e2a8e",
-    ".github/workflows/one-arbor-independent-judgment.yml": "9f5c0aee3ce81349463278ad9d0ccc45a6a81849",
+    ".github/workflows/one-arbor-independent-judgment.yml": "040a9b3c43a037b8f7587ab896f81771d73c8d83",
     "apps/backend/lib/prompt/buildPromptContext.ts": "c91150dbfce1755b9843b58c8c46a95e7fe50a3b",
     "apps/backend/lib/arbor/behavior/arkLayerReadContext.ts": "e0597d3df998d37361a9b21f351d597e1508f445",
     "apps/backend/lib/arbor/behavior/__tests__/arkLayerReadContext.test.ts": "fff706bfa7d2694ae8f58e5f21c4cff0b6e02516",
@@ -125,8 +125,8 @@
     "apps/backend/lib/memory/__tests__/correctionResolution.test.ts": "eed5e018caf77c76b6ea225c1d4d835437da2e8a",
     "apps/backend/lib/memory/__tests__/retrievalExclusion.test.ts": "bdb4d191fe2c9619360670b419173c36cda71c2d",
     "apps/backend/lib/memory/anchors.ts": "be7b67b4e620ce89ca901ffcda551e8c9ef8bbc2",
-    "apps/backend/lib/memory/candidateContext.ts": "ef73233ea4d73887d2932ce2d1a886aa63b6687e",
-    "apps/backend/lib/memory/__tests__/candidateContext.test.ts": "455f5c10d429931b522ced92b25db946e184c106"
+    "apps/backend/lib/memory/candidateContext.ts": "16b6fbe1e1d5ecb8e814ebb2a91aeaef368fe37e",
+    "apps/backend/lib/memory/__tests__/candidateContext.test.ts": "231221a4113f30c94ec5853597d767bb8e3abe61"
   },
-  "comment": "78 verified source-only blobs. Adds exact group11 PR #360 view-injection and visited-ID bounds to reviewed 15-lane #362 candidate; Group12 latest after recorded source head is docs-only. Source review, no deployment or live acceptance."
+  "comment": "B12 candidate-context malformed record shape fails closed; 103 exact reviewed source pins, source-only review no deployment. This child follows independent judgment #368 and does not authorize live memory reads/forget or user data mutation."
 }
