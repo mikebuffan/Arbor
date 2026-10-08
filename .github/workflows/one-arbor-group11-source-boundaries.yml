@@ -1,0 +1,54 @@
+name: One Arbor Group 11 source bounds and decision history
+
+on:
+  pull_request:
+    branches:
+      - integration/one-arbor-reconciled-335-339-20261007
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'apps/backend/lib/arbor/runtime/discoveryRadar.ts'
+      - 'apps/backend/lib/arbor/runtime/decisionAncestry.ts'
+      - 'apps/backend/lib/arbor/runtime/__tests__/group11SourceBoundary.test.ts'
+      - 'docs/integration/ONE_ARBOR_GROUP11_FINAL_BOUNDARIES_20261007.md'
+      - '.github/workflows/one-arbor-group11-source-boundaries.yml'
+      - 'ops/grove/source-only-ignore.mjs'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: one-arbor-group11-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  source-acceptance:
+    if: github.repository == 'mikebuffan/Arbor'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      CI: 'true'
+      AWS_EC2_METADATA_DISABLED: 'true'
+      OPENAI_API_KEY: ci-placeholder-not-a-real-key
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install locked dependencies
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.30.3 --activate
+          pnpm install --frozen-lockfile
+      - name: Focused decision ancestry, human review and Discovery Radar negative controls
+        working-directory: apps/backend
+        run: >-
+          pnpm exec vitest run
+          lib/arbor/runtime/__tests__/decisionAncestry.test.ts
+          lib/arbor/runtime/__tests__/decisionReviewAdapter.test.ts
+          lib/arbor/runtime/__tests__/discoveryRadar.test.ts
+          lib/arbor/runtime/__tests__/group11SourceBoundary.test.ts
+      - name: Backend TypeScript
+        working-directory: apps/backend
+        run: pnpm exec tsc --noEmit
