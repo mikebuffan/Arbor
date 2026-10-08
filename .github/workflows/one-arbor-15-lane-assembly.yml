@@ -66,6 +66,13 @@ jobs:
           lib/grove/__tests__/privateTranscriptStore.test.ts
           lib/arbor/annabelle/__tests__/group14PersistenceReadback.test.ts
           lib/arbor/records/__tests__/manualReview.test.ts
+      - name: Ensure existing PDF parser test dependencies
+        run: |
+          set -euo pipefail
+          if ! command -v pdfinfo >/dev/null || ! command -v pdftotext >/dev/null; then
+            timeout 120s sudo apt-get update
+            timeout 120s sudo apt-get install -y poppler-utils
+          fi
       - name: Full backend regression
         run: pnpm --filter firefly-backend test
       - name: Control backend regression and build
