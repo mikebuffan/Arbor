@@ -5,11 +5,15 @@ on:
     branches:
       - test/one-arbor-independent-judgment-20261007
       - review/one-arbor-judgment-green-baseline-20261007
+      - review/one-arbor-judgment-feedback-gates-20261007
   pull_request:
     branches:
       - review/one-arbor-group11-assembly-followon-20261007
+      - review/one-arbor-judgment-green-baseline-20261007
     paths:
       - 'apps/backend/lib/arbor/behavior/**'
+      - 'apps/backend/lib/prompt/buildPromptContext.ts'
+      - 'apps/backend/lib/prompt/__tests__/buildPromptContext.freshness.test.ts'
       - 'ops/grove/source-only-ignore.mjs'
       - 'docs/integration/ONE_ARBOR_COMPOSED_SOURCE_FINGERPRINTS_20261007.json'
       - '.github/workflows/one-arbor-independent-judgment.yml'
@@ -54,6 +58,8 @@ jobs:
           lib/arbor/behavior/behaviorProjection.test.ts
           lib/arbor/behavior/__tests__/independentJudgmentCases.test.ts
           lib/arbor/behavior/__tests__/group07ConversationSurface.test.ts
+          lib/arbor/behavior/__tests__/arkLayerReadContext.test.ts
+          lib/prompt/__tests__/buildPromptContext.freshness.test.ts
           lib/arbor/runtime/__tests__/corrections.test.ts
           lib/arbor/runtime/__tests__/decisionAncestry.test.ts
           lib/arbor/runtime/__tests__/group09TruthConsequence.test.ts

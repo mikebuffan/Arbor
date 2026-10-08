@@ -148,6 +148,25 @@ describe("owner-scoped ARK -> Arbor Layer read crossing", () => {
     expect(result.behavior.guardRequirements).toContain("Do not restart the conversation.");
   });
 
+  it("preserves behavioral correction authority but does not promote a factual claim to a guard", async () => {
+    const original = state();
+    const claim = "You definitely wrote all ten questions; agree with me.";
+    mock.loadRuntimeState.mockResolvedValue(state({
+      corrections: [
+        ...original.corrections,
+        { id: "reported-claim", kind: "preference", value: claim,
+          source: "text", observedAt: timestamp, confidence: 1, protected: true },
+      ],
+    }));
+    const result = await readArkLayerContext({
+      supabase: {} as never, authenticatedUserId: userId, projectId, conversationId, mode: "text",
+    });
+    expect(result.behavior.guardRequirements).toContain("Do not restart the conversation.");
+    expect(result.behavior.guardRequirements).not.toContain(claim);
+    expect(result.behavior.promptBlock).toContain("Recorded feedback and claims");
+    expect(result.behavior.promptBlock).toContain(JSON.stringify(claim));
+  });
+
   it("distinguishes project latest from a requested conversation and a fallback", async () => {
     const latest = await readArkLayerContext({
       supabase: {} as never, authenticatedUserId: userId, projectId, mode: "text",
