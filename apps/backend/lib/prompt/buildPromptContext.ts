@@ -390,7 +390,12 @@ export async function buildPromptContext({
       : null;
 
   const runtimeBehavioralCorrections =
-    behaviorCorrections(activeBehaviorCorrections);
+    behaviorCorrections(activeBehaviorCorrections.filter(item => item.kind === "behavior"));
+  // Preference/authority observations may contain factual claims and must not
+  // become completion-verifier instructions without a separate host check.
+  const reportedCorrectionClaims = activeBehaviorCorrections
+    .filter(item => item.kind === "preference" || item.kind === "authority")
+    .map(item => item.value);
 
   const pendingStrategyUnderVerification =
     conversationRuntime?.currentGoal === currentGoal
@@ -485,12 +490,11 @@ export async function buildPromptContext({
       NEGATIVE_PREFS_GUARD,
       negativePrefsFromAnchors,
     ].filter(Boolean),
-    // Only explicitly sourced prohibitions go into hard completion guards.
-    // Historical feedback and tentative strategies influence conversation but
-    // are not authenticated factual claims or mandatory execution criteria.
-    correctionRules: [negativePrefsFromAnchors].filter(Boolean),
+    // Known behavioral calibration and anchor prohibitions remain enforceable.
+    // Unknown or authority/factual user claims stay contextual until verified.
+    correctionRules: [negativePrefsFromAnchors, ...runtimeBehavioralCorrections].filter(Boolean),
     reportedFeedback: [
-      ...runtimeBehavioralCorrections,
+      ...reportedCorrectionClaims,
       pendingStrategyUnderVerification
         ? `Tentative self-update under verification: ${pendingStrategyUnderVerification}`
         : "",
