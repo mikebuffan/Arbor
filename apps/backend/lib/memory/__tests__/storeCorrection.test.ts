@@ -44,13 +44,12 @@ describe("memory correction storage semantics", () => {
     find.eq.mockReturnValue(find);
     find.is.mockReturnValue(find);
     const update = {
-      update: vi.fn(),
-      eq: vi.fn(),
-      select: vi.fn(),
-      single: vi.fn().mockResolvedValue({ data: { id: existing.id }, error: null }),
+      update: vi.fn(), eq: vi.fn(), is: vi.fn(), select: vi.fn(),
+      maybeSingle: vi.fn().mockResolvedValue({ data: { id: existing.id }, error: null }),
     };
     update.update.mockReturnValue(update);
     update.eq.mockReturnValue(update);
+    update.is.mockReturnValue(update);
     update.select.mockReturnValue(update);
     const event = { insert: vi.fn().mockResolvedValue({ error: null }) };
     let memoryCalls = 0;
@@ -79,6 +78,8 @@ describe("memory correction storage semantics", () => {
       confidence: 1,
       mention_count: 4,
     }));
+    expect(update.eq).toHaveBeenCalledWith("status", "active");
+    expect(update.is).toHaveBeenCalledWith("deleted_at", null);
     expect(event.insert).toHaveBeenCalledWith(expect.objectContaining({
       user_id: "user-a",
       project_id: "project-a",
@@ -86,6 +87,61 @@ describe("memory correction storage semantics", () => {
       event_type: "lock",
       payload: { correction_count: 2 },
     }));
+  });
+
+  it("does not claim an upsert succeeded if the row was retired after both reads", async () => {
+    const row = {
+      id: "same-id", key: "note.current", status: "active", deleted_at: null,
+      locked: false, memory_kind: "fact", value: { text: "old" },
+      importance: 5, confidence: 0.8, mention_count: 0,
+    };
+    const read = {
+      select: vi.fn(), eq: vi.fn(), is: vi.fn(),
+      maybeSingle: vi.fn().mockResolvedValue({ data: row, error: null }),
+    };
+    for (const k of ["select", "eq", "is"] as const) read[k].mockReturnValue(read);
+    const write = {
+      update: vi.fn(), eq: vi.fn(), is: vi.fn(), select: vi.fn(),
+      maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+    };
+    for (const k of ["update", "eq", "is", "select"] as const) write[k].mockReturnValue(write);
+    let reads = 0;
+    const supabase = { from: vi.fn(() => ++reads <= 2 ? read : write) } as unknown as SupabaseClient;
+    mocks.embedTexts.mockResolvedValue([[0.1, 0.2]]);
+    const outcome = await upsertMemoryItems("user-a", [{
+      key: "note.current", value: "new", tier: "normal",
+      importance: 5, confidence: 0.8, user_trigger_only: false, scope: "project",
+    }], "project-a", supabase);
+    expect(outcome).toEqual({ created: [], updated: [], locked: [], ignored: ["note.current"] });
+    expect(write.eq).toHaveBeenCalledWith("status", "active");
+    expect(write.is).toHaveBeenCalledWith("deleted_at", null);
+    expect(write.maybeSingle).toHaveBeenCalledOnce();
+    expect(mocks.logMemoryEvent).toHaveBeenCalledExactlyOnceWith("upsert_summary", expect.objectContaining({
+      updated: 0, created: 0,
+    }));
+  });
+
+  it("fails closed when a correction's target is retired during embedding", async () => {
+    const row = { id: "retiring-id", status: "active", deleted_at: null, locked: false, correction_count: 0 };
+    const read = {
+      select: vi.fn(), eq: vi.fn(), is: vi.fn(),
+      maybeSingle: vi.fn().mockResolvedValue({ data: row, error: null }),
+    };
+    for (const k of ["select", "eq", "is"] as const) read[k].mockReturnValue(read);
+    const write = {
+      update: vi.fn(), eq: vi.fn(), is: vi.fn(), select: vi.fn(),
+      maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+    };
+    for (const k of ["update", "eq", "is", "select"] as const) write[k].mockReturnValue(write);
+    let reads = 0;
+    const supabase = { from: vi.fn(() => ++reads === 1 ? read : write) } as unknown as SupabaseClient;
+    await expect(correctMemoryItem({
+      supabase, authedUserId: "user-a", projectId: "project-a",
+      key: "note.current", newValue: "replacement",
+    })).rejects.toThrow("memory_tombstoned_or_changed_during_correction");
+    expect(write.eq).toHaveBeenCalledWith("status", "active");
+    expect(write.is).toHaveBeenCalledWith("deleted_at", null);
+    expect(mocks.logMemoryEvent).not.toHaveBeenCalled();
   });
 
   it("does not silently reactivate a superseded alias via ordinary ingestion", async () => {
