@@ -389,8 +389,15 @@ export async function buildPromptContext({
         )
       : null;
 
+  // Durable behavioral calibration is enforceable; an unreviewed factual
+  // correction or authority assertion is not proof of its own content.
   const runtimeBehavioralCorrections =
-    behaviorCorrections(activeBehaviorCorrections);
+    behaviorCorrections(activeBehaviorCorrections.filter(
+      item => item.kind === "behavior",
+    ));
+  const reportedCorrectionClaims = activeBehaviorCorrections
+    .filter(item => item.kind === "preference" || item.kind === "authority")
+    .map(item => item.value);
 
   const pendingStrategyUnderVerification =
     conversationRuntime?.currentGoal === currentGoal
@@ -488,6 +495,9 @@ export async function buildPromptContext({
     correctionRules: [
       negativePrefsFromAnchors,
       ...runtimeBehavioralCorrections,
+    ].filter(Boolean),
+    reportedFeedback: [
+      ...reportedCorrectionClaims,
       pendingStrategyUnderVerification
         ? `Tentative self-update under verification: ${pendingStrategyUnderVerification}`
         : "",
