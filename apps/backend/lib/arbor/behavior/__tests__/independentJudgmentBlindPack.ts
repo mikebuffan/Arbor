@@ -78,7 +78,7 @@ export function buildJudgmentGeneration(
 /**
  * Separate host-only assignment and expected answers. A randomly generated
  * host seed should be supplied for any later consented live A/B study.
- * The assignment is balanced by deterministic per-case hash, not user order.
+ * The assignment is host-seeded and balanced over the full set of cases.
  */
 export function buildPrivateJudgmentPlan(input: {
   generation: JudgmentGeneration;
@@ -92,19 +92,23 @@ export function buildPrivateJudgmentPlan(input: {
     throw new Error("judgment_pack_public_mismatch");
   if (typeof input.hostSeed !== "string" || input.hostSeed.length < 16)
     throw new Error("judgment_pack_seed_required");
+  co  const ordered = cases.map(c => ({
+    id: c.id,
+    priority: hash([input.hostSeed, c.id]),
+  })).sort((a, b) => a.priority.localeCompare(b.priority) || a.id.localeCompare(b.id));
+  const firstArmCandidates = new Set(
+    ordered.slice(0, Math.floor(cases.length / 2)).map(c => c.id),
+  );
   const assignment: JudgmentAssignment = {
     schemaVersion: 1,
     casePackHash: input.generation.casePackHash,
-    cases: cases.map(c => {
-      const bit = parseInt(hash([input.hostSeed, c.id]).slice(0, 2), 16) % 2;
-      return {
-        caseId: c.id,
-        A: bit ? "candidate" : "baseline",
-        B: bit ? "baseline" : "candidate",
-      };
-    }),
+    cases: cases.map(c => ({
+      caseId: c.id,
+      A: firstArmCandidates.has(c.id) ? "candidate" : "baseline",
+      B: firstArmCandidates.has(c.id) ? "baseline" : "candidate",
+    })),
   };
-  const rubric: JudgmentPrivateRubric = {
+nst rubric: JudgmentPrivateRubric = {
     casePackHash: input.generation.casePackHash,
     cases: cases.map(c => ({
       id: c.id,
