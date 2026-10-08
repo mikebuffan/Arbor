@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - test/one-arbor-independent-judgment-20261007
+      - review/one-arbor-judgment-green-baseline-20261007
   pull_request:
     branches:
       - review/one-arbor-group11-assembly-followon-20261007
