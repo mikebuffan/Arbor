@@ -444,9 +444,11 @@ export async function respondToVerifiedPrivateGroveTurn(input: {
   }
   const recent = transcript && transcriptScope
     ? await transcript.store.listRecent(transcriptScope) : null;
-  const history = transcript && transcriptScope && recent
+  const history = transcript && transcriptScope
     ? selectPrivateModelHistory({
-        completedNewestFirst: recent, scope: transcriptScope, userText,
+        // A present transcript feature must never treat malformed missing
+        // history as an empty past conversation.
+        completedNewestFirst: recent!, scope: transcriptScope, userText,
       })
     : [{ role: "user" as const, content: userText }];
   // An expired-lease competitor can finish AFTER our last completed lookup,
