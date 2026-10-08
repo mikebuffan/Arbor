@@ -6,6 +6,7 @@ on:
       - review/one-arbor-group11-assembly-followon-20261007
       - test/one-arbor-judgment-blind-pack-20261007
       - review/one-arbor-b12-candidate-shape-20261007
+      - prep/one-arbor-ark-preview-20261008
   pull_request:
     branches:
       - fix/one-arbor-group04-shelf-pagination-20261007
