@@ -228,7 +228,9 @@ export async function readArkLayerContext(input: {
     behavior: buildArborBehaviorProjection({
       mode: input.mode,
       stableBehaviorMaterial: [renderCanonicalIdentityAnchor()],
-      correctionRules,
+      // Durable behavior history is reported feedback, not externally verified
+      // evidence or a new unconditional rule for the completion verifier.
+      reportedFeedback: correctionRules,
       continuityMaterial,
       // Unlike main chat's existing prompt assembler, standalone LM does
       // not inject host continuity separately.
