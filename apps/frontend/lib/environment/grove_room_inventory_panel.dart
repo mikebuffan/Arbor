@@ -27,6 +27,53 @@ class GroveRoomInventoryPanel extends StatefulWidget {
 
 class _GroveRoomInventoryPanelState extends State<GroveRoomInventoryPanel> {
   late GroveZone _zone = widget.initialZone;
+  late GroveRoomInventory _previewInventory;
+  String? _selectedFixtureId;
+  bool _previewChanged = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _resetPreview();
+  }
+
+  @override
+  void didUpdateWidget(covariant GroveRoomInventoryPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // A new project or inventory must never inherit a previous local preview.
+    if (oldWidget.projectId != widget.projectId ||
+        !identical(oldWidget.inventory, widget.inventory)) {
+      _resetPreview();
+    }
+    if (oldWidget.initialZone != widget.initialZone) {
+      _zone = widget.initialZone;
+    }
+  }
+
+  void _resetPreview() {
+    _previewInventory = widget.inventory ?? GroveRoomInventory.starter();
+    _selectedFixtureId = null;
+    _previewChanged = false;
+  }
+
+  void _stageFixture() {
+    final id = _selectedFixtureId;
+    if (id == null) return;
+    final item = _previewInventory.find(id);
+    // An existing source, device-local item, or Moss position must never
+    // become an editable fixture or an implied ARK/user activity record.
+    if (item == null ||
+        item.kind != GroveInventoryKind.furnishing ||
+        item.visibility != GroveInventoryVisibility.sharedScenery ||
+        item.zone == GroveZone.workshop) {
+      return;
+    }
+    setState(() {
+      _previewInventory = _previewInventory.moved(id, GroveZone.workshop);
+      _selectedFixtureId = null;
+      _previewChanged = true;
+    });
+  }
 
   static const _rooms = <GroveZone>[
     GroveZone.observatory,
@@ -50,8 +97,12 @@ class _GroveRoomInventoryPanelState extends State<GroveRoomInventoryPanel> {
 
   @override
   Widget build(BuildContext context) {
-    final inventory = widget.inventory ?? GroveRoomInventory.starter();
-    final entries = inventory.inZone(_zone, projectId: widget.projectId);
+    final entries =
+        _previewInventory.inZone(_zone, projectId: widget.projectId);
+    final movableFixtures = _previewInventory.items.where((item) =>
+        item.kind == GroveInventoryKind.furnishing &&
+        item.visibility == GroveInventoryVisibility.sharedScenery &&
+        item.zone != GroveZone.workshop).toList(growable: false);
     return EnvironmentPanel(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -76,7 +127,7 @@ class _GroveRoomInventoryPanelState extends State<GroveRoomInventoryPanel> {
             children: [
               for (final room in _rooms)
                 ChoiceChip(
-                  key: ValueKey('inventory-zone-' + room.name),
+                  key: ValueKey('inventory-zone-${room.name}'),
                   label: Text(_roomLabel(room)),
                   selected: _zone == room,
                   onSelected: (_) => setState(() => _zone = room),
@@ -85,13 +136,66 @@ class _GroveRoomInventoryPanelState extends State<GroveRoomInventoryPanel> {
           ),
           const SizedBox(height: 12),
           Text(
-            _roomLabel(_zone) + ' · ' + entries.length.toString() + ' listed',
+            '${_roomLabel(_zone)} · ${entries.length} listed',
             style: const TextStyle(
               color: ArborEnvironmentTokens.textPrimary,
               fontSize: 16,
             ),
           ),
           const SizedBox(height: 8),
+          if (_zone == GroveZone.workshop) ...[
+            const Text(
+              'WORKSHOP · UNSAVED SCENERY PREVIEW',
+              key: ValueKey('workshop-preview-boundary'),
+              style: TextStyle(color: ArborEnvironmentTokens.firefly),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Stage existing room furnishings here to explore a layout. '
+              'Nothing is saved, moved in the real house, sent to ARK, '
+              'or treated as evidence of work.',
+              style: TextStyle(color: ArborEnvironmentTokens.textMuted),
+            ),
+            DropdownButton<String>(
+              key: const ValueKey('workshop-fixture-select'),
+              isExpanded: true,
+              value: movableFixtures.any(
+                      (item) => item.id == _selectedFixtureId)
+                  ? _selectedFixtureId
+                  : null,
+              hint: const Text('Choose existing furnishing'),
+              items: [
+                for (final item in movableFixtures)
+                  DropdownMenuItem<String>(
+                    value: item.id,
+                    child: Text(item.label),
+                  ),
+              ],
+              onChanged: movableFixtures.isEmpty
+                  ? null
+                  : (id) => setState(() => _selectedFixtureId = id),
+            ),
+            Wrap(
+              spacing: 8,
+              children: [
+                FilledButton(
+                  key: const ValueKey('workshop-stage-fixture'),
+                  onPressed: _selectedFixtureId == null
+                      ? null
+                      : _stageFixture,
+                  child: const Text('Stage in Workshop'),
+                ),
+                OutlinedButton(
+                  key: const ValueKey('workshop-reset-preview'),
+                  onPressed: !_previewChanged
+                      ? null
+                      : () => setState(_resetPreview),
+                  child: const Text('Reset preview'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+          ],
           if (entries.isEmpty)
             const Text(
               'Nothing registered in this room yet. No items invented.',
@@ -100,7 +204,7 @@ class _GroveRoomInventoryPanelState extends State<GroveRoomInventoryPanel> {
             ),
           for (final item in entries)
             Padding(
-              key: ValueKey('inventory-item-' + item.id),
+              key: ValueKey('inventory-item-${item.id}'),
               padding: const EdgeInsets.symmetric(vertical: 6),
               child: Row(
                 children: [
@@ -128,7 +232,7 @@ class _GroveRoomInventoryPanelState extends State<GroveRoomInventoryPanel> {
                         Text(
                           item.kind == GroveInventoryKind.source
                               ? 'SOURCE REFERENCE · NOT OPENED'
-                              : 'HOUSE SCENERY · ' + item.id,
+                              : 'HOUSE SCENERY · ${item.id}',
                           style: const TextStyle(
                             color: ArborEnvironmentTokens.textMuted,
                             fontSize: 11,

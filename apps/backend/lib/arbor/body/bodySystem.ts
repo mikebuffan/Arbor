@@ -68,8 +68,14 @@ export function deriveArborBodyState(input: {
     digestive.state === "FULL" ||
     regulation.respiratory.pacing === "compact" && uncertaintyCue;
 
+  // An orphaned unresolved-work entry is not an authorized parent goal.
+  // The host must restore a valid current goal (and resolve orientation drift)
+  // before this ephemeral body layer can even suggest continuation.
   const nextAction: ArborBodyState["executive"]["nextAction"] =
-    unresolved.length > 0 && digestive.state !== "BLOCKED"
+    unresolved.length > 0 &&
+    Boolean(currentGoal?.trim()) &&
+    regulation.vestibular.oriented &&
+    digestive.state !== "BLOCKED"
       ? "continue"
       : "respond";
 

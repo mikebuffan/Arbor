@@ -210,6 +210,29 @@ describe("cognitive-access language", () => {
     );
   });
 
+  it.each([
+    ["Stop that", "continue the old task"],
+    ["Stop this. New task: audit instead", "resume the old task"],
+    ["Wait a second", "list prompt go"],
+    ["Pause that run", "continue the current run"],
+    ["Do not go", "don't stop"],
+    ["Don't continue", "don't pause"],
+    ["Never resume", "never stop"],
+    ["Hold on—before proceeding", "go ahead"],
+  ])("preserves current-turn control intent against a high-scoring rewrite: %s", (rawText, candidateText) => {
+    const decision = decideCognitiveAccessRecovery({
+      rawText,
+      source: "typed",
+      risk: "ordinary",
+      degradationSignals: ["speech_to_text_noise"],
+      candidates: [{ text: candidateText, confidence: 0.99, rationale: ["synthetic context"] }],
+    });
+    expect(decision.action).toBe("use_raw");
+    expect(decision.interpretedText).toBe(rawText);
+    expect(decision.reasons).toContain("explicit_stop_or_pause_control_preserved");
+    expect(decision.mayAuthenticateIdentity).toBe(false);
+  });
+
   it("allows continuity context to interpret a short go without replacing the raw source", () => {
     const raw = "go";
     const decision = decideCognitiveAccessRecovery({

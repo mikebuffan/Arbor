@@ -1,0 +1,63 @@
+name: One Arbor Group 12 Grove private host source acceptance
+on:
+  pull_request:
+    branches:
+      - review/one-arbor-composed-g01-g03-g04-g05-g06-20261007
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: arbor-group12-private-host-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  private-source-only:
+    if: github.repository == 'mikebuffan/Arbor'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      CI: 'true'
+      OPENAI_API_KEY: ci-placeholder-not-a-real-key
+      AWS_EC2_METADATA_DISABLED: 'true'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Ensure isolated source branch cannot deploy to Vercel
+        run: VERCEL_GIT_COMMIT_REF=test/one-arbor-group12-private-host-replay-20261007 node ops/grove/source-only-ignore.mjs
+      - name: Install locked dependencies
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.30.3 --activate
+          pnpm install --frozen-lockfile
+      - name: Group12 transcript identity and private-host negative controls
+        working-directory: apps/backend
+        run: >-
+          pnpm exec vitest run
+          lib/grove/__tests__/privateTranscriptStore.test.ts
+          lib/grove/__tests__/privateConversationLoop.test.ts
+          lib/grove/__tests__/privateHostIsolation.test.ts
+          lib/grove/__tests__/privateReadBroker.test.ts
+          lib/grove/__tests__/privateLmHostTransport.test.ts
+          lib/grove/__tests__/privateRuntimeTurnCapture.test.ts
+          lib/grove/__tests__/arkSpineContinuity.test.ts
+          lib/grove/__tests__/arkSpineStartup.test.ts
+      - name: Existing local-LM manifest and fixture isolation
+        run: |
+          node --test ops/grove/local-lm/local-lm-prep.test.mjs
+          node ops/grove/local-lm/validate-correction-fixtures.mjs
+      - name: Backend TypeScript
+        working-directory: apps/backend
+        run: pnpm exec tsc --noEmit
+      - name: Full backend regression
+        run: |
+          if ! command -v pdfinfo >/dev/null || ! command -v pdftotext >/dev/null; then
+            timeout 120s sudo apt-get update
+            timeout 120s sudo apt-get install -y poppler-utils
+          fi
+          pnpm --filter firefly-backend test
+      - name: Production build (CI only, never deploy)
+        run: pnpm --filter firefly-backend build

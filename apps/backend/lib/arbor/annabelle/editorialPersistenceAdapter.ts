@@ -66,5 +66,14 @@ export async function persistDiagnosticCheckpointVerified(input:{
   throw new Error("annabelle_persistence_checkpoint_readback_scope_mismatch");
  if(checkpointReadback.sequence<written.checkpoint.sequence)
   throw new Error("annabelle_persistence_checkpoint_readback_stale");
+ // A checkpoint row with the right owner/source and sequence is not enough:
+ // confirm the saved diagnostic and all expected record references survived.
+ // Later independent work may add keys, but cannot erase this write's keys.
+ if(checkpointReadback.diagnosticFingerprint!==written.checkpoint.diagnosticFingerprint||
+    checkpointReadback.nextStage!==written.checkpoint.nextStage)
+  throw new Error("annabelle_persistence_checkpoint_readback_content_mismatch");
+ if(!Array.isArray(checkpointReadback.completedRecordKeys)||
+    written.checkpoint.completedRecordKeys.some(key=>!checkpointReadback.completedRecordKeys.includes(key)))
+  throw new Error("annabelle_persistence_checkpoint_readback_records_missing");
  return{...written,verified:true};
 }

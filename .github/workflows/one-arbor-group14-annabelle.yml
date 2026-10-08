@@ -1,0 +1,60 @@
+name: One Arbor Group 14 Annabelle editorial source acceptance
+
+on:
+  push:
+    branches:
+      - test/one-arbor-group14-annabelle-persistence-20261007
+  pull_request:
+    branches:
+      - integration/one-arbor-reconciled-335-339-20261007
+    paths:
+      - 'apps/backend/lib/arbor/annabelle/editorialPersistenceAdapter.ts'
+      - 'apps/backend/lib/arbor/annabelle/__tests__/*Persistence*.test.ts'
+      - 'apps/backend/lib/arbor/annabelle/__tests__/group14PersistenceReadback.test.ts'
+      - '.github/workflows/one-arbor-group14-annabelle.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: one-arbor-group14-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  annabelle-source-only:
+    if: github.repository == 'mikebuffan/Arbor'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      CI: 'true'
+      OPENAI_API_KEY: ci-placeholder-not-a-real-key
+      AWS_EC2_METADATA_DISABLED: 'true'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Restore locked packages
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.30.3 --activate
+          pnpm install --frozen-lockfile
+      - name: Editorial persistence and chapter acceptance regressions
+        working-directory: apps/backend
+        run: >
+          pnpm exec vitest run
+          lib/arbor/annabelle/__tests__/group14PersistenceReadback.test.ts
+          lib/arbor/annabelle/__tests__/persistenceVerification.test.ts
+          lib/arbor/annabelle/__tests__/editorialPersistenceAdapter.test.ts
+          lib/arbor/annabelle/__tests__/manuscriptContinuation.test.ts
+          lib/arbor/annabelle/__tests__/canonicalChapterAcceptance.test.ts
+          lib/arbor/annabelle/__tests__/chapterTwoAcceptance.test.ts
+          lib/arbor/annabelle/__tests__/editorialContext.test.ts
+          lib/arbor/annabelle/__tests__/editorialSupersession.test.ts
+          lib/arbor/annabelle/__tests__/goldProtection.test.ts
+          lib/arbor/annabelle/__tests__/bookRegressionIntegration.test.ts
+      - name: Backend TypeScript
+        working-directory: apps/backend
+        run: pnpm exec tsc --noEmit

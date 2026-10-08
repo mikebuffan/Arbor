@@ -1,0 +1,42 @@
+name: One Arbor G09 professional workspace source acceptance
+
+on:
+  pull_request:
+    branches:
+      - integration/one-arbor-reconciled-335-339-20261007
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'apps/frontend/lib/environment/professional_workspace_view.dart'
+      - 'apps/frontend/lib/environment/arbor_environment_shell.dart'
+      - 'apps/frontend/test/professional_workspace_test.dart'
+      - '.github/workflows/one-arbor-professional-workspace.yml'
+      - 'ops/grove/source-only-ignore.mjs'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: one-arbor-g09-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  flutter-source-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: apps/frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Restore Flutter packages
+        run: flutter pub get
+      - name: Analyze changed workspace surfaces
+        run: |
+          flutter analyze lib/environment/professional_workspace_view.dart lib/environment/arbor_environment_shell.dart test/professional_workspace_test.dart
+      - name: Run workspace and existing navigation/runtime regressions
+        run: |
+          flutter test test/professional_workspace_test.dart test/environment_navigation_test.dart test/environment_live_ark_test.dart
