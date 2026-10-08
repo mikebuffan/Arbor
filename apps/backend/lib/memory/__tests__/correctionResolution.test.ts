@@ -494,6 +494,38 @@ describe("explicit conversational memory correction", () => {
     ).toBe("resolved");
   });
 
+  it("rejects conversation-scoped metadata masquerading as project or global correction authority", () => {
+    const thread = "55555555-5555-4555-8555-555555555555";
+    const mislabeledProject = candidate({ scope: "project", conversation_id: thread });
+    const mislabeledGlobal = candidate({
+      id: "66666666-6666-4666-8666-666666666666",
+      scope: "global", project_id: null, conversation_id: thread,
+    });
+    expect(resolveExplicitCorrection({
+      userId, projectId: projectA, conversationId: thread,
+      correction: correction(), candidates: [mislabeledProject],
+      injectedMemoryIds: [mislabeledProject.id],
+    }).status).toBe("not_found");
+    expect(resolveExplicitCorrection({
+      userId, projectId: projectA, conversationId: thread,
+      correction: { ...correction(), scopeHint: "global" },
+      candidates: [mislabeledGlobal],
+      injectedMemoryIds: [mislabeledGlobal.id],
+    }).status).toBe("not_found");
+
+    const actualConversation = candidate({ scope: "conversation", conversation_id: thread });
+    expect(resolveExplicitCorrection({
+      userId, projectId: projectA, conversationId: thread,
+      correction: correction(), candidates: [actualConversation],
+      injectedMemoryIds: [actualConversation.id],
+    }).status).toBe("resolved");
+    expect(resolveExplicitCorrection({
+      userId, projectId: projectA, conversationId: "77777777-7777-4777-8777-777777777777",
+      correction: correction(), candidates: [actualConversation],
+      injectedMemoryIds: [actualConversation.id],
+    }).status).toBe("not_found");
+  });
+
   it("requires an actually injected old-value target", () => {
     const target = candidate();
     expect(
