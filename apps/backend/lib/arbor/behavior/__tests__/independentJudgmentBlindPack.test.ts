@@ -63,6 +63,28 @@ describe("judgment blind-pack isolation (source-only, no inference)", () => {
     }
   });
 
+  it("balances A/B position over the entire pack for multiple host seeds", () => {
+    const { generation } = buildJudgmentGeneration();
+    for (let i = 0; i < 32; i++) {
+      const { assignment } = buildPrivateJudgmentPlan({
+        generation, hostSeed: "offline-host-balancing-check-" + i,
+      });
+      const countA = assignment.cases.filter(c => c.A === "candidate").length;
+      const countB = assignment.cases.filter(c => c.B === "candidate").length;
+      expect(countA).toBe(8);
+      expect(countB).toBe(8);
+      expect(assignment.cases.every(c => c.A !== c.B)).toBe(true);
+      validateAcceptanceInput(generation, assignment, config);
+    }
+    const first = buildPrivateJudgmentPlan({
+      generation, hostSeed: "offline-host-balancing-check-0",
+    });
+    const again = buildPrivateJudgmentPlan({
+      generation, hostSeed: "offline-host-balancing-check-0",
+    });
+    expect(first.assignment).toEqual(again.assignment);
+  });
+
   it("preserves genuine evidence reversals without leaking the expected stance", () => {
     const { generation } = buildJudgmentGeneration();
     const a = generation.cases.find(x => x.id === "J01")!;
