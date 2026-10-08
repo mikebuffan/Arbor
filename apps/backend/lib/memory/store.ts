@@ -829,7 +829,7 @@ export async function reinforceMemoryUse(
 
     const nextCount = Number(existing.mention_count ?? 0) + 1;
 
-    const { error } = await supabase
+    const { data: reinforced, error } = await supabase
       .from(ITEMS_TABLE)
       .update({
         mention_count: nextCount,
@@ -838,9 +838,16 @@ export async function reinforceMemoryUse(
         updated_at: nowIso,
       })
       .eq("id", existing.id)
-      .eq("user_id", authedUserId);
+      .eq("user_id", authedUserId)
+      .eq("status", existing.status ?? "active")
+      .is("deleted_at", null)
+      .select("id")
+      .maybeSingle();
 
     if (error) throw error;
+    // A concurrent correction may retire the record after the read.
+    // Never log reinforcement if no eligible row was modified.
+    if (!reinforced) continue;
 
     await logEvent({
       supabase,
