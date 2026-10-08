@@ -133,7 +133,9 @@
     "docs/integration/ONE_ARBOR_B12_CANDIDATE_LIFECYCLE_20261008.md": "006978928ee1808f4e816db9aeb8684984fff6b2",
     "apps/backend/app/page.tsx": "118e74b06b8bb94bf0981148d2c14362b37eef34",
     "apps/backend/lib/ark/latestStatusRequest.ts": "a209b5713d5cdaf181be9b86a2fe94b2189536cd",
-    "apps/backend/lib/ark/__tests__/latestStatusRequest.test.ts": "3127959d3d6eabd25b6e7fc8542f4d17e34f74ee"
+    "apps/backend/lib/ark/__tests__/latestStatusRequest.test.ts": "3127959d3d6eabd25b6e7fc8542f4d17e34f74ee",
+    "apps/backend/app/login/page.tsx": "967a0815aa6fa29f1e6ded373606035ebdcaf077",
+    "apps/backend/app/reset-password/page.tsx": "14dcd121b1cc518e58f8a5401802719bf064fc2e"
   },
-  "comment": "Source-only exact-Preview anonymous HTTP protection check on existing CI runner, no secrets or deployment."
+  "comment": "112 exact source pins: reconciled latest isolated Preview login+password recovery from PR #370 with B12 and status-race source #372; source-only review, no deploy."
 }
