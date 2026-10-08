@@ -20,7 +20,8 @@
     "group14_pr357": "e104958982c1e4f133304d4c5d2c672d01258b72",
     "group15_pr359": "30e29fac47b5b3ae48de9b3f5f955ae0c9465c61",
     "professionalWorkspace_pr341": "500b1ad6cf2127a7f98ed65be515a310faf6c1ee",
-    "unsavedDiary_pr342": "b554eef0a967933c86c5ec13dda5d863177c7640"
+    "unsavedDiary_pr342": "b554eef0a967933c86c5ec13dda5d863177c7640",
+    "group11_pr360": "ef167353a6fd477aa9b196e09d8a5c21dd6bd151"
   },
   "expectedBlobSha": {
     "apps/backend/lib/arbor/runtime/timeCore.ts": "7fb33f4a8c6f201e96cc8c3f71b9a4ba584dabde",
@@ -39,7 +40,7 @@
     "apps/arbor-control-backend/src/selfModelObservations.ts": "f8f03960ee18eca6650b12b4e2ee07c3b8e34469",
     "apps/arbor-control-backend/src/selfModelClaims.ts": "9bf0d7bd2f50fe61338a8967cd1b0a0c7d3e1b52",
     "docs/integration/ONE_ARBOR_GROUP06_IDENTITY_EVIDENCE_GATE_20261007.md": "bd43f7b8a8c2e90208b6839d582d5f698fcc570c",
-    "ops/grove/source-only-ignore.mjs": "df5e259eacd3a44c69b933c93624b136e4d4c222",
+    "ops/grove/source-only-ignore.mjs": "3dad3b45d577cdca7e009aeaa66c7ba0c067f7a1",
     ".github/workflows/one-arbor-group04-shelf-pagination.yml": "41790290a7fa86974dcca3fbbcc15bc96e0cac88",
     "apps/backend/lib/memory/__tests__/shelfPageRead.test.ts": "35b5c43abb6b2c774a1ae3aa75b33507c1e4d3bb",
     "apps/frontend/lib/environment/grove_memory_shelf_view.dart": "31e54c5c459cadce0eeba4bb577922c419cde71a",
@@ -97,7 +98,10 @@
     "docs/integration/ONE_ARBOR_GROUP13_GROVE_PHONE_ROOMS_ACCEPTANCE_20261007.md": "2e9a079231f1df6d2ab1e3f98934354b784811ae",
     "docs/integration/ONE_ARBOR_GROUP14_ANNABELLE_MANUSCRIPT_EDITORIAL_RECEIPT_20261007.md": "0d29cc28ed62b5719b9233891732debb719b08df",
     "docs/integration/ONE_ARBOR_GROUP15_LIFE_RECORDS_20261007.md": "e242c0c9eff805d9815bc3e97625505783fc932e",
-    "docs/integration/ONE_ARBOR_GROUPS_01_15_SOURCE_CONSOLIDATION_20261007.md": "ddfa33ca248cd97bc2657b0075ca7e739805e0a3"
+    "docs/integration/ONE_ARBOR_GROUPS_01_15_SOURCE_CONSOLIDATION_20261007.md": "ddfa33ca248cd97bc2657b0075ca7e739805e0a3",
+    "apps/backend/lib/arbor/runtime/decisionAncestry.ts": "552b946579a9acc0b2c6e0bce7da219391c384b3",
+    "apps/backend/lib/arbor/runtime/discoveryRadar.ts": "638cfdfdecbb5728dd3287f2e453ddc7475ab645",
+    "apps/backend/lib/arbor/runtime/__tests__/group11SourceBoundary.test.ts": "df8ad7d637e55cbaf286ed3589fea7a8c88d76d2"
   },
-  "comment": "ONE ARBOR source-only 15-group composition: all 21 prior fingerprints preserved except intentionally updated source-only deployment fence; 55 imported/assembly exact Git blobs pinned. Groups 2 worker/STOP/runtime controls intentionally excluded. No personal data, host acceptance, auto merge or production deployment."
+  "comment": "78 verified source-only blobs. Adds exact group11 PR #360 view-injection and visited-ID bounds to reviewed 15-lane #362 candidate; Group12 latest after recorded source head is docs-only. Source review, no deployment or live acceptance."
 }
