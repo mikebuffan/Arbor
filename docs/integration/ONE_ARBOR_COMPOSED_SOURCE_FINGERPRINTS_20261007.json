@@ -45,7 +45,7 @@
     "apps/backend/lib/memory/__tests__/shelfPageRead.test.ts": "35b5c43abb6b2c774a1ae3aa75b33507c1e4d3bb",
     "apps/frontend/lib/environment/grove_memory_shelf_view.dart": "31e54c5c459cadce0eeba4bb577922c419cde71a",
     "apps/frontend/test/grove_memory_shelf_view_test.dart": "f01802b64c9ee0ed0116ee66e81344499fdcdf25",
-    ".github/workflows/one-arbor-15-lane-assembly.yml": "940c3e7b2ce5a0937f36feee0f3af53bb0acc14d",
+    ".github/workflows/one-arbor-15-lane-assembly.yml": "f3a629e0f8c5041768c0e86f3b0d7dd85d3b4916",
     ".github/workflows/one-arbor-diary-draft.yml": "8923e47d0d69562a86a7c210b10efaaf0c5fd624",
     ".github/workflows/one-arbor-group08-body-acceptance.yml": "d4dc36baef71d379f6a769d7f0416cd755d7252a",
     ".github/workflows/one-arbor-group09-decision-gates.yml": "8c6a9996d12fc1624e8e1ef997d8c04d34ee0ffe",
@@ -139,7 +139,9 @@
     "apps/backend/lib/ark/readModel.ts": "bde5cee104a7e07d2f8c5cdcf0e46691f85f0bfd",
     "apps/backend/lib/ark/__tests__/readModel.test.ts": "1cf79d2a0375863b72226400d85906e9172b98d5",
     "apps/backend/lib/auth/safeReturnPath.ts": "e47a9cf7826f51c62d378fd01ff24fc1308baaf4",
-    "apps/backend/lib/auth/__tests__/safeReturnPath.test.ts": "d27be32223d0bf102026ac17fa7b4cd1f30f7f2c"
+    "apps/backend/lib/auth/__tests__/safeReturnPath.test.ts": "d27be32223d0bf102026ac17fa7b4cd1f30f7f2c",
+    "apps/backend/lib/arbor/continuity/store.ts": "161a65c69ee00a089b2b026cfabb9df719a8b192",
+    "apps/backend/lib/arbor/continuity/__tests__/storeScopeReadback.test.ts": "8e95148f544184abb8fbfeb9579fe636991e3e4e"
   },
-  "comment": "Source-only safe sign-in local return path validation plus ARK isolation; 116 exact source pins; no release, deployment or protected auth activity."
+  "comment": "Bounded B10/D16 continuity readback exclusions for owner/project, exact conversation, deleted/expired content; source only, no deployment, no changes to canonical engine."
 }

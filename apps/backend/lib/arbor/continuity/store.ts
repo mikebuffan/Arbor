@@ -10,6 +10,11 @@ type MessageRow = {
   role: "user" | "assistant" | "system";
   content: string;
   created_at?: string;
+  user_id: string;
+  project_id: string;
+  conversation_id: string;
+  deleted_at: string | null;
+  expires_at: string | null;
 };
 
 const BARE = new Set([
@@ -59,7 +64,7 @@ async function recentMessages(input: {
 
   let query = input.supabase
     .from("messages")
-    .select("role,content,created_at")
+    .select("role,content,created_at,user_id,project_id,conversation_id,deleted_at,expires_at")
     .eq("user_id", input.userId)
     .eq("project_id", input.projectId)
     .is("deleted_at", null)
@@ -84,9 +89,27 @@ async function recentMessages(input: {
     throw result.error;
   }
 
-  return (
-    (result.data ?? []) as MessageRow[]
-  );
+  // This boundary often uses a caller-scoped client, but query filters alone
+  // are not proof that all returned records have the authorized scope.
+  // Never promote a foreign, deleted or expired provider row into continuity.
+  if (!Array.isArray(result.data)) return [];
+  return result.data.filter((row: unknown): row is MessageRow => {
+    if (!row || typeof row !== "object" || Array.isArray(row)) return false;
+    const item = row as Partial<MessageRow>;
+    if (item.user_id !== input.userId ||
+        item.project_id !== input.projectId ||
+        typeof item.conversation_id !== "string" ||
+        (!input.projectWide && item.conversation_id !== input.conversationId) ||
+        (item.role !== "user" && item.role !== "assistant") ||
+        typeof item.content !== "string" ||
+        item.deleted_at !== null) return false;
+    if (item.expires_at !== null) {
+      if (typeof item.expires_at !== "string") return false;
+      const expires = Date.parse(item.expires_at);
+      if (!Number.isFinite(expires) || expires <= Date.parse(now)) return false;
+    }
+    return true;
+  });
 }
 
 export async function loadContinuityState(input: {
