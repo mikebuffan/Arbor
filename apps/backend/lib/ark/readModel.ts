@@ -20,7 +20,7 @@ export async function readArkProjectSnapshot(input: {
   const capturedAt = new Date().toISOString();
   const { data: objectives, error: objectiveError } = await input.supabase
     .from("ark_objectives")
-    .select("id,goal,status,priority,blocker,completion_evidence,version,created_at,updated_at")
+    .select("id,user_id,project_id,goal,status,priority,blocker,completion_evidence,version,created_at,updated_at")
     .eq("user_id", input.userId)
     .eq("project_id", input.projectId)
     .order("updated_at", { ascending: false })
@@ -40,10 +40,15 @@ export async function readArkProjectSnapshot(input: {
     throw objectiveError;
   }
 
-  const objectiveRows = (objectives ?? []) as Array<Record<string, unknown>>;
-  const objectiveIds = objectiveRows
-    .map((row) => row.id)
-    .filter((id): id is string => typeof id === "string");
+  // Verify returned-row scope even if a privileged/misconfigured client ignored
+  // the query filters. Do not expose owner identifiers to the UI response.
+  const ownedObjectives = ((objectives ?? []) as Array<Record<string, unknown>>)
+    .filter((row) => row.user_id === input.userId
+      && row.project_id === input.projectId
+      && typeof row.id === "string");
+  const objectiveRows = ownedObjectives.map(({ user_id: _userId, project_id: _projectId, ...row }) => row);
+  const objectiveIds = ownedObjectives.map((row) => row.id as string);
+  const objectiveIdSet = new Set(objectiveIds);
 
   if (!objectiveIds.length) {
     return {
@@ -64,7 +69,7 @@ export async function readArkProjectSnapshot(input: {
     input.supabase
       .from("ark_tasks")
       .select(
-        "id,objective_id,task_key,kind,description,status,dependencies,result,last_error,attempt_count,max_attempts,available_at,heartbeat_at,checkpoint_sequence,version,created_at,updated_at",
+        "id,user_id,project_id,objective_id,task_key,kind,description,status,dependencies,result,last_error,attempt_count,max_attempts,available_at,heartbeat_at,checkpoint_sequence,version,created_at,updated_at",
       )
       .eq("user_id", input.userId)
       .eq("project_id", input.projectId)
@@ -88,12 +93,21 @@ export async function readArkProjectSnapshot(input: {
   if (checkpointError) throw checkpointError;
   if (eventError) throw eventError;
 
+  const scopedTasks = ((tasks ?? []) as Array<Record<string, unknown>>)
+    .filter((row) => row.user_id === input.userId
+      && row.project_id === input.projectId
+      && typeof row.objective_id === "string"
+      && objectiveIdSet.has(row.objective_id))
+    .map(({ user_id: _userId, project_id: _projectId, ...row }) => row);
+  const scopedReceipts = (rows: Array<Record<string, unknown>>) =>
+    rows.filter((row) => typeof row.objective_id === "string"
+      && objectiveIdSet.has(row.objective_id));
   return {
     available: true,
     objectives: objectiveRows,
-    tasks: (tasks ?? []) as Array<Record<string, unknown>>,
-    checkpoints: (checkpoints ?? []) as Array<Record<string, unknown>>,
-    events: (events ?? []) as Array<Record<string, unknown>>,
+    tasks: scopedTasks,
+    checkpoints: scopedReceipts((checkpoints ?? []) as Array<Record<string, unknown>>),
+    events: scopedReceipts((events ?? []) as Array<Record<string, unknown>>),
     capturedAt,
   };
 }

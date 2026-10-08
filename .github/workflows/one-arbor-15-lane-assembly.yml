@@ -100,6 +100,7 @@ jobs:
           lib/memory/__tests__/candidateContext.test.ts
           lib/memory/__tests__/candidateLifecycleExclusion.test.ts
           lib/ark/__tests__/latestStatusRequest.test.ts
+          lib/ark/__tests__/readModel.test.ts
           lib/memory/__tests__/shelfPageRead.test.ts
           lib/memory/__tests__/projectIsolation.test.ts
           lib/memory/__tests__/retrievalExclusion.test.ts
