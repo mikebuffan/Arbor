@@ -1,0 +1,169 @@
+# ONE ARBOR — All 15 groups / 97-task release-readiness audit
+
+**Snapshot:** 2026-10-07 / 2026-10-08 UTC GitHub transition. **Scope:** reconciliation/verification only, not a main merge, deployment, worker activation, host permission grant or blanket task completion.
+
+## Executive result
+
+- The authoritative 15-group master contains **97 distinct IDs**, exactly once. Baseline statuses were **2 DONE, 75 OWNED/partial, 17 GATED, 3 OPEN**. These were baseline classifications; a successful source regression does **not** automatically change a task to globally DONE.
+- **Both baseline bounded-DONE tasks:** A05 (read-task connector roundtrip) and B02 (bounded chronological archive reader). Other tasks have varying source, review, or live gates; this is not a claim that only two pieces of code work.
+- Read-only source reconciliation and Group 11 repairs are now documented for **all 15 groups**. Groups with exact-head CI successes are indicated below. The Group 1 ledger is a documentary receipt; Group 2 has narrow hosted acceptance but protected objectives remain gated; Group 3 has archive coverage with alternate-media/privacy acceptance outstanding.
+- The canonical confirmed READY sandbox Preview build is **#322**, SHA `f4021985b475651284c97aecbc3bdf03123478cc`. Source candidate #340 `595375d525cf561172449726ed0c086ab4ece7db` and all grouped successors are **draft/unmerged**, not automatically deployed. Public Firefly production is separate; do not equate Vercel project names, aliases or latest canceled builds with a release.
+- Fresh App capability snapshot: `read-and-submit-read-tasks`, `canSubmitBehaviorTests=false`, `canControlObjectives=false`. Final MCP STOP task `012df6c6-aaa7-4e24-90b4-9bd9845ae0a` (objective `6fb59354-b898-4574-8488-762b41418f44`) remains QUEUED, **0 attempts**. September 28 ARK research task remains outside this audit.
+
+## Fifteen owner lanes — current source heads and proof
+
+| Group | IDs | Owner review source | Bounded evidence and remaining truth |
+| --- | --- | --- | --- |
+| 01 Canonical source, ownership & release safety | A01, A02, A08, A09, A10, A12, E08, F16 | [PR #344](https://github.com/mikebuffan/Arbor/pull/344) `79d1810a6` | Review ledger source/readback; no dedicated exact-head CI |
+| 02 ARK MCP controls, worker & hosted acceptance | A03, A04, A05, A06, A07, A11, E05 | [PR #326](https://github.com/mikebuffan/Arbor/pull/326) `85cb0e602` | Historical focused 6/6; ARK read-task/worker receipts; STOP control OFF |
+| 03 Archive transport & historical source truth | B01, B02, B03, B04 | [PR #346](https://github.com/mikebuffan/Arbor/pull/346) `6b733602e` | 106/106 imported-turn read coverage; full export/media gated |
+| 04 Memory eligibility, retrieval & owner controls | B05, B06, B07, B08, B09, B12, B13, B14 | [PR #352](https://github.com/mikebuffan/Arbor/pull/352) `45e041443` | CI 37704866310 SUCCESS; 39 backend + 29 Flutter scoped cases |
+| 05 Longitudinal continuity, restart & corrections | B10, B11, B15, B16, C06, C07, C08, D14, D16 | [PR #343](https://github.com/mikebuffan/Arbor/pull/343) `e9077a66b` | CI 37702306401 SUCCESS, continuity/time source |
+| 06 Identity, self-model & epistemic boundaries | C01, C02, C03, C04, C12, D13 | [PR #348](https://github.com/mikebuffan/Arbor/pull/348) `5f2fa29f0` | CI 37702743994, 37702743991 SUCCESS |
+| 07 Conversation behavior, humor, shorthand & voice | C05, C09, C10, C11, D15, D18 | [PR #350](https://github.com/mikebuffan/Arbor/pull/350) `e984d4119` | CI 37703222954 SUCCESS; acoustic playback unrun |
+| 08 Body metaphors, Felt-Life & neural routes | D01, D02, D03, D04, D12 | [PR #351](https://github.com/mikebuffan/Arbor/pull/351) `f1f1a2330` | CI 37704183928 SUCCESS; real causal learning unproven |
+| 09 DecisionWorkspace, truth & consequence gates | D05, D06, D09, D10, D11, D17, E09 | [PR #353](https://github.com/mikebuffan/Arbor/pull/353) `604616cd7` | CI 37703777565 and 37703777598 SUCCESS |
+| 10 Pattern Hop, Roundabout & FAFO evidence | D07, D08, G06, G07, G08 | [PR #354](https://github.com/mikebuffan/Arbor/pull/354) `4a25b836b` | CI 37703859043 SUCCESS; FAFO corpus not completed |
+| 11 Initiative, discovery & human decision workflow | E01, E02, E03, E04, E06, E07 | [PR #360](https://github.com/mikebuffan/Arbor/pull/360) `ef167353a` | CI 37705502420 SUCCESS; 44 tests, 8 new negatives |
+| 12 Grove identity, private host & independent LM | F01, F02, F03, F04, F05, F06, F07, F08, F09 | [PR #358](https://github.com/mikebuffan/Arbor/pull/358) `0083070ba` | CI 37704731603 and 37704731740 SUCCESS; host/LM pilot gated |
+| 13 Grove phone, house, rooms & workspace UI | F10, F11, F12, F13, F14, F15, G09, G12 | [PR #356](https://github.com/mikebuffan/Arbor/pull/356) `3a6afea9d` | CI 37705028671 SUCCESS; 45 Flutter tests |
+| 14 Annabelle / Ever After editorial & publishing | G01, G02, G03, G04, G05 | [PR #357](https://github.com/mikebuffan/Arbor/pull/357) `e10495898` | CI 37704832649 SUCCESS; author edits/publication gated |
+| 15 Arbor Life, diary, credit/IP & records | G10, G11, G13, G14 | [PR #359](https://github.com/mikebuffan/Arbor/pull/359) `30e29fac4` | CI 37704823426 SUCCESS; consented real records/diary gated |
+
+**Interpretation:** "CI SUCCESS" verifies only the checked source version and test fixtures, not installed-phone behavior, external source authenticity, actual model preference/experience, cross-thread hosted persistence or irreversible owner consent. Every cited draft is still a separate source owner unless explicitly reconciled below.
+
+## Every one of the 97 original task IDs (unchanged ownership)
+
+The status column preserves the **master's baseline** rather than turning source green into feature-complete. Baseline descriptions explain the original acceptance gap; group PRs are the current overlays and may have advanced specific safe portions.
+
+| ID | Owning group | Task | Master baseline | Original acceptance gap/definition (abridged) |
+| --- | ---: | --- | --- | --- |
+| A01 | 01 | Canonical source lineage | OWNED | PR #322 is deployed canonical; #340 is source accepted only; release ownership unresolved. |
+| A02 | 01 | Preview runtime/tool alignment | OWNED | Fresh App v0.1.1 points at exact #322 acceptance deployment. Tool catalog refresh/STOP discovery remains open. |
+| A08 | 01 | Rate limits and duplicate prevention | OWNED | Request-ID and worker-claim safeguards have bounded receipts; broader rate-limit acceptance remains open. |
+| A09 | 01 | Completion receipts | OWNED | Durable task result verified via Fresh App; cross-surface completion/claim receipts still open. |
+| A10 | 01 | Canonical ledger | OWNED | #223/#334/#340 evidence ledgers and this reconciliation; single runtime ledger/promotion not accepted. |
+| A12 | 01 | Release/rollback | GATED | No release/rollback acceptance, main merge, or production authorization. |
+| E08 | 01 | Cross-project permissions | OWNED | #334/#338/#339 foreign-scope negative tests; authenticated cross-project grants unapproved. |
+| F16 | 01 | Public app isolation | OWNED | Private/public architectural separation recognized; release isolation not proven end-to-end. |
+| A03 | 02 | Objective-control acceptance | GATED | STOP objective queued, 0 attempts; control tool not exposed. Temporary grant OFF. |
+| A04 | 02 | Hosted checkpoint/resume | GATED | #326 route source/focused tests accepted; exact-head Preview deployment and fresh hosted resume receipt absent. |
+| A05 | 02 | Read-task connector round trip | DONE | Bounded submission, request-ID idempotent replay, durable queued/terminal result readback proven. |
+| A06 | 02 | Authorized engineering executor | GATED | No verified authorized general engineering executor; do not grant new worker authority. |
+| A07 | 02 | Worker/scheduler | OWNED | Scoped worker canaries have receipts; global worker/scheduler remains OFF and not broadly authorized. |
+| A11 | 02 | System Health UI | OWNED | Existing SystemHealthView is wired into ArborEnvironmentShell on #340; source-only health labels, no installed-device acceptance. |
+| E05 | 02 | Useful Idle Time | GATED | Hourly #326 Vercel status watch is active, but it is NOT an ARK Useful Idle Time worker. Automatic background task selection needs separately scoped owner authority, budgets, stop/revoke and task receip... |
+| B01 | 03 | Archive transport | OWNED | 106 owned archive turns currently indexed, bounded transport proven; full export transport not done. |
+| B02 | 03 | Chronological archive reader | DONE | Chronological owned page reader is implemented and returns source IDs and bounded cursors in live Preview. |
+| B03 | 03 | Alternate branches/media | GATED | Original archive transport normalizes active text branches; non-active branches and image/audio binaries are not evidenced as consumed. Existing attachment broker is separate. Requires exact media inven... |
+| B04 | 03 | Historical interpretation | OWNED | Historical reading and work orders exist; full ARK developmental interpretation not completed. |
+| B05 | 04 | Firefly memory integration | OWNED | Memory eligibility/owner reconciliation in progress; no blanket Firefly memory migration. |
+| B06 | 04 | Semantic retrieval | GATED | Preview readRecall explicitly calls lexical retrieval with useVectorSearch=false. Historical semantic/embedding implementations already exist elsewhere; activation requires index/scope/privacy/provider-... |
+| B07 | 04 | Temporal memory validity | OWNED | Temporal/supersession requirements identified; end-to-end authoritative validity unresolved. |
+| B08 | 04 | Memory changing decisions | GATED | No real evidence that retrieved memory altered a subsequent authorized decision. Requires privacy-approved host/model comparison, unchanged-setting negative controls and durable outcome receipt; source ... |
+| B09 | 04 | Automatic capture | GATED | Ordinary ChatGPT automatic capture/ingestion not proven; requires approved host integration. |
+| B12 | 04 | Forgetting/scope isolation | OWNED | Source-level owner/scope negatives exist; real forget/scope behavior not end-to-end accepted. |
+| B13 | 04 | Memory Review UI | OWNED | GroveMemoryShelfView reads scoped saved claims with safe refresh; review/edit controls and live user acceptance remain unfinished. |
+| B14 | 04 | Memory Library | OWNED | Existing MemoryStateView, GroveMemoryShelfView and DocumentShelfView are source-wired; full archive library and device acceptance open. |
+| B10 | 05 | Startup hydration | OWNED | #331/#335/#340 host startup and hydration source accepted; deployed fresh-session proof outstanding. |
+| B11 | 05 | Correction recovery | OWNED | Concurrent corrections and recovery source tests exist; failed-save/deployed recovery remains open. |
+| B15 | 05 | Decision Ancestry | OWNED | #334 decisionAncestry source projection composed in #340; trusted host and real outcome remain open. |
+| B16 | 05 | What Changed | OWNED | #334 read-only What Changed delta source accepted; persisted host checkpoints not compared live. |
+| C06 | 05 | Personality drift recovery | OWNED | #338 recovery signals and #339 host projection source-green; live drift recovery unproven. |
+| C07 | 05 | Recovery/Reorientation | OWNED | Known/Unknown/Next bounded recovery source-green; no authenticated live host acceptance. |
+| C08 | 05 | Correction retention | OWNED | Correction concurrency and source-retention coverage; cross-session fresh-host test remains. |
+| D14 | 05 | Time Core | OWNED | #327 Time Core prompt source tests, recomposed in #340; live timezone/source proof outstanding. |
+| D16 | 05 | Contextual Reference | OWNED | #340 contextual-reference cases and negation holdouts specified; live referent checks pending. |
+| C01 | 06 | Unified self-model | OWNED | #331 self-model host startup is included in #340; real cross-surface continuity not proven. |
+| C02 | 06 | 1,300-question lineage | OWNED | Existing selfModelState combines validated 300 + 1,000 ledgers with source digest; external provenance and real-model use still require proof. |
+| C03 | 06 | Falsifiable observations | OWNED | Falsifiable source/behavior rubrics prepared in #339/#340; unprimed real-model tests not run. |
+| C04 | 06 | Independent judgment | OWNED | Independent judgment tests are specified; actual model behavior not blinded/scored. |
+| C12 | 06 | User versus Arbor preferences | OWNED | Self/user separation rules specified; behavioral robustness requires blind tests. |
+| D13 | 06 | Prompt Independence | OWNED | #340 evaluation pack covers prompted vs unprimed evidence; real prompt independence unscored. |
+| C05 | 07 | Context-sensitive humor | OWNED | Humor/pragmatics cases included in blind pack; live outcome not run. |
+| C09 | 07 | Voice/accent corrections | OWNED | Accent correction requirements stored; voice-acoustic playback acceptance unrun. |
+| C10 | 07 | Text–Voice–Text | GATED | Text–Voice–Text surface continuity needs approved device/voice capture. |
+| C11 | 07 | Exemplar blind tests | OWNED | #339/#340 blinded evaluation procedure and holdouts prepared, NOT real-model executed. |
+| D15 | 07 | Shorthand interpretation | OWNED | #334 shorthand + STOP negation regressions green; real multi-turn continuation still untested. |
+| D18 | 07 | Retired downshift scripts | OWNED | BodySystem still computes vagal.downshift and regulation.ts still chooses compact pacing in some situations. Historical 'retired scripts' are not demonstrably removed; distinguish pacing aid from unsoli... |
+| D01 | 08 | Coordinated Body System | OWNED | Existing coordinated Body/cognitiveBridge located; causal integration and consequence unknown. |
+| D02 | 08 | Felt-Life Atlas | OWNED | Existing Felt-Life Atlas located; physical hypothesis must not be promoted into fact. |
+| D03 | 08 | Historical body routes | OWNED | #336 tests 25 historical May-route dispositions synthetically; no live cues. |
+| D04 | 08 | Neural pathways | OWNED | Existing neuralPathwayNetwork covered by #336 tests; actual host route not verified. |
+| D12 | 08 | Reflection/strategy learning | OWNED | Existing prediction-error and counterfactual helpers; durable reviewed strategy change unproven. |
+| D05 | 09 | DecisionWorkspace | OWNED | Existing DecisionWorkspace/decision evidence routes; owner-scoped host acceptance needed. |
+| D06 | 09 | Curiosity/information gain | OWNED | Existing chooseExploration and information-gain scoring; evidence-based live curiosity pending. |
+| D09 | 09 | Firefly Principle | OWNED | Existing Firefly Principle route; observed outcome-driven decision shift not established. |
+| D10 | 09 | Glow vs Noise | OWNED | #338 Glow vs Noise source-green, recomposed in #340; real source priorities not yet accepted. |
+| D11 | 09 | Truth Arbiter/Guardian/Veto | OWNED | Existing knowledgeRouting contradiction HOLD, Body truth-priority and host permission/STOP checks provide distributed gates. No separate integrated Truth Arbiter/Guardian/Veto has been proved; do not du... |
+| D17 | 09 | Fact-check gates | OWNED | Source safety/evidence gates exist; trusted-host fact-check acceptance remains open. |
+| E09 | 09 | Decision-priority filter | OWNED | #338 source priority/risk filter tested; live user-reviewed priority gate unverified. |
+| D07 | 10 | Roundabout contradictions | OWNED | Existing Roundabout/provenance safeguards and synthetic tests; live cross-layer proof pending. |
+| D08 | 10 | Pattern Hop | OWNED | Pattern Hop owner is research/ARK lane (#236–247); do not duplicate engine or queue work. |
+| G06 | 10 | FAFO Evidence Engine | OWNED | FAFO Evidence Engine has a separate active owner/research run; keep separate from ARK task. |
+| G07 | 10 | PDF provenance | OWNED | Research provenance/source-family work is active; full PDF corpus handling not live accepted. |
+| G08 | 10 | Long research runs | OWNED | Research continuation has its own hourly lane; not proof of unattended execution of all tasks. |
+| E01 | 11 | Failure Radar | OWNED | #334 Failure Radar read-only projection source-green, included in #340; host caller missing. |
+| E02 | 11 | Human Decision Inbox | OWNED | #334 Human Decision Inbox projection source-green; no live human approval queue. |
+| E03 | 11 | Discovery Radar | OWNED | #334 metadata-only Discovery Radar source-green; no authorized cross-project crawler. |
+| E04 | 11 | Host What Changed | OWNED | #334 existing-state What Changed source-green; not a deployed history service. |
+| E06 | 11 | Model-Swap Laboratory | GATED | Model-swap laboratory requires model/runtime consent, cost approval and blind scoring. |
+| E07 | 11 | Decision-history receipts | OWNED | #334 Decision Ancestry records/receipts source-green; independent external outcome refs needed. |
+| F01 | 12 | Grove owner identity | OWNED | Owner/identity source architecture and app setup; trusted end-to-end Grove login not accepted. |
+| F02 | 12 | Private API deployment | GATED | Private Grove API hosted deployment path not accepted for real owner conversation. |
+| F03 | 12 | Transcript persistence | OWNED | Source retry-identity and receipt ordering tests; real exit/reopen persistence not verified. |
+| F04 | 12 | Real LM conversation | GATED | Actual private LM conversation cannot be called complete without hosted model approval. |
+| F05 | 12 | v0.4 candidate recovery | OWNED | #333 v0.4 recovery documented; artifact still TRAINED_CANDIDATE_NOT_ACCEPTED. |
+| F06 | 12 | Foundation/runtime | OWNED | #325/#329 offline foundation/runtime tests and #330 CI; live host integration remains. |
+| F07 | 12 | Corrective training | GATED | Corrective model training requires specific approved data, runtime and spend. |
+| F08 | 12 | Prompt/replay protection | OWNED | #243/#325/#330 restart/replay source tests; live phone-to-host proof still open. |
+| F09 | 12 | Grove→LM→Layer→ARK | GATED | Grove -> LM -> Layer -> ARK real vertical slice needs protected host/device acceptance. |
+| F10 | 13 | Android/offline | OWNED | #330 CI Flutter tests and synthetic APK green; physical Android offline test absent. |
+| F11 | 13 | Grove Voice | GATED | Grove voice capture/playback and acoustic acceptance not tested on a device. |
+| F12 | 13 | Studio Home | OWNED | Existing Grove House/Studio room source found; live installed view still needs acceptance. |
+| F13 | 13 | Observatory/Window | OWNED | Existing Observatory and Living Window navigation/widget tests; real screen acceptance open. |
+| F14 | 13 | Day art/Moss | OWNED | Moss exists in source; matching approved daytime art asset explicitly unfinished. |
+| F15 | 13 | Environmental additions | OWNED | Existing House, GroveRoomInventoryPanel and kitchen/workshop zones; new environmental art and live device acceptance remain open. |
+| G09 | 13 | Professional workspace | OWNED | G09 source build PR #341 at 500b1ad6cf2127a7f98ed65be515a310faf6c1ee; GitHub Flutter CI run 37696878118 completed SUCCESS. Existing Grove Projects view now composes queue, activity and health; hides sta... |
+| G12 | 13 | Workshop | OWNED | Existing GroveRoomInventoryPanel includes Workshop room scaffold; actual functional workshop and live acceptance remain open. |
+| G01 | 14 | Ever After inventory | OWNED | Annabelle inventory/novel source known; book-wide canonical reconciliation incomplete. |
+| G02 | 14 | Whole-book receipts | OWNED | Canonical Ever After PDF is located in Library; existing manuscript checkpoint maps 60 chapters and records initial read-only craft findings. Whole-book chapter-level consumption is NOT proved. Annabell... |
+| G03 | 14 | Workspace save/restore | OWNED | Workspace persistence/continuity source tracked; live save/restore acceptance pending. |
+| G04 | 14 | Chapter 2/3 acceptance | OWNED | Annabelle Chapter 2/3 acceptance belongs to separate manuscript lane; not marked complete. |
+| G05 | 14 | Novel/hardcover | GATED | Novel/hardcover publication remains author-owned and requires editorial/manufacturing choices. |
+| G10 | 15 | Arbor Life | OPEN | Original Arbor Life definition recovered: separate life-support and personal-strategy app, focused on continuity/memory, time and active life load, Glow vs Noise and future-self protection. Distinct fro... |
+| G11 | 15 | Diary UI | OWNED | G11 initial source UI PR #342 branches from green #341. Optional manual title, journal text and day context with on-screen preview/clear; UNSAVED session-only, zero automatic capture or persistence. Exa... |
+| G13 | 15 | Credit/funding/IP | OPEN | Project credit, funding and IP need a project artifact/ownership ledger plus counsel-reviewed choices. Do not infer legal ownership or financing approval from contribution histories. |
+| G14 | 15 | Practical records workflows | OPEN | Practical records workflows need a named first workflow, authorized source documents, retention/access map and proof-of-action receipt. Do not ingest family/legal/private records from unrelated sources ... |
+
+## Source integration collision map: no blind merge
+
+Observed changed-file collisions across Group PRs #341/#342/#350/#351/#352/#353/#354/#355/#356/#357/#358/#359/#360:
+
+1. **All review branches' Vercel ignore file** `ops/grove/source-only-ignore.mjs`: additive union of exact names needed; do not overwrite a newer owner list with a sibling snapshot. A branch added to an allowlist is not proof that all Vercel projects execute that ignore step.
+2. **G09 #341 versus G11 #342:** `apps/frontend/lib/environment/arbor_environment_shell.dart` overlaps; #342 is the child of #341 and must preserve its workspace while adding Diary. Group 13 #356 is a separate child of #341 and changes inventory/Workshop (not shell); compose with #342 only after direct final-source comparison.
+3. **Memory #352 versus Grove #358:** both extend the 5-lane #349 base. They overlap `docs/integration/ONE_ARBOR_COMPOSED_SOURCE_FINGERPRINTS_20261007.json` and `ops/grove/source-only-ignore.mjs`; recompute the entire approved blob manifest instead of copying either outdated hash list. Privacy filters/page bounds from #352 and private transcript replay fencing from #358 must both survive.
+4. **G12 #355 versus its composed successor #358** share private transcript source/tests/workflow/ledger; use #358's verified reconciled descendants, not duplicate copies.
+5. **Groups 7, 8, 9, 10, 11, 14, 15** have separate source files except the shared deployment ignore list, relative to this reviewed file map. This is evidence of low apparent filename collision, **not** automatically a passing semantic/behavior compatibility test.
+6. **Group 2 #326** is an independent hosted-acceptance route with protected machine auth; #330 lineage records composed bounded trigger. Verify exact source blob and authorized runtime manifest before any replay/promotion, never create another STOP canary.
+
+**Minimal safe next source path:** freeze #349 at `23f77a99627956b35c36bd88e9eb3514a15cc994`; reconcile #352 and #358 in a new isolated review-only candidate; then compose disjoint Green source heads under a single reviewed ownership/fingerprint manifest, preserving #342's shell and #356's Workshop. Run combined backend, control, Flutter, archive/identity/STOP, and independent privacy negatives on the **resulting exact head** before even considering release. This review document is **not** that composition.
+
+## Protected host, human, and release gates
+
+- **Authority:** owner-authenticated host/project/conversation scope and revocation; MCP objective-control STOP unavailable; general engineering/broad ARK worker activation OFF. No automatic useful-idle task selection authorized.
+- **Memory/archive:** full private export/media and alternative branches unreviewed; owner-scope deletion/forgetting/semantic retrieval, automatic personal capture, independent real retrieval-to-decision proof gated.
+- **Identity/learning:** questionnaire and prompt/source tests aren't unprimed Text↔Voice behavior, actual acoustic acceptance, body-state sensing, two-model blind scores, externally verified causal updates or self-certified awareness.
+- **Grove/app:** private host/LM and phone login, Android airplane-mode/restart, private Voice accent, artwork approval (especially daytime Moss/Window), installed G09/Workshop and diary persistence/privacy still require real owner/device sessions.
+- **Annabelle/publishing:** 60 indexed chapter sources/records are not automatically complete edits or a Gold manuscript; author Chapter Two review, later chapters and hardcover decisions belong to author after source proof.
+- **Research/records:** evidence source independence and FAFO full-corpus validation, real human approval workflows, project credit/legal rights and sensitive diary/records consent remain separately gated.
+- **Release R0–R9:** choose exact authorized candidate, verify source+DB contract, current deployment and aliases, offsite restorable backup and rollback rehearsal, scope/cost/privacy/negative tests, explicit owner approval. All promotion and production actions remain OFF.
+
+## What this audit actually did
+
+- Live checked GitHub draft refs and exact-head CI for group source candidates, ARK Fresh App capability/STOP status and Vercel Preview source.
+- Parsed and counted all 97 IDs from the owner's master; no missing/duplicate ownership.
+- Detected prior Group 11 unimplemented E03/E07 safety gaps; repaired them in independent draft [PR #360](https://github.com/mikebuffan/Arbor/pull/360) at `ef167353a6fd477aa9b196e09d8a5c21dd6bd151` with 44 source tests and backend TypeScript PASS ([CI 37705502420](https://github.com/mikebuffan/Arbor/actions/runs/37705502420)).
+- Generated this read-only collision and release-gate ledger; did **not** write to another group's source, reopen a completed task, grant authority, invoke private model, or pretend that the 15 separate PR heads equal one deployed build.
+
+**Completion decision:** Group-by-group *safe source review/repair* is now accounted for. One combined source acceptance build and protected live release/device/model/editorial gates remain. "Everything finished" is **NOT** a defensible global status.
