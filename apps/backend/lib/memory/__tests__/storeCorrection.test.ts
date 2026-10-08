@@ -80,6 +80,7 @@ describe("memory correction storage semantics", () => {
     }));
     expect(update.eq).toHaveBeenCalledWith("status", "active");
     expect(update.is).toHaveBeenCalledWith("deleted_at", null);
+    expect(update.eq).toHaveBeenCalledWith("excluded_from_memory", false);
     expect(event.insert).toHaveBeenCalledWith(expect.objectContaining({
       user_id: "user-a",
       project_id: "project-a",
@@ -115,6 +116,7 @@ describe("memory correction storage semantics", () => {
     expect(outcome).toEqual({ created: [], updated: [], locked: [], ignored: ["note.current"] });
     expect(write.eq).toHaveBeenCalledWith("status", "active");
     expect(write.is).toHaveBeenCalledWith("deleted_at", null);
+    expect(write.eq).toHaveBeenCalledWith("excluded_from_memory", false);
     expect(write.maybeSingle).toHaveBeenCalledOnce();
     expect(mocks.logMemoryEvent).toHaveBeenCalledOnce();
     expect(mocks.logMemoryEvent).toHaveBeenCalledWith("upsert_summary", expect.objectContaining({
@@ -142,6 +144,50 @@ describe("memory correction storage semantics", () => {
     })).rejects.toThrow("memory_tombstoned_or_changed_during_correction");
     expect(write.eq).toHaveBeenCalledWith("status", "active");
     expect(write.is).toHaveBeenCalledWith("deleted_at", null);
+    expect(write.eq).toHaveBeenCalledWith("excluded_from_memory", false);
+    expect(mocks.logMemoryEvent).not.toHaveBeenCalled();
+  });
+
+  it("does not embed or update an actively excluded memory during ordinary ingestion", async () => {
+    const excluded = {
+      id: "excluded-item", status: "active", deleted_at: null,
+      excluded_from_memory: true, locked: false,
+    };
+    const read = {
+      select: vi.fn(), eq: vi.fn(), is: vi.fn(),
+      maybeSingle: vi.fn().mockResolvedValue({ data: excluded, error: null }),
+    };
+    for (const k of ["select", "eq", "is"] as const) read[k].mockReturnValue(read);
+    const supabase = { from: vi.fn(() => read) } as unknown as SupabaseClient;
+    const outcome = await upsertMemoryItems("user-a", [{
+      key: "excluded.key", value: "secret historical data", tier: "normal",
+      importance: 5, confidence: 0.8, user_trigger_only: false, scope: "project",
+    }], "project-a", supabase);
+    expect(outcome).toEqual({ created: [], updated: [], locked: [], ignored: ["excluded.key"] });
+    expect(supabase.from).toHaveBeenCalledOnce();
+    expect(mocks.embedTexts).not.toHaveBeenCalled();
+    expect(mocks.embedText).not.toHaveBeenCalled();
+  });
+
+  it("never corrects or reinforces an actively excluded memory", async () => {
+    const excluded = {
+      id: "excluded-item", status: "active", deleted_at: null,
+      excluded_from_memory: true, locked: false,
+    };
+    const read = {
+      select: vi.fn(), eq: vi.fn(), is: vi.fn(),
+      maybeSingle: vi.fn().mockResolvedValue({ data: excluded, error: null }),
+    };
+    for (const k of ["select", "eq", "is"] as const) read[k].mockReturnValue(read);
+    const supabase = { from: vi.fn(() => read) } as unknown as SupabaseClient;
+    await expect(correctMemoryItem({
+      supabase, authedUserId: "user-a", projectId: "project-a",
+      key: "excluded.key", newValue: "replace hidden data",
+    })).rejects.toThrow("memory_tombstoned_requires_explicit_restore");
+    await reinforceMemoryUse("user-a", ["excluded.key"], "project-a", supabase);
+    expect(supabase.from).toHaveBeenCalledTimes(2);
+    expect(mocks.embedText).not.toHaveBeenCalled();
+    expect(mocks.embedTexts).not.toHaveBeenCalled();
     expect(mocks.logMemoryEvent).not.toHaveBeenCalled();
   });
 
@@ -248,6 +294,7 @@ describe("memory correction storage semantics", () => {
     await reinforceMemoryUse("user-a", ["note.current"], "project-a", supabase);
     expect(write.eq).toHaveBeenCalledWith("status", "active");
     expect(write.is).toHaveBeenCalledWith("deleted_at", null);
+    expect(write.eq).toHaveBeenCalledWith("excluded_from_memory", false);
     expect(write.maybeSingle).toHaveBeenCalledOnce();
     if (shouldLog) {
       expect(event.insert).toHaveBeenCalledOnce();
