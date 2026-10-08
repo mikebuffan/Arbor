@@ -26,11 +26,11 @@ assert(typeof manifest.baseSource === 'string' && /^[a-f0-9]{40}$/.test(manifest
   'base_source_missing');
 const owners = manifest.owners;
 assert(owners && typeof owners === 'object' &&
-  ['group01_pr344', 'group03_pr346', 'group04_pr345', 'group04_pr347', 'group05_pr343', 'group06_pr348']
+  ['group01_pr344', 'group03_pr346', 'group04_pr345', 'group04_pr347', 'group05_pr343', 'group06_pr348', 'group12_pr355']
     .every(key => /^[a-f0-9]{40}$/.test(owners[key] || '')),
   'owner_head_incomplete');
 const expected = manifest.expectedBlobSha;
-assert(expected && typeof expected === 'object' && Object.keys(expected).length >= 17,
+assert(expected && typeof expected === 'object' && Object.keys(expected).length >= 20,
   'required_fingerprints_missing');
 let verified = 0;
 for (const [name, sha] of Object.entries(expected)) {
@@ -55,6 +55,8 @@ for (const name of [
   'test/one-arbor-group5-continuity-time-20261007',
   'review/one-arbor-group01-canonical-ledger-20261007',
   'review/one-arbor-group03-archive-ledger-20261007',
+  'test/one-arbor-group12-private-host-replay-20261007',
+  'review/one-arbor-group12-integration-20261007',
   'fix/one-arbor-group04-memory-scope-20261007',
   'fix/group4-memory-exclusion-shelf-20261007',
   'review/one-arbor-group06-self-model-20261007',
