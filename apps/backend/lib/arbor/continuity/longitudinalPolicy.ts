@@ -9,6 +9,14 @@ const CONTINUATION_SIGNAL =
 const COMPACT_WORKFLOW_CONTINUATION =
   /^(?:(?:list\s*[,;:+-]?\s*)?prompt\s*(?:,|;|\s+and)?\s*go|list\s+(?:and\s+)?prompt\s*(?:(?:,|;|\s+then|\s+and)\s*)?go|go\s+go\s+buffalo)[.!?\s]*$/i;
 
+// Session-local shorthand does not create work: it only continues an existing,
+// explicitly unfinished goal. Never treat these phrases as privileged grants.
+const ROUTINE_WORKFLOW_CONTINUATION =
+  /^(?:please\s+)?(?:(?:do|run|use)\s+(?:(?:your|you're|youre|the)\s+)?(?:usual|usually|normal|regular)\s+routine|(?:make|write|give me)\s+(?:a\s+)?list\s*(?:(?:and|then)\s+)?(?:a\s+)?prompt\s*(?:(?:and|then)\s+)?go)(?:\s+please)?[.!?\s]*$/i;
+const SERIAL_WORK_CONTINUATION = /\bone\s+at\s+a\s+time\s+until\b/i;
+const NEGATED_CONTINUATION =
+  /\b(?:don['’]?t|do not|never)\s+(?:keep going|keep working|continue|resume|go ahead|do it|finish it|proceed)\b/i;
+
 const EXPLICIT_SWITCH =
   /(?:^|\b)(?:instead\b|new goal\b|new task|different task|separate task|separate question|switch(?:ing)? (?:to|goals?)|change (?:the )?goal|forget that|drop that|stop (?:that|this)(?: and)?|leave that)\b/i;
 // Negating a switch command must not be treated as a new instruction to switch.
@@ -47,6 +55,8 @@ export function explicitlyContinues(userText: string) {
   const text = userText.trim();
   return EXPLICIT_CONTINUATION.test(text) ||
     COMPACT_WORKFLOW_CONTINUATION.test(text) ||
+    ROUTINE_WORKFLOW_CONTINUATION.test(text) ||
+    SERIAL_WORK_CONTINUATION.test(text) ||
     NEGATED_SWITCH_CONTINUATION.test(text) ||
     CONTINUATION_SIGNAL.test(text);
 }
@@ -88,7 +98,7 @@ function looksLikeContinuationFollowup(userText: string, prior: AgencyState) {
 
 export function shouldCarryGoal(userText: string, prior: AgencyState | null) {
   if (!hasLiveAgencyGoal(prior)) return false;
-  if (explicitlySupersedes(userText)) return false;
+  if (explicitlySupersedes(userText) || NEGATED_CONTINUATION.test(userText)) return false;
   if (explicitlyContinues(userText)) return true;
   return looksLikeContinuationFollowup(userText, prior);
 }
