@@ -111,7 +111,7 @@
     "apps/backend/lib/arbor/behavior/__tests__/arkLayerReadContext.test.ts": "fff706bfa7d2694ae8f58e5f21c4cff0b6e02516",
     "apps/backend/lib/prompt/__tests__/buildPromptContext.freshness.test.ts": "d879a0b25418abaa3078ac54e2838f442a4a40d8",
     "apps/backend/lib/arbor/behavior/__tests__/independentJudgmentBlindPack.ts": "b760f138f9ce341efa87f7bf3c14544c02dbe652",
-    "apps/backend/lib/arbor/behavior/__tests__/independentJudgmentBlindPack.test.ts": "c18aef2909847b58727e420d5360c8b0b67f80a8"
+    "apps/backend/lib/arbor/behavior/__tests__/independentJudgmentBlindPack.test.ts": "745ea8ddb9ed8e051bcc0d5fd617af2e73abdcee"
   },
   "comment": "78 verified source-only blobs. Adds exact group11 PR #360 view-injection and visited-ID bounds to reviewed 15-lane #362 candidate; Group12 latest after recorded source head is docs-only. Source review, no deployment or live acceptance."
 }
