@@ -36,3 +36,13 @@ The independently owned memory-pagination successor #352 is NOT bundled; its bas
 After exact-head source tests and separate owner review, hand off a **specific** Preview deployment request to Group 01/02: identify the target private Vercel project, reviewed commit, model runtime, authorizing owner, cost ceiling, enabled flags, supported undo plan, and explicit non-production scope. *No such release/model activation is performed in this source integration.*
 
 The September 28 research task and queued ARK STOP canary stay untouched. No main merge, production deploy, private content ingestion, hosted grants, worker activation, model training/inference, transcript mutation or credential disclosure.
+
+## History read / duplicate inference race (bounded follow-up)
+
+A further real race was identified in the existing Grove code: after a worker has claimed a request and read `getCompleted` as absent, another lease holder can complete while the first worker is fetching recent history. That history would then include the same request ID, and the first worker previously sent it to the independent LM as a fresh turn. A fenced database write prevents conflicting *durable* transcript effects, but cannot undo the wasted underlying model computation.
+
+The existing `privateConversationLoop.ts` now checks whether the bounded, validated completed-history list contains the current request ID. If it does, it **requires** a separate exact-ID `getCompleted` receipt, rechecks authorization before disclosure, and replays the canonical response without a model call. If the history-only claim is not independently confirmed, it HOLDs with `grove_private_request_in_progress`; it never treats history text alone as a receipt. Existing same-text, cross-scope, duplicate-history and final reauthorization gates remain intact.
+
+Two synthetic negative race tests were added to `privateTranscriptStore.test.ts`. The composite fingerprint gate now pins **20** source files including `privateConversationLoop.ts` (prior approved 19 hashes retained and reviewed test blob updated). No new generation engine, provider call, database table, data ingestion or worker. This **narrows**, but does **not eliminate**, the duplicate LM invocation window after an expired lease; exactly-once computation remains **NOT PROVEN**.
+
+Acceptance for this addition is a **new exact-head** source-only CI run; earlier green workflows only certify their earlier heads. No hosted Grove pilot, migration, real model loading or production release is authorized.
