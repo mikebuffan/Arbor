@@ -9,7 +9,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@/lib/memory/embeddings", () => ({
   embedText: mocks.embedText,
-  embedTexts: vi.fn(),
+  embedTexts: mocks.embedTexts,
   memoryToEmbedString: mocks.memoryToEmbedString,
 }));
 
@@ -109,6 +109,8 @@ describe("memory correction storage semantics", () => {
     expect(result).toEqual({ created: [], updated: [], locked: [], ignored: ["alias.retired"] });
     expect(supabase.from).toHaveBeenCalledTimes(1);
     expect(read.maybeSingle).toHaveBeenCalledTimes(1);
+    expect(mocks.embedTexts).not.toHaveBeenCalled();
+    expect(mocks.embedText).not.toHaveBeenCalled();
     // Summary telemetry is not a persisted memory/event or an alias revival.
     expect(mocks.logMemoryEvent).toHaveBeenCalledOnce();
     expect(mocks.logMemoryEvent).toHaveBeenCalledWith("upsert_summary", expect.objectContaining({
@@ -135,6 +137,8 @@ describe("memory correction storage semantics", () => {
       key: "alias.retired", newValue: "new wording",
     })).rejects.toThrow("memory_tombstoned_requires_explicit_restore");
     expect(supabase.from).toHaveBeenCalledTimes(1);
+    expect(mocks.embedText).not.toHaveBeenCalled();
+    expect(mocks.embedTexts).not.toHaveBeenCalled();
     expect(mocks.logMemoryEvent).not.toHaveBeenCalled();
   });
 
