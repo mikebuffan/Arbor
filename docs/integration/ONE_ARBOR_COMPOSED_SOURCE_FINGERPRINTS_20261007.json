@@ -45,7 +45,7 @@
     "apps/backend/lib/memory/__tests__/shelfPageRead.test.ts": "35b5c43abb6b2c774a1ae3aa75b33507c1e4d3bb",
     "apps/frontend/lib/environment/grove_memory_shelf_view.dart": "31e54c5c459cadce0eeba4bb577922c419cde71a",
     "apps/frontend/test/grove_memory_shelf_view_test.dart": "f01802b64c9ee0ed0116ee66e81344499fdcdf25",
-    ".github/workflows/one-arbor-15-lane-assembly.yml": "2bb7b7345a2fdbe89491c26c6488d15e8fb1248a",
+    ".github/workflows/one-arbor-15-lane-assembly.yml": "7213d49c04a8050bb981f8fd49004f774b5342be",
     ".github/workflows/one-arbor-diary-draft.yml": "8923e47d0d69562a86a7c210b10efaaf0c5fd624",
     ".github/workflows/one-arbor-group08-body-acceptance.yml": "d4dc36baef71d379f6a769d7f0416cd755d7252a",
     ".github/workflows/one-arbor-group09-decision-gates.yml": "8c6a9996d12fc1624e8e1ef997d8c04d34ee0ffe",
@@ -135,5 +135,5 @@
     "apps/backend/lib/ark/latestStatusRequest.ts": "a209b5713d5cdaf181be9b86a2fe94b2189536cd",
     "apps/backend/lib/ark/__tests__/latestStatusRequest.test.ts": "3127959d3d6eabd25b6e7fc8542f4d17e34f74ee"
   },
-  "comment": "Isolated preview status request race fix: A/B synthetic deferred reads, supersession and abort guards; source-only no deploy."
+  "comment": "Source-only exact-Preview anonymous HTTP protection check on existing CI runner, no secrets or deployment."
 }

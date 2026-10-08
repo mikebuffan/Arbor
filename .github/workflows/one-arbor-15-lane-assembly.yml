@@ -51,6 +51,43 @@ jobs:
           VERCEL_GIT_COMMIT_REF="${{ github.head_ref || github.ref_name }}" node ops/grove/source-only-ignore.mjs
       - name: Verify all reviewed source fingerprints
         run: node ops/integration/verify-one-arbor-composition.mjs
+      - name: Unauthenticated exact Preview deployment protection smoke check
+        if: github.ref == 'refs/heads/review/one-arbor-preview-status-race-20261008'
+        run: |
+          set -euo pipefail
+          hosts=(
+            "firefly-ark-sandbox-hek3elo0r-mikes-projects-4d16734a.vercel.app"
+            "firefly-ark-sandbox-git-prep-one-16dff9-mikes-projects-4d16734a.vercel.app"
+          )
+          for host in "${hosts[@]}"; do
+            headers="$(mktemp)"
+            trap 'rm -f "$headers"' EXIT
+            status="$(curl --silent --show-error --max-time 18 --dump-header "$headers" --output /dev/null --write-out '%{http_code}' "https://$host/")"
+            echo "Anonymous exact-Preview HTTP status: $status"
+            case "$status" in
+              401|403)
+                echo "Anonymous request blocked at HTTP boundary"
+                ;;
+              301|302|303|307|308)
+                location="$(grep -i '^location:' "$headers" | tail -n 1 | tr -d '\r' | sed -E 's/^[^:]*:[[:space:]]*//')"
+                case "$location" in
+                  https://vercel.com/*|*/_vercel/sso*|*/_vercel/auth*)
+                    echo "Anonymous request redirected to Vercel authentication"
+                    ;;
+                  *)
+                    echo "::error::Unverified anonymous redirect for exact Preview"
+                    exit 1
+                    ;;
+                esac
+                ;;
+              *)
+                echo "::error::Anonymous exact Preview was not access-denied (HTTP $status)"
+                exit 1
+                ;;
+            esac
+            rm -f "$headers"
+            trap - EXIT
+          done
       - name: Restore locked dependencies
         run: |
           corepack enable
