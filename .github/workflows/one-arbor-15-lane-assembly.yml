@@ -7,6 +7,7 @@ on:
       - test/one-arbor-judgment-blind-pack-20261007
       - review/one-arbor-b12-candidate-shape-20261007
       - prep/one-arbor-ark-preview-20261008
+      - review/one-arbor-b12-candidate-lifecycle-20261008
   pull_request:
     branches:
       - fix/one-arbor-group04-shelf-pagination-20261007
@@ -59,6 +60,7 @@ jobs:
         run: >-
           pnpm exec vitest run
           lib/memory/__tests__/candidateContext.test.ts
+          lib/memory/__tests__/candidateLifecycleExclusion.test.ts
           lib/memory/__tests__/shelfPageRead.test.ts
           lib/memory/__tests__/projectIsolation.test.ts
           lib/memory/__tests__/retrievalExclusion.test.ts

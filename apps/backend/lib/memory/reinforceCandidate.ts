@@ -29,19 +29,25 @@ export async function reinforceMemoryCandidate(input: {
 
   const { data: candidate, error: readError } = await admin
     .from("ar_memory_candidates")
-    .select("id,candidate_json,status")
+    .select("id,user_id,project_id,candidate_json,status")
     .eq("id", input.candidateId)
     .eq("user_id", input.userId)
     .eq("project_id", input.projectId)
     .maybeSingle();
 
   if (readError) throw readError;
-  if (!candidate || candidate.status !== "proposed") {
+  if (!candidate || candidate.user_id !== input.userId ||
+      candidate.project_id !== input.projectId || candidate.status !== "proposed") {
     return { updated: false };
   }
 
-  const json =
-    (candidate.candidate_json ?? {}) as Record<string, unknown>;
+  const value = candidate.candidate_json;
+  // A previously excluded or malformed candidate cannot be reinforced back into use.
+  if (!value || typeof value !== "object" || Array.isArray(value) ||
+      (value as Record<string, unknown>).excluded_from_memory === true) {
+    return { updated: false };
+  }
+  const json = value as Record<string, unknown>;
 
   const confidence = Math.max(
     0,
@@ -107,7 +113,9 @@ export async function reinforceMemoryCandidate(input: {
       updated_at: new Date().toISOString(),
     })
     .eq("id", input.candidateId)
-    .eq("user_id", input.userId);
+    .eq("user_id", input.userId)
+    .eq("project_id", input.projectId)
+    .eq("status", "proposed");
 
   if (updateError) throw updateError;
 

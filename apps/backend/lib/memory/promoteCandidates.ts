@@ -15,10 +15,11 @@ type CandidateJson = {
   contradiction_count?: number;
   observed_threads?: string[];
   sensitive?: boolean;
+  excluded_from_memory?: boolean;
 };
 
 function canonicalMemoryKey(json: CandidateJson): string | null {
-  const raw = json.mem_key?.trim();
+  const raw = typeof json.mem_key === "string" ? json.mem_key.trim() : "";
   if (!raw) return null;
 
   const suffix = raw
@@ -31,7 +32,7 @@ function canonicalMemoryKey(json: CandidateJson): string | null {
   if (!suffix) return null;
 
   const category =
-    (json.category ?? "pattern")
+    (typeof json.category === "string" ? json.category : "pattern")
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "_");
 
@@ -39,15 +40,18 @@ function canonicalMemoryKey(json: CandidateJson): string | null {
 }
 
 function eligible(json: CandidateJson): boolean {
-  if (json.sensitive) return false;
+  if (json.sensitive || json.excluded_from_memory === true) return false;
   if (json.category === "cue") return false;
-  if (!json.content?.trim()) return false;
+  if (typeof json.content !== "string" || !json.content.trim()) return false;
 
   const score = Number(json.score ?? 0);
   const confidence = Number(json.confidence ?? 0);
   const confirmations = Number(json.confirm_count ?? 0);
   const contradictions = Number(json.contradiction_count ?? 0);
-  const threadBreadth = json.observed_threads?.length ?? 0;
+  const threadBreadth = Array.isArray(json.observed_threads)
+    ? json.observed_threads.filter((thread) => typeof thread === "string").length
+    : 0;
+  if (![score, confidence, confirmations, contradictions].every(Number.isFinite)) return false;
 
   // A contradicted provisional hypothesis remains available for later
   // evaluation but cannot silently become durable truth. Explicit correction
@@ -74,7 +78,7 @@ export async function promoteEligibleMemoryCandidates(input: {
 
   const { data, error } = await admin
     .from("ar_memory_candidates")
-    .select("id,candidate_json,status")
+    .select("id,user_id,project_id,candidate_json,status")
     .eq("user_id", input.userId)
     .eq("project_id", input.projectId)
     .eq("status", "proposed")
@@ -86,7 +90,10 @@ export async function promoteEligibleMemoryCandidates(input: {
   const promoted: string[] = [];
 
   for (const row of data ?? []) {
-    const json = (row.candidate_json ?? {}) as CandidateJson;
+    // Admin reads are not themselves prompt/write authorization. Recheck scope.
+    if (row.user_id !== input.userId || row.project_id !== input.projectId || row.status !== "proposed") continue;
+    if (!row.candidate_json || typeof row.candidate_json !== "object" || Array.isArray(row.candidate_json)) continue;
+    const json = row.candidate_json as CandidateJson;
     if (!eligible(json)) continue;
 
     const key = canonicalMemoryKey(json);
@@ -137,7 +144,8 @@ export async function promoteEligibleMemoryCandidates(input: {
       })
       .eq("id", row.id)
       .eq("user_id", input.userId)
-      .eq("project_id", input.projectId);
+      .eq("project_id", input.projectId)
+      .eq("status", "proposed");
 
     if (statusError) throw statusError;
     promoted.push(key);
