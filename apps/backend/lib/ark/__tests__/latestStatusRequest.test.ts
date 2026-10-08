@@ -13,9 +13,9 @@ describe("ARK Preview status project-switch display isolation", () => {
     const gate = createLatestArkStatusRequestGate();
     const a = deferred<string>(), b = deferred<string>();
     const shown: string[] = [], errors: string[] = [], finished: string[] = [];
-    let olderSignal: AbortSignal | null = null;
+    const signals: AbortSignal[] = [];
     const older = runLatestArkStatusRequest({
-      gate, load: (signal) => { olderSignal = signal; return a.promise; },
+      gate, load: (signal) => { signals.push(signal); return a.promise; },
       onResolve: value => shown.push(value),
       onReject: error => errors.push(String(error)),
       onFinally: () => finished.push("A"),
@@ -27,7 +27,7 @@ describe("ARK Preview status project-switch display isolation", () => {
       onReject: error => errors.push(String(error)),
       onFinally: () => finished.push("B"),
     });
-    expect(olderSignal?.aborted).toBe(true);
+    expect(signals[0]?.aborted).toBe(true);
     b.resolve("B: owned project");
     await newer;
     a.resolve("A: stale project");
