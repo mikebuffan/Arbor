@@ -442,12 +442,36 @@ export async function respondToVerifiedPrivateGroveTurn(input: {
       };
     }
   }
-  const history = transcript && transcriptScope
+  const recent = transcript && transcriptScope
+    ? await transcript.store.listRecent(transcriptScope) : null;
+  const history = transcript && transcriptScope && recent
     ? selectPrivateModelHistory({
-        completedNewestFirst: await transcript.store.listRecent(transcriptScope),
-        scope: transcriptScope, userText,
+        completedNewestFirst: recent, scope: transcriptScope, userText,
       })
     : [{ role: "user" as const, content: userText }];
+  // An expired-lease competitor can finish AFTER our last completed lookup,
+  // while this bounded history read already sees the canonical current turn.
+  // It is unsafe to send that exact turn again as a "new" model request.
+  // Require an independent exact-id readback; never trust a history row alone.
+  if (transcript && transcriptScope && recent?.some(
+    row => row.request_id === transcript.requestId,
+  )) {
+    const canonical = await transcript.store.getCompleted({
+      ...transcriptScope, requestId: transcript.requestId,
+    });
+    if (!canonical)
+      throw new RouteAccessError(409, "grove_private_request_in_progress");
+    if (canonical.user_text !== userText)
+      throw new RouteAccessError(409, "grove_transcript_request_conflict");
+    await input.prepared.reauthorize();
+    const recoveredReply = transcriptRowToUnverifiedReply(canonical, transcriptScope);
+    await input.prepared.captureRuntimeTurn?.(recoveredReply.reply);
+    return {
+      status: "responded", reply: recoveredReply,
+      persisted: true, replayed: true, requestId: transcript.requestId,
+      grantsExecution: false, verifiesCompletion: false,
+    };
+  }
   // History reads may outlast a revocation. Verify scope immediately before
   // sending any private context/history to the independent model host.
   await input.prepared.reauthorize();
