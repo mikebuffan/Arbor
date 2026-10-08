@@ -6,10 +6,12 @@ on:
       - test/one-arbor-independent-judgment-20261007
       - review/one-arbor-judgment-green-baseline-20261007
       - review/one-arbor-judgment-feedback-gates-20261007
+      - test/one-arbor-judgment-blind-pack-20261007
   pull_request:
     branches:
       - review/one-arbor-group11-assembly-followon-20261007
       - review/one-arbor-judgment-green-baseline-20261007
+      - review/one-arbor-judgment-feedback-gates-20261007
     paths:
       - 'apps/backend/lib/arbor/behavior/**'
       - 'apps/backend/lib/prompt/buildPromptContext.ts'
@@ -57,6 +59,7 @@ jobs:
           pnpm exec vitest run
           lib/arbor/behavior/behaviorProjection.test.ts
           lib/arbor/behavior/__tests__/independentJudgmentCases.test.ts
+          lib/arbor/behavior/__tests__/independentJudgmentBlindPack.test.ts
           lib/arbor/behavior/__tests__/group07ConversationSurface.test.ts
           lib/arbor/behavior/__tests__/arkLayerReadContext.test.ts
           lib/prompt/__tests__/buildPromptContext.freshness.test.ts
