@@ -29,7 +29,11 @@ describe("judgment blind-pack isolation (source-only, no inference)", () => {
     const publicText = JSON.stringify(generation);
     expect(publicText).not.toContain("expectedDisposition");
     expect(publicText).not.toContain("forbiddenFailure");
-    expect(publicText).not.toContain("explanation");
+    // Ordinary prompts may contain words such as "explanation"; inspect the
+    // serialized public *fields*, not whether a natural-language word occurs.
+    expect(Object.keys(generation).sort()).toEqual(["casePackHash", "cases", "schemaVersion"]);
+    expect(generation.cases.every(c => Object.keys(c).sort().join(",") === "id,userTurns"))
+      .toBe(true);
     for (const c of independentJudgmentCases) {
       const actual = generation.cases.find(g => g.id === c.id);
       expect(actual).toBeDefined();
