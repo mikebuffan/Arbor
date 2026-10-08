@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 const mocks = vi.hoisted(() => ({
   embedText: vi.fn(),
+  embedTexts: vi.fn(),
   memoryToEmbedString: vi.fn(),
   logMemoryEvent: vi.fn(),
 }));
