@@ -165,7 +165,12 @@ function assertConsistentView(view: DecisionAncestryView): void {
   if (computed.events.length !== view.events.length ||
       computed.events.some((event, index) => event.id !== view.events[index]?.id) ||
       JSON.stringify(computed.warnings) !== JSON.stringify(view.warnings) ||
-      computed.currentChoice?.id !== view.currentChoice?.id ||
+      // A forged read-only view must not launder an added outcome reference,
+      // or a changed choice payload with the same source event ID.
+      JSON.stringify(computed.reportedOutcomeRefs) !==
+        JSON.stringify(view.reportedOutcomeRefs) ||
+      JSON.stringify(computed.currentChoice) !==
+        JSON.stringify(view.currentChoice) ||
       JSON.stringify(computed.missingPredecessors) !==
         JSON.stringify(view.missingPredecessors) ||
       view.grantsExecution !== false ||
