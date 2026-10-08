@@ -105,14 +105,19 @@
     "apps/backend/lib/arbor/behavior/behaviorProjection.ts": "cd52561933f57ff41daf2ca1497d2dc8d414bfe8",
     "apps/backend/lib/arbor/behavior/__tests__/independentJudgmentCases.ts": "7d9b8eb3f6952812c893c5a5bd228395888e5da3",
     "apps/backend/lib/arbor/behavior/__tests__/independentJudgmentCases.test.ts": "045e1782fbacbad032738232bf960962345e2a8e",
-    ".github/workflows/one-arbor-independent-judgment.yml": "934976df7e3e3baea8f9ee7543f5bc65f191147e",
+    ".github/workflows/one-arbor-independent-judgment.yml": "d812fec9953bd51b4233e70dfc4516d1671a712e",
     "apps/backend/lib/prompt/buildPromptContext.ts": "c91150dbfce1755b9843b58c8c46a95e7fe50a3b",
     "apps/backend/lib/arbor/behavior/arkLayerReadContext.ts": "e0597d3df998d37361a9b21f351d597e1508f445",
     "apps/backend/lib/arbor/behavior/__tests__/arkLayerReadContext.test.ts": "fff706bfa7d2694ae8f58e5f21c4cff0b6e02516",
     "apps/backend/lib/prompt/__tests__/buildPromptContext.freshness.test.ts": "d879a0b25418abaa3078ac54e2838f442a4a40d8",
     "apps/backend/lib/arbor/behavior/__tests__/independentJudgmentBlindPack.ts": "a1237314189ad46bf907841c7092368bed0b79a9",
     "apps/backend/lib/arbor/behavior/__tests__/independentJudgmentBlindPack.test.ts": "799098b4c7c74811d4936d67e086ed1d50226504",
-    "apps/backend/lib/arbor/behavior/__tests__/independentJudgmentOfflineRunner.test.ts": "6ee29b5985a066fe5821d8e9365cd1171bff83af"
+    "apps/backend/lib/arbor/behavior/__tests__/independentJudgmentOfflineRunner.test.ts": "6ee29b5985a066fe5821d8e9365cd1171bff83af",
+    "apps/backend/app/api/preview/ark/acceptance/route.ts": "f452cc2efd5dd484030d052470e6fc407e55ef3a",
+    "apps/backend/lib/ark/previewAcceptance.ts": "b2c83c2519f210baa7ff10a980189f83885fcb6b",
+    "apps/backend/lib/ark/__tests__/previewAcceptanceRoute.test.ts": "b13d728bf91ab1298a3411d616f6795421444914",
+    "apps/backend/lib/ark/defaultWorker.ts": "5bde17ca81a3dd9efc648c403ff60319eaa80c0a",
+    "apps/backend/lib/auth/routeAuthorization.ts": "10b632f7f6b963c9e8757ae5c6cd76f86b999ecb"
   },
   "comment": "78 verified source-only blobs. Adds exact group11 PR #360 view-injection and visited-ID bounds to reviewed 15-lane #362 candidate; Group12 latest after recorded source head is docs-only. Source review, no deployment or live acceptance."
 }
