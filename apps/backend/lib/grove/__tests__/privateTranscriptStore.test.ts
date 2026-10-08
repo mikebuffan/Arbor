@@ -280,6 +280,66 @@ describe("Grove-only private conversation durability (fixtures, migration OFF)",
     expect(data.records.size).toBe(1);
   });
 
+  it("recovers a turn completed between replay lookup and history read without another LM call", async () => {
+    const data = fakeStore();
+    const canonical = row({
+      requestId: firstId,
+      userText: "Finish while reading history",
+      assistantText: "Canonical saved reply",
+    });
+    const wrapped: GrovePrivateTranscriptStore = {
+      ...data.store,
+      async listRecent(s) {
+        const key = [s.groveUserId, s.projectId, s.conversationId, firstId].join(":");
+        data.records.set(key, canonical);
+        return data.store.listRecent(s);
+      },
+    };
+    const h = host(wrapped);
+    const result = await h.respond("Finish while reading history", firstId);
+    expect(result).toMatchObject({
+      status: "responded", persisted: true, replayed: true,
+      requestId: firstId,
+      grantsExecution: false, verifiesCompletion: false,
+      reply: { reply: "Canonical saved reply", liveExecutionVerified: false, workReceipts: [] },
+    });
+    expect(h.sendModel).not.toHaveBeenCalled();
+    expect(data.records.size).toBe(1);
+  });
+
+  it("fails closed on a malformed missing history adapter response", async () => {
+    const data = fakeStore();
+    const malformed: GrovePrivateTranscriptStore = {
+      ...data.store,
+      async listRecent() { return null as never; },
+    };
+    const h = host(malformed);
+    await expect(h.respond("Do not invent history", firstId))
+      .rejects.toThrow("grove_transcript_history_limit");
+    expect(h.sendModel).not.toHaveBeenCalled();
+    expect(data.records.size).toBe(0);
+  });
+
+  it("holds a history-only current request that has no independent exact-ID receipt", async () => {
+    const data = fakeStore();
+    const forged = row({
+      requestId: firstId,
+      userText: "Claim the old reply",
+      assistantText: "Unconfirmed history content",
+    });
+    const wrapped: GrovePrivateTranscriptStore = {
+      ...data.store,
+      async listRecent() { return [forged]; },
+    };
+    const h = host(wrapped);
+    await expect(h.respond("Claim the old reply", firstId))
+      .rejects.toMatchObject({
+        status: 409, code: "grove_private_request_in_progress",
+      });
+    expect(h.sendModel).not.toHaveBeenCalled();
+    expect(data.records.size).toBe(0);
+  });
+
   it("holds an identical retry WHILE the first model call is still running", async () => {
     const data = fakeStore();
     const h = host(data.store);
@@ -509,6 +569,22 @@ describe("Grove-only private conversation durability (fixtures, migration OFF)",
     expect(transcriptRowToUnverifiedReply(first, scope).workReceipts).toEqual([]);
   });
 
+  it("denies repeated request identity in model history rather than doubling old context", () => {
+    const old = row({requestId:firstId,userText:"Earlier private input",
+      assistantText:"Earlier unverified reply"});
+    expect(() => selectPrivateModelHistory({
+      completedNewestFirst: [old, {...old}],
+      scope, userText:"New message",
+    })).toThrow("grove_transcript_history_duplicate_request");
+  });
+
+  it("denies malformed missing history rather than assuming empty stored context", () => {
+    expect(() => selectPrivateModelHistory({
+      completedNewestFirst:null as never,
+      scope, userText:"Continue",
+    })).toThrow("grove_transcript_history_limit");
+  });
+
   it("honors strict LM receiver 13-message and 12,000-char limits", () => {
     const recent = Array.from({length: 6}, (_, i) => row({
       requestId: [
@@ -680,6 +756,27 @@ describe("Grove fenced DB completion contract (synthetic mock only)", () => {
 });
 
 describe("Supabase Grove service store scope (no real database)", () => {
+  it("rejects a provider returning a different request ID despite scoped query", async () => {
+    const wrong = row({
+      requestId:secondId,userText:"Same text",
+      assistantText:"A reply belonging to another request",
+    });
+    const chain:any = {
+      select:vi.fn(),eq:vi.fn(),maybeSingle:vi.fn(async()=>({
+        data:wrong,error:null,
+      })),
+    };
+    chain.select.mockReturnValue(chain);
+    chain.eq.mockReturnValue(chain);
+    const store = createSupabaseGrovePrivateTranscriptStore({
+      from:vi.fn(()=>chain),
+    } as never);
+    await expect(store.getCompleted({...scope,requestId:firstId}))
+      .rejects.toMatchObject({
+        status:409,code:"grove_transcript_request_conflict",
+      });
+  });
+
   it("includes verified owner/project/conversation in every read and insert", async () => {
     const filters: Array<[string, unknown]> = [];
     const persisted = row({

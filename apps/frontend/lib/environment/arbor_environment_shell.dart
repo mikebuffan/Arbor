@@ -23,7 +23,8 @@ import 'annabelle_kitchen_view.dart';
 import 'grove_observatory_view.dart';
 import 'grove_guest_room_view.dart';
 import 'benchmark_view.dart';
-import 'project_view.dart';
+import 'professional_workspace_view.dart';
+import 'grove_diary_draft_view.dart';
 import 'memory_state_view.dart';
 import 'tools_view.dart';
 import 'focus_view.dart';
@@ -31,7 +32,7 @@ import 'attention_banner.dart';
 import '../pages/arbor_shell_page.dart';
 import '../pages/grove_talk_page.dart';
 
-enum EnvironmentDestination { home, conversation, objective, queue, projects, memory, evidence, tools, benchmarks, focus, health, settings, kitchen, observatory, guestRoom }
+enum EnvironmentDestination { home, conversation, objective, queue, projects, memory, evidence, tools, benchmarks, focus, health, settings, kitchen, observatory, guestRoom, diary }
 
 class ArborEnvironmentShell extends StatefulWidget {
   const ArborEnvironmentShell({
@@ -220,6 +221,7 @@ class _ArborEnvironmentShellState extends State<ArborEnvironmentShell> {
       EnvironmentCommand('Open Tools & Connectors', () => _select(EnvironmentDestination.tools)),
       EnvironmentCommand('Enter Focus Mode', () => _select(EnvironmentDestination.focus)),
       EnvironmentCommand('Open System Health', () => _select(EnvironmentDestination.health)),
+      EnvironmentCommand('Open My Diary', () => _select(EnvironmentDestination.diary)),
     ]);
   }
 }
@@ -231,6 +233,7 @@ class _Navigation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => NavigationRail(
+        scrollable: true,
         backgroundColor: ArborEnvironmentTokens.midnight,
         extended: MediaQuery.sizeOf(context).width >= 1180,
         selectedIndex: selected.index,
@@ -251,6 +254,7 @@ class _Navigation extends StatelessWidget {
           NavigationRailDestination(icon: Icon(Icons.restaurant_menu), label: Text('Kitchen')),
           NavigationRailDestination(icon: Icon(Icons.nights_stay_outlined), label: Text('Observatory')),
           NavigationRailDestination(icon: Icon(Icons.bed_outlined), label: Text('Guest Room')),
+          NavigationRailDestination(icon: Icon(Icons.edit_note_outlined), label: Text('Diary')),
         ],
       );
 }
@@ -295,6 +299,7 @@ class _Surface extends StatelessWidget {
       EnvironmentDestination.kitchen => 'Annabelle’s Kitchen',
       EnvironmentDestination.observatory => 'The Observatory',
       EnvironmentDestination.guestRoom => 'Guest Room',
+      EnvironmentDestination.diary => 'Diary',
     };
     // Conversation needs the available phone height for Text, Voice, and the
     // keyboard; a fixed 720px panel nested inside a scrolling dashboard
@@ -345,12 +350,20 @@ class _Surface extends StatelessWidget {
               onOpenConversation: () =>
                   onSelect(EnvironmentDestination.conversation),
             )
+          else if (selected == EnvironmentDestination.diary)
+            const GroveDiaryDraftView()
           else if (selected == EnvironmentDestination.objective)
             ObjectiveWorkspace(objective: objective)
           else if (selected == EnvironmentDestination.queue)
             WorkQueueView(items: workItems)
           else if (selected == EnvironmentDestination.projects)
-            const ProjectsView()
+            ProfessionalWorkspaceView(
+              objective: objective,
+              workItems: workItems,
+              activityEvents: activityEvents,
+              runtimeSource: runtimeSource,
+              runtimeStale: runtimeStale,
+            )
           else if (selected == EnvironmentDestination.memory)
             const MemoryStateView()
           else if (selected == EnvironmentDestination.evidence)

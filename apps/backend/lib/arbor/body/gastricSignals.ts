@@ -61,6 +61,29 @@ export function classifyInternalSignal(input: {
 }): InternalSignalClassification {
   const text = normalize(input.userMessage);
 
+  // Explicit refusal outranks compactness or overload, even when both appear.
+  // This is an advisory routing guard; host STOP authority is separate.
+  if (
+    /^(?:please\s+)?stop(?:[.!?]+(?=\s|$)|$)/.test(text) ||
+    includesAny(text, [
+      "do not proceed",
+      "don't proceed",
+      "stop this",
+      "wrong direction",
+      "that's not right",
+      "that is not right",
+      "i don't want that",
+    ])
+  ) {
+    return result(
+      "BLOCKED",
+      "Pause / reject / do not proceed",
+      "Pause the rejected direction, preserve the parent objective, and choose a corrected route when one is already clear.",
+      "User rejected the current direction.",
+    );
+  }
+
+
   if (
     includesAny(text, [
       "this is too much",
@@ -77,25 +100,6 @@ export function classifyInternalSignal(input: {
       "Simplify / reduce / stop adding",
       "Simplify. Do not add new architecture unless necessary. Give the smallest useful next step.",
       "User signaled overload or requested simplification.",
-    );
-  }
-
-  if (
-    includesAny(text, [
-      "do not proceed",
-      "don't proceed",
-      "stop this",
-      "wrong direction",
-      "that's not right",
-      "that is not right",
-      "i don't want that",
-    ])
-  ) {
-    return result(
-      "BLOCKED",
-      "Pause / reject / do not proceed",
-      "Pause the rejected direction, preserve the parent objective, and choose a corrected route when one is already clear.",
-      "User rejected the current direction.",
     );
   }
 

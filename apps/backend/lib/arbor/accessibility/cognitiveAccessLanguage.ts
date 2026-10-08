@@ -94,8 +94,12 @@ const AMBIGUITY_MARGIN = 0.12;
 const NEGATION_PATTERN =
   /\b(?:no|not|never|without|dont|don't|doesnt|doesn't|didnt|didn't|cannot|can't|cant|wont|won't)\b/gi;
 
+// Preserve explicit interruption/STOP intent, including "stop that", "wait a
+// minute" and negated continuation. Candidate confidence is not authority to
+// turn a hard stop into a resume instruction. This is only an interpretation
+// guard, not a worker STOP implementation.
 const CONTROL_STOP_PATTERN =
-  /^(?:no|wait|stop|hold on|dont|don't|do not|cancel|never mind|nevermind)[.!?,\s]*$/i;
+  /^(?:(?:please\s+)?(?:no|wait|stop|pause|hold\s+on|cancel|never\s*mind|nevermind)\b|(?:please\s+)?(?:do\s+not|don['’]?t|never)\s+(?:go|continue|proceed|resume|restart)\b)/i;
 
 function cleanCandidate(
   candidate: InterpretationCandidate,

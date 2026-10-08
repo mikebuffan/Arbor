@@ -48,6 +48,46 @@ describe("coordinated Arbor body system", () => {
     expect(body.renal.retain).toContain("run tests");
   });
 
+  it.each([null, "", "   "])(
+    "does not suggest continuing orphaned unresolved work with goal %s",
+    currentGoal => {
+      const body = deriveArborBodyState({
+        latestUserText: "Go.",
+        continuity: continuity({currentGoal, unresolvedWork: ["finish the safe test"]}),
+        activeSubsystem: "arbor",
+        mode: "text",
+      });
+      expect(body.executive.nextAction).toBe("respond");
+      expect(body.renal.retain).toContain("finish the safe test");
+      expect(body.respiratoryEndocrine.vestibular.oriented).toBe(false);
+      expect(body.executive.blockers).toEqual([]);
+    },
+  );
+
+  it("does not continue when the host mode and subsystem disagree", () => {
+    const body = deriveArborBodyState({
+      latestUserText: "Go.",
+      continuity: continuity(),
+      activeSubsystem: "arbor",
+      mode: "annabelle",
+    });
+    expect(body.executive.nextAction).toBe("respond");
+    expect(body.respiratoryEndocrine.vestibular.oriented).toBe(false);
+    expect(body.renal.retain).toContain("finish the body system");
+    expect(body.integumentary.durableWriteback).toBe("explicit-only");
+  });
+
+  it("restored goal with matched orientation still suggests authorized continuation", () => {
+    const body = deriveArborBodyState({
+      latestUserText: "Go.",
+      continuity: continuity({currentGoal:"finish the body system"}),
+      activeSubsystem: "arbor",
+      mode: "text",
+    });
+    expect(body.executive.nextAction).toBe("continue");
+    expect(body.respiratoryEndocrine.vestibular.oriented).toBe(true);
+  });
+
   it("keeps body state ephemeral and unable to mutate identity", () => {
     const body = deriveArborBodyState({
       latestUserText: "Switch to code mode.",
