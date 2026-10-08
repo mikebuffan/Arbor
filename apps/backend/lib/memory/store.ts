@@ -17,6 +17,13 @@ function toJsonValue(v: any): Record<string, any> {
   return {};
 }
 
+// A superseded or deleted claim cannot regain authority through ordinary
+// chat ingestion, correction, or mention counting. Restore requires a separate
+// explicit owner-reviewed operation; this function does not implement one.
+function isRetiredMemory(row: { status?: unknown; deleted_at?: unknown } | null | undefined): boolean {
+  return Boolean(row && (row.status === "tombstoned" || row.deleted_at != null));
+}
+
 function normalizeEmbedding(emb: any): number[] {
   if (Array.isArray(emb)) return emb;
   if (emb?.data && Array.isArray(emb.data)) return emb.data;
@@ -266,6 +273,11 @@ export async function upsertMemoryItems(
       scope,
       key,
     });
+
+    if (isRetiredMemory(existing)) {
+      res.ignored.push(key);
+      continue;
+    }
 
     if (!existing && requestedKind === "pattern_candidate") {
       existing = await findPatternHopExisting({
@@ -531,6 +543,10 @@ export async function correctMemoryItem(params: {
     key: cleanKey,
   });
 
+  if (isRetiredMemory(existing)) {
+    throw new Error("memory_tombstoned_requires_explicit_restore");
+  }
+
   if (!existing) {
     const { data, error } = await supabase
       .from(ITEMS_TABLE)
@@ -760,7 +776,7 @@ export async function reinforceMemoryUse(
 
     const existing =
       conversationExisting ?? projectExisting ?? globalExisting;
-    if (!existing || existing.locked) continue;
+    if (!existing || existing.locked || isRetiredMemory(existing)) continue;
 
     const nextCount = Number(existing.mention_count ?? 0) + 1;
 
