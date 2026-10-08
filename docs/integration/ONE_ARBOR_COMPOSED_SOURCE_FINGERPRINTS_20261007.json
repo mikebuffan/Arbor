@@ -124,7 +124,9 @@
     "apps/backend/lib/memory/correctionResolution.ts": "5d5bdad52e41cfed26ad35d77811b8cdee30857a",
     "apps/backend/lib/memory/__tests__/correctionResolution.test.ts": "eed5e018caf77c76b6ea225c1d4d835437da2e8a",
     "apps/backend/lib/memory/__tests__/retrievalExclusion.test.ts": "bdb4d191fe2c9619360670b419173c36cda71c2d",
-    "apps/backend/lib/memory/anchors.ts": "be7b67b4e620ce89ca901ffcda551e8c9ef8bbc2"
+    "apps/backend/lib/memory/anchors.ts": "be7b67b4e620ce89ca901ffcda551e8c9ef8bbc2",
+    "apps/backend/lib/memory/candidateContext.ts": "ef73233ea4d73887d2932ce2d1a886aa63b6687e",
+    "apps/backend/lib/memory/__tests__/candidateContext.test.ts": "455f5c10d429931b522ced92b25db946e184c106"
   },
   "comment": "78 verified source-only blobs. Adds exact group11 PR #360 view-injection and visited-ID bounds to reviewed 15-lane #362 candidate; Group12 latest after recorded source head is docs-only. Source review, no deployment or live acceptance."
 }
