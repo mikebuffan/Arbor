@@ -109,7 +109,12 @@ describe("memory correction storage semantics", () => {
     expect(result).toEqual({ created: [], updated: [], locked: [], ignored: ["alias.retired"] });
     expect(supabase.from).toHaveBeenCalledTimes(1);
     expect(read.maybeSingle).toHaveBeenCalledTimes(1);
-    expect(mocks.logMemoryEvent).not.toHaveBeenCalled();
+    // Summary telemetry is not a persisted memory/event or an alias revival.
+    expect(mocks.logMemoryEvent).toHaveBeenCalledOnce();
+    expect(mocks.logMemoryEvent).toHaveBeenCalledWith("upsert_summary", expect.objectContaining({
+      created: 0,
+      updated: 0,
+    }));
   });
 
   it("rejects correcting an already retired alias without explicit restore authority", async () => {
