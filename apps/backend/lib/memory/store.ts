@@ -558,9 +558,6 @@ export async function correctMemoryItem(params: {
   const nowIso = new Date().toISOString();
   const value = toJsonValue(newValue);
 
-  const rawEmbedding = await embedText(memoryToEmbedString(cleanKey, newValue));
-  const embedding = normalizeEmbedding(rawEmbedding);
-
   const existing = await findExisting({
     supabase,
     authedUserId,
@@ -573,6 +570,10 @@ export async function correctMemoryItem(params: {
   if (isRetiredMemory(existing)) {
     throw new Error("memory_tombstoned_requires_explicit_restore");
   }
+
+  // Never embed an explicitly retired correction target.
+  const rawEmbedding = await embedText(memoryToEmbedString(cleanKey, newValue));
+  const embedding = normalizeEmbedding(rawEmbedding);
 
   if (!existing) {
     const { data, error } = await supabase
