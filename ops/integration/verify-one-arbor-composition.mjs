@@ -30,7 +30,7 @@ assert(owners && typeof owners === 'object' &&
     .every(key => /^[a-f0-9]{40}$/.test(owners[key] || '')),
   'owner_head_incomplete');
 const expected = manifest.expectedBlobSha;
-assert(expected && typeof expected === 'object' && Object.keys(expected).length >= 19,
+assert(expected && typeof expected === 'object' && Object.keys(expected).length >= 20,
   'required_fingerprints_missing');
 let verified = 0;
 for (const [name, sha] of Object.entries(expected)) {
