@@ -20,8 +20,8 @@ function toJsonValue(v: any): Record<string, any> {
 // A superseded or deleted claim cannot regain authority through ordinary
 // chat ingestion, correction, or mention counting. Restore requires a separate
 // explicit owner-reviewed operation; this function does not implement one.
-function isRetiredMemory(row: { status?: unknown; deleted_at?: unknown } | null | undefined): boolean {
-  return Boolean(row && (row.status === "tombstoned" || row.deleted_at != null));
+function isRetiredMemory(row: { status?: unknown; deleted_at?: unknown; excluded_from_memory?: unknown } | null | undefined): boolean {
+  return Boolean(row && (row.status === "tombstoned" || row.deleted_at != null || row.excluded_from_memory === true));
 }
 
 function normalizeEmbedding(emb: any): number[] {
@@ -89,7 +89,8 @@ async function findPatternHopExisting(params: {
     .eq("scope", params.scope)
     .in("memory_kind", ["pattern_candidate", "pattern"])
     .in("status", ["pending", "active"])
-    .is("deleted_at", null);
+    .is("deleted_at", null)
+    .eq("excluded_from_memory", false);
 
   if (params.scope === "global") {
     query = query
@@ -459,6 +460,7 @@ export async function upsertMemoryItems(
         .eq("user_id", authedUserId)
         .eq("status", existing.status ?? "active")
         .is("deleted_at", null)
+        .eq("excluded_from_memory", false)
         .select("id")
         .maybeSingle();
       if (error) throw error;
@@ -514,6 +516,7 @@ export async function upsertMemoryItems(
       // must refuse retired or newly superseded rows.
       .eq("status", existing.status ?? "active")
       .is("deleted_at", null)
+      .eq("excluded_from_memory", false)
       .select("id")
       .maybeSingle();
 
@@ -658,6 +661,7 @@ export async function correctMemoryItem(params: {
     .eq("user_id", authedUserId)
     .eq("status", existing.status ?? "active")
     .is("deleted_at", null)
+    .eq("excluded_from_memory", false)
     .select("id")
     .maybeSingle();
 
@@ -841,6 +845,7 @@ export async function reinforceMemoryUse(
       .eq("user_id", authedUserId)
       .eq("status", existing.status ?? "active")
       .is("deleted_at", null)
+      .eq("excluded_from_memory", false)
       .select("id")
       .maybeSingle();
 
