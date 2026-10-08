@@ -119,8 +119,8 @@
     "apps/backend/lib/ark/defaultWorker.ts": "5bde17ca81a3dd9efc648c403ff60319eaa80c0a",
     "apps/backend/lib/auth/routeAuthorization.ts": "10b632f7f6b963c9e8757ae5c6cd76f86b999ecb",
     "apps/backend/lib/arbor/agency/__tests__/continuation.test.ts": "89d20ab3a96add3873fb2207b9661d171a0557c0",
-    "apps/backend/lib/memory/store.ts": "e7edfddc225a0485ca4fc5271e85b7a1941627ac",
-    "apps/backend/lib/memory/__tests__/storeCorrection.test.ts": "b4d8c94d278897f79b1f49233ab355a3c6de7008"
+    "apps/backend/lib/memory/store.ts": "9bb8336e0fd1ab15ccab661ea2938a0a247554da",
+    "apps/backend/lib/memory/__tests__/storeCorrection.test.ts": "077a7e2f55865a9828edf8ebfef016f9ad58c8a8"
   },
   "comment": "78 verified source-only blobs. Adds exact group11 PR #360 view-injection and visited-ID bounds to reviewed 15-lane #362 candidate; Group12 latest after recorded source head is docs-only. Source review, no deployment or live acceptance."
 }
