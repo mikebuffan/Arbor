@@ -7,13 +7,17 @@ on:
       - review/one-arbor-judgment-green-baseline-20261007
       - review/one-arbor-judgment-feedback-gates-20261007
       - test/one-arbor-judgment-blind-pack-20261007
+      - review/one-arbor-b12-candidate-shape-20261007
   pull_request:
     branches:
       - review/one-arbor-group11-assembly-followon-20261007
       - review/one-arbor-judgment-green-baseline-20261007
       - review/one-arbor-judgment-feedback-gates-20261007
+      - test/one-arbor-judgment-blind-pack-20261007
     paths:
       - 'apps/backend/lib/arbor/behavior/**'
+      - 'apps/backend/lib/memory/candidateContext.ts'
+      - 'apps/backend/lib/memory/__tests__/candidateContext.test.ts'
       - 'apps/backend/lib/prompt/buildPromptContext.ts'
       - 'apps/backend/lib/prompt/__tests__/buildPromptContext.freshness.test.ts'
       - 'ops/grove/source-only-ignore.mjs'
@@ -75,6 +79,7 @@ jobs:
           lib/ark/__tests__/previewAcceptanceRoute.test.ts
           lib/arbor/agency/__tests__/continuation.test.ts
           lib/memory/__tests__/storeCorrection.test.ts
+          lib/memory/__tests__/candidateContext.test.ts
           lib/arbor/behavior/__tests__/group07ConversationSurface.test.ts
           lib/arbor/behavior/__tests__/arkLayerReadContext.test.ts
           lib/prompt/__tests__/buildPromptContext.freshness.test.ts
