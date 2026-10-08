@@ -28,7 +28,7 @@
     "apps/backend/lib/arbor/runtime/__tests__/timeCore.test.ts": "f5f4db35169429f949ee0d8561bb3b2a0c402420",
     "apps/backend/lib/arbor/language/contextualReferenceResolution.ts": "e124f09ec1a2b3bf4ead159f01f33ea75a4ff66e",
     "apps/backend/lib/arbor/host/recoveryReadProjection.ts": "edab4f84206558b04140a12affc3c26af71ecec3",
-    "apps/backend/lib/arbor/continuity/longitudinalPolicy.ts": "b2c73a08b89baca0321d5966201012865fe5656a",
+    "apps/backend/lib/arbor/continuity/longitudinalPolicy.ts": "336b79e4154e06bfb88ee9ea766bd3e5076ba718",
     "apps/backend/lib/memory/retrieval.ts": "3541a30b33d9b2ab0eebcf0d370bbfd66337129c",
     "apps/backend/lib/memory/__tests__/projectIsolation.test.ts": "b34d7042f43a17b77676b4f184c6e05bd2fc4259",
     "apps/backend/app/api/memory/items/route.ts": "f5d81852a6e4ea97e55825040f60b75484f6c39c",
@@ -105,7 +105,7 @@
     "apps/backend/lib/arbor/behavior/behaviorProjection.ts": "cd52561933f57ff41daf2ca1497d2dc8d414bfe8",
     "apps/backend/lib/arbor/behavior/__tests__/independentJudgmentCases.ts": "7d9b8eb3f6952812c893c5a5bd228395888e5da3",
     "apps/backend/lib/arbor/behavior/__tests__/independentJudgmentCases.test.ts": "045e1782fbacbad032738232bf960962345e2a8e",
-    ".github/workflows/one-arbor-independent-judgment.yml": "4c68e706e7932a70c6375befed4f1ca546b94c66",
+    ".github/workflows/one-arbor-independent-judgment.yml": "8b67e89b5b5a70b5c246b049c655043dcdc59f09",
     "apps/backend/lib/prompt/buildPromptContext.ts": "c91150dbfce1755b9843b58c8c46a95e7fe50a3b",
     "apps/backend/lib/arbor/behavior/arkLayerReadContext.ts": "e0597d3df998d37361a9b21f351d597e1508f445",
     "apps/backend/lib/arbor/behavior/__tests__/arkLayerReadContext.test.ts": "fff706bfa7d2694ae8f58e5f21c4cff0b6e02516",
@@ -117,7 +117,8 @@
     "apps/backend/lib/ark/previewAcceptance.ts": "b2c83c2519f210baa7ff10a980189f83885fcb6b",
     "apps/backend/lib/ark/__tests__/previewAcceptanceRoute.test.ts": "b13d728bf91ab1298a3411d616f6795421444914",
     "apps/backend/lib/ark/defaultWorker.ts": "5bde17ca81a3dd9efc648c403ff60319eaa80c0a",
-    "apps/backend/lib/auth/routeAuthorization.ts": "10b632f7f6b963c9e8757ae5c6cd76f86b999ecb"
+    "apps/backend/lib/auth/routeAuthorization.ts": "10b632f7f6b963c9e8757ae5c6cd76f86b999ecb",
+    "apps/backend/lib/arbor/agency/__tests__/continuation.test.ts": "89d20ab3a96add3873fb2207b9661d171a0557c0"
   },
   "comment": "78 verified source-only blobs. Adds exact group11 PR #360 view-injection and visited-ID bounds to reviewed 15-lane #362 candidate; Group12 latest after recorded source head is docs-only. Source review, no deployment or live acceptance."
 }
