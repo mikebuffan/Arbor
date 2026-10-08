@@ -60,6 +60,7 @@ jobs:
           lib/arbor/behavior/behaviorProjection.test.ts
           lib/arbor/behavior/__tests__/independentJudgmentCases.test.ts
           lib/arbor/behavior/__tests__/independentJudgmentBlindPack.test.ts
+          lib/arbor/behavior/__tests__/independentJudgmentOfflineRunner.test.ts
           lib/arbor/behavior/__tests__/group07ConversationSurface.test.ts
           lib/arbor/behavior/__tests__/arkLayerReadContext.test.ts
           lib/prompt/__tests__/buildPromptContext.freshness.test.ts
