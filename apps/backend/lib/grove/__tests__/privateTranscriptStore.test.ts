@@ -307,6 +307,19 @@ describe("Grove-only private conversation durability (fixtures, migration OFF)",
     expect(data.records.size).toBe(1);
   });
 
+  it("fails closed on a malformed missing history adapter response", async () => {
+    const data = fakeStore();
+    const malformed: GrovePrivateTranscriptStore = {
+      ...data.store,
+      async listRecent() { return null as never; },
+    };
+    const h = host(malformed);
+    await expect(h.respond("Do not invent history", firstId))
+      .rejects.toThrow("grove_transcript_history_limit");
+    expect(h.sendModel).not.toHaveBeenCalled();
+    expect(data.records.size).toBe(0);
+  });
+
   it("holds a history-only current request that has no independent exact-ID receipt", async () => {
     const data = fakeStore();
     const forged = row({
