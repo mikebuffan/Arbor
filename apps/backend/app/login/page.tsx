@@ -48,6 +48,28 @@ export default function LoginPage() {
     setMsg(error ? error.message : "Account created. If email confirmation is enabled, check your email, then sign in.");
   }
 
+
+  async function sendRecoveryLink() {
+    if (!email.trim()) {
+      setMsg("Enter your existing Arbor account email first.");
+      return;
+    }
+    setLoading(true);
+    setMsg(null);
+    try {
+      const supabase = supabaseBrowser();
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: new URL("/reset-password", window.location.origin).toString(),
+      });
+      if (error) throw error;
+      setMsg("If that account is registered, a password-recovery email will arrive. Use the newest link only.");
+    } catch {
+      setMsg("Recovery email could not be requested. Please try again later.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#050607] px-5 py-12 text-zinc-100">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(255,99,172,.15),transparent_38%),radial-gradient(circle_at_15%_70%,rgba(84,187,145,.10),transparent_34%)]" />
@@ -78,6 +100,9 @@ export default function LoginPage() {
           />
           <button disabled={loading} type="submit" className="mt-3 min-h-12 rounded-2xl border border-fuchsia-300/20 bg-fuchsia-300/[0.09] font-medium text-fuchsia-50 transition hover:bg-fuchsia-300/[0.14] disabled:opacity-50">
             {loading ? "Signing in…" : "Sign in"}
+          </button>
+          <button type="button" onClick={() => void sendRecoveryLink()} disabled={loading} className="min-h-10 text-sm text-emerald-200 underline underline-offset-4 hover:text-emerald-100 disabled:opacity-50">
+            Forgot password?
           </button>
           <button disabled={loading} onClick={signUp} className="min-h-11 rounded-2xl border border-white/10 text-sm text-zinc-500 transition hover:text-zinc-200 disabled:opacity-50">
             Create account

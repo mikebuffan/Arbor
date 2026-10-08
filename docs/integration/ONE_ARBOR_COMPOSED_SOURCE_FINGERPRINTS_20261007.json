@@ -40,12 +40,12 @@
     "apps/arbor-control-backend/src/selfModelObservations.ts": "f8f03960ee18eca6650b12b4e2ee07c3b8e34469",
     "apps/arbor-control-backend/src/selfModelClaims.ts": "9bf0d7bd2f50fe61338a8967cd1b0a0c7d3e1b52",
     "docs/integration/ONE_ARBOR_GROUP06_IDENTITY_EVIDENCE_GATE_20261007.md": "bd43f7b8a8c2e90208b6839d582d5f698fcc570c",
-    "ops/grove/source-only-ignore.mjs": "ea4d52c046286ee7671312e7ace585d3194a1c21",
+    "ops/grove/source-only-ignore.mjs": "4b2ae1a94e8d3785b3ea9349e07db471f23f5bfd",
     ".github/workflows/one-arbor-group04-shelf-pagination.yml": "41790290a7fa86974dcca3fbbcc15bc96e0cac88",
     "apps/backend/lib/memory/__tests__/shelfPageRead.test.ts": "35b5c43abb6b2c774a1ae3aa75b33507c1e4d3bb",
     "apps/frontend/lib/environment/grove_memory_shelf_view.dart": "31e54c5c459cadce0eeba4bb577922c419cde71a",
     "apps/frontend/test/grove_memory_shelf_view_test.dart": "f01802b64c9ee0ed0116ee66e81344499fdcdf25",
-    ".github/workflows/one-arbor-15-lane-assembly.yml": "e7455eebf2aefe0511bdceec5d5796d82a3c3257",
+    ".github/workflows/one-arbor-15-lane-assembly.yml": "36910ae86a20e651e1f49b35cfa1c3dd830fe2f1",
     ".github/workflows/one-arbor-diary-draft.yml": "8923e47d0d69562a86a7c210b10efaaf0c5fd624",
     ".github/workflows/one-arbor-group08-body-acceptance.yml": "d4dc36baef71d379f6a769d7f0416cd755d7252a",
     ".github/workflows/one-arbor-group09-decision-gates.yml": "8c6a9996d12fc1624e8e1ef997d8c04d34ee0ffe",
@@ -128,5 +128,5 @@
     "apps/backend/lib/memory/candidateContext.ts": "16b6fbe1e1d5ecb8e814ebb2a91aeaef368fe37e",
     "apps/backend/lib/memory/__tests__/candidateContext.test.ts": "231221a4113f30c94ec5853597d767bb8e3abe61"
   },
-  "comment": "B12 candidate-context malformed record shape fails closed; 103 exact reviewed source pins, source-only review no deployment. This child follows independent judgment #368 and does not authorize live memory reads/forget or user data mutation."
+  "comment": "103 exact reviewed source pins. Isolated ARK Preview preparation branch stays Vercel-excluded and runs source-only GitHub CI at its exact head; no Preview deployment or hosted acceptance."
 }
