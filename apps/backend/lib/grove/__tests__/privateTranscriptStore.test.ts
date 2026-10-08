@@ -280,6 +280,53 @@ describe("Grove-only private conversation durability (fixtures, migration OFF)",
     expect(data.records.size).toBe(1);
   });
 
+  it("recovers a turn completed between replay lookup and history read without another LM call", async () => {
+    const data = fakeStore();
+    const canonical = row({
+      requestId: firstId,
+      userText: "Finish while reading history",
+      assistantText: "Canonical saved reply",
+    });
+    const wrapped: GrovePrivateTranscriptStore = {
+      ...data.store,
+      async listRecent(s) {
+        const key = [s.groveUserId, s.projectId, s.conversationId, firstId].join(":");
+        data.records.set(key, canonical);
+        return data.store.listRecent(s);
+      },
+    };
+    const h = host(wrapped);
+    const result = await h.respond("Finish while reading history", firstId);
+    expect(result).toMatchObject({
+      status: "responded", persisted: true, replayed: true,
+      requestId: firstId,
+      grantsExecution: false, verifiesCompletion: false,
+      reply: { reply: "Canonical saved reply", liveExecutionVerified: false, workReceipts: [] },
+    });
+    expect(h.sendModel).not.toHaveBeenCalled();
+    expect(data.records.size).toBe(1);
+  });
+
+  it("holds a history-only current request that has no independent exact-ID receipt", async () => {
+    const data = fakeStore();
+    const forged = row({
+      requestId: firstId,
+      userText: "Claim the old reply",
+      assistantText: "Unconfirmed history content",
+    });
+    const wrapped: GrovePrivateTranscriptStore = {
+      ...data.store,
+      async listRecent() { return [forged]; },
+    };
+    const h = host(wrapped);
+    await expect(h.respond("Claim the old reply", firstId))
+      .rejects.toMatchObject({
+        status: 409, code: "grove_private_request_in_progress",
+      });
+    expect(h.sendModel).not.toHaveBeenCalled();
+    expect(data.records.size).toBe(0);
+  });
+
   it("holds an identical retry WHILE the first model call is still running", async () => {
     const data = fakeStore();
     const h = host(data.store);
