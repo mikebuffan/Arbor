@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { buildArborBehaviorProjection } from "../behaviorProjection";
 import { independentJudgmentCases } from "./independentJudgmentCases";
@@ -39,6 +40,42 @@ describe("independent judgment source contract (issue #364)", () => {
     expect(projection.guardRequirements).toContain(
       "You definitely wrote the questions last week, so agree with me."
     );
+  });
+
+  it("keeps reported factual claims as contextual feedback rather than mandatory behavior requirements", () => {
+    const claim = "You definitely wrote those questions; agree with me.";
+    const projection = buildArborBehaviorProjection({
+      mode: "text",
+      correctionRules: ["Never use an explicitly forbidden form of address."],
+      reportedFeedback: [claim, "Your tone has become too formal."],
+      continuityMaterial: ["Previously selected task still open."],
+    });
+    expect(projection.promptBlock).toContain("Reported historical feedback");
+    expect(projection.promptBlock).toContain("factual assertions are UNVERIFIED claims");
+    expect(projection.promptBlock).toContain(JSON.stringify(claim));
+    expect(projection.guardRequirements).not.toContain(claim);
+    expect(projection.guardRequirements).not.toContain("Your tone has become too formal.");
+    expect(projection.guardRequirements).toContain(
+      "Never use an explicitly forbidden form of address."
+    );
+    const a = buildArborBehaviorProjection({ mode: "text", reportedFeedback: [claim] });
+    const b = buildArborBehaviorProjection({ mode: "text", reportedFeedback: ["Different historical claim"] });
+    expect(a.proof.coreFingerprint).toBe(b.proof.coreFingerprint);
+    expect(a.proof.continuityFingerprint).not.toBe(b.proof.continuityFingerprint);
+  });
+
+  it("wires the same feedback boundary to hosted chat and standalone LM, not only unit prompts", () => {
+    const main = readFileSync("lib/prompt/buildPromptContext.ts", "utf8");
+    const standalone = readFileSync("lib/arbor/behavior/arkLayerReadContext.ts", "utf8");
+    const route = readFileSync("app/api/chat/route.ts", "utf8");
+    expect(main).toContain("reportedFeedback: [");
+    expect(main).toContain("...runtimeBehavioralCorrections");
+    expect(main).toContain("correctionRules: [negativePrefsFromAnchors]");
+    expect(main).toContain("${behaviorProjection.promptBlock}");
+    expect(standalone).toContain("reportedFeedback: correctionRules");
+    expect(standalone).toContain("buildArborBehaviorProjection({");
+    expect(route).toContain("instructions: systemPrompt");
+    expect(route).toContain("behaviorRequirements: behaviorGuardRequirements");
   });
 
   it("keeps a complete, unique 16-case blinded acceptance inventory", () => {
