@@ -9,6 +9,7 @@ on:
       - review/one-arbor-group11-assembly-followon-20261007
     paths:
       - 'apps/backend/lib/arbor/behavior/**'
+      - 'apps/backend/lib/prompt/buildPromptContext.ts'
       - 'ops/grove/source-only-ignore.mjs'
       - 'docs/integration/ONE_ARBOR_COMPOSED_SOURCE_FINGERPRINTS_20261007.json'
       - '.github/workflows/one-arbor-independent-judgment.yml'
