@@ -40,7 +40,7 @@
     "apps/arbor-control-backend/src/selfModelObservations.ts": "f8f03960ee18eca6650b12b4e2ee07c3b8e34469",
     "apps/arbor-control-backend/src/selfModelClaims.ts": "9bf0d7bd2f50fe61338a8967cd1b0a0c7d3e1b52",
     "docs/integration/ONE_ARBOR_GROUP06_IDENTITY_EVIDENCE_GATE_20261007.md": "bd43f7b8a8c2e90208b6839d582d5f698fcc570c",
-    "ops/grove/source-only-ignore.mjs": "3dad3b45d577cdca7e009aeaa66c7ba0c067f7a1",
+    "ops/grove/source-only-ignore.mjs": "778ac250aa9e0d419c5b07f576dff7bb5a1b90ac",
     ".github/workflows/one-arbor-group04-shelf-pagination.yml": "41790290a7fa86974dcca3fbbcc15bc96e0cac88",
     "apps/backend/lib/memory/__tests__/shelfPageRead.test.ts": "35b5c43abb6b2c774a1ae3aa75b33507c1e4d3bb",
     "apps/frontend/lib/environment/grove_memory_shelf_view.dart": "31e54c5c459cadce0eeba4bb577922c419cde71a",
@@ -101,7 +101,11 @@
     "docs/integration/ONE_ARBOR_GROUPS_01_15_SOURCE_CONSOLIDATION_20261007.md": "ddfa33ca248cd97bc2657b0075ca7e739805e0a3",
     "apps/backend/lib/arbor/runtime/decisionAncestry.ts": "552b946579a9acc0b2c6e0bce7da219391c384b3",
     "apps/backend/lib/arbor/runtime/discoveryRadar.ts": "638cfdfdecbb5728dd3287f2e453ddc7475ab645",
-    "apps/backend/lib/arbor/runtime/__tests__/group11SourceBoundary.test.ts": "df8ad7d637e55cbaf286ed3589fea7a8c88d76d2"
+    "apps/backend/lib/arbor/runtime/__tests__/group11SourceBoundary.test.ts": "df8ad7d637e55cbaf286ed3589fea7a8c88d76d2",
+    "apps/backend/lib/arbor/behavior/behaviorProjection.ts": "5b5ef6c389dd994e00f534c21894b2efdf086771",
+    "apps/backend/lib/arbor/behavior/__tests__/independentJudgmentCases.ts": "7d9b8eb3f6952812c893c5a5bd228395888e5da3",
+    "apps/backend/lib/arbor/behavior/__tests__/independentJudgmentCases.test.ts": "27753119b6c9b94297028de74087ac9698a9c803",
+    ".github/workflows/one-arbor-independent-judgment.yml": "a55397b35e3a76a686da6321ef79dad9dd505674"
   },
   "comment": "78 verified source-only blobs. Adds exact group11 PR #360 view-injection and visited-ID bounds to reviewed 15-lane #362 candidate; Group12 latest after recorded source head is docs-only. Source review, no deployment or live acceptance."
 }
