@@ -31,6 +31,46 @@ function significantTerms(text: string): string[] {
   ).slice(0, 6);
 }
 
+// Service clients and RPC replies are not authorization evidence by
+// themselves. Validate every optional archive excerpt before prompt use.
+function readableTurn(value: unknown): HistoricalRecallTurn | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const row = value as Record<string, unknown>;
+  if (typeof row.id !== "string" || !row.id ||
+      typeof row.source !== "string" || !row.source ||
+      typeof row.source_thread_id !== "string" || !row.source_thread_id ||
+      typeof row.source_message_id !== "string" || !row.source_message_id ||
+      (row.source_message_index !== null &&
+       (!Number.isInteger(row.source_message_index) || (row.source_message_index as number) < 0)) ||
+      !["user", "assistant", "system"].includes(String(row.role)) ||
+      typeof row.content !== "string" || !row.content ||
+      (row.occurred_at !== null && typeof row.occurred_at !== "string"))
+    return null;
+  return {
+    id: row.id, source: row.source,
+    source_thread_id: row.source_thread_id,
+    source_message_id: row.source_message_id,
+    source_message_index: row.source_message_index as number | null,
+    role: row.role as HistoricalRecallTurn["role"],
+    content: row.content,
+    occurred_at: row.occurred_at as string | null,
+    ...(typeof row.similarity === "number" && Number.isFinite(row.similarity)
+      ? { similarity: row.similarity } : {}),
+  };
+}
+function lexicalScopedRows(rows: unknown, userId: string, projectId: string): HistoricalRecallTurn[] {
+  if (!Array.isArray(rows)) return [];
+  const safe: HistoricalRecallTurn[] = [];
+  for (const value of rows) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) continue;
+    const row = value as Record<string, unknown>;
+    if (row.user_id !== userId || row.project_id !== projectId) continue;
+    const turn = readableTurn(value);
+    if (turn) safe.push(turn); // Do not expose owner identifiers in prompt output.
+  }
+  return safe;
+}
+
 function dedupe(turns: HistoricalRecallTurn[]): HistoricalRecallTurn[] {
   const seen = new Set<string>();
   const out: HistoricalRecallTurn[] = [];
@@ -60,7 +100,7 @@ async function lexicalCandidates(params: {
   const { data, error } = await params.supabase
     .from("historical_conversation_turns")
     .select(
-      "id,source,source_thread_id,source_message_id,source_message_index,role,content,occurred_at",
+      "id,user_id,project_id,source,source_thread_id,source_message_id,source_message_index,role,content,occurred_at",
     )
     .eq("user_id", params.userId)
     .eq("project_id", params.projectId)
@@ -69,7 +109,7 @@ async function lexicalCandidates(params: {
     .limit(20);
 
   if (error) throw error;
-  return (data ?? []) as HistoricalRecallTurn[];
+  return lexicalScopedRows(data, params.userId, params.projectId);
 }
 
 async function semanticCandidates(params: {
@@ -91,7 +131,24 @@ async function semanticCandidates(params: {
   );
 
   if (error) throw error;
-  return (data ?? []) as HistoricalRecallTurn[];
+  if (!Array.isArray(data) || !data.length) return [];
+  // The legacy embedding RPC returns content but not the owner fields.
+  // Recheck its matched IDs using the same row-level owner/project authority
+  // as lexical search, rather than trusting the RPC response by itself.
+  const proposed = data.map(readableTurn).filter((v): v is HistoricalRecallTurn => v !== null);
+  if (!proposed.length) return [];
+  const { data: validated, error: scopeError } = await params.supabase
+    .from("historical_conversation_turns")
+    .select("id,user_id,project_id")
+    .eq("user_id", params.userId)
+    .eq("project_id", params.projectId)
+    .in("id", [...new Set(proposed.map(row => row.id))]);
+  if (scopeError) throw scopeError;
+  if (!Array.isArray(validated)) return [];
+  const allowed = new Set(validated.filter(row =>
+    row && row.user_id === params.userId && row.project_id === params.projectId &&
+    typeof row.id === "string").map(row => row.id as string));
+  return proposed.filter(row => allowed.has(row.id));
 }
 
 async function expandAroundMatch(params: {
@@ -109,7 +166,7 @@ async function expandAroundMatch(params: {
   const { data, error } = await params.supabase
     .from("historical_conversation_turns")
     .select(
-      "id,source,source_thread_id,source_message_id,source_message_index,role,content,occurred_at",
+      "id,user_id,project_id,source,source_thread_id,source_message_id,source_message_index,role,content,occurred_at",
     )
     .eq("user_id", params.userId)
     .eq("project_id", params.projectId)
@@ -120,7 +177,12 @@ async function expandAroundMatch(params: {
     .order("source_message_index", { ascending: true });
 
   if (error) throw error;
-  return (data ?? []) as HistoricalRecallTurn[];
+  return lexicalScopedRows(data, params.userId, params.projectId)
+    .filter(turn => turn.source === params.match.source &&
+      turn.source_thread_id === params.match.source_thread_id &&
+      turn.source_message_index !== null &&
+      turn.source_message_index >= Math.max(0, index - radius) &&
+      turn.source_message_index <= index + radius);
 }
 
 export async function readHistoricalConversationRecall(params: {

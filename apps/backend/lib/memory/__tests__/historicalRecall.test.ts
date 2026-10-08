@@ -6,22 +6,27 @@ import {readHistoricalConversationRecall, historicalRecallToPromptBlock} from ".
 const turn = (id: string, overrides = {}) => ({id, user_id: "owner", project_id: "project", source: "archive-A",
   source_thread_id: "thread", source_message_id: id, source_message_index: 2,
   role: "user" as const, content: "memory archive correction", occurred_at: "2026-10-02T10:00:00Z", ...overrides});
-function database(options: {lexical?: any[]; semantic?: any[]; neighbors?: any[]; lexicalError?: boolean; semanticError?: boolean; expandError?: boolean} = {}) {
+function database(options: {lexical?: any[]; semantic?: any[]; neighbors?: any[]; verification?: any[]; lexicalError?: boolean; semanticError?: boolean; expandError?: boolean; verifyError?: boolean; hostileReadback?: boolean} = {}) {
   const queries: any[] = [];
   const from = vi.fn(() => {
-    const q: any = {filters: [], lower: 0, upper: 99, lexical: false};
+    const q: any = {filters: [], lower: 0, upper: 99, lexical: false, verify: false, ids: []};
     q.select = q.order = q.limit = () => q;
     q.eq = (k: string, v: unknown) => {q.filters.push([k,v]); return q;};
     q.or = () => {q.lexical = true; return q;};
+    q.in = (_k: string, ids: string[]) => {q.verify = true; q.ids = ids; return q;};
     q.gte = (_k: string,v: number) => {q.lower=v;return q;};
     q.lte = (_k: string,v: number) => {q.upper=v;return q;};
     q.then = (resolve: any) => {
       queries.push(q);
-      const error = q.lexical ? options.lexicalError : options.expandError;
-      const rows = q.lexical ? options.lexical ?? [] : options.neighbors ?? [];
+      const error = q.verify ? options.verifyError : q.lexical ? options.lexicalError : options.expandError;
+      const rows = q.verify ? (options.verification ?? options.semantic ?? []) :
+        q.lexical ? options.lexical ?? [] : options.neighbors ?? [];
+      const data = options.hostileReadback && !q.verify ? rows : rows.filter(r =>
+        q.filters.every(([k,v]:any) => r[k] === v) &&
+        (q.verify ? q.ids.includes(r.id) :
+        r.source_message_index >= q.lower && r.source_message_index <= q.upper));
       return Promise.resolve({error: error ? {code: "permission_denied", message: "PRIVATE-MESSAGE"} : null,
-        data: rows.filter(r => q.filters.every(([k,v]:any) => r[k] === v) &&
-          r.source_message_index >= q.lower && r.source_message_index <= q.upper)}).then(resolve);
+        data}).then(resolve);
     };
     return q;
   });
@@ -90,4 +95,51 @@ describe("archive recall recovery and provenance", () => {
     const result=await readHistoricalConversationRecall({...input,query:"ARK",supabase:db.supabase,useVectorSearch:false});
     expect(result.turns.map(t=>t.id)).toEqual(["ark"]);expect(mocks.embed).not.toHaveBeenCalled();
   });
+  it("excludes out-of-scope lexical hits and neighbor rows even when a provider ignores query filters", async () => {
+    const matching=turn("own"),db=database({hostileReadback:true,lexical:[
+      matching,turn("bad-lexical-user",{user_id:"other",content:"SECRET-LEXICAL"}),
+      turn("bad-lexical-project",{project_id:"other",content:"SECRET-LEXICAL-PROJECT"}),
+    ],neighbors:[
+      matching,turn("bad-neighbor-user",{user_id:"other",content:"SECRET-NEIGHBOR"}),
+      turn("bad-neighbor-project",{project_id:"other",content:"SECRET-NEIGHBOR-PROJECT"}),
+      turn("bad-source",{source:"archive-B",content:"SECRET-SOURCE"}),
+      turn("bad-thread",{source_thread_id:"another",content:"SECRET-THREAD"}),
+    ]});
+    const result=await readHistoricalConversationRecall({...input,supabase:db.supabase,useVectorSearch:false});
+    expect(result.turns.map(x=>x.id)).toEqual(["own"]);
+    expect(JSON.stringify(result)).not.toContain("SECRET");
+  });
+
+  it("rechecks semantic RPC result IDs against owned archive rows before showing excerpts",async()=>{
+    const own=turn("own-semantic",{similarity:.9});
+    const foreign=turn("foreign-semantic",{user_id:"different",similarity:.99,content:"SECRET-SEMANTIC"});
+    const db=database({semantic:[foreign,own],verification:[own],lexical:[],neighbors:[own]});
+    const result=await readHistoricalConversationRecall({...input,supabase:db.supabase});
+    expect(result.turns.map(x=>x.id)).toEqual(["own-semantic"]);
+    expect(JSON.stringify(result)).not.toContain("SECRET");
+    expect(db.queries.some((q:any)=>q.verify &&
+      q.filters.some(([k,v]:any)=>k==="project_id"&&v==="project"))).toBe(true);
+  });
+
+  it("fails optional semantic RPC validation closed but keeps owned lexical recall",async()=>{
+    const lexical=turn("lexical-ok");
+    const db=database({semantic:[turn("sem",{similarity:.92})],lexical:[lexical],
+      neighbors:[lexical],verifyError:true});
+    const warn=vi.spyOn(console,"warn").mockImplementation(()=>{});
+    try {
+      const result=await readHistoricalConversationRecall({...input,supabase:db.supabase});
+      expect(result.turns.map(x=>x.id)).toEqual(["lexical-ok"]);
+      expect(result.semantic).toBe("failed");
+      expect(result.lexical).toBe("ok");
+    } finally {warn.mockRestore();}
+  });
+
+  it("does not pass through malformed historic records from RPC or lexical providers",async()=>{
+    const db=database({hostileReadback:true,semantic:[{id:"bad",similarity:.9,content:"SECRET"}],
+      lexical:[turn("good"),{id:"bad-lexical",user_id:"owner",project_id:"project",
+        content:["SECRET"]}],neighbors:[turn("good")]});
+    const result=await readHistoricalConversationRecall({...input,supabase:db.supabase});
+    expect(result.turns.map(x=>x.id)).toEqual(["good"]);
+  });
+
 });
