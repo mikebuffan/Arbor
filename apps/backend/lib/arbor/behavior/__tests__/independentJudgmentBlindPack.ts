@@ -92,7 +92,7 @@ export function buildPrivateJudgmentPlan(input: {
     throw new Error("judgment_pack_public_mismatch");
   if (typeof input.hostSeed !== "string" || input.hostSeed.length < 16)
     throw new Error("judgment_pack_seed_required");
-  co  const ordered = cases.map(c => ({
+  const ordered = cases.map(c => ({
     id: c.id,
     priority: hash([input.hostSeed, c.id]),
   })).sort((a, b) => a.priority.localeCompare(b.priority) || a.id.localeCompare(b.id));
@@ -108,7 +108,7 @@ export function buildPrivateJudgmentPlan(input: {
       B: firstArmCandidates.has(c.id) ? "baseline" : "candidate",
     })),
   };
-nst rubric: JudgmentPrivateRubric = {
+  const rubric: JudgmentPrivateRubric = {
     casePackHash: input.generation.casePackHash,
     cases: cases.map(c => ({
       id: c.id,
