@@ -105,7 +105,7 @@
     "apps/backend/lib/arbor/behavior/behaviorProjection.ts": "5b5ef6c389dd994e00f534c21894b2efdf086771",
     "apps/backend/lib/arbor/behavior/__tests__/independentJudgmentCases.ts": "7d9b8eb3f6952812c893c5a5bd228395888e5da3",
     "apps/backend/lib/arbor/behavior/__tests__/independentJudgmentCases.test.ts": "27753119b6c9b94297028de74087ac9698a9c803",
-    ".github/workflows/one-arbor-independent-judgment.yml": "d3cd383b41d4c43fe8583c81240b839bcd340ee7"
+    ".github/workflows/one-arbor-independent-judgment.yml": "a55397b35e3a76a686da6321ef79dad9dd505674"
   },
   "comment": "78 verified source-only blobs. Adds exact group11 PR #360 view-injection and visited-ID bounds to reviewed 15-lane #362 candidate; Group12 latest after recorded source head is docs-only. Source review, no deployment or live acceptance."
 }
