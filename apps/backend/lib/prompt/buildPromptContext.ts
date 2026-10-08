@@ -485,8 +485,11 @@ export async function buildPromptContext({
       NEGATIVE_PREFS_GUARD,
       negativePrefsFromAnchors,
     ].filter(Boolean),
-    correctionRules: [
-      negativePrefsFromAnchors,
+    // Only explicitly sourced prohibitions go into hard completion guards.
+    // Historical feedback and tentative strategies influence conversation but
+    // are not authenticated factual claims or mandatory execution criteria.
+    correctionRules: [negativePrefsFromAnchors].filter(Boolean),
+    reportedFeedback: [
       ...runtimeBehavioralCorrections,
       pendingStrategyUnderVerification
         ? `Tentative self-update under verification: ${pendingStrategyUnderVerification}`
