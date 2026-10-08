@@ -33,6 +33,11 @@ describe("agency continuation", () => {
     "list and then do the whole list please",
     "find a workaround if needed",
     "I don't want to tell you to go",
+    "make a list prompt and go please",
+    "make a list then prompt then go",
+    "do your usual routine",
+    "Do youre usually routine",
+    "I want to do the th8ngs we jeed to one at a time until we cant anymore. Like until Vercel or you need me",
   ])("resumes unresolved work for %s", (text) => {
     expect(
       shouldResumeAgencyGoal(text, prior),
@@ -187,6 +192,25 @@ describe("agency continuation", () => {
     ).toBe(
       "Switch to a new task: explain the deployment failure",
     );
+  });
+
+  it("treats routine shorthand only as an unfinished-goal continuation", () => {
+    const complete = { ...prior, status: "complete" as const };
+    const empty = { ...prior, unresolvedWork: [] };
+    for (const text of ["do your usual routine", "make a list prompt and go please"]) {
+      expect(shouldResumeAgencyGoal(text, prior)).toBe(true);
+      expect(shouldResumeAgencyGoal(text, complete)).toBe(false);
+      expect(shouldResumeAgencyGoal(text, empty)).toBe(false);
+      expect(shouldResumeAgencyGoal(text, null)).toBe(false);
+    }
+  });
+
+  it("never interprets a negated continuation or explicit switch as GO", () => {
+    for (const text of ["don't keep going", "do not continue", "never resume", "please don't finish it"]) {
+      expect(shouldResumeAgencyGoal(text, prior)).toBe(false);
+    }
+    expect(shouldResumeAgencyGoal("Switch to a new task: fix Preview", prior)).toBe(false);
+    expect(shouldResumeAgencyGoal("do not stop; keep going", prior)).toBe(true);
   });
 
   it("does not resume a completed goal", () => {

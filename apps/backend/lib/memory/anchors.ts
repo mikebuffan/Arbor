@@ -4,6 +4,9 @@ export type AnchorRow = {
   id: string;
   user_id: string;
   project_id: string | null;
+  conversation_id: string | null;
+  user_trigger_only: boolean;
+  excluded_from_memory: boolean;
   key: string;
   value: any; 
   scope: string | null;
@@ -43,19 +46,34 @@ export async function getProjectAnchors(params: {
   const { data, error } = await supabase
     .from("memory_items")
     .select(
-      "id,user_id,project_id,key,value,scope,pinned,locked,tier,status,deleted_at,updated_at"
+      "id,user_id,project_id,conversation_id,user_trigger_only,excluded_from_memory,key,value,scope,pinned,locked,tier,status,deleted_at,updated_at"
     )
     .eq("user_id", authedUserId)
     .eq("project_id", projectId)
     .eq("scope", "project")
+    .is("conversation_id", null)
     .eq("tier", "core")
+    .eq("excluded_from_memory", false)
+    .eq("user_trigger_only", false)
     .is("deleted_at", null)
     .eq("status", "active")
     .order("pinned", { ascending: false })
     .order("updated_at", { ascending: false });
 
   if (error) throw error;
-  return (data ?? []) as AnchorRow[];
+  // SQL selection is not a trust boundary by itself: independently confirm
+  // persisted owner/scope and never inject excluded or trigger-only records.
+  return (data ?? []).filter((row: AnchorRow) =>
+    row.user_id === authedUserId &&
+    row.project_id === projectId &&
+    row.scope === "project" &&
+    row.conversation_id === null &&
+    row.tier === "core" &&
+    row.status === "active" &&
+    row.deleted_at === null &&
+    row.excluded_from_memory === false &&
+    row.user_trigger_only === false,
+  );
 }
 
 export function anchorsToPromptBlock(anchors: AnchorRow[]) {

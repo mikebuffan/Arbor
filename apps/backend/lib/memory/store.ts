@@ -17,6 +17,13 @@ function toJsonValue(v: any): Record<string, any> {
   return {};
 }
 
+// A superseded or deleted claim cannot regain authority through ordinary
+// chat ingestion, correction, or mention counting. Restore requires a separate
+// explicit owner-reviewed operation; this function does not implement one.
+function isRetiredMemory(row: { status?: unknown; deleted_at?: unknown; excluded_from_memory?: unknown } | null | undefined): boolean {
+  return Boolean(row && (row.status === "tombstoned" || row.deleted_at != null || row.excluded_from_memory === true));
+}
+
 function normalizeEmbedding(emb: any): number[] {
   if (Array.isArray(emb)) return emb;
   if (emb?.data && Array.isArray(emb.data)) return emb.data;
@@ -82,7 +89,8 @@ async function findPatternHopExisting(params: {
     .eq("scope", params.scope)
     .in("memory_kind", ["pattern_candidate", "pattern"])
     .in("status", ["pending", "active"])
-    .is("deleted_at", null);
+    .is("deleted_at", null)
+    .eq("excluded_from_memory", false);
 
   if (params.scope === "global") {
     query = query
@@ -179,7 +187,7 @@ export async function upsertMemoryItems(
     ignored: [],
   };
 
-  const prepared = items
+  const candidates = items
     .map((item) => {
       const key = item.key?.trim();
       if (!key) return null;
@@ -191,20 +199,47 @@ export async function upsertMemoryItems(
     embedStr: string;
   }>;
 
-  if (!prepared.length) return res;
+  if (!candidates.length) return res;
+
+  // Exclude retired records BEFORE sending content to an embedding provider.
+  // This is a scoped read-only preflight; the ordinary write path still repeats
+  // the check to catch a record retired after this preflight.
+  const prepared: typeof candidates = [];
+  for (const candidate of candidates) {
+    const { item, key } = candidate;
+    const scope = item.scope ?? "conversation";
+    const scopedConversationId = scope === "conversation" ? conversationId : null;
+    if (scope === "conversation" && !scopedConversationId) {
+      res.ignored.push(key);
+      continue;
+    }
+    if (!isDurableBehaviorCorrection(item)) {
+      const existing = await findExisting({
+        supabase, authedUserId, projectId,
+        conversationId: scopedConversationId, scope, key,
+      });
+      if (isRetiredMemory(existing)) {
+        res.ignored.push(key);
+        continue;
+      }
+    }
+    prepared.push(candidate);
+  }
 
   let batched: number[][] | null = null;
-  try {
-    batched = await embedTexts(prepared.map((p) => p.embedStr));
-  } catch {
-    console.warn("[memory] embedding failed", {
-      subsystem: "memory",
-      operation: "batch_embedding",
-      code: "provider_error",
-      resourceType: "embedding_batch",
-      fallback: "per_item",
-    });
-    batched = null;
+  if (prepared.length) {
+    try {
+      batched = await embedTexts(prepared.map((p) => p.embedStr));
+    } catch {
+      console.warn("[memory] embedding failed", {
+        subsystem: "memory",
+        operation: "batch_embedding",
+        code: "provider_error",
+        resourceType: "embedding_batch",
+        fallback: "per_item",
+      });
+      batched = null;
+    }
   }
 
   for (let i = 0; i < prepared.length; i++) {
@@ -266,6 +301,11 @@ export async function upsertMemoryItems(
       scope,
       key,
     });
+
+    if (isRetiredMemory(existing)) {
+      res.ignored.push(key);
+      continue;
+    }
 
     if (!existing && requestedKind === "pattern_candidate") {
       existing = await findPatternHopExisting({
@@ -408,7 +448,7 @@ export async function upsertMemoryItems(
       replacePatternValue ? embedding : existing.embedding;
 
     if (existing.locked) {
-      const { error } = await supabase
+      const { data: refreshed, error } = await supabase
         .from(ITEMS_TABLE)
         .update({
           mention_count: Number(existing.mention_count ?? 0) + 1,
@@ -417,8 +457,17 @@ export async function upsertMemoryItems(
           updated_at: nowIso,
         })
         .eq("id", existing.id)
-        .eq("user_id", authedUserId);
+        .eq("user_id", authedUserId)
+        .eq("status", existing.status ?? "active")
+        .is("deleted_at", null)
+        .eq("excluded_from_memory", false)
+        .select("id")
+        .maybeSingle();
       if (error) throw error;
+      if (!refreshed) {
+        res.ignored.push(key);
+        continue;
+      }
 
       await logEvent({
         supabase,
@@ -434,7 +483,7 @@ export async function upsertMemoryItems(
       continue;
     }
 
-    const { error } = await supabase
+    const { data: updated, error } = await supabase
       .from(ITEMS_TABLE)
       .update({
         project_id:
@@ -462,9 +511,20 @@ export async function upsertMemoryItems(
         embedding: mergedEmbedding,
       })
       .eq("id", existing.id)
-      .eq("user_id", authedUserId);
+      .eq("user_id", authedUserId)
+      // The read can race with a correction tombstone. The mutation itself
+      // must refuse retired or newly superseded rows.
+      .eq("status", existing.status ?? "active")
+      .is("deleted_at", null)
+      .eq("excluded_from_memory", false)
+      .select("id")
+      .maybeSingle();
 
     if (error) throw error;
+    if (!updated) {
+      res.ignored.push(key);
+      continue;
+    }
 
     await logEvent({
       supabase,
@@ -519,9 +579,6 @@ export async function correctMemoryItem(params: {
   const nowIso = new Date().toISOString();
   const value = toJsonValue(newValue);
 
-  const rawEmbedding = await embedText(memoryToEmbedString(cleanKey, newValue));
-  const embedding = normalizeEmbedding(rawEmbedding);
-
   const existing = await findExisting({
     supabase,
     authedUserId,
@@ -530,6 +587,14 @@ export async function correctMemoryItem(params: {
     scope: projectId ? "project" : "global",
     key: cleanKey,
   });
+
+  if (isRetiredMemory(existing)) {
+    throw new Error("memory_tombstoned_requires_explicit_restore");
+  }
+
+  // Never embed an explicitly retired correction target.
+  const rawEmbedding = await embedText(memoryToEmbedString(cleanKey, newValue));
+  const embedding = normalizeEmbedding(rawEmbedding);
 
   if (!existing) {
     const { data, error } = await supabase
@@ -594,10 +659,14 @@ export async function correctMemoryItem(params: {
     })
     .eq("id", existing.id)
     .eq("user_id", authedUserId)
+    .eq("status", existing.status ?? "active")
+    .is("deleted_at", null)
+    .eq("excluded_from_memory", false)
     .select("id")
-    .single();
+    .maybeSingle();
 
   if (error) throw error;
+  if (!data) throw new Error("memory_tombstoned_or_changed_during_correction");
 
   await logEvent({
     supabase,
@@ -760,11 +829,11 @@ export async function reinforceMemoryUse(
 
     const existing =
       conversationExisting ?? projectExisting ?? globalExisting;
-    if (!existing || existing.locked) continue;
+    if (!existing || existing.locked || isRetiredMemory(existing)) continue;
 
     const nextCount = Number(existing.mention_count ?? 0) + 1;
 
-    const { error } = await supabase
+    const { data: reinforced, error } = await supabase
       .from(ITEMS_TABLE)
       .update({
         mention_count: nextCount,
@@ -773,9 +842,17 @@ export async function reinforceMemoryUse(
         updated_at: nowIso,
       })
       .eq("id", existing.id)
-      .eq("user_id", authedUserId);
+      .eq("user_id", authedUserId)
+      .eq("status", existing.status ?? "active")
+      .is("deleted_at", null)
+      .eq("excluded_from_memory", false)
+      .select("id")
+      .maybeSingle();
 
     if (error) throw error;
+    // A concurrent correction may retire the record after the read.
+    // Never log reinforcement if no eligible row was modified.
+    if (!reinforced) continue;
 
     await logEvent({
       supabase,

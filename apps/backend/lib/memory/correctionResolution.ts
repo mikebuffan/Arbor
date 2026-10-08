@@ -43,6 +43,7 @@ export type CorrectionCandidate = {
   correction_count: number | null;
   status: string;
   deleted_at: string | null;
+  excluded_from_memory?: boolean | null;
   created_at: string | null;
 };
 
@@ -211,13 +212,15 @@ function candidateIsInScope(params: {
   if (
     candidate.user_id !== userId ||
     candidate.status !== "active" ||
-    candidate.deleted_at !== null
+    candidate.deleted_at !== null ||
+    candidate.excluded_from_memory === true
   ) {
     return false;
   }
 
   if (correction.scopeHint === "global") {
-    return candidate.scope === "global" && candidate.project_id === null;
+    return candidate.scope === "global" && candidate.project_id === null &&
+      candidate.conversation_id == null;
   }
 
   if (
@@ -228,7 +231,7 @@ function candidateIsInScope(params: {
   }
 
   if (candidate.scope === "project") {
-    return true;
+    return candidate.conversation_id == null;
   }
 
   if (candidate.scope === "conversation") {
@@ -428,11 +431,12 @@ export async function loadActiveCorrectionCandidates(params: {
   let query = params.supabase
     .from("memory_items")
     .select(
-      "id,user_id,project_id,conversation_id,key,value,tier,scope,importance,confidence,pinned,locked,correction_count,status,deleted_at,created_at",
+      "id,user_id,project_id,conversation_id,key,value,tier,scope,importance,confidence,pinned,locked,correction_count,status,deleted_at,excluded_from_memory,created_at",
     )
     .eq("user_id", params.userId)
     .eq("status", "active")
-    .is("deleted_at", null);
+    .is("deleted_at", null)
+    .eq("excluded_from_memory", false);
 
   if (params.scopeHint === "global" || params.projectId === null) {
     query = query.is("project_id", null).eq("scope", "global");
@@ -453,7 +457,10 @@ export async function loadActiveCorrectionCandidates(params: {
 
   const { data, error } = await query;
   if (error) throw error;
-  return (data ?? []) as CorrectionCandidate[];
+  return (data ?? []).filter((item: CorrectionCandidate) =>
+    item.status === "active" && item.deleted_at === null &&
+    item.excluded_from_memory !== true,
+  ) as CorrectionCandidate[];
 }
 
 const emptyUpsertResult = (): MemoryUpsertResult => ({

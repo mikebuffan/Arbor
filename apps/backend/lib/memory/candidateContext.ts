@@ -12,6 +12,7 @@ type CandidateJson = {
   source_phrases?: string[];
   observed_threads?: string[];
   sensitive?: boolean;
+  excluded_from_memory?: boolean;
 };
 
 export type ProvisionalMemoryCandidate = {
@@ -63,7 +64,7 @@ export async function getProvisionalMemoryCandidateContext(input: {
   try {
     const result = await admin
       .from("ar_memory_candidates")
-      .select("id,candidate_json,status,updated_at")
+      .select("id,user_id,project_id,candidate_json,status,updated_at")
       .eq("user_id", input.userId)
       .eq("project_id", input.projectId)
       .eq("status", "proposed")
@@ -75,14 +76,25 @@ export async function getProvisionalMemoryCandidateContext(input: {
     return EMPTY_CONTEXT;
   }
 
+  // The administrative client bypasses RLS. Recheck each returned row's
+  // owner, project and status before any candidate text enters the prompt.
   const selected = data
+    .filter((row: any) =>
+      row &&
+      row.user_id === input.userId &&
+      row.project_id === input.projectId &&
+      row.status === "proposed" &&
+      row.candidate_json &&
+      typeof row.candidate_json === "object" &&
+      !Array.isArray(row.candidate_json),
+    )
     .map((row: any) => {
-      const json = (row.candidate_json ?? {}) as CandidateJson;
+      const json = row.candidate_json as CandidateJson;
       return { id: String(row.id), json, rank: candidateRank(json) };
     })
     .filter((candidate) => {
       const { json } = candidate;
-      if (json.sensitive) return false;
+      if (json.sensitive || json.excluded_from_memory) return false;
       if (!json.content?.trim()) return false;
       if (!cueMatches(json, input.latestUserText)) return false;
       return candidate.rank >= 0.48 || Number(json.confirm_count ?? 0) > 0;

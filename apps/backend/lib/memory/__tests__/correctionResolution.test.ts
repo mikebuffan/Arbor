@@ -27,6 +27,7 @@ import {
   parseExplicitMemoryCorrection,
   persistClassifiedMemoryTurn,
   resolveExplicitCorrection,
+  loadActiveCorrectionCandidates,
   semanticMemoryKey,
   type CorrectionCandidate,
 } from "@/lib/memory/correctionResolution";
@@ -492,6 +493,70 @@ describe("explicit conversational memory correction", () => {
         injectedMemoryIds: [global.id],
       }).status,
     ).toBe("resolved");
+  });
+
+  it("rejects conversation-scoped metadata masquerading as project or global correction authority", () => {
+    const thread = "55555555-5555-4555-8555-555555555555";
+    const mislabeledProject = candidate({ scope: "project", conversation_id: thread });
+    const mislabeledGlobal = candidate({
+      id: "66666666-6666-4666-8666-666666666666",
+      scope: "global", project_id: null, conversation_id: thread,
+    });
+    expect(resolveExplicitCorrection({
+      userId, projectId: projectA, conversationId: thread,
+      correction: correction(), candidates: [mislabeledProject],
+      injectedMemoryIds: [mislabeledProject.id],
+    }).status).toBe("not_found");
+    expect(resolveExplicitCorrection({
+      userId, projectId: projectA, conversationId: thread,
+      correction: { ...correction(), scopeHint: "global" },
+      candidates: [mislabeledGlobal],
+      injectedMemoryIds: [mislabeledGlobal.id],
+    }).status).toBe("not_found");
+
+    const actualConversation = candidate({ scope: "conversation", conversation_id: thread });
+    expect(resolveExplicitCorrection({
+      userId, projectId: projectA, conversationId: thread,
+      correction: correction(), candidates: [actualConversation],
+      injectedMemoryIds: [actualConversation.id],
+    }).status).toBe("resolved");
+    expect(resolveExplicitCorrection({
+      userId, projectId: projectA, conversationId: "77777777-7777-4777-8777-777777777777",
+      correction: correction(), candidates: [actualConversation],
+      injectedMemoryIds: [actualConversation.id],
+    }).status).toBe("not_found");
+  });
+
+  it("never selects an excluded active correction target, even when previously injected", () => {
+    const excluded = candidate({ excluded_from_memory: true });
+    expect(resolveExplicitCorrection({
+      userId, projectId: projectA, correction: correction(),
+      candidates: [excluded], injectedMemoryIds: [excluded.id],
+    }).status).toBe("not_found");
+    const alreadyCorrected = candidate({
+      excluded_from_memory: true, value: { value: "Blue Lantern" },
+    });
+    expect(resolveExplicitCorrection({
+      userId, projectId: projectA, correction: correction(),
+      candidates: [alreadyCorrected], injectedMemoryIds: [alreadyCorrected.id],
+    }).status).toBe("not_found");
+  });
+
+  it("filters exclusions both at SQL query and at correction-candidate readback", async () => {
+    const allowed = candidate({ excluded_from_memory: false });
+    const excluded = candidate({
+      id: "88888888-8888-4888-8888-888888888888", excluded_from_memory: true,
+    });
+    const response = { data: [allowed, excluded], error: null };
+    const query: any = { then: (resolve: any) => Promise.resolve(response).then(resolve) };
+    for (const name of ["select", "eq", "is", "or"]) query[name] = vi.fn(() => query);
+    const supabase = { from: vi.fn(() => query) } as unknown as SupabaseClient;
+    const results = await loadActiveCorrectionCandidates({
+      supabase, userId, projectId: projectA, scopeHint: "current_project",
+    });
+    expect(results.map(item => item.id)).toEqual([allowed.id]);
+    expect(query.eq).toHaveBeenCalledWith("excluded_from_memory", false);
+    expect(query.eq).toHaveBeenCalledWith("user_id", userId);
   });
 
   it("requires an actually injected old-value target", () => {

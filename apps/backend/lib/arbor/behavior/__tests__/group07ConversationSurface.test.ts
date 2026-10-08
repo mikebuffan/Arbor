@@ -3,7 +3,7 @@ import { buildArborBehaviorProjection } from "../behaviorProjection";
 import { assessHumorPragmatics, type HumorPragmaticsInput } from "../../pragmatics/humorPolicy";
 import { renderArborThroughVoiceGate } from "../../voice/acousticProjection";
 import { acousticCorrections, behaviorCorrections, createCorrection } from "../../runtime/corrections";
-import { deriveArborBodyState } from "../../body/bodySystem";
+import { arborBodyPromptBlock, deriveArborBodyState } from "../../body/bodySystem";
 
 const humor = (overrides: Partial<HumorPragmaticsInput> = {}): HumorPragmaticsInput => ({
   baselineHumorLevel: 2,
@@ -82,6 +82,11 @@ describe("Group 7 cross-surface synthetic contracts (NOT real model/voice evalua
       mode: "voice",
     });
     expect(body.vagal.downshift).toBe(true);
+    const prompt = arborBodyPromptBlock(body);
+    expect(prompt).toContain("Do not launch breathing, grounding or therapeutic scripts");
+    expect(prompt).toContain("not a request for comfort");
+    expect(prompt).toContain("Executive next action:");
+    expect(prompt).not.toContain("take a deep breath");
     expect(body.immune.identityMutationAllowed).toBe(false);
     expect(body.integumentary.durableWriteback).toBe("explicit-only");
   });

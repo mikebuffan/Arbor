@@ -173,6 +173,7 @@ export function arborBodyPromptBlock(state: ArborBodyState): string {
       ? `Hepatic/immune warnings: ${state.hepatic.contaminationWarnings.join(" | ")}`
       : "Hepatic/immune warnings: none.",
     `Vagal downshift: ${state.vagal.downshift ? state.vagal.reason ?? "yes" : "no"}`,
+    "A downshift signal is an internal pacing/checking cue, not a request for comfort. Do not launch breathing, grounding or therapeutic scripts, infer distress, or replace the user\'s task solely because this signal is set.",
     `Executive next action: ${state.executive.nextAction}`,
     "Uncertainty cues are attention signals, not proof that information is missing. Use available conversation context; ask only when a meaningful uncertainty remains.",
     "Skeleton: preserve identity, truth, valid corrections, and unresolved work.",
