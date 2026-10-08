@@ -40,12 +40,12 @@
     "apps/arbor-control-backend/src/selfModelObservations.ts": "f8f03960ee18eca6650b12b4e2ee07c3b8e34469",
     "apps/arbor-control-backend/src/selfModelClaims.ts": "9bf0d7bd2f50fe61338a8967cd1b0a0c7d3e1b52",
     "docs/integration/ONE_ARBOR_GROUP06_IDENTITY_EVIDENCE_GATE_20261007.md": "bd43f7b8a8c2e90208b6839d582d5f698fcc570c",
-    "ops/grove/source-only-ignore.mjs": "f1c3f0d7abcc4bef5a69621d805e17f6e0273d14",
+    "ops/grove/source-only-ignore.mjs": "fc76e498b6aebc76fe3a70f28772af5eb72f3cd9",
     ".github/workflows/one-arbor-group04-shelf-pagination.yml": "41790290a7fa86974dcca3fbbcc15bc96e0cac88",
     "apps/backend/lib/memory/__tests__/shelfPageRead.test.ts": "35b5c43abb6b2c774a1ae3aa75b33507c1e4d3bb",
     "apps/frontend/lib/environment/grove_memory_shelf_view.dart": "31e54c5c459cadce0eeba4bb577922c419cde71a",
     "apps/frontend/test/grove_memory_shelf_view_test.dart": "f01802b64c9ee0ed0116ee66e81344499fdcdf25",
-    ".github/workflows/one-arbor-15-lane-assembly.yml": "eb4563f0ad8346c7c8aff2a90f9113c32ba8b310",
+    ".github/workflows/one-arbor-15-lane-assembly.yml": "2bb7b7345a2fdbe89491c26c6488d15e8fb1248a",
     ".github/workflows/one-arbor-diary-draft.yml": "8923e47d0d69562a86a7c210b10efaaf0c5fd624",
     ".github/workflows/one-arbor-group08-body-acceptance.yml": "d4dc36baef71d379f6a769d7f0416cd755d7252a",
     ".github/workflows/one-arbor-group09-decision-gates.yml": "8c6a9996d12fc1624e8e1ef997d8c04d34ee0ffe",
@@ -130,7 +130,10 @@
     "apps/backend/lib/memory/promoteCandidates.ts": "08ab35f511e5741b8cf82dfeec68c2e0e35903ad",
     "apps/backend/lib/memory/reinforceCandidate.ts": "cbc743bb065cace77a11e0e2863b7fe89af21b83",
     "apps/backend/lib/memory/__tests__/candidateLifecycleExclusion.test.ts": "e2beb50ad015a619dd336039bb557f91c3b22005",
-    "docs/integration/ONE_ARBOR_B12_CANDIDATE_LIFECYCLE_20261008.md": "006978928ee1808f4e816db9aeb8684984fff6b2"
+    "docs/integration/ONE_ARBOR_B12_CANDIDATE_LIFECYCLE_20261008.md": "006978928ee1808f4e816db9aeb8684984fff6b2",
+    "apps/backend/app/page.tsx": "118e74b06b8bb94bf0981148d2c14362b37eef34",
+    "apps/backend/lib/ark/latestStatusRequest.ts": "a209b5713d5cdaf181be9b86a2fe94b2189536cd",
+    "apps/backend/lib/ark/__tests__/latestStatusRequest.test.ts": "4b46031e55b26098c5f3b5cc0932e8e59cc847ca"
   },
-  "comment": "Source-only B12 candidate lifecycle review. Exact new branch Vercel-fenced before first push, synthetic lifecycle exclusion tests; no cross-store forgetting or deployment."
+  "comment": "Isolated preview status request race fix: A/B synthetic deferred reads, supersession and abort guards; source-only no deploy."
 }
