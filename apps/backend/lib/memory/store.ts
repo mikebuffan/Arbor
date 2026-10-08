@@ -447,7 +447,7 @@ export async function upsertMemoryItems(
       replacePatternValue ? embedding : existing.embedding;
 
     if (existing.locked) {
-      const { error } = await supabase
+      const { data: refreshed, error } = await supabase
         .from(ITEMS_TABLE)
         .update({
           mention_count: Number(existing.mention_count ?? 0) + 1,
@@ -456,8 +456,16 @@ export async function upsertMemoryItems(
           updated_at: nowIso,
         })
         .eq("id", existing.id)
-        .eq("user_id", authedUserId);
+        .eq("user_id", authedUserId)
+        .eq("status", existing.status ?? "active")
+        .is("deleted_at", null)
+        .select("id")
+        .maybeSingle();
       if (error) throw error;
+      if (!refreshed) {
+        res.ignored.push(key);
+        continue;
+      }
 
       await logEvent({
         supabase,
@@ -648,10 +656,13 @@ export async function correctMemoryItem(params: {
     })
     .eq("id", existing.id)
     .eq("user_id", authedUserId)
+    .eq("status", existing.status ?? "active")
+    .is("deleted_at", null)
     .select("id")
-    .single();
+    .maybeSingle();
 
   if (error) throw error;
+  if (!data) throw new Error("memory_tombstoned_or_changed_during_correction");
 
   await logEvent({
     supabase,
