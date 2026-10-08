@@ -102,10 +102,12 @@
     "apps/backend/lib/arbor/runtime/decisionAncestry.ts": "552b946579a9acc0b2c6e0bce7da219391c384b3",
     "apps/backend/lib/arbor/runtime/discoveryRadar.ts": "638cfdfdecbb5728dd3287f2e453ddc7475ab645",
     "apps/backend/lib/arbor/runtime/__tests__/group11SourceBoundary.test.ts": "df8ad7d637e55cbaf286ed3589fea7a8c88d76d2",
-    "apps/backend/lib/arbor/behavior/behaviorProjection.ts": "5b5ef6c389dd994e00f534c21894b2efdf086771",
+    "apps/backend/lib/arbor/behavior/behaviorProjection.ts": "d1d7dc58dd0f2ced151f4eb08adbd17c3f9c41d6",
     "apps/backend/lib/arbor/behavior/__tests__/independentJudgmentCases.ts": "7d9b8eb3f6952812c893c5a5bd228395888e5da3",
-    "apps/backend/lib/arbor/behavior/__tests__/independentJudgmentCases.test.ts": "27753119b6c9b94297028de74087ac9698a9c803",
-    ".github/workflows/one-arbor-independent-judgment.yml": "ffc98652de4faa289522551e4fb1a0a61a17e9cf"
+    "apps/backend/lib/arbor/behavior/__tests__/independentJudgmentCases.test.ts": "2c08e6dc979c6f98357d868a3b8f9729a05c1fc6",
+    ".github/workflows/one-arbor-independent-judgment.yml": "c412bb2c69363f766aaf7cb6d0b0969c3b7b0aef",
+    "apps/backend/lib/prompt/buildPromptContext.ts": "b62b28ea720a769ce69fb529b1238598bbefbdc3",
+    "apps/backend/lib/arbor/behavior/arkLayerReadContext.ts": "dd847c5f80561efddf3aacfc0e24688640adc3b3"
   },
   "comment": "78 verified source-only blobs. Adds exact group11 PR #360 view-injection and visited-ID bounds to reviewed 15-lane #362 candidate; Group12 latest after recorded source head is docs-only. Source review, no deployment or live acceptance."
 }
