@@ -153,9 +153,15 @@ export async function readArkLayerContext(input: {
     : null;
 
   const startup = state ? projectRuntimeStartup(state) : null;
-  const correctionRules = behaviorCorrections(mergeCorrectionSnapshots([
+  const retainedCorrections = mergeCorrectionSnapshots([
     state?.corrections ?? [], permanentCorrections,
-  ]));
+  ]);
+  const correctionRules = behaviorCorrections(
+    retainedCorrections.filter(item => item.kind === "behavior"),
+  );
+  const reportedFeedback = retainedCorrections
+    .filter(item => item.kind === "preference" || item.kind === "authority")
+    .map(item => item.value);
   const cue = memoryRecallQuery(input.latestUserText ?? "", state?.agency?.status === "complete" ? null : state?.currentGoal);
   const [anchors, recalled] = await Promise.all([
     getAlwaysIncludedMemoryAnchors({supabase, authedUserId: userId, projectId,
@@ -229,6 +235,7 @@ export async function readArkLayerContext(input: {
       mode: input.mode,
       stableBehaviorMaterial: [renderCanonicalIdentityAnchor()],
       correctionRules,
+      reportedFeedback,
       continuityMaterial,
       // Unlike main chat's existing prompt assembler, standalone LM does
       // not inject host continuity separately.
