@@ -218,6 +218,47 @@ describe("memory correction storage semantics", () => {
     expect(mocks.logMemoryEvent).not.toHaveBeenCalled();
   });
 
+  it.each([
+    { scenario: "still active", returned: { id: "memory-1" }, shouldLog: true },
+    { scenario: "retired after the read", returned: null, shouldLog: false },
+  ])("reinforces only when database still confirms an eligible row: $scenario", async ({ returned, shouldLog }) => {
+    const active = {
+      id: "memory-1", status: "active", deleted_at: null,
+      locked: false, mention_count: 3,
+    };
+    const read = {
+      select: vi.fn(), eq: vi.fn(), is: vi.fn(),
+      maybeSingle: vi.fn().mockResolvedValue({ data: active, error: null }),
+    };
+    for (const k of ["select", "eq", "is"] as const) read[k].mockReturnValue(read);
+    const write = {
+      update: vi.fn(), eq: vi.fn(), is: vi.fn(), select: vi.fn(),
+      maybeSingle: vi.fn().mockResolvedValue({ data: returned, error: null }),
+    };
+    for (const k of ["update", "eq", "is", "select"] as const) write[k].mockReturnValue(write);
+    const event = { insert: vi.fn().mockResolvedValue({ error: null }) };
+    let memoryCalls = 0;
+    const supabase = {
+      from: vi.fn((table: string) => {
+        if (table === "memory_pending") return event;
+        return ++memoryCalls === 1 ? read : write;
+      }),
+    } as unknown as SupabaseClient;
+
+    await reinforceMemoryUse("user-a", ["note.current"], "project-a", supabase);
+    expect(write.eq).toHaveBeenCalledWith("status", "active");
+    expect(write.is).toHaveBeenCalledWith("deleted_at", null);
+    expect(write.maybeSingle).toHaveBeenCalledOnce();
+    if (shouldLog) {
+      expect(event.insert).toHaveBeenCalledOnce();
+      expect(event.insert).toHaveBeenCalledWith(expect.objectContaining({
+        event_type: "reinforce", memory_key: "note.current",
+      }));
+    } else {
+      expect(event.insert).not.toHaveBeenCalled();
+    }
+  });
+
   it("soft-tombstones exact same-project aliases and records auditable events", async () => {
     const rows = [
       { id: "alias-1", key: "project.fictional_observatory.access_phrase" },
