@@ -27,6 +27,7 @@ import {
   parseExplicitMemoryCorrection,
   persistClassifiedMemoryTurn,
   resolveExplicitCorrection,
+  loadActiveCorrectionCandidates,
   semanticMemoryKey,
   type CorrectionCandidate,
 } from "@/lib/memory/correctionResolution";
@@ -524,6 +525,38 @@ describe("explicit conversational memory correction", () => {
       correction: correction(), candidates: [actualConversation],
       injectedMemoryIds: [actualConversation.id],
     }).status).toBe("not_found");
+  });
+
+  it("never selects an excluded active correction target, even when previously injected", () => {
+    const excluded = candidate({ excluded_from_memory: true });
+    expect(resolveExplicitCorrection({
+      userId, projectId: projectA, correction: correction(),
+      candidates: [excluded], injectedMemoryIds: [excluded.id],
+    }).status).toBe("not_found");
+    const alreadyCorrected = candidate({
+      excluded_from_memory: true, value: { value: "Blue Lantern" },
+    });
+    expect(resolveExplicitCorrection({
+      userId, projectId: projectA, correction: correction(),
+      candidates: [alreadyCorrected], injectedMemoryIds: [alreadyCorrected.id],
+    }).status).toBe("not_found");
+  });
+
+  it("filters exclusions both at SQL query and at correction-candidate readback", async () => {
+    const allowed = candidate({ excluded_from_memory: false });
+    const excluded = candidate({
+      id: "88888888-8888-4888-8888-888888888888", excluded_from_memory: true,
+    });
+    const response = { data: [allowed, excluded], error: null };
+    const query: any = { then: (resolve: any) => Promise.resolve(response).then(resolve) };
+    for (const name of ["select", "eq", "is", "or"]) query[name] = vi.fn(() => query);
+    const supabase = { from: vi.fn(() => query) } as unknown as SupabaseClient;
+    const results = await loadActiveCorrectionCandidates({
+      supabase, userId, projectId: projectA, scopeHint: "current_project",
+    });
+    expect(results.map(item => item.id)).toEqual([allowed.id]);
+    expect(query.eq).toHaveBeenCalledWith("excluded_from_memory", false);
+    expect(query.eq).toHaveBeenCalledWith("user_id", userId);
   });
 
   it("requires an actually injected old-value target", () => {
