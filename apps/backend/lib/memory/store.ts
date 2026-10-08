@@ -473,7 +473,7 @@ export async function upsertMemoryItems(
       continue;
     }
 
-    const { error } = await supabase
+    const { data: updated, error } = await supabase
       .from(ITEMS_TABLE)
       .update({
         project_id:
@@ -501,9 +501,19 @@ export async function upsertMemoryItems(
         embedding: mergedEmbedding,
       })
       .eq("id", existing.id)
-      .eq("user_id", authedUserId);
+      .eq("user_id", authedUserId)
+      // The read can race with a correction tombstone. The mutation itself
+      // must refuse retired or newly superseded rows.
+      .eq("status", existing.status ?? "active")
+      .is("deleted_at", null)
+      .select("id")
+      .maybeSingle();
 
     if (error) throw error;
+    if (!updated) {
+      res.ignored.push(key);
+      continue;
+    }
 
     await logEvent({
       supabase,
