@@ -116,7 +116,8 @@ describe("memory correction storage semantics", () => {
     expect(write.eq).toHaveBeenCalledWith("status", "active");
     expect(write.is).toHaveBeenCalledWith("deleted_at", null);
     expect(write.maybeSingle).toHaveBeenCalledOnce();
-    expect(mocks.logMemoryEvent).toHaveBeenCalledExactlyOnceWith("upsert_summary", expect.objectContaining({
+    expect(mocks.logMemoryEvent).toHaveBeenCalledOnce();
+    expect(mocks.logMemoryEvent).toHaveBeenCalledWith("upsert_summary", expect.objectContaining({
       updated: 0, created: 0,
     }));
   });
