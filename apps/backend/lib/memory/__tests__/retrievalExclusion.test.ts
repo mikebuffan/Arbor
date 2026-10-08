@@ -11,7 +11,7 @@ function db(responses:any[],vector:any[]=[]){
  const from=vi.fn(()=>{
   const response=responses.shift();
   const q:any={then:(resolve:any)=>Promise.resolve(response).then(resolve)};
-  for(const key of ["select","eq","is","or","order","limit","in"])q[key]=vi.fn(()=>q);
+  for(const key of ["select","eq","is","or","order","limit","in","neq"])q[key]=vi.fn(()=>q);
   queries.push(q);return q;
  });
  return {client:{from,rpc:vi.fn().mockResolvedValue({data:vector,error:null})} as any,queries};
@@ -24,6 +24,21 @@ describe("memory exclusion across retrieval routes",()=>{
   expect((await getMemoryContext({...scope,supabase:d.client})).keysUsed).toEqual(["allowed"]);
   expect((await getAlwaysIncludedMemoryAnchors({...scope,supabase:d.client})).map(i=>i.id)).toEqual(["allowed"]);
   for(const q of d.queries)expect(q.eq).toHaveBeenCalledWith("excluded_from_memory",false);
+ });
+ it("does not expose pinned sensitive or trigger-only claims as unconditional anchors",async()=>{
+  const ordinary=row("ordinary");
+  const trigger={...row("trigger"),tier:"normal" as const,user_trigger_only:true,value:{text:"secret trigger phrase"}};
+  const sensitive={...row("sensitive"),tier:"sensitive" as const,value:{text:"private fact"}};
+  const d=db([{data:[ordinary,trigger,sensitive],error:null},{data:[ordinary,trigger,sensitive],error:null}]);
+  const anchors=await getAlwaysIncludedMemoryAnchors({...scope,supabase:d.client});
+  expect(anchors.map(x=>x.id)).toEqual(["ordinary"]);
+  expect(d.queries[0].eq).toHaveBeenCalledWith("user_trigger_only",false);
+  expect(d.queries[0].neq).toHaveBeenCalledWith("tier","sensitive");
+  // Explicitly triggered recall remains available behind the prompt selection gate.
+  const recalled=await getMemoryContext({...scope,supabase:d.client});
+  expect(recalled.keysUsed).toContain("trigger");
+  expect(selectItemsForPrompt(recalled.sensitive,"unrelated question")).toEqual([]);
+  expect(selectItemsForPrompt(recalled.sensitive,"secret trigger phrase").map(x=>x.id)).toContain("trigger");
  });
  it("revalidates vector eligibility even when RPC results omit exclusion fields",async()=>{
   const legacy=[row("allowed"),row("excluded"),row("disappeared")];
