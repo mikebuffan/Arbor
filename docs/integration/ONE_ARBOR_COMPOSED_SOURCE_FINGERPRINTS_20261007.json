@@ -29,7 +29,7 @@
     "apps/backend/lib/arbor/language/contextualReferenceResolution.ts": "e124f09ec1a2b3bf4ead159f01f33ea75a4ff66e",
     "apps/backend/lib/arbor/host/recoveryReadProjection.ts": "edab4f84206558b04140a12affc3c26af71ecec3",
     "apps/backend/lib/arbor/continuity/longitudinalPolicy.ts": "336b79e4154e06bfb88ee9ea766bd3e5076ba718",
-    "apps/backend/lib/memory/retrieval.ts": "3541a30b33d9b2ab0eebcf0d370bbfd66337129c",
+    "apps/backend/lib/memory/retrieval.ts": "ad7772f163e2ddb7d7ab598d2d580be293848035",
     "apps/backend/lib/memory/__tests__/projectIsolation.test.ts": "b34d7042f43a17b77676b4f184c6e05bd2fc4259",
     "apps/backend/app/api/memory/items/route.ts": "f5d81852a6e4ea97e55825040f60b75484f6c39c",
     "apps/frontend/lib/environment/grove_memory_shelf.dart": "17e98e461846bac6189a853ea9a96e782ca9ba20",
@@ -122,7 +122,8 @@
     "apps/backend/lib/memory/store.ts": "32e15d4d718539d1305011ddbf25811b24b903b9",
     "apps/backend/lib/memory/__tests__/storeCorrection.test.ts": "18e12bc491ef6705aa0662ed58878cba133c9d71",
     "apps/backend/lib/memory/correctionResolution.ts": "3799d0184ad6593b85187e0440333f6540943e7d",
-    "apps/backend/lib/memory/__tests__/correctionResolution.test.ts": "b3de93784e97eaf8d8f91a34a6eda56424585f73"
+    "apps/backend/lib/memory/__tests__/correctionResolution.test.ts": "b3de93784e97eaf8d8f91a34a6eda56424585f73",
+    "apps/backend/lib/memory/__tests__/retrievalExclusion.test.ts": "01aaa4b46ea06b0b303aae5167edba24ac9929e7"
   },
   "comment": "78 verified source-only blobs. Adds exact group11 PR #360 view-injection and visited-ID bounds to reviewed 15-lane #362 candidate; Group12 latest after recorded source head is docs-only. Source review, no deployment or live acceptance."
 }
