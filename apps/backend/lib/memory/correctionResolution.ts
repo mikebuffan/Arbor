@@ -43,6 +43,7 @@ export type CorrectionCandidate = {
   correction_count: number | null;
   status: string;
   deleted_at: string | null;
+  excluded_from_memory?: boolean | null;
   created_at: string | null;
 };
 
@@ -211,7 +212,8 @@ function candidateIsInScope(params: {
   if (
     candidate.user_id !== userId ||
     candidate.status !== "active" ||
-    candidate.deleted_at !== null
+    candidate.deleted_at !== null ||
+    candidate.excluded_from_memory === true
   ) {
     return false;
   }
@@ -429,11 +431,12 @@ export async function loadActiveCorrectionCandidates(params: {
   let query = params.supabase
     .from("memory_items")
     .select(
-      "id,user_id,project_id,conversation_id,key,value,tier,scope,importance,confidence,pinned,locked,correction_count,status,deleted_at,created_at",
+      "id,user_id,project_id,conversation_id,key,value,tier,scope,importance,confidence,pinned,locked,correction_count,status,deleted_at,excluded_from_memory,created_at",
     )
     .eq("user_id", params.userId)
     .eq("status", "active")
-    .is("deleted_at", null);
+    .is("deleted_at", null)
+    .eq("excluded_from_memory", false);
 
   if (params.scopeHint === "global" || params.projectId === null) {
     query = query.is("project_id", null).eq("scope", "global");
