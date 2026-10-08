@@ -88,6 +88,14 @@ export function projectDiscoveryRadar(input: {
       !Array.isArray(input.visitedEvidenceIds ?? []))
     throw new Error("discovery_radar_invalid_input");
 
+  // Visited IDs are host-supplied input, not independent provenance. Bound
+  // them before handing the set to the existing Pattern Hop engine.
+  const visitedIds = input.visitedEvidenceIds ?? [];
+  if (visitedIds.length > 128 ||
+      visitedIds.some(id => !good(id, 200)) ||
+      new Set(visitedIds).size !== visitedIds.length)
+    throw new Error("discovery_radar_invalid_visited_ids");
+
   const maxSuggestions = input.maxSuggestions ?? 5;
   if (!Number.isSafeInteger(maxSuggestions) || maxSuggestions < 1 || maxSuggestions > 8)
     throw new Error("discovery_radar_invalid_limit");
@@ -115,7 +123,7 @@ export function projectDiscoveryRadar(input: {
     if (!existing || item.retrievalScore > existing.retrievalScore)
       grouped.set(familyKey, item);
   }
-  const visited = new Set(input.visitedEvidenceIds ?? []);
+  const visited = new Set(visitedIds);
   visited.add(input.seed.evidence.id);
   const chosen = [...grouped.values()];
   const byId = new Map(chosen.map(item => [item.evidence.id, item]));
