@@ -217,7 +217,8 @@ function candidateIsInScope(params: {
   }
 
   if (correction.scopeHint === "global") {
-    return candidate.scope === "global" && candidate.project_id === null;
+    return candidate.scope === "global" && candidate.project_id === null &&
+      candidate.conversation_id == null;
   }
 
   if (
@@ -228,7 +229,7 @@ function candidateIsInScope(params: {
   }
 
   if (candidate.scope === "project") {
-    return true;
+    return candidate.conversation_id == null;
   }
 
   if (candidate.scope === "conversation") {
