@@ -102,6 +102,7 @@ jobs:
           lib/ark/__tests__/latestStatusRequest.test.ts
           lib/ark/__tests__/readModel.test.ts
           lib/arbor/continuity/__tests__/storeScopeReadback.test.ts
+          lib/arbor/subsystem/__tests__/stateReadbackScope.test.ts
           lib/auth/__tests__/safeReturnPath.test.ts
           lib/memory/__tests__/shelfPageRead.test.ts
           lib/memory/__tests__/projectIsolation.test.ts
