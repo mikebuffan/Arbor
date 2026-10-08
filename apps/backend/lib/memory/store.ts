@@ -186,7 +186,7 @@ export async function upsertMemoryItems(
     ignored: [],
   };
 
-  const prepared = items
+  const candidates = items
     .map((item) => {
       const key = item.key?.trim();
       if (!key) return null;
@@ -198,20 +198,47 @@ export async function upsertMemoryItems(
     embedStr: string;
   }>;
 
-  if (!prepared.length) return res;
+  if (!candidates.length) return res;
+
+  // Exclude retired records BEFORE sending content to an embedding provider.
+  // This is a scoped read-only preflight; the ordinary write path still repeats
+  // the check to catch a record retired after this preflight.
+  const prepared: typeof candidates = [];
+  for (const candidate of candidates) {
+    const { item, key } = candidate;
+    const scope = item.scope ?? "conversation";
+    const scopedConversationId = scope === "conversation" ? conversationId : null;
+    if (scope === "conversation" && !scopedConversationId) {
+      res.ignored.push(key);
+      continue;
+    }
+    if (!isDurableBehaviorCorrection(item)) {
+      const existing = await findExisting({
+        supabase, authedUserId, projectId,
+        conversationId: scopedConversationId, scope, key,
+      });
+      if (isRetiredMemory(existing)) {
+        res.ignored.push(key);
+        continue;
+      }
+    }
+    prepared.push(candidate);
+  }
 
   let batched: number[][] | null = null;
-  try {
-    batched = await embedTexts(prepared.map((p) => p.embedStr));
-  } catch {
-    console.warn("[memory] embedding failed", {
-      subsystem: "memory",
-      operation: "batch_embedding",
-      code: "provider_error",
-      resourceType: "embedding_batch",
-      fallback: "per_item",
-    });
-    batched = null;
+  if (prepared.length) {
+    try {
+      batched = await embedTexts(prepared.map((p) => p.embedStr));
+    } catch {
+      console.warn("[memory] embedding failed", {
+        subsystem: "memory",
+        operation: "batch_embedding",
+        code: "provider_error",
+        resourceType: "embedding_batch",
+        fallback: "per_item",
+      });
+      batched = null;
+    }
   }
 
   for (let i = 0; i < prepared.length; i++) {
