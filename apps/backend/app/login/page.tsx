@@ -3,10 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/browser";
+import { safeArborReturnPath } from "@/lib/auth/safeReturnPath";
 
-function safeNext(value: string | null) {
-  return value && value.startsWith("/") && !value.startsWith("//") ? value : "/";
-}
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -17,7 +15,7 @@ export default function LoginPage() {
   const router = useRouter();
 
   useEffect(() => {
-    setDestination(safeNext(new URLSearchParams(window.location.search).get("next")));
+    setDestination(safeArborReturnPath(new URLSearchParams(window.location.search).get("next")));
   }, []);
 
   async function signIn(e: React.FormEvent) {

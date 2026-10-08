@@ -45,7 +45,7 @@
     "apps/backend/lib/memory/__tests__/shelfPageRead.test.ts": "35b5c43abb6b2c774a1ae3aa75b33507c1e4d3bb",
     "apps/frontend/lib/environment/grove_memory_shelf_view.dart": "31e54c5c459cadce0eeba4bb577922c419cde71a",
     "apps/frontend/test/grove_memory_shelf_view_test.dart": "f01802b64c9ee0ed0116ee66e81344499fdcdf25",
-    ".github/workflows/one-arbor-15-lane-assembly.yml": "6ca46e1917e6a01c0e4473054fdf3c6b1981b856",
+    ".github/workflows/one-arbor-15-lane-assembly.yml": "940c3e7b2ce5a0937f36feee0f3af53bb0acc14d",
     ".github/workflows/one-arbor-diary-draft.yml": "8923e47d0d69562a86a7c210b10efaaf0c5fd624",
     ".github/workflows/one-arbor-group08-body-acceptance.yml": "d4dc36baef71d379f6a769d7f0416cd755d7252a",
     ".github/workflows/one-arbor-group09-decision-gates.yml": "8c6a9996d12fc1624e8e1ef997d8c04d34ee0ffe",
@@ -134,10 +134,12 @@
     "apps/backend/app/page.tsx": "118e74b06b8bb94bf0981148d2c14362b37eef34",
     "apps/backend/lib/ark/latestStatusRequest.ts": "a209b5713d5cdaf181be9b86a2fe94b2189536cd",
     "apps/backend/lib/ark/__tests__/latestStatusRequest.test.ts": "3127959d3d6eabd25b6e7fc8542f4d17e34f74ee",
-    "apps/backend/app/login/page.tsx": "967a0815aa6fa29f1e6ded373606035ebdcaf077",
+    "apps/backend/app/login/page.tsx": "21a0504db512a462df79af55a37071e7dd75b148",
     "apps/backend/app/reset-password/page.tsx": "14dcd121b1cc518e58f8a5401802719bf064fc2e",
     "apps/backend/lib/ark/readModel.ts": "bde5cee104a7e07d2f8c5cdcf0e46691f85f0bfd",
-    "apps/backend/lib/ark/__tests__/readModel.test.ts": "1cf79d2a0375863b72226400d85906e9172b98d5"
+    "apps/backend/lib/ark/__tests__/readModel.test.ts": "1cf79d2a0375863b72226400d85906e9172b98d5",
+    "apps/backend/lib/auth/safeReturnPath.ts": "e47a9cf7826f51c62d378fd01ff24fc1308baaf4",
+    "apps/backend/lib/auth/__tests__/safeReturnPath.test.ts": "d27be32223d0bf102026ac17fa7b4cd1f30f7f2c"
   },
-  "comment": "One Arbor source-only reconciled Preview plus ARK read-model returned-row owner/project/receipt isolation; no live data, source or release activation."
+  "comment": "Source-only safe sign-in local return path validation plus ARK isolation; 116 exact source pins; no release, deployment or protected auth activity."
 }
