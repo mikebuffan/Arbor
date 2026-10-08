@@ -3,9 +3,11 @@ on:
   push:
     branches:
       - review/one-arbor-15-lane-source-assembly-20261007
+      - review/one-arbor-group11-assembly-followon-20261007
   pull_request:
     branches:
       - fix/one-arbor-group04-shelf-pagination-20261007
+      - review/one-arbor-15-lane-source-assembly-20261007
     paths:
       - 'apps/**'
       - 'ops/grove/source-only-ignore.mjs'
@@ -40,7 +42,7 @@ jobs:
       - name: Keep entire source assembly isolated from Vercel
         run: |
           set -euo pipefail
-          VERCEL_GIT_COMMIT_REF=review/one-arbor-15-lane-source-assembly-20261007 node ops/grove/source-only-ignore.mjs
+          VERCEL_GIT_COMMIT_REF="${{ github.head_ref || github.ref_name }}" node ops/grove/source-only-ignore.mjs
       - name: Verify all reviewed source fingerprints
         run: node ops/integration/verify-one-arbor-composition.mjs
       - name: Restore locked dependencies
@@ -62,6 +64,9 @@ jobs:
           lib/arbor/body/__tests__/gastricSignals.test.ts
           lib/learning/__tests__/bodyCausalNegativeControls.test.ts
           lib/arbor/runtime/__tests__/group09TruthConsequence.test.ts
+          lib/arbor/runtime/__tests__/decisionAncestry.test.ts
+          lib/arbor/runtime/__tests__/discoveryRadar.test.ts
+          lib/arbor/runtime/__tests__/group11SourceBoundary.test.ts
           lib/memory/__tests__/patternHopSourceIndependence.test.ts
           lib/grove/__tests__/privateTranscriptStore.test.ts
           lib/arbor/annabelle/__tests__/group14PersistenceReadback.test.ts
