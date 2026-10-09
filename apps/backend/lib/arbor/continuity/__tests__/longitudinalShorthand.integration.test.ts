@@ -30,6 +30,20 @@ const prior = (status: AgencyState["status"] = "active"): AgencyState => ({
 
 describe("One Arbor shorthand and checkpoint return", () => {
   it.each([
+    "Whichever you want", "Which ever you want", "Your choice",
+  ])("keeps %s within existing unfinished work without clearing authority gates", text => {
+    expect(shouldCarryGoal(text, prior())).toBe(true);
+    expect(shouldCarryGoal(text, prior("checkpointed"))).toBe(true);
+    expect(shouldCarryGoal(text, prior("complete"))).toBe(false);
+    expect(shouldCarryGoal(text, null)).toBe(false);
+    const next = buildAgencySessionState({ userText: text, prior: prior("blocked") });
+    expect(next.goal).toBe(prior().goal);
+    expect(next.currentStep).toBe(7);
+    expect(next.status).toBe("blocked");
+    expect(next.blocker).toBe("external_authority");
+  });
+
+  it.each([
     "list prompt go", "List, prompt, go", "prompt and go",
     "list prompt then go", "go go buffalo",
   ])("treats %s as continuation when prior work is active", text => {

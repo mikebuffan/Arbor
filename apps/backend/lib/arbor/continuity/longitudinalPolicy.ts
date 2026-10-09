@@ -34,6 +34,10 @@ const FOLLOWUP_SIGNAL =
 // standing authorization or instruction to resurrect completed work.
 const MORE_WORK_FOLLOWUP =
   /^(?:anything else|is there anything else|any more|anything more|more|what else|what else can (?:we|you) (?:do|check|fix)|is there more)[.!?\s]*$/i;
+// Delegating the next choice stays within the existing unfinished objective.
+// This is a follow-up cue, not an execution grant or a new objective.
+const WORKFLOW_CHOICE_FOLLOWUP =
+  /^(?:which\s*ever you want|your choice)[.!?\s]*$/i;
 const STOPWORDS = new Set([
   "about","after","again","also","been","being","could","does","doing","from",
   "have","into","just","make","more","need","please","should","that","their",
@@ -87,7 +91,7 @@ function sharesGoalContext(userText: string, goal: string) {
 function looksLikeContinuationFollowup(userText: string, prior: AgencyState) {
   const text = userText.trim();
   if (CONTINUATION_SIGNAL.test(text) || FOLLOWUP_SIGNAL.test(text) ||
-      MORE_WORK_FOLLOWUP.test(text)) return true;
+      MORE_WORK_FOLLOWUP.test(text) || WORKFLOW_CHOICE_FOLLOWUP.test(text)) return true;
   if (prior.status === "blocked" && BLOCKER_RESOLUTION_SIGNAL.test(text)) return true;
   if (
     prior.status === "blocked" &&
