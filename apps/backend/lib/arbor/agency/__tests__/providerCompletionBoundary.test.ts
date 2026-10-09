@@ -108,7 +108,7 @@ describe("Actual chat agent loop: provider completion boundaries (synthetic prov
       responseCreate: async () => ++calls === 1
         ? mock("read-call", "completed", "", [{
             type: "function_call", call_id: "read", name: "inspect_fixture", arguments: "{}",
-          ])
+          }])
         : mock("not-complete", "incomplete", "It is all finished."),
       verifyCompletion: false,
     });

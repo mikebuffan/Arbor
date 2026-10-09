@@ -157,7 +157,7 @@
     "apps/backend/lib/arbor/agency/__tests__/yieldPolicy.test.ts": "697ebeecee133dbbdc9a3ecbff65517fb86cc349",
     "docs/integration/ONE_ARBOR_INDEPENDENCE_NEGATIVE_PROOF_20261009.md": "5cb7df6be8d8497f7242f546fd970fb5f33fdc0c",
     "apps/backend/lib/arbor/agency/openaiAgent.ts": "53464102766f2cb7cc66f62f35129142cb023854",
-    "apps/backend/lib/arbor/agency/__tests__/providerCompletionBoundary.test.ts": "42b9e8cb126f12defe74f49184f09860628d4611",
+    "apps/backend/lib/arbor/agency/__tests__/providerCompletionBoundary.test.ts": "beeba2c7c2dd6d0b5469f867423f4621a8fd3158",
     "docs/integration/ONE_ARBOR_CHAT_PROVIDER_COMPLETION_20261009.md": "ff5a00c7a025f4564acf50ae0e19a6927ab995db"
   },
   "comment": "78 verified source-only blobs. Adds exact group11 PR #360 view-injection and visited-ID bounds to reviewed 15-lane #362 candidate; Group12 latest after recorded source head is docs-only. Source review, no deployment or live acceptance."
