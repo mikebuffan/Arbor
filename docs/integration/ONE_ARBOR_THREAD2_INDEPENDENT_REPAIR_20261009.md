@@ -87,3 +87,22 @@ Thread 1. Pattern Hop research and Annabelle manuscript ownership remain separat
 No whole task is relabeled live-complete from source tests. Remaining requirements
 in the reviewed independent lanes are host/device/model/author decisions, rather
 than a reason to duplicate their already implemented source systems.
+
+## Follow-through: real disk restart integration regression
+
+`apps/arbor-control-backend/src/runtimeRestart.test.ts` exercises the actual
+control runtime and JSON disk store with synthetic turns and a fake agency.
+Each step creates a fresh runtime, state store and audit sink: save a behavioral
+correction at an unfinished boundary; reopen and replay the committed turn
+without another agency call; reopen across Text → Voice → Annabelle → Arbor,
+including a fresh conversation; verify retained correction/goal/open work and
+core identity before the subsystem overlay; verify a different project receives
+none of that correction, open work or history.
+
+Local focused runtime/store/restart suites: 3 files / 21 passed. Full control:
+36 files / 155 passed; TypeScript build passed. Existing backend source is
+unchanged by this follow-through. Composition now pins 107 blobs. Exact-head
+CI must be recorded on the new commit separately from the preceding green head.
+This proves sequential disk reopen and saved-turn replay in this local store,
+not distributed exactly-once, real model personality or device/voice behavior.
+No runtime implementation, new engine, grant or Thread 1 source was changed.

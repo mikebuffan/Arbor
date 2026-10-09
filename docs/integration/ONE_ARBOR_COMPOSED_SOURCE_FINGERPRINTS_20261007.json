@@ -129,7 +129,8 @@
     "apps/backend/lib/memory/__tests__/candidateContext.test.ts": "455f5c10d429931b522ced92b25db946e184c106",
     "apps/backend/lib/arbor/agency/__tests__/acceptanceRunner.test.ts": "a719bf8bb6f2cdd276457c0267dc146d57c9aec3",
     "apps/backend/lib/arbor/agency/acceptanceRunner.ts": "bc671b2b4a41e31cd098950311bc0911f2ecdc43",
-    "apps/backend/lib/arbor/runtime/__tests__/discoveryRadar.test.ts": "3c1d505844009649d6c4b3fdb1d61aab70bda596"
+    "apps/backend/lib/arbor/runtime/__tests__/discoveryRadar.test.ts": "3c1d505844009649d6c4b3fdb1d61aab70bda596",
+    "apps/arbor-control-backend/src/runtimeRestart.test.ts": "282f89c495969c96646eb30d5cbe2052fab3a58b"
   },
   "comment": "78 verified source-only blobs. Adds exact group11 PR #360 view-injection and visited-ID bounds to reviewed 15-lane #362 candidate; Group12 latest after recorded source head is docs-only. Source review, no deployment or live acceptance."
 }
