@@ -121,6 +121,7 @@ jobs:
           lib/arbor/episodes/__tests__/episodeRecallScope.test.ts
           lib/auth/__tests__/safeReturnPath.test.ts
           lib/memory/__tests__/shelfPageRead.test.ts
+          lib/memory/__tests__/routeOwnership.test.ts
           lib/memory/__tests__/projectIsolation.test.ts
           lib/memory/__tests__/retrievalExclusion.test.ts
           lib/arbor/accessibility/__tests__/cognitiveAccessLanguage.test.ts
