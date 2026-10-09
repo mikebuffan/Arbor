@@ -57,7 +57,9 @@ describe("16-case judgment dry run through EXISTING agency runner (no live infer
       expect(payload).not.toContain("expectedDisposition");
       expect(payload).not.toContain("forbiddenFailure");
       expect(payload).not.toContain("judgment_pack_private_rubric");
-      expect(payload).toContain("SYNTHETIC BLIND JUDGMENT CASE");
+      expect(payload).toContain("SYNTHETIC FIXTURE");
+      expect(payload).not.toContain("BLIND JUDGMENT CASE");
+      expect(payload).not.toContain("UNPROMPTED-JUDGMENT CASE");
     }
     for (const item of result.pairs as Array<{
       caseId: string;
@@ -76,6 +78,20 @@ describe("16-case judgment dry run through EXISTING agency runner (no live infer
     expect(events.find(e => e.type === "run-end")?.result).toMatchObject({
       status: "captured; unscored",
     });
+  });
+
+  it("rejects post-assignment tampering before provisioning, capture, or provider calls", async () => {
+    const { generation } = buildJudgmentGeneration();
+    const { assignment } = buildPrivateJudgmentPlan({ generation, hostSeed: "synthetic-only-private-seed-20261007" });
+    const createResponse = vi.fn();
+    const provision = vi.fn();
+    const record = vi.fn();
+    generation.cases[0].userTurns[0] = "Replacement prompt after assignment";
+    await expect(runAcceptanceComparison({ generation, assignment, config, createResponse, provision, record }))
+      .rejects.toThrow("acceptance_pack_mismatch");
+    expect(createResponse).not.toHaveBeenCalled();
+    expect(provision).not.toHaveBeenCalled();
+    expect(record).not.toHaveBeenCalled();
   });
 
   it("honors a hard request-count budget without a live provider", async () => {

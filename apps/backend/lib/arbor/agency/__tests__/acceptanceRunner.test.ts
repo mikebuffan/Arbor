@@ -1,16 +1,18 @@
 import { describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { createHash } from "node:crypto";
 import type { Response } from "openai/resources/responses/responses";
-import { runAcceptanceComparison, type AcceptanceConfig } from "../acceptanceRunner";
+import { runAcceptanceComparison, validateAcceptanceInput, type AcceptanceConfig } from "../acceptanceRunner";
 import { provisionAcceptanceFixture } from "../acceptanceFixture";
 
 const defaultCreate = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/providers/openai", () => ({ openai: { responses: { create: defaultCreate } } }));
 
-const packHash = "a".repeat(64);
+const cases = [{ id: "tired-familiarity", userTurns: ["First question", "Continue"] }];
+const packHash = createHash("sha256").update(JSON.stringify({ schemaVersion: 1, cases })).digest("hex");
 const generation = { schemaVersion: 1, casePackHash: packHash,
-  cases: [{ id: "tired-familiarity", userTurns: ["First question", "Continue"] }] };
+  cases };
 const assignment = { schemaVersion: 1, casePackHash: packHash,
   cases: [{ caseId: "tired-familiarity", A: "baseline", B: "candidate" }] };
 const config: AcceptanceConfig = { model: "test-model", sourceIdentity: "test-source",
@@ -64,9 +66,11 @@ describe("isolated acceptance runner (mock provider, never live acceptance)", ()
         name: "complete_fixture_task", arguments: '{"task":"A"}' }]);
       return response(id, "Task A finished.");
     });
+    const toolCases = [{ id: "fresh-continuation", userTurns: ["Continue"] }];
+    const toolPackHash = createHash("sha256").update(JSON.stringify({ schemaVersion: 1, cases: toolCases })).digest("hex");
     const result = await runAcceptanceComparison({
-      generation: { ...generation, cases: [{ id: "fresh-continuation", userTurns: ["Continue"] }] },
-      assignment: { ...assignment, cases: [{ caseId: "fresh-continuation", A: "baseline", B: "candidate" }] },
+      generation: { ...generation, casePackHash: toolPackHash, cases: toolCases },
+      assignment: { ...assignment, casePackHash: toolPackHash, cases: [{ caseId: "fresh-continuation", A: "baseline", B: "candidate" }] },
       config, createResponse, provision: provisionAcceptanceFixture, record: async () => {} });
     const arm = (result.pairs[0] as any).A;
     expect(arm.fixtureReceipts.tasks).toEqual({ A: "completed", B: "completed" });
@@ -143,6 +147,22 @@ describe("isolated acceptance runner (mock provider, never live acceptance)", ()
     const audit = auditEvaluation(pack, result);
     expect(audit.cases.every((c: any) => c.A.every((j: any) => j.verdict === "unknown"))).toBe(true);
     // Never write these mock transcripts to the live acceptance results pack.
+  });
+
+  it("preserves server-selected legacy cases while rejecting edited legacy content", async () => {
+    const { acceptanceCaseInput, ACCEPTANCE_CASE_IDS } = await import("../../../ark/acceptanceContract");
+    for (const caseId of ACCEPTANCE_CASE_IDS) {
+      const input = acceptanceCaseInput(caseId, "synthetic-contract");
+      validateAcceptanceInput(input.generation, input.assignment, config);
+      const changed = { ...input.generation, cases: input.generation.cases.map(c => ({ ...c, userTurns: ["Tampered legacy case"] })) };
+      expect(() => validateAcceptanceInput(changed, input.assignment, config)).toThrow("acceptance_pack_mismatch");
+    }
+    const { prepareEvaluation } = await import("../../../../../../scripts/behavior-acceptance.mjs");
+    const pack = JSON.parse(readFileSync(resolve(process.cwd(), "../../docs/integration/ARBOR_CONVERSATION_ACCEPTANCE_CASES_20261005.json"), "utf8"));
+    const prepared = prepareEvaluation(pack, "synthetic-contract");
+    expect(() => validateAcceptanceInput(
+      { ...prepared.generation, cases: [...prepared.generation.cases].reverse() }, prepared.assignment, config,
+    )).toThrow("acceptance_pack_mismatch");
   });
 
   it("captures a rejected verification and its corrective generation chain", async () => {
