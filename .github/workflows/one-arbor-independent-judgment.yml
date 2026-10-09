@@ -74,6 +74,7 @@ jobs:
           lib/arbor/behavior/__tests__/independentJudgmentCases.test.ts
           lib/arbor/behavior/__tests__/independentJudgmentBlindPack.test.ts
           lib/arbor/behavior/__tests__/independentJudgmentOfflineRunner.test.ts
+          lib/arbor/behavior/__tests__/proactiveJudgmentOfflineRunner.test.ts
           lib/ark/__tests__/previewAcceptanceRoute.test.ts
           lib/arbor/agency/__tests__/continuation.test.ts
           lib/memory/__tests__/storeCorrection.test.ts

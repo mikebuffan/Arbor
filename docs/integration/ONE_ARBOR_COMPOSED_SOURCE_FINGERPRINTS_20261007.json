@@ -105,7 +105,7 @@
     "apps/backend/lib/arbor/behavior/behaviorProjection.ts": "cd52561933f57ff41daf2ca1497d2dc8d414bfe8",
     "apps/backend/lib/arbor/behavior/__tests__/independentJudgmentCases.ts": "7d9b8eb3f6952812c893c5a5bd228395888e5da3",
     "apps/backend/lib/arbor/behavior/__tests__/independentJudgmentCases.test.ts": "045e1782fbacbad032738232bf960962345e2a8e",
-    ".github/workflows/one-arbor-independent-judgment.yml": "10ed3b62bde32b23fc718d5801af2835ea05088e",
+    ".github/workflows/one-arbor-independent-judgment.yml": "ed8e739cbc28871236aa09d4edf2cd54e09851c2",
     "apps/backend/lib/prompt/buildPromptContext.ts": "c91150dbfce1755b9843b58c8c46a95e7fe50a3b",
     "apps/backend/lib/arbor/behavior/arkLayerReadContext.ts": "e0597d3df998d37361a9b21f351d597e1508f445",
     "apps/backend/lib/arbor/behavior/__tests__/arkLayerReadContext.test.ts": "fff706bfa7d2694ae8f58e5f21c4cff0b6e02516",
@@ -131,7 +131,12 @@
     "apps/backend/lib/arbor/agency/acceptanceRunner.ts": "bc671b2b4a41e31cd098950311bc0911f2ecdc43",
     "apps/backend/lib/arbor/runtime/__tests__/discoveryRadar.test.ts": "3c1d505844009649d6c4b3fdb1d61aab70bda596",
     "apps/arbor-control-backend/src/runtimeRestart.test.ts": "282f89c495969c96646eb30d5cbe2052fab3a58b",
-    "apps/arbor-control-backend/src/stateStoreFailure.test.ts": "f4beab8f8d566b85bef3276ac7313e0aa0a95a86"
+    "apps/arbor-control-backend/src/stateStoreFailure.test.ts": "f4beab8f8d566b85bef3276ac7313e0aa0a95a86",
+    "apps/backend/lib/arbor/behavior/__tests__/fixtures/proactiveJudgment/demo_assignment.json": "006d473173fa60ea6c25a38ca04b77256f743857",
+    "apps/backend/lib/arbor/behavior/__tests__/fixtures/proactiveJudgment/README.md": "6e7a6da17a20471677e57fcc28469e1fea9294f3",
+    "apps/backend/lib/arbor/behavior/__tests__/fixtures/proactiveJudgment/public_generation.json": "338cacc696450d39f4cd2af221a0fd0c5dd993e8",
+    "apps/backend/lib/arbor/behavior/__tests__/fixtures/proactiveJudgment/host_private_rubric.json": "01173e056fb73009664b35a03d115d856bc756d0",
+    "apps/backend/lib/arbor/behavior/__tests__/proactiveJudgmentOfflineRunner.test.ts": "744bd4240aa8256261b065761ab19cc0b910817b"
   },
   "comment": "78 verified source-only blobs. Adds exact group11 PR #360 view-injection and visited-ID bounds to reviewed 15-lane #362 candidate; Group12 latest after recorded source head is docs-only. Source review, no deployment or live acceptance."
 }

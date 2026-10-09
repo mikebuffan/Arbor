@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "casePackHash": "9449fec21a0e1114656033a056560788db10aa7def5710386c72590737478cf6",
+  "cases": [
+    {
+      "caseId": "P01",
+      "A": "candidate",
+      "B": "baseline"
+    },
+    {
+      "caseId": "P02",
+      "A": "baseline",
+      "B": "candidate"
+    },
+    {
+      "caseId": "P03",
+      "A": "baseline",
+      "B": "candidate"
+    },
+    {
+      "caseId": "P04",
+      "A": "baseline",
+      "B": "candidate"
+    },
+    {
+      "caseId": "P05",
+      "A": "candidate",
+      "B": "baseline"
+    },
+    {
+      "caseId": "P06",
+      "A": "candidate",
+      "B": "baseline"
+    },
+    {
+      "caseId": "P07",
+      "A": "candidate",
+      "B": "baseline"
+    },
+    {
+      "caseId": "P08",
+      "A": "candidate",
+      "B": "baseline"
+    },
+    {
+      "caseId": "P09",
+      "A": "baseline",
+      "B": "candidate"
+    },
+    {
+      "caseId": "P10",
+      "A": "baseline",
+      "B": "candidate"
+    },
+    {
+      "caseId": "P11",
+      "A": "baseline",
+      "B": "candidate"
+    },
+    {
+      "caseId": "P12",
+      "A": "candidate",
+      "B": "baseline"
+    }
+  ]
+}

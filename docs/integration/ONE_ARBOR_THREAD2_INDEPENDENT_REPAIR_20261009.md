@@ -112,3 +112,13 @@ No runtime implementation, new engine, grant or Thread 1 source was changed.
 A synthetic EIO fault at the local atomic rename confirms that failed commit leaves the previous disk bytes, unfinished work and behavioral correction intact, records neither the failed canonical turn nor its history, and cleans the temporary file. The same store accepts a subsequent retry and repeated commit without duplicate history. Actual file IO is used except the one injected rename fault. No runtime repair was needed.
 
 Focused state/restart regressions: 5 passed. Full control source suite: 37 files, 156 passed. This is local persistence evidence, not distributed recovery, upstream bridge delivery, worker safety, live model or deployed acceptance. Exact-head CI is recorded in PR #373.
+
+## E01/C04/D13 proactive fixture follow-through
+
+Recovered the newer owning-thread handoff and 12-case proactive pack; open PR ownership readback found no competing source edit. Existing Failure Radar remains the read-only Decision Ancestry/review projections. It detects review warnings, not verified model initiative. Runtime files and other owner branches are untouched.
+
+Ported the public-generation, host-only rubric and explicitly offline demo assignment as a separate P01–P12 fixture set. Two integration regressions exercise the existing acceptance runner: all 24 fake-provider arms capture without scoring/rubric leakage; edited prompts reject before provisioning, capture or inference. Existing 16 J cases and legacy pack are unchanged. No second engine/scorer or public endpoint.
+
+Local focused Radar/proactive: 3 files / 30 passed. Broader behavior/runner/Radar: 9 files / 83 passed / 1 skipped; backend TypeScript passed. Original artifact pack/scorer: 20 passed. An initial broader invocation lacked the placeholder API environment required by an existing test; rerun with the normal CI placeholder passed, without real credentials or inference. Exact-head broad CI receipt is in #373.
+
+Paid testing has general owner approval but is blocked by missing secure workspace credentials and unfinalized model/host/numeric spending configuration. No key creation, purchase or inference occurred. The exposed demo assignment is not a real blind trial; no fresh holdout or actual behavior score is claimed. D09 canonical manuscript selection and trusted hosted outcome acceptance remain external requirements; no authored philosophy is reconstructed here.
