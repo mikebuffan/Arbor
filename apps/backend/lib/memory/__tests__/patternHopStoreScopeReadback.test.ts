@@ -115,4 +115,27 @@ describe("Pattern Hop saved run and evidence returned-row scope",()=>{
     expect(db.from.mock.calls.map(call=>call[0])).toEqual(["arbor_pattern_hop_runs"]);
   });
 
+  describe.each([
+    ["evidence",loadPatternHopEvidence], ["edges",loadPatternHopEdges],
+  ])("%s source identity restoration",(_name,load)=>{
+    it.each(["shared alias","alias matches fallback","repeated provider row"])(
+      "rejects %s without silently merging saved sources",async(kind)=>{
+        const first=evidence("db-a",{metadata:{client_evidence_id:"shared"}});
+        const second=kind==="shared alias"
+          ? evidence("db-b",{metadata:{client_evidence_id:"shared"}})
+          : kind==="alias matches fallback"
+            ? evidence("shared",{metadata:{}}) : first;
+        const db=mockDB({arbor_pattern_hop_evidence:[first,second],arbor_pattern_hop_edges:[]});
+        await expect(load({...scope,supabase:db.supabase}))
+          .rejects.toThrow("pattern_hop_evidence_identity_ambiguous");
+      });
+    it("does not let a foreign alias collide with an owned source",async()=>{
+      const db=mockDB({arbor_pattern_hop_evidence:[
+        evidence("owned",{metadata:{client_evidence_id:"shared"}}),
+        evidence("foreign",{user_id:"other",metadata:{client_evidence_id:"shared"}}),
+      ],arbor_pattern_hop_edges:[]});
+      await expect(load({...scope,supabase:db.supabase})).resolves.toBeDefined();
+    });
+  });
+
 });

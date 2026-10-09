@@ -24,6 +24,20 @@ function restoredEvidenceId(row: any): string {
     ? row.metadata.client_evidence_id : row.id;
 }
 
+function assertUniqueEvidenceIdentities(rows: readonly any[]): void {
+  const databaseIds = new Set<string>();
+  const restoredIds = new Set<string>();
+  for (const row of rows) {
+    const id = restoredEvidenceId(row);
+    // Two database sources must never become one restored evidence identity.
+    // Repeated provider rows are also not additional source corroboration.
+    if (databaseIds.has(row.id) || restoredIds.has(id))
+      throw new Error("pattern_hop_evidence_identity_ambiguous");
+    databaseIds.add(row.id);
+    restoredIds.add(id);
+  }
+}
+
 function mapState(row: any): PatternHopState {
   // Never replace damaged durable progress with empty traversal lists. A
   // malformed checkpoint must fail before any research or checkpoint write.
@@ -354,7 +368,7 @@ export async function loadPatternHopEvidence(params: {
   if (error) throw error;
 
   const rows = Array.isArray(data) ? data : [];
-  return rows.filter((row: any) =>
+  const eligibleRows = rows.filter((row: any) =>
     row && row.run_id === params.runId &&
     row.user_id === params.userId &&
     row.project_id === params.projectId &&
@@ -365,7 +379,9 @@ export async function loadPatternHopEvidence(params: {
     ["direct", "derived", "hypothesis", "retrospective", "contradictory"]
       .includes(row.epistemic_status) &&
     Number.isFinite(Number(row.confidence ?? 0.5))
-  ).map((row: any) => ({
+  );
+  assertUniqueEvidenceIdentities(eligibleRows);
+  return eligibleRows.map((row: any) => ({
     id: restoredEvidenceId(row),
     source: String(row.source),
     sourceThreadId: row.source_thread_id
@@ -410,6 +426,7 @@ export async function loadPatternHopEdges(params: {
     row.user_id === params.userId &&
     row.project_id === params.projectId) : [];
   if (!ownedEvidence.length) return [];
+  assertUniqueEvidenceIdentities(ownedEvidence);
 
   const clientIdByDbId = new Map<string, string>(
     ownedEvidence.map(row => [
