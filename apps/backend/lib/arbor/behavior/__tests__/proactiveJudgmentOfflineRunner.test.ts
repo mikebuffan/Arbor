@@ -34,6 +34,9 @@ it("captures the separate 12 proactive scenarios through the existing runner wit
   expect(requests).toHaveLength(24);
   for (const event of requests) {
     const payload = JSON.stringify(event.request);
+    expect(payload).toContain("SYNTHETIC FIXTURE");
+    expect(payload).not.toContain("UNPROMPTED-JUDGMENT CASE");
+    expect(payload).not.toContain("BLIND JUDGMENT CASE");
     expect(payload).not.toContain("expectedDisposition");
     expect(payload).not.toContain("forbiddenFailure");
     for (const c of rubric.cases) expect(payload).not.toContain(c.success);

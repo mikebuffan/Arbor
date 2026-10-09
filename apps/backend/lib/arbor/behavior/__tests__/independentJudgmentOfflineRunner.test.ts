@@ -57,7 +57,9 @@ describe("16-case judgment dry run through EXISTING agency runner (no live infer
       expect(payload).not.toContain("expectedDisposition");
       expect(payload).not.toContain("forbiddenFailure");
       expect(payload).not.toContain("judgment_pack_private_rubric");
-      expect(payload).toContain("SYNTHETIC BLIND JUDGMENT CASE");
+      expect(payload).toContain("SYNTHETIC FIXTURE");
+      expect(payload).not.toContain("BLIND JUDGMENT CASE");
+      expect(payload).not.toContain("UNPROMPTED-JUDGMENT CASE");
     }
     for (const item of result.pairs as Array<{
       caseId: string;

@@ -14,3 +14,10 @@ The integration test uses the existing acceptance runner and synthetic fixture
 factory with a fake responder. It proves capture/input integrity and rubric
 separation, not constructive advice, E01 host wiring or D13 model independence.
 No alternative radar, model evaluator, authorization system or engine is added.
+
+Inference-visible evaluation-purpose labels were removed after the three-thread
+review. Synthetic-data/authority disclaimers remain. The P public digest and
+private assignment/rubric digests were recomputed together. J generation and its
+private plan recompute dynamically. Existing human scenarios and expected
+answers were not changed. This repair removes one cue; it does not establish
+fresh holdouts, evaluator blindness or actual unprimed model behavior.
