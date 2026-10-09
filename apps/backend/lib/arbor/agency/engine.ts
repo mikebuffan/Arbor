@@ -106,9 +106,24 @@ export async function runAgency<SharedState>(input: {
   runtime: AgencyRuntime<SharedState>;
   maxSteps?: number;
 }): Promise<{ agency: AgencyState; shared: SharedState }> {
+  const maxSteps = input.maxSteps ?? 64;
+  // Reject nonfinite/unbounded execution windows before touching host state.
+  // A checkpoint, not an infinite loop, is the bounded continuation contract.
+  if (!Number.isSafeInteger(maxSteps) || maxSteps < 1 || maxSteps > 256)
+    throw new Error("agency_invalid_step_budget");
+
   let shared = await input.runtime.loadSharedState();
   const restored = await input.runtime.loadAgencyState?.(input.goal);
   const restoring = restored?.goal === input.goal;
+
+  // A restart or an ordinary "go" is not an authorization to clear a
+  // persisted STOP/approval boundary. Likewise, a terminal, empty-work goal
+  // is not a fresh task merely because its text was repeated.
+  // A trusted caller must first record a genuine new objective or approval.
+  if (restoring && (restored!.status === "blocked" ||
+    (restored!.status === "complete" && restored!.unresolvedWork.length === 0))) {
+    return { agency: restored!, shared };
+  }
   const resumeStep = restoring
     ? restored!.status === "checkpointed"
       ? restored!.currentStep + 1
@@ -128,8 +143,6 @@ export async function runAgency<SharedState>(input: {
         attemptedActionIds: [],
         lastVerification: null,
       };
-
-  const maxSteps = input.maxSteps ?? 64;
 
   for (let i = 0; i < maxSteps; i += 1) {
     // Never rewind a durable checkpoint to step zero. A checkpoint is written
