@@ -106,3 +106,9 @@ CI must be recorded on the new commit separately from the preceding green head.
 This proves sequential disk reopen and saved-turn replay in this local store,
 not distributed exactly-once, real model personality or device/voice behavior.
 No runtime implementation, new engine, grant or Thread 1 source was changed.
+
+## B11 save-failure follow-through
+
+A synthetic EIO fault at the local atomic rename confirms that failed commit leaves the previous disk bytes, unfinished work and behavioral correction intact, records neither the failed canonical turn nor its history, and cleans the temporary file. The same store accepts a subsequent retry and repeated commit without duplicate history. Actual file IO is used except the one injected rename fault. No runtime repair was needed.
+
+Focused state/restart regressions: 5 passed. Full control source suite: 37 files, 156 passed. This is local persistence evidence, not distributed recovery, upstream bridge delivery, worker safety, live model or deployed acceptance. Exact-head CI is recorded in PR #373.
