@@ -146,8 +146,8 @@
     "apps/backend/lib/arbor/subsystem/__tests__/stateReadbackScope.test.ts": "da399b6a5a5b54437d7e9e7faf5a9890d584eaca",
     "apps/backend/lib/arbor/agency/state.ts": "ed47102d22692e6dc10dcae5386a3076c01d4142",
     "apps/backend/lib/arbor/agency/__tests__/stateScopeReadback.test.ts": "87b914157bcdb5bd95e113d22151c650cc752fd0",
-    "apps/backend/lib/memory/historicalRecall.ts": "13319d849c5f3a016ae4bf56d8fd8a931de09d59",
-    "apps/backend/lib/memory/__tests__/historicalRecall.test.ts": "2c6bf19cd60ff9943db27343ff9d0a120592cb73",
+    "apps/backend/lib/memory/historicalRecall.ts": "0bc25ce7a98188b4e8ed9cb446720a573b3f61c2",
+    "apps/backend/lib/memory/__tests__/historicalRecall.test.ts": "f394b970523f164489286c4dbe1541590698789d",
     "apps/backend/lib/arbor/episodes/episodeRecall.ts": "c3d3a3bd41f93b3c2ca89f6462a22ea226926648",
     "apps/backend/lib/arbor/episodes/__tests__/episodeRecallScope.test.ts": "ee11409979e894bd0c67bf12af6b628823e3c73e",
     "apps/backend/lib/memory/patternHopRetrieval.ts": "3f7fa7cb33b03fe8f0ad9b4b5aa7c855faa6af4b",
@@ -155,5 +155,5 @@
     "apps/backend/lib/memory/__tests__/patternHopRetrieval.test.ts": "97a98634306e80353c47a79c37b354b9e911c634",
     "apps/backend/lib/memory/__tests__/historicalHopScopeReadback.test.ts": "1be17184e4e65d15a904c3c72426df6898b1638e"
   },
-  "comment": "Existing Group 03/10 historical Pattern Hop lexical and semantic owner/project authority recheck, authenticated canonical provenance and synthetic negative controls; source-only."
+  "comment": "Historical recall canonical owned excerpt instead of RPC-provided content; optional fail-closed revalidation, synthetic tests; no retrieval schema or live data change."
 }

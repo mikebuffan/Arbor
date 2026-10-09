@@ -51,6 +51,35 @@ describe("archive recall recovery and provenance", () => {
       expect(JSON.stringify(warn.mock.calls)).not.toContain("PRIVATE-MESSAGE");
     } finally {warn.mockRestore();}
   });
+  it("promotes canonical archive text instead of an RPC-supplied forged excerpt", async () => {
+    const safe=turn("owned", {content:"Verified original archive excerpt"});
+    const forged=turn("owned", {
+      content:"SECRET-REPLACEMENT-RPC",source:"forged-source",similarity:0.95,
+    });
+    const db=database({
+      semantic:[forged, {id:"foreign", similarity:.99,content:"SECRET-FOREIGN"}],
+      verification:[safe, turn("foreign",{user_id:"another",content:"SECRET-FOREIGN-ROW"})],
+      neighbors:[safe], lexical:[],
+    });
+    const result=await readHistoricalConversationRecall({...input,supabase:db.supabase});
+    expect(result.turns.map(row=>row.id)).toEqual(["owned"]);
+    expect(result.turns[0]).toMatchObject({
+      content:"Verified original archive excerpt",source:"archive-A"
+    });
+    expect(JSON.stringify(result)).not.toContain("SECRET");
+    expect(db.queries.some(q=>q.verify &&
+      q.filters.some(([key,value]:[string,unknown])=>key==="user_id"&&value==="owner"))).toBe(true);
+  });
+
+  it("rejects semantic source text when canonical verification is missing",async()=>{
+    const db=database({semantic:[
+      turn("forged",{similarity:.99,content:"SECRET-UNVERIFIED"}),
+    ],verification:[],lexical:[]});
+    const result=await readHistoricalConversationRecall({...input,supabase:db.supabase});
+    expect(result.turns).toEqual([]);
+    expect(JSON.stringify(result)).not.toContain("SECRET");
+  });
+
   it("expands only the same source, thread, owner, and project", async () => {
     const row=turn("match"),db=database({lexical:[row],neighbors:[row,
       turn("wrong-source",{source:"archive-B"}),turn("wrong-owner",{user_id:"foreign"}),

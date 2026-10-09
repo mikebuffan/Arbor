@@ -132,23 +132,28 @@ async function semanticCandidates(params: {
 
   if (error) throw error;
   if (!Array.isArray(data) || !data.length) return [];
-  // The legacy embedding RPC returns content but not the owner fields.
-  // Recheck its matched IDs using the same row-level owner/project authority
-  // as lexical search, rather than trusting the RPC response by itself.
-  const proposed = data.map(readableTurn).filter((v): v is HistoricalRecallTurn => v !== null);
-  if (!proposed.length) return [];
+  // The legacy embedding RPC returns proposed IDs, similarity and untrusted
+  // excerpt text without owner/project fields. Read canonical excerpts again,
+  // checking returned-row scope before supplying context to the model.
+  const scores = new Map<string, number>();
+  for (const row of data) {
+    if (!row || typeof row.id !== "string" || !row.id ||
+        typeof row.similarity !== "number" || !Number.isFinite(row.similarity))
+      continue;
+    scores.set(row.id, Math.max(scores.get(row.id) ?? -Infinity, row.similarity));
+  }
+  if (!scores.size) return [];
   const { data: validated, error: scopeError } = await params.supabase
     .from("historical_conversation_turns")
-    .select("id,user_id,project_id")
+    .select("id,user_id,project_id,source,source_thread_id,source_message_id,source_message_index,role,content,occurred_at")
     .eq("user_id", params.userId)
     .eq("project_id", params.projectId)
-    .in("id", [...new Set(proposed.map(row => row.id))]);
+    .in("id", [...scores.keys()]);
   if (scopeError) throw scopeError;
-  if (!Array.isArray(validated)) return [];
-  const allowed = new Set(validated.filter(row =>
-    row && row.user_id === params.userId && row.project_id === params.projectId &&
-    typeof row.id === "string").map(row => row.id as string));
-  return proposed.filter(row => allowed.has(row.id));
+  return lexicalScopedRows(validated, params.userId, params.projectId)
+    .flatMap(turn => scores.has(turn.id)
+      ? [{ ...turn, similarity: scores.get(turn.id)! }]
+      : []);
 }
 
 async function expandAroundMatch(params: {
