@@ -8,6 +8,7 @@ on:
       - review/one-arbor-judgment-feedback-gates-20261007
       - test/one-arbor-judgment-blind-pack-20261007
       - review/one-arbor-b12-candidate-shape-20261007
+      - review/one-arbor-372-373-safe-composition-20261009
   pull_request:
     branches:
       - review/one-arbor-group11-assembly-followon-20261007
@@ -73,6 +74,10 @@ jobs:
         run: >-
           pnpm exec vitest run
           lib/arbor/behavior/behaviorProjection.test.ts
+          lib/arbor/agency/__tests__/acceptanceRunner.test.ts
+          lib/arbor/behavior/__tests__/proactiveJudgmentOfflineRunner.test.ts
+          lib/arbor/runtime/__tests__/discoveryRadar.test.ts
+          lib/arbor/runtime/__tests__/group11SourceBoundary.test.ts
           lib/arbor/behavior/__tests__/independentJudgmentCases.test.ts
           lib/arbor/behavior/__tests__/independentJudgmentBlindPack.test.ts
           lib/arbor/behavior/__tests__/independentJudgmentOfflineRunner.test.ts

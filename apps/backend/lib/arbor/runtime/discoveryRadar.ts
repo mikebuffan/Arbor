@@ -85,6 +85,9 @@ export function projectDiscoveryRadar(input: {
   requireScope(input.scope);
   if (!Array.isArray(input.candidates) || input.candidates.length > 32 ||
       !Array.isArray(input.authorizedProjectIds) || input.authorizedProjectIds.length > 20 ||
+      input.authorizedProjectIds.some(id => !good(id, 200)) ||
+      new Set(input.authorizedProjectIds).size !== input.authorizedProjectIds.length ||
+      (input.crossProjectEnabled !== undefined && typeof input.crossProjectEnabled !== "boolean") ||
       !Array.isArray(input.visitedEvidenceIds ?? []))
     throw new Error("discovery_radar_invalid_input");
 

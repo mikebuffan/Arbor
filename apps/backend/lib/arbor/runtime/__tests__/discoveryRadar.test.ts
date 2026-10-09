@@ -115,4 +115,21 @@ describe("read-only discovery candidate routing", () => {
     expect(() => projectDiscoveryRadar(input(many, { maxSuggestions: 30 })))
       .toThrow("discovery_radar_invalid_limit");
   });
+
+  it("rejects truthy non-boolean cross-project flags instead of enabling foreign suggestions", () => {
+    const foreign = item("other", { projectId: "grove" });
+    for (const flag of ["false", "true", 1, {}, [], null]) {
+      expect(() => projectDiscoveryRadar(input([foreign], {
+        authorizedProjectIds: ["arbor", "grove"], crossProjectEnabled: flag,
+      }) as Parameters<typeof projectDiscoveryRadar>[0]))
+        .toThrow("discovery_radar_invalid_input");
+    }
+  });
+
+  it("rejects malformed and duplicate project IDs before forming the authorized set", () => {
+    for (const ids of [["arbor", null], ["arbor", " "], ["arbor", 12], ["arbor", "x".repeat(201)], ["arbor", "arbor"]]) {
+      expect(() => projectDiscoveryRadar(input([], { authorizedProjectIds: ids }) as Parameters<typeof projectDiscoveryRadar>[0]))
+        .toThrow("discovery_radar_invalid_input");
+    }
+  });
 });
