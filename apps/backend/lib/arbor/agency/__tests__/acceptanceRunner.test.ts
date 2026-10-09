@@ -305,4 +305,38 @@ describe("isolated acceptance runner (mock provider, never live acceptance)", ()
     },
   );
 
+  it("rejects a large aggregate of individually valid prompts before any capture", async () => {
+    const expanded = Array.from({ length: 20 }, (_, i) => ({
+      id: "aggregate-" + i, userTurns: ["x".repeat(7000)],
+    }));
+    const casePackHash = createHash("sha256")
+      .update(JSON.stringify({ schemaVersion: 1, cases: expanded })).digest("hex");
+    const createResponse = vi.fn();
+    const record = vi.fn();
+    const provision = vi.fn();
+    await expect(runAcceptanceComparison({
+      generation: { schemaVersion: 1, casePackHash, cases: expanded },
+      assignment: { schemaVersion: 1, casePackHash, cases: expanded.map(c => ({
+        caseId: c.id, A: "baseline", B: "candidate",
+      })) },
+      config, createResponse, record, provision,
+    })).rejects.toThrow("acceptance_invalid_case");
+    expect(createResponse).not.toHaveBeenCalled();
+    expect(record).not.toHaveBeenCalled();
+    expect(provision).not.toHaveBeenCalled();
+  });
+
+  it("rejects overlarge instruction/context material before any capture", async () => {
+    const createResponse = vi.fn();
+    const record = vi.fn();
+    const provision = vi.fn();
+    await expect(runAcceptanceComparison({ generation, assignment,
+      config: { ...config, candidateContext: "x".repeat(64001) },
+      createResponse, record, provision,
+    })).rejects.toThrow("acceptance_context_required");
+    expect(createResponse).not.toHaveBeenCalled();
+    expect(record).not.toHaveBeenCalled();
+    expect(provision).not.toHaveBeenCalled();
+  });
+
 });

@@ -70,6 +70,11 @@ export function validateAcceptanceInput(generation: Generation, assignment: Assi
     Array.isArray(c.userTurns) && c.userTurns.length > 0 && c.userTurns.length <= 8 &&
     c.userTurns.every(t => typeof t === "string" && Boolean(t.trim()) && t.length <= 12000)),
     "acceptance_invalid_case");
+  // A collection of individually bounded turns can still be an oversized
+  // prompt. Reject the aggregate before hashing or contacting the provider.
+  const totalTurnCharacters = generation.cases.reduce((total, c) =>
+    total + c.userTurns.reduce((sum, turn) => sum + turn.length, 0), 0);
+  requireValue(totalTurnCharacters <= 120000, "acceptance_invalid_case");
   requireValue(generation.schemaVersion === 1 && assignment.schemaVersion === 1 &&
     /^[a-f0-9]{64}$/.test(generation.casePackHash) && generation.casePackHash === assignment.casePackHash &&
     receivedCasesMatchPack(generation),
@@ -87,6 +92,9 @@ export function validateAcceptanceInput(generation: Generation, assignment: Assi
     typeof config.baselineContext === "string" && typeof config.candidateContext === "string" &&
     config.candidateContext.trim() && config.baselineContext !== config.candidateContext,
     "acceptance_context_required");
+  const contextCharacters = config.taskInstructions.length +
+    config.baselineContext.length + config.candidateContext.length;
+  requireValue(contextCharacters <= 64000, "acceptance_context_required");
   requireValue([config.maxRounds, config.maxCalls, config.maxOutputTokens].every(n => Number.isSafeInteger(n) && n > 0) &&
     config.maxRounds <= 48 && config.maxCalls <= 128 &&
     config.maxOutputTokens <= 4096 &&

@@ -186,8 +186,8 @@
     "apps/backend/lib/memory/__tests__/patternHopRunWriteReceipt.test.ts": "e76320c302b886ebd6f4a5368650801e91be3761",
     "apps/arbor-control-backend/src/runtimeRestart.test.ts": "282f89c495969c96646eb30d5cbe2052fab3a58b",
     "apps/arbor-control-backend/src/stateStoreFailure.test.ts": "f4beab8f8d566b85bef3276ac7313e0aa0a95a86",
-    "apps/backend/lib/arbor/agency/__tests__/acceptanceRunner.test.ts": "c3230fa7fc9a879b054c02d85082b42685e3636d",
-    "apps/backend/lib/arbor/agency/acceptanceRunner.ts": "c49e4daeb3f5c01b7e07acaf807a6863b767e79d",
+    "apps/backend/lib/arbor/agency/__tests__/acceptanceRunner.test.ts": "155d086eceae4fb426621642b8c6f347ca0b4155",
+    "apps/backend/lib/arbor/agency/acceptanceRunner.ts": "f77581a5c0ff0730d51de102dfed11b0ccf17a66",
     "apps/backend/lib/arbor/behavior/__tests__/fixtures/proactiveJudgment/README.md": "a1df317895d0492880820cf70bc9392c43828c7d",
     "apps/backend/lib/arbor/behavior/__tests__/fixtures/proactiveJudgment/demo_assignment.json": "94c8507d9874315d2929dfd96e0613d21d7d4476",
     "apps/backend/lib/arbor/behavior/__tests__/fixtures/proactiveJudgment/host_private_rubric.json": "745be7ab5cdfd00ed07b8045ab41dd079abde250",
@@ -217,7 +217,7 @@
     "apps/backend/lib/arbor/agency/__tests__/providerCompletionBoundary.test.ts": "18963f463b383a4c10b15270b1f6357d28e98a62",
     "docs/integration/ONE_ARBOR_CHAT_PROVIDER_COMPLETION_20261009.md": "ff5a00c7a025f4564acf50ae0e19a6927ab995db",
     "docs/integration/ONE_ARBOR_INDEPENDENT_CHAT_INTEGRATION_20261009.md": "5dcd7ab0e9d37ca2614b27a6173e6d6330f2033a",
-    "docs/integration/ONE_ARBOR_INDEPENDENCE_BUDGET_PREFLIGHT_20261009.md": "0e208c08c9cb5aee3955bb794add270e38604a63"
+    "docs/integration/ONE_ARBOR_INDEPENDENCE_BUDGET_PREFLIGHT_20261009.md": "fb417ba4f4718fd87d13a5d4aa81b7af293a1b97"
   },
   "comment": "Source-only incorporation from Library ONE_ARBOR_CODE_REPAIRS_20261009.zip: 17 exact source/test blobs verified, packages reconciled with original PR #372 head, 3 focused tests added; CI/release acceptance remain separately gated."
 }
