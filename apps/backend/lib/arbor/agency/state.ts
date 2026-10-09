@@ -115,7 +115,7 @@ async function loadLastAgencyCheckpoint(input: {
 }): Promise<AgencyState | null> {
   const { data, error } = await input.supabase
     .from("arbor_agency_checkpoints")
-    .select("agency_status,current_step,unresolved_work,objective")
+    .select("user_id,project_id,agency_status,current_step,unresolved_work,objective")
     .eq("user_id", input.userId)
     .eq("project_id", input.projectId)
     .order("objective_revision", { ascending: false })
@@ -127,8 +127,11 @@ async function loadLastAgencyCheckpoint(input: {
     throw error;
   }
 
-  const objective = normalizeObjective(data?.objective);
-  if (!data || !objective) return null;
+  // Check returned scope, not only the SQL filters, before resuming work.
+  if (!data || data.user_id !== input.userId ||
+      data.project_id !== input.projectId) return null;
+  const objective = normalizeObjective(data.objective);
+  if (!objective) return null;
 
   return {
     goal: objective.parentGoal,
@@ -150,7 +153,7 @@ export async function loadAgencyState(input: {
   const { data, error } = await input.supabase
     .from("arbor_runtime_state")
     .select(
-      "agency_goal,agency_status,agency_current_step,agency_unresolved_work,agency_recurring_weaknesses,agency_strategy_notes,agency_blocker,agency_objective",
+      "user_id,project_id,agency_goal,agency_status,agency_current_step,agency_unresolved_work,agency_recurring_weaknesses,agency_strategy_notes,agency_blocker,agency_objective",
     )
     .eq("user_id", input.userId)
     .eq("project_id", input.projectId)
@@ -160,6 +163,10 @@ export async function loadAgencyState(input: {
     if (isMissingRuntimeTable(error)) return null;
     throw error;
   }
+
+  // A foreign returned row must not become this owner's active goal.
+  if (data && (data.user_id !== input.userId ||
+      data.project_id !== input.projectId)) return null;
 
   if (!data?.agency_goal || !data?.agency_status) {
     return loadLastAgencyCheckpoint(input);

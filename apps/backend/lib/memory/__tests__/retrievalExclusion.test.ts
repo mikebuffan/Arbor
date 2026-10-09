@@ -4,7 +4,7 @@ import {getAlwaysIncludedMemoryAnchors, getMemoryContext} from "../retrieval";
 import {selectItemsForPrompt} from "../selectForPrompt";
 import {getProjectAnchors} from "../anchors";
 
-const row=(id:string, excluded=false)=>({id,project_id:"project",scope:"project",key:id,
+const row=(id:string, excluded=false)=>({id,user_id:"owner",project_id:"project",scope:"project",key:id,
  value:{text:id},tier:"core" as const,pinned:true,locked:true,user_trigger_only:false,
  status:"active",deleted_at:null,excluded_from_memory:excluded});
 function db(responses:any[],vector:any[]=[]){
@@ -19,6 +19,24 @@ function db(responses:any[],vector:any[]=[]){
 }
 const scope={authedUserId:"owner",projectId:"project",conversationId:null,latestUserText:"what is remembered"};
 describe("memory exclusion across retrieval routes",()=>{
+ it("checks returned owners in direct recall and always-included anchors",async()=>{
+  const rows=[row("safe"),{...row("foreign"),user_id:"someone-else"},
+   {...row("missing"),user_id:undefined},{...row("invalid-id"),id:null}];
+  const d=db([{data:rows,error:null},{data:rows,error:null}]);
+  expect((await getMemoryContext({...scope,supabase:d.client})).keysUsed).toEqual(["safe"]);
+  expect((await getAlwaysIncludedMemoryAnchors({...scope,supabase:d.client})).map(x=>x.id)).toEqual(["safe"]);
+ });
+ it("never accepts a foreign canonical row during vector revalidation",async()=>{
+  const d=db([{data:[row("safe"),{...row("foreign"),user_id:"other"}],error:null}],
+   [row("safe"),row("foreign")]);
+  expect((await getMemoryContext({...scope,supabase:d.client,useVectorSearch:true})).keysUsed).toEqual(["safe"]);
+  expect(d.queries[0].select.mock.calls[0][0]).toContain("user_id");
+ });
+ it("drops malformed optional direct-memory collections without crashing",async()=>{
+  const d=db([{data:{content:"untrusted"},error:null},{data:{content:"untrusted"},error:null}]);
+  expect((await getMemoryContext({...scope,supabase:d.client})).keysUsed).toEqual([]);
+  expect(await getAlwaysIncludedMemoryAnchors({...scope,supabase:d.client})).toEqual([]);
+ });
  it("excludes pinned/locked/core rows from direct recall and anchors",async()=>{
   const rows=[row("allowed"),row("excluded",true)];
   const d=db([{data:rows,error:null},{data:rows,error:null}]);

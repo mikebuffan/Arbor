@@ -41,17 +41,30 @@ export function resumeManuscriptContinuation(input: {
 }): ManuscriptContinuationResult {
   const { state, acceptance } = input;
   const finalChapter = input.finalChapter ?? 60;
+  if (!Number.isSafeInteger(finalChapter) || finalChapter < 1 ||
+      !Number.isSafeInteger(acceptance.chapterNumber) ||
+      acceptance.chapterNumber < 1 || acceptance.chapterNumber > finalChapter)
+    throw new Error("annabelle_continuation_invalid_chapter");
+  if (acceptance.passed !== true || acceptance.blockers !== 0 ||
+      acceptance.protectedEditAllowed !== true ||
+      acceptance.exactSourceHashVerified !== true ||
+      acceptance.sourceKind !== "canonical-manuscript")
+    throw new Error("annabelle_continuation_acceptance_not_passed");
   if (state.manuscriptId !== acceptance.manuscriptId)
     throw new Error("annabelle_continuation_manuscript_mismatch");
   if (state.manuscriptSha256 !== acceptance.manuscriptSha256)
     throw new Error("annabelle_continuation_manuscript_hash_changed");
-  if (state.nextChapter < 1 || state.nextChapter > finalChapter + 1)
+  if (!Number.isSafeInteger(state.nextChapter) || state.nextChapter < 1 || state.nextChapter > finalChapter + 1)
     throw new Error("annabelle_continuation_invalid_next_chapter");
+  if (!Number.isSafeInteger(state.sequence) || state.sequence < 0)
+    throw new Error("annabelle_continuation_invalid_sequence");
 
   const existing = state.completed.find(x => x.chapterNumber === acceptance.chapterNumber);
   if (existing) {
     if (existing.sourceSha256 !== acceptance.sourceSha256)
       throw new Error("annabelle_continuation_completed_source_changed");
+    if (existing.acceptanceFingerprint !== acceptanceFingerprint(acceptance))
+      throw new Error("annabelle_continuation_completed_acceptance_changed");
     return { state, duplicateSuppressed: true, completedChapter: false };
   }
 

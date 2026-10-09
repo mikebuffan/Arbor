@@ -3,10 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/browser";
+import { safeArborReturnPath } from "@/lib/auth/safeReturnPath";
 
-function safeNext(value: string | null) {
-  return value && value.startsWith("/") && !value.startsWith("//") ? value : "/";
-}
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -17,7 +15,7 @@ export default function LoginPage() {
   const router = useRouter();
 
   useEffect(() => {
-    setDestination(safeNext(new URLSearchParams(window.location.search).get("next")));
+    setDestination(safeArborReturnPath(new URLSearchParams(window.location.search).get("next")));
   }, []);
 
   async function signIn(e: React.FormEvent) {
@@ -46,6 +44,28 @@ export default function LoginPage() {
     const { error } = await supabase.auth.signUp({ email, password });
     setLoading(false);
     setMsg(error ? error.message : "Account created. If email confirmation is enabled, check your email, then sign in.");
+  }
+
+
+  async function sendRecoveryLink() {
+    if (!email.trim()) {
+      setMsg("Enter your existing Arbor account email first.");
+      return;
+    }
+    setLoading(true);
+    setMsg(null);
+    try {
+      const supabase = supabaseBrowser();
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: new URL("/reset-password", window.location.origin).toString(),
+      });
+      if (error) throw error;
+      setMsg("If that account is registered, a password-recovery email will arrive. Use the newest link only.");
+    } catch {
+      setMsg("Recovery email could not be requested. Please try again later.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -78,6 +98,9 @@ export default function LoginPage() {
           />
           <button disabled={loading} type="submit" className="mt-3 min-h-12 rounded-2xl border border-fuchsia-300/20 bg-fuchsia-300/[0.09] font-medium text-fuchsia-50 transition hover:bg-fuchsia-300/[0.14] disabled:opacity-50">
             {loading ? "Signing in…" : "Sign in"}
+          </button>
+          <button type="button" onClick={() => void sendRecoveryLink()} disabled={loading} className="min-h-10 text-sm text-emerald-200 underline underline-offset-4 hover:text-emerald-100 disabled:opacity-50">
+            Forgot password?
           </button>
           <button disabled={loading} onClick={signUp} className="min-h-11 rounded-2xl border border-white/10 text-sm text-zinc-500 transition hover:text-zinc-200 disabled:opacity-50">
             Create account

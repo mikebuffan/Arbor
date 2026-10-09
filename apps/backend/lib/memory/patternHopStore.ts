@@ -11,14 +11,59 @@ export type PatternHopRunRecord = {
   verificationState: Record<string, unknown>;
 };
 
+function nonblankString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function recordObject(value: unknown): boolean {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function restoredEvidenceId(row: any): string {
+  return nonblankString(row.metadata?.client_evidence_id)
+    ? row.metadata.client_evidence_id : row.id;
+}
+
+function assertUniqueEvidenceIdentities(rows: readonly any[]): void {
+  const databaseIds = new Set<string>();
+  const restoredIds = new Set<string>();
+  for (const row of rows) {
+    const id = restoredEvidenceId(row);
+    // Two database sources must never become one restored evidence identity.
+    // Repeated provider rows are also not additional source corroboration.
+    if (databaseIds.has(row.id) || restoredIds.has(id))
+      throw new Error("pattern_hop_evidence_identity_ambiguous");
+    databaseIds.add(row.id);
+    restoredIds.add(id);
+  }
+}
+
 function mapState(row: any): PatternHopState {
+  // Never replace damaged durable progress with empty traversal lists. A
+  // malformed checkpoint must fail before any research or checkpoint write.
+  const stringList = (value: unknown) =>
+    Array.isArray(value) && value.every(nonblankString);
+  if (!nonblankString(row.objective) ||
+      !Number.isInteger(row.max_depth) || row.max_depth < 1 || row.max_depth > 32 ||
+      !Array.isArray(row.frontier) || !row.frontier.every((item: any) =>
+        recordObject(item) && nonblankString(item.evidenceId) &&
+        nonblankString(item.clue) && nonblankString(item.branch) &&
+        Number.isInteger(item.depth) && item.depth >= 0 && item.depth <= row.max_depth) ||
+      !stringList(row.visited) || !stringList(row.completed_branches) ||
+      !stringList(row.exhausted_branches) ||
+      !["active", "complete", "blocked", "exhausted"].includes(row.status) ||
+      (row.blocker != null && typeof row.blocker !== "string") ||
+      (row.conversation_id != null && !nonblankString(row.conversation_id)) ||
+      !recordObject(row.seed ?? {}) || !recordObject(row.verification_state ?? {})) {
+    throw new Error("pattern_hop_run_state_invalid");
+  }
   return {
-    objective: String(row.objective),
-    maxDepth: Number(row.max_depth ?? 6),
-    frontier: Array.isArray(row.frontier) ? row.frontier : [],
-    visited: Array.isArray(row.visited) ? row.visited : [],
-    completedBranches: Array.isArray(row.completed_branches) ? row.completed_branches : [],
-    exhaustedBranches: Array.isArray(row.exhausted_branches) ? row.exhausted_branches : [],
+    objective: row.objective,
+    maxDepth: row.max_depth,
+    frontier: row.frontier,
+    visited: row.visited,
+    completedBranches: row.completed_branches,
+    exhaustedBranches: row.exhausted_branches,
     status: row.status,
     blocker: row.blocker ?? null,
   };
@@ -66,6 +111,12 @@ export async function createPatternHopRun(params: {
 
   if (error) throw error;
 
+  if (!data || typeof data.id !== "string" || !data.id.trim() ||
+      data.user_id !== params.userId ||
+      data.project_id !== params.projectId ||
+      data.conversation_id !== (params.conversationId ?? null))
+    throw new Error("pattern_hop_run_insert_scope_invalid");
+
   return {
     id: String(data.id),
     userId: params.userId,
@@ -92,7 +143,11 @@ export async function loadPatternHopRun(params: {
     .maybeSingle();
 
   if (error) throw error;
-  if (!data) return null;
+  // Reject an administrative or misrouted readback even when the query
+  // was fully scoped; never resume a foreign run.
+  if (!data || data.id !== params.runId ||
+      data.user_id !== params.userId ||
+      data.project_id !== params.projectId) return null;
 
   return {
     id: String(data.id),
@@ -114,7 +169,7 @@ export async function savePatternHopRun(params: {
   verificationState?: Record<string, unknown>;
 }) {
   const s = params.state;
-  const { error } = await params.supabase
+  const { data, error } = await params.supabase
     .from("arbor_pattern_hop_runs")
     .update({
       status: s.status,
@@ -129,9 +184,17 @@ export async function savePatternHopRun(params: {
     })
     .eq("id", params.runId)
     .eq("user_id", params.userId)
-    .eq("project_id", params.projectId);
+    .eq("project_id", params.projectId)
+    .select("id,user_id,project_id")
+    .maybeSingle();
 
   if (error) throw error;
+  // An error-free zero-row UPDATE is not a saved checkpoint. Require the
+  // updated row's identity before the caller acknowledges durable progress.
+  if (!data || data.id !== params.runId ||
+      data.user_id !== params.userId ||
+      data.project_id !== params.projectId)
+    throw new Error("pattern_hop_run_update_scope_invalid");
 }
 
 export async function persistPatternHopEvidence(params: {
@@ -164,8 +227,10 @@ export async function persistPatternHopEvidence(params: {
 
     let existingQuery = params.supabase
       .from("arbor_pattern_hop_evidence")
-      .select("id")
+      .select("id,run_id,user_id,project_id,source,content,source_message_id")
       .eq("run_id", params.runId)
+      .eq("user_id", params.userId)
+      .eq("project_id", params.projectId)
       .eq("source", item.source)
       .eq("content", item.content);
 
@@ -178,19 +243,32 @@ export async function persistPatternHopEvidence(params: {
 
     if (existingError) throw existingError;
 
-    if (existing?.id) {
-      ids.set(item.id, String(existing.id));
+    if (existing) {
+      if (typeof existing.id !== "string" || !existing.id ||
+          existing.run_id !== params.runId ||
+          existing.user_id !== params.userId ||
+          existing.project_id !== params.projectId ||
+          existing.source !== item.source ||
+          existing.content !== item.content ||
+          existing.source_message_id !== (item.sourceMessageId ?? null))
+        throw new Error("pattern_hop_evidence_existing_scope_invalid");
+      ids.set(item.id, existing.id);
       continue;
     }
 
     const { data, error } = await params.supabase
       .from("arbor_pattern_hop_evidence")
       .insert(row)
-      .select("id")
+      .select("id,run_id,user_id,project_id")
       .single();
 
     if (error) throw error;
-    ids.set(item.id, String(data.id));
+    if (!data || typeof data.id !== "string" || !data.id ||
+        data.run_id !== params.runId ||
+        data.user_id !== params.userId ||
+        data.project_id !== params.projectId)
+      throw new Error("pattern_hop_evidence_insert_scope_invalid");
+    ids.set(item.id, data.id);
   }
 
   return ids;
@@ -204,24 +282,31 @@ export async function persistPatternHopEdges(params: {
 }) {
   if (!params.edges.length) return;
 
-  const rows = params.edges.map((edge) => ({
-    run_id: params.runId,
-    from_evidence_id: edge.fromEvidenceId
-      ? params.idMap.get(edge.fromEvidenceId) ?? edge.fromEvidenceId
-      : null,
-    to_evidence_id: params.idMap.get(edge.toEvidenceId) ?? edge.toEvidenceId,
-    originating_clue: edge.originatingClue,
-    relationship: edge.relationship,
-    hop_depth: edge.hopDepth,
-    confidence: edge.confidence,
-    epistemic_status: edge.epistemicStatus,
-    rationale: edge.rationale,
-  }));
+  // Only DB IDs produced by scoped evidence persistence may be endpoints.
+  // Passing through arbitrary source IDs could link to an unrelated run.
+  const rows = params.edges.map((edge) => {
+    const to = params.idMap.get(edge.toEvidenceId);
+    const from = edge.fromEvidenceId
+      ? params.idMap.get(edge.fromEvidenceId) : null;
+    if (!to || (edge.fromEvidenceId && !from))
+      throw new Error("pattern_hop_edge_unverified_endpoint");
+    return {
+      run_id: params.runId,
+      from_evidence_id: from,
+      to_evidence_id: to,
+      originating_clue: edge.originatingClue,
+      relationship: edge.relationship,
+      hop_depth: edge.hopDepth,
+      confidence: edge.confidence,
+      epistemic_status: edge.epistemicStatus,
+      rationale: edge.rationale,
+    };
+  });
 
   for (const row of rows) {
     let existingQuery = params.supabase
       .from("arbor_pattern_hop_edges")
-      .select("id")
+      .select("id,run_id,from_evidence_id,to_evidence_id,relationship,hop_depth")
       .eq("run_id", row.run_id)
       .eq("to_evidence_id", row.to_evidence_id)
       .eq("relationship", row.relationship)
@@ -235,13 +320,31 @@ export async function persistPatternHopEdges(params: {
       await existingQuery.maybeSingle();
 
     if (existingError) throw existingError;
-    if (existing?.id) continue;
+    if (existing) {
+      if (typeof existing.id !== "string" || !existing.id.trim() ||
+          existing.run_id !== row.run_id ||
+          existing.from_evidence_id !== row.from_evidence_id ||
+          existing.to_evidence_id !== row.to_evidence_id ||
+          existing.relationship !== row.relationship ||
+          existing.hop_depth !== row.hop_depth)
+        throw new Error("pattern_hop_edge_existing_identity_invalid");
+      continue;
+    }
 
-    const { error } = await params.supabase
+    const { data, error } = await params.supabase
       .from("arbor_pattern_hop_edges")
-      .insert(row);
+      .insert(row)
+      .select("id,run_id,from_evidence_id,to_evidence_id,relationship,hop_depth")
+      .single();
 
     if (error) throw error;
+    if (!data || typeof data.id !== "string" || !data.id.trim() ||
+        data.run_id !== row.run_id ||
+        data.from_evidence_id !== row.from_evidence_id ||
+        data.to_evidence_id !== row.to_evidence_id ||
+        data.relationship !== row.relationship ||
+        data.hop_depth !== row.hop_depth)
+      throw new Error("pattern_hop_edge_insert_identity_invalid");
   }
 }
 
@@ -255,7 +358,7 @@ export async function loadPatternHopEvidence(params: {
   const { data, error } = await params.supabase
     .from("arbor_pattern_hop_evidence")
     .select(
-      "id,source,source_thread_id,source_message_id,source_artifact_id,speaker,evidence_type,content,occurred_at,chronology_rank,confidence,epistemic_status,metadata",
+      "id,run_id,user_id,project_id,source,source_thread_id,source_message_id,source_artifact_id,speaker,evidence_type,content,occurred_at,chronology_rank,confidence,epistemic_status,metadata",
     )
     .eq("run_id", params.runId)
     .eq("user_id", params.userId)
@@ -264,11 +367,22 @@ export async function loadPatternHopEvidence(params: {
 
   if (error) throw error;
 
-  return (data ?? []).map((row: any) => ({
-    id:
-      typeof row.metadata?.client_evidence_id === "string"
-        ? row.metadata.client_evidence_id
-        : String(row.id),
+  const rows = Array.isArray(data) ? data : [];
+  const eligibleRows = rows.filter((row: any) =>
+    row && row.run_id === params.runId &&
+    row.user_id === params.userId &&
+    row.project_id === params.projectId &&
+    typeof row.id === "string" && row.id.length > 0 &&
+    typeof row.source === "string" && row.source.length > 0 &&
+    typeof row.evidence_type === "string" && row.evidence_type.length > 0 &&
+    typeof row.content === "string" && row.content.length > 0 &&
+    ["direct", "derived", "hypothesis", "retrospective", "contradictory"]
+      .includes(row.epistemic_status) &&
+    Number.isFinite(Number(row.confidence ?? 0.5))
+  );
+  assertUniqueEvidenceIdentities(eligibleRows);
+  return eligibleRows.map((row: any) => ({
+    id: restoredEvidenceId(row),
     source: String(row.source),
     sourceThreadId: row.source_thread_id
       ? String(row.source_thread_id)
@@ -293,47 +407,67 @@ export async function loadPatternHopEvidence(params: {
 export async function loadPatternHopEdges(params: {
   supabase: SupabaseClient;
   runId: string;
+  userId: string;
+  projectId: string;
 }): Promise<PatternHopEdge[]> {
+  // Edges have a run reference, not owner/project columns. Establish their
+  // allowed endpoints from a separately scoped evidence readback first.
   const { data: evidenceRows, error: evidenceError } = await params.supabase
     .from("arbor_pattern_hop_evidence")
-    .select("id,metadata")
-    .eq("run_id", params.runId);
+    .select("id,run_id,user_id,project_id,metadata")
+    .eq("run_id", params.runId)
+    .eq("user_id", params.userId)
+    .eq("project_id", params.projectId);
 
   if (evidenceError) throw evidenceError;
+  const ownedEvidence = Array.isArray(evidenceRows) ? evidenceRows.filter(row =>
+    row && typeof row.id === "string" && row.id.length > 0 &&
+    row.run_id === params.runId &&
+    row.user_id === params.userId &&
+    row.project_id === params.projectId) : [];
+  if (!ownedEvidence.length) return [];
+  assertUniqueEvidenceIdentities(ownedEvidence);
 
-  const clientIdByDbId = new Map(
-    (evidenceRows ?? []).map((row: any) => [
-      String(row.id),
-      typeof row.metadata?.client_evidence_id === "string"
-        ? row.metadata.client_evidence_id
-        : String(row.id),
+  const clientIdByDbId = new Map<string, string>(
+    ownedEvidence.map(row => [
+      row.id,
+      restoredEvidenceId(row),
     ]),
   );
 
   const { data, error } = await params.supabase
     .from("arbor_pattern_hop_edges")
     .select(
-      "from_evidence_id,to_evidence_id,originating_clue,relationship,hop_depth,confidence,epistemic_status,rationale",
+      "run_id,from_evidence_id,to_evidence_id,originating_clue,relationship,hop_depth,confidence,epistemic_status,rationale",
     )
     .eq("run_id", params.runId)
     .order("hop_depth", { ascending: true })
     .order("created_at", { ascending: true });
 
   if (error) throw error;
-
-  return (data ?? []).map((row: any) => ({
-    fromEvidenceId: row.from_evidence_id
-      ? clientIdByDbId.get(String(row.from_evidence_id)) ??
-        String(row.from_evidence_id)
-      : null,
-    toEvidenceId:
-      clientIdByDbId.get(String(row.to_evidence_id)) ??
-      String(row.to_evidence_id),
-    originatingClue: String(row.originating_clue),
-    relationship: String(row.relationship),
-    hopDepth: Number(row.hop_depth),
+  if (!Array.isArray(data)) return [];
+  return data.filter(row =>
+    row && row.run_id === params.runId &&
+    typeof row.to_evidence_id === "string" &&
+    clientIdByDbId.has(row.to_evidence_id) &&
+    (row.from_evidence_id === null ||
+      (typeof row.from_evidence_id === "string" &&
+       clientIdByDbId.has(row.from_evidence_id))) &&
+    typeof row.originating_clue === "string" &&
+    typeof row.relationship === "string" &&
+    Number.isInteger(row.hop_depth) && row.hop_depth >= 0 &&
+    typeof row.rationale === "string" &&
+    ["direct", "derived", "hypothesis"].includes(row.epistemic_status) &&
+    Number.isFinite(Number(row.confidence ?? 0.5))
+  ).map(row => ({
+    fromEvidenceId: row.from_evidence_id === null
+      ? null : clientIdByDbId.get(row.from_evidence_id)!,
+    toEvidenceId: clientIdByDbId.get(row.to_evidence_id)!,
+    originatingClue: row.originating_clue,
+    relationship: row.relationship,
+    hopDepth: row.hop_depth,
     confidence: Number(row.confidence ?? 0.5),
-    epistemicStatus: row.epistemic_status,
-    rationale: String(row.rationale),
+    epistemicStatus: row.epistemic_status as PatternHopEdge["epistemicStatus"],
+    rationale: row.rationale,
   }));
 }

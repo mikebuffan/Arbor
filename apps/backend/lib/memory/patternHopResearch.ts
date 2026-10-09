@@ -12,6 +12,20 @@ import {
   type PatternHopLease,
 } from "@/lib/memory/patternHopRunControl";
 
+// This receipt is durable. Never copy an exception message into stored
+// Pattern Hop state: providers may embed private excerpts in their errors.
+export type PatternHopFailedSource = "historical" | "memory" | "timeline";
+export function patternHopSourceFailureReceipt(
+  sources: readonly PatternHopFailedSource[],
+): string {
+  const allowed = new Set(["historical", "memory", "timeline"]);
+  if (!sources.length || sources.some(source => !allowed.has(source)))
+    throw new Error("pattern_hop_invalid_failure_sources");
+  const unique = [...new Set(sources)];
+  return (unique.length === 3 ? "all" : "some") +
+    "_pattern_hop_sources_failed:" + unique.join("|");
+}
+
 export const DEFAULT_PATTERN_HOP_BRANCHES = ["direct_matches","neighboring_concepts","people_entities","terminology_changes","causal_predecessors","consequences","retrospective_references","chronology_anchors","implementation_architecture","behavioral_results","contradictions","primary_sources","source_lineage","falsification","relationships"] as const;
 
 function toEvidence(row: Awaited<ReturnType<typeof searchHistoricalHopEvidence>>[number], branch: string): PatternHopEvidence {
@@ -92,6 +106,8 @@ export async function runPatternHopResearch(params:{
   const edges:PatternHopEdge[]=await loadPatternHopEdges({
     supabase:params.supabase,
     runId:run.id,
+    userId:params.userId,
+    projectId:params.projectId,
   });
   const evidenceById=new Map<string,PatternHopEvidence>(
     found.map(evidence=>[evidence.id,evidence]),
@@ -130,36 +146,36 @@ export async function runPatternHopResearch(params:{
     let rows:Awaited<ReturnType<typeof searchHistoricalHopEvidence>>=[];
     let memory:PatternHopEvidence[]=[];
     let timeline:PatternHopEvidence[]=[];
-    const sourceFailures:string[]=[];
+    const sourceFailures:PatternHopFailedSource[]=[];
 
     try {
       rows=await searchHistoricalHopEvidence({
         supabase:params.supabase,userId:params.userId,projectId:params.projectId,clue:next.clue,limit:8
       });
-    } catch(error) {
-      sourceFailures.push("historical:"+(error instanceof Error?error.message:"failed"));
+    } catch {
+      sourceFailures.push("historical");
     }
 
     try {
       memory=await searchMemoryHopEvidence({
         supabase:params.supabase,userId:params.userId,projectId:params.projectId,clue:next.clue,limit:5
       });
-    } catch(error) {
-      sourceFailures.push("memory:"+(error instanceof Error?error.message:"failed"));
+    } catch {
+      sourceFailures.push("memory");
     }
 
     try {
       timeline=await searchTimelineHopEvidence({
         supabase:params.supabase,userId:params.userId,projectId:params.projectId,clue:next.clue,limit:5
       });
-    } catch(error) {
-      sourceFailures.push("timeline:"+(error instanceof Error?error.message:"failed"));
+    } catch {
+      sourceFailures.push("timeline");
     }
 
     if(sourceFailures.length > 0){
       // An unavailable route is not a negative finding. Keep the exact query
       // unvisited and at the front so a later authorized pass can retry it.
-      state={...stateBeforeRetrieval,status:"blocked",blocker:(sourceFailures.length === 3 ? "all" : "some")+"_pattern_hop_sources_failed:"+sourceFailures.join("|")};
+      state={...stateBeforeRetrieval,status:"blocked",blocker:patternHopSourceFailureReceipt(sourceFailures)};
       passStopReason = "sources_blocked";
       break;
     }

@@ -54,9 +54,9 @@ describe("memory project isolation", () => {
 
   it("does not return a mislabeled project memory through the lexical fallback", async () => {
     const response = { data: [
-      { id: "good-global", project_id: null, conversation_id: null, key: "safe-global", value: { text: "safe" }, tier: "normal", scope: "global", status: "active", deleted_at: null },
-      { id: "foreign-global", project_id: "project-b", conversation_id: null, key: "foreign", value: { text: "private" }, tier: "normal", scope: "global", status: "active", deleted_at: null },
-      { id: "conversation-masquerade", project_id: null, conversation_id: "conversation-b", key: "leak", value: { text: "private" }, tier: "normal", scope: "global", status: "active", deleted_at: null },
+      { user_id: "user-a", id: "good-global", project_id: null, conversation_id: null, key: "safe-global", value: { text: "safe" }, tier: "normal", scope: "global", status: "active", deleted_at: null },
+      { user_id: "user-a", id: "foreign-global", project_id: "project-b", conversation_id: null, key: "foreign", value: { text: "private" }, tier: "normal", scope: "global", status: "active", deleted_at: null },
+      { user_id: "user-a", id: "conversation-masquerade", project_id: null, conversation_id: "conversation-b", key: "leak", value: { text: "private" }, tier: "normal", scope: "global", status: "active", deleted_at: null },
     ], error: null };
     const query = { select: vi.fn(), eq: vi.fn(), is: vi.fn(), order: vi.fn(), or: vi.fn(), limit: vi.fn(), then: (resolve: (value: typeof response) => unknown) => Promise.resolve(response).then(resolve) };
     query.select.mockReturnValue(query); query.eq.mockReturnValue(query); query.is.mockReturnValue(query); query.order.mockReturnValue(query); query.or.mockReturnValue(query); query.limit.mockReturnValue(query);
@@ -68,9 +68,9 @@ describe("memory project isolation", () => {
 
   it("falls back from a failed scoped vector RPC and filters direct retrieval to the authenticated project", async () => {
     const response = { data: [
-      { id: "memory-a", project_id: "project-a", key: "project-a-key", value: { text: "project A" }, tier: "normal", scope: "project", status: "active", deleted_at: null },
-      { id: "memory-b", project_id: "project-b", key: "project-b-key", value: { text: "project B" }, tier: "normal", scope: "project", status: "active", deleted_at: null },
-      { id: "memory-global", project_id: null, key: "global-key", value: { text: "global" }, tier: "core", scope: "global", status: "active", deleted_at: null },
+      { user_id: "user-a", id: "memory-a", project_id: "project-a", key: "project-a-key", value: { text: "project A" }, tier: "normal", scope: "project", status: "active", deleted_at: null },
+      { user_id: "user-a", id: "memory-b", project_id: "project-b", key: "project-b-key", value: { text: "project B" }, tier: "normal", scope: "project", status: "active", deleted_at: null },
+      { user_id: "user-a", id: "memory-global", project_id: null, key: "global-key", value: { text: "global" }, tier: "core", scope: "global", status: "active", deleted_at: null },
     ], error: null };
     const query = { select: vi.fn(), eq: vi.fn(), is: vi.fn(), order: vi.fn(), or: vi.fn(), limit: vi.fn(), then: (resolve: (value: typeof response) => unknown) => Promise.resolve(response).then(resolve) };
     query.select.mockReturnValue(query); query.eq.mockReturnValue(query); query.is.mockReturnValue(query); query.order.mockReturnValue(query); query.or.mockReturnValue(query); query.limit.mockReturnValue(query);
@@ -103,8 +103,8 @@ describe("memory project isolation", () => {
 
   it("retrieves the corrected value and excludes superseded stale aliases", async () => {
     const response = { data: [
-      { id: "canonical", project_id: "project-a", key: "project.observatory.access_phrase", value: { text: "Blue Lantern" }, tier: "core", scope: "project", status: "active", deleted_at: null, pinned: true, locked: false },
-      { id: "stale-alias", project_id: "project-a", key: "project.fictional_observatory.access_phrase", value: { text: "Silver Orchard" }, tier: "normal", scope: "project", status: "tombstoned", deleted_at: "2026-09-02T05:00:00.000Z", pinned: false, locked: false },
+      { user_id: "user-a", id: "canonical", project_id: "project-a", key: "project.observatory.access_phrase", value: { text: "Blue Lantern" }, tier: "core", scope: "project", status: "active", deleted_at: null, pinned: true, locked: false },
+      { user_id: "user-a", id: "stale-alias", project_id: "project-a", key: "project.fictional_observatory.access_phrase", value: { text: "Silver Orchard" }, tier: "normal", scope: "project", status: "tombstoned", deleted_at: "2026-09-02T05:00:00.000Z", pinned: false, locked: false },
     ], error: null };
     const query = { select: vi.fn(), eq: vi.fn(), is: vi.fn(), order: vi.fn(), or: vi.fn(), limit: vi.fn(), then: (resolve: (value: typeof response) => unknown) => Promise.resolve(response).then(resolve) };
     query.select.mockReturnValue(query); query.eq.mockReturnValue(query); query.is.mockReturnValue(query); query.order.mockReturnValue(query); query.or.mockReturnValue(query); query.limit.mockReturnValue(query);

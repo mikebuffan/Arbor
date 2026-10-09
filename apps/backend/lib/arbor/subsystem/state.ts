@@ -42,7 +42,7 @@ export async function loadSubsystemState(input: {
 }): Promise<ArborSubsystemState> {
   const { data, error } = await input.supabase
     .from("arbor_runtime_state")
-    .select("active_subsystem,voice_id,acoustic_corrections")
+    .select("user_id,project_id,active_subsystem,voice_id,acoustic_corrections")
     .eq("user_id", input.userId)
     .eq("project_id", input.projectId)
     .maybeSingle();
@@ -51,11 +51,13 @@ export async function loadSubsystemState(input: {
     if (isMissingRuntimeTable(error)) return DEFAULT_STATE;
     throw error;
   }
-  if (!data) return DEFAULT_STATE;
+  // SQL scope is required, but an administrative/stale provider readback may
+  // still be mismatched. Fail closed before using its voice/correction data.
+  if (!data || data.user_id !== input.userId ||
+      data.project_id !== input.projectId) return DEFAULT_STATE;
 
   return {
-    activeSubsystem:
-      (data.active_subsystem as ArborSubsystem | null) ?? "arbor",
+    activeSubsystem: data.active_subsystem === "annabelle" ? "annabelle" : "arbor",
     voiceId: safePersistedVoiceId(data.voice_id),
     acousticCorrections: toCorrections(data.acoustic_corrections),
   };

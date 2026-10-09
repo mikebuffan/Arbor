@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { createLatestArkStatusRequestGate, runLatestArkStatusRequest } from "@/lib/ark/latestStatusRequest";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 
 type Project = { id: string; name: string };
@@ -23,6 +24,7 @@ export default function Home() {
   const [snapshot, setSnapshot] = useState<ArkSnapshot | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const requestGate = useRef(createLatestArkStatusRequestGate());
 
   useEffect(() => {
     let active = true;
@@ -55,24 +57,32 @@ export default function Home() {
   const refresh = useCallback(async (id: string) => {
     if (!id) return;
     setLoading(true); setError(""); setSnapshot(null);
-    try {
-      const client = supabaseBrowser();
-      const { data: { session }, error: sessionError } = await client.auth.getSession();
-      if (sessionError || !session?.access_token) throw new Error("Please sign in again.");
-      const response = await fetch("/api/ark/status?projectId=" + encodeURIComponent(id), {
-        method: "GET",
-        headers: { Authorization: "Bearer " + session.access_token },
-        cache: "no-store",
-      });
-      const body = (await response.json()) as ArkSnapshot & { error?: string };
-      if (!response.ok || !body.ok) throw new Error(body.error ?? "ARK status is unavailable.");
-      setSnapshot(body);
-    } catch (cause) { setError(message(cause)); }
-    finally { setLoading(false); }
+    await runLatestArkStatusRequest({
+      gate: requestGate.current,
+      load: async (signal) => {
+        const client = supabaseBrowser();
+        const { data: { session }, error: sessionError } = await client.auth.getSession();
+        if (signal.aborted) throw new Error("Status request superseded.");
+        if (sessionError || !session?.access_token) throw new Error("Please sign in again.");
+        const response = await fetch("/api/ark/status?projectId=" + encodeURIComponent(id), {
+          method: "GET",
+          headers: { Authorization: "Bearer " + session.access_token },
+          cache: "no-store",
+          signal,
+        });
+        const body = (await response.json()) as ArkSnapshot & { error?: string };
+        if (!response.ok || !body.ok) throw new Error(body.error ?? "ARK status is unavailable.");
+        return body;
+      },
+      onResolve: setSnapshot,
+      onReject: (cause) => setError(message(cause)),
+      onFinally: () => setLoading(false),
+    });
   }, []);
 
   useEffect(() => {
     if (identity === "in" && projectId) void refresh(projectId);
+    return () => requestGate.current.invalidate();
   }, [identity, projectId, refresh]);
 
   const objectives = snapshot?.objectives ?? [];
@@ -145,7 +155,7 @@ export default function Home() {
             <>
               <div className="mt-6 flex flex-wrap items-end gap-3">
                 <label className="flex min-w-52 flex-1 flex-col gap-2 text-xs text-slate-400">Your project
-                  <select className="rounded-xl border border-white/15 bg-[#141e29] px-4 py-3 text-sm text-white" value={projectId} onChange={e => setProjectId(e.target.value)}>
+                  <select className="rounded-xl border border-white/15 bg-[#141e29] px-4 py-3 text-sm text-white" value={projectId} onChange={e => { requestGate.current.invalidate(); setSnapshot(null); setError(""); setLoading(false); setProjectId(e.target.value); }}>
                     {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                   </select>
                 </label>

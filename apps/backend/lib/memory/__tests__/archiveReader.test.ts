@@ -5,7 +5,7 @@ import {registerArkAgencyToolExecutor} from "@/lib/ark/agencyToolExecutor";
 import {ArkExecutorRegistry} from "@/lib/ark/executorRegistry";
 const user="11111111-1111-4111-8111-111111111111",project="22222222-2222-4222-8222-222222222222";
 function row(n:number,content:string,time:string|null="2026-01-01T00:00:00.000Z"){
- return {id:`33333333-3333-4333-8333-${String(n).padStart(12,"0")}`,source:"export",source_thread_id:"thread",source_message_id:`message-${n}`,source_message_index:n,role:n%2?"user":"assistant",content,occurred_at:time};
+ return {id:`33333333-3333-4333-8333-${String(n).padStart(12,"0")}`,user_id:user,project_id:project,source:"export",source_thread_id:"thread",source_message_id:`message-${n}`,source_message_index:n,role:n%2?"user":"assistant",content,occurred_at:time};
 }
 // Emulates the query boundary, including keyset ordering and lookahead.
 function db(rows:ReturnType<typeof row>[],owned=true,error:Error|null=null){
@@ -27,6 +27,22 @@ function db(rows:ReturnType<typeof row>[],owned=true,error:Error|null=null){
  });return {from,queries};
 }
 describe("chronological owned archive reader",()=>{
+ it.each([{user_id:project},{project_id:user},{content:null}])("rejects mis-scoped or malformed readbacks rather than quoting them",async changes=>{
+  const supabase=db([{...row(1,"PRIVATE"),...changes}] as any);
+  await expect(readHistoricalArchivePage({supabase:supabase as never,userId:user,projectId:project})).rejects.toThrow("archive_row_scope_or_shape_invalid");
+ });
+ it("rejects a foreign anchor even when its source and content match",async()=>{
+  const rows=[row(1,"a".repeat(500))],supabase=db(rows);
+  const first=await readHistoricalArchivePage({supabase:supabase as never,userId:user,projectId:project,maxCharacters:200});
+  rows[0].user_id=project;
+  await expect(readHistoricalArchivePage({supabase:supabase as never,userId:user,projectId:project,cursor:first.nextCursor})).rejects.toThrow("archive_row_scope_or_shape_invalid");
+ });
+ it("rejects repeated provider rows and never exposes scope columns",async()=>{
+  const valid=await readHistoricalArchivePage({supabase:db([row(1,"one")]) as never,userId:user,projectId:project});
+  expect(valid.fragments[0]).not.toHaveProperty("user_id");
+  expect(valid.fragments[0]).not.toHaveProperty("project_id");
+  await expect(readHistoricalArchivePage({supabase:db([row(1,"one"),row(1,"one")]) as never,userId:user,projectId:project})).rejects.toThrow("archive_page_duplicate_row");
+ });
  it("resumes every character of a long message without skipping the following turn",async()=>{
   const rows=[row(2,"second"),row(1,"a".repeat(451))],supabase=db(rows);let cursor=null as any;const fragments=[];
   do{const page=await readHistoricalArchivePage({supabase:supabase as never,userId:user,projectId:project,cursor,maxCharacters:200,maxMessages:1});expect(ArchiveReadOutput.safeParse(page).success).toBe(true);fragments.push(...page.fragments);cursor=page.nextCursor;}while(cursor);

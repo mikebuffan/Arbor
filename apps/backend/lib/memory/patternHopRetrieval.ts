@@ -46,6 +46,52 @@ function looksLikeAssistantSelfDescription(content: string): boolean {
   );
 }
 
+type HistoricalArchiveRow = {
+  id: string; source: string; source_thread_id: string; source_message_id: string;
+  source_message_index: number | null; role: HistoricalHopResult["role"];
+  content: string; occurred_at: string | null;
+};
+// The historical embedding RPC does not return scope columns. Always promote
+// evidence from independently read, owner/project-scoped canonical rows, not
+// RPC-provided excerpts or a client's claimed source identity.
+function scopedHistoricalRow(
+  value: unknown, owner: string, project: string,
+): HistoricalArchiveRow | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const row = value as Record<string, unknown>;
+  if (row.user_id !== owner || row.project_id !== project ||
+      typeof row.id !== "string" || !row.id ||
+      typeof row.source !== "string" || !row.source ||
+      typeof row.source_thread_id !== "string" || !row.source_thread_id ||
+      typeof row.source_message_id !== "string" || !row.source_message_id ||
+      (row.source_message_index !== null &&
+       (!Number.isInteger(row.source_message_index) ||
+        (row.source_message_index as number) < 0)) ||
+      !["user", "assistant", "system"].includes(String(row.role)) ||
+      typeof row.content !== "string" || !row.content ||
+      (row.occurred_at !== null && typeof row.occurred_at !== "string"))
+    return null;
+  return {
+    id: row.id, source: row.source, source_thread_id: row.source_thread_id,
+    source_message_id: row.source_message_id,
+    source_message_index: row.source_message_index as number | null,
+    role: row.role as HistoricalHopResult["role"],
+    content: row.content, occurred_at: row.occurred_at as string | null,
+  };
+}
+const historicalFields =
+  "id,user_id,project_id,source,source_thread_id,source_message_id,source_message_index,role,content,occurred_at";
+function historicalResult(row: HistoricalArchiveRow, similarity: number,
+  method: HistoricalHopResult["retrievalMethod"]): HistoricalHopResult {
+  return {
+    id: row.id, source: row.source, sourceThreadId: row.source_thread_id,
+    sourceMessageId: row.source_message_id,
+    sourceMessageIndex: row.source_message_index, role: row.role,
+    content: row.content, occurredAt: row.occurred_at,
+    similarity, retrievalMethod: method,
+  };
+}
+
 export async function searchHistoricalHopEvidence(params: {
   supabase: SupabaseClient;
   userId: string;
@@ -70,28 +116,35 @@ export async function searchHistoricalHopEvidence(params: {
 
     if (error) throw error;
 
-    for (const row of data ?? []) {
-      const result: HistoricalHopResult = {
-        id: String(row.id),
-        source: String(row.source),
-        sourceThreadId: String(row.source_thread_id),
-        sourceMessageId: String(row.source_message_id),
-        sourceMessageIndex:
-          row.source_message_index == null
-            ? null
-            : Number(row.source_message_index),
-        role: row.role,
-        content: String(row.content),
-        occurredAt: row.occurred_at ?? null,
-        similarity: Number(row.similarity ?? 0),
-        retrievalMethod: "historical_embedding",
-      };
-      byId.set(result.id, result);
+    if (!Array.isArray(data)) throw new Error("historical_semantic_rows_invalid");
+    // Query only returned IDs; the joined canonical row supplies all excerpt
+    // text and provenance after a second owner/project validation.
+    const similarities = new Map<string, number>();
+    for (const row of data) {
+      if (!row || typeof row.id !== "string" || !row.id) continue;
+      const similarity = Number(row.similarity ?? 0);
+      if (!Number.isFinite(similarity)) continue;
+      similarities.set(row.id, Math.max(similarity, similarities.get(row.id) ?? -Infinity));
     }
-  } catch (error) {
-    console.warn("[pattern-hop] historical semantic retrieval degraded", {
-      error: error instanceof Error ? error.message : "unknown",
-    });
+    if (similarities.size) {
+      const { data: verified, error: verifyError } = await params.supabase
+        .from("historical_conversation_turns")
+        .select(historicalFields)
+        .eq("user_id", params.userId)
+        .eq("project_id", params.projectId)
+        .in("id", [...similarities.keys()]);
+      if (verifyError) throw verifyError;
+      if (!Array.isArray(verified)) throw new Error("historical_semantic_verification_invalid");
+      for (const record of verified) {
+        const row = scopedHistoricalRow(record, params.userId, params.projectId);
+        if (!row || !similarities.has(row.id)) continue;
+        const result = historicalResult(row, similarities.get(row.id)!, "historical_embedding");
+        byId.set(result.id, result);
+      }
+    }
+  } catch {
+    // A DB/auth failure must never log private source text or driver messages.
+    console.warn("[pattern-hop] historical semantic retrieval degraded");
   }
 
   const terms = normalizedTerms(params.clue).slice(0, 6);
@@ -102,9 +155,7 @@ export async function searchHistoricalHopEvidence(params: {
 
     const { data, error } = await params.supabase
       .from("historical_conversation_turns")
-      .select(
-        "id,source,source_thread_id,source_message_id,source_message_index,role,content,occurred_at",
-      )
+      .select(historicalFields)
       .eq("user_id", params.userId)
       .eq("project_id", params.projectId)
       .or(orClause)
@@ -112,24 +163,12 @@ export async function searchHistoricalHopEvidence(params: {
       .limit(limit);
 
     if (!error) {
-      for (const row of data ?? []) {
-        const content = String(row.content);
-        const lexical = lexicalScore(params.clue, content);
-        const result: HistoricalHopResult = {
-          id: String(row.id),
-          source: String(row.source),
-          sourceThreadId: String(row.source_thread_id),
-          sourceMessageId: String(row.source_message_id),
-          sourceMessageIndex:
-            row.source_message_index == null
-              ? null
-              : Number(row.source_message_index),
-          role: row.role,
-          content,
-          occurredAt: row.occurred_at ?? null,
-          similarity: lexical,
-          retrievalMethod: "historical_lexical",
-        };
+      for (const record of Array.isArray(data) ? data : []) {
+        const row = scopedHistoricalRow(record, params.userId, params.projectId);
+        if (!row) continue;
+        const result = historicalResult(
+          row, lexicalScore(params.clue, row.content), "historical_lexical",
+        );
         const existing = byId.get(result.id);
         if (!existing || result.similarity > existing.similarity) {
           byId.set(result.id, result);
@@ -194,7 +233,7 @@ export async function searchMemoryHopEvidence(params: {
   const { data, error } = await params.supabase
     .from("memory_items")
     .select(
-      "id,conversation_id,key,value,tier,scope,confidence,memory_kind,updated_at,created_at,user_trigger_only,status,deleted_at,excluded_from_memory",
+      "id,user_id,project_id,conversation_id,key,value,tier,scope,confidence,memory_kind,updated_at,created_at,user_trigger_only,status,deleted_at,excluded_from_memory",
     )
     .eq("user_id", params.userId)
     .eq("status", "active")
@@ -208,8 +247,17 @@ export async function searchMemoryHopEvidence(params: {
 
   if (error) throw error;
 
-  return (data ?? [])
-    .filter((row: any) => row.excluded_from_memory === false)
+  // Independent returned-row eligibility: an admin/stale result must never
+  // silently bypass memory's owner, project, reveal or retirement filters.
+  const safeRows = Array.isArray(data) ? data : [];
+  return safeRows
+    .filter((row: any) => row && typeof row.id === "string" &&
+      row.user_id === params.userId &&
+      row.status === "active" && row.deleted_at === null &&
+      row.user_trigger_only === false &&
+      row.excluded_from_memory === false && row.tier !== "sensitive" &&
+      ((row.scope === "global" && row.conversation_id === null) ||
+       (row.scope === "project" && row.project_id === params.projectId)))
     .map((row: any) => {
       const content =
         String(row.key ?? "") +
@@ -259,7 +307,7 @@ export async function searchTimelineHopEvidence(params: {
   const { data, error } = await params.supabase
     .from("arbor_timeline_events")
     .select(
-      "id,conversation_id,turn_id,sequence,phase,event_type,subsystem,channel,action_id,payload,created_at",
+      "id,user_id,project_id,conversation_id,turn_id,sequence,phase,event_type,subsystem,channel,action_id,payload,created_at",
     )
     .eq("user_id", params.userId)
     .eq("project_id", params.projectId)
@@ -268,7 +316,10 @@ export async function searchTimelineHopEvidence(params: {
 
   if (error) throw error;
 
-  return (data ?? [])
+  const safeRows = Array.isArray(data) ? data : [];
+  return safeRows
+    .filter((row: any) => row && typeof row.id === "string" &&
+      row.user_id === params.userId && row.project_id === params.projectId)
     .map((row: any) => {
       const content = [
         row.phase,
