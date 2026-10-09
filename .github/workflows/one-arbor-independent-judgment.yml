@@ -12,6 +12,7 @@ on:
       - review/one-arbor-initiative-followthrough-20261009
       - review/one-arbor-independent-choice-followthrough-20261009
       - review/one-arbor-independence-resume-priority-20261009
+      - review/one-arbor-independence-negative-proof-20261009
   pull_request:
     branches:
       - review/one-arbor-group11-assembly-followon-20261007
@@ -76,6 +77,7 @@ jobs:
           lib/arbor/agency/__tests__/acceptanceRunner.test.ts
           lib/arbor/agency/__tests__/independentFollowthrough.test.ts
           lib/arbor/agency/__tests__/engineResume.test.ts
+          lib/arbor/agency/__tests__/yieldPolicy.test.ts
           lib/arbor/agency/__tests__/backlogContinuation.test.ts
           lib/arbor/continuity/__tests__/longitudinalShorthand.integration.test.ts
           lib/arbor/behavior/behaviorProjection.test.ts

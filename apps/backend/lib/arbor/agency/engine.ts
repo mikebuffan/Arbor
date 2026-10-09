@@ -66,7 +66,8 @@ export type AgencyYieldDecision =
  * complete or a genuine blocker requires external/user input.
  */
 export function agencyYieldDecision(agency: AgencyState): AgencyYieldDecision {
-  if (agency.status === "complete" && agency.unresolvedWork.length === 0) {
+  if (agency.status === "complete" && agency.unresolvedWork.length === 0 &&
+    agency.lastVerification?.ok !== false) {
     return { yield: true, reason: "complete" };
   }
 
@@ -159,6 +160,23 @@ export async function runAgency<SharedState>(input: {
       ...agency,
       unresolvedWork: assessment.unresolvedWork,
     };
+
+    // A negative verification is evidence that the last action was not
+    // confirmed. Assessment alone must not erase that failure or produce
+    // a false completion receipt. Without a separate completion prover,
+    // checkpoint for reconciliation rather than replaying an uncertain write.
+    if (assessment.complete && agency.lastVerification?.ok === false &&
+      !input.runtime.proveComplete) {
+      agency = {
+        ...agency,
+        status: "checkpointed",
+        unresolvedWork: assessment.unresolvedWork.length
+          ? assessment.unresolvedWork
+          : [agency.lastVerification.correction ?? "prior action verification failed"],
+      };
+      await input.runtime.persist({ agency, shared });
+      return { agency, shared };
+    }
 
     if (assessment.complete) {
       const proof = input.runtime.proveComplete
