@@ -145,4 +145,79 @@ describe("Actual chat agent loop: provider completion boundaries (synthetic prov
     expect(result.status).toBe("complete");
     expect(model).toHaveBeenCalledOnce();
   });
+
+  it("rejects a malformed second call before executing the first eligible tool", async () => {
+    const { tools, called } = fixture();
+    const onComplete = vi.fn(async () => {});
+    const result = await runOpenAIAgencyAgent({
+      instructions: "Synthetic tool-call safety", userText: "Inspect",
+      tools, context, verifyCompletion: false,
+      responseCreate: async () => mock("mixed", "completed", "", [
+        { type: "function_call", call_id: "first", name: "inspect_fixture", arguments: "{}" },
+        { type: "function_call", call_id: "second", name: "inspect_fixture", arguments: "{bad-json" },
+      ]), hooks: { onComplete },
+    });
+    expect(result.status).toBe("checkpointed");
+    expect(called).not.toHaveBeenCalled();
+    expect(onComplete).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["duplicate", [
+      { type: "function_call", call_id: "same", name: "inspect_fixture", arguments: "{}" },
+      { type: "function_call", call_id: "same", name: "inspect_fixture", arguments: "{}" },
+    ]],
+    ["unknown name", [
+      { type: "function_call", call_id: "first", name: "inspect_fixture", arguments: "{}" },
+      { type: "function_call", call_id: "second", name: "nonexistent_tool", arguments: "{}" },
+    ]],
+    ["missing call identifier", [
+      { type: "function_call", name: "inspect_fixture", arguments: "{}" },
+    ]],
+    ["nonobject arguments", [
+      { type: "function_call", call_id: "wrong-args", name: "inspect_fixture", arguments: "[]" },
+    ]],
+  ])("rejects %s provider tool calls atomically", async (_label, output) => {
+    const { tools, called } = fixture();
+    const result = await runOpenAIAgencyAgent({
+      instructions: "Synthetic tool-call safety", userText: "Inspect",
+      tools, context, verifyCompletion: false,
+      responseCreate: async () => mock("invalid-batch", "completed", "", output as unknown[]),
+    });
+    expect(result.status).toBe("checkpointed");
+    expect(called).not.toHaveBeenCalled();
+  });
+
+  it("rejects an excessive provider tool batch before running any action", async () => {
+    const { tools, called } = fixture();
+    const output = Array.from({ length: 25 }, (_, i) => ({
+      type: "function_call", call_id: "item-" + i,
+      name: "inspect_fixture", arguments: "{}",
+    }));
+    const result = await runOpenAIAgencyAgent({
+      instructions: "Synthetic bounded tools", userText: "Inspect",
+      tools, context, verifyCompletion: false,
+      responseCreate: async () => mock("batch-too-large", "completed", "", output),
+    });
+    expect(result.status).toBe("checkpointed");
+    expect(called).not.toHaveBeenCalled();
+  });
+
+  it("still runs a small well-formed multi-tool batch and returns actual readback", async () => {
+    const { tools, called } = fixture();
+    let requests = 0;
+    const result = await runOpenAIAgencyAgent({
+      instructions: "Synthetic authorized read only", userText: "Inspect twice",
+      tools, context, verifyCompletion: false,
+      responseCreate: async () => ++requests === 1
+        ? mock("good-batch", "completed", "", [
+          { type: "function_call", call_id: "one", name: "inspect_fixture", arguments: "{}" },
+          { type: "function_call", call_id: "two", name: "inspect_fixture", arguments: "{}" },
+        ])
+        : mock("good-result", "completed", "Two reads were recorded."),
+    });
+    expect(result.status).toBe("complete");
+    expect(called).toHaveBeenCalledTimes(2);
+    expect(requests).toBe(2);
+  });
 });
