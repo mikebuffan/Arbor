@@ -34,7 +34,9 @@
     "discoveryProgressParentPr381": "9e49e50844bc7ec7153d835d6ee679fdef976cef",
     "independentResumePriorityPr382": "e23d648566fd49c662c678df7998a48cf0193b9a",
     "negativeCompletionProofPr383": "15aaae464f1344031941d6219406970c306324fa",
-    "discoveryRepairInitialPr384": "0f5c79e814326aad7cab097890440231846b7ab6"
+    "discoveryRepairInitialPr384": "0f5c79e814326aad7cab097890440231846b7ab6",
+    "independentChatIntegrationParentPr384": "b74e8e8b5bc9d8a032ce42799441a73032c19ff6",
+    "independentChatDonorPr385": "244df0e73f61f61b7d02c1542264645700e837b3"
   },
   "expectedBlobSha": {
     "apps/backend/lib/arbor/runtime/timeCore.ts": "7fb33f4a8c6f201e96cc8c3f71b9a4ba584dabde",
@@ -53,12 +55,12 @@
     "apps/arbor-control-backend/src/selfModelObservations.ts": "f8f03960ee18eca6650b12b4e2ee07c3b8e34469",
     "apps/arbor-control-backend/src/selfModelClaims.ts": "9bf0d7bd2f50fe61338a8967cd1b0a0c7d3e1b52",
     "docs/integration/ONE_ARBOR_GROUP06_IDENTITY_EVIDENCE_GATE_20261007.md": "bd43f7b8a8c2e90208b6839d582d5f698fcc570c",
-    "ops/grove/source-only-ignore.mjs": "b7fdfd340f4ca58bfee142cce64c15bd575abed3",
+    "ops/grove/source-only-ignore.mjs": "7831a74a5a3d223c4518cb8f11220b1b7da6cad4",
     ".github/workflows/one-arbor-group04-shelf-pagination.yml": "41790290a7fa86974dcca3fbbcc15bc96e0cac88",
     "apps/backend/lib/memory/__tests__/shelfPageRead.test.ts": "35b5c43abb6b2c774a1ae3aa75b33507c1e4d3bb",
     "apps/frontend/lib/environment/grove_memory_shelf_view.dart": "31e54c5c459cadce0eeba4bb577922c419cde71a",
     "apps/frontend/test/grove_memory_shelf_view_test.dart": "f01802b64c9ee0ed0116ee66e81344499fdcdf25",
-    ".github/workflows/one-arbor-15-lane-assembly.yml": "f682ff32cbd5fd695a8886b4c0db65aa42cc16a7",
+    ".github/workflows/one-arbor-15-lane-assembly.yml": "55e432efbe8dc7179107b8f091ca86b7d7cec6cf",
     ".github/workflows/one-arbor-diary-draft.yml": "8923e47d0d69562a86a7c210b10efaaf0c5fd624",
     ".github/workflows/one-arbor-group08-body-acceptance.yml": "d4dc36baef71d379f6a769d7f0416cd755d7252a",
     ".github/workflows/one-arbor-group09-decision-gates.yml": "8c6a9996d12fc1624e8e1ef997d8c04d34ee0ffe",
@@ -118,7 +120,7 @@
     "apps/backend/lib/arbor/behavior/behaviorProjection.ts": "cd52561933f57ff41daf2ca1497d2dc8d414bfe8",
     "apps/backend/lib/arbor/behavior/__tests__/independentJudgmentCases.ts": "7d9b8eb3f6952812c893c5a5bd228395888e5da3",
     "apps/backend/lib/arbor/behavior/__tests__/independentJudgmentCases.test.ts": "045e1782fbacbad032738232bf960962345e2a8e",
-    ".github/workflows/one-arbor-independent-judgment.yml": "d8bfcbd0645e5f4cfa4f1bdb151dc0f275c270c9",
+    ".github/workflows/one-arbor-independent-judgment.yml": "40a17d6a03e9a10a889106158fcea2e5ceaaef43",
     "apps/backend/lib/prompt/buildPromptContext.ts": "c91150dbfce1755b9843b58c8c46a95e7fe50a3b",
     "apps/backend/lib/arbor/behavior/arkLayerReadContext.ts": "e0597d3df998d37361a9b21f351d597e1508f445",
     "apps/backend/lib/arbor/behavior/__tests__/arkLayerReadContext.test.ts": "fff706bfa7d2694ae8f58e5f21c4cff0b6e02516",
@@ -209,7 +211,11 @@
     "apps/backend/lib/arbor/agency/__tests__/backlogContinuation.test.ts": "4dc265355ce08e7e9b05bcc7b4e9a65e03c27ed8",
     "docs/integration/ONE_ARBOR_INDEPENDENCE_RESUME_PRIORITY_20261009.md": "bbf4b64230910a113f44b7b22bd658799e2bac6b",
     "apps/backend/lib/arbor/agency/__tests__/yieldPolicy.test.ts": "697ebeecee133dbbdc9a3ecbff65517fb86cc349",
-    "docs/integration/ONE_ARBOR_INDEPENDENCE_NEGATIVE_PROOF_20261009.md": "5cb7df6be8d8497f7242f546fd970fb5f33fdc0c"
+    "docs/integration/ONE_ARBOR_INDEPENDENCE_NEGATIVE_PROOF_20261009.md": "5cb7df6be8d8497f7242f546fd970fb5f33fdc0c",
+    "apps/backend/lib/arbor/agency/openaiAgent.ts": "53464102766f2cb7cc66f62f35129142cb023854",
+    "apps/backend/lib/arbor/agency/__tests__/providerCompletionBoundary.test.ts": "beeba2c7c2dd6d0b5469f867423f4621a8fd3158",
+    "docs/integration/ONE_ARBOR_CHAT_PROVIDER_COMPLETION_20261009.md": "ff5a00c7a025f4564acf50ae0e19a6927ab995db",
+    "docs/integration/ONE_ARBOR_INDEPENDENT_CHAT_INTEGRATION_20261009.md": "cb533562b1e5764a794742329a6682042f4a7bca"
   },
   "comment": "Source-only incorporation from Library ONE_ARBOR_CODE_REPAIRS_20261009.zip: 17 exact source/test blobs verified, packages reconciled with original PR #372 head, 3 focused tests added; CI/release acceptance remain separately gated."
 }
