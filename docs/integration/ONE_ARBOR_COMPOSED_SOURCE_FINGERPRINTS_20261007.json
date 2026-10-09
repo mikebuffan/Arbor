@@ -23,7 +23,8 @@
     "unsavedDiary_pr342": "b554eef0a967933c86c5ec13dda5d863177c7640",
     "group11_pr360": "ef167353a6fd477aa9b196e09d8a5c21dd6bd151",
     "arkPreviewReviewPr372": "b707573d6b66f678ab7fb5671a79aa989407d38c",
-    "independentRepairsPr373": "c05d962ff8c6717bb08b805c06766dcfca98b5ec"
+    "independentRepairsPr373": "c05d962ff8c6717bb08b805c06766dcfca98b5ec",
+    "arkReadReceiptsParentPr374": "c6e12afc80241356f9dc51682c25d533e2589b30"
   },
   "expectedBlobSha": {
     "apps/backend/lib/arbor/runtime/timeCore.ts": "7fb33f4a8c6f201e96cc8c3f71b9a4ba584dabde",
@@ -42,12 +43,12 @@
     "apps/arbor-control-backend/src/selfModelObservations.ts": "f8f03960ee18eca6650b12b4e2ee07c3b8e34469",
     "apps/arbor-control-backend/src/selfModelClaims.ts": "9bf0d7bd2f50fe61338a8967cd1b0a0c7d3e1b52",
     "docs/integration/ONE_ARBOR_GROUP06_IDENTITY_EVIDENCE_GATE_20261007.md": "bd43f7b8a8c2e90208b6839d582d5f698fcc570c",
-    "ops/grove/source-only-ignore.mjs": "ec691e862f786d26bd1779b231e73ac7306f499c",
+    "ops/grove/source-only-ignore.mjs": "ef4e88ad5681f68a6117728354bffe7691d395b2",
     ".github/workflows/one-arbor-group04-shelf-pagination.yml": "41790290a7fa86974dcca3fbbcc15bc96e0cac88",
     "apps/backend/lib/memory/__tests__/shelfPageRead.test.ts": "35b5c43abb6b2c774a1ae3aa75b33507c1e4d3bb",
     "apps/frontend/lib/environment/grove_memory_shelf_view.dart": "31e54c5c459cadce0eeba4bb577922c419cde71a",
     "apps/frontend/test/grove_memory_shelf_view_test.dart": "f01802b64c9ee0ed0116ee66e81344499fdcdf25",
-    ".github/workflows/one-arbor-15-lane-assembly.yml": "0c226dc20da56364b0fa39a47542cf9c434c730e",
+    ".github/workflows/one-arbor-15-lane-assembly.yml": "7d5badf677698fda781e7e0cc3af3c874b85803b",
     ".github/workflows/one-arbor-diary-draft.yml": "8923e47d0d69562a86a7c210b10efaaf0c5fd624",
     ".github/workflows/one-arbor-group08-body-acceptance.yml": "d4dc36baef71d379f6a769d7f0416cd755d7252a",
     ".github/workflows/one-arbor-group09-decision-gates.yml": "8c6a9996d12fc1624e8e1ef997d8c04d34ee0ffe",
@@ -138,8 +139,8 @@
     "apps/backend/lib/ark/__tests__/latestStatusRequest.test.ts": "3127959d3d6eabd25b6e7fc8542f4d17e34f74ee",
     "apps/backend/app/login/page.tsx": "21a0504db512a462df79af55a37071e7dd75b148",
     "apps/backend/app/reset-password/page.tsx": "14dcd121b1cc518e58f8a5401802719bf064fc2e",
-    "apps/backend/lib/ark/readModel.ts": "bde5cee104a7e07d2f8c5cdcf0e46691f85f0bfd",
-    "apps/backend/lib/ark/__tests__/readModel.test.ts": "1cf79d2a0375863b72226400d85906e9172b98d5",
+    "apps/backend/lib/ark/readModel.ts": "e7b4cb1b4619042759b5598bc8f559940b2db0f5",
+    "apps/backend/lib/ark/__tests__/readModel.test.ts": "8b77be612b085f29d75ad5d624c3eac03e889d97",
     "apps/backend/lib/auth/safeReturnPath.ts": "e47a9cf7826f51c62d378fd01ff24fc1308baaf4",
     "apps/backend/lib/auth/__tests__/safeReturnPath.test.ts": "d27be32223d0bf102026ac17fa7b4cd1f30f7f2c",
     "apps/backend/lib/arbor/continuity/store.ts": "161a65c69ee00a089b2b026cfabb9df719a8b192",
@@ -180,7 +181,8 @@
     "apps/backend/lib/arbor/behavior/__tests__/fixtures/proactiveJudgment/public_generation.json": "0177bb5f849d9c85f45f73b10aca436f4f1ce8af",
     "apps/backend/lib/arbor/behavior/__tests__/proactiveJudgmentOfflineRunner.test.ts": "d8d0b721ea66344224a677719a528cfdcadba124",
     "apps/backend/lib/arbor/runtime/__tests__/discoveryRadar.test.ts": "3c1d505844009649d6c4b3fdb1d61aab70bda596",
-    "docs/integration/ONE_ARBOR_372_373_SAFE_COMPOSITION_20261009.md": "9bd526de011573a5f37f62c392bb8827688218ea"
+    "docs/integration/ONE_ARBOR_372_373_SAFE_COMPOSITION_20261009.md": "9bd526de011573a5f37f62c392bb8827688218ea",
+    "docs/integration/ONE_ARBOR_ARK_RECEIPT_TASK_SCOPE_20261009.md": "72f7ad1340cae472baff24cfa9784ace7dfa4e31"
   },
   "comment": "Source-only incorporation from Library ONE_ARBOR_CODE_REPAIRS_20261009.zip: 17 exact source/test blobs verified, packages reconciled with original PR #372 head, 3 focused tests added; CI/release acceptance remain separately gated."
 }

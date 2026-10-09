@@ -155,13 +155,13 @@ describe("ARK read model", () => {
       });
       if (table === "ark_checkpoints") return scopedReceiptQuery({
         data: [
-          {id:"checkpoint-owned",objective_id:"owned"},
+          {id:"checkpoint-owned",objective_id:"owned",task_id:"task-owned"},
           {id:"checkpoint-foreign",objective_id:"foreign-project"},
         ], error: null,
       });
       return scopedReceiptQuery({
         data: [
-          {id:"event-owned",objective_id:"owned"},
+          {id:"event-owned",objective_id:"owned",task_id:null},
           {id:"event-foreign",objective_id:"foreign-user"},
         ], error: null,
       });
@@ -176,5 +176,42 @@ describe("ARK read model", () => {
     expect(JSON.stringify(snapshot)).not.toContain("SECRET");
     expect(snapshot.objectives[0]).not.toHaveProperty("user_id");
     expect(snapshot.tasks[0]).not.toHaveProperty("project_id");
+  });
+
+  it("does not attach a foreign or cross-objective task receipt to an owned objective", async () => {
+    const from = vi.fn((table: string) => {
+      if (table === "ark_objectives") return objectiveQuery({ data: [
+        { id: "own-a", user_id: "u", project_id: "p", goal: "a" },
+        { id: "own-b", user_id: "u", project_id: "p", goal: "b" },
+      ], error: null });
+      if (table === "ark_tasks") return taskQuery({ data: [
+        { id: "task-a", user_id: "u", project_id: "p", objective_id: "own-a" },
+        { id: "task-b", user_id: "u", project_id: "p", objective_id: "own-b" },
+        { id: "foreign-task", user_id: "another", project_id: "p", objective_id: "own-a" },
+        { id: " ", user_id: "u", project_id: "p", objective_id: "own-a" },
+      ], error: null });
+      if (table === "ark_checkpoints") return scopedReceiptQuery({ data: [
+        { id: "checkpoint-valid", objective_id: "own-a", task_id: "task-a", next_action: "resume valid" },
+        { id: "checkpoint-other-objective", objective_id: "own-a", task_id: "task-b", next_action: "SECRET-CROSS" },
+        { id: "checkpoint-foreign", objective_id: "own-a", task_id: "foreign-task", next_action: "SECRET-FOREIGN" },
+        { id: "checkpoint-unlinked", objective_id: "own-a", task_id: null, next_action: "SECRET-NULL" },
+        { id: "checkpoint-blank", objective_id: "own-a", task_id: " ", next_action: "SECRET-BLANK" },
+      ], error: null });
+      return scopedReceiptQuery({ data: [
+        { id: 1, objective_id: "own-a", task_id: "task-a", event_type: "task_completed" },
+        { id: 2, objective_id: "own-a", task_id: null, event_type: "objective_completed" },
+        { id: 3, objective_id: "own-a", task_id: "task-b", event_type: "SECRET-CROSS" },
+        { id: 4, objective_id: "own-a", task_id: "foreign-task", event_type: "SECRET-FOREIGN" },
+        { id: 5, objective_id: "own-a", task_id: " ", event_type: "SECRET-BLANK" },
+        { id: 6, objective_id: "own-a", event_type: "SECRET-OMITTED" },
+      ], error: null });
+    });
+    const snapshot = await readArkProjectSnapshot({
+      supabase: { from } as never, userId: "u", projectId: "p",
+    });
+    expect(snapshot.tasks.map(v => v.id)).toEqual(["task-a", "task-b"]);
+    expect(snapshot.checkpoints.map(v => v.id)).toEqual(["checkpoint-valid"]);
+    expect(snapshot.events.map(v => v.id)).toEqual([1, 2]);
+    expect(JSON.stringify(snapshot)).not.toContain("SECRET");
   });
 });
