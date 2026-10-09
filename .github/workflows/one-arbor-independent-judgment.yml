@@ -7,6 +7,7 @@ on:
       - review/one-arbor-judgment-green-baseline-20261007
       - review/one-arbor-judgment-feedback-gates-20261007
       - test/one-arbor-judgment-blind-pack-20261007
+      - fix/thread2-judgment-pack-integrity-20261009
   pull_request:
     branches:
       - review/one-arbor-group11-assembly-followon-20261007
@@ -68,10 +69,12 @@ jobs:
         working-directory: apps/backend
         run: >-
           pnpm exec vitest run
+          lib/arbor/agency/__tests__/acceptanceRunner.test.ts
           lib/arbor/behavior/behaviorProjection.test.ts
           lib/arbor/behavior/__tests__/independentJudgmentCases.test.ts
           lib/arbor/behavior/__tests__/independentJudgmentBlindPack.test.ts
           lib/arbor/behavior/__tests__/independentJudgmentOfflineRunner.test.ts
+          lib/arbor/behavior/__tests__/proactiveJudgmentOfflineRunner.test.ts
           lib/ark/__tests__/previewAcceptanceRoute.test.ts
           lib/arbor/agency/__tests__/continuation.test.ts
           lib/memory/__tests__/storeCorrection.test.ts
@@ -81,6 +84,8 @@ jobs:
           lib/arbor/runtime/__tests__/corrections.test.ts
           lib/arbor/runtime/__tests__/decisionAncestry.test.ts
           lib/arbor/runtime/__tests__/group09TruthConsequence.test.ts
+          lib/arbor/runtime/__tests__/discoveryRadar.test.ts
+          lib/arbor/runtime/__tests__/group11SourceBoundary.test.ts
       - name: Backend TypeScript
         working-directory: apps/backend
         run: pnpm exec tsc --noEmit

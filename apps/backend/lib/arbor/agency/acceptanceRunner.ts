@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import type { AgencyMessage } from "./openaiAgent";
 import type { AgencyResponseCreate } from "./responseTransport";
 import { AgencyToolRegistry, type AgencyToolContext } from "./tools";
+import conversationPack from "../../../../../docs/integration/ARBOR_CONVERSATION_ACCEPTANCE_CASES_20261005.json";
 
 type Generation = { schemaVersion: number; casePackHash: string; cases: { id: string; userTurns: string[] }[] };
 type Assignment = { schemaVersion: number; casePackHash: string; cases: { caseId: string; A: string; B: string }[] };
@@ -39,9 +40,27 @@ function requireValue(ok: unknown, message: string): asserts ok {
   if (!ok) throw new Error(message);
 }
 
+function receivedCasesMatchPack(generation: Generation): boolean {
+  if (hash({ schemaVersion: generation.schemaVersion, cases: generation.cases }) === generation.casePackHash)
+    return true;
+  // Legacy conversation callers identify the checked-in scoring pack, including
+  // server-selected single-case subsets. Verify their public content against
+  // that source instead of treating its claimed hash as a public-content hash.
+  if (generation.casePackHash !== hash(conversationPack) || !Array.isArray(generation.cases)) return false;
+  let previousIndex = -1;
+  return generation.cases.every(c => {
+    const index = conversationPack.cases.findIndex(source => source.id === c.id);
+    if (index <= previousIndex) return false;
+    previousIndex = index;
+    const source = conversationPack.cases[index];
+    return hash(c) === hash({ id: source.id, userTurns: source.userTurns });
+  });
+}
+
 export function validateAcceptanceInput(generation: Generation, assignment: Assignment, config: AcceptanceConfig) {
   requireValue(generation.schemaVersion === 1 && assignment.schemaVersion === 1 &&
-    /^[a-f0-9]{64}$/.test(generation.casePackHash) && generation.casePackHash === assignment.casePackHash,
+    /^[a-f0-9]{64}$/.test(generation.casePackHash) && generation.casePackHash === assignment.casePackHash &&
+    receivedCasesMatchPack(generation),
     "acceptance_pack_mismatch");
   requireValue(Array.isArray(generation.cases) && generation.cases.length > 0 && Array.isArray(assignment.cases) &&
     assignment.cases.length === generation.cases.length, "acceptance_case_count");
