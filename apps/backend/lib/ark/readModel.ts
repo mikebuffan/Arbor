@@ -96,18 +96,34 @@ export async function readArkProjectSnapshot(input: {
   const scopedTasks = ((tasks ?? []) as Array<Record<string, unknown>>)
     .filter((row) => row.user_id === input.userId
       && row.project_id === input.projectId
+      && typeof row.id === "string" && row.id.trim().length > 0
       && typeof row.objective_id === "string"
       && objectiveIdSet.has(row.objective_id))
     .map(({ user_id: _userId, project_id: _projectId, ...row }) => row);
+  // Checkpoint and event tables have an objective FK but do not carry owner
+  // columns in this snapshot projection. Verify task references against the
+  // already owner/project-scoped tasks as well as the objective itself.
+  // A forged/misrouted row must never attach another task's receipt to
+  // an otherwise legitimate objective.
+  const taskObjectiveById = new Map(
+    scopedTasks.map((row) => [row.id as string, row.objective_id as string]),
+  );
   const scopedReceipts = (rows: Array<Record<string, unknown>>) =>
     rows.filter((row) => typeof row.objective_id === "string"
       && objectiveIdSet.has(row.objective_id));
+  const receiptReferencesOwnedTask = (row: Record<string, unknown>) =>
+    typeof row.task_id === "string"
+    && taskObjectiveById.get(row.task_id) === row.objective_id;
   return {
     available: true,
     objectives: objectiveRows,
     tasks: scopedTasks,
-    checkpoints: scopedReceipts((checkpoints ?? []) as Array<Record<string, unknown>>),
-    events: scopedReceipts((events ?? []) as Array<Record<string, unknown>>),
+    checkpoints: scopedReceipts((checkpoints ?? []) as Array<Record<string, unknown>>)
+      .filter(receiptReferencesOwnedTask),
+    // Objective-wide events legitimately have no task; task events require
+    // an exact current owner/project/objective task match.
+    events: scopedReceipts((events ?? []) as Array<Record<string, unknown>>)
+      .filter((row) => row.task_id === null || receiptReferencesOwnedTask(row)),
     capturedAt,
   };
 }
