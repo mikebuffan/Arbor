@@ -234,3 +234,71 @@ def evaluate_pattern_hop(
             else []
         ),
     }
+
+
+def validate_provenance_chain(
+    sources: Sequence[SourceRef],
+    parent_by_source_id: Mapping[str, str | None],
+) -> Mapping[str, object]:
+    """Validate explicit source lineage without inventing missing parents."""
+    known = {source.source_id for source in sources}
+    missing_parents: list[tuple[str, str]] = []
+    self_cycles: list[str] = []
+
+    for child_id, parent_id in parent_by_source_id.items():
+        if child_id not in known:
+            continue
+        if parent_id is None:
+            continue
+        if parent_id == child_id:
+            self_cycles.append(child_id)
+        elif parent_id not in known:
+            missing_parents.append((child_id, parent_id))
+
+    return {
+        "valid": not missing_parents and not self_cycles,
+        "missing_parents": missing_parents,
+        "self_cycles": self_cycles,
+    }
+
+
+def hop_priority_score(
+    *,
+    can_change_claim_state: bool = False,
+    contradiction_present: bool = False,
+    missing_receipt: bool = False,
+    authority_transfer: bool = False,
+    missing_implementation_record: bool = False,
+    independent_consequence_available: bool = False,
+    adds_only_associated_person: bool = False,
+    repeated_source_family_only: bool = False,
+) -> int:
+    """Rank high-value research hops over mere association expansion."""
+    score = 0
+    score += 5 if can_change_claim_state else 0
+    score += 5 if contradiction_present else 0
+    score += 4 if missing_receipt else 0
+    score += 4 if authority_transfer else 0
+    score += 4 if missing_implementation_record else 0
+    score += 3 if independent_consequence_available else 0
+    score -= 4 if adds_only_associated_person else 0
+    score -= 3 if repeated_source_family_only else 0
+    return score
+
+
+def rank_hop_candidates(candidates: Sequence[Mapping[str, object]]) -> list[Mapping[str, object]]:
+    """Return candidates highest-value first while preserving caller records."""
+    scored = []
+    for candidate in candidates:
+        score = hop_priority_score(
+            can_change_claim_state=bool(candidate.get("can_change_claim_state")),
+            contradiction_present=bool(candidate.get("contradiction_present")),
+            missing_receipt=bool(candidate.get("missing_receipt")),
+            authority_transfer=bool(candidate.get("authority_transfer")),
+            missing_implementation_record=bool(candidate.get("missing_implementation_record")),
+            independent_consequence_available=bool(candidate.get("independent_consequence_available")),
+            adds_only_associated_person=bool(candidate.get("adds_only_associated_person")),
+            repeated_source_family_only=bool(candidate.get("repeated_source_family_only")),
+        )
+        scored.append({**candidate, "priority_score": score})
+    return sorted(scored, key=lambda item: item["priority_score"], reverse=True)
