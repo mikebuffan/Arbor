@@ -21,6 +21,34 @@ const acceptance = (chapterNumber: number, sourceSha256 = "b".repeat(64)): Canon
 });
 
 describe("Annabelle manuscript continuation", () => {
+  it.each([
+    { passed: false }, { blockers: 1 }, { protectedEditAllowed: false },
+    { exactSourceHashVerified: false }, { sourceKind: "fixture" },
+  ])("does not mark failed or unverified chapter acceptance complete", changes => {
+    const state = initialManuscriptContinuationState({ manuscriptId: "ever-after", manuscriptSha256: "a".repeat(64), nextChapter: 2 });
+    expect(() => resumeManuscriptContinuation({ state, acceptance: { ...acceptance(2), ...changes } as CanonicalChapterAcceptanceResult }))
+      .toThrow("annabelle_continuation_acceptance_not_passed");
+    expect(state.completed).toEqual([]);
+    expect(state.nextChapter).toBe(2);
+  });
+
+  it("rejects an altered same-source acceptance instead of calling it a replay", () => {
+    const state = initialManuscriptContinuationState({ manuscriptId: "ever-after", manuscriptSha256: "a".repeat(64), nextChapter: 2 });
+    const first = resumeManuscriptContinuation({ state, acceptance: acceptance(2) });
+    expect(() => resumeManuscriptContinuation({ state: first.state, acceptance: { ...acceptance(2), watches: 2 } }))
+      .toThrow("annabelle_continuation_completed_acceptance_changed");
+  });
+
+  it("does not invent chapter 61 after the final chapter", () => {
+    const state = initialManuscriptContinuationState({ manuscriptId: "ever-after", manuscriptSha256: "a".repeat(64), nextChapter: 61 });
+    expect(() => resumeManuscriptContinuation({ state, acceptance: acceptance(61) }))
+      .toThrow("annabelle_continuation_invalid_chapter");
+  });
+
+  it.each([{ nextChapter: 2.5 }, { sequence: NaN }])("rejects corrupted continuation positions", changes => {
+    const state = { ...initialManuscriptContinuationState({ manuscriptId: "ever-after", manuscriptSha256: "a".repeat(64), nextChapter: 2 }), ...changes };
+    expect(() => resumeManuscriptContinuation({ state, acceptance: acceptance(2) })).toThrow("annabelle_continuation_invalid_");
+  });
   it("advances exactly once and suppresses a replay", () => {
     const start = initialManuscriptContinuationState({
       manuscriptId: "ever-after",

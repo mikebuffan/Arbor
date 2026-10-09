@@ -28,7 +28,18 @@ export const ArchiveReadOutput=z.object({projectId:z.string().uuid(),fragments:z
   modelCalls:z.literal(false),writes:z.literal(false)});
 type Row={id:string;source:string;source_thread_id:string;source_message_id:string;source_message_index:number|null;
   role:string;content:string;occurred_at:string|null};
-const columns="id,source,source_thread_id,source_message_id,source_message_index,role,content,occurred_at";
+const columns="id,user_id,project_id,source,source_thread_id,source_message_id,source_message_index,role,content,occurred_at";
+const StoredArchiveRow=z.object({id:z.string().uuid(),user_id:z.string().uuid(),project_id:z.string().uuid(),
+  source:z.string(),source_thread_id:z.string(),source_message_id:z.string(),source_message_index:z.number().int().nullable(),
+  role:z.string(),content:z.string(),occurred_at:z.string().nullable()});
+function ownedArchiveRow(value:unknown,userId:string,projectId:string,expectedId?:string):Row{
+  const parsed=StoredArchiveRow.safeParse(value);
+  if(!parsed.success||parsed.data.user_id!==userId||parsed.data.project_id!==projectId||
+      (expectedId!==undefined&&parsed.data.id!==expectedId))throw Error("archive_row_scope_or_shape_invalid");
+  // Scope is checked at the read boundary, not exposed in quoted fragments.
+  const {user_id,project_id,...row}=parsed.data;
+  return row;
+}
 const hash=(content:string)=>createHash("sha256").update(content).digest("hex");
 
 /** Read the existing owned archive in chronological pages, without models or writes.
@@ -45,7 +56,7 @@ export async function readHistoricalArchivePage(input:{supabase:SupabaseClient;u
       .eq("user_id",input.userId).eq("project_id",input.projectId).eq("id",cursor.id).maybeSingle();
     if(error)throw error;
     if(!data)throw Error("archive_cursor_not_found");
-    anchor=data as Row;
+    anchor=ownedArchiveRow(data,input.userId,input.projectId,cursor.id);
     if(hash(anchor.content)!==cursor.contentSha256||cursor.offset>anchor.content.length)throw Error("archive_cursor_content_changed");
     if(cursor.version===ARCHIVE_READER_CURSOR_VERSION&&(
       cursor.source!==anchor.source||cursor.sourceThreadId!==anchor.source_thread_id||
@@ -64,7 +75,15 @@ export async function readHistoricalArchivePage(input:{supabase:SupabaseClient;u
   const {data,error}=await query.order("occurred_at",{ascending:true,nullsFirst:false})
     .order("id",{ascending:true}).limit(options.maxMessages+1);
   if(error)throw error;
-  const rows:Row[]=[...(anchor&&cursor&&cursor.offset<anchor.content.length?[anchor]:[]),...(data??[]) as Row[]];
+  if(!Array.isArray(data))throw Error("archive_page_shape_invalid");
+  const pageRows=data.map(row=>ownedArchiveRow(row,input.userId,input.projectId));
+  const seen=new Set<string>();
+  if(anchor)seen.add(anchor.id);
+  for(const row of pageRows){
+    if(seen.has(row.id))throw Error("archive_page_duplicate_row");
+    seen.add(row.id);
+  }
+  const rows:Row[]=[...(anchor&&cursor&&cursor.offset<anchor.content.length?[anchor]:[]),...pageRows];
   const fragments=[];
   let remaining=options.maxCharacters,nextCursor:z.infer<typeof ArchiveCursor>|null=null;
   let consumed=0;

@@ -27,6 +27,8 @@ export async function persistDiagnosticCheckpoint(input:{
 }):Promise<{checkpoint:EditorialCheckpoint;records:PersistableDiagnosticRecord[]}>{
  if(input.checkpoint.manuscriptId!==input.manuscriptId||input.checkpoint.chapterNumber!==input.chapterNumber)
   throw new Error("annabelle_persistence_scope_mismatch");
+ if(input.checkpoint.sourceSha256!==input.sourceSha256)
+  throw new Error("annabelle_checkpoint_source_changed");
  const mapped=diagnosticsToEditorialRecords({diagnostics:input.diagnostics,chapterNumber:input.chapterNumber,sourceSha256:input.sourceSha256})
   .map(r=>{
    const base={...r,manuscriptId:input.manuscriptId,chapterNumber:input.chapterNumber};
@@ -34,6 +36,11 @@ export async function persistDiagnosticCheckpoint(input:{
   });
  const deduped=dedupeEditorialRecords(mapped);
  const persisted=await input.port.persistRecords(deduped.unique);
+ const expectedKeys=new Set(deduped.unique.map(record=>record.recordKey));
+ if(!persisted||!Array.isArray(persisted.recordKeys)||
+    persisted.recordKeys.some(key=>typeof key!=="string"||!expectedKeys.has(key))||
+    [...expectedKeys].some(key=>!persisted.recordKeys.includes(key)))
+  throw new Error("annabelle_persistence_record_receipt_mismatch");
  const checkpoint=resumeEditorialCheckpoint(input.checkpoint,{sourceSha256:input.sourceSha256,recordKeys:persisted.recordKeys});
  await input.port.persistCheckpoint(checkpoint);
  return{checkpoint,records:deduped.unique};
@@ -64,7 +71,7 @@ export async function persistDiagnosticCheckpointVerified(input:{
  if(!checkpointReadback)throw new Error("annabelle_persistence_checkpoint_readback_missing");
  if(checkpointReadback.manuscriptId!==input.manuscriptId||checkpointReadback.chapterNumber!==input.chapterNumber||checkpointReadback.sourceSha256!==input.sourceSha256)
   throw new Error("annabelle_persistence_checkpoint_readback_scope_mismatch");
- if(checkpointReadback.sequence<written.checkpoint.sequence)
+ if(!Number.isSafeInteger(checkpointReadback.sequence)||checkpointReadback.sequence<written.checkpoint.sequence)
   throw new Error("annabelle_persistence_checkpoint_readback_stale");
  // A checkpoint row with the right owner/source and sequence is not enough:
  // confirm the saved diagnostic and all expected record references survived.

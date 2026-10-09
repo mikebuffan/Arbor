@@ -27,7 +27,22 @@ function normalize(value: string): string {
   return value.toLowerCase().normalize("NFKC").replace(/\s+/g, " ").trim();
 }
 
+function finiteMetadataNumber(value: unknown): boolean {
+  if (value == null) return true;
+  return (typeof value === "number" ||
+    (typeof value === "string" && value.trim().length > 0)) &&
+    Number.isFinite(Number(value));
+}
+
 function candidateRank(json: CandidateJson): number {
+  if (![json.score, json.confidence, json.confirm_count].every(finiteMetadataNumber)) {
+    return NaN;
+  }
+  if (json.observed_threads != null &&
+    (!Array.isArray(json.observed_threads) ||
+      !json.observed_threads.every((thread) => typeof thread === "string"))) {
+    return NaN;
+  }
   const score = Math.max(0, Math.min(1, Number(json.score ?? 0)));
   const confidence = Math.max(0, Math.min(1, Number(json.confidence ?? 0)));
   const confirmations = Math.min(1, Math.max(0, Number(json.confirm_count ?? 0)) / 3);
@@ -88,6 +103,7 @@ export async function getProvisionalMemoryCandidateContext(input: {
   const selected = data
     .filter((row: any) =>
       row &&
+      typeof row.id === "string" && row.id.trim().length > 0 &&
       row.user_id === input.userId &&
       row.project_id === input.projectId &&
       row.status === "proposed" &&
@@ -97,10 +113,13 @@ export async function getProvisionalMemoryCandidateContext(input: {
     )
     .map((row: any) => {
       const json = row.candidate_json as CandidateJson;
-      return { id: String(row.id), json, rank: candidateRank(json) };
+      return { id: row.id as string, json, rank: candidateRank(json) };
     })
     .filter((candidate) => {
       const { json } = candidate;
+      if (!Number.isFinite(candidate.rank)) return false;
+      if (json.mem_key != null &&
+        (typeof json.mem_key !== "string" || !json.mem_key.trim())) return false;
       if (json.sensitive || json.excluded_from_memory) return false;
       if (typeof json.content !== "string" || !json.content.trim()) return false;
       if (!cueMatches(json, input.latestUserText)) return false;

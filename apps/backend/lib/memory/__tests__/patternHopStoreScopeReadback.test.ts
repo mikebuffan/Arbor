@@ -1,5 +1,5 @@
 import { describe,expect,it,vi } from "vitest";
-import { loadPatternHopRun,loadPatternHopEvidence } from "../patternHopStore";
+import { loadPatternHopRun,loadPatternHopEvidence,loadPatternHopEdges } from "../patternHopStore";
 
 const runId="synthetic-run",userId="synthetic-owner",projectId="synthetic-project";
 const scope={runId,userId,projectId};
@@ -62,4 +62,57 @@ describe("Pattern Hop saved run and evidence returned-row scope",()=>{
     const db=mockDB({arbor_pattern_hop_evidence:{content:"SECRET"}});
     expect(await loadPatternHopEvidence({...scope,supabase:db.supabase})).toEqual([]);
   });
+  it.each([
+    ["missing objective", {objective:null}],
+    ["invalid depth", {max_depth:"not-a-depth"}],
+    ["out of bounds depth", {max_depth:33}],
+    ["fractional depth", {max_depth:1.5}],
+    ["missing frontier", {frontier:null}],
+    ["object frontier", {frontier:{evidenceId:"lost"}}],
+    ["null frontier item", {frontier:[null]}],
+    ["invalid frontier depth", {frontier:[{evidenceId:"seed",clue:"clue",depth:-1,branch:"direct"}]}],
+    ["frontier exceeds budget", {frontier:[{evidenceId:"seed",clue:"clue",depth:7,branch:"direct"}]}],
+    ["missing frontier identity", {frontier:[{clue:"clue",depth:0,branch:"direct"}]}],
+    ["invalid visited entry", {visited:[{}]}],
+    ["lost completed branches", {completed_branches:"direct"}],
+    ["invalid exhausted branch", {exhausted_branches:[null]}],
+    ["unknown status", {status:"finished"}],
+    ["object blocker", {blocker:{message:"blocked"}}],
+    ["malformed seed", {seed:[]}],
+    ["malformed verification", {verification_state:[]}],
+    ["malformed conversation", {conversation_id:{id:"conversation"}}],
+  ])("rejects an owned checkpoint with %s before it can resume",async(_label,override)=>{
+    const db=mockDB({arbor_pattern_hop_runs:run(override)});
+    await expect(loadPatternHopRun({...scope,supabase:db.supabase}))
+      .rejects.toThrow("pattern_hop_run_state_invalid");
+  });
+  it.each(["active","blocked","complete","exhausted"])("preserves a valid %s checkpoint exactly",async(status)=>{
+    const frontier=[{evidenceId:"seed",clue:"saved clue",depth:2,branch:"direct>neighbor"}];
+    const db=mockDB({arbor_pattern_hop_runs:run({status,frontier,visited:["saved-visit"],
+      completed_branches:["completed"],exhausted_branches:["exhausted"],blocker:"saved blocker"})});
+    const restored=await loadPatternHopRun({...scope,supabase:db.supabase});
+    expect(restored?.state).toEqual({objective:"Resume the right objective",maxDepth:6,
+      status,frontier,visited:["saved-visit"],completedBranches:["completed"],
+      exhaustedBranches:["exhausted"],blocker:"saved blocker"});
+  });
+
+  it.each(["","  "])("uses the same source identity for evidence and links with blank legacy alias %j",async(alias)=>{
+    const db=mockDB({arbor_pattern_hop_evidence:[evidence("db-source",{metadata:{client_evidence_id:alias}})],
+      arbor_pattern_hop_edges:[{run_id:runId,from_evidence_id:null,to_evidence_id:"db-source",
+        originating_clue:"clue",relationship:"direct_match",hop_depth:0,confidence:.9,
+        epistemic_status:"direct",rationale:"saved link"}]});
+    const sources=await loadPatternHopEvidence({...scope,supabase:db.supabase});
+    const links=await loadPatternHopEdges({...scope,supabase:db.supabase});
+    expect(sources.map(source=>source.id)).toEqual(["db-source"]);
+    expect(links.map(link=>link.toEvidenceId)).toEqual(sources.map(source=>source.id));
+  });
+
+  it("stops the real research entry point before retrieval or writes on a damaged checkpoint",async()=>{
+    const {runPatternHopResearch}=await import("../patternHopResearch");
+    const db=mockDB({arbor_pattern_hop_runs:run({frontier:null})});
+    await expect(runPatternHopResearch({...scope,supabase:db.supabase,seed:"legitimate",
+      runControl:null})).rejects.toThrow("pattern_hop_run_state_invalid");
+    expect(db.from.mock.calls.map(call=>call[0])).toEqual(["arbor_pattern_hop_runs"]);
+  });
+
 });

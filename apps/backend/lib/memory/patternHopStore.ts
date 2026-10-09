@@ -11,14 +11,45 @@ export type PatternHopRunRecord = {
   verificationState: Record<string, unknown>;
 };
 
+function nonblankString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function recordObject(value: unknown): boolean {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function restoredEvidenceId(row: any): string {
+  return nonblankString(row.metadata?.client_evidence_id)
+    ? row.metadata.client_evidence_id : row.id;
+}
+
 function mapState(row: any): PatternHopState {
+  // Never replace damaged durable progress with empty traversal lists. A
+  // malformed checkpoint must fail before any research or checkpoint write.
+  const stringList = (value: unknown) =>
+    Array.isArray(value) && value.every(nonblankString);
+  if (!nonblankString(row.objective) ||
+      !Number.isInteger(row.max_depth) || row.max_depth < 1 || row.max_depth > 32 ||
+      !Array.isArray(row.frontier) || !row.frontier.every((item: any) =>
+        recordObject(item) && nonblankString(item.evidenceId) &&
+        nonblankString(item.clue) && nonblankString(item.branch) &&
+        Number.isInteger(item.depth) && item.depth >= 0 && item.depth <= row.max_depth) ||
+      !stringList(row.visited) || !stringList(row.completed_branches) ||
+      !stringList(row.exhausted_branches) ||
+      !["active", "complete", "blocked", "exhausted"].includes(row.status) ||
+      (row.blocker != null && typeof row.blocker !== "string") ||
+      (row.conversation_id != null && !nonblankString(row.conversation_id)) ||
+      !recordObject(row.seed ?? {}) || !recordObject(row.verification_state ?? {})) {
+    throw new Error("pattern_hop_run_state_invalid");
+  }
   return {
-    objective: String(row.objective),
-    maxDepth: Number(row.max_depth ?? 6),
-    frontier: Array.isArray(row.frontier) ? row.frontier : [],
-    visited: Array.isArray(row.visited) ? row.visited : [],
-    completedBranches: Array.isArray(row.completed_branches) ? row.completed_branches : [],
-    exhaustedBranches: Array.isArray(row.exhausted_branches) ? row.exhausted_branches : [],
+    objective: row.objective,
+    maxDepth: row.max_depth,
+    frontier: row.frontier,
+    visited: row.visited,
+    completedBranches: row.completed_branches,
+    exhaustedBranches: row.exhausted_branches,
     status: row.status,
     blocker: row.blocker ?? null,
   };
@@ -65,6 +96,12 @@ export async function createPatternHopRun(params: {
     .single();
 
   if (error) throw error;
+
+  if (!data || typeof data.id !== "string" || !data.id.trim() ||
+      data.user_id !== params.userId ||
+      data.project_id !== params.projectId ||
+      data.conversation_id !== (params.conversationId ?? null))
+    throw new Error("pattern_hop_run_insert_scope_invalid");
 
   return {
     id: String(data.id),
@@ -118,7 +155,7 @@ export async function savePatternHopRun(params: {
   verificationState?: Record<string, unknown>;
 }) {
   const s = params.state;
-  const { error } = await params.supabase
+  const { data, error } = await params.supabase
     .from("arbor_pattern_hop_runs")
     .update({
       status: s.status,
@@ -133,9 +170,17 @@ export async function savePatternHopRun(params: {
     })
     .eq("id", params.runId)
     .eq("user_id", params.userId)
-    .eq("project_id", params.projectId);
+    .eq("project_id", params.projectId)
+    .select("id,user_id,project_id")
+    .maybeSingle();
 
   if (error) throw error;
+  // An error-free zero-row UPDATE is not a saved checkpoint. Require the
+  // updated row's identity before the caller acknowledges durable progress.
+  if (!data || data.id !== params.runId ||
+      data.user_id !== params.userId ||
+      data.project_id !== params.projectId)
+    throw new Error("pattern_hop_run_update_scope_invalid");
 }
 
 export async function persistPatternHopEvidence(params: {
@@ -247,7 +292,7 @@ export async function persistPatternHopEdges(params: {
   for (const row of rows) {
     let existingQuery = params.supabase
       .from("arbor_pattern_hop_edges")
-      .select("id")
+      .select("id,run_id,from_evidence_id,to_evidence_id,relationship,hop_depth")
       .eq("run_id", row.run_id)
       .eq("to_evidence_id", row.to_evidence_id)
       .eq("relationship", row.relationship)
@@ -261,13 +306,31 @@ export async function persistPatternHopEdges(params: {
       await existingQuery.maybeSingle();
 
     if (existingError) throw existingError;
-    if (existing?.id) continue;
+    if (existing) {
+      if (typeof existing.id !== "string" || !existing.id.trim() ||
+          existing.run_id !== row.run_id ||
+          existing.from_evidence_id !== row.from_evidence_id ||
+          existing.to_evidence_id !== row.to_evidence_id ||
+          existing.relationship !== row.relationship ||
+          existing.hop_depth !== row.hop_depth)
+        throw new Error("pattern_hop_edge_existing_identity_invalid");
+      continue;
+    }
 
-    const { error } = await params.supabase
+    const { data, error } = await params.supabase
       .from("arbor_pattern_hop_edges")
-      .insert(row);
+      .insert(row)
+      .select("id,run_id,from_evidence_id,to_evidence_id,relationship,hop_depth")
+      .single();
 
     if (error) throw error;
+    if (!data || typeof data.id !== "string" || !data.id.trim() ||
+        data.run_id !== row.run_id ||
+        data.from_evidence_id !== row.from_evidence_id ||
+        data.to_evidence_id !== row.to_evidence_id ||
+        data.relationship !== row.relationship ||
+        data.hop_depth !== row.hop_depth)
+      throw new Error("pattern_hop_edge_insert_identity_invalid");
   }
 }
 
@@ -303,10 +366,7 @@ export async function loadPatternHopEvidence(params: {
       .includes(row.epistemic_status) &&
     Number.isFinite(Number(row.confidence ?? 0.5))
   ).map((row: any) => ({
-    id:
-      typeof row.metadata?.client_evidence_id === "string"
-        ? row.metadata.client_evidence_id
-        : String(row.id),
+    id: restoredEvidenceId(row),
     source: String(row.source),
     sourceThreadId: row.source_thread_id
       ? String(row.source_thread_id)
@@ -354,9 +414,7 @@ export async function loadPatternHopEdges(params: {
   const clientIdByDbId = new Map<string, string>(
     ownedEvidence.map(row => [
       row.id,
-      typeof row.metadata?.client_evidence_id === "string" &&
-      row.metadata.client_evidence_id.trim()
-        ? row.metadata.client_evidence_id : row.id,
+      restoredEvidenceId(row),
     ]),
   );
 

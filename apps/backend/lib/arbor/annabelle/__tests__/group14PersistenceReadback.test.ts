@@ -45,6 +45,10 @@ async function run(tamper: (value: EditorialCheckpoint) => EditorialCheckpoint) 
 }
 
 describe("Group 14 editorial readback content integrity (synthetic)", () => {
+  it.each([NaN, Infinity, 2.5])("rejects invalid saved checkpoint sequence %s", async sequence => {
+    await expect(run(state => ({ ...state, sequence })))
+      .rejects.toThrow("annabelle_persistence_checkpoint_readback_stale");
+  });
   it("accepts genuinely matching checkpoint and record-key readback", async () => {
     const value = await run(state => state);
     expect(value.verified).toBe(true);

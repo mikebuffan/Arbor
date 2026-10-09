@@ -123,4 +123,31 @@ describe("provisional candidate owner and forgetting guards", () => {
     expect(result).toEqual({ promptBlock: "", selected: [] });
   });
 
+  it.each([
+    ["missing id", { id: undefined }],
+    ["blank id", { id: "  " }],
+    ["object id", { id: {} }],
+    ["invalid score", { candidate_json: { content: "unsafe", score: "bad", confirm_count: 2 } }],
+    ["infinite confidence", { candidate_json: { content: "unsafe", confidence: Infinity, confirm_count: 2 } }],
+    ["object confirmation", { candidate_json: { content: "unsafe", score: 1, confirm_count: {} } }],
+    ["fake thread collection", { candidate_json: { content: "unsafe", score: 1, observed_threads: "abc" } }],
+    ["object memory key", { candidate_json: { content: "unsafe", score: 1, mem_key: {} } }],
+  ])("skips %s while retaining usable evidence", async (_label, overrides) => {
+    mockedAdmin([candidate("unsafe", overrides), candidate("valid")]);
+    const result = await getProvisionalMemoryCandidateContext({
+      userId, projectId, latestUserText: "continue",
+    });
+    expect(result.selected.map((item) => item.id)).toEqual(["valid"]);
+    expect(result.promptBlock).not.toContain("unsafe");
+  });
+
+  it("keeps legacy finite numeric strings and optional metadata usable", async () => {
+    mockedAdmin([candidate("legacy", { candidate_json: {
+      content: "legacy signal", score: "0.9", confidence: "0.85", confirm_count: "2",
+    } })]);
+    const result = await getProvisionalMemoryCandidateContext({ userId, projectId, latestUserText: "continue" });
+    expect(result.selected.map((item) => item.id)).toEqual(["legacy"]);
+    expect(result.promptBlock).toContain("[legacy] legacy signal");
+  });
+
 });
