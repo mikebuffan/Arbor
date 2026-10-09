@@ -30,7 +30,9 @@
     "workflowChoiceParentPr376": "e128493031bc6bde08e6df483346fa2b03dae590",
     "independentJudgmentModelParityPr377": "9bc589400dcc474e5b0856eabd74cbd8013c64f0",
     "fireflyProvenanceParentPr378": "b68e1307e88dc033ef3ee68de894e168cb2c5c71",
-    "independentFollowthroughPr379": "d9dab125424b6e627f93461dd4e13b252e3af65d"
+    "independentFollowthroughPr379": "d9dab125424b6e627f93461dd4e13b252e3af65d",
+    "discoveryProgressParentPr381": "9e49e50844bc7ec7153d835d6ee679fdef976cef",
+    "independentResumePriorityPr382": "e23d648566fd49c662c678df7998a48cf0193b9a"
   },
   "expectedBlobSha": {
     "apps/backend/lib/arbor/runtime/timeCore.ts": "7fb33f4a8c6f201e96cc8c3f71b9a4ba584dabde",
@@ -49,12 +51,12 @@
     "apps/arbor-control-backend/src/selfModelObservations.ts": "f8f03960ee18eca6650b12b4e2ee07c3b8e34469",
     "apps/arbor-control-backend/src/selfModelClaims.ts": "9bf0d7bd2f50fe61338a8967cd1b0a0c7d3e1b52",
     "docs/integration/ONE_ARBOR_GROUP06_IDENTITY_EVIDENCE_GATE_20261007.md": "bd43f7b8a8c2e90208b6839d582d5f698fcc570c",
-    "ops/grove/source-only-ignore.mjs": "c5d01b5a80af436806f5843aeacd72468d057d2f",
+    "ops/grove/source-only-ignore.mjs": "b5be552bcf4ebec505846bb7b6d8ec52e27690f2",
     ".github/workflows/one-arbor-group04-shelf-pagination.yml": "41790290a7fa86974dcca3fbbcc15bc96e0cac88",
     "apps/backend/lib/memory/__tests__/shelfPageRead.test.ts": "35b5c43abb6b2c774a1ae3aa75b33507c1e4d3bb",
     "apps/frontend/lib/environment/grove_memory_shelf_view.dart": "31e54c5c459cadce0eeba4bb577922c419cde71a",
     "apps/frontend/test/grove_memory_shelf_view_test.dart": "f01802b64c9ee0ed0116ee66e81344499fdcdf25",
-    ".github/workflows/one-arbor-15-lane-assembly.yml": "bba4b248de5c5e3775dee8a416b5eecc3747ef23",
+    ".github/workflows/one-arbor-15-lane-assembly.yml": "f682ff32cbd5fd695a8886b4c0db65aa42cc16a7",
     ".github/workflows/one-arbor-diary-draft.yml": "8923e47d0d69562a86a7c210b10efaaf0c5fd624",
     ".github/workflows/one-arbor-group08-body-acceptance.yml": "d4dc36baef71d379f6a769d7f0416cd755d7252a",
     ".github/workflows/one-arbor-group09-decision-gates.yml": "8c6a9996d12fc1624e8e1ef997d8c04d34ee0ffe",
@@ -109,12 +111,12 @@
     "docs/integration/ONE_ARBOR_GROUP15_LIFE_RECORDS_20261007.md": "e242c0c9eff805d9815bc3e97625505783fc932e",
     "docs/integration/ONE_ARBOR_GROUPS_01_15_SOURCE_CONSOLIDATION_20261007.md": "ddfa33ca248cd97bc2657b0075ca7e739805e0a3",
     "apps/backend/lib/arbor/runtime/decisionAncestry.ts": "552b946579a9acc0b2c6e0bce7da219391c384b3",
-    "apps/backend/lib/arbor/runtime/discoveryRadar.ts": "9c5dcb31427b4270c4bdc0079064e672d3bfdf4e",
+    "apps/backend/lib/arbor/runtime/discoveryRadar.ts": "6cf137f503aab605d2db648885fa4b67a9fca8b5",
     "apps/backend/lib/arbor/runtime/__tests__/group11SourceBoundary.test.ts": "df8ad7d637e55cbaf286ed3589fea7a8c88d76d2",
     "apps/backend/lib/arbor/behavior/behaviorProjection.ts": "cd52561933f57ff41daf2ca1497d2dc8d414bfe8",
     "apps/backend/lib/arbor/behavior/__tests__/independentJudgmentCases.ts": "7d9b8eb3f6952812c893c5a5bd228395888e5da3",
     "apps/backend/lib/arbor/behavior/__tests__/independentJudgmentCases.test.ts": "045e1782fbacbad032738232bf960962345e2a8e",
-    ".github/workflows/one-arbor-independent-judgment.yml": "d44368318cfb2253017f0bc14a22bade6cadcc57",
+    ".github/workflows/one-arbor-independent-judgment.yml": "edd727f91562425b442b2224036f1e462d98bd2b",
     "apps/backend/lib/prompt/buildPromptContext.ts": "c91150dbfce1755b9843b58c8c46a95e7fe50a3b",
     "apps/backend/lib/arbor/behavior/arkLayerReadContext.ts": "e0597d3df998d37361a9b21f351d597e1508f445",
     "apps/backend/lib/arbor/behavior/__tests__/arkLayerReadContext.test.ts": "fff706bfa7d2694ae8f58e5f21c4cff0b6e02516",
@@ -186,7 +188,7 @@
     "apps/backend/lib/arbor/behavior/__tests__/fixtures/proactiveJudgment/host_private_rubric.json": "745be7ab5cdfd00ed07b8045ab41dd079abde250",
     "apps/backend/lib/arbor/behavior/__tests__/fixtures/proactiveJudgment/public_generation.json": "0177bb5f849d9c85f45f73b10aca436f4f1ce8af",
     "apps/backend/lib/arbor/behavior/__tests__/proactiveJudgmentOfflineRunner.test.ts": "d8d0b721ea66344224a677719a528cfdcadba124",
-    "apps/backend/lib/arbor/runtime/__tests__/discoveryRadar.test.ts": "3c1d505844009649d6c4b3fdb1d61aab70bda596",
+    "apps/backend/lib/arbor/runtime/__tests__/discoveryRadar.test.ts": "568332ec28ea652a2ed7d9c4f546ec9fe95cf4c5",
     "docs/integration/ONE_ARBOR_372_373_SAFE_COMPOSITION_20261009.md": "9bd526de011573a5f37f62c392bb8827688218ea",
     "docs/integration/ONE_ARBOR_ARK_RECEIPT_TASK_SCOPE_20261009.md": "72f7ad1340cae472baff24cfa9784ace7dfa4e31",
     "apps/backend/lib/ark/supabaseStore.ts": "ae5d813732d4ddc59d06942d6a26d9f71b75e5c6",
@@ -198,7 +200,12 @@
     "docs/integration/ONE_ARBOR_JUDGMENT_MODEL_PARITY_20261009.md": "8243f345f6c2df62cd9cbb8a15d0836650e7a375",
     "apps/backend/lib/arbor/runtime/knowledgeRouting.ts": "790b343c39a4f2173f6c353ae355514114727774",
     "apps/backend/lib/arbor/agency/__tests__/independentFollowthrough.test.ts": "ca31b9efc854b06da9a5ce23dac9dd06b1e6a806",
-    "docs/integration/ONE_ARBOR_INDEPENDENT_FOLLOWTHROUGH_20261009.md": "198049067b47837f3726a5a64da5f3898760aeb2"
+    "docs/integration/ONE_ARBOR_INDEPENDENT_FOLLOWTHROUGH_20261009.md": "198049067b47837f3726a5a64da5f3898760aeb2",
+    "apps/backend/lib/arbor/agency/engine.ts": "451d897012cbcf66f52f03ddff9367cf8eaef1ab",
+    "apps/backend/lib/arbor/agency/backlogContinuation.ts": "9d1c42cd589f134b0b3cf4b0e0325f61df10f704",
+    "apps/backend/lib/arbor/agency/__tests__/engineResume.test.ts": "1e451a31d2ce6ef7be3b980322ef166b1ade6c82",
+    "apps/backend/lib/arbor/agency/__tests__/backlogContinuation.test.ts": "4dc265355ce08e7e9b05bcc7b4e9a65e03c27ed8",
+    "docs/integration/ONE_ARBOR_INDEPENDENCE_RESUME_PRIORITY_20261009.md": "bbf4b64230910a113f44b7b22bd658799e2bac6b"
   },
   "comment": "Source-only incorporation from Library ONE_ARBOR_CODE_REPAIRS_20261009.zip: 17 exact source/test blobs verified, packages reconciled with original PR #372 head, 3 focused tests added; CI/release acceptance remain separately gated."
 }

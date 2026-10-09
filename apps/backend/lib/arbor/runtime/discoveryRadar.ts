@@ -112,6 +112,9 @@ export function projectDiscoveryRadar(input: {
   validateMetadata(input.seed, input.scope.userId);
   const ids = new Set([input.seed.evidence.id]);
   const grouped = new Map<string, DiscoveryMetadata>();
+  const seenFamilies = new Set<string>();
+  const visited = new Set(visitedIds);
+  visited.add(input.seed.evidence.id);
   let repeatedFamilyCount = 0;
   for (const item of input.candidates) {
     validateMetadata(item, input.scope.userId);
@@ -121,13 +124,15 @@ export function projectDiscoveryRadar(input: {
     if (ids.has(item.evidence.id)) throw new Error("discovery_radar_duplicate_evidence");
     ids.add(item.evidence.id);
     const familyKey = item.projectId + "\u0000" + item.sourceFamilyId;
+    if (seenFamilies.has(familyKey)) repeatedFamilyCount += 1;
+    seenFamilies.add(familyKey);
+    // Validate scope and count repeated families even for visited rows, but
+    // choose the family representative only from eligible unvisited evidence.
+    if (visited.has(item.evidence.id)) continue;
     const existing = grouped.get(familyKey);
-    if (existing) repeatedFamilyCount += 1;
     if (!existing || item.retrievalScore > existing.retrievalScore)
       grouped.set(familyKey, item);
   }
-  const visited = new Set(visitedIds);
-  visited.add(input.seed.evidence.id);
   const chosen = [...grouped.values()];
   const byId = new Map(chosen.map(item => [item.evidence.id, item]));
   const ranked = selectNextHopCandidates({
