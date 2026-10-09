@@ -12,7 +12,76 @@ const GROVE_PROJECT_REF = "fqjqpuaoifgbweiguacf";
 const GROVE_VERCEL_PROJECT_ID = "prj_nw2X0SyLn4e8CXWZ83MEs4jwn1JN";
 const AUTH_AUDIENCE = "authenticated";
 
-export type GrovePriva…801 tokens truncated…-4d16734a.vercel.app") ||
+export type GrovePrivateReadConfiguration = {
+  groveUrl: string;
+  grovePublishableKey: string;
+  groveServiceKey: string;
+  fireflyUrl: string;
+  fireflyServiceKey: string;
+  apiOrigin: string;
+};
+
+/** A distinct deployment must opt in. The ordinary Firefly backend defaults OFF. */
+export function privateGroveReadConfig(
+  env: NodeJS.ProcessEnv = process.env,
+): GrovePrivateReadConfiguration {
+  if (env.GROVE_API_ENABLED !== "true") {
+    throw new RouteAccessError(500, "grove_api_not_enabled");
+  }
+
+  // Local/source tests need no Vercel metadata, but a Vercel-hosted private
+  // API must prove it is the dedicated Grove project before any service key
+  // is accepted. This prevents a copied GROVE_API_ENABLED flag on Firefly or
+  // ARK Preview from turning another deployment into the private broker.
+  const vercelProjectId = env.VERCEL_PROJECT_ID?.trim() ?? "";
+  const profile = env.GROVE_ISOLATED_TEST_PROFILE?.trim() ?? "";
+  const isolatedTest = profile === "one-arbor-20261009";
+  if (profile && !isolatedTest) {
+    throw new RouteAccessError(500, "grove_api_not_configured");
+  }
+  // This opt-in accepts only the two empty, separately provisioned test realms.
+  // A copied flag on main, Production, another project or local runtime fails.
+  if (isolatedTest ? (
+    env.VERCEL !== "1" || env.VERCEL_ENV !== "preview" ||
+    vercelProjectId !== "prj_bliWIoBwJ053cXPIBB9uJzpW4PK6" ||
+    env.VERCEL_GIT_COMMIT_REF !==
+      "review/one-arbor-independence-budget-preflight-20261009"
+  ) : ((env.VERCEL === "1" && vercelProjectId !== GROVE_VERCEL_PROJECT_ID) ||
+      (vercelProjectId && vercelProjectId !== GROVE_VERCEL_PROJECT_ID))) {
+    throw new RouteAccessError(500, "grove_api_not_configured");
+  }
+
+  const groveUrl = env.GROVE_SUPABASE_URL?.trim() ?? "";
+  const grovePublishableKey =
+    env.GROVE_SUPABASE_PUBLISHABLE_KEY?.trim() ?? "";
+  const groveServiceKey = env.GROVE_SERVICE_ROLE_KEY?.trim() ?? "";
+  const fireflyUrl = env.GROVE_FIREFLY_SUPABASE_URL?.trim() ?? "";
+  const fireflyServiceKey = env.GROVE_FIREFLY_SERVICE_ROLE_KEY?.trim() ?? "";
+  const apiOrigin = env.GROVE_PUBLIC_API_ORIGIN?.trim() ?? "";
+
+  function exactHttpsOrigin(value: string): URL {
+    const uri = URL.canParse(value) ? new URL(value) : null;
+    if (!uri || uri.protocol !== "https:" || !uri.hostname ||
+        uri.username || uri.password || uri.pathname !== "/" ||
+        uri.search || uri.hash || uri.port) {
+      throw new RouteAccessError(500, "grove_api_not_configured");
+    }
+    return uri;
+  }
+
+  const grove = exactHttpsOrigin(groveUrl);
+  const firefly = exactHttpsOrigin(fireflyUrl);
+  const api = exactHttpsOrigin(apiOrigin);
+  const expectedGroveHost = isolatedTest
+    ? "htliidxymbbgurtvnptw.supabase.co"
+    : `${GROVE_PROJECT_REF}.supabase.co`;
+  const expectedFireflyHost = isolatedTest
+    ? "fieszfvzkfgvccrznmhw.supabase.co"
+    : "ncpdlyakrzfvobmwzbon.supabase.co";
+  if (grove.hostname !== expectedGroveHost ||
+      firefly.hostname !== expectedFireflyHost ||
+      (isolatedTest && api.hostname !==
+        "arbor-independence-isolated-git-6238a9-mikes-projects-4d16734a.vercel.app") ||
       api.hostname === grove.hostname ||
       api.hostname === firefly.hostname ||
       api.hostname === "firefly-coral.vercel.app" ||
