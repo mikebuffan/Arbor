@@ -66,7 +66,8 @@ export type AgencyYieldDecision =
  * complete or a genuine blocker requires external/user input.
  */
 export function agencyYieldDecision(agency: AgencyState): AgencyYieldDecision {
-  if (agency.status === "complete" && agency.unresolvedWork.length === 0) {
+  if (agency.status === "complete" && agency.unresolvedWork.length === 0 &&
+    agency.lastVerification?.ok !== false) {
     return { yield: true, reason: "complete" };
   }
 
@@ -106,9 +107,41 @@ export async function runAgency<SharedState>(input: {
   runtime: AgencyRuntime<SharedState>;
   maxSteps?: number;
 }): Promise<{ agency: AgencyState; shared: SharedState }> {
+  const maxSteps = input.maxSteps ?? 64;
+  // Reject nonfinite/unbounded execution windows before touching host state.
+  // A checkpoint, not an infinite loop, is the bounded continuation contract.
+  if (!Number.isSafeInteger(maxSteps) || maxSteps < 1 || maxSteps > 256)
+    throw new Error("agency_invalid_step_budget");
+
   let shared = await input.runtime.loadSharedState();
   const restored = await input.runtime.loadAgencyState?.(input.goal);
   const restoring = restored?.goal === input.goal;
+
+  // A restart or an ordinary "go" is not an authorization to clear a
+  // persisted STOP/approval boundary. Likewise, a terminal, empty-work goal
+  // is not a fresh task merely because its text was repeated.
+  // A trusted caller must first record a genuine new objective or approval.
+  // Historical/damaged readback might already claim completion while
+  // carrying an explicit failed verification. Do not echo it as terminal.
+  // Preserve the negative receipt for an authorized proof/recovery pass.
+  if (restoring && restored!.status === "complete" &&
+    restored!.lastVerification?.ok === false) {
+    const agency: AgencyState = {
+      ...restored!,
+      status: "checkpointed",
+      blocker: null,
+      unresolvedWork: restored!.unresolvedWork.length
+        ? restored!.unresolvedWork
+        : [restored!.lastVerification.correction ?? "prior completion verification failed"],
+    };
+    await input.runtime.persist({ agency, shared });
+    return { agency, shared };
+  }
+
+  if (restoring && (restored!.status === "blocked" ||
+    (restored!.status === "complete" && restored!.unresolvedWork.length === 0))) {
+    return { agency: restored!, shared };
+  }
   const resumeStep = restoring
     ? restored!.status === "checkpointed"
       ? restored!.currentStep + 1
@@ -129,8 +162,6 @@ export async function runAgency<SharedState>(input: {
         lastVerification: null,
       };
 
-  const maxSteps = input.maxSteps ?? 64;
-
   for (let i = 0; i < maxSteps; i += 1) {
     // Never rewind a durable checkpoint to step zero. A checkpoint is written
     // after its last executed step, so resume from the following step; other
@@ -146,6 +177,23 @@ export async function runAgency<SharedState>(input: {
       ...agency,
       unresolvedWork: assessment.unresolvedWork,
     };
+
+    // A negative verification is evidence that the last action was not
+    // confirmed. Assessment alone must not erase that failure or produce
+    // a false completion receipt. Without a separate completion prover,
+    // checkpoint for reconciliation rather than replaying an uncertain write.
+    if (assessment.complete && agency.lastVerification?.ok === false &&
+      !input.runtime.proveComplete) {
+      agency = {
+        ...agency,
+        status: "checkpointed",
+        unresolvedWork: assessment.unresolvedWork.length
+          ? assessment.unresolvedWork
+          : [agency.lastVerification.correction ?? "prior action verification failed"],
+      };
+      await input.runtime.persist({ agency, shared });
+      return { agency, shared };
+    }
 
     if (assessment.complete) {
       const proof = input.runtime.proveComplete

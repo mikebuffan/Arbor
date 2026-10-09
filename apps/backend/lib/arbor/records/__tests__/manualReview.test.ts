@@ -143,3 +143,18 @@ describe("Group 15 optional manual practical-record intake", () => {
       Array.from({ length: 101 }, (_, i) => record(String(i))))).toThrow("record_intake_review_limit");
   });
 });
+
+
+describe("explicit record-review consent", () => {
+  it.each([{ consent: "false" }, { consent: 1 }, { consent: {} }, { consent: [] }])(
+    "keeps malformed consent $consent blocked", ({ consent }) => {
+      const result = reviewManualRecordIntake("project-one", [record("synthetic-consent", {
+        ownerApprovedToReview: consent as unknown as boolean,
+      })]);
+      expect(result.items[0].status).toBe("blocked");
+      expect(result.items[0].blockers).toContain("owner_review_consent_absent");
+      expect(result.items[0].contentsOpened).toBe(false);
+      expect(result.items[0].recordImported).toBe(false);
+      expect(result.performedExternalActions).toBe(false);
+    });
+});

@@ -143,7 +143,7 @@ export function reviewManualRecordIntake(
     if (!id || !documentRef || !cleaned(proposal.statedPurpose))
       blockers.push("missing_document_ref_or_purpose");
     if (id && seen.has(id)) blockers.push("duplicate_intake_id");
-    if (!proposal.ownerApprovedToReview) blockers.push("owner_review_consent_absent");
+    if (proposal.ownerApprovedToReview !== true) blockers.push("owner_review_consent_absent");
     if (proposal.privacyClass !== "ordinary") blockers.push("privacy_review_required");
     if (id) seen.add(id);
     return {

@@ -54,4 +54,11 @@ describe("agency yield policy", () => {
       ),
     ).toEqual({ yield: false, reason: "continue" });
   });
+  it("does not yield a completed claim with explicitly failed verification", () => {
+    expect(agencyYieldDecision(state({
+      status: "complete", unresolvedWork: [],
+      lastVerification: { ok: false, correction: "missing source receipt" },
+    }))).toEqual({ yield: false, reason: "continue" });
+  });
+
 });

@@ -133,3 +133,38 @@ describe("read-only discovery candidate routing", () => {
     }
   });
 });
+
+
+describe("visited source-family progress", () => {
+  it.each([false, true])("retains an unvisited family candidate when the best retrieval is visited (cross-project=%s)", crossProjectEnabled => {
+    const projectId = crossProjectEnabled ? "grove" : scope.projectId;
+    const candidates = [
+      item("visited-best", { projectId, sourceFamilyId: "shared", retrievalScore: .99 }),
+      item("unvisited-next", { projectId, sourceFamilyId: "shared", retrievalScore: .90 }),
+    ];
+    for (const order of [candidates, [...candidates].reverse()]) {
+      const out = projectDiscoveryRadar(input(order, {
+        authorizedProjectIds: ["arbor", "grove"], crossProjectEnabled,
+        visitedEvidenceIds: ["visited-best"],
+      }));
+      expect(out.suggestions.map(hit => hit.evidenceId)).toEqual(["unvisited-next"]);
+      expect(out.repeatedFamilyCount).toBe(1);
+      expect(out.grantsExecution).toBe(false);
+      expect(out.createsTasks).toBe(false);
+      expect(out.suggestions[0].corroborationVerified).toBe(false);
+    }
+  });
+
+  it("keeps all-visited families excluded and still validates visited foreign metadata", () => {
+    const out = projectDiscoveryRadar(input([
+      item("one", { sourceFamilyId: "shared" }),
+      item("two", { sourceFamilyId: "shared" }),
+    ], { visitedEvidenceIds: ["one", "two"] }));
+    expect(out.suggestions).toEqual([]);
+    expect(out.repeatedFamilyCount).toBe(1);
+    expect(() => projectDiscoveryRadar(input([
+      item("foreign", { projectId: "unapproved" }),
+    ], { visitedEvidenceIds: ["foreign"] })))
+      .toThrow("discovery_radar_access_denied");
+  });
+});
