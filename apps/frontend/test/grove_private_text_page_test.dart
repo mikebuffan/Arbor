@@ -324,6 +324,7 @@ void main() {
     await tester.pump();
     expect(client.creations, 1);
     expect(find.textContaining('Could not confirm the new'), findsOneWidget);
+    expect(find.text('New private conversation'), findsNothing);
     await tester.tap(find.text('Refresh conversations'));
     await tester.pumpAndSettle();
     expect(find.text('Earlier private answer'), findsOneWidget);

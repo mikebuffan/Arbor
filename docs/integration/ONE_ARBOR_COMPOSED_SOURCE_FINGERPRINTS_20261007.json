@@ -222,8 +222,8 @@
     "docs/integration/ONE_ARBOR_ISOLATED_PREVIEW_FENCE_REPAIR_20261009.md": "aac8515a6d6311263737396302e03a5a1f542064",
     "apps/backend/app/api/memory/delete/route.ts": "d8b650c7791c78741603d28910cc24bcdc85dfa8",
     "apps/backend/lib/memory/__tests__/routeOwnership.test.ts": "68b46fd385b4fe32872650125d16f41e19509952",
-    "apps/frontend/test/grove_private_text_page_test.dart": "b0844bb6ddfb38447679f5afd1ef16c4fc798ce4",
-    "apps/frontend/lib/pages/grove_private_text_page.dart": "61868109382138a54f43df0e7ec8cdf224d710bf"
+    "apps/frontend/test/grove_private_text_page_test.dart": "d1344f0a0ff78fc97b3473f887b7b7a300bea745",
+    "apps/frontend/lib/pages/grove_private_text_page.dart": "3549d1768207a7aa646bb0e60f6ff8dbc899e510"
   },
   "comment": "Source-only incorporation from Library ONE_ARBOR_CODE_REPAIRS_20261009.zip: 17 exact source/test blobs verified, packages reconciled with original PR #372 head, 3 focused tests added; CI/release acceptance remain separately gated."
 }
