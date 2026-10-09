@@ -198,6 +198,41 @@ describe("isolated acceptance runner (mock provider, never live acceptance)", ()
     expect(events.some(e => e.type === "agent-result" && (e.result as any).status === "checkpointed")).toBe(true);
   });
 
+  it("rejects a changed resolved model between the A and B arms", async () => {
+    let calls = 0;
+    const events: Record<string, unknown>[] = [];
+    const result = await runAcceptanceComparison({ generation, assignment, config,
+      createResponse: async () => {
+        calls++;
+        return { ...response("model-parity-" + calls),
+          model: calls <= 2 ? "resolved-model-v1" : "resolved-model-v2" } as Response;
+      },
+      provision: provisionAcceptanceFixture, record: async event => { events.push(event); },
+    });
+    expect(result.pairs).toEqual([]);
+    expect(result.calls).toBe(3);
+    expect(result.failures).toEqual([{ caseId: "tired-familiarity", label: "B",
+      code: "acceptance_provider_model_changed" }]);
+    expect(events.some(e => e.type === "model-response" && e.model === "resolved-model-v2")).toBe(true);
+    expect(events.some(e => e.type === "arm-failed" && e.label === "B")).toBe(true);
+  });
+
+  it("allows a stable concrete model behind the requested alias", async () => {
+    let calls = 0;
+    const result = await runAcceptanceComparison({ generation, assignment, config,
+      createResponse: async () => ({ ...response("stable-" + ++calls),
+        model: "resolved-model-v1" } as Response),
+      provision: provisionAcceptanceFixture, record: async () => {},
+    });
+    expect(result.status).toBe("captured; unscored");
+    expect(result.failures).toEqual([]);
+    expect(result.pairs).toHaveLength(1);
+    expect(result.calls).toBe(4);
+    const pair = result.pairs[0] as any;
+    expect(pair.A.metadata.model).toBe("resolved-model-v1");
+    expect(pair.B.metadata.model).toBe("resolved-model-v1");
+  });
+
   it("rejects reused provider response identifiers instead of accepting duplicate receipts", async () => {
     const result = await runAcceptanceComparison({ generation, assignment, config,
       createResponse: async () => response("duplicate"), provision: provisionAcceptanceFixture, record: async () => {} });
