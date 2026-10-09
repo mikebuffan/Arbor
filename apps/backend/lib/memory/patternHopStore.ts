@@ -309,47 +309,68 @@ export async function loadPatternHopEvidence(params: {
 export async function loadPatternHopEdges(params: {
   supabase: SupabaseClient;
   runId: string;
+  userId: string;
+  projectId: string;
 }): Promise<PatternHopEdge[]> {
+  // Edges have a run reference, not owner/project columns. Establish their
+  // allowed endpoints from a separately scoped evidence readback first.
   const { data: evidenceRows, error: evidenceError } = await params.supabase
     .from("arbor_pattern_hop_evidence")
-    .select("id,metadata")
-    .eq("run_id", params.runId);
+    .select("id,run_id,user_id,project_id,metadata")
+    .eq("run_id", params.runId)
+    .eq("user_id", params.userId)
+    .eq("project_id", params.projectId);
 
   if (evidenceError) throw evidenceError;
+  const ownedEvidence = Array.isArray(evidenceRows) ? evidenceRows.filter(row =>
+    row && typeof row.id === "string" && row.id.length > 0 &&
+    row.run_id === params.runId &&
+    row.user_id === params.userId &&
+    row.project_id === params.projectId) : [];
+  if (!ownedEvidence.length) return [];
 
-  const clientIdByDbId = new Map(
-    (evidenceRows ?? []).map((row: any) => [
-      String(row.id),
-      typeof row.metadata?.client_evidence_id === "string"
-        ? row.metadata.client_evidence_id
-        : String(row.id),
+  const clientIdByDbId = new Map<string, string>(
+    ownedEvidence.map(row => [
+      row.id,
+      typeof row.metadata?.client_evidence_id === "string" &&
+      row.metadata.client_evidence_id.trim()
+        ? row.metadata.client_evidence_id : row.id,
     ]),
   );
 
   const { data, error } = await params.supabase
     .from("arbor_pattern_hop_edges")
     .select(
-      "from_evidence_id,to_evidence_id,originating_clue,relationship,hop_depth,confidence,epistemic_status,rationale",
+      "run_id,from_evidence_id,to_evidence_id,originating_clue,relationship,hop_depth,confidence,epistemic_status,rationale",
     )
     .eq("run_id", params.runId)
     .order("hop_depth", { ascending: true })
     .order("created_at", { ascending: true });
 
   if (error) throw error;
-
-  return (data ?? []).map((row: any) => ({
-    fromEvidenceId: row.from_evidence_id
-      ? clientIdByDbId.get(String(row.from_evidence_id)) ??
-        String(row.from_evidence_id)
-      : null,
-    toEvidenceId:
-      clientIdByDbId.get(String(row.to_evidence_id)) ??
-      String(row.to_evidence_id),
-    originatingClue: String(row.originating_clue),
-    relationship: String(row.relationship),
-    hopDepth: Number(row.hop_depth),
+  if (!Array.isArray(data)) return [];
+  return data.filter(row =>
+    row && row.run_id === params.runId &&
+    typeof row.to_evidence_id === "string" &&
+    clientIdByDbId.has(row.to_evidence_id) &&
+    (row.from_evidence_id === null ||
+      (typeof row.from_evidence_id === "string" &&
+       clientIdByDbId.has(row.from_evidence_id))) &&
+    typeof row.originating_clue === "string" &&
+    typeof row.relationship === "string" &&
+    Number.isInteger(row.hop_depth) && row.hop_depth >= 0 &&
+    typeof row.rationale === "string" &&
+    ["direct", "derived", "hypothesis"].includes(row.epistemic_status) &&
+    Number.isFinite(Number(row.confidence ?? 0.5))
+  ).map(row => ({
+    fromEvidenceId: row.from_evidence_id === null
+      ? null : clientIdByDbId.get(row.from_evidence_id)!,
+    toEvidenceId: clientIdByDbId.get(row.to_evidence_id)!,
+    originatingClue: row.originating_clue,
+    relationship: row.relationship,
+    hopDepth: row.hop_depth,
     confidence: Number(row.confidence ?? 0.5),
-    epistemicStatus: row.epistemic_status,
-    rationale: String(row.rationale),
+    epistemicStatus: row.epistemic_status as PatternHopEdge["epistemicStatus"],
+    rationale: row.rationale,
   }));
 }

@@ -125,6 +125,7 @@ jobs:
           lib/memory/__tests__/patternHopRetrieval.test.ts
           lib/memory/__tests__/historicalHopScopeReadback.test.ts
           lib/memory/__tests__/patternHopStoreScopeReadback.test.ts
+          lib/memory/__tests__/patternHopEdgeReadbackScope.test.ts
           lib/grove/__tests__/privateTranscriptStore.test.ts
           lib/arbor/annabelle/__tests__/group14PersistenceReadback.test.ts
           lib/arbor/records/__tests__/manualReview.test.ts

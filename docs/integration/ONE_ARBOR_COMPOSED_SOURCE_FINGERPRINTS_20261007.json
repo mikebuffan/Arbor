@@ -45,7 +45,7 @@
     "apps/backend/lib/memory/__tests__/shelfPageRead.test.ts": "35b5c43abb6b2c774a1ae3aa75b33507c1e4d3bb",
     "apps/frontend/lib/environment/grove_memory_shelf_view.dart": "31e54c5c459cadce0eeba4bb577922c419cde71a",
     "apps/frontend/test/grove_memory_shelf_view_test.dart": "f01802b64c9ee0ed0116ee66e81344499fdcdf25",
-    ".github/workflows/one-arbor-15-lane-assembly.yml": "7cbbf103833485513c2caaf6eafc138594587fbc",
+    ".github/workflows/one-arbor-15-lane-assembly.yml": "8f6333c5fd5b01eb19a471683ad1c3b6df150af2",
     ".github/workflows/one-arbor-diary-draft.yml": "8923e47d0d69562a86a7c210b10efaaf0c5fd624",
     ".github/workflows/one-arbor-group08-body-acceptance.yml": "d4dc36baef71d379f6a769d7f0416cd755d7252a",
     ".github/workflows/one-arbor-group09-decision-gates.yml": "8c6a9996d12fc1624e8e1ef997d8c04d34ee0ffe",
@@ -154,8 +154,10 @@
     "apps/backend/lib/memory/__tests__/patternHopScopeReadback.test.ts": "7a509df44161fa28ad31ff8797b12a59c2a0b814",
     "apps/backend/lib/memory/__tests__/patternHopRetrieval.test.ts": "97a98634306e80353c47a79c37b354b9e911c634",
     "apps/backend/lib/memory/__tests__/historicalHopScopeReadback.test.ts": "1be17184e4e65d15a904c3c72426df6898b1638e",
-    "apps/backend/lib/memory/patternHopStore.ts": "1d2b2b112011d633de3455d12510d11f1ef7ccb8",
-    "apps/backend/lib/memory/__tests__/patternHopStoreScopeReadback.test.ts": "62cc28944dc5983de3eb2455a425646e7d3f390d"
+    "apps/backend/lib/memory/patternHopStore.ts": "bf361143d27904f395aa0027582d34f1e604dca3",
+    "apps/backend/lib/memory/__tests__/patternHopStoreScopeReadback.test.ts": "62cc28944dc5983de3eb2455a425646e7d3f390d",
+    "apps/backend/lib/memory/patternHopResearch.ts": "3130e66839935c260b3cda159a3a6f16d3be8eaf",
+    "apps/backend/lib/memory/__tests__/patternHopEdgeReadbackScope.test.ts": "30e8dcf2dff624f530ed684690588f892dc38159"
   },
-  "comment": "Group 10 saved Pattern Hop run/evidence returned-row scope fail-closed; synthetic records only and source CI. No run, worker, schema or deployment change."
+  "comment": "Existing Pattern Hop saved-edge readback mapped only from validated owner/project/run evidence, with synthetic wrong-parent/target negative tests; no migrations or execution."
 }

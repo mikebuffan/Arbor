@@ -92,6 +92,8 @@ export async function runPatternHopResearch(params:{
   const edges:PatternHopEdge[]=await loadPatternHopEdges({
     supabase:params.supabase,
     runId:run.id,
+    userId:params.userId,
+    projectId:params.projectId,
   });
   const evidenceById=new Map<string,PatternHopEvidence>(
     found.map(evidence=>[evidence.id,evidence]),
