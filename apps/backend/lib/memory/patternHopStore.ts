@@ -168,8 +168,10 @@ export async function persistPatternHopEvidence(params: {
 
     let existingQuery = params.supabase
       .from("arbor_pattern_hop_evidence")
-      .select("id")
+      .select("id,run_id,user_id,project_id,source,content,source_message_id")
       .eq("run_id", params.runId)
+      .eq("user_id", params.userId)
+      .eq("project_id", params.projectId)
       .eq("source", item.source)
       .eq("content", item.content);
 
@@ -182,19 +184,32 @@ export async function persistPatternHopEvidence(params: {
 
     if (existingError) throw existingError;
 
-    if (existing?.id) {
-      ids.set(item.id, String(existing.id));
+    if (existing) {
+      if (typeof existing.id !== "string" || !existing.id ||
+          existing.run_id !== params.runId ||
+          existing.user_id !== params.userId ||
+          existing.project_id !== params.projectId ||
+          existing.source !== item.source ||
+          existing.content !== item.content ||
+          existing.source_message_id !== (item.sourceMessageId ?? null))
+        throw new Error("pattern_hop_evidence_existing_scope_invalid");
+      ids.set(item.id, existing.id);
       continue;
     }
 
     const { data, error } = await params.supabase
       .from("arbor_pattern_hop_evidence")
       .insert(row)
-      .select("id")
+      .select("id,run_id,user_id,project_id")
       .single();
 
     if (error) throw error;
-    ids.set(item.id, String(data.id));
+    if (!data || typeof data.id !== "string" || !data.id ||
+        data.run_id !== params.runId ||
+        data.user_id !== params.userId ||
+        data.project_id !== params.projectId)
+      throw new Error("pattern_hop_evidence_insert_scope_invalid");
+    ids.set(item.id, data.id);
   }
 
   return ids;
@@ -208,19 +223,26 @@ export async function persistPatternHopEdges(params: {
 }) {
   if (!params.edges.length) return;
 
-  const rows = params.edges.map((edge) => ({
-    run_id: params.runId,
-    from_evidence_id: edge.fromEvidenceId
-      ? params.idMap.get(edge.fromEvidenceId) ?? edge.fromEvidenceId
-      : null,
-    to_evidence_id: params.idMap.get(edge.toEvidenceId) ?? edge.toEvidenceId,
-    originating_clue: edge.originatingClue,
-    relationship: edge.relationship,
-    hop_depth: edge.hopDepth,
-    confidence: edge.confidence,
-    epistemic_status: edge.epistemicStatus,
-    rationale: edge.rationale,
-  }));
+  // Only DB IDs produced by scoped evidence persistence may be endpoints.
+  // Passing through arbitrary source IDs could link to an unrelated run.
+  const rows = params.edges.map((edge) => {
+    const to = params.idMap.get(edge.toEvidenceId);
+    const from = edge.fromEvidenceId
+      ? params.idMap.get(edge.fromEvidenceId) : null;
+    if (!to || (edge.fromEvidenceId && !from))
+      throw new Error("pattern_hop_edge_unverified_endpoint");
+    return {
+      run_id: params.runId,
+      from_evidence_id: from,
+      to_evidence_id: to,
+      originating_clue: edge.originatingClue,
+      relationship: edge.relationship,
+      hop_depth: edge.hopDepth,
+      confidence: edge.confidence,
+      epistemic_status: edge.epistemicStatus,
+      rationale: edge.rationale,
+    };
+  });
 
   for (const row of rows) {
     let existingQuery = params.supabase
