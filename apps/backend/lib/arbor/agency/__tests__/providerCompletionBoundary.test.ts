@@ -116,4 +116,33 @@ describe("Actual chat agent loop: provider completion boundaries (synthetic prov
     expect(called).toHaveBeenCalledOnce();
     expect(calls).toBe(2);
   });
+
+  it.each([0, -1, 0.5, 129, Infinity, NaN, Number.MAX_SAFE_INTEGER])(
+    "rejects invalid model-round limit %s before any model or tool call", async maxRounds => {
+      const { tools, called } = fixture();
+      const createResponse = vi.fn(async () => mock("should-not-request", "completed", "Oops"));
+      const onComplete = vi.fn(async () => {});
+      await expect(runOpenAIAgencyAgent({
+        instructions: "Synthetic bounded model only",
+        userText: "Continue safely", tools, context,
+        responseCreate: createResponse, verifyCompletion: false,
+        maxRounds, hooks: { onComplete },
+      })).rejects.toThrow("agency_invalid_round_budget");
+      expect(createResponse).not.toHaveBeenCalled();
+      expect(called).not.toHaveBeenCalled();
+      expect(onComplete).not.toHaveBeenCalled();
+    },
+  );
+
+  it("still accepts the smallest valid round budget for a complete reply", async () => {
+    const { tools } = fixture();
+    const model = vi.fn(async () => mock("one-round", "completed", "Done once."));
+    const result = await runOpenAIAgencyAgent({
+      instructions: "Synthetic one-round model",
+      userText: "Answer briefly", tools, context,
+      responseCreate: model, verifyCompletion: false, maxRounds: 1,
+    });
+    expect(result.status).toBe("complete");
+    expect(model).toHaveBeenCalledOnce();
+  });
 });

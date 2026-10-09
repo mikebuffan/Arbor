@@ -13,3 +13,7 @@ Union the **existing** independent and 15-lane workflow push triggers plus focus
 
 ## Acceptance
 Require exact-head independent+15-lane CI success and SHA readback. No model calls/credits, deployment, host alias, worker, API keys, personal data, user grants, merges, main writes, or new engine. Do not claim this as a hosted feature or real independent judgment score.
+
+## Additional same-branch bounded-runtime guard
+
+The real chat loop's optional `maxRounds` originally accepted `Infinity`, `NaN`, zero, negative, fractional or arbitrarily large values. A malformed bound could allow effectively unlimited model calls, while zero could still start an unnecessary model request. The integrated source now accepts only integers 1–128 (default 48 unchanged) and rejects malformed limits **before requesting a model response or executing any tool**. Eight additional offline test cases assert bad limits make no model/tool calls and that a valid single-round response still completes. This is a call-round cap, not a time-based or paid-model spending authorization. A final exact-head CI re-run is required.

@@ -252,6 +252,11 @@ export async function runOpenAIAgencyAgent(
   const maxRounds =
     input.maxRounds ?? 48;
 
+  // User-controlled or host-provided execution budgets are never authority
+  // to spin forever. Validate before the first provider request or tool call.
+  if (!Number.isSafeInteger(maxRounds) || maxRounds < 1 || maxRounds > 128)
+    throw new Error("agency_invalid_round_budget");
+
   let toolCalls = 0;
 
   // Durable-in-run evidence for the completion verifier. This lets Arbor

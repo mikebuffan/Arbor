@@ -212,10 +212,10 @@
     "docs/integration/ONE_ARBOR_INDEPENDENCE_RESUME_PRIORITY_20261009.md": "bbf4b64230910a113f44b7b22bd658799e2bac6b",
     "apps/backend/lib/arbor/agency/__tests__/yieldPolicy.test.ts": "697ebeecee133dbbdc9a3ecbff65517fb86cc349",
     "docs/integration/ONE_ARBOR_INDEPENDENCE_NEGATIVE_PROOF_20261009.md": "5cb7df6be8d8497f7242f546fd970fb5f33fdc0c",
-    "apps/backend/lib/arbor/agency/openaiAgent.ts": "53464102766f2cb7cc66f62f35129142cb023854",
-    "apps/backend/lib/arbor/agency/__tests__/providerCompletionBoundary.test.ts": "beeba2c7c2dd6d0b5469f867423f4621a8fd3158",
+    "apps/backend/lib/arbor/agency/openaiAgent.ts": "852e4b6bc9b28798c9697b8cddfd27c802cf636e",
+    "apps/backend/lib/arbor/agency/__tests__/providerCompletionBoundary.test.ts": "25e17e545031e61417ad1dfc33dc870abe8e132f",
     "docs/integration/ONE_ARBOR_CHAT_PROVIDER_COMPLETION_20261009.md": "ff5a00c7a025f4564acf50ae0e19a6927ab995db",
-    "docs/integration/ONE_ARBOR_INDEPENDENT_CHAT_INTEGRATION_20261009.md": "cb533562b1e5764a794742329a6682042f4a7bca"
+    "docs/integration/ONE_ARBOR_INDEPENDENT_CHAT_INTEGRATION_20261009.md": "a27901806d2adc151b074d10b099af55a970578e"
   },
   "comment": "Source-only incorporation from Library ONE_ARBOR_CODE_REPAIRS_20261009.zip: 17 exact source/test blobs verified, packages reconciled with original PR #372 head, 3 focused tests added; CI/release acceptance remain separately gated."
 }
