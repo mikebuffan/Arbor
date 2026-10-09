@@ -92,7 +92,7 @@ describe("Independent initiative follow-through: synthetic transport, not a real
       userText: "Finish the eligible tasks without asking for repeated go messages.",
       responseCreate: fakeTransport, tools, context,
       maxRounds: 12, verifyCompletion: false,
-      hooks: { onToolSelected: async event => chosen.push(event.name) },
+      hooks: { onToolSelected: async event => { chosen.push(event.name); } },
     });
     expect(result.status).toBe("complete");
     expect(result.toolCalls).toBe(5);
