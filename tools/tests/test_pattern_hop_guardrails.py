@@ -13,6 +13,9 @@ from tools.pattern_hop_guardrails import (
     reverse_hop_missing_levels,
     score_evidence_hop,
     validate_state_transition,
+    validate_provenance_chain,
+    hop_priority_score,
+    rank_hop_candidates,
 )
 
 
@@ -85,6 +88,33 @@ class PatternHopGuardrailTests(unittest.TestCase):
         self.assertEqual(summary["independent_source_family_count"], 2)
         self.assertEqual(summary["reverse_hop_missing_levels"], [])
         self.assertEqual(len(summary["contradictions"]), 1)
+
+    def test_provenance_chain_flags_missing_parent(self):
+        result = validate_provenance_chain(
+            [self.primary, self.independent],
+            {"doc-a": "missing-original", "doc-c": None},
+        )
+        self.assertFalse(result["valid"])
+        self.assertEqual(result["missing_parents"], [("doc-a", "missing-original")])
+
+    def test_priority_prefers_claim_changing_contradiction(self):
+        high = hop_priority_score(
+            can_change_claim_state=True,
+            contradiction_present=True,
+            missing_receipt=True,
+        )
+        low = hop_priority_score(
+            adds_only_associated_person=True,
+            repeated_source_family_only=True,
+        )
+        self.assertGreater(high, low)
+
+    def test_rank_hop_candidates_demotes_name_only_expansion(self):
+        ranked = rank_hop_candidates([
+            {"name": "name-expansion", "adds_only_associated_person": True},
+            {"name": "receipt-gap", "missing_receipt": True, "can_change_claim_state": True},
+        ])
+        self.assertEqual(ranked[0]["name"], "receipt-gap")
 
 
 if __name__ == "__main__":
