@@ -252,6 +252,11 @@ export async function runOpenAIAgencyAgent(
   const maxRounds =
     input.maxRounds ?? 48;
 
+  // User-controlled or host-provided execution budgets are never authority
+  // to spin forever. Validate before the first provider request or tool call.
+  if (!Number.isSafeInteger(maxRounds) || maxRounds < 1 || maxRounds > 128)
+    throw new Error("agency_invalid_round_budget");
+
   let toolCalls = 0;
 
   // Durable-in-run evidence for the completion verifier. This lets Arbor
@@ -345,15 +350,78 @@ export async function runOpenAIAgencyAgent(
     await input.hooks
       ?.onRoundStart?.(round);
 
+    // Provider output is not a completed action merely because text or a
+    // tool call was present. An explicitly unfinished/failed provider response
+    // and a malformed output container are checkpoints, never final answers.
+    if ((response.status && response.status !== "completed") ||
+      !Array.isArray(response.output)) {
+      return {
+        status: "checkpointed",
+        text: "INTERNAL CONTINUATION REQUIRED: provider response incomplete or invalid; reconcile the response before resuming.",
+        responseId: response.id,
+        toolCalls,
+      };
+    }
+
     const calls =
       functionCalls(
         response.output as unknown[],
       );
 
+    // Check every proposed tool before executing the first one. Otherwise a
+    // malformed later call could leave an earlier write half-committed.
+    const prepared: Array<{
+      call: FunctionCall;
+      tool: ReturnType<AgencyToolRegistry["get"]>;
+      args: Record<string, unknown>;
+    }> = [];
+    const seenCallIds = new Set<string>();
+    if (calls.length > 24) {
+      return {
+        status: "checkpointed",
+        text: "INTERNAL CONTINUATION REQUIRED: provider requested too many tool calls.",
+        responseId: response.id,
+        toolCalls,
+      };
+    }
+    try {
+      for (const call of calls) {
+        if (typeof call.call_id !== "string" ||
+          !call.call_id.trim() || call.call_id.length > 200 ||
+          seenCallIds.has(call.call_id) ||
+          typeof call.name !== "string" || !call.name.trim() ||
+          typeof call.arguments !== "string" ||
+          call.arguments.length > 20000) {
+          throw new Error("agency_invalid_provider_tool_call");
+        }
+        seenCallIds.add(call.call_id);
+        const tool = input.tools.get(call.name);
+        const args = parseArguments(call.arguments);
+        prepared.push({ call, tool, args });
+      }
+    } catch {
+      return {
+        status: "checkpointed",
+        text: "INTERNAL CONTINUATION REQUIRED: invalid provider tool calls; no actions dispatched.",
+        responseId: response.id,
+        toolCalls,
+      };
+    }
+
     if (!calls.length) {
       const text =
         response.output_text
           ?.trim() ?? "";
+
+      // Do not treat a completed empty response as a completed user turn.
+      if (!text) {
+        return {
+          status: "checkpointed",
+          text: "INTERNAL CONTINUATION REQUIRED: no usable assistant response was returned.",
+          responseId: response.id,
+          toolCalls,
+        };
+      }
 
       if (!shouldVerify) {
         await input.hooks
@@ -471,16 +539,7 @@ export async function runOpenAIAgencyAgent(
         output: string;
       }> = [];
 
-    for (const call of calls) {
-      const tool =
-        input.tools.get(
-          call.name,
-        );
-
-      const args =
-        parseArguments(
-          call.arguments,
-        );
+    for (const { call, tool, args } of prepared) {
 
       attemptedRoutes.add(
         tool.name,
