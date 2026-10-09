@@ -55,9 +55,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Confirm this review branch cannot be deployed by Vercel
+      - name: Confirm review branch stays fenced without isolated Preview metadata
         run: |
           VERCEL_GIT_COMMIT_REF="${{ github.head_ref || github.ref_name }}" node ops/grove/source-only-ignore.mjs
+      - name: Verify isolated Preview exception and preserved source fences
+        run: node --test ops/grove/source-only-ignore.test.mjs
       - name: Ensure production branch is never swallowed by source-only fencing
         run: |
           set -euo pipefail

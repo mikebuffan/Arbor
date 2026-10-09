@@ -1,4 +1,6 @@
-// Vercel contract: 0 skips exactly listed source branches; 1 builds all others.
+// Vercel contract: 0 skips listed source branches; 1 builds all others.
+// One existing isolated test project may build this exact branch as Preview.
+// This exception grants no runtime credentials, database access or model budget.
 const branches = new Set([
   "arbor/grove-buffalo-acceptance-20261006",
   "arbor/one-arbor-phone-reconciliation-20261006",
@@ -68,4 +70,12 @@ const branches = new Set([
   "review/one-arbor-independent-chat-integration-20261009",
   "review/one-arbor-independence-budget-preflight-20261009"
 ]);
-process.exitCode = branches.has(process.env.VERCEL_GIT_COMMIT_REF) ? 0 : 1;
+const isolatedProject = process.env.VERCEL_PROJECT_ID === "prj_bliWIoBwJ053cXPIBB9uJzpW4PK6";
+const isolatedPreview =
+  process.env.VERCEL_ENV === "preview" &&
+  isolatedProject &&
+  process.env.VERCEL_GIT_COMMIT_REF ===
+    "review/one-arbor-independence-budget-preflight-20261009";
+process.exitCode = isolatedProject
+  ? (isolatedPreview ? 1 : 0)
+  : (branches.has(process.env.VERCEL_GIT_COMMIT_REF) ? 0 : 1);
