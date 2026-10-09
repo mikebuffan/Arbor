@@ -59,7 +59,7 @@ export async function stageBehaviorCorrectionPromotion(input: {
     .select("id,user_id,project_id,event_type,ops,payload")
     .eq("id", input.userMessageId).eq("user_id", input.userId).maybeSingle();
   if (readError) throw readError;
-  if (!data) throw new Error("behavior_correction_recovery_stage_readback_failed");
+  if (!data || data.id !== input.userMessageId) throw new Error("behavior_correction_recovery_stage_readback_failed");
   const saved = validateRow(data, input.userId);
   if (data.payload.projectId !== input.projectId || data.payload.conversationId !== input.conversationId ||
       JSON.stringify(data.payload.writeAuthorization ?? null) !== JSON.stringify(input.writeAuthorization ?? null) ||
@@ -142,12 +142,15 @@ export async function recoverPendingBehaviorCorrections(input: {
           .update({ event_type: COMPLETE }).eq("id", row.id).eq("user_id", input.userId)
           .is("project_id", null).eq("event_type", PENDING).contains("ops", OPS).select("id");
         if (ackError) throw ackError;
+        if (acknowledged != null && (!Array.isArray(acknowledged) || acknowledged.length > 1 ||
+            acknowledged.some(ack => !ack || ack.id !== row.id)))
+          throw new Error("behavior_correction_recovery_ack_failed");
         if (!acknowledged?.length) {
           const { data: current, error: currentError } = await input.supabase.from("memory_pending")
             .select("id,user_id,project_id,event_type,ops,payload").eq("id", row.id)
             .eq("user_id", input.userId).maybeSingle();
           if (currentError) throw currentError;
-          if (!current) throw new Error("behavior_correction_recovery_ack_failed");
+          if (!current || current.id !== row.id) throw new Error("behavior_correction_recovery_ack_failed");
           validateRow(current, input.userId);
           if (current.event_type !== COMPLETE) throw new Error("behavior_correction_recovery_ack_failed");
         }

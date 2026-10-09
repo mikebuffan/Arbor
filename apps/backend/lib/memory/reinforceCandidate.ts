@@ -36,7 +36,7 @@ export async function reinforceMemoryCandidate(input: {
     .maybeSingle();
 
   if (readError) throw readError;
-  if (!candidate || candidate.user_id !== input.userId ||
+  if (!candidate || candidate.id !== input.candidateId || candidate.user_id !== input.userId ||
       candidate.project_id !== input.projectId || candidate.status !== "proposed") {
     return { updated: false };
   }

@@ -10,6 +10,15 @@ export type ArkReadSnapshot = {
   capturedAt: string;
 };
 
+function readRows(value: unknown, table: string): Array<Record<string, unknown>> {
+  if (value == null) return [];
+  // A broken collection is a read error, never a successful empty snapshot.
+  // Keep payload contents out of errors; they may contain another owner's data.
+  if (!Array.isArray(value)) throw new Error(`ark_read_invalid_collection:${table}`);
+  return value.filter((row): row is Record<string, unknown> =>
+    row !== null && typeof row === "object" && !Array.isArray(row));
+}
+
 export async function readArkProjectSnapshot(input: {
   supabase: SupabaseClient;
   userId: string;
@@ -42,10 +51,10 @@ export async function readArkProjectSnapshot(input: {
 
   // Verify returned-row scope even if a privileged/misconfigured client ignored
   // the query filters. Do not expose owner identifiers to the UI response.
-  const ownedObjectives = ((objectives ?? []) as Array<Record<string, unknown>>)
+  const ownedObjectives = readRows(objectives, "ark_objectives")
     .filter((row) => row.user_id === input.userId
       && row.project_id === input.projectId
-      && typeof row.id === "string");
+      && typeof row.id === "string" && row.id.trim().length > 0);
   const objectiveRows = ownedObjectives.map(({ user_id: _userId, project_id: _projectId, ...row }) => row);
   const objectiveIds = ownedObjectives.map((row) => row.id as string);
   const objectiveIdSet = new Set(objectiveIds);
@@ -93,7 +102,7 @@ export async function readArkProjectSnapshot(input: {
   if (checkpointError) throw checkpointError;
   if (eventError) throw eventError;
 
-  const scopedTasks = ((tasks ?? []) as Array<Record<string, unknown>>)
+  const scopedTasks = readRows(tasks, "ark_tasks")
     .filter((row) => row.user_id === input.userId
       && row.project_id === input.projectId
       && typeof row.id === "string" && row.id.trim().length > 0
@@ -118,11 +127,11 @@ export async function readArkProjectSnapshot(input: {
     available: true,
     objectives: objectiveRows,
     tasks: scopedTasks,
-    checkpoints: scopedReceipts((checkpoints ?? []) as Array<Record<string, unknown>>)
+    checkpoints: scopedReceipts(readRows(checkpoints, "ark_checkpoints"))
       .filter(receiptReferencesOwnedTask),
     // Objective-wide events legitimately have no task; task events require
     // an exact current owner/project/objective task match.
-    events: scopedReceipts((events ?? []) as Array<Record<string, unknown>>)
+    events: scopedReceipts(readRows(events, "ark_events"))
       .filter((row) => row.task_id === null || receiptReferencesOwnedTask(row)),
     capturedAt,
   };

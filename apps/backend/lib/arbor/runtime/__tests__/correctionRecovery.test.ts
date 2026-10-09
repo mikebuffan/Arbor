@@ -23,6 +23,20 @@ const recover=(db:BehaviorCorrectionDatabase)=>recoverPendingBehaviorCorrections
 beforeEach(()=>vi.restoreAllMocks());
 
 describe("durable correction recovery on authenticated chat",()=>{
+ it("rejects a stage readback for a different turn even when its owner and correction match",async()=>{
+  const db=new BehaviorCorrectionDatabase();
+  db.returnedRow=(table,row)=>table==="memory_pending"?{...row,id:"other-turn"}:row;
+  await expect(stage(db)).rejects.toThrow("behavior_correction_recovery_stage_readback_failed");
+  expect(db.tables.memory_items).toEqual([]);
+ });
+ it("does not count a foreign acknowledgement as successful recovery",async()=>{
+  const db=new BehaviorCorrectionDatabase();await stage(db);
+  vi.spyOn(console,"warn").mockImplementation(()=>{});
+  db.returnedRow=(table,row)=>table==="memory_pending"&&row.event_type.endsWith("_complete")
+   ?{...row,id:"other-turn"}:row;
+  expect(await recover(db)).toEqual({completed:0,failed:1,deferred:false});
+  expect(db.tables.memory_items).toHaveLength(1);
+ });
  it("ordinary chat recovery cannot promote a Grove job without fresh bounded authorization",async()=>{
   const db=new BehaviorCorrectionDatabase();await stageBehaviorCorrectionPromotion({supabase:client(db),userId,projectId,conversationId,
     userMessageId,currentUserText:correction().value,corrections:[correction()],
