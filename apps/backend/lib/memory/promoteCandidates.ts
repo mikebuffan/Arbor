@@ -49,7 +49,9 @@ function eligible(json: CandidateJson): boolean {
   const confirmations = Number(json.confirm_count ?? 0);
   const contradictions = Number(json.contradiction_count ?? 0);
   const threadBreadth = Array.isArray(json.observed_threads)
-    ? json.observed_threads.filter((thread) => typeof thread === "string").length
+    ? new Set(json.observed_threads
+      .filter((thread): thread is string => typeof thread === "string")
+      .map((thread) => thread.trim()).filter(Boolean)).size
     : 0;
   if (![score, confidence, confirmations, contradictions].every(Number.isFinite)) return false;
 

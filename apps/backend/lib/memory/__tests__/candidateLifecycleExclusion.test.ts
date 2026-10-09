@@ -34,6 +34,37 @@ beforeEach(() => {
 });
 
 describe("B12 candidate lifecycle exclusion (synthetic only)", () => {
+  it.each([["t1", "t1"], ["t1", " t1 "], ["t1", " "], ["", " "]].map(threads => ({ threads })))(
+    "does not treat repeated or blank thread IDs as cross-thread recurrence: $threads", async ({ threads }) => {
+      const row = { id: "c2", user_id: owner, project_id: project, status: "proposed",
+        candidate_json: { ...candidateJson, observed_threads: threads } };
+      const from = vi.fn(() => table([row]));
+      mocks.admin.mockReturnValue({ from });
+      mocks.upsert.mockResolvedValue({ created: ["learned.preference.coffee"], updated: [] });
+      const result = await promoteEligibleMemoryCandidates({
+        userId: owner, projectId: project, conversationId: "synthetic-thread", supabase: {} as any,
+      });
+      expect(result.promoted).toEqual([]);
+      expect(mocks.upsert).not.toHaveBeenCalled();
+      expect(from).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it("does not reinforce a different candidate returned by a misrouted admin read", async () => {
+    const row = { id: "other-candidate", user_id: owner, project_id: project,
+      status: "proposed", candidate_json: candidateJson };
+    const forced = table([row]);
+    forced.maybeSingle = async () => ({ data: row, error: null });
+    const from = vi.fn(() => forced);
+    mocks.admin.mockReturnValue({ from });
+    const result = await reinforceMemoryCandidate({
+      candidateId: "c1", userId: owner, projectId: project,
+      threadId: "synthetic-thread", event: "observed",
+    });
+    expect(result).toEqual({ updated: false });
+    expect(from).toHaveBeenCalledTimes(1);
+  });
+
   it("does not embed, promote or update a previously excluded candidate", async () => {
     const from = vi.fn(() => table([{
       id: "excluded-1", user_id: owner, project_id: project, status: "proposed",

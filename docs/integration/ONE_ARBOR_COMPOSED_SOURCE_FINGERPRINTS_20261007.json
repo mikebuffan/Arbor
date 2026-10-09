@@ -25,7 +25,8 @@
     "arkPreviewReviewPr372": "b707573d6b66f678ab7fb5671a79aa989407d38c",
     "independentRepairsPr373": "c05d962ff8c6717bb08b805c06766dcfca98b5ec",
     "arkReadReceiptsParentPr374": "c6e12afc80241356f9dc51682c25d533e2589b30",
-    "arkCompletionReadbackParentPr375": "fa640e0f13582d6fc3d6fbb74b918743ca47234b"
+    "arkCompletionReadbackParentPr375": "fa640e0f13582d6fc3d6fbb74b918743ca47234b",
+    "memoryCandidateReadbackParentPr376": "b1299c9936f6960e2962c86bc62b56a41642f2e9"
   },
   "expectedBlobSha": {
     "apps/backend/lib/arbor/runtime/timeCore.ts": "7fb33f4a8c6f201e96cc8c3f71b9a4ba584dabde",
@@ -131,9 +132,9 @@
     "apps/backend/lib/memory/anchors.ts": "be7b67b4e620ce89ca901ffcda551e8c9ef8bbc2",
     "apps/backend/lib/memory/candidateContext.ts": "d00b29f18910241a4c6d8687832f60490bd6c1a8",
     "apps/backend/lib/memory/__tests__/candidateContext.test.ts": "43f59669a2f66cdd1128f2572dd8a28219fb4c06",
-    "apps/backend/lib/memory/promoteCandidates.ts": "08ab35f511e5741b8cf82dfeec68c2e0e35903ad",
-    "apps/backend/lib/memory/reinforceCandidate.ts": "cbc743bb065cace77a11e0e2863b7fe89af21b83",
-    "apps/backend/lib/memory/__tests__/candidateLifecycleExclusion.test.ts": "e2beb50ad015a619dd336039bb557f91c3b22005",
+    "apps/backend/lib/memory/promoteCandidates.ts": "ed15d2661dce7647e47a8d81846d54f81fffeec6",
+    "apps/backend/lib/memory/reinforceCandidate.ts": "75a56029a2e0e3a2521bb7dcad9db5549f3773c4",
+    "apps/backend/lib/memory/__tests__/candidateLifecycleExclusion.test.ts": "d08deea2cacc7da21ee01078dbbaa4b586c6b940",
     "docs/integration/ONE_ARBOR_B12_CANDIDATE_LIFECYCLE_20261008.md": "006978928ee1808f4e816db9aeb8684984fff6b2",
     "apps/backend/app/page.tsx": "118e74b06b8bb94bf0981148d2c14362b37eef34",
     "apps/backend/lib/ark/latestStatusRequest.ts": "a209b5713d5cdaf181be9b86a2fe94b2189536cd",
@@ -186,7 +187,9 @@
     "docs/integration/ONE_ARBOR_ARK_RECEIPT_TASK_SCOPE_20261009.md": "72f7ad1340cae472baff24cfa9784ace7dfa4e31",
     "apps/backend/lib/ark/supabaseStore.ts": "ae5d813732d4ddc59d06942d6a26d9f71b75e5c6",
     "apps/backend/lib/ark/__tests__/supabaseStore.test.ts": "0ba37d116a79d16680c46dd4bfe1799a939d793c",
-    "docs/integration/ONE_ARBOR_GROUP01_SOURCE_OWNER_RELEASE_LEDGER_20261007.md": "13de173cc0574dd8f4fb695c26daa717aaee113d"
+    "docs/integration/ONE_ARBOR_GROUP01_SOURCE_OWNER_RELEASE_LEDGER_20261007.md": "e72e9dd82b353a567f056e35a7bea8312f876c3b",
+    "apps/backend/lib/arbor/runtime/correctionRecovery.ts": "a01cd4a2fd2257ca9196a5983b76a054289a5653",
+    "apps/backend/lib/arbor/runtime/__tests__/correctionRecovery.test.ts": "df5946a8c017fd67cb240e4bee55f0897a8bcd43"
   },
   "comment": "Source-only incorporation from Library ONE_ARBOR_CODE_REPAIRS_20261009.zip: 17 exact source/test blobs verified, packages reconciled with original PR #372 head, 3 focused tests added; CI/release acceptance remain separately gated."
 }

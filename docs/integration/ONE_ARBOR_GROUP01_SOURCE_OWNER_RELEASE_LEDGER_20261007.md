@@ -153,3 +153,25 @@ These are defense-in-depth readback checks, not evidence of bad live data. SQL f
 | B10/B11/C08 | PARTIAL; local restart/recovery tests passed | Fresh deployed-host/model acceptance |
 
 Next safe work: finish exact child CI readback and ledger reconciliation, then Group 04 B05–B14 source eligibility/owner-control audit on this candidate. All real host, archive, device, voice and paid-model acceptance gates remain explicit. No overall completion percentage is inferred.
+
+### Sequential Group 04 follow-through on the same review child
+
+The next B09/B12 audit found two additional bounded source defects, without a new capture engine or live memory operation:
+- Candidate promotion used the number of `observed_threads` entries rather than distinct nonblank thread identities. A duplicated single thread, whitespace alias or blank thread could satisfy the intended two-thread recurrence rule. Promotion now counts a set of trimmed nonblank strings. Four synthetic negatives reproduced unintended parent promotion; existing genuine two-thread positive control is preserved. Distinct thread metadata is still not independent factual corroboration or authority to promote sensitive material.
+- Reinforcement checked owner/project/proposed status but not the returned candidate's exact ID. A misrouted same-owner/project row could supply content for another candidate's update. The returned ID must now equal the requested ID before logging/updating. One synthetic negative reproduced the parent write path; it now returns `updated=false` without either write.
+
+Existing memory-list/shelf owner filters, excluded-memory protection, prompt eligibility, historical recall and candidate lifecycle were inspected. The preexisting non-atomic exclusion/write race remains unresolved; no schema/RPC, live deletion or policy change is made. B05/B07/B13/B14 remain PARTIAL; B06/B08/B09 live activation and cross-store B12 deletion remain GATED. Exact-head source tests prove only these source behaviors.
+
+The initial ARK-only child is `b1299c9936f6960e2962c86bc62b56a41642f2e9` (PR #376). Its CI is historical once this Group 04 follow-through advances the same child; verify the final head independently. Original #375/#374/#372/#373 owner heads and newer Pattern Hop implementations remain unchanged.
+
+### Sequential Group 05 correction recovery follow-through
+
+B11/C08 pending-correction staging verified scope/content but did not independently require the returned durable job ID to equal the original user-message ID. Recovery likewise counted any nonempty acknowledgement row array as success. Two new synthetic regressions reproduced acceptance of a different same-owner turn and a foreign acknowledgement ID.
+
+The existing paths now require exact staging ID, exact single acknowledgement ID, and exact ID in the concurrent-completion reread fallback. Invalid acknowledgements count as failed recovery, not confirmed success. Durable state may already have been written by the storage boundary; failed acknowledgement is not proof of a rolled-back write. Existing request retry, revoked-authority, exhausted retry, saved-rule replay, 20-job bound, fairness and save-failure behavior remain unchanged. No new worker, memory store, side effect or schema was added. Real fresh-host recovery and distributed concurrency remain GATED/NOT RUN.
+
+- ARK-only PR #376 head `b1299c9936f6960e2962c86bc62b56a41642f2e9` exact [CI 37883435375](https://github.com/mikebuffan/Arbor/actions/runs/37883435375) completed SUCCESS before these subsequent Group 04/05 edits; it is not final-head evidence.
+- Group 04 focused memory/request-path suite: **50 files / 358 passed**. Group 05 recovery/retention/temporal/request-path: **4 files / 34 passed**. Counts overlap full backend and each other; not additive unique cases. Backend TypeScript passed after the recovery repair.
+- Final combined backend regression and exact final-head backend/control/build/Grove CI must be recorded independently after their completion. No earlier SHA substitutes for final acceptance.
+
+Next sequential source scope is Group 06 identity/self-model and epistemic boundary validation on the final combined child, then Groups 07–15. Existing full-source synthetic tests do not establish real-model judgment, acoustic rendering, independently trusted outcomes, private LM/device acceptance or author decisions. Preserve those gates and the original 97 task IDs.
