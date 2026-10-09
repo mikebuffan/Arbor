@@ -284,4 +284,33 @@ describe("resumable agency engine", () => {
     expect(persist).toHaveBeenCalledOnce();
   });
 
+  it("reconciles a contradictory stored complete/failed-verification state without replay", async () => {
+    const execute = vi.fn(async () => 1);
+    const assess = vi.fn(async () => ({ complete: true, unresolvedWork: [] }));
+    const persist = vi.fn(async () => {});
+    const runtime: AgencyRuntime<{ done: number }> = {
+      loadSharedState: async () => ({ done: 1 }),
+      loadAgencyState: async () => ({
+        goal: "historical result", status: "complete", currentStep: 4,
+        unresolvedWork: [], recurringWeaknesses: [], strategyNotes: [],
+        lastVerification: { ok: false, correction: "source receipt missing" },
+      }),
+      assess,
+      choose: async () => ({ id: "repeat", description: "duplicate write", reversible: true }),
+      execute,
+      integrate: async ({ shared }) => shared,
+      verify: async () => ({ ok: true }),
+      selfAudit: async () => ({}),
+      persist,
+    };
+    const result = await runAgency({ goal: "historical result", runtime });
+    expect(result.agency.status).toBe("checkpointed");
+    expect(result.agency.lastVerification?.ok).toBe(false);
+    expect(result.agency.unresolvedWork).toEqual(["source receipt missing"]);
+    expect(result.agency.currentStep).toBe(4);
+    expect(assess).not.toHaveBeenCalled();
+    expect(execute).not.toHaveBeenCalled();
+    expect(persist).toHaveBeenCalledOnce();
+  });
+
 });

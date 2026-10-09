@@ -121,6 +121,23 @@ export async function runAgency<SharedState>(input: {
   // persisted STOP/approval boundary. Likewise, a terminal, empty-work goal
   // is not a fresh task merely because its text was repeated.
   // A trusted caller must first record a genuine new objective or approval.
+  // Historical/damaged readback might already claim completion while
+  // carrying an explicit failed verification. Do not echo it as terminal.
+  // Preserve the negative receipt for an authorized proof/recovery pass.
+  if (restoring && restored!.status === "complete" &&
+    restored!.lastVerification?.ok === false) {
+    const agency: AgencyState = {
+      ...restored!,
+      status: "checkpointed",
+      blocker: null,
+      unresolvedWork: restored!.unresolvedWork.length
+        ? restored!.unresolvedWork
+        : [restored!.lastVerification.correction ?? "prior completion verification failed"],
+    };
+    await input.runtime.persist({ agency, shared });
+    return { agency, shared };
+  }
+
   if (restoring && (restored!.status === "blocked" ||
     (restored!.status === "complete" && restored!.unresolvedWork.length === 0))) {
     return { agency: restored!, shared };

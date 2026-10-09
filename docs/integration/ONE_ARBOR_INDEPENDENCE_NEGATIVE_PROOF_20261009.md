@@ -13,3 +13,6 @@ This is a **source-only** continuation from draft PR #382 exact head `e23d648566
 Synthetic tests cover direct failure→assessment-complete, trusted prover recovery, interrupted/resumed negative state without replay, and contradictory complete-yield policy. No tool integration/ownership, model inference, background processing or privileged action.
 
 An exact-head source-only CI run, strict TypeScript, backend/control regressions, original source fingerprints and deployment ignore gates are required. **This does not demonstrate real-model initiative or live completion.**
+
+## Historical inconsistent completion readback
+A stored terminal `complete` state explicitly carrying `lastVerification.ok=false` previously escaped the new current-run proof gate through the terminal restore fast path. It now becomes an evidence-preserving `checkpointed` state, persisted without re-assessment or write replay. The separate trusted completion-prover path remains available on future checked resumption. Added regression for this contradictory historical state; no automatic permission change or speculative re-execution.
