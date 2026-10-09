@@ -206,7 +206,12 @@ export function routeFireflyPacket(input: FireflyRoundaboutInput): FireflyRounda
       typeof packet.meaning !== "string" || packet.meaning.length > 2000 ||
       !Array.isArray(packet.provenance) || packet.provenance.length > 12 ||
       !packetHasRequiredMeaning(packet) ||
-      packet.provenance.some(p => !p || typeof p.sourceKind !== "string" || !p.sourceKind.trim()))
+      // A source family label is not a traceable source. Materialize array
+      // holes so a sparse list cannot pass as a nonempty provenance trail.
+      Array.from(packet.provenance).some(p => !p ||
+        typeof p.sourceKind !== "string" || !p.sourceKind.trim() ||
+        typeof p.sourceRef !== "string" || !p.sourceRef.trim() ||
+        p.sourceRef.length > 500))
     throw new Error("firefly_roundabout_packet_invalid");
   if ([packet.confidence, packet.relevance].some(v =>
     v !== undefined && (typeof v !== "number" || !Number.isFinite(v) || v < 0 || v > 1)))
