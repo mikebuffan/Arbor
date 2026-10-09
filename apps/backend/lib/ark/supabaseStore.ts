@@ -290,12 +290,27 @@ export class SupabaseArkStore implements ArkStore {
   async assessObjectiveCompletion(objectiveId: string): Promise<ArkVerification> {
     const { data, error } = await this.supabase
       .from("ark_tasks")
-      .select("task_key,status,result")
+      .select("objective_id,task_key,status,result")
       .eq("objective_id", objectiveId)
       .order("task_key", { ascending: true });
     if (error) throw error;
 
     const tasks = data ?? [];
+    // Privileged/provider readbacks must match the requested objective before
+    // any of their contents become completion evidence. Reject a broken set
+    // instead of filtering it into an apparently complete subset.
+    if (!Array.isArray(tasks)) throw new Error("ark_completion_readback_invalid");
+    const taskKeys = new Set<string>();
+    for (const task of tasks) {
+      if (!task || typeof task !== "object" || Array.isArray(task)
+        || task.objective_id !== objectiveId
+        || typeof task.task_key !== "string" || !task.task_key.trim()
+        || taskKeys.has(task.task_key)
+        || typeof task.status !== "string" || !task.status.trim()) {
+        throw new Error("ark_completion_readback_invalid");
+      }
+      taskKeys.add(task.task_key);
+    }
     const unresolvedWork: string[] = [];
     const evidence = tasks.map((task) => {
       const result = task.result && typeof task.result === "object" && !Array.isArray(task.result)

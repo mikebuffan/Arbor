@@ -28,6 +28,52 @@ function scopedReceiptQuery(result: { data: unknown; error: unknown }) {
 }
 
 describe("ARK read model", () => {
+  function snapshotClient(overrides: Record<string, unknown>) {
+    const owned = { id: "owned", user_id: "u", project_id: "p" };
+    const task = { id: "task", user_id: "u", project_id: "p", objective_id: "owned" };
+    const defaults: Record<string, unknown> = {
+      ark_objectives: [owned], ark_tasks: [task],
+      ark_checkpoints: [{ id: "checkpoint", objective_id: "owned", task_id: "task" }],
+      ark_events: [{ id: 1, objective_id: "owned", task_id: null }],
+    };
+    const from = vi.fn((table: string) => {
+      const result = { data: table in overrides ? overrides[table] : defaults[table], error: null };
+      if (table === "ark_objectives") return objectiveQuery(result);
+      if (table === "ark_tasks") return taskQuery(result);
+      return scopedReceiptQuery(result);
+    });
+    return { from } as never;
+  }
+
+  it("drops malformed rows and blank objectives while retaining valid scoped receipts", async () => {
+    const noise = [null, undefined, "SECRET", 42, [], {}];
+    const snapshot = await readArkProjectSnapshot({
+      supabase: snapshotClient({
+        ark_objectives: [...noise,
+          { id: "owned", user_id: "u", project_id: "p" },
+          { id: " ", user_id: "u", project_id: "p", goal: "SECRET-BLANK" },
+        ],
+        ark_tasks: [...noise, { id: "task", user_id: "u", project_id: "p", objective_id: "owned" }],
+        ark_checkpoints: [...noise, { id: "checkpoint", objective_id: "owned", task_id: "task" }],
+        ark_events: [...noise, { id: 1, objective_id: "owned", task_id: null }],
+      }), userId: "u", projectId: "p",
+    });
+    expect(snapshot.objectives.map(row => row.id)).toEqual(["owned"]);
+    expect(snapshot.tasks.map(row => row.id)).toEqual(["task"]);
+    expect(snapshot.checkpoints.map(row => row.id)).toEqual(["checkpoint"]);
+    expect(snapshot.events.map(row => row.id)).toEqual([1]);
+    expect(JSON.stringify(snapshot)).not.toContain("SECRET");
+  });
+
+  it.each(["ark_objectives", "ark_tasks", "ark_checkpoints", "ark_events"])(
+    "reports an invalid %s collection as an error instead of an empty successful snapshot", async (table) => {
+      await expect(readArkProjectSnapshot({
+        supabase: snapshotClient({ [table]: { id: "SECRET-MALFORMED" } }),
+        userId: "u", projectId: "p",
+      })).rejects.toThrow(`ark_read_invalid_collection:${table}`);
+    },
+  );
+
   it("returns user/project scoped objectives, tasks, checkpoints, and events", async () => {
     const from = vi.fn((table: string) => {
       if (table === "ark_objectives") {

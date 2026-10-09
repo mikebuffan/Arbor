@@ -105,3 +105,51 @@ These are scoped receipts. None of the eight are declared globally DONE or live 
 For any follow-up receipt append: date, project/environment, actor/authorization source, task ID, requestId if applicable (not secrets), action scope, exact Git SHA, Vercel deployment ID/alias target, task and objective IDs, status, attempt count, immutable result/evidence reference, CI/check IDs and negative-control outcome. Use NOT RUN, UNKNOWN, FAILED or BLOCKED when appropriate. No secret values, private transcripts, cross-owner IDs or hidden source may be published.
 
 **This ledger records evidence; it does not certify a live ARK canonical runtime ledger, grant objective control, touch protected tasks, create a new canary, modify main/production or deploy any source.**
+
+## Main Work continuation — 2026-10-08 Pacific / 2026-10-09 UTC
+
+This dated revision supersedes historical source anchors above for this session. Danelle authorized one sequential main Work thread for all 97 existing tasks and safe source-only review, repairs and CI. No release/control/private-data authority is added. Original owner branches remain intact.
+
+### Canonical source and ownership
+- Current parent candidate: draft/open/unmerged PR #375, `fa640e0f13582d6fc3d6fbb74b918743ca47234b`; reread before publication. Exact-head source run [37882327125](https://github.com/mikebuffan/Arbor/actions/runs/37882327125) completed SUCCESS: backend/control and Grove jobs passed; deployment-protection smoke step was SKIPPED. That step is not a current host-protection receipt.
+- #374 parent `c6e12afc80241356f9dc51682c25d533e2589b30`, #372 owner `b707573d6b66f678ab7fb5671a79aa989407d38c`, #373 owner `c05d962ff8c6717bb08b805c06766dcfca98b5ec`; open-PR inventory showed no later competing application candidate. #361 is the documentary audit owner, not a newer runtime implementation.
+- Source-only child branch `review/one-arbor-ark-completion-readback-20261009` contains its own exact Vercel skip entry BEFORE publication; main/production remain outside the skip list. Existing verifier/workflows are preserved; no older packaged files reapplied. Two existing Pattern Hop source files remain byte-unchanged in this child.
+
+### Two bounded A09/E08 source repairs
+1. ARK status projection now validates response collection/row shape, skips malformed individual rows and blank objective IDs, and keeps valid owned task/checkpoint/objective-event compatibility. Nonarray collections throw a payload-free error, not a successful empty snapshot. Five new synthetic regressions reproduced the parent defects before repair.
+2. Existing objective completion assessor now selects and independently checks `objective_id`, nonblank unique task keys and row/collection shape before producing any evidence. Foreign/missing objective links, null rows, duplicate keys and broken collections reject the complete readback rather than forming a falsely complete subset. Six new synthetic regressions reproduced the parent defects. Normal completed/verified, unresolved and empty-objective controls remain valid.
+
+These are defense-in-depth readback checks, not evidence of bad live data. SQL filters remain. No worker activation, scheduler change, grants, schema migration, secrets, private archive ingestion or inference.
+
+### Verified source checks
+- Final local full backend: **387 files / 2,365 passed / 2 skipped**. Network-denying test setup and fake API-key placeholder; no provider calls. Initial expanded run lacked that placeholder and two suites failed during import; configured rerun passed, not hidden.
+- Focused ARK/MCP, archive reader/resumption/metadata inventory, correction recovery and retention: **27 files / 189 passed / 1 skipped**, included in full totals.
+- Control backend: **37 files / 156 passed**; backend TypeScript passed. Existing disk-reopen, atomic failure/retry, concurrent local-store and correction tests passed. This does not establish distributed exactly-once or hosted concurrency.
+- Existing unmodified source verifier: **158 exact Git blob fingerprints** before this documentary append. Final child count is **159** after adding this dated ledger fingerprint. Exact child CI and build receipts must be checked after publication; not assumed from local tests or the parent.
+- Duplicate prevention source inspected: unique objective idempotency keys, changed-payload rejection, lease-token fencing and targeted objective claim migrations exist. No database migration or live SQL query executed; load/rate-limit/concurrent hosted acceptance remains NOT RUN.
+- Group 03 importer/reader/metadata helper inspected and tests passed without reading private exports or media. B01/B03/B04 coverage gates persist; B02's historical DONE remains bounded to previously indexed rows.
+
+### Fresh host, permissions and release prerequisites
+- Connected Vercel team `team_QFZ2bCxtjj152YmrbebhivFi` / `mikes-projects-4d16734a`: exactly **firefly-ark-sandbox** and **firefly** exposed. Direct read of separate `arbor-ark-preview-mcp` project and host returned 404; known Grove project `prj_nw2X0SyLn4e8CXWZ83MEs4jwn1JN` returned 404. This establishes connection visibility failure, not deletion.
+- Current sandbox URL `firefly-ark-sandbox.vercel.app` resolves READY deployment `dpl_3y43Yeao47iKzp8svqgKPSMSpmvC`, source `f4021985b475651284c97aecbc3bdf03123478cc` (#322). Team deployment search at exact #375 SHA returned zero entries. Trusted MCP/host/tool/issuer parity for the current candidate remains UNKNOWN.
+- Sandbox SSO metadata: enabled, `all_except_custom_domains`. This is configuration metadata, not an anonymous-denial test or confidential-route acceptance.
+- Rollback-candidate listing for the sandbox returned **403 deploymentRollback permission denied**. No CLI executable was present for an equivalent mapped fallback. Existing historical READY deployment is not independently proved a restorable rollback candidate; backup, DB mapping, restoration and rollback rehearsal remain NOT RUN.
+- Fresh App still reports `canSubmitReadTasks=true`, `canControlObjectives=false`, `canSubmitBehaviorTests=false`. Existing STOP task `012df6c6-aaa7-4e24-90b4-e9bd9845ae0a` read at `2026-10-09T04:14:00.297Z`: QUEUED, attempts=0, terminal=false, completed=false. No submit, duplicate, retry or control action.
+- #326 acceptance route retains Preview-only environment, dedicated flag, machine auth, configured exact canary, one-task and 20,000ms cycle settings. **Runtime time budget is cooperative between operations, not a hard interruption deadline for an in-flight executor.** No hard cancellation guarantee is claimed. Source/full tests do not prove enabled hosted checkpoint/STOP acceptance.
+
+### Current disposition and next item
+| Existing tasks | Session disposition | Remaining requirement |
+| --- | --- | --- |
+| A01/A10 | PARTIAL; source/owner snapshot and this dated review updated | Live canonical promotion remains unproved |
+| A02 | GATED hosted parity; source state reconciled | Authorized MCP/Grove project visibility and exact deployed manifest |
+| A08 | PARTIAL source safeguards/test evidence | Hosted concurrent replay, exhaustion and rate-limit negatives |
+| A09/E08 | PARTIAL; both bounded source repairs tested | Exact child CI, then authenticated hosted negative/provenance acceptance |
+| A12/F16 | GATED release/isolation | Approved target, rollback visibility/restore proof, real token/session/storage negatives |
+| A03/A04/A06/E05 | GATED | Control/executor/host authorization; no current execution |
+| A05 | DONE, historical bounded round trip retained | No new submission needed |
+| A07/A11 | PARTIAL source verified | Hosted scheduler/device acceptance, no broad worker |
+| B01/B03/B04 | PARTIAL/GATED, no ingestion or expanded coverage | Authorized private-source inventory/import/interpretation |
+| B02 | DONE, historical bounded reader receipt retained | Full-export scope not implied |
+| B10/B11/C08 | PARTIAL; local restart/recovery tests passed | Fresh deployed-host/model acceptance |
+
+Next safe work: finish exact child CI readback and ledger reconciliation, then Group 04 B05–B14 source eligibility/owner-control audit on this candidate. All real host, archive, device, voice and paid-model acceptance gates remain explicit. No overall completion percentage is inferred.
