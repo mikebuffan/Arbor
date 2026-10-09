@@ -345,6 +345,19 @@ export async function runOpenAIAgencyAgent(
     await input.hooks
       ?.onRoundStart?.(round);
 
+    // Provider output is not a completed action merely because text or a
+    // tool call was present. An explicitly unfinished/failed provider response
+    // and a malformed output container are checkpoints, never final answers.
+    if ((response.status && response.status !== "completed") ||
+      !Array.isArray(response.output)) {
+      return {
+        status: "checkpointed",
+        text: "INTERNAL CONTINUATION REQUIRED: provider response incomplete or invalid; reconcile the response before resuming.",
+        responseId: response.id,
+        toolCalls,
+      };
+    }
+
     const calls =
       functionCalls(
         response.output as unknown[],
@@ -354,6 +367,16 @@ export async function runOpenAIAgencyAgent(
       const text =
         response.output_text
           ?.trim() ?? "";
+
+      // Do not treat a completed empty response as a completed user turn.
+      if (!text) {
+        return {
+          status: "checkpointed",
+          text: "INTERNAL CONTINUATION REQUIRED: no usable assistant response was returned.",
+          responseId: response.id,
+          toolCalls,
+        };
+      }
 
       if (!shouldVerify) {
         await input.hooks
