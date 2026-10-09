@@ -26,7 +26,8 @@
     "independentFollowthroughReviewParentPr377": "9bc589400dcc474e5b0856eabd74cbd8013c64f0",
     "choiceSourcePr378": "b68e1307e88dc033ef3ee68de894e168cb2c5c71",
     "followthroughParentPr379": "d9dab125424b6e627f93461dd4e13b252e3af65d",
-    "independenceResumePriorityParentPr380": "d6258b486bdaedb83bfcc2b77dcb203bdd59119e"
+    "independenceResumePriorityParentPr380": "d6258b486bdaedb83bfcc2b77dcb203bdd59119e",
+    "independentNegativeProofParentPr382": "e23d648566fd49c662c678df7998a48cf0193b9a"
   },
   "expectedBlobSha": {
     "apps/backend/lib/arbor/runtime/timeCore.ts": "7fb33f4a8c6f201e96cc8c3f71b9a4ba584dabde",
@@ -45,7 +46,7 @@
     "apps/arbor-control-backend/src/selfModelObservations.ts": "f8f03960ee18eca6650b12b4e2ee07c3b8e34469",
     "apps/arbor-control-backend/src/selfModelClaims.ts": "9bf0d7bd2f50fe61338a8967cd1b0a0c7d3e1b52",
     "docs/integration/ONE_ARBOR_GROUP06_IDENTITY_EVIDENCE_GATE_20261007.md": "bd43f7b8a8c2e90208b6839d582d5f698fcc570c",
-    "ops/grove/source-only-ignore.mjs": "356daaa40f2d234bc9bdef2f21764751f8f69da3",
+    "ops/grove/source-only-ignore.mjs": "85c208772de14190fae30e57504b7b66f4e1703a",
     ".github/workflows/one-arbor-group04-shelf-pagination.yml": "41790290a7fa86974dcca3fbbcc15bc96e0cac88",
     "apps/backend/lib/memory/__tests__/shelfPageRead.test.ts": "35b5c43abb6b2c774a1ae3aa75b33507c1e4d3bb",
     "apps/frontend/lib/environment/grove_memory_shelf_view.dart": "31e54c5c459cadce0eeba4bb577922c419cde71a",
@@ -110,7 +111,7 @@
     "apps/backend/lib/arbor/behavior/behaviorProjection.ts": "cd52561933f57ff41daf2ca1497d2dc8d414bfe8",
     "apps/backend/lib/arbor/behavior/__tests__/independentJudgmentCases.ts": "7d9b8eb3f6952812c893c5a5bd228395888e5da3",
     "apps/backend/lib/arbor/behavior/__tests__/independentJudgmentCases.test.ts": "045e1782fbacbad032738232bf960962345e2a8e",
-    ".github/workflows/one-arbor-independent-judgment.yml": "3e465ad356ea277e03cbb90c9125a9f4e9340f66",
+    ".github/workflows/one-arbor-independent-judgment.yml": "b425035d4cdf3e4a7f1532fda1173fb0f170e8d9",
     "apps/backend/lib/prompt/buildPromptContext.ts": "c91150dbfce1755b9843b58c8c46a95e7fe50a3b",
     "apps/backend/lib/arbor/behavior/arkLayerReadContext.ts": "e0597d3df998d37361a9b21f351d597e1508f445",
     "apps/backend/lib/arbor/behavior/__tests__/arkLayerReadContext.test.ts": "fff706bfa7d2694ae8f58e5f21c4cff0b6e02516",
@@ -147,11 +148,13 @@
     "docs/integration/ONE_ARBOR_INDEPENDENT_FOLLOWTHROUGH_20261009.md": "198049067b47837f3726a5a64da5f3898760aeb2",
     "apps/backend/lib/arbor/continuity/__tests__/longitudinalShorthand.integration.test.ts": "bffea21b7c41495a5b5700b345c0adc78cfa6f9a",
     "docs/integration/ONE_ARBOR_INDEPENDENT_CHOICE_FOLLOWTHROUGH_20261009.md": "c7e645a6977cf04d2f01438f0562b02075586649",
-    "apps/backend/lib/arbor/agency/engine.ts": "451d897012cbcf66f52f03ddff9367cf8eaef1ab",
-    "apps/backend/lib/arbor/agency/__tests__/engineResume.test.ts": "1e451a31d2ce6ef7be3b980322ef166b1ade6c82",
+    "apps/backend/lib/arbor/agency/engine.ts": "d234680316c407724c1798d5840cb83f43aea630",
+    "apps/backend/lib/arbor/agency/__tests__/engineResume.test.ts": "c15f4e64eb06f9465af9b6eca94fb52b623d8c47",
     "apps/backend/lib/arbor/agency/backlogContinuation.ts": "9d1c42cd589f134b0b3cf4b0e0325f61df10f704",
     "apps/backend/lib/arbor/agency/__tests__/backlogContinuation.test.ts": "4dc265355ce08e7e9b05bcc7b4e9a65e03c27ed8",
-    "docs/integration/ONE_ARBOR_INDEPENDENCE_RESUME_PRIORITY_20261009.md": "bbf4b64230910a113f44b7b22bd658799e2bac6b"
+    "docs/integration/ONE_ARBOR_INDEPENDENCE_RESUME_PRIORITY_20261009.md": "bbf4b64230910a113f44b7b22bd658799e2bac6b",
+    "apps/backend/lib/arbor/agency/__tests__/yieldPolicy.test.ts": "697ebeecee133dbbdc9a3ecbff65517fb86cc349",
+    "docs/integration/ONE_ARBOR_INDEPENDENCE_NEGATIVE_PROOF_20261009.md": "5cb7df6be8d8497f7242f546fd970fb5f33fdc0c"
   },
   "comment": "78 verified source-only blobs. Adds exact group11 PR #360 view-injection and visited-ID bounds to reviewed 15-lane #362 candidate; Group12 latest after recorded source head is docs-only. Source review, no deployment or live acceptance."
 }

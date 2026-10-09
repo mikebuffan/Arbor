@@ -208,4 +208,109 @@ describe("resumable agency engine", () => {
     },
   );
 
+  it("does not turn a failed action verification into unproven completion", async () => {
+    const executed = vi.fn(async () => 1);
+    const persist = vi.fn(async () => {});
+    const proveOnlyByAction = vi.fn(async () => ({ ok: false, correction: "receipt missing" }));
+    const runtime: AgencyRuntime<{ done: number }> = {
+      loadSharedState: async () => ({ done: 0 }),
+      assess: async ({ shared }) => ({
+        complete: shared.done > 0,
+        unresolvedWork: shared.done ? [] : ["write one item"],
+      }),
+      choose: async () => ({ id: "one", description: "write item", reversible: true }),
+      execute: executed,
+      integrate: async ({ shared, result }) => ({ done: shared.done + Number(result) }),
+      verify: proveOnlyByAction,
+      selfAudit: async () => ({}),
+      persist,
+    };
+    const out = await runAgency({ goal: "finish safely", runtime, maxSteps: 5 });
+    expect(out.agency.status).toBe("checkpointed");
+    expect(out.agency.lastVerification?.ok).toBe(false);
+    expect(out.agency.unresolvedWork).toContain("receipt missing");
+    expect(executed).toHaveBeenCalledOnce();
+    expect(proveOnlyByAction).toHaveBeenCalledOnce();
+    expect(persist).toHaveBeenLastCalledWith(expect.objectContaining({ agency: expect.objectContaining({ status: "checkpointed" }) }));
+  });
+
+  it("permits genuine independent completion proof to recover a prior failed verification", async () => {
+    let calls = 0;
+    const completeProof = vi.fn(async () => ({ ok: true, evidence: "verified readback" }));
+    const runtime: AgencyRuntime<{ done: number }> = {
+      loadSharedState: async () => ({ done: 0 }),
+      assess: async ({ shared }) => ({
+        complete: shared.done >= 1,
+        unresolvedWork: shared.done ? [] : ["run reversible step"],
+      }),
+      choose: async () => ({ id: "safe", description: "safe step", reversible: true }),
+      execute: async () => { calls++; return 1; },
+      integrate: async ({ shared, result }) => ({ done: shared.done + Number(result) }),
+      verify: async () => ({ ok: false, correction: "need source receipt" }),
+      proveComplete: completeProof,
+      selfAudit: async () => ({}),
+      persist: async () => {},
+    };
+    const out = await runAgency({ goal: "verify with receipts", runtime, maxSteps: 4 });
+    expect(out.agency.status).toBe("complete");
+    expect(out.agency.lastVerification).toEqual({ ok: true, evidence: "verified readback" });
+    expect(completeProof).toHaveBeenCalledOnce();
+    expect(calls).toBe(1);
+  });
+
+  it("retains a restored checkpoint with an unresolved negative verification", async () => {
+    const executed = vi.fn(async () => "unsafe replay");
+    const persist = vi.fn(async () => {});
+    const runtime: AgencyRuntime<{}> = {
+      loadSharedState: async () => ({}),
+      loadAgencyState: async () => ({
+        goal: "existing goal", status: "checkpointed", currentStep: 8,
+        unresolvedWork: ["missing receipt"], recurringWeaknesses: [], strategyNotes: [],
+        blocker: null, lastVerification: { ok: false, correction: "missing receipt" },
+      }),
+      assess: async () => ({ complete: true, unresolvedWork: [] }),
+      choose: async () => ({ id: "repeat", description: "repeat", reversible: true }),
+      execute: executed,
+      integrate: async ({ shared }) => shared,
+      verify: async () => ({ ok: true }),
+      selfAudit: async () => ({}),
+      persist,
+    };
+    const out = await runAgency({ goal: "existing goal", runtime, maxSteps: 4 });
+    expect(out.agency.status).toBe("checkpointed");
+    expect(out.agency.currentStep).toBe(9);
+    expect(out.agency.unresolvedWork).toContain("missing receipt");
+    expect(executed).not.toHaveBeenCalled();
+    expect(persist).toHaveBeenCalledOnce();
+  });
+
+  it("reconciles a contradictory stored complete/failed-verification state without replay", async () => {
+    const execute = vi.fn(async () => 1);
+    const assess = vi.fn(async () => ({ complete: true, unresolvedWork: [] }));
+    const persist = vi.fn(async () => {});
+    const runtime: AgencyRuntime<{ done: number }> = {
+      loadSharedState: async () => ({ done: 1 }),
+      loadAgencyState: async () => ({
+        goal: "historical result", status: "complete", currentStep: 4,
+        unresolvedWork: [], recurringWeaknesses: [], strategyNotes: [],
+        lastVerification: { ok: false, correction: "source receipt missing" },
+      }),
+      assess,
+      choose: async () => ({ id: "repeat", description: "duplicate write", reversible: true }),
+      execute,
+      integrate: async ({ shared }) => shared,
+      verify: async () => ({ ok: true }),
+      selfAudit: async () => ({}),
+      persist,
+    };
+    const result = await runAgency({ goal: "historical result", runtime });
+    expect(result.agency.status).toBe("checkpointed");
+    expect(result.agency.lastVerification?.ok).toBe(false);
+    expect(result.agency.unresolvedWork).toEqual(["source receipt missing"]);
+    expect(result.agency.currentStep).toBe(4);
+    expect(assess).not.toHaveBeenCalled();
+    expect(execute).not.toHaveBeenCalled();
+    expect(persist).toHaveBeenCalledOnce();
+  });
+
 });
