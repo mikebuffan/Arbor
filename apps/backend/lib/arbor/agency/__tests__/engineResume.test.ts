@@ -189,4 +189,23 @@ describe("resumable agency engine", () => {
     expect(result.shared.completed).toBe(1);
   });
 
+  it.each([NaN, Infinity, -Infinity, 0, -1, 1.5, 257])(
+    "rejects invalid agency step budget %s before any state access", async maxSteps => {
+      const loadSharedState = vi.fn(async () => ({}));
+      const runtime: AgencyRuntime<{}> = {
+        loadSharedState,
+        assess: async () => ({ complete: false, unresolvedWork: ["work"] }),
+        choose: async () => ({ id: "x", description: "x", reversible: true }),
+        execute: async () => null,
+        integrate: async ({ shared }) => shared,
+        verify: async () => ({ ok: true }),
+        selfAudit: async () => ({}),
+        persist: async () => {},
+      };
+      await expect(runAgency({ goal: "bounded task", runtime, maxSteps }))
+        .rejects.toThrow("agency_invalid_step_budget");
+      expect(loadSharedState).not.toHaveBeenCalled();
+    },
+  );
+
 });

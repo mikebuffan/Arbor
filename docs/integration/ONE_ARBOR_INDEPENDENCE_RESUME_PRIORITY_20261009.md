@@ -13,3 +13,6 @@ No main merge, deployment, paid inference, model evaluation, private ingestion o
 
 ## Additional same-branch integrity repair
 Validated task identifiers, dependencies, statuses and protected-boundary types before planning. Conflicting duplicate IDs now reject with `backlog_duplicate_id` rather than allowing a completed and a pending task of the same identity to compete for execution. Malformed metadata fails closed; missing or self-dependencies remain waiting. Three additional negative/positive tests added to the existing suite. The original priority API is otherwise unchanged. A fresh exact-head CI run is required for final source acceptance.
+
+## Bounded agency windows
+`runAgency` also lacked validation of caller-supplied `maxSteps`; values such as `Infinity`, `NaN`, zero, negative or fractional counts could bypass ordinary checkpoint expectations, including unbounded loops. The engine now accepts only integers 1–256 (unchanged default 64), rejecting malformed budgets *before* loading shared state. Synthetic negative cases assert no host calls occur. This bounds steps only; it does **not** guarantee a wall-clock duration or background execution. Fresh exact-head source CI is required.

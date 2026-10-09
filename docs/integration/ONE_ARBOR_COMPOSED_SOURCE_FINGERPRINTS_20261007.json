@@ -147,11 +147,11 @@
     "docs/integration/ONE_ARBOR_INDEPENDENT_FOLLOWTHROUGH_20261009.md": "198049067b47837f3726a5a64da5f3898760aeb2",
     "apps/backend/lib/arbor/continuity/__tests__/longitudinalShorthand.integration.test.ts": "bffea21b7c41495a5b5700b345c0adc78cfa6f9a",
     "docs/integration/ONE_ARBOR_INDEPENDENT_CHOICE_FOLLOWTHROUGH_20261009.md": "c7e645a6977cf04d2f01438f0562b02075586649",
-    "apps/backend/lib/arbor/agency/engine.ts": "0892b2cde1c75cc311347a81d1e471955157f802",
-    "apps/backend/lib/arbor/agency/__tests__/engineResume.test.ts": "405238565e69e757ff4682f9e2dd7642fc58002e",
+    "apps/backend/lib/arbor/agency/engine.ts": "451d897012cbcf66f52f03ddff9367cf8eaef1ab",
+    "apps/backend/lib/arbor/agency/__tests__/engineResume.test.ts": "1e451a31d2ce6ef7be3b980322ef166b1ade6c82",
     "apps/backend/lib/arbor/agency/backlogContinuation.ts": "9d1c42cd589f134b0b3cf4b0e0325f61df10f704",
     "apps/backend/lib/arbor/agency/__tests__/backlogContinuation.test.ts": "4dc265355ce08e7e9b05bcc7b4e9a65e03c27ed8",
-    "docs/integration/ONE_ARBOR_INDEPENDENCE_RESUME_PRIORITY_20261009.md": "5d84ad5ba818dfcc1c2581d72be75fad62858e22"
+    "docs/integration/ONE_ARBOR_INDEPENDENCE_RESUME_PRIORITY_20261009.md": "bbf4b64230910a113f44b7b22bd658799e2bac6b"
   },
   "comment": "78 verified source-only blobs. Adds exact group11 PR #360 view-injection and visited-ID bounds to reviewed 15-lane #362 candidate; Group12 latest after recorded source head is docs-only. Source review, no deployment or live acceptance."
 }

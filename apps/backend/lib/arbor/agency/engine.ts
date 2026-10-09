@@ -106,6 +106,12 @@ export async function runAgency<SharedState>(input: {
   runtime: AgencyRuntime<SharedState>;
   maxSteps?: number;
 }): Promise<{ agency: AgencyState; shared: SharedState }> {
+  const maxSteps = input.maxSteps ?? 64;
+  // Reject nonfinite/unbounded execution windows before touching host state.
+  // A checkpoint, not an infinite loop, is the bounded continuation contract.
+  if (!Number.isSafeInteger(maxSteps) || maxSteps < 1 || maxSteps > 256)
+    throw new Error("agency_invalid_step_budget");
+
   let shared = await input.runtime.loadSharedState();
   const restored = await input.runtime.loadAgencyState?.(input.goal);
   const restoring = restored?.goal === input.goal;
@@ -137,8 +143,6 @@ export async function runAgency<SharedState>(input: {
         attemptedActionIds: [],
         lastVerification: null,
       };
-
-  const maxSteps = input.maxSteps ?? 64;
 
   for (let i = 0; i < maxSteps; i += 1) {
     // Never rewind a durable checkpoint to step zero. A checkpoint is written
