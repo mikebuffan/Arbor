@@ -9,6 +9,7 @@ on:
       - test/one-arbor-judgment-blind-pack-20261007
       - review/one-arbor-b12-candidate-shape-20261007
       - review/one-arbor-372-373-safe-composition-20261009
+      - review/one-arbor-judgment-model-parity-20261009
   pull_request:
     branches:
       - review/one-arbor-group11-assembly-followon-20261007
