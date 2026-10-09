@@ -61,7 +61,7 @@
     "apps/backend/lib/memory/__tests__/shelfPageRead.test.ts": "35b5c43abb6b2c774a1ae3aa75b33507c1e4d3bb",
     "apps/frontend/lib/environment/grove_memory_shelf_view.dart": "31e54c5c459cadce0eeba4bb577922c419cde71a",
     "apps/frontend/test/grove_memory_shelf_view_test.dart": "f01802b64c9ee0ed0116ee66e81344499fdcdf25",
-    ".github/workflows/one-arbor-15-lane-assembly.yml": "54fa17825184ccfa08ad5bf741f9228f23f85660",
+    ".github/workflows/one-arbor-15-lane-assembly.yml": "ad19948c1b6bc58f31fee2f4eaa96cf0ef539078",
     ".github/workflows/one-arbor-diary-draft.yml": "8923e47d0d69562a86a7c210b10efaaf0c5fd624",
     ".github/workflows/one-arbor-group08-body-acceptance.yml": "d4dc36baef71d379f6a769d7f0416cd755d7252a",
     ".github/workflows/one-arbor-group09-decision-gates.yml": "8c6a9996d12fc1624e8e1ef997d8c04d34ee0ffe",
@@ -221,7 +221,9 @@
     "ops/grove/source-only-ignore.test.mjs": "020246a5ba7298473a006389d78905a95195e8ae",
     "docs/integration/ONE_ARBOR_ISOLATED_PREVIEW_FENCE_REPAIR_20261009.md": "aac8515a6d6311263737396302e03a5a1f542064",
     "apps/backend/app/api/memory/delete/route.ts": "d8b650c7791c78741603d28910cc24bcdc85dfa8",
-    "apps/backend/lib/memory/__tests__/routeOwnership.test.ts": "68b46fd385b4fe32872650125d16f41e19509952"
+    "apps/backend/lib/memory/__tests__/routeOwnership.test.ts": "68b46fd385b4fe32872650125d16f41e19509952",
+    "apps/frontend/test/grove_private_text_page_test.dart": "70310ceb9dfa21fc4dbe82b44df7c64c4ccbbcc4",
+    "apps/frontend/lib/pages/grove_private_text_page.dart": "61868109382138a54f43df0e7ec8cdf224d710bf"
   },
   "comment": "Source-only incorporation from Library ONE_ARBOR_CODE_REPAIRS_20261009.zip: 17 exact source/test blobs verified, packages reconciled with original PR #372 head, 3 focused tests added; CI/release acceptance remain separately gated."
 }

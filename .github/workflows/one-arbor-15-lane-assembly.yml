@@ -175,7 +175,24 @@ jobs:
       CI: 'true'
       FLUTTER_SUPPRESS_ANALYTICS: 'true'
       DART_SUPPRESS_ANALYTICS: 'true'
+      AWS_EC2_METADATA_DISABLED: 'true'
     steps:
+      - name: Block metadata before Flutter bootstrap; fail closed
+        shell: bash
+        run: |
+          set -euo pipefail
+          unset HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy
+          for proxy_var in HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy; do
+            printf '%s=\n' "$proxy_var" >> "$GITHUB_ENV"
+          done
+          for subnet in 169.254.0.0/16 100.100.100.200/32; do
+            sudo -n iptables -w 5 -I OUTPUT 1 -d "$subnet" -j REJECT
+            sudo -n iptables -w 5 -C OUTPUT -d "$subnet" -j REJECT
+          done
+          for subnet in fe80::/10 fc00::/7; do
+            sudo -n ip6tables -w 5 -I OUTPUT 1 -d "$subnet" -j REJECT
+            sudo -n ip6tables -w 5 -C OUTPUT -d "$subnet" -j REJECT
+          done
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
@@ -196,6 +213,8 @@ jobs:
           lib/environment/grove_diary_draft_view.dart
           lib/environment/grove_memory_shelf.dart
           lib/environment/grove_memory_shelf_view.dart
+          lib/pages/grove_private_text_page.dart
+          test/grove_private_text_page_test.dart
           test/grove_workshop_preview_test.dart
           test/professional_workspace_test.dart
           test/grove_diary_draft_test.dart
@@ -211,3 +230,6 @@ jobs:
           test/grove_diary_draft_test.dart
           test/environment_diary_navigation_test.dart
           test/grove_private_project_gate_test.dart
+          test/grove_private_text_page_test.dart
+          test/grove_private_conversations_test.dart
+          test/grove_pending_turn_store_test.dart
