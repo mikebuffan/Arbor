@@ -223,6 +223,8 @@ jobs:
           flutter analyze --no-fatal-infos --no-fatal-warnings
           lib/pages/grove_private_text_page.dart
           test/grove_private_text_page_test.dart
+          lib/config/grove_private_config.dart
+          test/grove_private_auth_boundary_test.dart
       - name: Grove read-only and unsaved draft widget regressions
         working-directory: apps/frontend
         run: >-
@@ -234,6 +236,7 @@ jobs:
           test/grove_diary_draft_test.dart
           test/environment_diary_navigation_test.dart
           test/grove_private_project_gate_test.dart
+          test/grove_private_auth_boundary_test.dart
           test/grove_private_text_page_test.dart
           test/grove_private_conversations_test.dart
           test/grove_pending_turn_store_test.dart

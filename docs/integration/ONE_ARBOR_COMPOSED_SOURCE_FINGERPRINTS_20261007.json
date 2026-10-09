@@ -61,7 +61,7 @@
     "apps/backend/lib/memory/__tests__/shelfPageRead.test.ts": "35b5c43abb6b2c774a1ae3aa75b33507c1e4d3bb",
     "apps/frontend/lib/environment/grove_memory_shelf_view.dart": "31e54c5c459cadce0eeba4bb577922c419cde71a",
     "apps/frontend/test/grove_memory_shelf_view_test.dart": "f01802b64c9ee0ed0116ee66e81344499fdcdf25",
-    ".github/workflows/one-arbor-15-lane-assembly.yml": "2a51f74e2e98be8be2720b1307f395c3abd1d84d",
+    ".github/workflows/one-arbor-15-lane-assembly.yml": "1585bf836d48e35bccece42d4ba3ee39e007991c",
     ".github/workflows/one-arbor-diary-draft.yml": "8923e47d0d69562a86a7c210b10efaaf0c5fd624",
     ".github/workflows/one-arbor-group08-body-acceptance.yml": "d4dc36baef71d379f6a769d7f0416cd755d7252a",
     ".github/workflows/one-arbor-group09-decision-gates.yml": "8c6a9996d12fc1624e8e1ef997d8c04d34ee0ffe",
@@ -223,7 +223,11 @@
     "apps/backend/app/api/memory/delete/route.ts": "d8b650c7791c78741603d28910cc24bcdc85dfa8",
     "apps/backend/lib/memory/__tests__/routeOwnership.test.ts": "68b46fd385b4fe32872650125d16f41e19509952",
     "apps/frontend/test/grove_private_text_page_test.dart": "d1344f0a0ff78fc97b3473f887b7b7a300bea745",
-    "apps/frontend/lib/pages/grove_private_text_page.dart": "3549d1768207a7aa646bb0e60f6ff8dbc899e510"
+    "apps/frontend/lib/pages/grove_private_text_page.dart": "3549d1768207a7aa646bb0e60f6ff8dbc899e510",
+    "apps/backend/lib/grove/__tests__/privateReadBroker.test.ts": "a96b1a89cf7d13cd63063039f6092c84cc6de366",
+    "apps/backend/lib/grove/privateReadBroker.ts": "5b49f0bea673f4528c29494626adb823ddd0e6aa",
+    "apps/frontend/lib/config/grove_private_config.dart": "39fb6a6a9f4151d323340e1ff158f5b7c75ccab2",
+    "apps/frontend/test/grove_private_auth_boundary_test.dart": "945ae2d56bd2a7501b41a6836c5dba89b4d33132"
   },
   "comment": "Source-only incorporation from Library ONE_ARBOR_CODE_REPAIRS_20261009.zip: 17 exact source/test blobs verified, packages reconciled with original PR #372 head, 3 focused tests added; CI/release acceptance remain separately gated."
 }
