@@ -105,6 +105,7 @@ jobs:
           lib/arbor/subsystem/__tests__/stateReadbackScope.test.ts
           lib/arbor/agency/__tests__/stateScopeReadback.test.ts
           lib/memory/__tests__/historicalRecall.test.ts
+          lib/arbor/episodes/__tests__/episodeRecallScope.test.ts
           lib/auth/__tests__/safeReturnPath.test.ts
           lib/memory/__tests__/shelfPageRead.test.ts
           lib/memory/__tests__/projectIsolation.test.ts

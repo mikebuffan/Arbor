@@ -65,7 +65,7 @@ export async function getEpisodeRecall(params: {
 
   const { data, error } = await params.supabase
     .from("episodes")
-    .select("id,thread_id,summary_json,closed_at,updated_at")
+    .select("id,user_id,project_id,thread_id,summary_json,closed_at,updated_at")
     .eq("user_id", params.userId)
     .eq("project_id", params.projectId)
     .not("summary_json", "is", null)
@@ -79,11 +79,17 @@ export async function getEpisodeRecall(params: {
 
   const ranked: EpisodeRecall[] = [];
 
-  for (const row of data ?? []) {
-    const summary =
-      row.summary_json && typeof row.summary_json === "object"
-        ? (row.summary_json as Record<string, unknown>)
-        : {};
+  // A scoped SQL query is only the first boundary. Do not inject a
+  // misrouted, malformed, or foreign episode record into continuity.
+  if (!Array.isArray(data)) return [];
+  for (const row of data) {
+    if (!row || row.user_id !== params.userId ||
+        row.project_id !== params.projectId ||
+        typeof row.id !== "string" || !row.id ||
+        typeof row.thread_id !== "string" || !row.thread_id ||
+        !row.summary_json || typeof row.summary_json !== "object" ||
+        Array.isArray(row.summary_json)) continue;
+    const summary = row.summary_json as Record<string, unknown>;
 
     const topics = strings(summary.topics);
     const userGoals = strings(summary.user_goals);
