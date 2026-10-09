@@ -121,6 +121,7 @@ jobs:
           lib/arbor/runtime/__tests__/discoveryRadar.test.ts
           lib/arbor/runtime/__tests__/group11SourceBoundary.test.ts
           lib/memory/__tests__/patternHopSourceIndependence.test.ts
+          lib/memory/__tests__/patternHopScopeReadback.test.ts
           lib/grove/__tests__/privateTranscriptStore.test.ts
           lib/arbor/annabelle/__tests__/group14PersistenceReadback.test.ts
           lib/arbor/records/__tests__/manualReview.test.ts

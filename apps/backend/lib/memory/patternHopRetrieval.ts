@@ -194,7 +194,7 @@ export async function searchMemoryHopEvidence(params: {
   const { data, error } = await params.supabase
     .from("memory_items")
     .select(
-      "id,conversation_id,key,value,tier,scope,confidence,memory_kind,updated_at,created_at,user_trigger_only,status,deleted_at,excluded_from_memory",
+      "id,user_id,project_id,conversation_id,key,value,tier,scope,confidence,memory_kind,updated_at,created_at,user_trigger_only,status,deleted_at,excluded_from_memory",
     )
     .eq("user_id", params.userId)
     .eq("status", "active")
@@ -208,8 +208,17 @@ export async function searchMemoryHopEvidence(params: {
 
   if (error) throw error;
 
-  return (data ?? [])
-    .filter((row: any) => row.excluded_from_memory === false)
+  // Independent returned-row eligibility: an admin/stale result must never
+  // silently bypass memory's owner, project, reveal or retirement filters.
+  const safeRows = Array.isArray(data) ? data : [];
+  return safeRows
+    .filter((row: any) => row && typeof row.id === "string" &&
+      row.user_id === params.userId &&
+      row.status === "active" && row.deleted_at === null &&
+      row.user_trigger_only === false &&
+      row.excluded_from_memory === false && row.tier !== "sensitive" &&
+      ((row.scope === "global" && row.conversation_id === null) ||
+       (row.scope === "project" && row.project_id === params.projectId)))
     .map((row: any) => {
       const content =
         String(row.key ?? "") +
@@ -259,7 +268,7 @@ export async function searchTimelineHopEvidence(params: {
   const { data, error } = await params.supabase
     .from("arbor_timeline_events")
     .select(
-      "id,conversation_id,turn_id,sequence,phase,event_type,subsystem,channel,action_id,payload,created_at",
+      "id,user_id,project_id,conversation_id,turn_id,sequence,phase,event_type,subsystem,channel,action_id,payload,created_at",
     )
     .eq("user_id", params.userId)
     .eq("project_id", params.projectId)
@@ -268,7 +277,10 @@ export async function searchTimelineHopEvidence(params: {
 
   if (error) throw error;
 
-  return (data ?? [])
+  const safeRows = Array.isArray(data) ? data : [];
+  return safeRows
+    .filter((row: any) => row && typeof row.id === "string" &&
+      row.user_id === params.userId && row.project_id === params.projectId)
     .map((row: any) => {
       const content = [
         row.phase,

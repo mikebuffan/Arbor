@@ -45,7 +45,7 @@
     "apps/backend/lib/memory/__tests__/shelfPageRead.test.ts": "35b5c43abb6b2c774a1ae3aa75b33507c1e4d3bb",
     "apps/frontend/lib/environment/grove_memory_shelf_view.dart": "31e54c5c459cadce0eeba4bb577922c419cde71a",
     "apps/frontend/test/grove_memory_shelf_view_test.dart": "f01802b64c9ee0ed0116ee66e81344499fdcdf25",
-    ".github/workflows/one-arbor-15-lane-assembly.yml": "5768e3217ff3f0c7c6b7383beb9511ced3d31c2c",
+    ".github/workflows/one-arbor-15-lane-assembly.yml": "4aa111b2e0153adf02a80bedb1a15d8855b5b63f",
     ".github/workflows/one-arbor-diary-draft.yml": "8923e47d0d69562a86a7c210b10efaaf0c5fd624",
     ".github/workflows/one-arbor-group08-body-acceptance.yml": "d4dc36baef71d379f6a769d7f0416cd755d7252a",
     ".github/workflows/one-arbor-group09-decision-gates.yml": "8c6a9996d12fc1624e8e1ef997d8c04d34ee0ffe",
@@ -149,7 +149,9 @@
     "apps/backend/lib/memory/historicalRecall.ts": "13319d849c5f3a016ae4bf56d8fd8a931de09d59",
     "apps/backend/lib/memory/__tests__/historicalRecall.test.ts": "2c6bf19cd60ff9943db27343ff9d0a120592cb73",
     "apps/backend/lib/arbor/episodes/episodeRecall.ts": "c3d3a3bd41f93b3c2ca89f6462a22ea226926648",
-    "apps/backend/lib/arbor/episodes/__tests__/episodeRecallScope.test.ts": "ee11409979e894bd0c67bf12af6b628823e3c73e"
+    "apps/backend/lib/arbor/episodes/__tests__/episodeRecallScope.test.ts": "ee11409979e894bd0c67bf12af6b628823e3c73e",
+    "apps/backend/lib/memory/patternHopRetrieval.ts": "e4bb04eda6c7540bc83df9adc32ccf39caf89266",
+    "apps/backend/lib/memory/__tests__/patternHopScopeReadback.test.ts": "7a509df44161fa28ad31ff8797b12a59c2a0b814"
   },
-  "comment": "B04 episode/archival returned-row scope validation and malformed summary denial; synthetic evidence only; source-review no deploy."
+  "comment": "Group 10/B12 Pattern Hop memory and timeline returned-row owner/project/retirement/trigger exclusion regression, source-only no deploy."
 }
