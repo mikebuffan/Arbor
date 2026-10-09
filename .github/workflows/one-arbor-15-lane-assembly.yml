@@ -5,6 +5,7 @@ on:
       - review/one-arbor-15-lane-source-assembly-20261007
       - review/one-arbor-group11-assembly-followon-20261007
       - test/one-arbor-judgment-blind-pack-20261007
+      - fix/thread2-judgment-pack-integrity-20261009
   pull_request:
     branches:
       - fix/one-arbor-group04-shelf-pagination-20261007

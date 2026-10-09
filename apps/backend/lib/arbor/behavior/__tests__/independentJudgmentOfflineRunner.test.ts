@@ -78,6 +78,20 @@ describe("16-case judgment dry run through EXISTING agency runner (no live infer
     });
   });
 
+  it("rejects post-assignment tampering before provisioning, capture, or provider calls", async () => {
+    const { generation } = buildJudgmentGeneration();
+    const { assignment } = buildPrivateJudgmentPlan({ generation, hostSeed: "synthetic-only-private-seed-20261007" });
+    const createResponse = vi.fn();
+    const provision = vi.fn();
+    const record = vi.fn();
+    generation.cases[0].userTurns[0] = "Replacement prompt after assignment";
+    await expect(runAcceptanceComparison({ generation, assignment, config, createResponse, provision, record }))
+      .rejects.toThrow("acceptance_pack_mismatch");
+    expect(createResponse).not.toHaveBeenCalled();
+    expect(provision).not.toHaveBeenCalled();
+    expect(record).not.toHaveBeenCalled();
+  });
+
   it("honors a hard request-count budget without a live provider", async () => {
     unexpectedProvider.mockReset();
     const { generation } = buildJudgmentGeneration();

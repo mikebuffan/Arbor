@@ -85,6 +85,31 @@ describe("judgment blind-pack isolation (source-only, no inference)", () => {
     expect(first.assignment).toEqual(again.assignment);
   });
 
+  it("rejects cases edited after host assignment even with an unchanged claimed hash", () => {
+    const { generation } = buildJudgmentGeneration();
+    const { assignment } = buildPrivateJudgmentPlan({ generation, hostSeed: seed });
+    validateAcceptanceInput(generation, assignment, config);
+    const changedGeneration = {
+      ...generation,
+      cases: generation.cases.map((c, index) => index === 0
+        ? { ...c, userTurns: ["Tampered replacement after assignment"] }
+        : c),
+    };
+    expect(() => validateAcceptanceInput(changedGeneration, assignment, config))
+      .toThrow("acceptance_pack_mismatch");
+  });
+
+  it("rejects reordered cases and equal forged digests at the runner boundary", () => {
+    const { generation } = buildJudgmentGeneration();
+    const { assignment } = buildPrivateJudgmentPlan({ generation, hostSeed: seed });
+    expect(() => validateAcceptanceInput({ ...generation, cases: [...generation.cases].reverse() }, assignment, config))
+      .toThrow("acceptance_pack_mismatch");
+    expect(() => validateAcceptanceInput(
+      { ...generation, casePackHash: "0".repeat(64) },
+      { ...assignment, casePackHash: "0".repeat(64) }, config,
+    )).toThrow("acceptance_pack_mismatch");
+  });
+
   it("preserves genuine evidence reversals without leaking the expected stance", () => {
     const { generation } = buildJudgmentGeneration();
     const a = generation.cases.find(x => x.id === "J01")!;

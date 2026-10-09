@@ -1,0 +1,89 @@
+# ONE ARBOR — Thread 2 independent source repair receipt
+
+Continuation of the original 97-task inventory, not a replacement inventory.
+Reference: `ONE_ARBOR_97_TASKS_15_ORDERED_WORK_GROUPS_20261007.md` and
+`ONE_ARBOR_97_TASK_MASTER_G09_G11_20261007.docx` recovered from the owner's Library.
+
+## Ownership and version
+
+Parent: draft PR #368, `f17f5b5d346c887768f91c0a7668e618c718ceae`.
+Isolated child: `fix/thread2-judgment-pack-integrity-20261009`.
+PR #368 and the ARK owner branches #370/#372 remain unchanged.
+No ARK files, runtime grants, deployment settings, protected STOP, model inference,
+private data, migration, production deployment or merge were performed.
+Existing branch-specific source-only exclusion was extended for this child;
+review workflows and exact-blob manifest were updated only on the child.
+
+## C04 / D13: received-case integrity
+
+The supplied patch correctly detected a real blind-pack integrity gap, but its
+unconditional public-content hash check rejected valid legacy conversation packs.
+Repository test reproduced that incompatibility: the eighteen-case preparation
+test failed with `acceptance_pack_mismatch`.
+
+The repair recomputes the public-case SHA-256. The existing legacy full scoring
+pack digest is accepted only when received cases exactly match the corresponding
+checked-in public cases in their original order. This preserves server-selected
+single-case inputs without changing the ARK contract or executor.
+Generic unit fixtures now compute real content digests instead of placeholder
+hashes. Regression checks reject edited public prompts, reordered cases, equal
+forged digests, edited legacy cases and reordered legacy packs. All eighteen
+legacy server-selected cases remain accepted. Tampered input stops before
+provisioning, capture and provider callbacks.
+
+Three new blind-boundary regression tests failed against the unchanged parent
+runner (8 passed, 3 failed); the repaired tests pass. No model responses are
+claimed: the integration provider is local and mocked. Recomputing a digest
+does not authenticate arbitrary source provenance or establish model judgment.
+
+## E03: strict Discovery Radar input boundary
+
+Current source treated truthy non-boolean `crossProjectEnabled`, including the
+string `"false"`, as an enabled flag. It also accepted malformed or duplicate
+authorized project IDs. Two regression tests failed against the parent source.
+The existing projection now rejects those inputs before ranking. No scorer,
+crawler, grant, task scheduler or second discovery engine was added. Valid
+boolean modes and existing owner/project denials are preserved. Trusted host
+authentication remains required; this pure projection does not authenticate grants.
+
+## Local verification
+
+- Focused independent regression: 8 files / 60 tests passed.
+- Backend TypeScript: passed.
+- Control backend: 35 files / 154 tests passed; TypeScript build passed.
+- Source fingerprint gate: 106 exact Git blobs passed; verifier unchanged.
+- Full backend: 370 files / 2,179 passed / 2 skipped; focused tests overlap full totals.
+  Exact-head hosted CI must still be read back separately.
+- Local backend build: blocked by unavailable Google Fonts downloads for Geist
+  and Geist Mono. This is not a source-green build claim and the ARK owner's
+  layout/font preparation was not copied or edited.
+- First unbounded local full run returned without a summary; it is not counted.
+  Bounded-worker reruns produced complete summaries and are the local evidence.
+- Dependency installation populated the locked packages but reported ignored
+  build scripts. Its generated `allowBuilds` changes were discarded. Test and
+  TypeScript commands used the installed binaries directly; no policy/lockfile
+  changes are included.
+
+## Continue / boundary reconciliation
+
+| Existing tasks | Current disposition | Next genuine requirement |
+| --- | --- | --- |
+| C04, D13 | Integrity repair implemented; awaiting exact-head CI and separate behavioral acceptance | Authorized real-model blinded, unprimed comparisons and independent scoring |
+| C01, C02, C03, C12 | Existing source implementations preserved; Group 06 projection regression passes | Trusted source-export parity / hosted lineage and behavioral proof |
+| C05–C11, D15, D18 | Existing personality, correction and surface contracts retained; no second implementation | Fresh-session/model comparisons and approved device/voice acoustic proof |
+| D01–D04, D12 | Existing Body/Felt-Life/pathway source and negative controls present | Trusted outcome provenance, causal host comparisons and durable reviewed outcomes |
+| D05, D06, D09–D11, D17 | Existing decision/consequence HOLD and source gates retained | Authenticated host evidence and observed consequences; no invented outcome |
+| E03 | Strict input repair implemented; awaiting exact-head CI | Trusted metadata/permission caller; source projection is not live discovery |
+| E01, E02, E04, E07 | Existing Failure Radar, inbox and decision-history projections retained | Owner-scoped host callers and independently verified outcome references |
+| E06 | Requires owner approval | Specific runtime, numeric spend budget and blind scoring |
+| F01, F03, F05, F06, F08 | Existing private-host/replay/model artifact work retained | Real owner login, transcript exit/reopen, loaded runtime and source parity |
+| F02, F04, F07, F09, F11 | External/owner dependency | Private host, model/training authorization, grants or physical voice device |
+| F10, F12, F13, F15, G09, G12 | Existing Flutter source/tests retained | Actual installed-device acceptance; Workshop remains explicitly unsaved |
+| F14 | Requires owner approval | Matching approved daytime art; no fabricated asset acceptance |
+| G10, G11, G13, G14 | Existing scoped prototypes retained | Life UX / diary retention decisions, authorized records, qualified rights decisions |
+
+ARK integration, release, permission, STOP and worker-safety work remain with
+Thread 1. Pattern Hop research and Annabelle manuscript ownership remain separate.
+No whole task is relabeled live-complete from source tests. Remaining requirements
+in the reviewed independent lanes are host/device/model/author decisions, rather
+than a reason to duplicate their already implemented source systems.
