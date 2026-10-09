@@ -39,12 +39,21 @@ class _FakePrivateClient extends GrovePrivateConversationClient {
   bool staleHistoryOnce = false;
   bool lostReplyOnce = false;
   void Function()? afterSaved;
+  Completer<GrovePrivateReply>? delayedReply;
+  Completer<GrovePrivateHistory>? delayedHistory;
+  Completer<GrovePrivateConversationChoices>? delayedChoices;
+  Completer<GrovePrivateConversationChoice>? delayedCreation;
   final retryIds = <String>[];
   final saved = <GrovePrivateCompleteTurn>[];
 
   @override
   Future<GrovePrivateConversationChoices> listExisting(String projectId) async {
     discoveries++;
+    final delayed = delayedChoices;
+    if (delayed != null) {
+      delayedChoices = null;
+      return delayed.future;
+    }
     return GrovePrivateConversationChoices(
       projectId: projectId, mayBeTruncated: false,
       conversations: empty && !created ? [] : [
@@ -62,6 +71,11 @@ class _FakePrivateClient extends GrovePrivateConversationClient {
     expect(projectId, expectedProjectId);
     creations++;
     created = true;
+    final delayed = delayedCreation;
+    if (delayed != null) {
+      delayedCreation = null;
+      return delayed.future;
+    }
     return GrovePrivateConversationChoice(
       conversationId: conversationId,
       createdAt: DateTime.utc(2026, 9, 23),
@@ -75,6 +89,11 @@ class _FakePrivateClient extends GrovePrivateConversationClient {
     required String conversationId,
   }) async {
     historyReads++;
+    final delayed = delayedHistory;
+    if (delayed != null) {
+      delayedHistory = null;
+      return delayed.future;
+    }
     final showSaved = !staleHistoryOnce || saved.isEmpty;
     if (saved.isNotEmpty) staleHistoryOnce = false;
     return GrovePrivateHistory(
@@ -119,6 +138,11 @@ class _FakePrivateClient extends GrovePrivateConversationClient {
       ));
     }
     afterSaved?.call();
+    final delayed = delayedReply;
+    if (delayed != null) {
+      delayedReply = null;
+      return delayed.future;
+    }
     if (lostReplyOnce) {
       lostReplyOnce = false;
       throw StateError('Reply lost after server save');
@@ -154,6 +178,165 @@ Future<void> roomForRecovery(WidgetTester tester) async {
 }
 
 void main() {
+  testWidgets('hung send releases recovery without resending or losing retry identity',
+      (tester) async {
+    await roomForRecovery(tester);
+    final disk = FakeDeviceStringStore();
+    final delayed = Completer<GrovePrivateReply>();
+    final client = _FakePrivateClient()..delayedReply = delayed;
+    await tester.pumpWidget(recoveryPhone(client, pendingStore(disk)));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(Checkbox));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'Continue Arbor');
+    await tester.tap(find.text('Send'));
+    await tester.pump();
+    final originalId = client.retryIds.single;
+    await tester.pump(const Duration(seconds: 209));
+    expect(find.text('Waiting for Arbor…'), findsOneWidget);
+    expect(find.textContaining('could not confirm that reply'), findsNothing);
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pump();
+
+    expect(client.sends, 1); // No automatic retry on an uncertain outcome.
+    expect(find.textContaining('could not confirm that reply'), findsOneWidget);
+    expect(find.text('Send'), findsOneWidget);
+    expect((await pendingStore(disk).load(conversationId))?.requestId, originalId);
+    expect(tester.widget<TextField>(find.byType(TextField)).controller!.text,
+      'Continue Arbor');
+
+    await tester.tap(find.text('Send'));
+    await tester.pumpAndSettle();
+    expect(client.retryIds, [originalId, originalId]);
+    expect(client.saved, hasLength(1));
+    expect((await pendingStore(disk).load(conversationId))?.requestId, isNull);
+
+    // An old response must not replace the verified replay or reopen its draft.
+    delayed.complete(GrovePrivateReply(text: 'Late unverified response',
+      requestId: originalId, persisted: false, replayed: false,
+      replyVerification: 'unverified_model_text'));
+    await tester.pumpAndSettle();
+    expect(find.text('Late unverified response'), findsNothing);
+    expect(find.text('Ready to continue.'), findsOneWidget);
+    expect(client.sends, 2);
+    expect(client.historyReads, 2);
+    expect(tester.widget<TextField>(find.byType(TextField)).controller!.text, isEmpty);
+  });
+
+  testWidgets('hung saved-history read preserves recovery and ignores a late history',
+      (tester) async {
+    await roomForRecovery(tester);
+    final disk = FakeDeviceStringStore();
+    final client = _FakePrivateClient();
+    await tester.pumpWidget(recoveryPhone(client, pendingStore(disk)));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(Checkbox));
+    await tester.pumpAndSettle();
+    final delayed = Completer<GrovePrivateHistory>();
+    client.delayedHistory = delayed;
+    await tester.enterText(find.byType(TextField), 'Continue Arbor');
+    await tester.tap(find.text('Send'));
+    await tester.pump();
+    final originalId = client.retryIds.single;
+    await tester.pump(const Duration(seconds: 31));
+    await tester.pump();
+
+    expect(client.sends, 1);
+    expect(client.saved, hasLength(1));
+    expect(find.textContaining('could not confirm that reply'), findsOneWidget);
+    expect((await pendingStore(disk).load(conversationId))?.requestId, originalId);
+    await tester.tap(find.text('Send'));
+    await tester.pumpAndSettle();
+    expect(client.retryIds, [originalId, originalId]);
+    expect(client.saved, hasLength(1));
+    expect((await pendingStore(disk).load(conversationId))?.requestId, isNull);
+
+    delayed.complete(GrovePrivateHistory(projectId: projectId,
+      conversationId: conversationId, mayBeTruncated: false,
+      turnsNewestFirst: []));
+    await tester.pumpAndSettle();
+    expect(find.text('Ready to continue.'), findsOneWidget);
+    expect(find.textContaining('could not confirm that reply'), findsNothing);
+    expect(client.sends, 2);
+    expect(client.historyReads, 3);
+  });
+
+  testWidgets('hung discovery exposes explicit refresh and ignores its late result',
+      (tester) async {
+    final delayed = Completer<GrovePrivateConversationChoices>();
+    final client = _FakePrivateClient()..delayedChoices = delayed;
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: GrovePrivateTextPanel(
+      client: client, projectId: projectId,
+      sessionStillValid: () => true, onConversationSelected: (_) async {},
+    ))));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 31));
+    await tester.pump();
+    expect(client.discoveries, 1);
+    expect(find.textContaining('could not be verified'), findsOneWidget);
+    await tester.tap(find.text('Refresh conversations'));
+    await tester.pumpAndSettle();
+    expect(client.discoveries, 2);
+    expect(find.text('Earlier private answer'), findsOneWidget);
+    delayed.complete(GrovePrivateConversationChoices(projectId: projectId,
+      conversations: [], mayBeTruncated: false));
+    await tester.pumpAndSettle();
+    expect(find.text('Earlier private answer'), findsOneWidget);
+    expect(find.textContaining('will not invent one'), findsNothing);
+    expect(client.sends, 0);
+  });
+
+  testWidgets('hung conversation open releases refresh without sending',
+      (tester) async {
+    final delayed = Completer<GrovePrivateHistory>();
+    final client = _FakePrivateClient()..delayedHistory = delayed;
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: GrovePrivateTextPanel(
+      client: client, projectId: projectId,
+      initialConversationId: conversationId,
+      sessionStillValid: () => true, onConversationSelected: (_) async {},
+    ))));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 31));
+    await tester.pump();
+    expect(find.textContaining('could not open'), findsOneWidget);
+    await tester.tap(find.text('Refresh conversations'));
+    await tester.pumpAndSettle();
+    expect(find.text('Earlier private answer'), findsOneWidget);
+    expect(client.sends, 0);
+    delayed.complete(GrovePrivateHistory(projectId: projectId,
+      conversationId: conversationId, turnsNewestFirst: [], mayBeTruncated: false));
+    await tester.pumpAndSettle();
+    expect(find.text('Earlier private answer'), findsOneWidget);
+  });
+
+  testWidgets('hung creation recovers through discovery without creating twice',
+      (tester) async {
+    final delayed = Completer<GrovePrivateConversationChoice>();
+    final client = _FakePrivateClient()..empty = true..delayedCreation = delayed;
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: GrovePrivateTextPanel(
+      client: client, projectId: projectId, allowNewConversations: true,
+      sessionStillValid: () => true, onConversationSelected: (_) async {},
+    ))));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('New private conversation'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 31));
+    await tester.pump();
+    expect(client.creations, 1);
+    expect(find.textContaining('Could not confirm the new'), findsOneWidget);
+    expect(find.text('New private conversation'), findsNothing);
+    await tester.tap(find.text('Refresh conversations'));
+    await tester.pumpAndSettle();
+    expect(find.text('Earlier private answer'), findsOneWidget);
+    expect(client.creations, 1);
+    expect(client.sends, 0);
+    delayed.complete(GrovePrivateConversationChoice(conversationId: conversationId,
+      createdAt: DateTime.utc(2026, 9, 23), updatedAt: DateTime.utc(2026, 9, 23)));
+    await tester.pumpAndSettle();
+    expect(client.creations, 1);
+    expect(client.historyReads, 1);
+  });
+
   testWidgets('Grove picker never fabricates a conversation when none exists',
       (tester) async {
     final client = _FakePrivateClient()..empty = true;

@@ -17,6 +17,11 @@ const bool _groveNewConversationEnabled = bool.fromEnvironment(
   'GROVE_PRIVATE_NEW_CONVERSATION_PREVIEW', defaultValue: false,
 );
 
+// Recovery deadlines release this screen, not the server request. A late
+// response is ignored; uncertain sends retain their original retry identity.
+const _groveReadDeadline = Duration(seconds: 30);
+const _groveSendDeadline = Duration(seconds: 210);
+
 /// DRAFT Grove-only Text UI. It does not expose legacy Firefly chat/voice,
 /// auto-create a Firefly conversation, issue project grants, or execute ARK work.
 /// The caller MUST first pass GrovePrivateAuthGate/ProjectGate and use a
@@ -389,7 +394,8 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel>
     try {
       await _saveDraft();
       if (!_valid || generation != _generation) return;
-      final choices = await widget.client.listExisting(widget.projectId);
+      final choices = await widget.client.listExisting(widget.projectId)
+          .timeout(_groveReadDeadline);
       if (!_valid || generation != _generation) return;
       final preferred = previousId ?? widget.initialConversationId;
       final selected = choices.conversations.any((c) =>
@@ -439,7 +445,7 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel>
     try {
       final history = await widget.client.loadRecent(
         projectId: widget.projectId, conversationId: id,
-      );
+      ).timeout(_groveReadDeadline);
       if (!_valid || current != _generation) return;
       if (history.projectId != widget.projectId || history.conversationId != id) {
         throw StateError('Private history scope changed');
@@ -506,7 +512,8 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel>
       if (!_valid || generation != _generation) return;
       // This is the ONLY path that requests an empty new conversation.
       // Never auto-retry a POST with an uncertain network response.
-      final created = await widget.client.createNew(widget.projectId);
+      final created = await widget.client.createNew(widget.projectId)
+          .timeout(_groveReadDeadline);
       if (!_valid || generation != _generation) return;
       final current = _choices!;
       setState(() {
@@ -527,6 +534,9 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel>
       if (!_valid || generation != _generation) return;
       setState(() {
         _loading = false;
+        // The server may have created the thread. Require a fresh verified
+        // list before allowing another creation after an uncertain response.
+        _choices = null;
         _error = 'Could not confirm the new private conversation. '
             'Refresh the list before creating another.';
       });
@@ -557,13 +567,13 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel>
       final reply = await widget.client.send(
         projectId: widget.projectId, conversationId: id,
         requestId: requestId, text: message,
-      );
+      ).timeout(_groveSendDeadline);
       if (!_valid || generation != _generation) return;
       GrovePrivateHistory? history;
       if (reply.persisted) {
         history = await widget.client.loadRecent(
           projectId: widget.projectId, conversationId: id,
-        );
+        ).timeout(_groveReadDeadline);
         // A successful POST is not proof that the reopened phone view
         // contains THIS turn. Do not clear the draft/retry label when an
         // authorized history read is stale, truncated, or mismatched.
@@ -657,11 +667,11 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel>
                   if (id != null) unawaited(_choose(id));
                 },
               ),
-            if (!_loading && choices != null)
+            if (!_loading)
               Wrap(
                 spacing: 8,
                 children: [
-                  if (widget.allowNewConversations)
+                  if (widget.allowNewConversations && choices != null)
                     OutlinedButton(
                       onPressed: _sending || _loading || _pendingId != null || _draftBlocked ||
                           _changingDraft ? null : _createNew,

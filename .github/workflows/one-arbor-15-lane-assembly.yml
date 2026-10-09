@@ -16,6 +16,7 @@ on:
       - review/one-arbor-firefly-provenance-20261009
       - review/one-arbor-discovery-progress-20261009
       - review/one-arbor-independent-chat-integration-20261009
+      - review/one-arbor-independence-budget-preflight-20261009
   pull_request:
     branches:
       - fix/one-arbor-group04-shelf-pagination-20261007
@@ -120,6 +121,7 @@ jobs:
           lib/arbor/episodes/__tests__/episodeRecallScope.test.ts
           lib/auth/__tests__/safeReturnPath.test.ts
           lib/memory/__tests__/shelfPageRead.test.ts
+          lib/memory/__tests__/routeOwnership.test.ts
           lib/memory/__tests__/projectIsolation.test.ts
           lib/memory/__tests__/retrievalExclusion.test.ts
           lib/arbor/accessibility/__tests__/cognitiveAccessLanguage.test.ts
@@ -173,7 +175,24 @@ jobs:
       CI: 'true'
       FLUTTER_SUPPRESS_ANALYTICS: 'true'
       DART_SUPPRESS_ANALYTICS: 'true'
+      AWS_EC2_METADATA_DISABLED: 'true'
     steps:
+      - name: Block metadata before Flutter bootstrap; fail closed
+        shell: bash
+        run: |
+          set -euo pipefail
+          unset HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy
+          for proxy_var in HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy; do
+            printf '%s=\n' "$proxy_var" >> "$GITHUB_ENV"
+          done
+          for subnet in 169.254.0.0/16 100.100.100.200/32; do
+            sudo -n iptables -w 5 -I OUTPUT 1 -d "$subnet" -j REJECT
+            sudo -n iptables -w 5 -C OUTPUT -d "$subnet" -j REJECT
+          done
+          for subnet in fe80::/10 fc00::/7; do
+            sudo -n ip6tables -w 5 -I OUTPUT 1 -d "$subnet" -j REJECT
+            sudo -n ip6tables -w 5 -C OUTPUT -d "$subnet" -j REJECT
+          done
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
@@ -198,6 +217,14 @@ jobs:
           test/professional_workspace_test.dart
           test/grove_diary_draft_test.dart
           test/environment_diary_navigation_test.dart
+      - name: Analyze private recovery with existing phone lint policy
+        working-directory: apps/frontend
+        run: >-
+          flutter analyze --no-fatal-infos --no-fatal-warnings
+          lib/pages/grove_private_text_page.dart
+          test/grove_private_text_page_test.dart
+          lib/config/grove_private_config.dart
+          test/grove_private_auth_boundary_test.dart
       - name: Grove read-only and unsaved draft widget regressions
         working-directory: apps/frontend
         run: >-
@@ -209,3 +236,7 @@ jobs:
           test/grove_diary_draft_test.dart
           test/environment_diary_navigation_test.dart
           test/grove_private_project_gate_test.dart
+          test/grove_private_auth_boundary_test.dart
+          test/grove_private_text_page_test.dart
+          test/grove_private_conversations_test.dart
+          test/grove_pending_turn_store_test.dart

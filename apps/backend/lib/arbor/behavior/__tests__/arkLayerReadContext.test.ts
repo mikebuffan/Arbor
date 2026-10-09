@@ -349,6 +349,13 @@ describe("owner-scoped ARK -> Arbor Layer read crossing", () => {
       expect(prompt).toContain("Do not restart the conversation.");
       expect(prompt.indexOf("ARBOR DURABLE IDENTITY ANCHOR"))
         .toBeLessThan(prompt.indexOf("Mode projection:"));
+      // The preserved r3 receiver bounds continuity.startupPrompt at 6000.
+      // Identity belongs once in the main behavior prompt, not in both fields.
+      expect(context.continuity.startupPrompt!.length).toBeLessThanOrEqual(6000);
+      expect(context.continuity.startupPrompt).not.toContain("ARBOR DURABLE IDENTITY ANCHOR");
+      expect(context.continuity.startupPrompt).toContain("Finish the scoped ARK integration");
+      expect(context.continuity.startupPrompt).toContain("Do not restart the conversation.");
+      expect(prompt.match(/ARBOR DURABLE IDENTITY ANCHOR/g)).toHaveLength(1);
       expect(context.behavior.proof.projectionFingerprint).toMatch(/^[a-f0-9]{64}$/);
       // Preserve the current baseline within the independently reviewed r3 schema.
       expect(prompt.length).toBeGreaterThan(12000);

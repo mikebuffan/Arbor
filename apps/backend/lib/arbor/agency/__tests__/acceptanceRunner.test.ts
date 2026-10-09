@@ -252,4 +252,91 @@ describe("isolated acceptance runner (mock provider, never live acceptance)", ()
     expect(await complete.execute({ task: "two" }, tasks.context)).toMatchObject({ executed: false });
     expect((tasks.receipts() as any).tasks).toEqual({ one: "blocked", two: "completed" });
   });
+  it.each([
+    { maxCalls: 129 },
+    { maxOutputTokens: 4097 },
+    { maxCalls: 128, maxOutputTokens: 2000 },
+    { maxCalls: Infinity },
+    { maxOutputTokens: NaN },
+    { maxCalls: 0 },
+  ])("rejects unbounded or excessive synthetic provider budget %o before capture or inference", async invalid => {
+    const createResponse = vi.fn();
+    const provision = vi.fn();
+    const record = vi.fn();
+    await expect(runAcceptanceComparison({ generation, assignment,
+      config: { ...config, ...invalid }, createResponse, provision, record,
+    })).rejects.toThrow("acceptance_invalid_budget");
+    expect(record).not.toHaveBeenCalled();
+    expect(provision).not.toHaveBeenCalled();
+    expect(createResponse).not.toHaveBeenCalled();
+  });
+
+  it("keeps ordinary finite case and call limits usable", () => {
+    expect(() => validateAcceptanceInput(generation, assignment, {
+      ...config, maxCalls: 128, maxOutputTokens: 1000,
+    })).not.toThrow();
+  });
+
+  it.each(["overlong-turn", "too-many-turns", "overlong-id", "too-many-cases"])(
+    "rejects %s input shape before capture or model calls", async variant => {
+      let changedCases = structuredClone(generation.cases);
+      if (variant === "overlong-turn") changedCases[0].userTurns[0] = "x".repeat(12001);
+      if (variant === "too-many-turns") changedCases[0].userTurns = Array(9).fill("safe");
+      if (variant === "overlong-id") changedCases[0].id = "x".repeat(129);
+      if (variant === "too-many-cases") changedCases = Array.from({ length: 49 },
+        (_, n) => ({ id: "synthetic-" + n, userTurns: ["Hello"] }));
+      const casePackHash = createHash("sha256")
+        .update(JSON.stringify({ schemaVersion: 1, cases: changedCases })).digest("hex");
+      const badGeneration = { ...generation, casePackHash, cases: changedCases };
+      const badAssignment = { ...assignment, casePackHash, cases: changedCases.map(c => ({
+        caseId: c.id, A: "baseline", B: "candidate",
+      })) };
+      const createResponse = vi.fn();
+      const provision = vi.fn();
+      const record = vi.fn();
+      await expect(runAcceptanceComparison({
+        generation: badGeneration, assignment: badAssignment, config,
+        createResponse, provision, record,
+      })).rejects.toThrow(variant === "too-many-cases" ?
+        "acceptance_case_count" : "acceptance_invalid_case");
+      expect(record).not.toHaveBeenCalled();
+      expect(provision).not.toHaveBeenCalled();
+      expect(createResponse).not.toHaveBeenCalled();
+    },
+  );
+
+  it("rejects a large aggregate of individually valid prompts before any capture", async () => {
+    const expanded = Array.from({ length: 20 }, (_, i) => ({
+      id: "aggregate-" + i, userTurns: ["x".repeat(7000)],
+    }));
+    const casePackHash = createHash("sha256")
+      .update(JSON.stringify({ schemaVersion: 1, cases: expanded })).digest("hex");
+    const createResponse = vi.fn();
+    const record = vi.fn();
+    const provision = vi.fn();
+    await expect(runAcceptanceComparison({
+      generation: { schemaVersion: 1, casePackHash, cases: expanded },
+      assignment: { schemaVersion: 1, casePackHash, cases: expanded.map(c => ({
+        caseId: c.id, A: "baseline", B: "candidate",
+      })) },
+      config, createResponse, record, provision,
+    })).rejects.toThrow("acceptance_invalid_case");
+    expect(createResponse).not.toHaveBeenCalled();
+    expect(record).not.toHaveBeenCalled();
+    expect(provision).not.toHaveBeenCalled();
+  });
+
+  it("rejects overlarge instruction/context material before any capture", async () => {
+    const createResponse = vi.fn();
+    const record = vi.fn();
+    const provision = vi.fn();
+    await expect(runAcceptanceComparison({ generation, assignment,
+      config: { ...config, candidateContext: "x".repeat(64001) },
+      createResponse, record, provision,
+    })).rejects.toThrow("acceptance_context_required");
+    expect(createResponse).not.toHaveBeenCalled();
+    expect(record).not.toHaveBeenCalled();
+    expect(provision).not.toHaveBeenCalled();
+  });
+
 });

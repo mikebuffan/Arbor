@@ -34,8 +34,20 @@ export function privateGroveReadConfig(
   // is accepted. This prevents a copied GROVE_API_ENABLED flag on Firefly or
   // ARK Preview from turning another deployment into the private broker.
   const vercelProjectId = env.VERCEL_PROJECT_ID?.trim() ?? "";
-  if ((env.VERCEL === "1" && vercelProjectId !== GROVE_VERCEL_PROJECT_ID) ||
-      (vercelProjectId && vercelProjectId !== GROVE_VERCEL_PROJECT_ID)) {
+  const profile = env.GROVE_ISOLATED_TEST_PROFILE?.trim() ?? "";
+  const isolatedTest = profile === "one-arbor-20261009";
+  if (profile && !isolatedTest) {
+    throw new RouteAccessError(500, "grove_api_not_configured");
+  }
+  // This opt-in accepts only the two empty, separately provisioned test realms.
+  // A copied flag on main, Production, another project or local runtime fails.
+  if (isolatedTest ? (
+    env.VERCEL !== "1" || env.VERCEL_ENV !== "preview" ||
+    vercelProjectId !== "prj_bliWIoBwJ053cXPIBB9uJzpW4PK6" ||
+    env.VERCEL_GIT_COMMIT_REF !==
+      "review/one-arbor-independence-budget-preflight-20261009"
+  ) : ((env.VERCEL === "1" && vercelProjectId !== GROVE_VERCEL_PROJECT_ID) ||
+      (vercelProjectId && vercelProjectId !== GROVE_VERCEL_PROJECT_ID))) {
     throw new RouteAccessError(500, "grove_api_not_configured");
   }
 
@@ -60,8 +72,16 @@ export function privateGroveReadConfig(
   const grove = exactHttpsOrigin(groveUrl);
   const firefly = exactHttpsOrigin(fireflyUrl);
   const api = exactHttpsOrigin(apiOrigin);
-  if (grove.hostname !== `${GROVE_PROJECT_REF}.supabase.co` ||
-      firefly.hostname !== "ncpdlyakrzfvobmwzbon.supabase.co" ||
+  const expectedGroveHost = isolatedTest
+    ? "htliidxymbbgurtvnptw.supabase.co"
+    : `${GROVE_PROJECT_REF}.supabase.co`;
+  const expectedFireflyHost = isolatedTest
+    ? "fieszfvzkfgvccrznmhw.supabase.co"
+    : "ncpdlyakrzfvobmwzbon.supabase.co";
+  if (grove.hostname !== expectedGroveHost ||
+      firefly.hostname !== expectedFireflyHost ||
+      (isolatedTest && api.hostname !==
+        "arbor-independence-isolated-git-6238a9-mikes-projects-4d16734a.vercel.app") ||
       api.hostname === grove.hostname ||
       api.hostname === firefly.hostname ||
       api.hostname === "firefly-coral.vercel.app" ||

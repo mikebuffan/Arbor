@@ -152,7 +152,9 @@ export async function readArkLayerContext(input: {
       }
     : null;
 
-  const startup = state ? projectRuntimeStartup(state) : null;
+  // Identity is already included in behavior.promptBlock below. Keep the
+  // receiver's bounded continuity field for continuity, without duplicating it.
+  const startup = state ? projectRuntimeStartup(state, { includeIdentityAnchor: false }) : null;
   const retainedCorrections = mergeCorrectionSnapshots([
     state?.corrections ?? [], permanentCorrections,
   ]);

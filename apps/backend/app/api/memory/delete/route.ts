@@ -60,10 +60,7 @@ export async function POST(req: Request) {
     const { data: rows, error: fetchErr } = await query;
 
     if (fetchErr) {
-      return NextResponse.json(
-        { ok: false, error: fetchErr.message },
-        { status: 500 },
-      );
+      return routeErrorResponse(fetchErr);
     }
 
     if (!rows || rows.length === 0) {
@@ -89,10 +86,7 @@ export async function POST(req: Request) {
       .in("id", ids);
 
     if (updateErr) {
-      return NextResponse.json(
-        { ok: false, error: updateErr.message },
-        { status: 500 },
-      );
+      return routeErrorResponse(updateErr);
     }
 
     return NextResponse.json({

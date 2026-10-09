@@ -23,6 +23,7 @@ vi.mock("@/lib/auth/ownership", () => ({
 }));
 
 import { PATCH as patchMemoryItem } from "@/app/api/memory/item/[id]/route";
+import { POST as deleteMemoryItem } from "@/app/api/memory/delete/route";
 import {
   GET as listMemoryItems,
   POST as createMemoryItem,
@@ -31,6 +32,7 @@ import {
 describe("memory route ownership", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.userClient.from.mockReset();
     mocks.userClient.auth.getUser.mockResolvedValue({
       data: { user: { id: "user-a" } },
       error: null,
@@ -41,6 +43,28 @@ describe("memory route ownership", () => {
       locked: [],
       ignored: [],
     });
+  });
+
+  it.each(["read", "write"])("redacts private database errors during memory deletion: %s", async (stage) => {
+    const privateError = { message: "synthetic-private-storage-detail" };
+    const read: Record<string, any> = {};
+    for (const method of ["select", "eq", "is"]) read[method] = vi.fn(() => read);
+    read.then = (resolve: (value: unknown) => unknown) => Promise.resolve({
+      data: stage === "read" ? null : [{ id: "00000000-0000-4000-8000-000000000099", locked: false }],
+      error: stage === "read" ? privateError : null,
+    }).then(resolve);
+    const write: Record<string, any> = { update: vi.fn(), in: vi.fn() };
+    write.update.mockReturnValue(write);
+    write.in.mockResolvedValue({ error: privateError });
+    mocks.userClient.from.mockReturnValueOnce(read).mockReturnValueOnce(write);
+    const response = await deleteMemoryItem(new Request("https://arbor.test/api/memory/delete", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ memoryId: "00000000-0000-4000-8000-000000000099" }),
+    }));
+    expect(response.status).toBe(500);
+    expect(await response.json()).toEqual({ ok: false, error: "server_error" });
+    expect(read.eq).toHaveBeenCalledWith("user_id", "user-a");
+    if (stage === "read") expect(write.update).not.toHaveBeenCalled();
   });
 
   it("returns 404 when an admin-backed item mutation cannot find an owned row", async () => {

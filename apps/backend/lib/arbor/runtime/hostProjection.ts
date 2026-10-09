@@ -58,12 +58,13 @@ export function runtimeStateToHostState(
 
 export function projectRuntimeStartup(
   state: ArborRuntimeState,
+  options: { includeIdentityAnchor?: boolean } = {},
 ) {
   const hostState =
     runtimeStateToHostState(state);
 
   const startup =
-    projectHostStartup(hostState);
+    projectHostStartup(hostState, options);
 
   return {
     hostState,

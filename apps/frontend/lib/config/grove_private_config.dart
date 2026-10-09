@@ -10,22 +10,31 @@ class GrovePrivateConfig {
     required this.authUrl,
     required this.publishableKey,
     required this.apiUrl,
+    this.isolatedTestProfile = false,
   });
 
   final String authUrl;
   final String publishableKey;
   final String apiUrl;
+  final bool isolatedTestProfile;
 
   static const fromBuild = GrovePrivateConfig(
     authUrl: String.fromEnvironment('GROVE_SUPABASE_URL'),
     publishableKey: String.fromEnvironment('GROVE_SUPABASE_ANON_KEY'),
     apiUrl: String.fromEnvironment('GROVE_API_URL'),
+    isolatedTestProfile:
+        String.fromEnvironment('GROVE_ISOLATED_TEST_PROFILE') ==
+            'one-arbor-20261009',
   );
 
   // This private app is pinned to the already-created Grove auth realm.
   // A build pointing at an arbitrary new Supabase project must fail closed.
   static const String expectedAuthHost =
       'fqjqpuaoifgbweiguacf.supabase.co';
+  static const String isolatedTestAuthHost =
+      'htliidxymbbgurtvnptw.supabase.co';
+  static const String isolatedTestApiHost =
+      'arbor-independence-isolated-git-6238a9-mikes-projects-4d16734a.vercel.app';
 
   // Do not reuse any previous user, project or ARK-preview auth realm.
   static const Set<String> reservedAuthHosts = {
@@ -54,7 +63,10 @@ class GrovePrivateConfig {
         api.query.isEmpty &&
         auth.fragment.isEmpty &&
         api.fragment.isEmpty &&
-        auth.host.toLowerCase() == expectedAuthHost &&
+        auth.host.toLowerCase() ==
+            (isolatedTestProfile ? isolatedTestAuthHost : expectedAuthHost) &&
+        (!isolatedTestProfile ||
+            api.host.toLowerCase() == isolatedTestApiHost) &&
         !reservedAuthHosts.contains(auth.host.toLowerCase()) &&
         !reservedApiHosts.contains(api.host.toLowerCase()) &&
         publishableKey.trim().isNotEmpty &&

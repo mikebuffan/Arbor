@@ -272,6 +272,85 @@ describe("private Grove provider and token boundaries", () => {
   });
 });
 
+describe("isolated Preview test identity profile", () => {
+  function isolated() {
+    vi.stubEnv("GROVE_ISOLATED_TEST_PROFILE", "one-arbor-20261009");
+    vi.stubEnv("VERCEL", "1");
+    vi.stubEnv("VERCEL_ENV", "preview");
+    vi.stubEnv("VERCEL_PROJECT_ID", "prj_bliWIoBwJ053cXPIBB9uJzpW4PK6");
+    vi.stubEnv("VERCEL_GIT_COMMIT_REF", "review/one-arbor-independence-budget-preflight-20261009");
+    vi.stubEnv("GROVE_SUPABASE_URL", "https://htliidxymbbgurtvnptw.supabase.co");
+    vi.stubEnv("GROVE_FIREFLY_SUPABASE_URL", "https://fieszfvzkfgvccrznmhw.supabase.co");
+    vi.stubEnv("GROVE_PUBLIC_API_ORIGIN", "https://arbor-independence-isolated-git-6238a9-mikes-projects-4d16734a.vercel.app");
+  }
+  it("accepts only the provisioned test pair on its exact reviewed Preview", () => {
+    isolated();
+    expect(privateGroveReadConfig()).toMatchObject({
+      groveUrl: "https://htliidxymbbgurtvnptw.supabase.co",
+      fireflyUrl: "https://fieszfvzkfgvccrznmhw.supabase.co",
+    });
+    expect(mocks.createClient).not.toHaveBeenCalled();
+  });
+  it.each([
+    ["VERCEL", ""],
+    ["VERCEL_ENV", "production"],
+    ["VERCEL_ENV", ""],
+    ["VERCEL_PROJECT_ID", "prj_nw2X0SyLn4e8CXWZ83MEs4jwn1JN"],
+    ["VERCEL_PROJECT_ID", ""],
+    ["VERCEL_GIT_COMMIT_REF", "main"],
+    ["VERCEL_GIT_COMMIT_REF", ""],
+    ["GROVE_SUPABASE_URL", groveUrl],
+    ["GROVE_FIREFLY_SUPABASE_URL", fireflyUrl],
+    ["GROVE_SUPABASE_URL", "https://unknown.supabase.co"],
+    ["GROVE_PUBLIC_API_ORIGIN", origin],
+    ["GROVE_ISOLATED_TEST_PROFILE", "unknown-profile"],
+    ["GROVE_ISOLATED_TEST_PROFILE", ""],
+  ])("denies the test profile after changing %s to %s", (key, value) => {
+    isolated();
+    vi.stubEnv(key, value);
+    expect(() => privateGroveReadConfig()).toThrowError("grove_api_not_configured");
+    expect(mocks.createClient).not.toHaveBeenCalled();
+  });
+  it("does not accept the test flag with the ordinary private production configuration", () => {
+    vi.stubEnv("GROVE_ISOLATED_TEST_PROFILE", "one-arbor-20261009");
+    vi.stubEnv("VERCEL", "1");
+    vi.stubEnv("VERCEL_ENV", "production");
+    vi.stubEnv("VERCEL_PROJECT_ID", "prj_nw2X0SyLn4e8CXWZ83MEs4jwn1JN");
+    expect(() => privateGroveReadConfig()).toThrowError("grove_api_not_configured");
+  });
+  it("keeps verified identity, invitation, bridge and project ownership in the test profile", async () => {
+    isolated();
+    const at = process.env.GROVE_PUBLIC_API_ORIGIN!;
+    const token = jwt({iss: "https://htliidxymbbgurtvnptw.supabase.co/auth/v1"});
+    expect((await readPrivateGroveArk(req(token, projectId, at), projectId)).available).toBe(true);
+    expect(mocks.getUser).toHaveBeenCalledWith(token);
+    expect(mocks.assertProjectOwnedByUser).toHaveBeenCalled();
+    expect(mocks.clients.map(c => c.url)).toEqual([
+      "https://htliidxymbbgurtvnptw.supabase.co",
+      "https://htliidxymbbgurtvnptw.supabase.co",
+      "https://fieszfvzkfgvccrznmhw.supabase.co",
+    ]);
+  });
+  it("rejects an old Grove token before any test grant read", async () => {
+    isolated();
+    await expect(readPrivateGroveArk(req(jwt(), projectId,
+      process.env.GROVE_PUBLIC_API_ORIGIN!), projectId))
+      .rejects.toMatchObject({status:401,code:"grove_invalid_token"});
+    expect(mocks.fromCalls).toEqual([]);
+  });
+  it.each(["grove_private_owner_access", "grove_private_ark_project_grants"])(
+    "keeps the test profile closed without %s", async (table) => {
+      isolated();
+      mocks.lookup.set(table, {data:null,error:null});
+      await expect(readPrivateGroveArk(req(
+        jwt({iss:"https://htliidxymbbgurtvnptw.supabase.co/auth/v1"}),
+        projectId, process.env.GROVE_PUBLIC_API_ORIGIN!,
+      ), projectId)).rejects.toMatchObject({status: table === "grove_private_owner_access" ? 403 : 404});
+      expect(mocks.readArkProjectSnapshot).not.toHaveBeenCalled();
+    },
+  );
+});
+
 describe("private Grove read broker", () => {
   it("denies an absent bearer before touching any provider", async () => {
     await expect(readPrivateGroveArk(req(null), projectId))

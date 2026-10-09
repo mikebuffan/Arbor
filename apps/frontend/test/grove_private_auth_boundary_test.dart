@@ -14,6 +14,42 @@ void main() {
   );
 
 
+  test('isolated profile requires its exact test realm and Preview API', () {
+    const testAuth = 'https://htliidxymbbgurtvnptw.supabase.co';
+    const testApi =
+        'https://arbor-independence-isolated-git-6238a9-mikes-projects-4d16734a.vercel.app';
+    expect(const GrovePrivateConfig(
+      authUrl: testAuth,
+      publishableKey: 'sb_publishable_synthetic-test',
+      apiUrl: testApi,
+      isolatedTestProfile: true,
+    ).ready, isTrue);
+    expect(const GrovePrivateConfig(
+      authUrl: testAuth,
+      publishableKey: 'sb_publishable_synthetic-test',
+      apiUrl: testApi,
+    ).ready, isFalse);
+    for (final host in [
+      GrovePrivateConfig.expectedAuthHost,
+      ...GrovePrivateConfig.reservedAuthHosts,
+      'unknown.supabase.co',
+    ]) {
+      expect(GrovePrivateConfig(
+        authUrl: 'https://$host',
+        publishableKey: 'sb_publishable_synthetic-test',
+        apiUrl: testApi,
+        isolatedTestProfile: true,
+      ).ready, isFalse, reason: host);
+    }
+    expect(const GrovePrivateConfig(
+      authUrl: testAuth,
+      publishableKey: 'sb_publishable_synthetic-test',
+      apiUrl: 'https://another-preview.vercel.app',
+      isolatedTestProfile: true,
+    ).ready, isFalse);
+    expect(privateRealm.ready, isTrue);
+  });
+
   String tokenFor(String issuer, {int expires = 1900000000}) {
     final payload = base64Url.encode(utf8.encode(jsonEncode({
       'iss': issuer,
