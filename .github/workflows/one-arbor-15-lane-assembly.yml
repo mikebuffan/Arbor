@@ -16,6 +16,7 @@ on:
       - review/one-arbor-firefly-provenance-20261009
       - review/one-arbor-discovery-progress-20261009
       - review/one-arbor-independent-chat-integration-20261009
+      - review/one-arbor-independence-budget-preflight-20261009
   pull_request:
     branches:
       - fix/one-arbor-group04-shelf-pagination-20261007

@@ -36,7 +36,8 @@
     "negativeCompletionProofPr383": "15aaae464f1344031941d6219406970c306324fa",
     "discoveryRepairInitialPr384": "0f5c79e814326aad7cab097890440231846b7ab6",
     "independentChatIntegrationParentPr384": "b74e8e8b5bc9d8a032ce42799441a73032c19ff6",
-    "independentChatDonorPr385": "244df0e73f61f61b7d02c1542264645700e837b3"
+    "independentChatDonorPr385": "244df0e73f61f61b7d02c1542264645700e837b3",
+    "independenceBudgetPreflightParentPr386": "5ef933b5a4cbc83884f47d5eee4dc83d505efe6a"
   },
   "expectedBlobSha": {
     "apps/backend/lib/arbor/runtime/timeCore.ts": "7fb33f4a8c6f201e96cc8c3f71b9a4ba584dabde",
@@ -55,12 +56,12 @@
     "apps/arbor-control-backend/src/selfModelObservations.ts": "f8f03960ee18eca6650b12b4e2ee07c3b8e34469",
     "apps/arbor-control-backend/src/selfModelClaims.ts": "9bf0d7bd2f50fe61338a8967cd1b0a0c7d3e1b52",
     "docs/integration/ONE_ARBOR_GROUP06_IDENTITY_EVIDENCE_GATE_20261007.md": "bd43f7b8a8c2e90208b6839d582d5f698fcc570c",
-    "ops/grove/source-only-ignore.mjs": "7831a74a5a3d223c4518cb8f11220b1b7da6cad4",
+    "ops/grove/source-only-ignore.mjs": "555e9527012998bafc2da48e430df9ad3bb6f5a4",
     ".github/workflows/one-arbor-group04-shelf-pagination.yml": "41790290a7fa86974dcca3fbbcc15bc96e0cac88",
     "apps/backend/lib/memory/__tests__/shelfPageRead.test.ts": "35b5c43abb6b2c774a1ae3aa75b33507c1e4d3bb",
     "apps/frontend/lib/environment/grove_memory_shelf_view.dart": "31e54c5c459cadce0eeba4bb577922c419cde71a",
     "apps/frontend/test/grove_memory_shelf_view_test.dart": "f01802b64c9ee0ed0116ee66e81344499fdcdf25",
-    ".github/workflows/one-arbor-15-lane-assembly.yml": "55e432efbe8dc7179107b8f091ca86b7d7cec6cf",
+    ".github/workflows/one-arbor-15-lane-assembly.yml": "ace609278d597c650d12c8fd0403b4a4fc148d1d",
     ".github/workflows/one-arbor-diary-draft.yml": "8923e47d0d69562a86a7c210b10efaaf0c5fd624",
     ".github/workflows/one-arbor-group08-body-acceptance.yml": "d4dc36baef71d379f6a769d7f0416cd755d7252a",
     ".github/workflows/one-arbor-group09-decision-gates.yml": "8c6a9996d12fc1624e8e1ef997d8c04d34ee0ffe",
@@ -120,7 +121,7 @@
     "apps/backend/lib/arbor/behavior/behaviorProjection.ts": "cd52561933f57ff41daf2ca1497d2dc8d414bfe8",
     "apps/backend/lib/arbor/behavior/__tests__/independentJudgmentCases.ts": "7d9b8eb3f6952812c893c5a5bd228395888e5da3",
     "apps/backend/lib/arbor/behavior/__tests__/independentJudgmentCases.test.ts": "045e1782fbacbad032738232bf960962345e2a8e",
-    ".github/workflows/one-arbor-independent-judgment.yml": "40a17d6a03e9a10a889106158fcea2e5ceaaef43",
+    ".github/workflows/one-arbor-independent-judgment.yml": "acc566f55e8029d8106631d8ba5a4b676bdacab3",
     "apps/backend/lib/prompt/buildPromptContext.ts": "c91150dbfce1755b9843b58c8c46a95e7fe50a3b",
     "apps/backend/lib/arbor/behavior/arkLayerReadContext.ts": "e0597d3df998d37361a9b21f351d597e1508f445",
     "apps/backend/lib/arbor/behavior/__tests__/arkLayerReadContext.test.ts": "fff706bfa7d2694ae8f58e5f21c4cff0b6e02516",
@@ -185,8 +186,8 @@
     "apps/backend/lib/memory/__tests__/patternHopRunWriteReceipt.test.ts": "e76320c302b886ebd6f4a5368650801e91be3761",
     "apps/arbor-control-backend/src/runtimeRestart.test.ts": "282f89c495969c96646eb30d5cbe2052fab3a58b",
     "apps/arbor-control-backend/src/stateStoreFailure.test.ts": "f4beab8f8d566b85bef3276ac7313e0aa0a95a86",
-    "apps/backend/lib/arbor/agency/__tests__/acceptanceRunner.test.ts": "ed2eacd850fd4d0a6cab9c45194d30036613b6bc",
-    "apps/backend/lib/arbor/agency/acceptanceRunner.ts": "ab3f74b96b62c176e3f2f21040b6162309898a91",
+    "apps/backend/lib/arbor/agency/__tests__/acceptanceRunner.test.ts": "c3230fa7fc9a879b054c02d85082b42685e3636d",
+    "apps/backend/lib/arbor/agency/acceptanceRunner.ts": "c49e4daeb3f5c01b7e07acaf807a6863b767e79d",
     "apps/backend/lib/arbor/behavior/__tests__/fixtures/proactiveJudgment/README.md": "a1df317895d0492880820cf70bc9392c43828c7d",
     "apps/backend/lib/arbor/behavior/__tests__/fixtures/proactiveJudgment/demo_assignment.json": "94c8507d9874315d2929dfd96e0613d21d7d4476",
     "apps/backend/lib/arbor/behavior/__tests__/fixtures/proactiveJudgment/host_private_rubric.json": "745be7ab5cdfd00ed07b8045ab41dd079abde250",
@@ -215,7 +216,8 @@
     "apps/backend/lib/arbor/agency/openaiAgent.ts": "e50e0719ce90c865ede1ee2d641947a16827645c",
     "apps/backend/lib/arbor/agency/__tests__/providerCompletionBoundary.test.ts": "18963f463b383a4c10b15270b1f6357d28e98a62",
     "docs/integration/ONE_ARBOR_CHAT_PROVIDER_COMPLETION_20261009.md": "ff5a00c7a025f4564acf50ae0e19a6927ab995db",
-    "docs/integration/ONE_ARBOR_INDEPENDENT_CHAT_INTEGRATION_20261009.md": "5dcd7ab0e9d37ca2614b27a6173e6d6330f2033a"
+    "docs/integration/ONE_ARBOR_INDEPENDENT_CHAT_INTEGRATION_20261009.md": "5dcd7ab0e9d37ca2614b27a6173e6d6330f2033a",
+    "docs/integration/ONE_ARBOR_INDEPENDENCE_BUDGET_PREFLIGHT_20261009.md": "0e208c08c9cb5aee3955bb794add270e38604a63"
   },
   "comment": "Source-only incorporation from Library ONE_ARBOR_CODE_REPAIRS_20261009.zip: 17 exact source/test blobs verified, packages reconciled with original PR #372 head, 3 focused tests added; CI/release acceptance remain separately gated."
 }

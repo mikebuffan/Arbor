@@ -58,16 +58,25 @@ function receivedCasesMatchPack(generation: Generation): boolean {
 }
 
 export function validateAcceptanceInput(generation: Generation, assignment: Assignment, config: AcceptanceConfig) {
+  // Validate cheap, bounded shapes BEFORE hashing untrusted case packs or
+  // provisioning a fixture/provider. This is a *request-size* guard, not
+  // a dollar spending cap or permission to invoke a real model.
+  requireValue(Array.isArray(generation?.cases) &&
+    generation.cases.length > 0 && generation.cases.length <= 48 &&
+    Array.isArray(assignment?.cases) &&
+    assignment.cases.length === generation.cases.length, "acceptance_case_count");
+  requireValue(generation.cases.every(c => c &&
+    typeof c.id === "string" && c.id.trim().length > 0 && c.id.length <= 128 &&
+    Array.isArray(c.userTurns) && c.userTurns.length > 0 && c.userTurns.length <= 8 &&
+    c.userTurns.every(t => typeof t === "string" && Boolean(t.trim()) && t.length <= 12000)),
+    "acceptance_invalid_case");
   requireValue(generation.schemaVersion === 1 && assignment.schemaVersion === 1 &&
     /^[a-f0-9]{64}$/.test(generation.casePackHash) && generation.casePackHash === assignment.casePackHash &&
     receivedCasesMatchPack(generation),
     "acceptance_pack_mismatch");
-  requireValue(Array.isArray(generation.cases) && generation.cases.length > 0 && Array.isArray(assignment.cases) &&
-    assignment.cases.length === generation.cases.length, "acceptance_case_count");
   const ids = new Set<string>();
   for (const c of generation.cases) {
-    requireValue(c.id && !ids.has(c.id) && Array.isArray(c.userTurns) && c.userTurns.length > 0 &&
-      c.userTurns.every(t => typeof t === "string" && t.trim()), "acceptance_invalid_case");
+    requireValue(c.id && !ids.has(c.id), "acceptance_invalid_case");
     ids.add(c.id);
     const matches = assignment.cases.filter(a => a.caseId === c.id);
     requireValue(matches.length === 1 && ["baseline", "candidate"].includes(matches[0].A) &&
@@ -79,7 +88,10 @@ export function validateAcceptanceInput(generation: Generation, assignment: Assi
     config.candidateContext.trim() && config.baselineContext !== config.candidateContext,
     "acceptance_context_required");
   requireValue([config.maxRounds, config.maxCalls, config.maxOutputTokens].every(n => Number.isSafeInteger(n) && n > 0) &&
-    config.maxRounds <= 48 && typeof config.verifyCompletion === "boolean", "acceptance_invalid_budget");
+    config.maxRounds <= 48 && config.maxCalls <= 128 &&
+    config.maxOutputTokens <= 4096 &&
+    config.maxCalls * config.maxOutputTokens <= 150000 &&
+    typeof config.verifyCompletion === "boolean", "acceptance_invalid_budget");
 }
 
 export async function runAcceptanceComparison(input: {
