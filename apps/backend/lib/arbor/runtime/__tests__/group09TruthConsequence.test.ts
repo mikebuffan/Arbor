@@ -28,6 +28,18 @@ const event = (
 });
 
 describe("Group 09 source-bound truth and consequence HOLD", () => {
+  it.each([
+    { provenance: [{ sourceKind: "synthetic" }] },
+    { provenance: [{ sourceKind: "synthetic", sourceRef: "   " }] },
+    { provenance: [{ sourceKind: "synthetic", sourceRef: 42 }] },
+    { provenance: [{ sourceKind: "synthetic", sourceRef: "x".repeat(501) }] },
+    { provenance: new Array(1) },
+    { provenance: [{ sourceKind: "synthetic", sourceRef: "fixture-source" }, ...new Array(1)] },
+  ])("rejects provenance with no usable bounded source reference: %j", ({ provenance }) => {
+    expect(() => firefly({ packet: { ...packet, confidence: 1, provenance } as any }))
+      .toThrow("firefly_roundabout_packet_invalid");
+  });
+
   it("cannot advance second choice without any reviewed consequence reference", () => {
     const view = firefly();
     expect(view.decision).toBe("hold");

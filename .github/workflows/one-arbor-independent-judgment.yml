@@ -10,6 +10,7 @@ on:
       - review/one-arbor-b12-candidate-shape-20261007
       - review/one-arbor-372-373-safe-composition-20261009
       - review/one-arbor-judgment-model-parity-20261009
+      - review/one-arbor-initiative-followthrough-20261009
   pull_request:
     branches:
       - review/one-arbor-group11-assembly-followon-20261007
@@ -76,6 +77,7 @@ jobs:
           pnpm exec vitest run
           lib/arbor/behavior/behaviorProjection.test.ts
           lib/arbor/agency/__tests__/acceptanceRunner.test.ts
+          lib/arbor/agency/__tests__/independentFollowthrough.test.ts
           lib/arbor/behavior/__tests__/proactiveJudgmentOfflineRunner.test.ts
           lib/arbor/runtime/__tests__/discoveryRadar.test.ts
           lib/arbor/runtime/__tests__/group11SourceBoundary.test.ts
