@@ -16,7 +16,18 @@ export type BacklogContinuationPlan={
 export function planBacklogContinuation(items:readonly BacklogItem[]):BacklogContinuationPlan{
  // Fail closed on malformed ranking input; preserve prior input order when
  // no trusted priority is present. Priority never bypasses dependencies or STOP.
+ const ids=new Set<string>();
  for(const item of items){
+  if(!item || typeof item.id!=="string" || !item.id.trim() ||
+    item.id!==item.id.trim() || !Array.isArray(item.dependencies) ||
+    item.dependencies.some(d=>typeof d!=="string"||!d.trim()) ||
+    !["pending","complete","blocked"].includes(item.status) ||
+    (item.protectedBoundary!==undefined&&typeof item.protectedBoundary!=="boolean"))
+   throw new Error("backlog_invalid_item");
+  // A completed and pending record sharing the same ID must never cause
+  // a second execution of something already completed.
+  if(ids.has(item.id))throw new Error("backlog_duplicate_id");
+  ids.add(item.id);
   if(item.priority!==undefined&&
     (!Number.isSafeInteger(item.priority)||item.priority<0||item.priority>100))
    throw new Error("backlog_invalid_priority");

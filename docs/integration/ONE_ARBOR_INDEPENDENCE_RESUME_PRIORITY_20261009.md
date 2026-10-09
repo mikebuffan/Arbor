@@ -10,3 +10,6 @@ Child of exact source-green #380 (`d6258b486bdaedb83bfcc2b77dcb203bdd59119e`). S
 In existing suites: negatives for every protected blocker class and a malformed blocker; no side effects on already-complete goal; positive separate-goal execution; prioritization among blocked/dependent/completed/pending cases; equal-priority stability; invalid priority and missing dependency. Existing independent/continuation test and full backend, TypeScript, control and CI builds should pass on exact child SHA before source completion.
 
 No main merge, deployment, paid inference, model evaluation, private ingestion or new autonomous executor. Fresh blind model behavior remains unproven; source pass is not a live independence acceptance.
+
+## Additional same-branch integrity repair
+Validated task identifiers, dependencies, statuses and protected-boundary types before planning. Conflicting duplicate IDs now reject with `backlog_duplicate_id` rather than allowing a completed and a pending task of the same identity to compete for execution. Malformed metadata fails closed; missing or self-dependencies remain waiting. Three additional negative/positive tests added to the existing suite. The original priority API is otherwise unchanged. A fresh exact-head CI run is required for final source acceptance.

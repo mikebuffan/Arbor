@@ -149,9 +149,9 @@
     "docs/integration/ONE_ARBOR_INDEPENDENT_CHOICE_FOLLOWTHROUGH_20261009.md": "c7e645a6977cf04d2f01438f0562b02075586649",
     "apps/backend/lib/arbor/agency/engine.ts": "0892b2cde1c75cc311347a81d1e471955157f802",
     "apps/backend/lib/arbor/agency/__tests__/engineResume.test.ts": "405238565e69e757ff4682f9e2dd7642fc58002e",
-    "apps/backend/lib/arbor/agency/backlogContinuation.ts": "064c83103bdf551636b659aaaba5cce8ed8f9f2c",
-    "apps/backend/lib/arbor/agency/__tests__/backlogContinuation.test.ts": "a47d497b0891b3b98172dc82dcedc9cce5da1e46",
-    "docs/integration/ONE_ARBOR_INDEPENDENCE_RESUME_PRIORITY_20261009.md": "8033600e23bc35c2f3a4dcf7199115de5a966133"
+    "apps/backend/lib/arbor/agency/backlogContinuation.ts": "9d1c42cd589f134b0b3cf4b0e0325f61df10f704",
+    "apps/backend/lib/arbor/agency/__tests__/backlogContinuation.test.ts": "4dc265355ce08e7e9b05bcc7b4e9a65e03c27ed8",
+    "docs/integration/ONE_ARBOR_INDEPENDENCE_RESUME_PRIORITY_20261009.md": "5d84ad5ba818dfcc1c2581d72be75fad62858e22"
   },
   "comment": "78 verified source-only blobs. Adds exact group11 PR #360 view-injection and visited-ID bounds to reviewed 15-lane #362 candidate; Group12 latest after recorded source head is docs-only. Source review, no deployment or live acceptance."
 }

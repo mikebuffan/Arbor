@@ -36,3 +36,31 @@ it("does not promote missing-dependency work based on a high priority",()=>{
  ];
  expect(nextIndependentWork(items,"missing")).toBe("safe");
 });
+
+it("rejects conflicting task records instead of replaying a completed task",()=>{
+ const duplicate=[
+  {id:"same",dependencies:[],status:"complete" as const},
+  {id:"same",dependencies:[],status:"pending" as const,priority:100},
+ ];
+ expect(()=>planBacklogContinuation(duplicate)).toThrow("backlog_duplicate_id");
+ expect(()=>nextIndependentWork(duplicate,"other")).toThrow("backlog_duplicate_id");
+});
+it("rejects malformed identifiers, statuses and dependencies before selection",()=>{
+ const valid={id:"x",dependencies:[],status:"pending" as const};
+ for(const invalid of [
+  {...valid,id:" "},
+  {...valid,id:" x "},
+  {...valid,dependencies:[""]},
+  {...valid,dependencies:null},
+  {...valid,status:"unknown"},
+  {...valid,protectedBoundary:"false"},
+ ]) {
+  expect(()=>planBacklogContinuation([invalid] as never)).toThrow("backlog_invalid_item");
+ }
+});
+it("keeps missing and self dependencies waiting even for the top-ranked item",()=>{
+ expect(planBacklogContinuation([
+  {id:"self",dependencies:["self"],status:"pending",priority:100},
+  {id:"independent",dependencies:[],status:"pending",priority:1},
+ ]).runnable).toEqual(["independent"]);
+});
