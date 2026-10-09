@@ -101,6 +101,9 @@ export async function runAcceptanceComparison(input: {
   const scopes = new Set<string>();
   let calls = 0;
   let captureFailed = false;
+  // Resolve one actual provider model across every case and both comparison arms.
+  // A request alias is allowed, but mixing resolved versions invalidates A/B.
+  let comparisonModel: string | undefined;
   const record = async (event: Record<string, unknown>) => {
     try { await input.record(event); }
     catch { captureFailed = true; throw new Error("acceptance_capture_failed"); }
@@ -152,6 +155,9 @@ export async function runAcceptanceComparison(input: {
           responseIds.add(response.id);
           requireValue(response.status === "completed", "acceptance_provider_response_unfinished");
           requireValue(!reportedModel || reportedModel === response.model, "acceptance_provider_model_changed");
+          requireValue(!comparisonModel || comparisonModel === response.model,
+            "acceptance_provider_model_changed");
+          comparisonModel = response.model;
           reportedModel = response.model;
           modelReceipts.push(receipt);
           return response;
