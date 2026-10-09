@@ -109,6 +109,15 @@ export async function runAgency<SharedState>(input: {
   let shared = await input.runtime.loadSharedState();
   const restored = await input.runtime.loadAgencyState?.(input.goal);
   const restoring = restored?.goal === input.goal;
+
+  // A restart or an ordinary "go" is not an authorization to clear a
+  // persisted STOP/approval boundary. Likewise, a terminal, empty-work goal
+  // is not a fresh task merely because its text was repeated.
+  // A trusted caller must first record a genuine new objective or approval.
+  if (restoring && (restored!.status === "blocked" ||
+    (restored!.status === "complete" && restored!.unresolvedWork.length === 0))) {
+    return { agency: restored!, shared };
+  }
   const resumeStep = restoring
     ? restored!.status === "checkpointed"
       ? restored!.currentStep + 1

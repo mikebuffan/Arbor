@@ -25,7 +25,8 @@
     "independentJudgmentReviewParentPr373": "c05d962ff8c6717bb08b805c06766dcfca98b5ec",
     "independentFollowthroughReviewParentPr377": "9bc589400dcc474e5b0856eabd74cbd8013c64f0",
     "choiceSourcePr378": "b68e1307e88dc033ef3ee68de894e168cb2c5c71",
-    "followthroughParentPr379": "d9dab125424b6e627f93461dd4e13b252e3af65d"
+    "followthroughParentPr379": "d9dab125424b6e627f93461dd4e13b252e3af65d",
+    "independenceResumePriorityParentPr380": "d6258b486bdaedb83bfcc2b77dcb203bdd59119e"
   },
   "expectedBlobSha": {
     "apps/backend/lib/arbor/runtime/timeCore.ts": "7fb33f4a8c6f201e96cc8c3f71b9a4ba584dabde",
@@ -44,7 +45,7 @@
     "apps/arbor-control-backend/src/selfModelObservations.ts": "f8f03960ee18eca6650b12b4e2ee07c3b8e34469",
     "apps/arbor-control-backend/src/selfModelClaims.ts": "9bf0d7bd2f50fe61338a8967cd1b0a0c7d3e1b52",
     "docs/integration/ONE_ARBOR_GROUP06_IDENTITY_EVIDENCE_GATE_20261007.md": "bd43f7b8a8c2e90208b6839d582d5f698fcc570c",
-    "ops/grove/source-only-ignore.mjs": "618f59894fe8ed3cfc4b5dffb91599737d435fd9",
+    "ops/grove/source-only-ignore.mjs": "356daaa40f2d234bc9bdef2f21764751f8f69da3",
     ".github/workflows/one-arbor-group04-shelf-pagination.yml": "41790290a7fa86974dcca3fbbcc15bc96e0cac88",
     "apps/backend/lib/memory/__tests__/shelfPageRead.test.ts": "35b5c43abb6b2c774a1ae3aa75b33507c1e4d3bb",
     "apps/frontend/lib/environment/grove_memory_shelf_view.dart": "31e54c5c459cadce0eeba4bb577922c419cde71a",
@@ -109,7 +110,7 @@
     "apps/backend/lib/arbor/behavior/behaviorProjection.ts": "cd52561933f57ff41daf2ca1497d2dc8d414bfe8",
     "apps/backend/lib/arbor/behavior/__tests__/independentJudgmentCases.ts": "7d9b8eb3f6952812c893c5a5bd228395888e5da3",
     "apps/backend/lib/arbor/behavior/__tests__/independentJudgmentCases.test.ts": "045e1782fbacbad032738232bf960962345e2a8e",
-    ".github/workflows/one-arbor-independent-judgment.yml": "fa6c8d66fc4cbf7c4cb2795cb09030d10f695c85",
+    ".github/workflows/one-arbor-independent-judgment.yml": "3e465ad356ea277e03cbb90c9125a9f4e9340f66",
     "apps/backend/lib/prompt/buildPromptContext.ts": "c91150dbfce1755b9843b58c8c46a95e7fe50a3b",
     "apps/backend/lib/arbor/behavior/arkLayerReadContext.ts": "e0597d3df998d37361a9b21f351d597e1508f445",
     "apps/backend/lib/arbor/behavior/__tests__/arkLayerReadContext.test.ts": "fff706bfa7d2694ae8f58e5f21c4cff0b6e02516",
@@ -145,7 +146,12 @@
     "apps/backend/lib/arbor/agency/__tests__/independentFollowthrough.test.ts": "ca31b9efc854b06da9a5ce23dac9dd06b1e6a806",
     "docs/integration/ONE_ARBOR_INDEPENDENT_FOLLOWTHROUGH_20261009.md": "198049067b47837f3726a5a64da5f3898760aeb2",
     "apps/backend/lib/arbor/continuity/__tests__/longitudinalShorthand.integration.test.ts": "bffea21b7c41495a5b5700b345c0adc78cfa6f9a",
-    "docs/integration/ONE_ARBOR_INDEPENDENT_CHOICE_FOLLOWTHROUGH_20261009.md": "c7e645a6977cf04d2f01438f0562b02075586649"
+    "docs/integration/ONE_ARBOR_INDEPENDENT_CHOICE_FOLLOWTHROUGH_20261009.md": "c7e645a6977cf04d2f01438f0562b02075586649",
+    "apps/backend/lib/arbor/agency/engine.ts": "0892b2cde1c75cc311347a81d1e471955157f802",
+    "apps/backend/lib/arbor/agency/__tests__/engineResume.test.ts": "405238565e69e757ff4682f9e2dd7642fc58002e",
+    "apps/backend/lib/arbor/agency/backlogContinuation.ts": "064c83103bdf551636b659aaaba5cce8ed8f9f2c",
+    "apps/backend/lib/arbor/agency/__tests__/backlogContinuation.test.ts": "a47d497b0891b3b98172dc82dcedc9cce5da1e46",
+    "docs/integration/ONE_ARBOR_INDEPENDENCE_RESUME_PRIORITY_20261009.md": "8033600e23bc35c2f3a4dcf7199115de5a966133"
   },
   "comment": "78 verified source-only blobs. Adds exact group11 PR #360 view-injection and visited-ID bounds to reviewed 15-lane #362 candidate; Group12 latest after recorded source head is docs-only. Source review, no deployment or live acceptance."
 }
