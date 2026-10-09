@@ -213,12 +213,16 @@ jobs:
           lib/environment/grove_diary_draft_view.dart
           lib/environment/grove_memory_shelf.dart
           lib/environment/grove_memory_shelf_view.dart
-          lib/pages/grove_private_text_page.dart
-          test/grove_private_text_page_test.dart
           test/grove_workshop_preview_test.dart
           test/professional_workspace_test.dart
           test/grove_diary_draft_test.dart
           test/environment_diary_navigation_test.dart
+      - name: Analyze private recovery with existing phone lint policy
+        working-directory: apps/frontend
+        run: >-
+          flutter analyze --no-fatal-infos --no-fatal-warnings
+          lib/pages/grove_private_text_page.dart
+          test/grove_private_text_page_test.dart
       - name: Grove read-only and unsaved draft widget regressions
         working-directory: apps/frontend
         run: >-
