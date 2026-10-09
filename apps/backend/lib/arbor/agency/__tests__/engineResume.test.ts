@@ -231,7 +231,7 @@ describe("resumable agency engine", () => {
     expect(out.agency.unresolvedWork).toContain("receipt missing");
     expect(executed).toHaveBeenCalledOnce();
     expect(proveOnlyByAction).toHaveBeenCalledOnce();
-    expect(persist.mock.calls.at(-1)?.[0].agency.status).toBe("checkpointed");
+    expect(persist).toHaveBeenLastCalledWith(expect.objectContaining({ agency: expect.objectContaining({ status: "checkpointed" }) }));
   });
 
   it("permits genuine independent completion proof to recover a prior failed verification", async () => {
