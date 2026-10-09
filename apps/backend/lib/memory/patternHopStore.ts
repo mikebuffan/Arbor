@@ -92,7 +92,11 @@ export async function loadPatternHopRun(params: {
     .maybeSingle();
 
   if (error) throw error;
-  if (!data) return null;
+  // Reject an administrative or misrouted readback even when the query
+  // was fully scoped; never resume a foreign run.
+  if (!data || data.id !== params.runId ||
+      data.user_id !== params.userId ||
+      data.project_id !== params.projectId) return null;
 
   return {
     id: String(data.id),
@@ -255,7 +259,7 @@ export async function loadPatternHopEvidence(params: {
   const { data, error } = await params.supabase
     .from("arbor_pattern_hop_evidence")
     .select(
-      "id,source,source_thread_id,source_message_id,source_artifact_id,speaker,evidence_type,content,occurred_at,chronology_rank,confidence,epistemic_status,metadata",
+      "id,run_id,user_id,project_id,source,source_thread_id,source_message_id,source_artifact_id,speaker,evidence_type,content,occurred_at,chronology_rank,confidence,epistemic_status,metadata",
     )
     .eq("run_id", params.runId)
     .eq("user_id", params.userId)
@@ -264,7 +268,19 @@ export async function loadPatternHopEvidence(params: {
 
   if (error) throw error;
 
-  return (data ?? []).map((row: any) => ({
+  const rows = Array.isArray(data) ? data : [];
+  return rows.filter((row: any) =>
+    row && row.run_id === params.runId &&
+    row.user_id === params.userId &&
+    row.project_id === params.projectId &&
+    typeof row.id === "string" && row.id.length > 0 &&
+    typeof row.source === "string" && row.source.length > 0 &&
+    typeof row.evidence_type === "string" && row.evidence_type.length > 0 &&
+    typeof row.content === "string" && row.content.length > 0 &&
+    ["direct", "derived", "hypothesis", "retrospective", "contradictory"]
+      .includes(row.epistemic_status) &&
+    Number.isFinite(Number(row.confidence ?? 0.5))
+  ).map((row: any) => ({
     id:
       typeof row.metadata?.client_evidence_id === "string"
         ? row.metadata.client_evidence_id
