@@ -1,0 +1,47 @@
+{
+  "people": [
+    {
+      "entity_id": "person-a",
+      "full_name": "Alex Morgan",
+      "organization": "North Org",
+      "role": "Director",
+      "contact_metadata": ["alex@example.test"]
+    },
+    {
+      "entity_id": "person-b",
+      "full_name": "Alex Morgan",
+      "organization": "South Org",
+      "role": "Director",
+      "contact_metadata": ["other@example.test"]
+    }
+  ],
+  "sources": [
+    {
+      "source_id": "email-1",
+      "family_id": "family-email-1",
+      "kind": "email",
+      "provenance": "synthetic original"
+    },
+    {
+      "source_id": "article-1",
+      "family_id": "family-email-1",
+      "kind": "news",
+      "provenance": "synthetic republication of email-1"
+    },
+    {
+      "source_id": "court-1",
+      "family_id": "family-court-1",
+      "kind": "court",
+      "provenance": "synthetic independent record"
+    }
+  ],
+  "scenario": {
+    "question": "Did Person A receive and act on Warning X before Outcome Y?",
+    "expected_rules": [
+      "republication does not increase corroboration count",
+      "same-name entities remain distinct when organization conflicts",
+      "planned or approved states do not imply completion",
+      "reverse hop reports missing receipt/approval layers rather than inventing them"
+    ]
+  }
+}
