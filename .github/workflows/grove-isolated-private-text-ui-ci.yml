@@ -13,6 +13,7 @@ on:
       - review/grove-fullstack-source-compose-20261010
       - test/grove-android-debug-20261010
       - fix/grove-uuid-duplicate-scope-20261010
+      - fix/grove-approved-api-host-20261010
 
 permissions:
   contents: read
@@ -45,6 +46,8 @@ jobs:
         run: >-
           flutter analyze --no-fatal-infos
           lib/pages/grove_private_text_page.dart
+          lib/config/grove_private_config.dart
+          test/grove_private_auth_boundary_test.dart
           lib/pages/grove_private_access_page.dart
           lib/pages/grove_private_project_gate.dart
           lib/environment/grove_house_room.dart
@@ -110,7 +113,7 @@ jobs:
 
   grove-android-debug:
     name: Grove unconfigured Android debug compile (source only)
-    if: github.repository == 'mikebuffan/Arbor' && (github.ref == 'refs/heads/test/grove-android-debug-20261010' || github.ref == 'refs/heads/fix/grove-uuid-duplicate-scope-20261010')
+    if: github.repository == 'mikebuffan/Arbor' && (github.ref == 'refs/heads/test/grove-android-debug-20261010' || github.ref == 'refs/heads/fix/grove-uuid-duplicate-scope-20261010' || github.ref == 'refs/heads/fix/grove-approved-api-host-20261010')
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     defaults:

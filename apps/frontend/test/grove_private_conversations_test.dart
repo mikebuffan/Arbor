@@ -11,6 +11,7 @@ const config = GrovePrivateConfig(
   authUrl: 'https://fqjqpuaoifgbweiguacf.supabase.co',
   publishableKey: 'sb_publishable_private_synthetic',
   apiUrl: apiUrl,
+  approvedApiHost: 'private-grove.example.org',
 );
 
 Map<String, dynamic> choices() => {
