@@ -24,6 +24,67 @@ describe("Arbor self-update lifecycle", () => {
       ],
     }).proof;
 
+  it("does not count high scores from incomplete verifications as proof of improvement", () => {
+    let update = beginSelfUpdate({
+      id: "incomplete-verifier",
+      strategy: "record actual results before claiming progress",
+      baselineScore: 0.1,
+      behavior,
+      protectedCorrections: [],
+      now: "2026-10-10T07:00:00.000Z",
+    });
+    update = recordSelfUpdateVerification(update, {
+      verificationId: "candidate_partial_a",
+      verifiedOutcome: false,
+      score: 0.8,
+      behavior,
+      protectedCorrections: [],
+      now: "2026-10-10T07:01:00.000Z",
+    });
+    update = recordSelfUpdateVerification(update, {
+      verificationId: "candidate_partial_b",
+      verifiedOutcome: false,
+      score: 0.95,
+      behavior,
+      protectedCorrections: [],
+      now: "2026-10-10T07:02:00.000Z",
+    });
+    expect(update.verificationCount).toBe(0);
+    expect(update.afterScore).toBe(0.1);
+    expect(update.verificationIds).toEqual([]);
+    expect(decideSelfUpdate(update).decision.disposition).toBe("continue_verifying");
+  });
+
+  it("does not allow an unverified improvement to overwrite the last verified score", () => {
+    let update = beginSelfUpdate({
+      id: "verified-then-incomplete",
+      strategy: "compare reproducible results",
+      baselineScore: 0.2,
+      behavior,
+      protectedCorrections: [],
+      now: "2026-10-10T07:00:00.000Z",
+    });
+    update = recordSelfUpdateVerification(update, {
+      verificationId: "candidate_verified_a",
+      verifiedOutcome: true,
+      score: 0.7,
+      behavior,
+      protectedCorrections: [],
+      now: "2026-10-10T07:01:00.000Z",
+    });
+    update = recordSelfUpdateVerification(update, {
+      verificationId: "candidate_unverified_b",
+      verifiedOutcome: false,
+      score: 0.99,
+      behavior,
+      protectedCorrections: [],
+      now: "2026-10-10T07:02:00.000Z",
+    });
+    expect(update.verificationCount).toBe(1);
+    expect(update.afterScore).toBe(0.7);
+    expect(decideSelfUpdate(update).decision.disposition).toBe("continue_verifying");
+  });
+
   it("does not count the same verification response twice as independent improvement", () => {
     let update = beginSelfUpdate({
       id: "duplicate-verifier-report",
