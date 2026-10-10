@@ -64,3 +64,14 @@ it("keeps missing and self dependencies waiting even for the top-ranked item",()
   {id:"independent",dependencies:[],status:"pending",priority:1},
  ]).runnable).toEqual(["independent"]);
 });
+
+it("a max-priority pending protected action never enters runnable work",()=> {
+ const items=[
+  {id:"protected-action",dependencies:[],status:"pending" as const,protectedBoundary:true,priority:100},
+  {id:"safe-inspection",dependencies:[],status:"pending" as const,priority:1},
+ ];
+ expect(planBacklogContinuation(items)).toMatchObject({
+  runnable:["safe-inspection"],humanBoundaries:["protected-action"],
+ });
+ expect(nextIndependentWork(items,"unrelated")).toBe("safe-inspection");
+});
