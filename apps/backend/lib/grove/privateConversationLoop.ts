@@ -504,7 +504,11 @@ export async function respondToVerifiedPrivateGroveTurn(input: {
     await input.prepared.reauthorize();
     const savedReply =
       transcriptRowToUnverifiedReply(saved.row, transcriptScope);
-    await input.prepared.captureRuntimeTurn?.(savedReply.reply);
+    // A raced completion may return a previously saved row. Only a newly
+    // created turn may advance the short-term last-turn context.
+    if (saved.created) {
+      await input.prepared.captureRuntimeTurn?.(savedReply.reply);
+    }
     return {
       status: "responded",
       reply: savedReply,
