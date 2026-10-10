@@ -24,6 +24,57 @@ describe("Arbor self-update lifecycle", () => {
       ],
     }).proof;
 
+  it("does not count the same verification response twice as independent improvement", () => {
+    let update = beginSelfUpdate({
+      id: "duplicate-verifier-report",
+      strategy: "check action receipts before claiming success",
+      baselineScore: 0.2,
+      behavior,
+      protectedCorrections: [],
+      now: "2026-10-10T06:00:00.000Z",
+    });
+    const replayedObservation = {
+      verificationId: "resp_one_and_the_same",
+      score: 0.9,
+      behavior,
+      protectedCorrections: [],
+    };
+    update = recordSelfUpdateVerification(update, {
+      ...replayedObservation, now: "2026-10-10T06:01:00.000Z",
+    });
+    update = recordSelfUpdateVerification(update, {
+      ...replayedObservation, now: "2026-10-10T06:02:00.000Z",
+    });
+    expect(update.verificationCount).toBe(1);
+    expect(decideSelfUpdate(update).decision.disposition).toBe("continue_verifying");
+    expect(durableStrategyFromUpdate(decideSelfUpdate(update))).toBeNull();
+  });
+
+  it("does not promote legacy or unattributed verification counts", () => {
+    let update = beginSelfUpdate({
+      id: "unattributed-score",
+      strategy: "use evidence-backed checks",
+      baselineScore: 0.2,
+      behavior,
+      protectedCorrections: [],
+      now: "2026-10-10T06:00:00.000Z",
+    });
+    update = recordSelfUpdateVerification(update, {
+      score: 0.9,
+      behavior,
+      protectedCorrections: [],
+      now: "2026-10-10T06:01:00.000Z",
+    });
+    update = recordSelfUpdateVerification(update, {
+      score: 0.95,
+      behavior,
+      protectedCorrections: [],
+      now: "2026-10-10T06:02:00.000Z",
+    });
+    expect(update.verificationCount).toBe(0);
+    expect(decideSelfUpdate(update).decision.disposition).toBe("continue_verifying");
+  });
+
   it("does not retain after one verification", () => {
     let update = beginSelfUpdate({
       id: "u1",
@@ -39,6 +90,7 @@ describe("Arbor self-update lifecycle", () => {
     update = recordSelfUpdateVerification(
       update,
       {
+        verificationId: "resp_lifecycle_01",
         score: 0.9,
         behavior,
         protectedCorrections: [
@@ -69,6 +121,7 @@ describe("Arbor self-update lifecycle", () => {
       now: "2026-10-09T20:00:00.000Z",
     });
     update = recordSelfUpdateVerification(update, {
+        verificationId: "resp_lifecycle_02",
       score: NaN,
       behavior,
       protectedCorrections: [],
@@ -77,6 +130,7 @@ describe("Arbor self-update lifecycle", () => {
     expect(update.verificationCount).toBe(0);
 
     update = recordSelfUpdateVerification(update, {
+        verificationId: "resp_lifecycle_03",
       score: 0.8,
       behavior,
       protectedCorrections: [],
@@ -86,6 +140,7 @@ describe("Arbor self-update lifecycle", () => {
     expect(decideSelfUpdate(update).decision.disposition).toBe("continue_verifying");
 
     update = recordSelfUpdateVerification(update, {
+        verificationId: "resp_lifecycle_04",
       score: 0.9,
       behavior,
       protectedCorrections: [],
@@ -105,6 +160,7 @@ describe("Arbor self-update lifecycle", () => {
       now: "2026-10-09T20:00:00.000Z",
     });
     update = recordSelfUpdateVerification(update, {
+        verificationId: "resp_lifecycle_05",
       score: Infinity,
       behavior,
       protectedCorrections: [],
@@ -128,6 +184,7 @@ describe("Arbor self-update lifecycle", () => {
     update = recordSelfUpdateVerification(
       update,
       {
+        verificationId: "resp_lifecycle_06",
         score: 0.8,
         behavior,
         protectedCorrections: [],
@@ -138,6 +195,7 @@ describe("Arbor self-update lifecycle", () => {
     update = recordSelfUpdateVerification(
       update,
       {
+        verificationId: "resp_lifecycle_07",
         score: 0.9,
         behavior,
         protectedCorrections: [],
@@ -176,6 +234,7 @@ describe("Arbor self-update lifecycle", () => {
     update = recordSelfUpdateVerification(
       update,
       {
+        verificationId: "resp_lifecycle_08",
         score: 0.95,
         behavior: changed,
         protectedCorrections: [],
@@ -186,6 +245,7 @@ describe("Arbor self-update lifecycle", () => {
     update = recordSelfUpdateVerification(
       update,
       {
+        verificationId: "resp_lifecycle_09",
         score: 0.95,
         behavior: changed,
         protectedCorrections: [],
@@ -211,6 +271,7 @@ describe("Arbor self-update lifecycle", () => {
     update = recordSelfUpdateVerification(
       update,
       {
+        verificationId: "resp_lifecycle_10",
         score: 0.9,
         behavior,
         protectedCorrections: [],
@@ -222,6 +283,7 @@ describe("Arbor self-update lifecycle", () => {
     update = recordSelfUpdateVerification(
       update,
       {
+        verificationId: "resp_lifecycle_11",
         score: 0.95,
         behavior,
         protectedCorrections: [],

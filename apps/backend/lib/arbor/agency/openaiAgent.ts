@@ -95,6 +95,8 @@ export type AgencyLoopHooks = {
   onVerification?: (
     input: {
       round: number;
+      // Transport response identity supplied by the trusted verifier caller.
+      verificationId: string;
       complete: boolean;
       score: number;
       unresolvedWork: string[];
@@ -459,6 +461,7 @@ export async function runOpenAIAgencyAgent(
       await input.hooks
         ?.onVerification?.({
           round,
+          verificationId: typeof response.id === "string" ? response.id : "",
           ...verification,
         });
 
