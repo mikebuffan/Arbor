@@ -7,7 +7,9 @@ import { discoverVerifiedUnlockReviews, validateRunBindings, githubReadOnlyJson 
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const view=JSON.parse(readFileSync(resolve(root,"docs/integration/ONE_ARBOR_97_UNLOCK_REVIEW_VIEW_20261009.json"),"utf8"));
-const doc=JSON.parse(readFileSync(resolve(root,"docs/integration/ONE_ARBOR_GITHUB_SOURCE_RECEIPT_BINDINGS_20261009.json"),"utf8"));
+const reviewedDoc=JSON.parse(readFileSync(resolve(root,"docs/integration/ONE_ARBOR_GITHUB_SOURCE_RECEIPT_BINDINGS_20261009.json"),"utf8"));
+// Historical three-source characterization fixtures remain unchanged.
+const doc={...reviewedDoc,bindings:reviewedDoc.bindings.slice(0,3)};
 const source=doc.bindings[0];
 const run={
   id:38026869361,status:"completed",conclusion:"success",event:"push",
@@ -29,6 +31,65 @@ test("reviewed task bindings retain exact original IDs and source gates",()=>{
   assert.equal(validateRunBindings(view,doc).length,3);
   assert.deepEqual(source.taskIds,["A09"]);
 });
+test("new reviewed source bindings require entire correct source-workflow gate",()=>{
+  assert.equal(validateRunBindings(view,reviewedDoc).length,6);
+  assert.deepEqual(reviewedDoc.bindings.slice(3).map(x=>x.taskIds),[["B15"],["D12"],["D09"]]);
+  assert.deepEqual(reviewedDoc.bindings.slice(3).map(x=>x.job),
+    ["identity-security","verification-source","verification-source"]);
+  for(const mutate of [
+    x=>{x.bindings[5].requiredSteps=x.bindings[5].requiredSteps.filter(s=>s!=="Enforce source-only Vercel branches");},
+    x=>{x.bindings[4].requiredSteps=["Backend TypeScript","Full backend regression","Backend build (CI only)"];},
+    x=>{x.bindings[4].taskIds=["D09","D09"];},
+    x=>{x.bindings[3].stage="host_accepted";},
+  ]){
+    const corrupted=structuredClone(reviewedDoc);mutate(corrupted);
+    assert.throws(()=>validateRunBindings(view,corrupted),/one_arbor_github_receipt/);
+  }
+});
+
+test("all six source-only exact-head receipts flag new downstream reviews, never execution",async()=>{
+  const confirmedRuns=[
+    38026869361,38028889757,38029454170,
+    38031249508,38038583653,38040681076,
+  ];
+  const rows=reviewedDoc.bindings.map((binding,index)=>({
+    binding,id:confirmedRuns[index],
+    run:{
+      ...run,
+      id:confirmedRuns[index],
+      head_branch:binding.branch,
+      head_sha:binding.headSha,
+      name:binding.workflow,
+      html_url:"https://github.com/mikebuffan/Arbor/actions/runs/"+confirmedRuns[index],
+    },
+  }));
+  const read=async url=>{
+    const row=rows.find(({binding})=>url.includes(encodeURIComponent(binding.branch)));
+    if(!row)throw Error("unreviewed_branch");
+    if(url.includes("/jobs?"))return {jobs:[{
+      name:row.binding.job,status:"completed",conclusion:"success",
+      steps:row.binding.requiredSteps.map(name=>({
+        name,status:"completed",conclusion:"success",
+      })),
+    }]};
+    if(url.includes("/actions/runs?"))return {workflow_runs:[row.run]};
+    throw Error("unknown_github_path");
+  };
+  const result=await discoverVerifiedUnlockReviews(view,reviewedDoc,read);
+  assert.equal(result.checkedBindings,6);
+  assert.equal(result.verifiedReceiptEvents,7);
+  assert.deepEqual(result.notYetVerified,[]);
+  assert.deepEqual(result.review.flaggedTasks.map(x=>x.taskId),[
+    "A04","F09","B11","C06","C08","C10","B15","B16",
+    "C04","D05","D09","D10","D11","D12","D13","E07","E09","C09",
+  ]);
+  assert.deepEqual(result.review.changedTaskStatuses,[]);
+  assert.deepEqual(result.review.actionsStarted,[]);
+  assert.ok(result.review.flaggedTasks.every(x=>
+    x.disposition==="REASSESS_ONLY" && !x.completionChanged &&
+    !x.authorizationChanged && !x.mayAutoExecute));
+});
+
 test("authentic-looking exact-head green source job emits only reassessment flags",async()=>{
   const result=await discoverVerifiedUnlockReviews(view,doc,mock());
   assert.equal(result.checkedBindings,3);
