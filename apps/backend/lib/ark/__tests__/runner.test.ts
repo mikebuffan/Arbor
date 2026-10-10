@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { ArkExecutorRegistry } from "@/lib/ark/executorRegistry";
 import { runArkWorkerCycle } from "@/lib/ark/runner";
 import type { ArkStore, ArkTaskCompletion } from "@/lib/ark/store";
@@ -531,5 +531,30 @@ describe("ARK autonomous work runner", () => {
     expect(second.completed).toBe(1);
     expect(order).toEqual(["act", "verify"]);
     expect(store.objectives.get(objective.id)?.status).toBe("completed");
+  });
+});
+
+
+describe("ARK worker limit validation before store access", () => {
+  const cases = (["leaseMs", "maxTasks", "maxRuntimeMs"] as const)
+    .flatMap(option => [NaN, Infinity, -Infinity].map(value => ({ option, value })));
+  it.each(cases)("rejects $option=$value without claims, verification or execution", async ({ option, value }) => {
+    const store = new MemoryArkStore();
+    const objective = await store.enqueueObjective({ ...draft(), tasks: [draft().tasks[0]] });
+    const claim = vi.spyOn(store, "claimNextTask");
+    const awaiting = vi.spyOn(store, "nextObjectiveAwaitingVerification");
+    const verify = vi.fn(async () => ({ ok: true }));
+    const execute = vi.fn(async () => ({ status: "completed" as const }));
+    const registry = new ArkExecutorRegistry().register("test", execute);
+    await expect(runArkWorkerCycle({
+      store, executors: registry, workerId: "bounded-test", now: () => new Date(START),
+      verifyCompletion: verify, [option]: value,
+    })).rejects.toThrow("ark_worker_invalid_limit");
+    expect(claim).not.toHaveBeenCalled();
+    expect(awaiting).not.toHaveBeenCalled();
+    expect(verify).not.toHaveBeenCalled();
+    expect(execute).not.toHaveBeenCalled();
+    expect(store.objectives.get(objective.id)?.status).toBe("queued");
+    expect([...store.tasks.values()][0]?.attemptCount).toBe(0);
   });
 });
