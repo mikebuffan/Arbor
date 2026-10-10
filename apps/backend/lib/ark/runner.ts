@@ -41,6 +41,12 @@ export async function runArkWorkerCycle(input: {
   verifyCompletion?: ArkCompletionVerifier;
   objectiveId?: string;
 }): Promise<ArkWorkerCycleResult> {
+  // Reject malformed limits before verification or any task/store activity.
+  // Existing finite-value clamps and omitted defaults remain unchanged.
+  if ([input.leaseMs, input.maxTasks, input.maxRuntimeMs].some(
+    value => value !== undefined && !Number.isFinite(value),
+  )) throw new Error("ark_worker_invalid_limit");
+
   const now = input.now ?? (() => new Date());
   const leaseMs = Math.min(3_600_000, Math.max(1000, input.leaseMs ?? 60_000));
   const maxTasks = Math.min(100, Math.max(1, input.maxTasks ?? 8));

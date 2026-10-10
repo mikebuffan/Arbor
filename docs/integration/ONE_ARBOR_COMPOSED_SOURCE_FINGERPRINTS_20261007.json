@@ -57,7 +57,7 @@
     "apps/arbor-control-backend/src/selfModelObservations.ts": "5a21a5bb3c97ae652c8eecf03e5ff36def3087a4",
     "apps/arbor-control-backend/src/selfModelClaims.ts": "9bf0d7bd2f50fe61338a8967cd1b0a0c7d3e1b52",
     "docs/integration/ONE_ARBOR_GROUP06_IDENTITY_EVIDENCE_GATE_20261007.md": "bd43f7b8a8c2e90208b6839d582d5f698fcc570c",
-    "ops/grove/source-only-ignore.mjs": "818b7d2d019cf91cd6e3389280c60389c3b01252",
+    "ops/grove/source-only-ignore.mjs": "61d7098f777c0f87365b08035472ac17e0ecaa4b",
     ".github/workflows/one-arbor-group04-shelf-pagination.yml": "41790290a7fa86974dcca3fbbcc15bc96e0cac88",
     "apps/backend/lib/memory/__tests__/shelfPageRead.test.ts": "35b5c43abb6b2c774a1ae3aa75b33507c1e4d3bb",
     "apps/frontend/lib/environment/grove_memory_shelf_view.dart": "31e54c5c459cadce0eeba4bb577922c419cde71a",
@@ -122,7 +122,7 @@
     "apps/backend/lib/arbor/behavior/behaviorProjection.ts": "d1bcb154bf51f80faa2db4671c44c61a40eb9bd4",
     "apps/backend/lib/arbor/behavior/__tests__/independentJudgmentCases.ts": "7d9b8eb3f6952812c893c5a5bd228395888e5da3",
     "apps/backend/lib/arbor/behavior/__tests__/independentJudgmentCases.test.ts": "045e1782fbacbad032738232bf960962345e2a8e",
-    ".github/workflows/one-arbor-independent-judgment.yml": "9038774a30e4b4c1af026d35b9ca745d90f2ba02",
+    ".github/workflows/one-arbor-independent-judgment.yml": "191438cb435a25f7f617379462aff6f6452a6113",
     "apps/backend/lib/prompt/buildPromptContext.ts": "34b7f73219afd5c515251f30298c4209c75049ff",
     "apps/backend/lib/arbor/behavior/arkLayerReadContext.ts": "4c0ebd3b7968167c232f88e8619ef51fea638822",
     "apps/backend/lib/arbor/behavior/__tests__/arkLayerReadContext.test.ts": "39ce1451e64c487b39a9dd5f9aed59029afab8ce",
@@ -258,7 +258,10 @@
     "apps/backend/lib/arbor/host/__tests__/oneArborHostBridge.test.ts": "83db57055cc987d9046c1ec21d24c4aea83c5dda",
     "docs/integration/ARBOR_OPERATING_SELF_MODEL_WIRING_20261010.md": "a3b682d5722bc86cce7f8380da7ecd640b6e0985",
     "apps/backend/lib/arbor/runtime/__tests__/decisionAncestry.test.ts": "01d96b12d1b3d15545c32166e2c7402c5fbfd1d8",
-    "docs/integration/ONE_ARBOR_BATCH13_RECOVERY_HISTORY_RECEIPT_20261009.md": "899a40c7b5eefa3c0775752f3fd6385c23b3ba8c"
+    "docs/integration/ONE_ARBOR_BATCH13_RECOVERY_HISTORY_RECEIPT_20261009.md": "899a40c7b5eefa3c0775752f3fd6385c23b3ba8c",
+    "apps/backend/lib/ark/__tests__/runner.test.ts": "6c9451d8e141263e44fb838fc0937c7403dc018b",
+    "apps/backend/lib/ark/runner.ts": "0c9730ff13434c8df41732ca6d30e4f743e6e13e",
+    "docs/integration/ONE_ARBOR_BATCH14_ARK_BOUNDARY_RECEIPT_20261009.md": "8d59635760b049f9bff293df6f1bc81d8323c2f5"
   },
   "comment": "Source-only incorporation from Library ONE_ARBOR_CODE_REPAIRS_20261009.zip: 17 exact source/test blobs verified, packages reconciled with original PR #372 head, 3 focused tests added; CI/release acceptance remain separately gated."
 }
