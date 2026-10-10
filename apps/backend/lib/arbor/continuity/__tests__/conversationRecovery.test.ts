@@ -61,6 +61,25 @@ describe("host-observed Known / Unknown / Next recovery", () => {
     })]).next).toBe("continue_existing_goal");
   });
 
+  it("rejects sparse source-reference arrays before diagnosing a repeated-failure loop", () => {
+    const missing = new Array<string>(1);
+    const partlyMissing = new Array<string>(2);
+    partlyMissing[0] = "host:one";
+
+    expect(() => view([
+      item("one", "repeated_unhelpful_reply", { evidenceRefs: missing }),
+      item("two", "repeated_unhelpful_reply", { evidenceRefs: ["host:two"] }),
+    ])).toThrow("conversation_recovery_invalid_observation");
+    expect(() => view([
+      item("one", "repeated_unhelpful_reply", { evidenceRefs: partlyMissing }),
+    ])).toThrow("conversation_recovery_invalid_observation");
+
+    expect(view([
+      item("one", "repeated_unhelpful_reply"),
+      item("two", "repeated_unhelpful_reply"),
+    ]).next).toBe("recheck_context");
+  });
+
   it("lets verified stability close earlier diagnostics without erasing original events", () => {
     const result = view([
       item("a", "repeated_unhelpful_reply", { observedAt: "2026-10-07T11:00:00Z" }),
