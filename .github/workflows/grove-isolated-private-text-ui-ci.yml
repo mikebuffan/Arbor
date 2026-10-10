@@ -60,6 +60,8 @@ jobs:
           test/grove_house_navigation_test.dart
           test/environment_navigation_test.dart
           test/grove_responsive_wrap_test.dart
+          test/grove_memory_shelf_view_test.dart
+          test/grove_document_shelf_view_test.dart
 
       - name: Verify Grove recovery and cross-surface scope
         run: >-
