@@ -6,6 +6,7 @@ on:
     branches:
       - fix/grove-private-refresh-revocation-20261009
       - test/grove-group5-rooms-20261010
+      - fix/grove-group6-diary-clear-20261010
 
 permissions:
   contents: read
@@ -41,6 +42,9 @@ jobs:
           lib/pages/grove_private_access_page.dart
           lib/pages/grove_private_project_gate.dart
           lib/environment/grove_house_room.dart
+          lib/environment/grove_diary_draft_view.dart
+          lib/environment/professional_workspace_view.dart
+          test/grove_group6_draft_safety_test.dart
           test/grove_house_navigation_test.dart
           lib/environment/grove_private_conversations.dart
           lib/environment/grove_pending_turn_store.dart
@@ -58,6 +62,7 @@ jobs:
         run: >-
           flutter test
           test/grove_house_navigation_test.dart
+          test/grove_group6_draft_safety_test.dart
           test/environment_navigation_test.dart
           test/grove_responsive_wrap_test.dart
           test/grove_memory_shelf_view_test.dart
