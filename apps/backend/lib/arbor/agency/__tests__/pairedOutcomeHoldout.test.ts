@@ -23,7 +23,33 @@ function observed(
     observedOutcome: outcomes[index],
   }));
 }
+const comparableRuns = {
+  beforeRun: {
+    runId: "run_before_001",
+    phase: "before" as const,
+    cohortRevision: "frozen_pack_v1",
+    protocolId: "same_controls_v1",
+    modelId: "offline_model_fixture",
+    toolScopeId: "fixture_safe_tools",
+    maxRounds: 8,
+    maxToolCalls: 4,
+    strategyRevision: "baseline_strategy_v1",
+  },
+  afterRun: {
+    runId: "run_after_001",
+    phase: "after" as const,
+    cohortRevision: "frozen_pack_v1",
+    protocolId: "same_controls_v1",
+    modelId: "offline_model_fixture",
+    toolScopeId: "fixture_safe_tools",
+    maxRounds: 8,
+    maxToolCalls: 4,
+    strategyRevision: "candidate_strategy_v2",
+  },
+};
+
 const base = {
+  ...comparableRuns,
   cohortId: "offline_fixed_cohort_v1",
   cases: [...cases],
   before: observed("before", ["complete", "complete", "complete", "checkpointed"]),
@@ -31,6 +57,58 @@ const base = {
 };
 
 describe("paired offline host-outcome holdout evaluator", () => {
+  it("rejects apples-to-oranges runs even when their scores imply an improvement", () => {
+    const changes = [
+      { modelId: "more_powerful_model" },
+      { toolScopeId: "extra_tools" },
+      { maxRounds: 40 },
+      { maxToolCalls: 40 },
+      { protocolId: "easier_scoring" },
+      { cohortRevision: "easier_holdout_questions" },
+    ];
+    for (const changed of changes) {
+      expect(() => evaluatePairedOutcomeHoldout({
+        ...base,
+        afterRun: { ...base.afterRun, ...changed },
+      })).toThrow("paired_holdout_protocol_mismatch");
+    }
+  });
+
+  it("rejects missing, swapped, reused or incorrectly labeled run provenance", () => {
+    expect(() => evaluatePairedOutcomeHoldout({
+      ...base, beforeRun: undefined as unknown as typeof base.beforeRun,
+    })).toThrow("paired_holdout_run_metadata_required");
+    expect(() => evaluatePairedOutcomeHoldout({
+      ...base, afterRun: { ...base.afterRun, phase: "before" as "after" },
+    })).toThrow("paired_holdout_phase_mismatch");
+    expect(() => evaluatePairedOutcomeHoldout({
+      ...base, afterRun: { ...base.afterRun, runId: base.beforeRun.runId },
+    })).toThrow("paired_holdout_duplicate_run");
+    expect(() => evaluatePairedOutcomeHoldout({
+      ...base, afterRun: { ...base.afterRun, strategyRevision: base.beforeRun.strategyRevision },
+    })).toThrow("paired_holdout_no_strategy_change");
+  });
+
+  it("rejects non-integer and unsafe execution budgets as noncomparable", () => {
+    for (const value of [NaN, Infinity, -1, 1.5, 9000000000000002]) {
+      expect(() => evaluatePairedOutcomeHoldout({
+        ...base, afterRun: { ...base.afterRun, maxRounds: value },
+      })).toThrow("paired_holdout_invalid_run");
+    }
+  });
+
+  it("discloses comparison protocol but does not assert run authenticity", () => {
+    const result = evaluatePairedOutcomeHoldout(base);
+    expect(result).toMatchObject({
+      protocolId: "same_controls_v1",
+      cohortRevision: "frozen_pack_v1",
+      modelId: "offline_model_fixture",
+      evidenceStatus: "input_validated_not_authenticated",
+    });
+    expect("authenticatedRun" in result).toBe(false);
+    expect("retainStrategy" in result).toBe(false);
+  });
+
   it("scores one exact paired cohort without reading model-reported scores", () => {
     const result = evaluatePairedOutcomeHoldout(base);
     expect(result).toMatchObject({

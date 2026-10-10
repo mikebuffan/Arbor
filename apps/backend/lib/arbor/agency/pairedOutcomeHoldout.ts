@@ -22,6 +22,22 @@ export type HoldoutObservation = {
   observedOutcome: HoldoutOutcome;
 };
 
+/**
+ * Caller-declared run provenance. The scorer checks fair comparison; it
+ * cannot authenticate a run identity, source control state, or its receipts.
+ */
+export type HoldoutRunMetadata = {
+  runId: string;
+  phase: "before" | "after";
+  cohortRevision: string;
+  protocolId: string;
+  modelId: string;
+  toolScopeId: string;
+  maxRounds: number;
+  maxToolCalls: number;
+  strategyRevision: string;
+};
+
 export type PairedOutcomeConclusion =
   | "improved_in_fixture"
   | "mixed_regressions"
@@ -29,6 +45,9 @@ export type PairedOutcomeConclusion =
 
 export type PairedOutcomeEvaluation = {
   cohortId: string;
+  cohortRevision: string;
+  protocolId: string;
+  modelId: string;
   casesEvaluated: number;
   beforeCorrect: number;
   afterCorrect: number;
@@ -44,6 +63,48 @@ export type PairedOutcomeEvaluation = {
 
 const ID = /^[a-zA-Z0-9._:-]{4,200}$/;
 
+function validIdentity(value: unknown): value is string {
+  return typeof value === "string" && ID.test(value);
+}
+
+function validateComparableRuns(
+  before: HoldoutRunMetadata,
+  after: HoldoutRunMetadata,
+): void {
+  if (!before || !after || typeof before !== "object" || typeof after !== "object") {
+    throw new Error("paired_holdout_run_metadata_required");
+  }
+  const fields: (keyof HoldoutRunMetadata)[] = [
+    "runId", "cohortRevision", "protocolId", "modelId",
+    "toolScopeId", "strategyRevision",
+  ];
+  for (const run of [before, after]) {
+    if (fields.some((field) => !validIdentity(run[field])) ||
+        !Number.isSafeInteger(run.maxRounds) ||
+        run.maxRounds < 1 || run.maxRounds > 128 ||
+        !Number.isSafeInteger(run.maxToolCalls) ||
+        run.maxToolCalls < 0 || run.maxToolCalls > 512) {
+      throw new Error("paired_holdout_invalid_run");
+    }
+  }
+  if (before.phase !== "before" || after.phase !== "after") {
+    throw new Error("paired_holdout_phase_mismatch");
+  }
+  if (before.runId === after.runId) {
+    throw new Error("paired_holdout_duplicate_run");
+  }
+  if (before.strategyRevision === after.strategyRevision) {
+    throw new Error("paired_holdout_no_strategy_change");
+  }
+  const equalProtocolFields: (keyof HoldoutRunMetadata)[] = [
+    "cohortRevision", "protocolId", "modelId",
+    "toolScopeId", "maxRounds", "maxToolCalls",
+  ];
+  if (equalProtocolFields.some((field) => before[field] !== after[field])) {
+    throw new Error("paired_holdout_protocol_mismatch");
+  }
+}
+
 function validOutcome(value: unknown): value is HoldoutOutcome {
   return value === "complete" ||
     value === "checkpointed" ||
@@ -52,6 +113,8 @@ function validOutcome(value: unknown): value is HoldoutOutcome {
 
 export function evaluatePairedOutcomeHoldout(input: {
   cohortId: string;
+  beforeRun: HoldoutRunMetadata;
+  afterRun: HoldoutRunMetadata;
   cases: readonly HoldoutCase[];
   before: readonly HoldoutObservation[];
   after: readonly HoldoutObservation[];
@@ -59,6 +122,9 @@ export function evaluatePairedOutcomeHoldout(input: {
   if (typeof input.cohortId !== "string" || !ID.test(input.cohortId)) {
     throw new Error("paired_holdout_invalid_identity");
   }
+  // Never turn a changed model, tool grant, execution budget, or
+  // scoring protocol into an apparent strategy improvement.
+  validateComparableRuns(input.beforeRun, input.afterRun);
   if (!Array.isArray(input.cases) || input.cases.length < 2) {
     throw new Error("paired_holdout_insufficient_cases");
   }
@@ -133,6 +199,9 @@ export function evaluatePairedOutcomeHoldout(input: {
   const afterRate = afterCorrect / total;
   return {
     cohortId: input.cohortId,
+    cohortRevision: input.beforeRun.cohortRevision,
+    protocolId: input.beforeRun.protocolId,
+    modelId: input.beforeRun.modelId,
     casesEvaluated: total,
     beforeCorrect,
     afterCorrect,
