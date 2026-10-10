@@ -59,6 +59,62 @@ describe("Arbor self-update lifecycle", () => {
     ).toBeNull();
   });
 
+  it("does not count an invalid score as an independent successful verification", () => {
+    let update = beginSelfUpdate({
+      id: "score-gap",
+      strategy: "use a narrower plan",
+      baselineScore: 0.4,
+      behavior,
+      protectedCorrections: [],
+      now: "2026-10-09T20:00:00.000Z",
+    });
+    update = recordSelfUpdateVerification(update, {
+      score: NaN,
+      behavior,
+      protectedCorrections: [],
+      now: "2026-10-09T20:01:00.000Z",
+    });
+    expect(update.verificationCount).toBe(0);
+
+    update = recordSelfUpdateVerification(update, {
+      score: 0.8,
+      behavior,
+      protectedCorrections: [],
+      now: "2026-10-09T20:02:00.000Z",
+    });
+    expect(update.verificationCount).toBe(1);
+    expect(decideSelfUpdate(update).decision.disposition).toBe("continue_verifying");
+
+    update = recordSelfUpdateVerification(update, {
+      score: 0.9,
+      behavior,
+      protectedCorrections: [],
+      now: "2026-10-09T20:03:00.000Z",
+    });
+    expect(update.verificationCount).toBe(2);
+    expect(decideSelfUpdate(update).decision.disposition).toBe("retain");
+  });
+
+  it("preserves safety veto when an unscorable observation reports a new failure", () => {
+    let update = beginSelfUpdate({
+      id: "invalid-and-unsafe",
+      strategy: "take a risky shortcut",
+      baselineScore: 0.4,
+      behavior,
+      protectedCorrections: [],
+      now: "2026-10-09T20:00:00.000Z",
+    });
+    update = recordSelfUpdateVerification(update, {
+      score: Infinity,
+      behavior,
+      protectedCorrections: [],
+      newFailureIntroduced: true,
+      now: "2026-10-09T20:01:00.000Z",
+    });
+    expect(update.verificationCount).toBe(0);
+    expect(decideSelfUpdate(update).decision.disposition).toBe("revert");
+  });
+
   it("retains repeated verified improvement", () => {
     let update = beginSelfUpdate({
       id: "u2",
