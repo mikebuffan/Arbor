@@ -8,6 +8,7 @@ on:
       - fix/chat-boundary-pending-receipts-20261009
       - fix/one-arbor-97-unlock-review-20261009
       - fix/one-arbor-github-run-discovery-20261009
+      - fix/cross-round-receipt-retention-20261009
 
 permissions:
   contents: read
