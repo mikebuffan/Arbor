@@ -46,6 +46,28 @@ function pending(
 describe(
   "runtime self-update continuity",
   () => {
+    it("honors explicit clears of session context while omitted fields resume it", async () => {
+      const prior: ArborRuntimeState = { schemaVersion: 1, userId: "owner", projectId: "project",
+        conversationId: "thread", channel: "text", activeSubsystem: "arbor",
+        currentGoal: "old task", lastMeaningfulUserTurn: "old request", lastMeaningfulArborTurn: "old reply",
+        agency: { goal: "old task", status: "complete", currentStep: 1, unresolvedWork: [],
+          recurringWeaknesses: [], strategyNotes: [] },
+        corrections: [], behaviorProof: behavior, pendingSelfUpdate: null,
+        createdAt: "2026-10-01T00:00:00Z", updatedAt: "2026-10-01T00:01:00Z" };
+      vi.mocked(loadRuntimeState).mockResolvedValue(prior);
+      vi.mocked(saveRuntimeState).mockResolvedValue();
+      const input = { supabase: {} as SupabaseClient, userId: "owner", projectId: "project",
+        conversationId: "thread", channel: "text" as const, activeSubsystem: "arbor" as const,
+        now: "2026-10-01T00:02:00Z" };
+      const resumed = await beginRuntimeSession(input);
+      expect(resumed.agency).toEqual(prior.agency);
+      expect(resumed.lastMeaningfulUserTurn).toBe("old request");
+      const cleared = await beginRuntimeSession({ ...input, currentGoal: null, agency: null,
+        lastMeaningfulUserTurn: null, lastMeaningfulArborTurn: null, behaviorProof: null });
+      expect(cleared).toMatchObject({ currentGoal: null, agency: null,
+        lastMeaningfulUserTurn: null, lastMeaningfulArborTurn: null, behaviorProof: null });
+      expect(saveRuntimeState).toHaveBeenLastCalledWith({ supabase: input.supabase, state: cleared });
+    });
     it("honors an explicitly cleared goal while an omitted goal resumes the saved one", async () => {
       const prior: ArborRuntimeState = { schemaVersion: 1, userId: "owner", projectId: "project",
         conversationId: "thread", channel: "text", activeSubsystem: "arbor",

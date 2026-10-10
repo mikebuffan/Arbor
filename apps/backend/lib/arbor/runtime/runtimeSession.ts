@@ -96,21 +96,19 @@ export async function beginRuntimeSession(input: {
     currentGoal,
 
     lastMeaningfulUserTurn:
-      input.lastMeaningfulUserTurn ??
-      prior
-        ?.lastMeaningfulUserTurn ??
-      null,
+      input.lastMeaningfulUserTurn !== undefined
+        ? input.lastMeaningfulUserTurn
+        : prior?.lastMeaningfulUserTurn ?? null,
 
     lastMeaningfulArborTurn:
-      input.lastMeaningfulArborTurn ??
-      prior
-        ?.lastMeaningfulArborTurn ??
-      null,
+      input.lastMeaningfulArborTurn !== undefined
+        ? input.lastMeaningfulArborTurn
+        : prior?.lastMeaningfulArborTurn ?? null,
 
     agency:
-      input.agency ??
-      prior?.agency ??
-      null,
+      input.agency !== undefined
+        ? input.agency
+        : prior?.agency ?? null,
 
     corrections: mergeCorrections(
       prior?.corrections ?? [],
@@ -118,9 +116,9 @@ export async function beginRuntimeSession(input: {
     ),
 
     behaviorProof:
-      input.behaviorProof ??
-      prior?.behaviorProof ??
-      null,
+      input.behaviorProof !== undefined
+        ? input.behaviorProof
+        : prior?.behaviorProof ?? null,
 
     pendingSelfUpdate:
       carryPendingSelfUpdate({
