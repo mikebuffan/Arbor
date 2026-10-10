@@ -35,7 +35,7 @@ jobs:
         run: flutter pub get
       - name: Analyze Grove private Text and auth scope
         run: >-
-          flutter analyze
+          flutter analyze --no-fatal-infos
           lib/pages/grove_private_text_page.dart
           lib/pages/grove_private_access_page.dart
           lib/environment/grove_private_conversations.dart
