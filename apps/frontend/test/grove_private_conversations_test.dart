@@ -202,6 +202,35 @@ void main() {
     }
   });
 
+  test('phone rejects reversed exact-conversation history even if response advertises newest_first', () {
+    final latest = {...((history()['turns'] as List).single as Map<String, dynamic>),
+      'requestId': '00000000-0000-4000-8000-000000000016',
+      'userText': 'Latest saved message',
+      'createdAt': '2026-10-10T03:00:00Z'};
+    final older = {...latest,
+      'requestId': '00000000-0000-4000-8000-000000000017',
+      'userText': 'Older saved message',
+      'createdAt': '2026-10-10T02:00:00Z'};
+
+    final valid = parseGrovePrivateHistory({
+      ...history(), 'turns': [latest, older],
+    }, projectId: project, conversationId: conversation);
+    expect(valid.turnsNewestFirst.map((t) => t.userText).toList(),
+      ['Latest saved message', 'Older saved message']);
+
+    expect(() => parseGrovePrivateHistory({
+      ...history(), 'turns': [older, latest],
+    }, projectId: project, conversationId: conversation),
+      throwsFormatException);
+
+    // Timestamp ties carry no proven ordering; do not invent a precedence.
+    final sameTime = {...older, 'createdAt': latest['createdAt']};
+    expect(parseGrovePrivateHistory({
+      ...history(), 'turns': [latest, sameTime],
+    }, projectId: project, conversationId: conversation)
+      .turnsNewestFirst, hasLength(2));
+  });
+
   test('private model words never become a verified ARK action', () {
     final parsed = parseGrovePrivateReply(
       reply(), requestId: requestId,
