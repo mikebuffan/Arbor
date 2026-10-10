@@ -110,6 +110,9 @@ export function buildArborAgencyTools(input: {
       description:
         "Read the current server-owned Arbor subsystem, voice, and acoustic correction state for the active project.",
       risk: "read",
+      // Owner-scoped, side-effect-free read: safe even if a separate proposed
+      // action still needs human approval. Authorization is unchanged.
+      mayRunBeforeProtectedBoundary: true,
       parameters: {
         type: "object",
         properties: {},

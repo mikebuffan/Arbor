@@ -15,7 +15,7 @@ const context = {
   conversationId: "synthetic-conversation", turnId: "synthetic-turn",
 };
 type State = "completed" | "unfinished" | "blocked";
-function fixture() {
+function fixture(options: { independentlyRunnableSafeAction?: boolean } = {}) {
   const tasks: Record<string, State> = {
     alreadyDone: "completed", safeFirst: "unfinished",
     safeSecond: "unfinished", needsApproval: "blocked",
@@ -30,6 +30,7 @@ function fixture() {
   });
   tools.register({
     name: "complete_fixture_task", risk: "reversible_write",
+    mayRunBeforeProtectedBoundary: options.independentlyRunnableSafeAction ?? false,
     description: "Finish one permitted unfinished synthetic task, never a blocked or completed task.",
     parameters: { type: "object", properties: { task: { type: "string" } },
       required: ["task"], additionalProperties: false },
@@ -175,6 +176,93 @@ describe("Independent initiative follow-through: synthetic transport, not a real
       expect(Array.isArray(request.input)).toBe(true);
     }
     expect(unexpectedLiveProvider).not.toHaveBeenCalled();
+  });
+
+  it("executes an explicitly independent safe action before a protected tool proposed first", async () => {
+    const { writes, tools, tasks } = fixture({ independentlyRunnableSafeAction: true });
+    const selected: string[] = [];
+    const onBoundary = vi.fn(async () => {});
+    const onToolResult = vi.fn(async () => {});
+    const onComplete = vi.fn(async () => {});
+    const mixed = toolCall("protected-call", "publish_fixture");
+    const safe = toolCall("safe-call", "complete_fixture_task", { task: "safeFirst" });
+    const responseCreate = vi.fn(async () => ({
+      ...mixed, id: "mixed-response", output: [...mixed.output, ...safe.output],
+    } as Response));
+    const result = await runOpenAIAgencyAgent({
+      instructions: "Carry out independently approved safe tasks, leave protected action blocked.",
+      userText: "Continue safe work but do not publish.",
+      tools, context, verifyCompletion: false, responseCreate,
+      hooks: {
+        onToolSelected: async value => { selected.push(value.name); },
+        onBoundary, onToolResult, onComplete,
+      },
+    });
+    expect(result).toMatchObject({
+      status: "blocked", reason: "high_consequence_fork", toolName: "publish_fixture",
+      toolCalls: 1,
+    });
+    expect(writes).toEqual(["safeFirst"]);
+    expect(tasks.safeFirst).toBe("completed");
+    expect(selected).toEqual(["complete_fixture_task", "publish_fixture"]);
+    expect(onToolResult).toHaveBeenCalledOnce();
+    expect(onBoundary).toHaveBeenCalledOnce();
+    expect(onComplete).not.toHaveBeenCalled();
+    expect(responseCreate).toHaveBeenCalledOnce();
+  });
+
+  it("never moves an unmarked reversible action past a protected tool", async () => {
+    const { writes, tools } = fixture();
+    const mixed = toolCall("protected-call", "publish_fixture");
+    const safe = toolCall("safe-call", "complete_fixture_task", { task: "safeFirst" });
+    const result = await runOpenAIAgencyAgent({
+      instructions: "Approval required.",
+      userText: "Do the safe task after approval.",
+      tools, context, verifyCompletion: false,
+      responseCreate: async () => ({
+        ...mixed, id: "mixed-unmarked", output: [...mixed.output, ...safe.output],
+      } as Response),
+    });
+    expect(result).toMatchObject({ status: "blocked", toolName: "publish_fixture" });
+    expect(writes).toEqual([]);
+  });
+
+  it("checkpoints an uncertain independent write instead of reaching the later approval action", async () => {
+    const { writes, tools } = fixture({ independentlyRunnableSafeAction: true });
+    const mixed = toolCall("protected-call", "publish_fixture");
+    const safe = toolCall("safe-call", "complete_fixture_task", { task: "safeFirst" });
+    const onBoundary = vi.fn(async () => {});
+    const result = await runOpenAIAgencyAgent({
+      instructions: "Never replay uncertain writes.",
+      userText: "Continue safe work.",
+      tools, context, verifyCompletion: false,
+      idempotency: {
+        claim: async () => ({ acquired: false as const, result: null }),
+        complete: async () => { throw new Error("must_not_save_unowned_write"); },
+      },
+      responseCreate: async () => ({
+        ...mixed, id: "mixed-uncertain", output: [...mixed.output, ...safe.output],
+      } as Response),
+      hooks: { onBoundary },
+    });
+    expect(result.status).toBe("checkpointed");
+    expect(writes).toEqual([]);
+    expect(onBoundary).not.toHaveBeenCalled();
+  });
+
+  it("rejects protected or malformed early-run metadata at registration", () => {
+    const { tools } = fixture();
+    const protectedTool = {
+      name: "fake-privileged", risk: "high_consequence" as const,
+      mayRunBeforeProtectedBoundary: true,
+      description: "cannot run early", parameters: {},
+      execute: async () => null,
+    };
+    expect(() => tools.register(protectedTool)).toThrow("agency_protected_tool_cannot_run_early");
+    expect(() => tools.register({
+      ...protectedTool, name: "malformed", risk: "read",
+      mayRunBeforeProtectedBoundary: "true" as unknown as boolean,
+    })).toThrow("agency_tool_invalid_independent_flag");
   });
 
   it("stops a selected privileged action without executing it", async () => {

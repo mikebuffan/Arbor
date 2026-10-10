@@ -1,9 +1,10 @@
-name: One Arbor identity and safe continuation source acceptance
+name: One Arbor identity and independent chat continuation source acceptance
 
 on:
   push:
     branches:
       - fix/batch20-identity-issuer-gate-20261009
+      - fix/chat-safe-batch-followthrough-20261009
 
 permissions:
   contents: read
@@ -44,6 +45,8 @@ jobs:
           lib/arbor/security/__tests__/identityAssurance.test.ts
           lib/arbor/security/__tests__/identityAssuranceExtensions.test.ts
           lib/arbor/agency/__tests__/engineResume.test.ts
+          lib/arbor/agency/__tests__/independentFollowthrough.test.ts
+          lib/arbor/agency/__tests__/tools.test.ts
       - name: Type-check existing backend
         working-directory: apps/backend
         run: pnpm exec tsc --noEmit
