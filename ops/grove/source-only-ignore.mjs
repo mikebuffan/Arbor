@@ -4,6 +4,7 @@
 const branches = new Set([
   "fix/grove-private-refresh-revocation-20261009",
   "test/grove-group5-rooms-20261010",
+  "fix/grove-group6-diary-clear-20261010",
   "fix/d12-unverified-score-20261009",
   "fix/unlock-c08-correction-count-20261009",
   "fix/cross-round-receipt-retention-20261009",
