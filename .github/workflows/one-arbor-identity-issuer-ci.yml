@@ -28,6 +28,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Verify 223 retained source fingerprints
+        run: node ops/integration/verify-one-arbor-composition.mjs
+      - name: Verify review branch can never trigger Vercel build
+        run: node --test ops/grove/source-only-ignore.test.mjs
       - name: Resolve locked dependencies
         run: |
           corepack enable
