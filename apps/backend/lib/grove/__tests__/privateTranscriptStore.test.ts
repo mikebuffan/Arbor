@@ -667,6 +667,20 @@ describe("Grove-only private conversation durability (fixtures, migration OFF)",
     expect(data.records.size).toBe(2);
   });
 
+  it("validates every scoped saved row even past the LM budget cutoff", () => {
+    const first = row({requestId:firstId,userText:"u".repeat(3000),
+      assistantText:"a".repeat(3000)});
+    const second = row({requestId:secondId,userText:"u".repeat(3000),
+      assistantText:"a".repeat(3000)});
+    const foreign = {...row({
+      requestId:"00000000-0000-4000-8000-000000000013",
+      userText:"Should never be trusted",assistantText:"Foreign answer",
+    }),grove_user_id:"00000000-0000-4000-8000-000000000099"};
+    expect(() => selectPrivateModelHistory({
+      completedNewestFirst:[first,second,foreign],scope,userText:"Next",
+    })).toThrow("grove_transcript_scope_invalid");
+  });
+
   it("honors strict LM receiver 13-message and 12,000-char limits", () => {
     const recent = Array.from({length: 6}, (_, i) => row({
       requestId: [
