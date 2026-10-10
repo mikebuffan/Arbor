@@ -14,6 +14,7 @@ on:
       - fix/one-arbor-exact-grove-continuity-20261009
       - fix/grove-replay-runtime-capture-20261010
       - fix/grove-restart-history-order-20261010
+      - fix/grove-global-correction-restart-20261010
 
 permissions:
   contents: read
