@@ -77,6 +77,10 @@ jobs:
           test/grove_group6_draft_safety_test.dart
           test/grove_room_inventory_panel_test.dart
 
+      - name: Verify Grove source-only deployment fences
+        working-directory: .
+        run: node --test ops/grove/source-only-ignore.test.mjs
+
       - name: Verify Grove recovery and cross-surface scope
         run: >-
           flutter test
