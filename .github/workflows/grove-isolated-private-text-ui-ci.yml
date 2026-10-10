@@ -11,6 +11,7 @@ on:
       - review/grove-combined-ui-diary-20261010
       - review/grove-ui-phone-compose-20261010
       - review/grove-fullstack-source-compose-20261010
+      - test/grove-android-debug-20261010
 
 permissions:
   contents: read
@@ -102,3 +103,45 @@ jobs:
           test/grove_private_projects_truth_test.dart
           test/grove_talk_private_boundary_test.dart
           test/grove_consolidation_regression_test.dart
+
+  grove-android-debug:
+    name: Grove unconfigured Android debug compile (source only)
+    if: github.repository == 'mikebuffan/Arbor' && github.ref == 'refs/heads/test/grove-android-debug-20261010'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: apps/frontend
+    env:
+      CI: 'true'
+      FLUTTER_SUPPRESS_ANALYTICS: 'true'
+      DART_SUPPRESS_ANALYTICS: 'true'
+      AWS_EC2_METADATA_DISABLED: 'true'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.47.6'
+          cache: true
+      - name: Resolve locked Flutter dependencies
+        run: flutter pub get --enforce-lockfile
+      - name: Verify 223 reviewed source fingerprints
+        working-directory: .
+        run: node ops/integration/verify-one-arbor-composition.mjs
+      - name: Verify Grove no-deploy branch policy
+        working-directory: .
+        run: node --test ops/grove/source-only-ignore.test.mjs
+      - name: Compile Grove debug flavor with private auth intentionally unconfigured
+        run: >-
+          flutter build apk --debug --flavor grove
+          --dart-define=GROVE_STANDALONE=true
+      - name: Verify local APK output without uploading it
+        run: >-
+          test -s build/app/outputs/flutter-apk/app-grove-debug.apk
