@@ -205,7 +205,7 @@
     "apps/backend/lib/arbor/continuity/__tests__/longitudinalShorthand.integration.test.ts": "bffea21b7c41495a5b5700b345c0adc78cfa6f9a",
     "docs/integration/ONE_ARBOR_JUDGMENT_MODEL_PARITY_20261009.md": "8243f345f6c2df62cd9cbb8a15d0836650e7a375",
     "apps/backend/lib/arbor/runtime/knowledgeRouting.ts": "790b343c39a4f2173f6c353ae355514114727774",
-    "apps/backend/lib/arbor/agency/__tests__/independentFollowthrough.test.ts": "423b0a9b4bfd797b4895005b55738fbf0d3b0b93",
+    "apps/backend/lib/arbor/agency/__tests__/independentFollowthrough.test.ts": "40819299fda78d94d6beb5a5d3bc9513ef759261",
     "docs/integration/ONE_ARBOR_INDEPENDENT_FOLLOWTHROUGH_20261009.md": "198049067b47837f3726a5a64da5f3898760aeb2",
     "apps/backend/lib/arbor/agency/engine.ts": "c3b58c8517302c26356c6a36ff8d4e5b29a3c447",
     "apps/backend/lib/arbor/agency/backlogContinuation.ts": "9d1c42cd589f134b0b3cf4b0e0325f61df10f704",
