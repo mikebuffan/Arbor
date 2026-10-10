@@ -2,6 +2,7 @@
 // One existing isolated test project may build this exact branch as Preview.
 // This exception grants no runtime credentials, database access or model budget.
 const branches = new Set([
+  "fix/batch20-identity-issuer-gate-20261009",
   "fix/batch15-ui-source-acceptance-20261009",
   "fix/batch14-worker-limit-validation-20261009",
   "fix/batch13-history-discovery-list-validation-20261009",
