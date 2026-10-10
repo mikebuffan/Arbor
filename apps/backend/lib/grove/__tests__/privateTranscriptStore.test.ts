@@ -168,6 +168,25 @@ describe("Grove-only private conversation durability (fixtures, migration OFF)",
     expect(data.records.size).toBe(2);
   });
 
+  it("a replay of an older saved turn never rewinds the latest runtime capture", async () => {
+    const data = fakeStore();
+    await host(data.store).respond("First saved turn", firstId);
+    await host(data.store).respond("Newer saved turn", secondId);
+    let latestCaptured = "Newer saved turn";
+    const reopened = host(data.store);
+    const prepared = await reopened.prepare("First saved turn", firstId);
+    const capture = vi.fn(async () => { latestCaptured = "First saved turn"; });
+    prepared.captureRuntimeTurn = capture;
+    const result = await respondToVerifiedPrivateGroveTurn({
+      prepared, features: flags,
+    });
+    expect(result).toMatchObject({ status: "responded", persisted: true, replayed: true });
+    expect(reopened.sendModel).not.toHaveBeenCalled();
+    expect(capture).not.toHaveBeenCalled();
+    expect(latestCaptured).toBe("Newer saved turn");
+    expect(data.records.size).toBe(2);
+  });
+
   it("recovers canonical ARK goal and correction on restart, not from chat prose", async () => {
     const data = fakeStore();
     const initial = host(data.store);
