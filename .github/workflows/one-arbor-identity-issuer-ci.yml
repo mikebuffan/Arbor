@@ -1,4 +1,4 @@
-name: One Arbor identity issuer source acceptance
+name: One Arbor identity and safe continuation source acceptance
 
 on:
   push:
@@ -39,6 +39,7 @@ jobs:
           pnpm exec vitest run
           lib/arbor/security/__tests__/identityAssurance.test.ts
           lib/arbor/security/__tests__/identityAssuranceExtensions.test.ts
+          lib/arbor/agency/__tests__/engineResume.test.ts
       - name: Type-check existing backend
         working-directory: apps/backend
         run: pnpm exec tsc --noEmit
