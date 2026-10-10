@@ -99,10 +99,25 @@ BEGIN
     RAISE EXCEPTION 'unverified reply status was bypassed';
   EXCEPTION WHEN check_violation THEN NULL;
   END;
-  DELETE FROM public.grove_private_ark_project_grants
+  -- Soft revocation blocks access without deleting completed history.
+  UPDATE public.grove_private_ark_project_grants SET revoked_at=clock_timestamp()
     WHERE grove_user_id=alice AND firefly_project_id=project_a;
-  IF (SELECT count(*) FROM public.grove_private_turns) <> 0 THEN
-    RAISE EXCEPTION 'revoked/deleted grant failed to cascade transcript';
+  IF (SELECT count(*) FROM public.grove_private_turns) <> 1 THEN
+    RAISE EXCEPTION 'soft-revoked grant unexpectedly deleted saved history';
+  END IF;
+  IF (public.grove_private_claim_turn(alice,project_a,conversation,retry_id,
+       repeat('a',64))->>'status') <> 'no_access' THEN
+    RAISE EXCEPTION 'soft-revoked grant still permits a new model claim';
+  END IF;
+  -- A hard grant delete must not implicitly erase saved conversations.
+  BEGIN
+    DELETE FROM public.grove_private_ark_project_grants
+      WHERE grove_user_id=alice AND firefly_project_id=project_a;
+    RAISE EXCEPTION 'hard grant deletion silently erased retained history';
+  EXCEPTION WHEN foreign_key_violation THEN NULL;
+  END;
+  IF (SELECT count(*) FROM public.grove_private_turns) <> 1 THEN
+    RAISE EXCEPTION 'failed hard delete removed saved history';
   END IF;
   RAISE NOTICE 'GROVE_DISPOSABLE_TRANSCRIPT_SCHEMA=PASS; LIVE_OWNER_ACCEPTANCE=HOLD';
 END
@@ -147,12 +162,12 @@ BEGIN
     RAISE EXCEPTION 'private claim function role privileges invalid';
   END IF;
 
-  -- First transcript acceptance deleted Alice's grant. Do not resurrect it:
-  -- prove a claim cannot bypass a real revoked owner/project mapping.
+  -- First transcript acceptance soft-revoked Alice's project grant.
+  -- Prove the claim cannot bypass this inactive mapping.
   result := public.grove_private_claim_turn(
     alice,project_a,conversation,retry_id,first_hash);
   IF result->>'status' <> 'no_access' THEN
-    RAISE EXCEPTION 'deleted project grant allowed model claim: %',result;
+    RAISE EXCEPTION 'revoked project grant allowed model claim: %',result;
   END IF;
   result := public.grove_private_claim_turn(
     bob,project_b,conversation,retry_id,'INVALID');
@@ -279,11 +294,28 @@ BEGIN
     RAISE EXCEPTION 'revoked scope saved a pending model reply';
   END IF;
 
+  -- Revoke access, do NOT implicitly erase saved history or active claims.
+  UPDATE public.grove_private_ark_project_grants SET revoked_at=clock_timestamp()
+    WHERE grove_user_id=bob AND firefly_project_id=project_b;
+  IF (SELECT count(*) FROM public.grove_private_turns
+      WHERE grove_user_id=bob AND firefly_project_id=project_b) <> 1 THEN
+    RAISE EXCEPTION 'soft revoke deleted completed conversation';
+  END IF;
+  BEGIN
+    DELETE FROM public.grove_private_ark_project_grants
+      WHERE grove_user_id=bob AND firefly_project_id=project_b;
+    RAISE EXCEPTION 'hard project removal bypassed retained history';
+  EXCEPTION WHEN foreign_key_violation THEN NULL;
+  END;
+  -- Synthetic stand-in for a separately authenticated owner-delete workflow:
+  -- only an EXPLICIT transcript purge permits actual hard grant removal.
+  DELETE FROM public.grove_private_turns WHERE grove_user_id=bob
+    AND firefly_project_id=project_b;
   DELETE FROM public.grove_private_ark_project_grants
     WHERE grove_user_id=bob AND firefly_project_id=project_b;
   IF EXISTS (SELECT 1 FROM public.grove_private_turn_claims
       WHERE grove_user_id=bob) THEN
-    RAISE EXCEPTION 'revoked project grant retained private pending claim';
+    RAISE EXCEPTION 'explicit purge did not clear abandoned claims';
   END IF;
   result := public.grove_private_claim_turn(
     bob,project_b,conversation,retry_id,first_hash);

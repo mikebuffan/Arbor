@@ -1,0 +1,69 @@
+name: Grove synthetic retention migration acceptance
+'on':
+  push:
+    branches:
+      - review/one-arbor-grove-440-441-compose-20261010
+
+permissions:
+  contents: read
+
+concurrency:
+  group: grove-retention-synthetic-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  disposable-postgres:
+    if: github.repository == 'mikebuffan/Arbor'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      AWS_EC2_METADATA_DISABLED: 'true'
+    steps:
+      - name: Deny cloud metadata before any source or database boot
+        shell: bash
+        run: |
+          set -euo pipefail
+          unset HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy
+          for key in HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy; do
+            printf '%s=\n' "$key" >> "$GITHUB_ENV"
+          done
+          for net in 169.254.0.0/16 100.100.100.200/32; do
+            sudo -n iptables -w 5 -I OUTPUT 1 -d "$net" -j REJECT
+            sudo -n iptables -w 5 -C OUTPUT -d "$net" -j REJECT
+          done
+          for net in fe80::/10 fc00::/7; do
+            sudo -n ip6tables -w 5 -I OUTPUT 1 -d "$net" -j REJECT
+            sudo -n ip6tables -w 5 -C OUTPUT -d "$net" -j REJECT
+          done
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Verify source ancestry and no Vercel builds
+        run: |
+          node ops/integration/verify-one-arbor-composition.mjs
+          node --test ops/grove/source-only-ignore.test.mjs
+      - name: Verify synthetic proposal on disposable isolated PostgreSQL 17.6
+        shell: bash
+        run: |
+          set -euo pipefail
+          name=grove-retention-disposable
+          trap 'docker rm -f "$name" >/dev/null 2>&1 || true' EXIT
+          docker pull postgres:17.6
+          docker run --detach --name "$name" --network none \
+            --env POSTGRES_PASSWORD=synthetic-disposable-fixture-only \
+            --mount "type=bind,source=$GITHUB_WORKSPACE,target=/source,readonly" \
+            postgres:17.6
+          ready=false
+          for attempt in {1..30}; do
+            if docker exec "$name" pg_isready --host 127.0.0.1 --username postgres; then
+              ready=true
+              break
+            fi
+            sleep 1
+          done
+          [ "$ready" = true ]
+          docker exec "$name" psql --username postgres --dbname postgres \
+            --set ON_ERROR_STOP=on \
+            --file /source/ops/grove/disposable-db/00-private-transcript-acceptance.sql
+      - name: Ensure source was not rewritten
+        run: git diff --exit-code
