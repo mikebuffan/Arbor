@@ -646,6 +646,7 @@ export async function POST(req: Request) {
         async onVerification({
           complete,
           score,
+          verificationId,
           unresolvedWork,
           evidence,
           strategyCorrection,
@@ -659,6 +660,7 @@ export async function POST(req: Request) {
                 pendingSelfUpdate,
                 {
                   score,
+                  verificationId,
                   behavior: behaviorProof,
                   protectedCorrections,
                   newFailureIntroduced:
