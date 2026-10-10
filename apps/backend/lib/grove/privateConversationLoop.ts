@@ -368,7 +368,6 @@ export async function respondToVerifiedPrivateGroveTurn(input: {
       await input.prepared.reauthorize();
       const recoveredReply =
         transcriptRowToUnverifiedReply(completed, transcriptScope);
-      await input.prepared.captureRuntimeTurn?.(recoveredReply.reply);
       return {
         status: "responded",
         reply: recoveredReply,
@@ -378,6 +377,9 @@ export async function respondToVerifiedPrivateGroveTurn(input: {
       };
     }
   }
+  // A canonical saved reply is a read-only replay, not a fresh completed
+  // conversation turn. Re-capturing it could overwrite a newer turn's
+  // lastMeaningfulUser/Arbor state. New saved turns are still captured below.
   // An active transcript model pilot MUST use the separately reviewed
   // PostgreSQL claim gate. Without the proposed migration and explicit flag,
   // fail CLOSED rather than double-charge concurrent serverless requests.
@@ -406,7 +408,6 @@ export async function respondToVerifiedPrivateGroveTurn(input: {
         await input.prepared.reauthorize();
         const recoveredReply =
           transcriptRowToUnverifiedReply(finished, transcriptScope);
-        await input.prepared.captureRuntimeTurn?.(recoveredReply.reply);
         return {
           status: "responded",
           reply: recoveredReply,
@@ -433,7 +434,6 @@ export async function respondToVerifiedPrivateGroveTurn(input: {
       await input.prepared.reauthorize();
       const recoveredReply =
         transcriptRowToUnverifiedReply(finished, transcriptScope);
-      await input.prepared.captureRuntimeTurn?.(recoveredReply.reply);
       return {
         status: "responded",
         reply: recoveredReply,
@@ -468,7 +468,6 @@ export async function respondToVerifiedPrivateGroveTurn(input: {
       throw new RouteAccessError(409, "grove_transcript_request_conflict");
     await input.prepared.reauthorize();
     const recoveredReply = transcriptRowToUnverifiedReply(canonical, transcriptScope);
-    await input.prepared.captureRuntimeTurn?.(recoveredReply.reply);
     return {
       status: "responded", reply: recoveredReply,
       persisted: true, replayed: true, requestId: transcript.requestId,
@@ -505,7 +504,11 @@ export async function respondToVerifiedPrivateGroveTurn(input: {
     await input.prepared.reauthorize();
     const savedReply =
       transcriptRowToUnverifiedReply(saved.row, transcriptScope);
-    await input.prepared.captureRuntimeTurn?.(savedReply.reply);
+    // A raced completion may return a previously saved row. Only a newly
+    // created turn may advance the short-term last-turn context.
+    if (saved.created) {
+      await input.prepared.captureRuntimeTurn?.(savedReply.reply);
+    }
     return {
       status: "responded",
       reply: savedReply,

@@ -12,6 +12,7 @@ on:
       - fix/unlock-c08-correction-count-20261009
       - fix/d12-unverified-score-20261009
       - fix/one-arbor-exact-grove-continuity-20261009
+      - fix/grove-replay-runtime-capture-20261010
 
 permissions:
   contents: read
