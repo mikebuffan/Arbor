@@ -39,6 +39,8 @@ jobs:
           lib/pages/grove_private_text_page.dart
           lib/pages/grove_private_access_page.dart
           lib/pages/grove_private_project_gate.dart
+          lib/environment/grove_house_room.dart
+          test/grove_house_navigation_test.dart
           lib/environment/grove_private_conversations.dart
           lib/environment/grove_pending_turn_store.dart
           test/grove_private_text_page_test.dart
