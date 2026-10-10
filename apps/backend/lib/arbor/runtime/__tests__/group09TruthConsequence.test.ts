@@ -50,13 +50,72 @@ describe("Group 09 source-bound truth and consequence HOLD", () => {
     expect(view.grantsExecution).toBe(false);
   });
 
-  it("a supplied outcome reference never self-verifies and never grants execution", () => {
+  it("a bare outcome reference cannot advance a second choice or self-verify", () => {
     const view = firefly({ verifiedConsequenceRef: "claim:outcome-ref" });
-    expect(view.reason).toBe("verified_consequence");
-    expect(view.suggestedNextStage).toBe("consequence");
+    expect(view.reason).toBe("await_verified_consequence");
+    expect(view.decision).toBe("hold");
+    expect(view.suggestedNextStage).toBe("second_choice");
     expect(view.consequenceVerifiedByThisCode).toBe(false);
     expect(view.learningApplied).toBe(false);
     expect(view.grantsExecution).toBe(false);
+  });
+
+  const consequence = (changes: Record<string, unknown> = {}) => ({
+    receiptId: "host:receipt:001",
+    consequenceRef: "host:consequence:001",
+    userId: scope.userId, projectId: scope.projectId,
+    conversationId: scope.conversationId, turnId: scope.turnId,
+    status: "confirmed", reviewedByHost: true,
+    ...changes,
+  });
+  const receiptView = (changes: Record<string, unknown> = {}, signal: FireflyRoundaboutInput["signal"] = "retrieval") =>
+    firefly({
+      verifiedConsequenceRef: "host:consequence:001",
+      consequenceReceipt: consequence(changes),
+      signal,
+    } as Partial<FireflyRoundaboutInput>);
+
+  it("requires a matching scoped host-reviewed consequence receipt before advancing", () => {
+    const view = receiptView();
+    expect(view.reason).toBe("verified_consequence");
+    expect(view.suggestedNextStage).toBe("consequence");
+    expect(view.decision).not.toBe("hold");
+    expect(view.consequenceVerifiedByThisCode).toBe(false);
+    expect(view.learningApplied).toBe(false);
+    expect(view.grantsExecution).toBe(false);
+  });
+
+  it.each([
+    { status: "pending" },
+    { status: "rejected" },
+    { reviewedByHost: false },
+  ])("holds an outcome that the host has not confirmed: %j", (change) => {
+    const view = receiptView(change);
+    expect(view.decision).toBe("hold");
+    expect(view.reason).toBe("await_verified_consequence");
+    expect(view.suggestedNextStage).toBe("second_choice");
+    expect(view.grantsExecution).toBe(false);
+  });
+
+  it.each([
+    { userId: "foreign-owner" },
+    { projectId: "foreign-project" },
+    { conversationId: "different-conversation" },
+    { turnId: "replayed-turn" },
+    { consequenceRef: "another-outcome" },
+  ])("rejects a foreign or mismatched purported outcome record: %j", (change) => {
+    expect(() => receiptView(change)).toThrow("firefly_roundabout_consequence_receipt_mismatch");
+  });
+
+  it("changes from apparent progress to re-observation when a reviewed negative consequence arrives", () => {
+    const before = receiptView();
+    const reconsider = receiptView({}, "prediction_error");
+    expect(before.suggestedNextStage).toBe("consequence");
+    expect(reconsider.decision).toBe("backtrack");
+    expect(reconsider.suggestedNextStage).toBe("observe");
+    expect(reconsider.reason).toBe("correction_backtrack");
+    expect(reconsider.grantsExecution).toBe(false);
+    expect(reconsider.learningApplied).toBe(false);
   });
 
   it("contradiction HOLD defeats a plausible choice and a claimed favorable outcome", () => {
