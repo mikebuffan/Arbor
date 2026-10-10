@@ -351,6 +351,37 @@ describe("Grove-only private conversation durability (fixtures, migration OFF)",
     expect(data.records.size).toBe(1);
   });
 
+  it("replays a raced canonical UUID after an uppercase retry without a second model call", async () => {
+    const data = fakeStore();
+    const canonicalId = "abcdefab-0000-4000-8000-000000000006";
+    const retryId = canonicalId.toUpperCase();
+    const saved = row({
+      requestId: canonicalId,
+      userText: "Finish this saved turn",
+      assistantText: "Canonical saved reply",
+    });
+    const raced: GrovePrivateTranscriptStore = {
+      ...data.store,
+      async listRecent(s) {
+        // Model worker B committed between worker A's last getCompleted
+        // and this history read. PostgreSQL returns a canonical UUID.
+        data.records.set([
+          s.groveUserId, s.projectId, s.conversationId, retryId,
+        ].join(":"), saved);
+        return data.store.listRecent(s);
+      },
+    };
+    const h = host(raced);
+    const result = await h.respond("Finish this saved turn", retryId);
+    expect(result).toMatchObject({
+      status: "responded", persisted: true, replayed: true,
+      requestId: retryId,
+      reply: {reply: "Canonical saved reply", workReceipts: []},
+    });
+    expect(h.sendModel).not.toHaveBeenCalled();
+    expect(data.records.size).toBe(1);
+  });
+
   it("fails closed on a malformed missing history adapter response", async () => {
     const data = fakeStore();
     const malformed: GrovePrivateTranscriptStore = {

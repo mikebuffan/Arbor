@@ -457,7 +457,9 @@ export async function respondToVerifiedPrivateGroveTurn(input: {
   // It is unsafe to send that exact turn again as a "new" model request.
   // Require an independent exact-id readback; never trust a history row alone.
   if (transcript && transcriptScope && recent?.some(
-    row => row.request_id === transcript.requestId,
+    // PostgreSQL uuid values are canonical lowercase even when the client
+    // retry ID is uppercase. Compare validated IDs by value, not spelling.
+    row => row.request_id.toLowerCase() === transcript.requestId.toLowerCase(),
   )) {
     const canonical = await transcript.store.getCompleted({
       ...transcriptScope, requestId: transcript.requestId,
