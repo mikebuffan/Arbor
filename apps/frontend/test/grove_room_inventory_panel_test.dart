@@ -105,4 +105,28 @@ void main() {
     expect(find.text("Moss's sofa spot"), findsOneWidget);
     expect(find.textContaining('does not verify ARK memory'), findsOneWidget);
   });
+
+  testWidgets('Workshop staging is a resettable unsaved furnishing preview',
+      (tester) async {
+    await showInventory(tester, initialZone: GroveZone.workshop);
+    expect(find.byKey(const ValueKey('workshop-preview-boundary')),
+        findsOneWidget);
+    expect(find.textContaining('Nothing is saved'), findsOneWidget);
+    expect(find.byKey(const ValueKey('inventory-empty')), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('workshop-fixture-select')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Workstation').last);
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('workshop-stage-fixture')));
+    await tester.pump();
+    expect(find.text('Workshop · 1 listed'), findsOneWidget);
+    expect(find.text('Workstation'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('workshop-reset-preview')));
+    await tester.pump();
+    expect(find.text('Workshop · 0 listed'), findsOneWidget);
+    expect(find.byKey(const ValueKey('inventory-empty')), findsOneWidget);
+  });
+
 }
