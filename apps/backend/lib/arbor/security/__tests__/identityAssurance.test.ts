@@ -134,4 +134,60 @@ describe("identity assurance", () => {
     expect(promptContentCanGrantAuthority("generated_elsewhere")).toBe(false);
     expect(promptContentCanGrantAuthority("unknown")).toBe(false);
   });
+  it("never promotes unknown-issuer assertions to owner identity proof", () => {
+    const decision = evaluateIdentityAssurance({
+      evidence: [
+        evidence({ kind: "passkey_assertion", issuer: "unknown" }),
+        evidence({ kind: "step_up_assertion", issuer: "unknown" }),
+      ],
+    });
+
+    expect(decision.trustState).toBe("unknown");
+    expect(decision.supportingKinds).toEqual([]);
+    expect(
+      authorizeSensitiveCapability({
+        decision,
+        capability: "private_read",
+      }).allowed,
+    ).toBe(false);
+    expect(
+      authorizeSensitiveCapability({
+        decision,
+        capability: "security_change",
+      }).allowed,
+    ).toBe(false);
+  });
+
+  it("does not let an unknown-issuer step-up elevate a valid device assertion", () => {
+    const decision = evaluateIdentityAssurance({
+      evidence: [
+        evidence({ kind: "passkey_assertion", issuer: "device_os" }),
+        evidence({ kind: "step_up_assertion", issuer: "unknown" }),
+      ],
+    });
+
+    expect(decision.trustState).toBe("verified");
+    expect(decision.supportingKinds).toEqual(["passkey_assertion"]);
+    expect(
+      authorizeSensitiveCapability({
+        decision,
+        capability: "security_change",
+      }).allowed,
+    ).toBe(false);
+  });
+
+  it("preserves trusted server evidence and blocks unknown behavioral recognition", () => {
+    const trustedDecision = evaluateIdentityAssurance({
+      evidence: [evidence({ kind: "passkey_assertion", issuer: "server" })],
+    });
+    const unknownDecision = evaluateIdentityAssurance({
+      evidence: [
+        evidence({ kind: "behavioral_language_match", issuer: "unknown" }),
+      ],
+    });
+
+    expect(trustedDecision.trustState).toBe("verified");
+    expect(unknownDecision.trustState).toBe("unknown");
+  });
+
 });
