@@ -54,6 +54,7 @@ jobs:
           lib/arbor/agency/__tests__/independentFollowthrough.test.ts
           lib/arbor/agency/__tests__/pairedOutcomeHoldout.test.ts
           lib/arbor/agency/__tests__/pairedOutcomeReceipts.test.ts
+          lib/arbor/runtime/__tests__/group09TruthConsequence.test.ts
       - name: Backend TypeScript
         working-directory: apps/backend
         run: pnpm exec tsc --noEmit
