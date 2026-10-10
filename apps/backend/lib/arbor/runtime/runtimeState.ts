@@ -65,11 +65,16 @@ const OBSERVATION_ID = /^[A-Za-z0-9._:-]{4,200}$/;
 export function normalizeCorrection(
   correction: ArborCorrection,
 ): ArborCorrection {
+  const count = correction.occurrences ?? 1;
+  // A malformed legacy count is not evidence of new feedback. Refuse it
+  // before merging any snapshot or using it in learning/promotion decisions.
+  if (!Number.isSafeInteger(count) || count < 1)
+    throw new Error("arbor_correction_invalid_occurrences");
   const result: ArborCorrection = {
     ...correction,
     value: correction.value.trim(),
     confidence: clampConfidence(correction.confidence),
-    occurrences: Math.max(1, Number(correction.occurrences ?? 1)),
+    occurrences: count,
   };
   if (correction.observationIds === undefined) {
     if (correction.legacyOccurrences !== undefined)
@@ -109,8 +114,11 @@ function combinedCorrection(
     // original conservative legacy behavior until host event IDs are known.
     const sameObservation = Date.parse(next.observedAt) === Date.parse(prior.observedAt) &&
       next.kind === prior.kind && next.value === prior.value && next.source === prior.source;
-    return { ...latest, occurrences: fromSnapshot || sameObservation ||
-      incomingCount > 1 ? Math.max(priorCount, incomingCount) : priorCount + 1 };
+    const occurrences = fromSnapshot || sameObservation || incomingCount > 1
+      ? Math.max(priorCount, incomingCount) : priorCount + 1;
+    if (!Number.isSafeInteger(occurrences))
+      throw new Error("arbor_correction_occurrence_overflow");
+    return { ...latest, occurrences };
   }
 
   const known = [...new Set([...priorIds, ...incomingIds])].sort();
@@ -136,6 +144,8 @@ function combinedCorrection(
   // A keyed aggregate can only grow by previously unseen event IDs. An
   // unkeyed input without new evidence cannot increase it by a retry.
   const occurrences = Math.max(priorCount, incomingCount, baseline + known.length);
+  if (!Number.isSafeInteger(occurrences))
+    throw new Error("arbor_correction_occurrence_overflow");
   baseline = occurrences - known.length;
   return {
     ...latest,
