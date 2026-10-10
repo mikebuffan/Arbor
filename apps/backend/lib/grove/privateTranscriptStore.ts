@@ -230,13 +230,23 @@ export function selectPrivateModelHistory(input: {
   if (!Array.isArray(input.completedNewestFirst) ||
       input.completedNewestFirst.length > 6)
     throw new Error("grove_transcript_history_limit");
+  // Never silently trust a history adapter's order. A swapped pair would
+  // reverse cause and response after restart, even though each row is valid.
+  // Validate ALL six possible rows before truncating for the model budget.
   const seenRequests = new Set<string>();
+  let newestToOldest = Number.POSITIVE_INFINITY;
   for (const row of input.completedNewestFirst) {
     assertRow(row, input.scope);
     // A repeated source pair must not become two independent LM memories.
     if (seenRequests.has(row.request_id))
       throw new Error("grove_transcript_history_duplicate_request");
     seenRequests.add(row.request_id);
+    const observed = Date.parse(row.created_at);
+    if (observed > newestToOldest)
+      throw new Error("grove_transcript_history_out_of_order");
+    newestToOldest = observed;
+  }
+  for (const row of input.completedNewestFirst) {
     // Preserve the latest context before older context. Truncation is for
     // the LM-only context window, never the durable stored record.
     const user = row.user_text.slice(0, 3000);
