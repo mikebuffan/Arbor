@@ -1,0 +1,380 @@
+{
+  "schemaVersion": 1,
+  "kind": "derived-review-view-not-master",
+  "authoritativeSource": "ONE_ARBOR_97_TASKS_15_ORDERED_WORK_GROUPS_20261007.md",
+  "reassessmentSource": "ONE_ARBOR_97_TASK_DEPENDENCY_REASSESSMENT_20261009.md",
+  "rule": "Verification triggers review only. No implicit status promotion, live acceptance, tool authority, execution or scheduling.",
+  "coverage": "All 97 IDs mapped once; recorded review triggers are an intentionally partial evidence-based subset, not a complete prerequisite graph.",
+  "groups": [
+    {
+      "group": 1,
+      "name": "Foundations, security and ARK controls",
+      "ids": [
+        "A01",
+        "A02",
+        "A10",
+        "A12",
+        "F16",
+        "A08",
+        "F08",
+        "A03",
+        "A04",
+        "A06",
+        "A07"
+      ]
+    },
+    {
+      "group": 2,
+      "name": "Private host, owner identity and model",
+      "ids": [
+        "E08",
+        "F01",
+        "F02",
+        "F03",
+        "F04",
+        "F05",
+        "F06"
+      ]
+    },
+    {
+      "group": 3,
+      "name": "Independent action and completion receipts",
+      "ids": [
+        "A09",
+        "A05",
+        "F09"
+      ]
+    },
+    {
+      "group": 4,
+      "name": "Memory and continuity",
+      "ids": [
+        "B10",
+        "B11",
+        "C06",
+        "C07",
+        "C08",
+        "D14",
+        "D16",
+        "F10",
+        "C10",
+        "B05",
+        "B07",
+        "B12",
+        "B13",
+        "B14",
+        "B06",
+        "B08",
+        "B09"
+      ]
+    },
+    {
+      "group": 5,
+      "name": "Judgment, identity, learning and initiative",
+      "ids": [
+        "C01",
+        "C02",
+        "C03",
+        "C04",
+        "C12",
+        "D13",
+        "D01",
+        "D02",
+        "D03",
+        "D04",
+        "D12",
+        "D05",
+        "D06",
+        "D09",
+        "D10",
+        "D11",
+        "D17",
+        "E09",
+        "B15",
+        "B16",
+        "E01",
+        "E02",
+        "E03",
+        "E04",
+        "E07",
+        "A11",
+        "E05"
+      ]
+    },
+    {
+      "group": 6,
+      "name": "Conversation, voice, phone and Grove",
+      "ids": [
+        "C05",
+        "C09",
+        "C11",
+        "D15",
+        "D18",
+        "F11",
+        "F12",
+        "F13",
+        "G09",
+        "G11",
+        "G12"
+      ]
+    },
+    {
+      "group": 7,
+      "name": "Independent projects and optional expansion",
+      "ids": [
+        "B01",
+        "B02",
+        "B03",
+        "B04",
+        "D07",
+        "D08",
+        "G06",
+        "G07",
+        "G08",
+        "G01",
+        "G02",
+        "G03",
+        "G04",
+        "G05",
+        "E06",
+        "F07",
+        "F14",
+        "F15",
+        "G10",
+        "G13",
+        "G14"
+      ]
+    }
+  ],
+  "reviewTriggers": [
+    {
+      "from": "A09",
+      "minStage": "source_verified",
+      "to": [
+        "F09",
+        "B11",
+        "B15",
+        "E07",
+        "A04"
+      ],
+      "reason": "Completion receipts changed; recheck dependent action/restart, history and hosted-resume paths"
+    },
+    {
+      "from": "A08",
+      "minStage": "source_verified",
+      "to": [
+        "A04",
+        "B11",
+        "F09"
+      ],
+      "reason": "Bounded retry and duplicate controls changed"
+    },
+    {
+      "from": "A05",
+      "minStage": "source_verified",
+      "to": [
+        "A09",
+        "F09"
+      ],
+      "reason": "Read-task receipt can inform a later integrated action audit, not prove it"
+    },
+    {
+      "from": "B11",
+      "minStage": "source_verified",
+      "to": [
+        "C08",
+        "C06",
+        "D12"
+      ],
+      "reason": "Correction recovery behavior affects retention and reflection"
+    },
+    {
+      "from": "C08",
+      "minStage": "source_verified",
+      "to": [
+        "C06",
+        "C09",
+        "C10",
+        "D12"
+      ],
+      "reason": "Correction retention affects drift and cross-surface recovery"
+    },
+    {
+      "from": "B07",
+      "minStage": "source_verified",
+      "to": [
+        "B08",
+        "B09"
+      ],
+      "reason": "Temporal eligibility may change what is retrievable or capturable"
+    },
+    {
+      "from": "B06",
+      "minStage": "source_verified",
+      "to": [
+        "B08"
+      ],
+      "reason": "Eligible retrieval is a prerequisite for later decision comparisons"
+    },
+    {
+      "from": "C01",
+      "minStage": "source_verified",
+      "to": [
+        "C04",
+        "C12",
+        "D13"
+      ],
+      "reason": "Canonical self-model may affect independence and preference experiments"
+    },
+    {
+      "from": "D05",
+      "minStage": "source_verified",
+      "to": [
+        "D09",
+        "D11",
+        "E09"
+      ],
+      "reason": "Decision evidence boundaries may affect truth and priority review"
+    },
+    {
+      "from": "F06",
+      "minStage": "source_verified",
+      "to": [
+        "F04",
+        "F09"
+      ],
+      "reason": "Receiver/source compatibility should reopen local model-path checks"
+    },
+    {
+      "from": "G03",
+      "minStage": "source_verified",
+      "to": [
+        "G04"
+      ],
+      "reason": "Editorial workspace receipts may affect author-owned chapter workflow"
+    },
+    {
+      "from": "D08",
+      "minStage": "source_verified",
+      "to": [
+        "G06",
+        "G08"
+      ],
+      "reason": "Research hop guardrails may affect existing research-run verification"
+    },
+    {
+      "from": "G07",
+      "minStage": "source_verified",
+      "to": [
+        "G06",
+        "G08"
+      ],
+      "reason": "Source provenance may affect existing research-run verification"
+    },
+    {
+      "from": "F01",
+      "minStage": "host_accepted",
+      "to": [
+        "F03",
+        "F09",
+        "B10"
+      ],
+      "reason": "Authenticated owner identity unlocks hosted acceptance checks"
+    },
+    {
+      "from": "F03",
+      "minStage": "host_accepted",
+      "to": [
+        "F09",
+        "B10",
+        "B11",
+        "B12",
+        "B13",
+        "B14",
+        "G03"
+      ],
+      "reason": "Real app storage readback unlocks dependent hosted checks"
+    },
+    {
+      "from": "F04",
+      "minStage": "host_accepted",
+      "to": [
+        "F09",
+        "C04",
+        "C06",
+        "B08",
+        "C09",
+        "F11",
+        "D13"
+      ],
+      "reason": "Accepted model runtime unlocks model-behavior checks"
+    },
+    {
+      "from": "F06",
+      "minStage": "host_accepted",
+      "to": [
+        "F09",
+        "C01",
+        "C10"
+      ],
+      "reason": "Verified model receiver integration unlocks cross-surface tests"
+    },
+    {
+      "from": "E08",
+      "minStage": "host_accepted",
+      "to": [
+        "F01",
+        "F03",
+        "F09"
+      ],
+      "reason": "Authenticated scope and grants unlock host-owned acceptance checks"
+    },
+    {
+      "from": "A03",
+      "minStage": "host_accepted",
+      "to": [
+        "A04",
+        "A07",
+        "E05"
+      ],
+      "reason": "Objective control authorization and STOP proofs may reopen worker checks"
+    },
+    {
+      "from": "A04",
+      "minStage": "host_accepted",
+      "to": [
+        "A07",
+        "F09",
+        "E05",
+        "G08"
+      ],
+      "reason": "Hosted checkpoint/resume enables downstream acceptance review"
+    },
+    {
+      "from": "F09",
+      "minStage": "host_accepted",
+      "to": [
+        "B15",
+        "B16",
+        "E07",
+        "D05",
+        "A04"
+      ],
+      "reason": "Integrated action/readback enables downstream history and decision checks"
+    },
+    {
+      "from": "F10",
+      "minStage": "host_accepted",
+      "to": [
+        "C10",
+        "F11",
+        "F12",
+        "F13",
+        "G09",
+        "G11",
+        "G12"
+      ],
+      "reason": "Physical installed-phone acceptance reopens surface checks"
+    }
+  ]
+}
