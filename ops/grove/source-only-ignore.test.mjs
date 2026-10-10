@@ -55,3 +55,13 @@ test("isolated project rejects main, unknown branches and missing branch metadat
   }
   assert.equal(exitCode({ VERCEL_PROJECT_ID: project, VERCEL_ENV: "preview" }), 0);
 });
+
+test("batch20 security and recovery draft remains source-only in every deployment stage", () => {
+  const reviewBranch = "fix/batch20-identity-issuer-gate-20261009";
+  for (const stage of ["preview", "production", "development", ""]) {
+    for (const id of [project, "prj_JArYlugmdFovY10CxZ0LEJmcrsKC", ""]) {
+      assert.equal(exitCode({ VERCEL_ENV: stage, VERCEL_PROJECT_ID: id, VERCEL_GIT_COMMIT_REF: reviewBranch }), 0);
+    }
+  }
+});
+
