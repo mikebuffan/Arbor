@@ -21,7 +21,7 @@ function memoryDatabase(options: { dropWrite?: boolean; missingMigration?: boole
   const insert = vi.fn(async () => { throw new Error("direct_revision_insert_must_not_run"); });
   const from = vi.fn((name: string) => {
     const query: any = {
-      select: () => query, eq: () => query, order: () => query, limit: () => query,
+      select: () => query, eq: () => query, order: vi.fn(() => query), limit: () => query,
       maybeSingle: async () => {
         if (name === "annabelle_workspace_state")
           return options.missingMigration
@@ -135,5 +135,19 @@ describe("Annabelle opt-in atomic workspace cutover", () => {
     expect(restored.workingDelta).toBeNull();
     expect(db.rpc).toHaveBeenCalledTimes(2);
     expect(db.upsert).not.toHaveBeenCalled();
+    const index = db.from.mock.calls.findIndex(call => call[0] === "annabelle_workspace_revisions");
+    expect(index).toBeGreaterThanOrEqual(0);
+    expect(db.from.mock.results[index]?.value.order).toHaveBeenCalledWith(
+      "resulting_version", { ascending: false, nullsFirst: false },
+    );
+  });
+
+  it("never claims a successful atomic restore when no previous revision exists", async () => {
+    vi.stubEnv("ANNABELLE_ATOMIC_WORKSPACE_ENABLED", "true");
+    const db = memoryDatabase();
+    await expect(restoreLatestAnnabelleWorkspaceRevision({
+      ...owner, supabase: db.supabase, expectedVersion: 0, requestId: idA,
+    })).rejects.toThrow("annabelle_atomic_revision_not_found");
+    expect(db.rpc).not.toHaveBeenCalled();
   });
 });
