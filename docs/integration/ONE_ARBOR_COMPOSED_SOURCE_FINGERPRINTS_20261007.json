@@ -227,7 +227,7 @@
     "apps/frontend/lib/pages/grove_private_text_page.dart": "158ad3837d6a71de438311d10514b979f653aa6e",
     "apps/backend/lib/grove/__tests__/privateReadBroker.test.ts": "a96b1a89cf7d13cd63063039f6092c84cc6de366",
     "apps/backend/lib/grove/privateReadBroker.ts": "5b49f0bea673f4528c29494626adb823ddd0e6aa",
-    "apps/frontend/lib/config/grove_private_config.dart": "39fb6a6a9f4151d323340e1ff158f5b7c75ccab2",
+    "apps/frontend/lib/config/grove_private_config.dart": "5b084acbfbc28fc7df8beafbb90c887ede626255",
     "apps/frontend/test/grove_private_auth_boundary_test.dart": "945ae2d56bd2a7501b41a6836c5dba89b4d33132",
     "docs/integration/ONE_ARBOR_BATCH5_PENDING_ACTION_RECEIPT_20261010.md": "1318195d23bcc2f63535884c5d0fbf62f2eb2e72",
     "docs/integration/ONE_ARBOR_BATCH6_RESTART_RECEIPT_20261010.md": "8cd1cc261e852cf5a0e598bccdde614f8acf5910",
