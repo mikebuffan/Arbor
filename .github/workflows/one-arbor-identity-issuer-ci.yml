@@ -6,6 +6,7 @@ on:
       - fix/batch20-identity-issuer-gate-20261009
       - fix/chat-safe-batch-followthrough-20261009
       - fix/chat-boundary-pending-receipts-20261009
+      - fix/one-arbor-97-unlock-review-20261009
 
 permissions:
   contents: read
@@ -34,6 +35,11 @@ jobs:
         run: node ops/integration/verify-one-arbor-composition.mjs
       - name: Verify review branch can never trigger Vercel build
         run: node --test ops/grove/source-only-ignore.test.mjs
+      - name: Evaluate existing 97-task unlock candidates (read only)
+        run: |
+          node --test ops/integration/__tests__/one-arbor-unlock-review.test.mjs
+          node ops/integration/one-arbor-unlock-review.mjs > /tmp/one-arbor-unlock-flags.json
+          node -e 'const r=require("/tmp/one-arbor-unlock-flags.json"); console.log("ONE ARBOR REVIEW: "+r.originalTaskCount+" original tasks; "+r.flaggedTasks.length+" reassessment flags; "+r.actionsStarted.length+" actions started");'
       - name: Resolve locked dependencies
         run: |
           corepack enable
