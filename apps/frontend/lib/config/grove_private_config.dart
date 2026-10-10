@@ -10,18 +10,23 @@ class GrovePrivateConfig {
     required this.authUrl,
     required this.publishableKey,
     required this.apiUrl,
+    this.approvedApiHost = '',
     this.isolatedTestProfile = false,
   });
 
   final String authUrl;
   final String publishableKey;
   final String apiUrl;
+  /// Separately approved exact private API hostname, not the API URL itself.
+  /// A production build without an explicit approved host stays unconfigured.
+  final String approvedApiHost;
   final bool isolatedTestProfile;
 
   static const fromBuild = GrovePrivateConfig(
     authUrl: String.fromEnvironment('GROVE_SUPABASE_URL'),
     publishableKey: String.fromEnvironment('GROVE_SUPABASE_ANON_KEY'),
     apiUrl: String.fromEnvironment('GROVE_API_URL'),
+    approvedApiHost: String.fromEnvironment('GROVE_APPROVED_API_HOST'),
     isolatedTestProfile:
         String.fromEnvironment('GROVE_ISOLATED_TEST_PROFILE') ==
             'one-arbor-20261009',
@@ -65,8 +70,10 @@ class GrovePrivateConfig {
         api.fragment.isEmpty &&
         auth.host.toLowerCase() ==
             (isolatedTestProfile ? isolatedTestAuthHost : expectedAuthHost) &&
-        (!isolatedTestProfile ||
-            api.host.toLowerCase() == isolatedTestApiHost) &&
+        (isolatedTestProfile
+            ? api.host.toLowerCase() == isolatedTestApiHost
+            : (approvedApiHost.trim().isNotEmpty &&
+                api.host.toLowerCase() == approvedApiHost.trim().toLowerCase())) &&
         !reservedAuthHosts.contains(auth.host.toLowerCase()) &&
         !reservedApiHosts.contains(api.host.toLowerCase()) &&
         publishableKey.trim().isNotEmpty &&
