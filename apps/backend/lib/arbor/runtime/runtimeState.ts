@@ -88,11 +88,20 @@ export function mergeCorrections(
         ? normalized
         : prior;
 
+    // A retry of the latest saved observation is not fresh feedback. Older
+    // distinct observations still need event IDs for historical deduplication.
+    const sameObservation =
+      Date.parse(normalized.observedAt) === Date.parse(prior.observedAt) &&
+      normalized.kind === prior.kind &&
+      normalized.value === prior.value &&
+      normalized.source === prior.source;
+    const priorCount = prior.occurrences ?? 1;
+    const incomingCount = normalized.occurrences ?? 1;
     byId.set(normalized.id, {
       ...latest,
-      occurrences:
-        Math.max(1, Number(prior.occurrences ?? 1)) +
-        Math.max(1, Number(normalized.occurrences ?? 1)),
+      occurrences: sameObservation
+        ? Math.max(priorCount, incomingCount)
+        : priorCount + incomingCount,
     });
   }
 

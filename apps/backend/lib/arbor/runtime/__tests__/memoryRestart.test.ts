@@ -31,6 +31,34 @@ function durableStore() {
 const base = { userId: "owner", projectId: "private", channel: "text" as const, activeSubsystem: "arbor" as const };
 
 describe("durable memory through independent session startup", () => {
+  it("does not multiply a replayed correction after serialized restart", async () => {
+    const db = durableStore();
+    const correction = { id: "behavior:continuity", kind: "behavior" as const,
+      value: "Preserve unfinished work", source: "text" as const,
+      observedAt: "2026-10-09T18:00:00Z", confidence: 1, protected: true, occurrences: 1 };
+    for (let restart = 0; restart < 3; restart++) {
+      const state = await beginRuntimeSession({ ...base, supabase: db.connect(),
+        conversationId: "text", currentGoal: "unfinished task", corrections: [correction],
+        now: `2026-10-09T18:0${restart}:00Z` });
+      expect(state.corrections[0].occurrences).toBe(1);
+    }
+  });
+
+  it("persists explicit context clears through a fresh connection", async () => {
+    const db = durableStore();
+    const context = { ...base, conversationId: "text" };
+    await beginRuntimeSession({ ...context, supabase: db.connect(), currentGoal: "old task",
+      lastMeaningfulUserTurn: "old request", lastMeaningfulArborTurn: "old response",
+      agency: { goal: "old task", status: "complete", currentStep: 1,
+        unresolvedWork: [], recurringWeaknesses: [], strategyNotes: [] }, now: "2026-10-09T18:00:00Z" });
+    await beginRuntimeSession({ ...context, supabase: db.connect(), currentGoal: null,
+      lastMeaningfulUserTurn: null, lastMeaningfulArborTurn: null, agency: null,
+      behaviorProof: null, now: "2026-10-09T18:01:00Z" });
+    const loaded = await beginRuntimeSession({ ...context, supabase: db.connect(), now: "2026-10-09T18:02:00Z" });
+    expect(loaded).toMatchObject({ currentGoal: null, lastMeaningfulUserTurn: null,
+      lastMeaningfulArborTurn: null, agency: null, behaviorProof: null });
+  });
+
   it("projects a Voice correction into an older Text thread without losing unfinished work or multiplying feedback", async () => {
     const db = durableStore();
     await beginRuntimeSession({ ...base, supabase: db.connect(), conversationId: "text",

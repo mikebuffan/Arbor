@@ -35,6 +35,18 @@ const base: ArborRuntimeState = {
 };
 
 describe("shared Arbor runtime state", () => {
+  it("does not count the same correction observation again on retry", () => {
+    const event = { id: "behavior:continuity", kind: "behavior" as const,
+      value: "You forgot; preserve the unfinished task.", source: "text" as const,
+      observedAt: "2026-10-09T18:00:00Z", confidence: 1, protected: true, occurrences: 1 };
+    const first = mergeCorrections([], [event]);
+    const retry = mergeCorrections(JSON.parse(JSON.stringify(first)), [event]);
+    expect(retry).toEqual(first);
+    expect(mergeCorrections(retry, [event, event])[0].occurrences).toBe(1);
+    expect(mergeCorrections(retry, [{ ...event, observedAt: "2026-10-09T20:00:00+02:00" }])[0].occurrences).toBe(1);
+    // A genuinely later observation still counts, even with the same wording.
+    expect(mergeCorrections(retry, [{ ...event, observedAt: "2026-10-09T18:01:00Z" }])[0].occurrences).toBe(2);
+  });
   it("does not count copied snapshot observations as new feedback and compares offset timestamps chronologically", () => {
     const earlier = { id: "behavior:drift", kind: "behavior" as const, value: "earlier",
       source: "text" as const, observedAt: "2026-10-01T09:00:00+02:00", confidence: 1, protected: true, occurrences: 3 };
