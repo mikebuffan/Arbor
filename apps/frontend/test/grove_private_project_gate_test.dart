@@ -25,6 +25,13 @@ void main() {
     }
   });
 
+  test('same UUID in different hexadecimal case cannot duplicate project access', () {
+    const id = 'abcdefab-1234-4000-8000-abcdef123456';
+    expect(() => parseGroveGrantedProjectIds({
+      'ok': true, 'projects': [id, id.toUpperCase()],
+    }), throwsFormatException);
+  });
+
   testWidgets('one verified private grant opens the room exactly once',
       (tester) async {
     final chosen = <String>[];

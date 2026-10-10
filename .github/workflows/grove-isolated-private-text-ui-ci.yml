@@ -12,6 +12,7 @@ on:
       - review/grove-ui-phone-compose-20261010
       - review/grove-fullstack-source-compose-20261010
       - test/grove-android-debug-20261010
+      - fix/grove-uuid-duplicate-scope-20261010
 
 permissions:
   contents: read
