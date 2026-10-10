@@ -18,7 +18,7 @@ test("all original 97 IDs occur exactly once in seven fixed groups", () => {
 
 test("verified A09 source repair flags only direct dependent reviews", () => {
   const result = findUnlockReviews(view,[evidence("A09")]);
-  assert.deepEqual(result.flaggedTasks.map(x=>x.taskId),["A04","B11","B15","E07","F09"]);
+  assert.deepEqual(result.flaggedTasks.map(x=>x.taskId),["A04","F09","B11","B15","E07"]);
   assert.equal(result.originalTaskCount,97);
   assert.deepEqual(result.changedTaskStatuses,[]);
   assert.deepEqual(result.actionsStarted,[]);
