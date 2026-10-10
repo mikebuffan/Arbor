@@ -6,6 +6,7 @@ const branches = new Set([
   "test/grove-group5-rooms-20261010",
   "test/grove-group6-workspaces-20261010",
   "test/grove-group8-accessibility-20261010",
+  "review/grove-combined-ui-diary-20261010",
   "fix/d12-unverified-score-20261009",
   "fix/unlock-c08-correction-count-20261009",
   "fix/cross-round-receipt-retention-20261009",
