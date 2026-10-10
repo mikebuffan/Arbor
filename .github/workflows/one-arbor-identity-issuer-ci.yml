@@ -14,6 +14,7 @@ on:
       - fix/b15-causal-ancestry-gate-20261009
       - fix/one-arbor-reassess-source-wins-20261010
       - test/one-arbor-reopened-judgment-20261010
+      - fix/one-arbor-correction-learning-recheck-20261010
 
 permissions:
   contents: read
@@ -67,6 +68,7 @@ jobs:
           lib/arbor/agency/__tests__/updateLifecycle.test.ts
           lib/arbor/runtime/__tests__/decisionAncestry.test.ts
           lib/arbor/runtime/__tests__/oneArborReopenedJudgment.test.ts
+          lib/arbor/runtime/__tests__/correctionLearningRecheck.test.ts
       - name: Type-check existing backend
         working-directory: apps/backend
         run: pnpm exec tsc --noEmit

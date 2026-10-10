@@ -97,11 +97,17 @@ export function mergeCorrections(
       normalized.source === prior.source;
     const priorCount = prior.occurrences ?? 1;
     const incomingCount = normalized.occurrences ?? 1;
+    // A correction with occurrences > 1 is an accumulated snapshot, not
+    // evidence of that many NEW events. Without per-observation identities
+    // the safe bound is the larger documented count; adding two cumulative
+    // counts fabricates feedback and can distort later correction/learning
+    // decisions. Only a distinct single new observation increments.
+    const mergedCount = sameObservation || incomingCount > 1
+      ? Math.max(priorCount, incomingCount)
+      : priorCount + 1;
     byId.set(normalized.id, {
       ...latest,
-      occurrences: sameObservation
-        ? Math.max(priorCount, incomingCount)
-        : priorCount + incomingCount,
+      occurrences: mergedCount,
     });
   }
 
