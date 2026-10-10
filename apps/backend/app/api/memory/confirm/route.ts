@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
 
     const { data: pendingRows, error: pErr } = await pendingQuery;
     if (pErr) {
-      return NextResponse.json({ error: pErr.message }, { status: 500 });
+      return routeErrorResponse(pErr);
     }
 
     const pending = selectEligibleConfirmationCandidate(
@@ -102,7 +102,7 @@ export async function POST(req: NextRequest) {
       : deleteQuery.is("project_id", null);
     const { error: dErr } = await deleteQuery;
     if (dErr) {
-      return NextResponse.json({ error: dErr.message }, { status: 500 });
+      return routeErrorResponse(dErr);
     }
 
     return NextResponse.json({

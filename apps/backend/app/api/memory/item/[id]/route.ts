@@ -38,7 +38,7 @@ export async function PATCH(
         .select("id, key, pinned, tier, locked, status, deleted_at")
         .maybeSingle();
 
-      if (uErr) return NextResponse.json({ error: uErr.message }, { status: 500 });
+      if (uErr) return routeErrorResponse(uErr);
       if (!item) {
         return NextResponse.json({ error: "memory not found" }, { status: 404 });
       }
@@ -57,7 +57,7 @@ export async function PATCH(
         .select("id, key, pinned, tier, locked, status, deleted_at")
         .maybeSingle();
 
-      if (uErr) return NextResponse.json({ error: uErr.message }, { status: 500 });
+      if (uErr) return routeErrorResponse(uErr);
       if (!item) {
         return NextResponse.json({ error: "memory not found" }, { status: 404 });
       }
@@ -81,7 +81,7 @@ export async function PATCH(
         .select("id, key, pinned, tier, locked, status, deleted_at")
         .maybeSingle();
 
-      if (uErr) return NextResponse.json({ error: uErr.message }, { status: 500 });
+      if (uErr) return routeErrorResponse(uErr);
       if (!item) {
         return NextResponse.json({ error: "memory not found" }, { status: 404 });
       }

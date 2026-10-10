@@ -80,19 +80,37 @@ export async function POST(req: Request) {
 
     const ids = rows.map((r) => r.id);
 
-    const { error: updateErr } = await supabase
+    // Ownership, scope and lock state may change between the read and write.
+    // Return success only for rows the guarded mutation actually changed.
+    let update = supabase
       .from("memory_items")
       .update({ deleted_at: new Date().toISOString() })
-      .in("id", ids);
+      .in("id", ids)
+      .eq("user_id", auth.user.id)
+      .eq("locked", false)
+      .is("deleted_at", null);
+    if (projectId) {
+      update = update.eq("project_id", projectId);
+    } else if (!memoryId) {
+      update = update.is("project_id", null);
+    }
+    const { data: deletedRows, error: updateErr } = await update.select("id");
 
     if (updateErr) {
       return routeErrorResponse(updateErr);
     }
+    if (!deletedRows || deletedRows.length !== ids.length) {
+      // Some rows may already have changed; this is not a rollback guarantee.
+      return NextResponse.json(
+        { ok: false, error: "memory_changed_during_delete" },
+        { status: 409 },
+      );
+    }
 
     return NextResponse.json({
       ok: true,
-      deletedCount: ids.length,
-      ids,
+      deletedCount: deletedRows.length,
+      ids: deletedRows.map((row) => row.id),
     });
   } catch (error: unknown) {
     return routeErrorResponse(error);
