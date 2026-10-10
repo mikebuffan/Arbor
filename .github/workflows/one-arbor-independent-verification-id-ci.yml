@@ -46,6 +46,12 @@ jobs:
       - name: Backend TypeScript
         working-directory: apps/backend
         run: pnpm exec tsc --noEmit
+      - name: Install required local PDF regression toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils
+          pdfinfo -v
+          pdftotext -v
       - name: Full backend regression
         run: pnpm --filter firefly-backend test
       - name: Backend build (CI only)
