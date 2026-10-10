@@ -82,4 +82,36 @@ void main() {
     expect(find.text('DEMO / UNVERIFIED - LIVE WORK NOT VERIFIED'), findsOneWidget);
     expect(find.text('Fake completion'), findsNothing);
   });
+
+  testWidgets('a claimed completion without a receipt cannot unlock ARK work',
+      (tester) async {
+    await tester.pumpWidget(const MaterialApp(
+      home: Scaffold(
+        body: SingleChildScrollView(
+          child: ProfessionalWorkspaceView(
+            objective: EnvironmentObjectiveView(
+              title: 'Unverified claimed completion',
+              state: EnvironmentRunState.complete,
+            ),
+            runtimeSource: 'ARK read adapter',
+            runtimeStale: false,
+            workItems: [
+              WorkItemView('Unreceipted victory', WorkItemState.complete,
+                  isDemo: false),
+            ],
+            activityEvents: [
+              ActivityEvent(title: 'Unreceipted event', detail: 'no proof',
+                  kind: 'receipt', isDemo: false),
+            ],
+          ),
+        ),
+      ),
+    ));
+    expect(find.text('DEMO / UNVERIFIED - LIVE WORK NOT VERIFIED'),
+        findsOneWidget);
+    expect(find.text('INVALID OBJECTIVE STATE'), findsOneWidget);
+    expect(find.text('Unreceipted victory'), findsNothing);
+    expect(find.text('Unreceipted event'), findsNothing);
+  });
+
 }

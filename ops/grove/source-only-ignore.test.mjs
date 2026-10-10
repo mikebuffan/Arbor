@@ -142,3 +142,16 @@ test("Grove Group 5 room tests remain source-only across all Vercel projects", (
     }
   }
 });
+
+test("Grove Group 6 workspace review cannot trigger any Vercel build", () => {
+  const ref = "test/grove-group6-workspaces-20261010";
+  for (const stage of ["preview", "production", "development", ""]) {
+    for (const id of [project, "prj_JArYlugmdFovY10CxZ0LEJmcrsKC", ""]) {
+      assert.equal(exitCode({
+        VERCEL_ENV: stage,
+        VERCEL_PROJECT_ID: id,
+        VERCEL_GIT_COMMIT_REF: ref,
+      }), 0, stage + " " + id);
+    }
+  }
+});
