@@ -21,6 +21,26 @@
         "Full backend regression",
         "Production backend build"
       ]
+    },
+    {
+      "branch": "fix/cross-round-receipt-retention-20261009",
+      "headSha": "f48e30e545beda47f4332684601910c59e354919",
+      "taskIds": [
+        "B11",
+        "E07"
+      ],
+      "stage": "source_verified",
+      "workflow": "One Arbor verified boundary receipt and chat source acceptance",
+      "job": "identity-security",
+      "requiredSteps": [
+        "Verify 223 retained source fingerprints",
+        "Verify review branch can never trigger Vercel build",
+        "Verify identity issuer negative and positive controls",
+        "Type-check existing backend",
+        "Full backend regression",
+        "Production backend build"
+      ]
     }
-  ]
+  ],
+  "note": "Binding B11/E07 to exact source-tested chat receipt preservation does not prove authenticated hosted restart or complete either task."
 }
