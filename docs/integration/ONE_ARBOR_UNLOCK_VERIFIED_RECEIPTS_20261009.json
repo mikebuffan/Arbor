@@ -1,13 +1,49 @@
 {
   "schemaVersion": 1,
   "kind": "verified-source-receipts-for-review-only",
-  "note": "Receipts refer to verified, source-only GitHub CI. These events do NOT prove host acceptance, close tasks, permit deployment, or authorize execution.",
+  "note": "Reviewed exact-head GitHub push runs and required successful job steps. All entries are source-only; none establish host acceptance, completion, deployment, permission, or autonomous execution.",
   "verifiedEvents": [
     {
       "taskId": "A09",
       "stage": "source_verified",
       "outcome": "verified",
       "receipt": "https://github.com/mikebuffan/Arbor/actions/runs/38026869361"
+    },
+    {
+      "taskId": "B11",
+      "stage": "source_verified",
+      "outcome": "verified",
+      "receipt": "https://github.com/mikebuffan/Arbor/actions/runs/38028889757"
+    },
+    {
+      "taskId": "E07",
+      "stage": "source_verified",
+      "outcome": "verified",
+      "receipt": "https://github.com/mikebuffan/Arbor/actions/runs/38028889757"
+    },
+    {
+      "taskId": "C08",
+      "stage": "source_verified",
+      "outcome": "verified",
+      "receipt": "https://github.com/mikebuffan/Arbor/actions/runs/38029454170"
+    },
+    {
+      "taskId": "B15",
+      "stage": "source_verified",
+      "outcome": "verified",
+      "receipt": "https://github.com/mikebuffan/Arbor/actions/runs/38031249508"
+    },
+    {
+      "taskId": "D12",
+      "stage": "source_verified",
+      "outcome": "verified",
+      "receipt": "https://github.com/mikebuffan/Arbor/actions/runs/38038583653"
+    },
+    {
+      "taskId": "D09",
+      "stage": "source_verified",
+      "outcome": "verified",
+      "receipt": "https://github.com/mikebuffan/Arbor/actions/runs/38040681076"
     }
   ],
   "processedEventKeys": []
