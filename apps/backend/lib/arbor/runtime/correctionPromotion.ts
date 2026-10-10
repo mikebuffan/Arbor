@@ -23,10 +23,15 @@ export function correctionPromotionItem(
   correction: ArborCorrection,
   explicitlyAuthorized = false,
 ): MemoryItem | null {
-  const occurrences = Math.max(
-    1,
-    Number(correction.occurrences ?? 1),
-  );
+  // A malformed saved occurrence count must never qualify a correction for
+  // global promotion, including via NaN comparison bypass. Require actual
+  // positive safe-integer observations and finite bounded confidence.
+  const occurrences = correction.occurrences ?? 1;
+  if (!Number.isSafeInteger(occurrences) || occurrences < 1 ||
+      !Number.isFinite(correction.confidence) ||
+      correction.confidence < 0 || correction.confidence > 1) {
+    return null;
+  }
 
   const key = promotedCorrectionKey(correction);
   if (!key || (!explicitlyAuthorized && occurrences < 2)) return null;

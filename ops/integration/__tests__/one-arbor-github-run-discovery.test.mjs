@@ -26,12 +26,12 @@ const mock=(runs=[run],jobs=[completeJob])=>async url=> {
 };
 
 test("reviewed task bindings retain exact original IDs and source gates",()=>{
-  assert.equal(validateRunBindings(view,doc).length,2);
+  assert.equal(validateRunBindings(view,doc).length,3);
   assert.deepEqual(source.taskIds,["A09"]);
 });
 test("authentic-looking exact-head green source job emits only reassessment flags",async()=>{
   const result=await discoverVerifiedUnlockReviews(view,doc,mock());
-  assert.equal(result.checkedBindings,2);
+  assert.equal(result.checkedBindings,3);
   assert.equal(result.verifiedReceiptEvents,1);
   assert.deepEqual(result.review.flaggedTasks.map(x=>x.taskId),["A04","F09","B11","B15","E07"]);
   assert.equal(result.review.actionsStarted.length,0);
@@ -53,7 +53,7 @@ test("two genuine exact-head runs independently flag new B11/E07 dependency revi
   };
   const result=await discoverVerifiedUnlockReviews(view,doc,read);
   assert.equal(result.verifiedReceiptEvents,3);
-  assert.deepEqual(result.notYetVerified,[]);
+  assert.equal(result.notYetVerified.length,1);
   assert.deepEqual(result.review.flaggedTasks.map(x=>x.taskId),[
     "A04","F09","B11","C06","C08","B15","D12","E07",
   ]);
@@ -61,12 +61,40 @@ test("two genuine exact-head runs independently flag new B11/E07 dependency revi
   assert.ok(result.review.flaggedTasks.every(x=>
     x.disposition==="REASSESS_ONLY" && x.mayAutoExecute===false && x.completionChanged===false));
 });
+test("third verified C08 source receipt expands review flags without promoting task status",async()=>{
+  const one=doc.bindings[0],two=doc.bindings[1],three=doc.bindings[2];
+  assert.deepEqual(three.taskIds,["C08"]);
+  const values=[
+    {binding:one,id:38026869361},
+    {binding:two,id:38028889757},
+    {binding:three,id:38029454170},
+  ];
+  const read=async(url)=>{
+    if(url.includes("/jobs?"))return {jobs:[completeJob]};
+    const match=values.find(x=>url.includes(encodeURIComponent(x.binding.branch)));
+    if(!match)throw Error("unknown_github_branch");
+    return {workflow_runs:[{
+      ...run,id:match.id,head_branch:match.binding.branch,head_sha:match.binding.headSha,
+      html_url:"https://github.com/mikebuffan/Arbor/actions/runs/"+match.id,
+    }]};
+  };
+  const result=await discoverVerifiedUnlockReviews(view,doc,read);
+  assert.equal(result.checkedBindings,3);
+  assert.equal(result.verifiedReceiptEvents,4);
+  assert.deepEqual(result.notYetVerified,[]);
+  assert.deepEqual(result.review.flaggedTasks.map(x=>x.taskId),[
+    "A04","F09","B11","C06","C08","C10","B15","D12","E07","C09",
+  ]);
+  assert.ok(result.review.flaggedTasks.every(x=>
+    x.disposition==="REASSESS_ONLY" && !x.mayAutoExecute && !x.completionChanged));
+  assert.deepEqual(result.review.actionsStarted,[]);
+});
 test("does not promote a successful job when required safety steps were skipped",async()=>{
   const changed=structuredClone(completeJob);
   changed.steps.find(s=>s.name==="Full backend regression").conclusion="skipped";
   const result=await discoverVerifiedUnlockReviews(view,doc,mock([run],[changed]));
   assert.equal(result.verifiedReceiptEvents,0);
-  assert.equal(result.notYetVerified.length,2);
+  assert.equal(result.notYetVerified.length,3);
   assert.deepEqual(result.review.flaggedTasks,[]);
 });
 test("rejects stale heads, wrong branches, and other repositories",async()=>{
