@@ -5,6 +5,7 @@ on:
     branches:
       - fix/independence-verification-event-dedupe-20261010
       - fix/independence-learning-outcome-proof-20261010
+      - fix/independence-invalid-verifier-score-20261010
 
 permissions:
   contents: read
@@ -44,6 +45,7 @@ jobs:
           pnpm exec vitest run
           lib/arbor/agency/__tests__/updateLifecycle.test.ts
           lib/arbor/agency/__tests__/selfUpdateController.test.ts
+          lib/arbor/agency/__tests__/verifier.test.ts
       - name: Backend TypeScript
         working-directory: apps/backend
         run: pnpm exec tsc --noEmit
