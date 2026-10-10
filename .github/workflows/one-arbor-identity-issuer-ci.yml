@@ -15,6 +15,7 @@ on:
       - fix/one-arbor-reassess-source-wins-20261010
       - test/one-arbor-reopened-judgment-20261010
       - fix/one-arbor-correction-learning-recheck-20261010
+      - fix/one-arbor-correction-observation-ids-20261010
 
 permissions:
   contents: read
