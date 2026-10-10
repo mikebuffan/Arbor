@@ -53,10 +53,10 @@
     "apps/backend/scripts/import_chatgpt/archiveSourceInventory.ts": "eed2e5b2c1e7ee20f06619339b1b009fd07390b0",
     "apps/backend/lib/memory/__tests__/archiveSourceInventory.test.ts": "fa351ae6e07af4202707a3579aef2af6c492044e",
     "apps/backend/lib/arbor/selfModel/canonicalIdentityAnchor.ts": "636a4bab9f01689ddf546bf8331950e4a7dc30ef",
-    "apps/arbor-control-backend/src/selfModelObservations.ts": "f8f03960ee18eca6650b12b4e2ee07c3b8e34469",
+    "apps/arbor-control-backend/src/selfModelObservations.ts": "5a21a5bb3c97ae652c8eecf03e5ff36def3087a4",
     "apps/arbor-control-backend/src/selfModelClaims.ts": "9bf0d7bd2f50fe61338a8967cd1b0a0c7d3e1b52",
     "docs/integration/ONE_ARBOR_GROUP06_IDENTITY_EVIDENCE_GATE_20261007.md": "bd43f7b8a8c2e90208b6839d582d5f698fcc570c",
-    "ops/grove/source-only-ignore.mjs": "f6665b2f220976532473424eac744873cb787115",
+    "ops/grove/source-only-ignore.mjs": "39bc8252ea852b547ce3f4024746e7d69ff45ada",
     ".github/workflows/one-arbor-group04-shelf-pagination.yml": "41790290a7fa86974dcca3fbbcc15bc96e0cac88",
     "apps/backend/lib/memory/__tests__/shelfPageRead.test.ts": "35b5c43abb6b2c774a1ae3aa75b33507c1e4d3bb",
     "apps/frontend/lib/environment/grove_memory_shelf_view.dart": "31e54c5c459cadce0eeba4bb577922c419cde71a",
@@ -121,7 +121,7 @@
     "apps/backend/lib/arbor/behavior/behaviorProjection.ts": "cd52561933f57ff41daf2ca1497d2dc8d414bfe8",
     "apps/backend/lib/arbor/behavior/__tests__/independentJudgmentCases.ts": "7d9b8eb3f6952812c893c5a5bd228395888e5da3",
     "apps/backend/lib/arbor/behavior/__tests__/independentJudgmentCases.test.ts": "045e1782fbacbad032738232bf960962345e2a8e",
-    ".github/workflows/one-arbor-independent-judgment.yml": "56fe2f80a8cb25165c386ad8bdba43315d127a07",
+    ".github/workflows/one-arbor-independent-judgment.yml": "c0da38e8d8db06f122d9ad36e18ac60067a0bf27",
     "apps/backend/lib/prompt/buildPromptContext.ts": "c91150dbfce1755b9843b58c8c46a95e7fe50a3b",
     "apps/backend/lib/arbor/behavior/arkLayerReadContext.ts": "4c0ebd3b7968167c232f88e8619ef51fea638822",
     "apps/backend/lib/arbor/behavior/__tests__/arkLayerReadContext.test.ts": "39ce1451e64c487b39a9dd5f9aed59029afab8ce",
@@ -186,8 +186,8 @@
     "apps/backend/lib/memory/__tests__/patternHopRunWriteReceipt.test.ts": "e76320c302b886ebd6f4a5368650801e91be3761",
     "apps/arbor-control-backend/src/runtimeRestart.test.ts": "282f89c495969c96646eb30d5cbe2052fab3a58b",
     "apps/arbor-control-backend/src/stateStoreFailure.test.ts": "f4beab8f8d566b85bef3276ac7313e0aa0a95a86",
-    "apps/backend/lib/arbor/agency/__tests__/acceptanceRunner.test.ts": "155d086eceae4fb426621642b8c6f347ca0b4155",
-    "apps/backend/lib/arbor/agency/acceptanceRunner.ts": "f77581a5c0ff0730d51de102dfed11b0ccf17a66",
+    "apps/backend/lib/arbor/agency/__tests__/acceptanceRunner.test.ts": "817d87163762d0de467f641ac6de498ac2aa6b3e",
+    "apps/backend/lib/arbor/agency/acceptanceRunner.ts": "b9ef06aee0043b56926b8e7c11c0d6c039eac5c3",
     "apps/backend/lib/arbor/behavior/__tests__/fixtures/proactiveJudgment/README.md": "a1df317895d0492880820cf70bc9392c43828c7d",
     "apps/backend/lib/arbor/behavior/__tests__/fixtures/proactiveJudgment/demo_assignment.json": "94c8507d9874315d2929dfd96e0613d21d7d4476",
     "apps/backend/lib/arbor/behavior/__tests__/fixtures/proactiveJudgment/host_private_rubric.json": "745be7ab5cdfd00ed07b8045ab41dd079abde250",
@@ -233,7 +233,9 @@
     "apps/backend/app/api/memory/item/[id]/route.ts": "e7ca9ab38d8b7e78ccab4a95dc2b8eb7818f7f65",
     "docs/integration/ONE_ARBOR_BATCH7_MEMORY_PRIVACY_RECEIPT_20261009.md": "e04ab34995783914ce7e541c068e87dd88d3c5af",
     "apps/backend/app/api/memory/confirm/route.ts": "76d3c820a6e9db0e9f040370cd3e2a0c94266dc8",
-    "docs/integration/ONE_ARBOR_BATCH8_RETRIEVAL_CAPTURE_RECEIPT_20261009.md": "651d2a18244f71177a6caff84d1ecb1d46b20f81"
+    "docs/integration/ONE_ARBOR_BATCH8_RETRIEVAL_CAPTURE_RECEIPT_20261009.md": "651d2a18244f71177a6caff84d1ecb1d46b20f81",
+    "apps/arbor-control-backend/src/selfModelObservations.test.ts": "79cb6140d2c14fd80e1c42eb93fccf5195a28bdf",
+    "docs/integration/ONE_ARBOR_BATCH9_IDENTITY_JUDGMENT_RECEIPT_20261009.md": "dab6bf154b738ebf584109e984833e1b2fcb5aee"
   },
   "comment": "Source-only incorporation from Library ONE_ARBOR_CODE_REPAIRS_20261009.zip: 17 exact source/test blobs verified, packages reconciled with original PR #372 head, 3 focused tests added; CI/release acceptance remain separately gated."
 }

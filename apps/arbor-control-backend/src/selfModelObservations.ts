@@ -505,7 +505,7 @@ function unique(
 ): string[] {
   return [
     ...new Set(
-      values,
+      values.map((value) => value.trim().toLowerCase()).filter(Boolean),
     ),
   ].sort();
 }

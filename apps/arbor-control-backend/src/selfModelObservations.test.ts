@@ -185,3 +185,21 @@ describe(
     );
   },
 );
+
+ it("does not count case variants of one domain as cross-domain support, including stored rows", () => {
+   let current = state();
+   for (const [n, domain] of ["Communication", "communication"].entries()) {
+     current = addSelfModelObservation(current, { targetKind: "pattern", targetId: "earned-humor",
+       domain, verdict: "supports", evidence: `Observation ${n}`, confidence: 0.9, sourceTurnId: `turn-${n}` });
+   }
+   expect(summarizeSelfModelObservations(current)[0]).toMatchObject({ status: "insufficient",
+     distinctSupportTurnCount: 2, supportDomains: ["communication"] });
+   const stored = { ...current, selfModelObservations: current.selfModelObservations!.map(
+     (row, n) => ({ ...row, domain: n ? " COMMUNICATION " : "Communication" })) };
+   expect(summarizeSelfModelObservations(stored)[0]).toMatchObject({ status: "insufficient",
+     supportDomains: ["communication"] });
+   const distinct = addSelfModelObservation(current, { targetKind: "pattern", targetId: "earned-humor",
+     domain: "collaboration", verdict: "supports", evidence: "Separate domain", confidence: 0.9, sourceTurnId: "turn-3" });
+   expect(summarizeSelfModelObservations(distinct)[0].status).toBe("candidate");
+   expect(distinct.selfModel).toBeUndefined();
+ });
