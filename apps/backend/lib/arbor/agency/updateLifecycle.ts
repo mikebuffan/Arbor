@@ -61,12 +61,19 @@ export function recordSelfUpdateVerification(
     now: string;
   },
 ): PendingSelfUpdate {
+  // An invalid score is an observation, not a completed verification.
+  // Preserve any observed safety/identity regression but do not allow an
+  // unscorable attempt to contribute to the two-check retention threshold.
+  const scoreVerifiable =
+    Number.isFinite(input.score) &&
+    Number.isFinite(input.score - update.beforeScore);
+
   return {
     ...update,
-    afterScore: input.score,
+    afterScore: scoreVerifiable ? input.score : update.afterScore,
     afterBehavior: input.behavior,
     protectedCorrectionsAfter: [...input.protectedCorrections],
-    verificationCount: update.verificationCount + 1,
+    verificationCount: update.verificationCount + (scoreVerifiable ? 1 : 0),
     newFailureIntroduced:
       update.newFailureIntroduced ||
       Boolean(input.newFailureIntroduced),

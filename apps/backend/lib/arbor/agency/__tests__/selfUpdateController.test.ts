@@ -99,3 +99,33 @@ it("preserves identity regression veto even when verification count is invalid",
   expect(evaluateSelfUpdate({ beforeScore: 0.2, afterScore: 0.8, verificationCount: NaN,
     identityRegression: true, newFailureIntroduced: false }).disposition).toBe("revert");
 });
+
+it.each([
+  { beforeScore: NaN, afterScore: 0.8 },
+  { beforeScore: Infinity, afterScore: 0.8 },
+  { beforeScore: -Infinity, afterScore: 0.8 },
+  { beforeScore: 0.2, afterScore: NaN },
+  { beforeScore: 0.2, afterScore: Infinity },
+  { beforeScore: 0.2, afterScore: -Infinity },
+  { beforeScore: -Number.MAX_VALUE, afterScore: Number.MAX_VALUE },
+])("does not retain an improvement inferred from invalid or overflowing scores: %j",
+  ({beforeScore, afterScore}) => {
+    const decision = evaluateSelfUpdate({
+      beforeScore, afterScore, verificationCount: 3,
+      identityRegression: false, newFailureIntroduced: false,
+    });
+    expect(decision.disposition).toBe("continue_verifying");
+    expect(Number.isFinite(decision.delta)).toBe(true);
+  },
+);
+
+it("preserves the identity and new-failure veto despite invalid scoring", () => {
+  expect(evaluateSelfUpdate({
+    beforeScore: NaN, afterScore: 1, verificationCount: 3,
+    identityRegression: true, newFailureIntroduced: false,
+  }).disposition).toBe("revert");
+  expect(evaluateSelfUpdate({
+    beforeScore: 0, afterScore: NaN, verificationCount: 3,
+    identityRegression: false, newFailureIntroduced: true,
+  }).disposition).toBe("revert");
+});
