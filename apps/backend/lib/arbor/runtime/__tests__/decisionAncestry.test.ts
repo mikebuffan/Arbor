@@ -117,6 +117,42 @@ describe("bounded read-only Decision Ancestry projection", () => {
     expect(diff.grantsExecution).toBe(false);
   });
 
+  it("requires review when a valid supersession silently changes the chosen action", () => {
+    const original = event("old-choice", "choice", {
+      occurredAt: "2026-10-09T19:00:00Z",
+      evidenceRefs: ["original-decision-receipt"],
+    });
+    const replacement = event("new-choice", "choice", {
+      occurredAt: "2026-10-09T19:05:00Z",
+      supersedesEventId: original.id,
+      evidenceRefs: ["replacement-decision-receipt"],
+    });
+    const before = project([original]);
+    const after = project([original, replacement]);
+    expect(before.currentChoice?.id).toBe(original.id);
+    expect(after.currentChoice?.id).toBe(replacement.id);
+    expect(after.warnings).toEqual([]);
+    const diff = diffDecisionAncestry(before, after);
+    expect(diff.choiceChanged).toBe(true);
+    expect(diff.addedEventIds).toEqual([replacement.id]);
+    expect(diff.requiresReview).toBe(true);
+    expect(diff.grantsExecution).toBe(false);
+  });
+
+  it("does not flag an unchanged choice with only a referenced outcome as a choice replacement", () => {
+    const choice = event("choice", "choice", {
+      occurredAt: "2026-10-09T19:00:00Z",
+    });
+    const outcome = event("outcome", "observed_outcome", {
+      occurredAt: "2026-10-09T19:05:00Z",
+      evidenceRefs: ["externally-reported-outcome-not-verified-here"],
+    });
+    const diff = diffDecisionAncestry(project([choice]), project([choice, outcome]));
+    expect(diff.choiceChanged).toBe(false);
+    expect(diff.requiresReview).toBe(false);
+    expect(diff.grantsExecution).toBe(false);
+  });
+
   it("flags disappearing history and refuses changed older evidence or foreign views", () => {
     const before = project([event("a", "choice")]);
     expect(diffDecisionAncestry(before, project([])).missingPriorEventIds)
