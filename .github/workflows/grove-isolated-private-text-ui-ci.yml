@@ -57,3 +57,11 @@ jobs:
           test/grove_house_navigation_test.dart
           test/environment_navigation_test.dart
           test/grove_responsive_wrap_test.dart
+
+      - name: Verify Grove recovery and cross-surface scope
+        run: >-
+          flutter test
+          test/grove_runtime_scope_test.dart
+          test/grove_private_projects_truth_test.dart
+          test/grove_talk_private_boundary_test.dart
+          test/grove_consolidation_regression_test.dart
