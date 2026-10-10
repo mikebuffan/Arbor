@@ -135,18 +135,16 @@ describe("Group 09 source-bound truth and consequence HOLD", () => {
       .toThrow("firefly_roundabout_choice_binding_required");
   });
 
-  it("holds on an old choice receipt after a new choice replaces it", () => {
+  it("does not apply an old choice receipt after a new choice replaces it", () => {
     const prior = receiptView();
     expect(prior.suggestedNextStage).toBe("consequence");
-    const newChoice = firefly({
+    expect(() => firefly({
       decisionId: "decision:example:001",
       choiceId: "choice:revised:002",
       verifiedConsequenceRef: "host:consequence:001",
       consequenceReceipt: consequence(),
-    } as Partial<FireflyRoundaboutInput>);
-    expect(newChoice.suggestedNextStage).toBe("second_choice");
-    expect(newChoice.decision).toBe("hold");
-    expect(newChoice.grantsExecution).toBe(false);
+    } as Partial<FireflyRoundaboutInput>))
+      .toThrow("firefly_roundabout_consequence_receipt_mismatch");
   });
 
   it("changes from apparent progress to re-observation when a reviewed negative consequence arrives", () => {
