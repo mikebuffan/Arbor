@@ -74,3 +74,12 @@ test("chat safe-batch review stays source-only in all projects and deployment st
     }
   }
 });
+
+test("boundary receipts draft stays source-only in all deployment environments", () => {
+  const reviewBranch = "fix/chat-boundary-pending-receipts-20261009";
+  for (const stage of ["preview", "production", "development", ""]) {
+    for (const id of [project, "prj_JArYlugmdFovY10CxZ0LEJmcrsKC", ""]) {
+      assert.equal(exitCode({ VERCEL_ENV: stage, VERCEL_PROJECT_ID: id, VERCEL_GIT_COMMIT_REF: reviewBranch }), 0);
+    }
+  }
+});
