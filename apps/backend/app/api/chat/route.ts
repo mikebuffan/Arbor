@@ -346,6 +346,7 @@ export async function POST(req: Request) {
                   ? "annabelle"
                   : interactionMode,
               observedAt: correctionObservedAt,
+              observationId: resolvedTurn.ids.userMessageId,
               kind:
                 detectedRuntimeCorrectionKind ??
                 undefined,
