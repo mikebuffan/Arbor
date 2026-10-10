@@ -179,6 +179,20 @@ describe("owner-scoped ARK -> Arbor Layer read crossing", () => {
     expect(result.continuity.source).toBe("requested_conversation");
   });
 
+  it("holds when an exact-only receiver supplies no conversation or a foreign-thread state", async () => {
+    await expect(readArkLayerContext({
+      supabase: {} as never, authenticatedUserId: userId, projectId,
+      mode: "text", requireExactConversation: true,
+    })).rejects.toMatchObject({ status: 404, code: "ark_layer_exact_conversation_required" });
+    expect(mock.readArkProjectSnapshot).not.toHaveBeenCalled();
+
+    mock.loadRuntimeState.mockResolvedValueOnce(state({conversationId: "different-thread"}));
+    await expect(readArkLayerContext({
+      supabase: {} as never, authenticatedUserId: userId,
+      projectId, conversationId, mode: "text", requireExactConversation: true,
+    })).rejects.toThrow("ark_layer_continuity_scope_mismatch");
+  });
+
   it("distinguishes project latest from a requested conversation and a fallback", async () => {
     const latest = await readArkLayerContext({
       supabase: {} as never, authenticatedUserId: userId, projectId, mode: "text",
