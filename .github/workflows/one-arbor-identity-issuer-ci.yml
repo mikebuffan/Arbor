@@ -13,6 +13,7 @@ on:
       - fix/d12-unverified-score-20261009
       - fix/b15-causal-ancestry-gate-20261009
       - fix/one-arbor-reassess-source-wins-20261010
+      - test/one-arbor-reopened-judgment-20261010
 
 permissions:
   contents: read
