@@ -178,6 +178,31 @@ Future<void> roomForRecovery(WidgetTester tester) async {
 }
 
 void main() {
+  testWidgets('revoked conversation disappears immediately after list refresh',
+      (tester) async {
+    await roomForRecovery(tester);
+    final client = _FakePrivateClient();
+    await tester.pumpWidget(recoveryPhone(
+        client, pendingStore(FakeDeviceStringStore())));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Earlier private question'), findsOneWidget);
+    expect(find.text('Earlier private answer'), findsOneWidget);
+    expect(find.text('Send'), findsOneWidget);
+
+    // The next authenticated discovery no longer authorizes this thread.
+    client.empty = true;
+    await tester.tap(find.text('Refresh conversations'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('will not invent one'), findsOneWidget);
+    expect(find.text('Earlier private question'), findsNothing);
+    expect(find.text('Earlier private answer'), findsNothing);
+    expect(find.text('Send'), findsNothing);
+    expect(find.byType(TextField), findsNothing);
+    expect(client.sends, 0);
+  });
+
   testWidgets('hung send releases recovery without resending or losing retry identity',
       (tester) async {
     await roomForRecovery(tester);
