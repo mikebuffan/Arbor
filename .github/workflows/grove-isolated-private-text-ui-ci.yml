@@ -52,6 +52,8 @@ jobs:
           test/grove_group6_draft_safety_test.dart
           test/grove_diary_draft_test.dart
           test/grove_house_navigation_test.dart
+          lib/environment/grove_living_window_panel.dart
+          test/grove_living_window_panel_test.dart
           lib/environment/grove_private_conversations.dart
           lib/environment/grove_pending_turn_store.dart
           test/grove_private_text_page_test.dart
@@ -68,6 +70,7 @@ jobs:
         run: >-
           flutter test
           test/grove_house_navigation_test.dart
+          test/grove_living_window_panel_test.dart
           test/environment_navigation_test.dart
           test/grove_responsive_wrap_test.dart
           test/grove_memory_shelf_view_test.dart
