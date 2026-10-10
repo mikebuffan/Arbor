@@ -33,6 +33,8 @@ export async function loadRuntimeState(input: {
   userId: string;
   projectId: string;
   conversationId: string;
+  /** Private receivers may require exact-thread continuity, never a project fallback. */
+  exactOnly?: boolean;
 }): Promise<ArborRuntimeState | null> {
   const { data, error } = await input.supabase
     .from("arbor_conversation_state")
@@ -51,6 +53,11 @@ export async function loadRuntimeState(input: {
     (data as RuntimeRow | null) ?? null,
     input,
   );
+  // Ordinary Arbor may restore prior project context across threads. A
+  // private conversation explicitly requesting exact scope must not launder
+  // those earlier observations as this thread's own state.
+  if (input.exactOnly) return exact;
+
   const snapshots = await loadRecentRuntimeStates({
     supabase: input.supabase,
     userId: input.userId,

@@ -11,6 +11,7 @@ on:
       - fix/cross-round-receipt-retention-20261009
       - fix/unlock-c08-correction-count-20261009
       - fix/d12-unverified-score-20261009
+      - fix/one-arbor-exact-grove-continuity-20261009
 
 permissions:
   contents: read
@@ -62,6 +63,12 @@ jobs:
           lib/arbor/runtime/__tests__/correctionPromotion.test.ts
           lib/arbor/agency/__tests__/selfUpdateController.test.ts
           lib/arbor/agency/__tests__/updateLifecycle.test.ts
+          lib/arbor/runtime/__tests__/runtimeStateStore.test.ts
+          lib/arbor/behavior/__tests__/arkLayerReadContext.test.ts
+          lib/grove/__tests__/privateConversationLoop.test.ts
+          lib/grove/__tests__/privateTranscriptStore.test.ts
+          lib/grove/__tests__/arkSpineContinuity.test.ts
+          lib/arbor/host/__tests__/oneArborAcceptance.test.ts
       - name: Type-check existing backend
         working-directory: apps/backend
         run: pnpm exec tsc --noEmit

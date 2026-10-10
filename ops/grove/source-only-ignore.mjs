@@ -2,6 +2,7 @@
 // One existing isolated test project may build this exact branch as Preview.
 // This exception grants no runtime credentials, database access or model budget.
 const branches = new Set([
+  "fix/one-arbor-exact-grove-continuity-20261009",
   "fix/d12-unverified-score-20261009",
   "fix/unlock-c08-correction-count-20261009",
   "fix/cross-round-receipt-retention-20261009",

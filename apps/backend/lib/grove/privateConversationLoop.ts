@@ -199,6 +199,7 @@ export async function prepareVerifiedPrivateGroveTurn(input: {
     conversationId: input.conversationId,
     mode: "text",
     latestUserText: input.message,
+    requireExactConversation: true,
     ...(input.timeZoneOffsetMinutes !== undefined
       ? { timeZoneOffsetMinutes: input.timeZoneOffsetMinutes } : {}),
   });
