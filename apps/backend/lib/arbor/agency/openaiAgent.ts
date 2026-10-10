@@ -86,6 +86,9 @@ export type AgencyLoopHooks = {
         | "high_consequence_fork";
       arguments:
         Record<string, unknown>;
+      // Trusted tool names only: no untrusted argument payload or automatic replay.
+      completedBeforeBoundary: string[];
+      deferredToolNames: string[];
     },
   ) => Promise<void>;
 
@@ -538,6 +541,8 @@ export async function runOpenAIAgencyAgent(
         call_id: string;
         output: string;
       }> = [];
+    const completedBeforeBoundary: string[] = [];
+    const dispatchedCallIds = new Set<string>();
 
     // When a batch includes a protected action, keep its human boundary.
     // Before returning for approval, finish only earlier safe calls and
@@ -559,6 +564,7 @@ export async function runOpenAIAgencyAgent(
         ];
 
     for (const { call, tool, args } of executionOrder) {
+      dispatchedCallIds.add(call.call_id);
 
       attemptedRoutes.add(
         tool.name,
@@ -589,6 +595,12 @@ export async function runOpenAIAgencyAgent(
             name: tool.name,
             reason,
             arguments: args,
+            completedBeforeBoundary: [...completedBeforeBoundary],
+            // These were validated as tool calls but never dispatched.
+            // Reassess them later; their arguments are NOT persisted/replayed.
+            deferredToolNames: prepared
+              .filter(({ call: proposal }) => !dispatchedCallIds.has(proposal.call_id))
+              .map(({ tool: proposed }) => proposed.name),
           });
 
         return {
@@ -627,6 +639,7 @@ export async function runOpenAIAgencyAgent(
               name: tool.name,
               result: claim.result,
             });
+            completedBeforeBoundary.push(tool.name);
             actionEvidence.push(
               `capability ${tool.name} completed successfully (idempotent replay)`,
             );
@@ -710,6 +723,7 @@ export async function runOpenAIAgencyAgent(
             result:
               execution.result,
           });
+        completedBeforeBoundary.push(tool.name);
 
         actionEvidence.push(
           `capability ${tool.name} completed successfully`,
