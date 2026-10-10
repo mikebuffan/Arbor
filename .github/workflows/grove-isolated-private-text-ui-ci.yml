@@ -110,7 +110,7 @@ jobs:
 
   grove-android-debug:
     name: Grove unconfigured Android debug compile (source only)
-    if: github.repository == 'mikebuffan/Arbor' && github.ref == 'refs/heads/test/grove-android-debug-20261010'
+    if: github.repository == 'mikebuffan/Arbor' && (github.ref == 'refs/heads/test/grove-android-debug-20261010' || github.ref == 'refs/heads/fix/grove-uuid-duplicate-scope-20261010')
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     defaults:
