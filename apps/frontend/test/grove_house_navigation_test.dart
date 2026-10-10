@@ -90,4 +90,74 @@ void main() {
     expect(find.text('THE LIVING WINDOW'), findsWidgets);
     expect(find.text('Preview another time'), findsWidgets);
   });
+
+  testWidgets('Grove stairs open the Observatory and return home',
+      (tester) async {
+    await tester.pumpWidget(
+        const MaterialApp(home: ArborEnvironmentShell()));
+    await tester.pump(const Duration(milliseconds: 150));
+    await tester.ensureVisible(find.widgetWithText(OutlinedButton, 'Stairs'));
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Stairs'));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('THE GROVE / OBSERVATORY'), findsOneWidget);
+    expect(find.textContaining('Illustrative sky card, not a live camera'),
+        findsOneWidget);
+    await tester.ensureVisible(find.text('Back to the Grove'));
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.tap(find.text('Back to the Grove'));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('THE GROVE • HOME'), findsOneWidget);
+  });
+
+  testWidgets('Grove shelves tap requests the existing Library destination',
+      (tester) async {
+    GroveRoomAction? opened;
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: SingleChildScrollView(
+          child: GroveHouseRoom(onOpen: (action) => opened = action),
+        ),
+      ),
+    ));
+    await tester.pump();
+    await tester.ensureVisible(find.widgetWithText(OutlinedButton, 'Shelves'));
+    await tester.pump(const Duration(milliseconds: 150));
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Shelves'));
+    expect(opened, GroveRoomAction.shelves);
+    // Scoped saved-memory and unopened-attachment truth are covered by their
+    // dedicated injected-loader widget tests; do not bootstrap real Supabase
+    // or perform a private network read in this room-navigation test.
+  });
+
+  testWidgets('Kitchen scratchpad does not survive leaving the room',
+      (tester) async {
+    await tester.pumpWidget(
+        const MaterialApp(home: ArborEnvironmentShell()));
+    await tester.pump(const Duration(milliseconds: 150));
+    await tester.ensureVisible(find.widgetWithText(OutlinedButton, 'Kitchen'));
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Kitchen'));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('THE GROVE / ANNABELLE’S KITCHEN'), findsOneWidget);
+    await tester.enterText(find.byType(TextField), 'unsaved scene note');
+    await tester.pump();
+    expect(find.text('unsaved scene note'), findsOneWidget);
+    // Settle the test keyboard/focus before tearing down the editable route.
+    // This is visit-only persistence coverage, not a keyboard-focus regression.
+    FocusManager.instance.primaryFocus?.unfocus();
+    await tester.pump();
+    await tester.ensureVisible(find.text('Back to the Grove'));
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.tap(find.text('Back to the Grove'));
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.ensureVisible(find.widgetWithText(OutlinedButton, 'Kitchen'));
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Kitchen'));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('THE GROVE / ANNABELLE’S KITCHEN'), findsOneWidget);
+    expect(find.text('unsaved scene note'), findsNothing);
+    expect(tester.widget<TextField>(find.byType(TextField)).controller!.text,
+        isEmpty);
+  });
 }
