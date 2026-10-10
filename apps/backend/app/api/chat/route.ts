@@ -461,13 +461,17 @@ export async function POST(req: Request) {
     // Successful tool results must remain pending verification across later
     // provider rounds and actions, not disappear when a new tool is selected.
     // They are obligations to check, never credentials or execution receipts.
-    const keepPendingVerification = (next: string[]): string[] =>
-      [...new Set([
-        ...next,
-        ...agencyState.unresolvedWork.filter((item) =>
-          item.startsWith("verify capability result: "),
-        ),
+    const keepPendingVerification = (next: string[]): string[] => {
+      const isReceipt = (item: string) =>
+        item.startsWith("verify capability result: ");
+      // Keep the newly selected action at the front, but preserve pending
+      // verifications in their original order. This is not proof of execution.
+      return [...new Set([
+        ...next.filter((item) => !isReceipt(item)),
+        ...agencyState.unresolvedWork.filter(isReceipt),
+        ...next.filter(isReceipt),
       ])];
+    };
 
     const agentResult = await runOpenAIAgencyAgent({
       instructions: systemPrompt,
