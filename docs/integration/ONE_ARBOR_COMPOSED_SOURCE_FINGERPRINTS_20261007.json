@@ -269,7 +269,7 @@
     "docs/migrations/PROPOSED_grove_private_turns_20260923.sql": "21f411f709c8698bd7f6d0bcee6843c4512c2acd",
     "ops/grove/disposable-db/00-private-transcript-acceptance.sql": "91d380dd57b6e5b1de1f8fae50d8b61d931dbd7b",
     "docs/grove/GROVE_PRIVATE_TRANSCRIPT_RETENTION_POLICY_20261010.md": "15c5e78e31e3515a88f9e30efbe415d582e17cf5",
-    ".github/workflows/grove-retention-disposable-ci.yml": "832c024a526a3fc6c51f217e5f5212f23de141d4",
+    ".github/workflows/grove-retention-disposable-ci.yml": "c322a31621289ade9b7aa72e0596a7b3b4ada0b9",
     "ops/integration/one-arbor-ci-outcome-readback.mjs": "218f52be557f34b44b283848b706a06a1431c303",
     "ops/integration/__tests__/one-arbor-ci-outcome-readback.test.mjs": "529e7a1d3d0a488cdfa92059428b2f728da0c384",
     "docs/integration/ONE_ARBOR_REAL_OUTCOME_AND_MODEL_GATE_20261010.md": "e08a8c2438bb21bc62bd93c7ac2ee550b6942a4b",
