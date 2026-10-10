@@ -64,8 +64,12 @@ test("all six source-only exact-head receipts flag new downstream reviews, never
     },
   }));
   const read=async url=>{
-    const row=rows.find(({binding})=>url.includes(encodeURIComponent(binding.branch)));
-    if(!row)throw Error("unreviewed_branch");
+    // Run discovery uses the reviewed *branch*; job readback is fetched
+    // by the confirmed run ID, not by a repeated branch query parameter.
+    const row=url.includes("/jobs?")
+      ? rows.find(({id})=>url.includes("/actions/runs/"+id+"/jobs?"))
+      : rows.find(({binding})=>url.includes(encodeURIComponent(binding.branch)));
+    if(!row)throw Error("unreviewed_run_or_branch");
     if(url.includes("/jobs?"))return {jobs:[{
       name:row.binding.job,status:"completed",conclusion:"success",
       steps:row.binding.requiredSteps.map(name=>({
