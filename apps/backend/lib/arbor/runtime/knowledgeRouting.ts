@@ -142,6 +142,21 @@ export type FireflyRoundaboutInput = {
    * not verify itself: the trusted caller must check the real outcome receipt.
    */
   verifiedConsequenceRef?: string | null;
+  /**
+   * A separate scoped host readback of the consequence. This function checks
+   * the fields agree but cannot independently authenticate host storage.
+   * Do not populate this from a model or arbitrary user-supplied string.
+   */
+  consequenceReceipt?: {
+    receiptId: string;
+    consequenceRef: string;
+    userId: string;
+    projectId: string;
+    conversationId: string;
+    turnId: string;
+    status: "confirmed" | "pending" | "rejected";
+    reviewedByHost: boolean;
+  } | null;
 };
 
 export type FireflyRoundaboutResult = {
@@ -222,6 +237,26 @@ export function routeFireflyPacket(input: FireflyRoundaboutInput): FireflyRounda
   if (outcomeRef != null && (typeof outcomeRef !== "string" ||
       !outcomeRef.trim() || outcomeRef.length > 200))
     throw new Error("firefly_roundabout_consequence_ref_invalid");
+  const receipt = input.consequenceReceipt;
+  if (receipt != null) {
+    if (!receipt || typeof receipt !== "object" ||
+        typeof receipt.receiptId !== "string" ||
+        !/^[A-Za-z0-9._:-]{4,200}$/.test(receipt.receiptId) ||
+        !["confirmed", "pending", "rejected"].includes(receipt.status) ||
+        typeof receipt.reviewedByHost !== "boolean")
+      throw new Error("firefly_roundabout_consequence_receipt_invalid");
+    if (!outcomeRef || receipt.consequenceRef !== outcomeRef ||
+        receipt.userId !== scope.userId ||
+        receipt.projectId !== scope.projectId ||
+        receipt.conversationId !== scope.conversationId ||
+        receipt.turnId !== scope.turnId)
+      throw new Error("firefly_roundabout_consequence_receipt_mismatch");
+  }
+  // A string reference alone is never sufficient. Even a reviewed host
+  // declaration does not make its underlying real-world outcome authentic
+  // inside this pure projection; caller must verify upstream independently.
+  const hostConfirmedConsequence = Boolean(outcomeRef && receipt &&
+    receipt.status === "confirmed" && receipt.reviewedByHost === true);
 
   // Never smooth an explicitly supplied conflict away by routing a favorable
   // model suggestion over it. A signal by itself does not establish truth.
@@ -265,22 +300,22 @@ export function routeFireflyPacket(input: FireflyRoundaboutInput): FireflyRounda
     decision = "backtrack";
     suggestedNextStage = "observe";
     reason = "return_reobserve";
-  } else if (input.signal === "completion" && !outcomeRef) {
+  } else if (input.signal === "completion" && !hostConfirmedConsequence) {
     decision = "hold";
     reason = "unverified_completion";
     requiresReview = true;
-  } else if (input.stage === "second_choice" && !outcomeRef) {
+  } else if (input.stage === "second_choice" && !hostConfirmedConsequence) {
     // A chosen action has no known consequence until the host verifies it.
     decision = "hold";
     reason = "await_verified_consequence";
-  } else if (input.stage === "consequence" && !outcomeRef) {
+  } else if (input.stage === "consequence" && !hostConfirmedConsequence) {
     decision = "hold";
     reason = "await_verified_consequence";
   } else if (base === "redirect") {
     reason = "uncertain_reconsider";
   } else {
     suggestedNextStage = NEXT_FIREFLY_STAGE[input.stage];
-    if (outcomeRef && (input.stage === "second_choice" ||
+    if (hostConfirmedConsequence && (input.stage === "second_choice" ||
       input.stage === "consequence" || input.signal === "completion"))
       reason = "verified_consequence";
   }
