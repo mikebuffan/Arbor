@@ -56,7 +56,7 @@
     "apps/arbor-control-backend/src/selfModelObservations.ts": "5a21a5bb3c97ae652c8eecf03e5ff36def3087a4",
     "apps/arbor-control-backend/src/selfModelClaims.ts": "9bf0d7bd2f50fe61338a8967cd1b0a0c7d3e1b52",
     "docs/integration/ONE_ARBOR_GROUP06_IDENTITY_EVIDENCE_GATE_20261007.md": "bd43f7b8a8c2e90208b6839d582d5f698fcc570c",
-    "ops/grove/source-only-ignore.mjs": "567046282d162d8080473040fb0e821acb8a3084",
+    "ops/grove/source-only-ignore.mjs": "a7f8e455dbe539e309f4440cb7615951a1cafb0d",
     ".github/workflows/one-arbor-group04-shelf-pagination.yml": "41790290a7fa86974dcca3fbbcc15bc96e0cac88",
     "apps/backend/lib/memory/__tests__/shelfPageRead.test.ts": "35b5c43abb6b2c774a1ae3aa75b33507c1e4d3bb",
     "apps/frontend/lib/environment/grove_memory_shelf_view.dart": "31e54c5c459cadce0eeba4bb577922c419cde71a",
@@ -121,7 +121,7 @@
     "apps/backend/lib/arbor/behavior/behaviorProjection.ts": "cd52561933f57ff41daf2ca1497d2dc8d414bfe8",
     "apps/backend/lib/arbor/behavior/__tests__/independentJudgmentCases.ts": "7d9b8eb3f6952812c893c5a5bd228395888e5da3",
     "apps/backend/lib/arbor/behavior/__tests__/independentJudgmentCases.test.ts": "045e1782fbacbad032738232bf960962345e2a8e",
-    ".github/workflows/one-arbor-independent-judgment.yml": "a93cf61d6d167ca1ebbadc9b9d543511a988bb67",
+    ".github/workflows/one-arbor-independent-judgment.yml": "c3922c0a1f4b738bfcefb4c2f77c06bd8efc6114",
     "apps/backend/lib/prompt/buildPromptContext.ts": "c91150dbfce1755b9843b58c8c46a95e7fe50a3b",
     "apps/backend/lib/arbor/behavior/arkLayerReadContext.ts": "4c0ebd3b7968167c232f88e8619ef51fea638822",
     "apps/backend/lib/arbor/behavior/__tests__/arkLayerReadContext.test.ts": "39ce1451e64c487b39a9dd5f9aed59029afab8ce",
@@ -240,7 +240,13 @@
     "apps/arbor-control-backend/src/voice.ts": "cd2fad95d78e5df092d55e47cdc437e82e4d025c",
     "apps/backend/lib/arbor/voice/__tests__/speechPipeline.test.ts": "230fad7fe8570911ddf74d530d8a166c4bf01be2",
     "apps/backend/lib/arbor/voice/speechPipeline.ts": "4ab213d88bbff684f2757b12c31b90b7af1cc29b",
-    "docs/integration/ONE_ARBOR_BATCH10_VOICE_RECOVERY_RECEIPT_20261009.md": "23946cf4b0b8aa8fe2d7b8c9cdc1f09553132ac3"
+    "docs/integration/ONE_ARBOR_BATCH10_VOICE_RECOVERY_RECEIPT_20261009.md": "23946cf4b0b8aa8fe2d7b8c9cdc1f09553132ac3",
+    "apps/backend/lib/arbor/agency/__tests__/engine.test.ts": "dda4fc7dc7450790ae0074b02ee17e1fb9513b05",
+    "apps/backend/lib/arbor/agency/__tests__/selfUpdateController.test.ts": "d5d805ac56a4adc1008ae143a20ead645caccc1e",
+    "apps/backend/lib/arbor/agency/__tests__/strategyRetention.test.ts": "d0d0c50d1e716a021480370b883957ce7550ce9c",
+    "apps/backend/lib/arbor/agency/selfUpdate.ts": "2610d383633688286908d23d700f88bb7830f5ad",
+    "apps/backend/lib/arbor/agency/strategyRetention.ts": "c3385ced57d384fd8157267b82a57cfb508ad267",
+    "docs/integration/ONE_ARBOR_BATCH11_BODY_REFLECTION_RECEIPT_20261009.md": "eaf49689fb48f0e8ac17891063ac77679668ca62"
   },
   "comment": "Source-only incorporation from Library ONE_ARBOR_CODE_REPAIRS_20261009.zip: 17 exact source/test blobs verified, packages reconciled with original PR #372 head, 3 focused tests added; CI/release acceptance remain separately gated."
 }

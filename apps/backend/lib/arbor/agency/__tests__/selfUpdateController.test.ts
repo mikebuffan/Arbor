@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ArborBehaviorProof } from "@/lib/arbor/behavior/behaviorProjection";
-import { evaluateSelfUpdateWithIdentityGuard } from "../selfUpdate";
+import { evaluateSelfUpdate, evaluateSelfUpdateWithIdentityGuard } from "../selfUpdate";
 
 function proof(
   coreFingerprint: string,
@@ -87,4 +87,15 @@ describe("verified self-update policy", () => {
 
     expect(result.disposition).toBe("revert");
   });
+});
+
+it.each([NaN, Infinity, 2.5])("does not retain a strategy with invalid verification count %s", verificationCount => {
+  const decision = evaluateSelfUpdate({ beforeScore: 0.2, afterScore: 0.8,
+    verificationCount, identityRegression: false, newFailureIntroduced: false });
+  expect(decision.disposition).toBe("continue_verifying");
+});
+
+it("preserves identity regression veto even when verification count is invalid", () => {
+  expect(evaluateSelfUpdate({ beforeScore: 0.2, afterScore: 0.8, verificationCount: NaN,
+    identityRegression: true, newFailureIntroduced: false }).disposition).toBe("revert");
 });

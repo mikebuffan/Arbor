@@ -100,7 +100,10 @@ export function recordStrategyCandidate(
 
   if (current.retained.includes(strategy)) {
     return {
-      notes: current.retained,
+      notes: [
+        ...current.retained,
+        ...(current.pending ? [encodePending(current.pending)] : []),
+      ].slice(-20),
       disposition: "retained",
     };
   }
