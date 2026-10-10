@@ -124,7 +124,7 @@
     "apps/backend/lib/arbor/behavior/__tests__/independentJudgmentCases.test.ts": "045e1782fbacbad032738232bf960962345e2a8e",
     ".github/workflows/one-arbor-independent-judgment.yml": "71059607ce37057565302da827972674eaa7f33c",
     "apps/backend/lib/prompt/buildPromptContext.ts": "34b7f73219afd5c515251f30298c4209c75049ff",
-    "apps/backend/lib/arbor/behavior/arkLayerReadContext.ts": "988ce7194c5b4c001774aa47dfdb3197be526ef7",
+    "apps/backend/lib/arbor/behavior/arkLayerReadContext.ts": "d27a4d1bf1fa9d722056b8008576ea94087663a8",
     "apps/backend/lib/arbor/behavior/__tests__/arkLayerReadContext.test.ts": "11df34b438a43ee896d9160fae8d35fa0f00b676",
     "apps/backend/lib/prompt/__tests__/buildPromptContext.freshness.test.ts": "82ee781dabf2e504c1558573a9607a4da2608833",
     "apps/backend/lib/arbor/behavior/__tests__/independentJudgmentBlindPack.ts": "2aa1cd2796ca794f2ee8c3c1c46565191709b7cc",
