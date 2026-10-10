@@ -1,8 +1,42 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/environment/arbor_environment_shell.dart';
+import 'package:frontend/environment/grove_house_room.dart';
 
 void main() {
+  testWidgets('narrow phone Grove pins provide readable touch targets',
+      (tester) async {
+    tester.view.physicalSize = const Size(320, 720);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: SingleChildScrollView(
+          child: GroveHouseRoom(onOpen: (_) {}),
+        ),
+      ),
+    ));
+    await tester.pump();
+
+    for (final label in [
+      'The staircase',
+      'Moss on the couch',
+      'Talk to Arbor',
+      'The Living Window',
+    ]) {
+      final pin = find.byTooltip(label);
+      expect(pin, findsOneWidget, reason: label);
+      final target = find.descendant(
+        of: pin, matching: find.byType(InkWell));
+      expect(target, findsOneWidget, reason: label);
+      final size = tester.getSize(target);
+      expect(size.width, greaterThanOrEqualTo(44), reason: label);
+      expect(size.height, greaterThanOrEqualTo(44), reason: label);
+    }
+  });
+
   testWidgets('Grove kitchen door opens a distinct shared-clock room',
       (tester) async {
     await tester.pumpWidget(

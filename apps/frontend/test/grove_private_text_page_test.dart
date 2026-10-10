@@ -12,6 +12,7 @@ import 'package:frontend/pages/grove_private_text_page.dart';
 
 const projectId = '00000000-0000-4000-8000-000000000003';
 const conversationId = '00000000-0000-4000-8000-000000000004';
+const replacementConversationId = '00000000-0000-4000-8000-000000000006';
 const expectedProjectId = projectId;
 const expectedConversationId = conversationId;
 const requestId = '00000000-0000-4000-8000-000000000005';
@@ -29,6 +30,7 @@ class _FakePrivateClient extends GrovePrivateConversationClient {
     enabled: true,
   );
 
+  String availableConversationId = conversationId;
   int discoveries = 0;
   int historyReads = 0;
   int sends = 0;
@@ -58,7 +60,7 @@ class _FakePrivateClient extends GrovePrivateConversationClient {
       projectId: projectId, mayBeTruncated: false,
       conversations: empty && !created ? [] : [
         GrovePrivateConversationChoice(
-          conversationId: conversationId,
+          conversationId: availableConversationId,
           createdAt: DateTime.utc(2026, 9, 23),
           updatedAt: DateTime.utc(2026, 9, 23, 1),
         ),
@@ -178,6 +180,64 @@ Future<void> roomForRecovery(WidgetTester tester) async {
 }
 
 void main() {
+  testWidgets('revoked conversation disappears immediately after list refresh',
+      (tester) async {
+    await roomForRecovery(tester);
+    final client = _FakePrivateClient();
+    await tester.pumpWidget(recoveryPhone(
+        client, pendingStore(FakeDeviceStringStore())));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Earlier private question'), findsOneWidget);
+    expect(find.text('Earlier private answer'), findsOneWidget);
+    expect(find.text('Send'), findsOneWidget);
+
+    // The next authenticated discovery no longer authorizes this thread.
+    client.empty = true;
+    await tester.tap(find.text('Refresh conversations'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('will not invent one'), findsOneWidget);
+    expect(find.text('Earlier private question'), findsNothing);
+    expect(find.text('Earlier private answer'), findsNothing);
+    expect(find.text('Send'), findsNothing);
+    expect(find.byType(TextField), findsNothing);
+    expect(client.sends, 0);
+  });
+
+  testWidgets('switching authorized conversation hides old text during pending history',
+      (tester) async {
+    await roomForRecovery(tester);
+    final client = _FakePrivateClient();
+    await tester.pumpWidget(recoveryPhone(
+        client, pendingStore(FakeDeviceStringStore())));
+    await tester.pumpAndSettle();
+    expect(find.text('Earlier private answer'), findsOneWidget);
+
+    final delayedHistory = Completer<GrovePrivateHistory>();
+    client.availableConversationId = replacementConversationId;
+    client.delayedHistory = delayedHistory;
+    await tester.tap(find.text('Refresh conversations'));
+    await tester.pump();
+
+    // The new list has been verified but the replacement history has not.
+    // A vanished thread must not remain visible while the new read is pending.
+    expect(find.text('Earlier private answer'), findsNothing);
+    expect(find.text('Send'), findsNothing);
+    expect(client.sends, 0);
+
+    delayedHistory.complete(GrovePrivateHistory(
+      projectId: projectId,
+      conversationId: replacementConversationId,
+      mayBeTruncated: false,
+      turnsNewestFirst: const [],
+    ));
+    await tester.pumpAndSettle();
+    expect(find.text('Earlier private answer'), findsNothing);
+    expect(find.text('Send'), findsOneWidget);
+    expect(client.sends, 0);
+  });
+
   testWidgets('hung send releases recovery without resending or losing retry identity',
       (tester) async {
     await roomForRecovery(tester);

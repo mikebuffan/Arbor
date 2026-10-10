@@ -1,0 +1,69 @@
+name: Grove isolated private Text UI source acceptance
+
+# Grove-only source review. No backend/model/ARK tasks or deployment.
+on:
+  push:
+    branches:
+      - fix/grove-private-refresh-revocation-20261009
+
+permissions:
+  contents: read
+
+concurrency:
+  group: grove-ui-private-text-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  flutter-ui:
+    if: github.repository == 'mikebuffan/Arbor'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: apps/frontend
+    steps:
+      - name: Checkout isolated Grove branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Set up the existing Flutter toolchain
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Resolve existing Flutter packages
+        run: flutter pub get
+      - name: Analyze Grove private Text and auth scope
+        run: >-
+          flutter analyze --no-fatal-infos
+          lib/pages/grove_private_text_page.dart
+          lib/pages/grove_private_access_page.dart
+          lib/pages/grove_private_project_gate.dart
+          lib/environment/grove_house_room.dart
+          test/grove_house_navigation_test.dart
+          lib/environment/grove_private_conversations.dart
+          lib/environment/grove_pending_turn_store.dart
+          test/grove_private_text_page_test.dart
+          test/grove_private_conversations_test.dart
+      - name: Verify private refresh, scope, draft and retry behavior
+        run: >-
+          flutter test
+          test/grove_private_text_page_test.dart
+          test/grove_private_conversations_test.dart
+          test/grove_pending_turn_store_test.dart
+          test/grove_private_auth_boundary_test.dart
+          test/grove_private_project_gate_test.dart
+      - name: Verify existing Grove house/navigation baseline
+        run: >-
+          flutter test
+          test/grove_house_navigation_test.dart
+          test/environment_navigation_test.dart
+          test/grove_responsive_wrap_test.dart
+
+      - name: Verify Grove recovery and cross-surface scope
+        run: >-
+          flutter test
+          test/grove_runtime_scope_test.dart
+          test/grove_private_projects_truth_test.dart
+          test/grove_talk_private_boundary_test.dart
+          test/grove_consolidation_regression_test.dart
