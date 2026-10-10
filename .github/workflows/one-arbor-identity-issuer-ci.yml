@@ -16,6 +16,7 @@ on:
       - fix/grove-restart-history-order-20261010
       - fix/grove-global-correction-restart-20261010
       - fix/grove-phone-history-order-20261010
+      - review/grove-fullstack-source-compose-20261010
 
 permissions:
   contents: read
@@ -121,7 +122,7 @@ jobs:
 
   grove-phone-history:
     name: Grove phone history order (source only)
-    if: github.repository == 'mikebuffan/Arbor' && github.ref == 'refs/heads/fix/grove-phone-history-order-20261010'
+    if: github.repository == 'mikebuffan/Arbor' && (github.ref == 'refs/heads/fix/grove-phone-history-order-20261010' || github.ref == 'refs/heads/review/grove-fullstack-source-compose-20261010')
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     defaults:
