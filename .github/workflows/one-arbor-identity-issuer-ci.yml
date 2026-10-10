@@ -43,3 +43,7 @@ jobs:
       - name: Type-check existing backend
         working-directory: apps/backend
         run: pnpm exec tsc --noEmit
+      - name: Full backend regression
+        run: pnpm --filter firefly-backend test
+      - name: Production backend build
+        run: pnpm --filter firefly-backend build
