@@ -555,7 +555,7 @@ export async function runOpenAIAgencyAgent(
             !toolNeedsUserBoundary(tool) &&
             tool.mayRunBeforeProtectedBoundary === true,
           ),
-          prepared[protectedIndex],
+          prepared[protectedIndex]!,
         ];
 
     for (const { call, tool, args } of executionOrder) {
