@@ -83,3 +83,12 @@ test("boundary receipts draft stays source-only in all deployment environments",
     }
   }
 });
+
+test("97-task review draft never deploys on any project or stage", () => {
+  const ref = "fix/one-arbor-97-unlock-review-20261009";
+  for (const stage of ["preview", "production", "development", ""]) {
+    for (const id of [project, "prj_JArYlugmdFovY10CxZ0LEJmcrsKC", ""]) {
+      assert.equal(exitCode({ VERCEL_ENV: stage, VERCEL_PROJECT_ID: id, VERCEL_GIT_COMMIT_REF: ref }), 0);
+    }
+  }
+});
