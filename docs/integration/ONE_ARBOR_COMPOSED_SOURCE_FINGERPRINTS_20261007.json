@@ -92,7 +92,7 @@
     "apps/backend/lib/arbor/runtime/__tests__/group09TruthConsequence.test.ts": "021805dda0e816ac8d6a21e97794b20e3b2c0800",
     "apps/backend/lib/arbor/runtime/cognitiveBridge.ts": "9169cf5e7e883b3312ab5ec34baf3c09de9abc84",
     "apps/backend/lib/arbor/runtime/corrections.ts": "ef94dd9ec5b934ed5b77526d7309434d2c353be1",
-    "apps/backend/lib/grove/__tests__/privateTranscriptStore.test.ts": "280804e5b122d15e0bdc6ade767b5923e480397f",
+    "apps/backend/lib/grove/__tests__/privateTranscriptStore.test.ts": "834358dd2d4e7df338809c985e702a875ec0956a",
     "apps/backend/lib/grove/privateConversationLoop.ts": "f5a399a26b72fe2c8704cd272e767784caf45da0",
     "apps/backend/lib/grove/privateTranscriptStore.ts": "5b326a18bd29275630200ebc3d4aa93abc906843",
     "apps/backend/lib/learning/__tests__/bodyCausalNegativeControls.test.ts": "8471a4c27e06b14fb8d761f9ecb523717e423d2c",
