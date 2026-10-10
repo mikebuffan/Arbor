@@ -1,10 +1,22 @@
 import { describe, expect, it } from "vitest";
+import { buildArborAgencyTools } from "../arborTools";
 import {
   AgencyToolRegistry,
   toolNeedsUserBoundary,
 } from "../tools";
 
 describe("AgencyToolRegistry", () => {
+  it("keeps independent-read certification trusted and absent from model schemas", () => {
+    const registry = buildArborAgencyTools({ supabase: {} as never });
+    const certified = registry.get("arbor_read_runtime_state");
+    expect(certified.risk).toBe("read");
+    expect(certified.mayRunBeforeProtectedBoundary).toBe(true);
+    expect(registry.get("annabelle_set_working_delta").mayRunBeforeProtectedBoundary).toBeUndefined();
+    const advertised = registry.openAIToolDefinitions().find(item => item.name === "arbor_read_runtime_state");
+    expect(advertised).toBeDefined();
+    expect(advertised).not.toHaveProperty("mayRunBeforeProtectedBoundary");
+  });
+
   it("allows read and reversible-write capabilities through the agency loop", () => {
     const registry = new AgencyToolRegistry()
       .register({
