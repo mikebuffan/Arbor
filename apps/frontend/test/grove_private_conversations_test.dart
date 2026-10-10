@@ -11,6 +11,7 @@ const config = GrovePrivateConfig(
   authUrl: 'https://fqjqpuaoifgbweiguacf.supabase.co',
   publishableKey: 'sb_publishable_private_synthetic',
   apiUrl: apiUrl,
+  approvedApiHost: 'private-grove.example.org',
 );
 
 Map<String, dynamic> choices() => {
@@ -139,6 +140,31 @@ void main() {
     expect(empty.conversations, isEmpty);
   });
 
+  test('case-varied duplicate conversation IDs fail closed', () {
+    const id = 'abcdefab-1234-4000-8000-abcdef123456';
+    final entry = {
+      ...(choices()['conversations'] as List).single as Map<String, dynamic>,
+      'conversationId': id,
+    };
+    expect(() => parseGrovePrivateConversations({
+      ...choices(), 'conversations': [entry, {...entry, 'conversationId': id.toUpperCase()}],
+    }, projectId: project), throwsFormatException);
+  });
+
+  test('case-varied duplicate saved request IDs fail closed', () {
+    const id = 'abcdefab-1234-4000-8000-abcdef123456';
+    final entry = {
+      ...(history()['turns'] as List).single as Map<String, dynamic>,
+      'requestId': id,
+    };
+    expect(() => parseGrovePrivateHistory({
+      ...history(), 'turns': [entry, {
+        ...entry, 'requestId': id.toUpperCase(),
+        'createdAt': '2026-09-23T01:00:00Z',
+      }],
+    }, projectId: project, conversationId: conversation), throwsFormatException);
+  });
+
   test('explicit new private conversation uses database-minted ID and no work authority', () {
     final parsed = parseGrovePrivateCreatedConversation(
       created(), projectId: project,
@@ -200,6 +226,35 @@ void main() {
         projectId: project, conversationId: conversation),
         throwsFormatException);
     }
+  });
+
+  test('phone rejects reversed exact-conversation history even if response advertises newest_first', () {
+    final latest = {...((history()['turns'] as List).single as Map<String, dynamic>),
+      'requestId': '00000000-0000-4000-8000-000000000016',
+      'userText': 'Latest saved message',
+      'createdAt': '2026-10-10T03:00:00Z'};
+    final older = {...latest,
+      'requestId': '00000000-0000-4000-8000-000000000017',
+      'userText': 'Older saved message',
+      'createdAt': '2026-10-10T02:00:00Z'};
+
+    final valid = parseGrovePrivateHistory({
+      ...history(), 'turns': [latest, older],
+    }, projectId: project, conversationId: conversation);
+    expect(valid.turnsNewestFirst.map((t) => t.userText).toList(),
+      ['Latest saved message', 'Older saved message']);
+
+    expect(() => parseGrovePrivateHistory({
+      ...history(), 'turns': [older, latest],
+    }, projectId: project, conversationId: conversation),
+      throwsFormatException);
+
+    // Timestamp ties carry no proven ordering; do not invent a precedence.
+    final sameTime = {...older, 'createdAt': latest['createdAt']};
+    expect(parseGrovePrivateHistory({
+      ...history(), 'turns': [latest, sameTime],
+    }, projectId: project, conversationId: conversation)
+      .turnsNewestFirst, hasLength(2));
   });
 
   test('private model words never become a verified ARK action', () {

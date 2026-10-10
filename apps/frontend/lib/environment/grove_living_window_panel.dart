@@ -10,8 +10,10 @@ import 'grove_window_time_selection.dart';
 /// model as the stand-alone reference-image proof of concept.
 /// Never changes device time, reads or writes ARK, or requests precise GPS.
 class GroveLivingWindowPanel extends StatefulWidget {
-  const GroveLivingWindowPanel({super.key, this.clock, this.windowPreview});
+  const GroveLivingWindowPanel({super.key, this.clock, this.windowPreview, this.houseClock});
   final DateTime Function()? clock;
+  /// Inject a shared clock for deterministic lifecycle/widget tests.
+  final GroveHouseClock? houseClock;
   /// Injected only for tests/embedding; normal Grove rooms share one preview.
   final GroveWindowTimeSelection? windowPreview;
 
@@ -44,12 +46,17 @@ class _GroveLivingWindowPanelState extends State<GroveLivingWindowPanel> {
         setState(() => _live = widget.clock!().toLocal());
       });
     } else {
-      _houseClock = GroveHouseClock.shared;
+      _houseClock = widget.houseClock ?? GroveHouseClock.shared;
       _houseClock!.attach();
-      _houseClock!.refresh();
       _live = _houseClock!.localNow;
       _place = _placeFor(_houseClock!.location);
       _houseClock!.addListener(_onHouseTimeChanged);
+      // An already-visible Grove room listens to this same clock. Refresh
+      // AFTER the window's first frame, never while a sibling is building:
+      // otherwise a minute-boundary notification calls its setState mid-build.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _houseClock?.refresh();
+      });
     }
   }
 

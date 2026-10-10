@@ -7,7 +7,7 @@ BEGIN;
 
 CREATE TABLE IF NOT EXISTS public.grove_private_turns (
   grove_user_id uuid NOT NULL
-    REFERENCES public.grove_private_owner_access(user_id) ON DELETE CASCADE,
+    REFERENCES public.grove_private_owner_access(user_id) ON DELETE RESTRICT,
   firefly_project_id uuid NOT NULL,
   firefly_conversation_id uuid NOT NULL,
   request_id uuid NOT NULL,
@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS public.grove_private_turns (
     grove_user_id,firefly_project_id
   ) REFERENCES public.grove_private_ark_project_grants(
     grove_user_id,firefly_project_id
-  ) ON DELETE CASCADE
+  ) ON DELETE RESTRICT
 );
 
 CREATE INDEX IF NOT EXISTS grove_private_turns_recent
@@ -46,7 +46,10 @@ REVOKE ALL ON public.grove_private_turns FROM anon, authenticated;
 -- No direct INSERT for service_role: only the separately approved
 -- grove_private_complete_turn fenced SECURITY DEFINER function may persist
 -- after current claim-token and active grant checks. Client and model have
--- no write privileges. Grant revocation deletion uses FK ON DELETE CASCADE.
+-- no write privileges. Revoking owner/bridge/project via revoked_at
+-- immediately denies server access while retaining completed history.
+-- Hard deletion of owner/grant requires an explicit prior transcript purge;
+-- FK RESTRICT prevents a routine admin grant deletion from silently erasing it.
 REVOKE ALL ON public.grove_private_turns FROM PUBLIC, anon, authenticated, service_role;
 GRANT SELECT ON public.grove_private_turns TO service_role;
 -- No client-facing policy. Only authorized Grove SERVER code using a
@@ -55,6 +58,6 @@ GRANT SELECT ON public.grove_private_turns TO service_role;
 -- A Grove JWT cannot be used as a Firefly credential.
 
 COMMENT ON TABLE public.grove_private_turns IS
-  'Private Grove-only complete model turn pairs. No ARK execution receipts. NOT Firefly public chat history. Retention/deletion policy must be approved before deployment.';
+  'Grove-only complete model turn pairs, no ARK execution receipts. Retain on soft revocation; block hard owner/grant removal until explicitly authorized transcript purge. Proposal only.';
 
 COMMIT;

@@ -147,3 +147,155 @@ test("new #440 receipt-review branch stays source-only on every project and stag
     }
   }
 });
+
+test("combined Grove exact-conversation continuity branch stays source-only", () => {
+  const ref = "fix/one-arbor-exact-grove-continuity-20261009";
+  for (const stage of ["preview","production","development",""]) {
+    for(const id of [project,"prj_JArYlugmdFovY10CxZ0LEJmcrsKC",""]) {
+      assert.equal(exitCode({VERCEL_ENV:stage,VERCEL_PROJECT_ID:id,VERCEL_GIT_COMMIT_REF:ref}),0);
+    }
+  }
+});
+
+test("Grove replay capture draft is source-only", () => {
+  const ref = "fix/grove-replay-runtime-capture-20261010";
+  for (const stage of ["preview","production","development",""]) {
+    for(const id of [project,"prj_JArYlugmdFovY10CxZ0LEJmcrsKC",""]) {
+      assert.equal(exitCode({VERCEL_ENV:stage,VERCEL_PROJECT_ID:id,VERCEL_GIT_COMMIT_REF:ref}),0);
+    }
+  }
+});
+
+test("Grove history ordering source review cannot deploy", () => {
+  const ref="fix/grove-restart-history-order-20261010";
+  for (const stage of ["preview","production","development",""]) {
+    for(const id of [project,"prj_JArYlugmdFovY10CxZ0LEJmcrsKC",""]) {
+      assert.equal(exitCode({VERCEL_ENV:stage,VERCEL_PROJECT_ID:id,VERCEL_GIT_COMMIT_REF:ref}),0);
+    }
+  }
+});
+
+test("Grove durable correction restart review stays source-only", () => {
+  const ref = "fix/grove-global-correction-restart-20261010";
+  for (const stage of ["preview", "production", "development", ""]) {
+    for (const id of [project, "prj_JArYlugmdFovY10CxZ0LEJmcrsKC", ""]) {
+      assert.equal(exitCode({VERCEL_ENV: stage, VERCEL_PROJECT_ID: id, VERCEL_GIT_COMMIT_REF: ref}), 0);
+    }
+  }
+});
+
+test("Grove phone history order branch cannot deploy", () => {
+  const ref="fix/grove-phone-history-order-20261010";
+  for (const stage of ["preview","production","development",""]) {
+    for (const id of [project,"prj_JArYlugmdFovY10CxZ0LEJmcrsKC",""]) {
+      assert.equal(exitCode({VERCEL_ENV:stage,VERCEL_PROJECT_ID:id,VERCEL_GIT_COMMIT_REF:ref}),0);
+    }
+  }
+});
+
+
+test("composed Grove source owners and current full-stack candidate remain no-deploy", () => {
+  const refs = ["fix/grove-private-refresh-revocation-20261009","test/grove-group5-rooms-20261010","test/grove-group6-workspaces-20261010","test/grove-group8-accessibility-20261010","review/grove-combined-ui-diary-20261010","review/grove-ui-phone-compose-20261010","review/grove-fullstack-source-compose-20261010"];
+  for (const ref of refs) {
+    for (const stage of ["preview", "production", "development", ""]) {
+      for (const id of [project, "prj_JArYlugmdFovY10CxZ0LEJmcrsKC", ""]) {
+        assert.equal(exitCode({
+          VERCEL_ENV: stage, VERCEL_PROJECT_ID: id,
+          VERCEL_GIT_COMMIT_REF: ref,
+        }), 0, ref + " " + stage + " " + id);
+      }
+    }
+  }
+});
+
+
+test("Grove unconfigured Android debug compile branch never deploys", () => {
+  const ref = "test/grove-android-debug-20261010";
+  for (const stage of ["preview", "production", "development", ""]) {
+    for (const id of [project, "prj_JArYlugmdFovY10CxZ0LEJmcrsKC", ""]) {
+      assert.equal(exitCode({
+        VERCEL_ENV: stage, VERCEL_PROJECT_ID: id,
+        VERCEL_GIT_COMMIT_REF: ref,
+      }), 0, stage + " " + id);
+    }
+  }
+});
+
+test("Grove case-variant UUID scope review never triggers Vercel builds", () => {
+  const ref = "fix/grove-uuid-duplicate-scope-20261010";
+  for (const stage of ["preview", "production", "development", ""]) {
+    for (const id of [project, "prj_JArYlugmdFovY10CxZ0LEJmcrsKC", ""]) {
+      assert.equal(exitCode({
+        VERCEL_ENV: stage,
+        VERCEL_PROJECT_ID: id,
+        VERCEL_GIT_COMMIT_REF: ref,
+      }), 0, stage + " " + id);
+    }
+  }
+});
+
+test("unapproved Grove API-host review branch never deploys", () => {
+  const ref = "fix/grove-approved-api-host-20261010";
+  for (const stage of ["preview", "production", "development", ""]) {
+    for (const id of [project, "prj_JArYlugmdFovY10CxZ0LEJmcrsKC", ""]) {
+      assert.equal(exitCode({
+        VERCEL_ENV: stage,
+        VERCEL_PROJECT_ID: id,
+        VERCEL_GIT_COMMIT_REF: ref,
+      }), 0, stage + " " + id);
+    }
+  }
+});
+
+
+test("composed One Arbor and Grove branch is fenced in all projects and environments", () => {
+  const ref="review/one-arbor-grove-440-441-compose-20261010";
+  for (const stage of ["preview","production","development",""]) {
+    for (const id of [project,"prj_JArYlugmdFovY10CxZ0LEJmcrsKC",""]) {
+      assert.equal(exitCode({VERCEL_ENV:stage,VERCEL_PROJECT_ID:id,VERCEL_GIT_COMMIT_REF:ref}),0,stage+" "+id);
+    }
+  }
+});
+
+test("dedicated Grove draft has no jobs; shared Firefly schedules remain", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const grove = JSON.parse(await readFile(
+    new URL("../../apps/backend/vercel.grove.json", import.meta.url), "utf8"));
+  const fireflyBackend = JSON.parse(await readFile(
+    new URL("../../apps/backend/vercel.json", import.meta.url), "utf8"));
+  const fireflyRoot = JSON.parse(await readFile(
+    new URL("../../vercel.json", import.meta.url), "utf8"));
+  assert.deepEqual(grove.crons, [], "dedicated Grove proposal cannot carry Firefly cron");
+  assert.equal(grove.ignoreCommand, "node ../../ops/grove/source-only-ignore.mjs");
+  assert.ok(fireflyBackend.crons.some(x => x.path === "/api/admin/system/heartbeat"),
+    "never delete backend Firefly heartbeat to satisfy Grove");
+  assert.ok(fireflyRoot.crons.some(x => x.path === "/api/admin/system/heartbeat"),
+    "never delete root Firefly heartbeat to satisfy Grove");
+  const protectedBranch = "review/one-arbor-grove-440-441-compose-20261010";
+  const groveProject = "prj_nw2X0SyLn4e8CXWZ83MEs4jwn1JN";
+  for (const stage of ["preview", "production", "development", ""]) {
+    assert.equal(exitCode({
+      VERCEL_PROJECT_ID: groveProject, VERCEL_ENV: stage,
+      VERCEL_GIT_COMMIT_REF: protectedBranch,
+    }), 0, "source review must never build on the dedicated host");
+  }
+});
+
+test("dedicated private Grove project cannot auto-build main or unlisted refs before release approval", () => {
+  const groveProject = "prj_nw2X0SyLn4e8CXWZ83MEs4jwn1JN";
+  for (const stage of ["preview", "production", "development", ""]) {
+    for (const ref of ["main", "production", "unlisted-feature", "",
+      "review/one-arbor-grove-440-441-compose-20261010"]) {
+      assert.equal(exitCode({
+        VERCEL_PROJECT_ID: groveProject,
+        VERCEL_ENV: stage, VERCEL_GIT_COMMIT_REF: ref,
+      }), 0, "unapproved private Grove build must be ignored");
+    }
+  }
+  // Existing shared Firefly builds remain unaffected by the Grove-specific lock.
+  for (const ref of ["main", "production", "unlisted-feature"]) {
+    assert.equal(exitCode({VERCEL_PROJECT_ID: "prj_JArYlugmdFovY10CxZ0LEJmcrsKC",
+      VERCEL_GIT_COMMIT_REF: ref}), 1);
+    assert.equal(exitCode({VERCEL_GIT_COMMIT_REF: ref}), 1);
+  }
+});

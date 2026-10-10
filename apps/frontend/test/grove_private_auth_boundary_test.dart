@@ -11,6 +11,7 @@ void main() {
     authUrl: 'https://fqjqpuaoifgbweiguacf.supabase.co',
     publishableKey: 'sb_publishable_test-value',
     apiUrl: 'https://grove-private.example.org',
+    approvedApiHost: 'grove-private.example.org',
   );
 
 
@@ -58,6 +59,28 @@ void main() {
     })));
     return 'synthetic.' + payload + '.not-a-real-signature';
   }
+
+  test('private Grove API host requires independent explicit review', () {
+    // Even a pinned Grove auth realm cannot send a token to an arbitrary
+    // HTTPS receiver simply because the Android build supplied an API URL.
+    const auth = 'https://fqjqpuaoifgbweiguacf.supabase.co';
+    const key = 'sb_publishable_synthetic-test';
+    const intended = 'https://grove-private.example.org';
+    expect(const GrovePrivateConfig(authUrl: auth,
+      publishableKey: key, apiUrl: intended).ready, isFalse);
+    expect(const GrovePrivateConfig(authUrl: auth,
+      publishableKey: key, apiUrl: intended,
+      approvedApiHost: 'another-private.example.org').ready, isFalse);
+    expect(const GrovePrivateConfig(authUrl: auth,
+      publishableKey: key, apiUrl: intended,
+      approvedApiHost: 'grove-private.example.org').ready, isTrue);
+    expect(const GrovePrivateConfig(authUrl: auth,
+      publishableKey: key, apiUrl: 'https://attacker.example.org',
+      approvedApiHost: 'grove-private.example.org').ready, isFalse);
+    expect(const GrovePrivateConfig(authUrl: auth,
+      publishableKey: key, apiUrl: 'https://firefly-coral.vercel.app',
+      approvedApiHost: 'firefly-coral.vercel.app').ready, isFalse);
+  });
 
   test('old Firefly session cannot unlock an upgraded private Grove', () {
     final privateToken = tokenFor(

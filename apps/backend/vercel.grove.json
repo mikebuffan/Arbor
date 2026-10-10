@@ -1,0 +1,4 @@
+{
+  "crons": [],
+  "ignoreCommand": "node ../../ops/grove/source-only-ignore.mjs"
+}
