@@ -2,6 +2,7 @@
 // One existing isolated test project may build this exact branch as Preview.
 // This exception grants no runtime credentials, database access or model budget.
 const branches = new Set([
+  "fix/batch5-pending-action-completion-20261010",
   "arbor/grove-buffalo-acceptance-20261006",
   "arbor/one-arbor-phone-reconciliation-20261006",
   "arbor/grove-lm-source-repair-20261005",
