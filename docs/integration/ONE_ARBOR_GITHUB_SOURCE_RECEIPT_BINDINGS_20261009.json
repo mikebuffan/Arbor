@@ -58,7 +58,61 @@
         "Full backend regression",
         "Production backend build"
       ]
+    },
+    {
+      "branch": "fix/b15-causal-ancestry-gate-20261009",
+      "headSha": "c75b43215b349020919657905537df1803679cb6",
+      "taskIds": [
+        "B15"
+      ],
+      "stage": "source_verified",
+      "workflow": "One Arbor verified boundary receipt and chat source acceptance",
+      "job": "identity-security",
+      "requiredSteps": [
+        "Verify 223 retained source fingerprints",
+        "Verify review branch can never trigger Vercel build",
+        "Verify identity issuer negative and positive controls",
+        "Type-check existing backend",
+        "Full backend regression",
+        "Production backend build"
+      ]
+    },
+    {
+      "branch": "fix/independence-holdout-receipt-readback-20261010",
+      "headSha": "f0fb72d18a3293a51f2f7ea2d4a36c4d34f47503",
+      "taskIds": [
+        "D12"
+      ],
+      "stage": "source_verified",
+      "workflow": "One Arbor independence verification evidence gate",
+      "job": "verification-source",
+      "requiredSteps": [
+        "Preserve reviewed source identity",
+        "Enforce source-only Vercel branches",
+        "Learning and verification regression suite",
+        "Backend TypeScript",
+        "Full backend regression",
+        "Backend build (CI only)"
+      ]
+    },
+    {
+      "branch": "fix/d09-consequence-choice-identity-20261010",
+      "headSha": "b98706a3a87db67272ead5d57e3226f1d4eff65a",
+      "taskIds": [
+        "D09"
+      ],
+      "stage": "source_verified",
+      "workflow": "One Arbor independence verification evidence gate",
+      "job": "verification-source",
+      "requiredSteps": [
+        "Preserve reviewed source identity",
+        "Enforce source-only Vercel branches",
+        "Learning and verification regression suite",
+        "Backend TypeScript",
+        "Full backend regression",
+        "Backend build (CI only)"
+      ]
     }
   ],
-  "note": "Binding B11/E07 to exact source-tested chat receipt preservation does not prove authenticated hosted restart or complete either task. C08 binding identifies source-only malformed correction promotion guard verified at exact head 81333658; no live model or permanent write acceptance."
+  "note": "Six explicit source-only CI branch/task bindings, reviewed against exact GitHub push-run and successful workflow-job steps. PR prose and unverifiable source declarations cannot grant host acceptance, task completion, or execution authority. No transitive promotion."
 }

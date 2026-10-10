@@ -19,7 +19,30 @@ const STEP_SET = new Set([
   "Type-check existing backend",
   "Full backend regression",
   "Production backend build",
+  "Preserve reviewed source identity",
+  "Enforce source-only Vercel branches",
+  "Learning and verification regression suite",
+  "Backend TypeScript",
+  "Backend build (CI only)",
 ]);
+const ACCEPTANCE_STEP_FAMILIES = [
+  [
+    "Verify 223 retained source fingerprints",
+    "Verify review branch can never trigger Vercel build",
+    "Verify identity issuer negative and positive controls",
+    "Type-check existing backend",
+    "Full backend regression",
+    "Production backend build",
+  ],
+  [
+    "Preserve reviewed source identity",
+    "Enforce source-only Vercel branches",
+    "Learning and verification regression suite",
+    "Backend TypeScript",
+    "Full backend regression",
+    "Backend build (CI only)",
+  ],
+];
 function fail(message) { throw Error("one_arbor_github_receipt:" + message); }
 function plain(x) { return x !== null && typeof x === "object" && !Array.isArray(x) && Object.getPrototypeOf(x) === Object.prototype; }
 
@@ -40,9 +63,11 @@ export function validateRunBindings(view, document) {
         new Set(x.requiredSteps).size !== x.requiredSteps.length ||
         x.taskIds.some(id => !ids.has(id)) ||
         new Set(x.taskIds).size !== x.taskIds.length) fail("invalid_task_binding");
-    if (!x.requiredSteps.includes("Full backend regression") ||
-        !x.requiredSteps.includes("Type-check existing backend") ||
-        !x.requiredSteps.includes("Production backend build")) fail("incomplete_source_acceptance_gate");
+    // Distinct reviewed workflows use distinct step names. Never accept a
+    // hybrid or a weakened partial gate; require one *complete* known family.
+    if (!ACCEPTANCE_STEP_FAMILIES.some(family =>
+      family.every(step => x.requiredSteps.includes(step))))
+      fail("incomplete_source_acceptance_gate");
     const key = x.branch + ":" + x.headSha;
     if (unique.has(key)) fail("duplicate_source_binding");
     unique.add(key);
