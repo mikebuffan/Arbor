@@ -497,11 +497,9 @@ export async function POST(req: Request) {
       },
       allowWebResearch: process.env.ARBOR_ENABLE_WEB_RESEARCH !== "false",
       behaviorRequirements: behaviorGuardRequirements,
-      priorActionEvidence: agencyState.unresolvedWork
-        .filter((item) => item.startsWith("verify capability result: "))
-        .map((item) =>
-          `capability ${item.slice("verify capability result: ".length)} completed successfully`,
-        ),
+      // Pending "verify capability result" markers are obligations, never
+      // host-authenticated execution receipts. Do not turn them into
+      // authoritative actionEvidence for the completion verifier.
       idempotency: {
         claim: ({ key, operation }) =>
           claimAgencyOperation({
