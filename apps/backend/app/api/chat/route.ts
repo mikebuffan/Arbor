@@ -661,6 +661,13 @@ export async function POST(req: Request) {
                 {
                   score,
                   verificationId,
+                  // Only a completed, evidence-backed and clean outcome
+                  // qualifies as progress toward retaining a strategy.
+                  verifiedOutcome:
+                    complete &&
+                    evidence.length > 0 &&
+                    unresolvedWork.length === 0 &&
+                    behaviorViolations.length === 0,
                   behavior: behaviorProof,
                   protectedCorrections,
                   newFailureIntroduced:

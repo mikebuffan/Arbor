@@ -61,6 +61,8 @@ export function recordSelfUpdateVerification(
     score: number;
     // Provided by the trusted verifier callback, never the user or model text.
     verificationId?: string;
+    // Trusted completion-verifier result; high scores alone are not proof.
+    verifiedOutcome?: boolean;
     behavior: ArborBehaviorProof;
     protectedCorrections: string[];
     newFailureIntroduced?: boolean;
@@ -80,6 +82,7 @@ export function recordSelfUpdateVerification(
     Number.isFinite(update.beforeScore) &&
     Number.isFinite(input.score - update.beforeScore);
   const distinctVerification =
+    input.verifiedOutcome === true &&
     scoreVerifiable &&
     /^[A-Za-z0-9._:-]{4,200}$/.test(id) &&
     !knownIds.includes(id);
