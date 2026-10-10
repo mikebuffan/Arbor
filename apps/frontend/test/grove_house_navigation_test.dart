@@ -110,23 +110,24 @@ void main() {
     expect(find.text('THE GROVE • HOME'), findsOneWidget);
   });
 
-  testWidgets('Grove shelves show scoped memory and document boundaries',
+  testWidgets('Grove shelves tap requests the existing Library destination',
       (tester) async {
-    await tester.pumpWidget(
-        const MaterialApp(home: ArborEnvironmentShell()));
-    await tester.pump(const Duration(milliseconds: 150));
+    GroveRoomAction? opened;
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: SingleChildScrollView(
+          child: GroveHouseRoom(onOpen: (action) => opened = action),
+        ),
+      ),
+    ));
+    await tester.pump();
     await tester.ensureVisible(find.widgetWithText(OutlinedButton, 'Shelves'));
-    await tester.pump(const Duration(milliseconds: 200));
+    await tester.pump(const Duration(milliseconds: 150));
     await tester.tap(find.widgetWithText(OutlinedButton, 'Shelves'));
-    await tester.pump(const Duration(milliseconds: 300));
-    expect(find.text('LIBRARY · LIVE SAVED MEMORY'), findsOneWidget);
-    expect(find.text('LIBRARY · PROJECT ATTACHMENTS'), findsOneWidget);
-    expect(find.textContaining(
-        'Not original documents or independently verified evidence.'),
-        findsOneWidget);
-    expect(find.textContaining(
-        'Not all project files, and no document has been opened or verified.'),
-        findsOneWidget);
+    expect(opened, GroveRoomAction.shelves);
+    // Scoped saved-memory and unopened-attachment truth are covered by their
+    // dedicated injected-loader widget tests; do not bootstrap real Supabase
+    // or perform a private network read in this room-navigation test.
   });
 
   testWidgets('Kitchen scratchpad does not survive leaving the room',
@@ -140,7 +141,12 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('THE GROVE / ANNABELLE’S KITCHEN'), findsOneWidget);
     await tester.enterText(find.byType(TextField), 'unsaved scene note');
+    await tester.pump();
     expect(find.text('unsaved scene note'), findsOneWidget);
+    // Settle the test keyboard/focus before tearing down the editable route.
+    // This is visit-only persistence coverage, not a keyboard-focus regression.
+    FocusManager.instance.primaryFocus?.unfocus();
+    await tester.pump();
     await tester.ensureVisible(find.text('Back to the Grove'));
     await tester.pump(const Duration(milliseconds: 200));
     await tester.tap(find.text('Back to the Grove'));
