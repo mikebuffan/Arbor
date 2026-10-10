@@ -90,4 +90,68 @@ void main() {
     expect(find.text('THE LIVING WINDOW'), findsWidgets);
     expect(find.text('Preview another time'), findsWidgets);
   });
+
+  testWidgets('Grove stairs open the Observatory and return home',
+      (tester) async {
+    await tester.pumpWidget(
+        const MaterialApp(home: ArborEnvironmentShell()));
+    await tester.pump(const Duration(milliseconds: 150));
+    await tester.ensureVisible(find.widgetWithText(OutlinedButton, 'Stairs'));
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Stairs'));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('THE GROVE / OBSERVATORY'), findsOneWidget);
+    expect(find.textContaining('Illustrative sky card, not a live camera'),
+        findsOneWidget);
+    await tester.ensureVisible(find.text('Back to the Grove'));
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.tap(find.text('Back to the Grove'));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('THE GROVE • HOME'), findsOneWidget);
+  });
+
+  testWidgets('Grove shelves show scoped memory and document boundaries',
+      (tester) async {
+    await tester.pumpWidget(
+        const MaterialApp(home: ArborEnvironmentShell()));
+    await tester.pump(const Duration(milliseconds: 150));
+    await tester.ensureVisible(find.widgetWithText(OutlinedButton, 'Shelves'));
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Shelves'));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('LIBRARY · LIVE SAVED MEMORY'), findsOneWidget);
+    expect(find.text('LIBRARY · PROJECT ATTACHMENTS'), findsOneWidget);
+    expect(find.textContaining(
+        'Not original documents or independently verified evidence.'),
+        findsOneWidget);
+    expect(find.textContaining(
+        'Not all project files, and no document has been opened or verified.'),
+        findsOneWidget);
+  });
+
+  testWidgets('Kitchen scratchpad does not survive leaving the room',
+      (tester) async {
+    await tester.pumpWidget(
+        const MaterialApp(home: ArborEnvironmentShell()));
+    await tester.pump(const Duration(milliseconds: 150));
+    await tester.ensureVisible(find.widgetWithText(OutlinedButton, 'Kitchen'));
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Kitchen'));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('THE GROVE / ANNABELLE’S KITCHEN'), findsOneWidget);
+    await tester.enterText(find.byType(TextField), 'unsaved scene note');
+    expect(find.text('unsaved scene note'), findsOneWidget);
+    await tester.ensureVisible(find.text('Back to the Grove'));
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.tap(find.text('Back to the Grove'));
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.ensureVisible(find.widgetWithText(OutlinedButton, 'Kitchen'));
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Kitchen'));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('THE GROVE / ANNABELLE’S KITCHEN'), findsOneWidget);
+    expect(find.text('unsaved scene note'), findsNothing);
+    expect(tester.widget<TextField>(find.byType(TextField)).controller!.text,
+        isEmpty);
+  });
 }
