@@ -20,6 +20,10 @@ export type ArborCorrection = {
   confidence: number;
   protected: boolean;
   occurrences?: number;
+  /** Stable trusted-host user-message observation IDs, not correction family IDs. */
+  observationIds?: string[];
+  /** Historic count not attributable to stored individual observation IDs. */
+  legacyOccurrences?: number;
 };
 
 export type ArborRuntimeState = {
@@ -54,14 +58,90 @@ function clampConfidence(value: number): number {
   return Math.max(0, Math.min(1, value));
 }
 
+const MAX_OBSERVATION_IDS = 128;
+const OBSERVATION_ID = /^[A-Za-z0-9._:-]{4,200}$/;
+
+/** Validate persisted provenance without manufacturing identities for legacy data. */
 export function normalizeCorrection(
   correction: ArborCorrection,
 ): ArborCorrection {
-  return {
+  const result: ArborCorrection = {
     ...correction,
     value: correction.value.trim(),
     confidence: clampConfidence(correction.confidence),
     occurrences: Math.max(1, Number(correction.occurrences ?? 1)),
+  };
+  if (correction.observationIds === undefined) {
+    if (correction.legacyOccurrences !== undefined)
+      throw new Error("arbor_correction_invalid_observation_ids");
+    return result;
+  }
+  const ids = correction.observationIds;
+  if (!Array.isArray(ids) || !ids.length || ids.length > MAX_OBSERVATION_IDS ||
+      ids.some(id => typeof id !== "string" || !OBSERVATION_ID.test(id)) ||
+      new Set(ids).size !== ids.length ||
+      !Number.isSafeInteger(result.occurrences) || result.occurrences! < ids.length)
+    throw new Error("arbor_correction_invalid_observation_ids");
+  const baseline = correction.legacyOccurrences ??
+    (result.occurrences! - ids.length);
+  if (!Number.isSafeInteger(baseline) || baseline < 0 ||
+      baseline + ids.length !== result.occurrences)
+    throw new Error("arbor_correction_invalid_observation_ids");
+  result.observationIds = [...ids].sort();
+  result.legacyOccurrences = baseline;
+  return result;
+}
+
+function combinedCorrection(
+  prior: ArborCorrection,
+  next: ArborCorrection,
+  fromSnapshot: boolean,
+): ArborCorrection {
+  const priorCount = prior.occurrences ?? 1;
+  const incomingCount = next.occurrences ?? 1;
+  const latest = Date.parse(next.observedAt) >= Date.parse(prior.observedAt)
+    ? next : prior;
+  const priorIds = prior.observationIds ?? [];
+  const incomingIds = next.observationIds ?? [];
+
+  if (!priorIds.length && !incomingIds.length) {
+    // Legacy snapshots can contain copies of the same events. Preserve the
+    // original conservative legacy behavior until host event IDs are known.
+    const sameObservation = Date.parse(next.observedAt) === Date.parse(prior.observedAt) &&
+      next.kind === prior.kind && next.value === prior.value && next.source === prior.source;
+    return { ...latest, occurrences: fromSnapshot || sameObservation ||
+      incomingCount > 1 ? Math.max(priorCount, incomingCount) : priorCount + 1 };
+  }
+
+  const known = [...new Set([...priorIds, ...incomingIds])].sort();
+  if (known.length > MAX_OBSERVATION_IDS)
+    throw new Error("arbor_correction_observation_limit");
+
+  const priorBase = prior.observationIds?.length ? prior.legacyOccurrences ?? 0 : 0;
+  const incomingBase = next.observationIds?.length ? next.legacyOccurrences ?? 0 : 0;
+  let baseline = Math.max(priorBase, incomingBase);
+
+  if (!fromSnapshot && !priorIds.length && incomingIds.length === 1 &&
+      incomingCount === 1 && incomingBase === 0) {
+    // A new host-attributed single user turn adds one observation after an
+    // old count that never had per-event provenance.
+    baseline = Math.max(baseline, priorCount);
+  } else {
+    // Copied unkeyed snapshots may already contain the known IDs: never
+    // blindly add their entire count to the IDs.
+    if (!priorIds.length) baseline = Math.max(baseline, priorCount - known.length);
+    if (!incomingIds.length) baseline = Math.max(baseline, incomingCount - known.length);
+  }
+
+  // A keyed aggregate can only grow by previously unseen event IDs. An
+  // unkeyed input without new evidence cannot increase it by a retry.
+  const occurrences = Math.max(priorCount, incomingCount, baseline + known.length);
+  baseline = occurrences - known.length;
+  return {
+    ...latest,
+    observationIds: known,
+    legacyOccurrences: baseline,
+    occurrences,
   };
 }
 
@@ -70,55 +150,21 @@ export function mergeCorrections(
   incoming: ArborCorrection[],
 ): ArborCorrection[] {
   const byId = new Map<string, ArborCorrection>();
-
   for (const correction of [...existing, ...incoming]) {
     const normalized = normalizeCorrection(correction);
-
     if (!normalized.value) continue;
-
     const prior = byId.get(normalized.id);
-
-    if (!prior) {
-      byId.set(normalized.id, normalized);
-      continue;
-    }
-
-    const latest =
-      Date.parse(normalized.observedAt) >= Date.parse(prior.observedAt)
-        ? normalized
-        : prior;
-
-    // A retry of the latest saved observation is not fresh feedback. Older
-    // distinct observations still need event IDs for historical deduplication.
-    const sameObservation =
-      Date.parse(normalized.observedAt) === Date.parse(prior.observedAt) &&
-      normalized.kind === prior.kind &&
-      normalized.value === prior.value &&
-      normalized.source === prior.source;
-    const priorCount = prior.occurrences ?? 1;
-    const incomingCount = normalized.occurrences ?? 1;
-    // A correction with occurrences > 1 is an accumulated snapshot, not
-    // evidence of that many NEW events. Without per-observation identities
-    // the safe bound is the larger documented count; adding two cumulative
-    // counts fabricates feedback and can distort later correction/learning
-    // decisions. Only a distinct single new observation increments.
-    const mergedCount = sameObservation || incomingCount > 1
-      ? Math.max(priorCount, incomingCount)
-      : priorCount + 1;
-    byId.set(normalized.id, {
-      ...latest,
-      occurrences: mergedCount,
-    });
+    byId.set(normalized.id, prior
+      ? combinedCorrection(prior, normalized, false)
+      : normalized);
   }
-
-  return Array.from(byId.values()).sort((a, b) =>
-    Date.parse(a.observedAt) - Date.parse(b.observedAt),
-  );
+  return [...byId.values()].sort((a, b) =>
+    Date.parse(a.observedAt) - Date.parse(b.observedAt));
 }
 
-/** Stored snapshots can contain the same observations copied across threads.
- * Hydration must not count those copies as new user feedback. Without per-event
- * IDs, the largest persisted count is the evidence-backed lower bound.
+/** Cross-conversation snapshots are copies, not independent new feedback.
+ * Known host IDs can be unioned; unverifiable historical counts remain only
+ * a conservative baseline and must never auto-authorize promotion.
  */
 export function mergeCorrectionSnapshots(
   snapshots: readonly ArborCorrection[][],
@@ -129,20 +175,14 @@ export function mergeCorrectionSnapshots(
       const normalized = normalizeCorrection(correction);
       if (!normalized.value) continue;
       const prior = byId.get(normalized.id);
-      if (!prior) {
-        byId.set(normalized.id, normalized);
-        continue;
-      }
-      const latest = Date.parse(normalized.observedAt) > Date.parse(prior.observedAt)
-        ? normalized : prior;
-      byId.set(normalized.id, {
-        ...latest,
-        occurrences: Math.max(prior.occurrences ?? 1, normalized.occurrences ?? 1),
-      });
+      byId.set(normalized.id, prior
+        ? combinedCorrection(prior, normalized, true)
+        : normalized);
     }
   }
   return [...byId.values()].sort((a, b) =>
-    Date.parse(a.observedAt) - Date.parse(b.observedAt) || a.id.localeCompare(b.id));
+    Date.parse(a.observedAt) - Date.parse(b.observedAt) ||
+    a.id.localeCompare(b.id));
 }
 
 export function switchRuntimeChannel(
