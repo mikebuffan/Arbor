@@ -11,6 +11,7 @@ on:
       - fix/cross-round-receipt-retention-20261009
       - fix/unlock-c08-correction-count-20261009
       - fix/d12-unverified-score-20261009
+      - fix/b15-causal-ancestry-gate-20261009
 
 permissions:
   contents: read
@@ -62,6 +63,7 @@ jobs:
           lib/arbor/runtime/__tests__/correctionPromotion.test.ts
           lib/arbor/agency/__tests__/selfUpdateController.test.ts
           lib/arbor/agency/__tests__/updateLifecycle.test.ts
+          lib/arbor/runtime/__tests__/decisionAncestry.test.ts
       - name: Type-check existing backend
         working-directory: apps/backend
         run: pnpm exec tsc --noEmit
