@@ -17,6 +17,7 @@ on:
       - fix/one-arbor-correction-learning-recheck-20261010
       - fix/one-arbor-correction-observation-ids-20261010
       - test/one-arbor-observation-reopen-20261010
+      - fix/one-arbor-correction-count-saturation-20261010
 
 permissions:
   contents: read
