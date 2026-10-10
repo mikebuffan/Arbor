@@ -192,4 +192,33 @@ describe("identity assurance extensions", () => {
       ).valid,
     ).toBe(false);
   });
+  it("does not mint identity evidence from an unknown step-up issuer", () => {
+    // External JSON can contain strings that bypass compile-time issuer typing.
+    const untrustedEvidence = stepUpResultToIdentityEvidence({
+      challengeId: "untrusted",
+      method: "passkey",
+      verified: true,
+      issuer: "unknown" as "device_os",
+      observedAt: "2026-10-06T21:05:00Z",
+    });
+
+    expect(untrustedEvidence).toEqual([]);
+    expect(
+      evaluateIdentityAssurance({ evidence: untrustedEvidence }).trustState,
+    ).toBe("unknown");
+
+    const validEvidence = stepUpResultToIdentityEvidence({
+      challengeId: "trusted",
+      method: "passkey",
+      verified: true,
+      issuer: "device_os",
+      observedAt: "2026-10-06T21:05:01Z",
+    });
+
+    expect(validEvidence).toHaveLength(2);
+    expect(
+      evaluateIdentityAssurance({ evidence: validEvidence }).trustState,
+    ).toBe("elevated");
+  });
+
 });

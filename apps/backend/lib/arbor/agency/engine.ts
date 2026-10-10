@@ -218,8 +218,16 @@ export async function runAgency<SharedState>(input: {
     let blocker = blockerFor(action);
 
     if (blocker && input.runtime.recover) {
-      const alternate = await input.runtime.recover({ agency, shared, action, blocker });
-      if (alternate) {
+      // A first alternate may itself need approval. Check a bounded set of
+      // distinct alternatives before concluding that the whole goal is blocked.
+      // Never execute a candidate until its own authority checks are clear.
+      const consideredIds = new Set<string>([action.id]);
+      for (let attempt = 0; attempt < 3 && blocker; attempt += 1) {
+        const alternate = await input.runtime.recover({ agency, shared, action, blocker });
+        if (!alternate || !alternate.id?.trim() || consideredIds.has(alternate.id)) {
+          break;
+        }
+        consideredIds.add(alternate.id);
         action = alternate;
         blocker = blockerFor(action);
       }

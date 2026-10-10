@@ -70,6 +70,96 @@ describe("resumable agency engine", () => {
     expect(out.agency.status).toBe("complete");
   });
 
+  it("checks another independent safe alternative when the first recovery choice is also blocked", async () => {
+    const executed: string[] = [];
+    const recover = vi.fn(async ({ action }: { action: { id: string } }) => {
+      if (action.id === "needs-approval") {
+        return { id: "unsafe-publish", description: "requires another approval", reversible: false };
+      }
+      if (action.id === "unsafe-publish") {
+        return { id: "safe-analysis", description: "analyze offline", reversible: true };
+      }
+      return null;
+    });
+    const runtime: AgencyRuntime<{ done: boolean }> = {
+      loadSharedState: async () => ({ done: false }),
+      assess: async ({ shared }) => ({
+        complete: shared.done,
+        unresolvedWork: shared.done ? [] : ["approved action", "independent analysis"],
+      }),
+      choose: async () => ({
+        id: "needs-approval", description: "gated action",
+        reversible: true, requiresExternalAuthority: true,
+      }),
+      recover,
+      execute: async ({ action }) => {
+        executed.push(action.id);
+        return true;
+      },
+      integrate: async ({ shared, result }) => ({ ...shared, done: result === true }),
+      verify: async () => ({ ok: true }),
+      selfAudit: async () => ({}),
+      persist: async () => {},
+    };
+    const out = await runAgency({ goal: "complete authorized work", runtime, maxSteps: 2 });
+    expect(out.agency.status).toBe("complete");
+    expect(executed).toEqual(["safe-analysis"]);
+    expect(recover).toHaveBeenCalledTimes(2);
+  });
+
+  it("stops cycling on repeated protected alternatives rather than bypassing approval", async () => {
+    const recover = vi.fn(async () => ({
+      id: "needs-approval", description: "still gated",
+      reversible: true, requiresExternalAuthority: true,
+    }));
+    const execute = vi.fn();
+    const runtime: AgencyRuntime<{}> = {
+      loadSharedState: async () => ({}),
+      assess: async () => ({ complete: false, unresolvedWork: ["approved operation"] }),
+      choose: async () => ({
+        id: "needs-approval", description: "approved operation",
+        reversible: true, requiresExternalAuthority: true,
+      }),
+      recover,
+      execute,
+      integrate: async ({ shared }) => shared,
+      verify: async () => ({ ok: true }),
+      selfAudit: async () => ({}),
+      persist: async () => {},
+    };
+    const out = await runAgency({ goal: "protected request", runtime });
+    expect(out.agency.status).toBe("blocked");
+    expect(out.agency.blocker).toBe("external_authority");
+    expect(recover).toHaveBeenCalledTimes(1);
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it("bounds repeated distinct protected recoveries and never executes an unapproved action", async () => {
+    let attempts = 0;
+    const execute = vi.fn();
+    const runtime: AgencyRuntime<{}> = {
+      loadSharedState: async () => ({}),
+      assess: async () => ({ complete: false, unresolvedWork: ["needs human approval"] }),
+      choose: async () => ({
+        id: "blocked-0", description: "gated original",
+        reversible: true, requiresExternalAuthority: true,
+      }),
+      recover: async () => ({
+        id: `blocked-${++attempts}`, description: "another gated route",
+        reversible: true, requiresExternalAuthority: true,
+      }),
+      execute,
+      integrate: async ({ shared }) => shared,
+      verify: async () => ({ ok: true }),
+      selfAudit: async () => ({}),
+      persist: async () => {},
+    };
+    const out = await runAgency({ goal: "wait for real approval", runtime });
+    expect(out.agency.status).toBe("blocked");
+    expect(attempts).toBe(3);
+    expect(execute).not.toHaveBeenCalled();
+  });
+
   it("requires completion proof when a prover is supplied", async () => {
     let proofCalls=0;
     const runtime: AgencyRuntime<{}> = {

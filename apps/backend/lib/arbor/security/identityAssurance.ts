@@ -85,16 +85,29 @@ function uniq<T>(values: T[]): T[] {
   return Array.from(new Set(values));
 }
 
+// Only recognized evidence producers may contribute positive owner proof.
+// A verified flag alone does not make an unknown or user-claimed issuer trusted.
+// The caller must still authenticate the producer and validate the assertion.
+const TRUSTED_OWNER_EVIDENCE_ISSUERS = new Set<IdentityEvidenceIssuer>([
+  "device_os",
+  "trusted_host",
+  "server",
+]);
+
+function trustedOwnerSupport(item: IdentityEvidence): boolean {
+  return (
+    item.verified === true &&
+    item.polarity === "supports_owner" &&
+    TRUSTED_OWNER_EVIDENCE_ISSUERS.has(item.issuer)
+  );
+}
+
 function verifiedSupport(
   evidence: IdentityEvidence[],
   kind: IdentityEvidenceKind,
 ): boolean {
   return evidence.some(
-    (item) =>
-      item.kind === kind &&
-      item.verified &&
-      item.polarity === "supports_owner" &&
-      item.issuer !== "user_claim",
+    (item) => item.kind === kind && trustedOwnerSupport(item),
   );
 }
 
@@ -102,12 +115,7 @@ export function evaluateIdentityAssurance(input: {
   evidence: IdentityEvidence[];
 }): IdentityAssuranceDecision {
   const evidence = input.evidence ?? [];
-  const supporting = evidence.filter(
-    (item) =>
-      item.verified &&
-      item.polarity === "supports_owner" &&
-      item.issuer !== "user_claim",
-  );
+  const supporting = evidence.filter(trustedOwnerSupport);
   const contradicting = evidence.filter(
     (item) => item.verified && item.polarity === "contradicts_owner",
   );

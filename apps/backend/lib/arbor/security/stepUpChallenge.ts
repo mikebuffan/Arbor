@@ -27,10 +27,19 @@ export type StepUpVerificationResult = {
   evidenceRef?: string;
 };
 
+const TRUSTED_STEP_UP_ISSUERS = new Set<StepUpVerificationResult["issuer"]>([
+  "device_os",
+  "trusted_host",
+  "server",
+]);
+
 export function stepUpResultToIdentityEvidence(
   result: StepUpVerificationResult,
 ): IdentityEvidence[] {
-  if (!result.verified) return [];
+  // Reject untrusted runtime input even if it bypasses the TypeScript type.
+  if (result.verified !== true || !TRUSTED_STEP_UP_ISSUERS.has(result.issuer)) {
+    return [];
+  }
 
   const common = {
     issuer: result.issuer,
