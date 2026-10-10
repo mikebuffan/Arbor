@@ -133,7 +133,7 @@ export async function promoteEligibleMemoryCandidates(input: {
       continue;
     }
 
-    const { error: statusError } = await admin
+    const { data: updatedCandidate, error: statusError } = await admin
       .from("ar_memory_candidates")
       .update({
         status: "promoted",
@@ -147,9 +147,14 @@ export async function promoteEligibleMemoryCandidates(input: {
       .eq("id", row.id)
       .eq("user_id", input.userId)
       .eq("project_id", input.projectId)
-      .eq("status", "proposed");
+      .eq("status", "proposed")
+      .select("id")
+      .maybeSingle();
 
     if (statusError) throw statusError;
+    // The durable memory may already have been written. A raced/retired
+    // candidate is not a confirmed lifecycle promotion, nor a rollback.
+    if (!updatedCandidate || updatedCandidate.id !== row.id) continue;
     promoted.push(key);
   }
 

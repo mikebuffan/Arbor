@@ -5,6 +5,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 const mocks = vi.hoisted(() => ({
   getMemoryContext: vi.fn(),
+  candidateAdmin: vi.fn(),
   getAlwaysIncludedMemoryAnchors: vi.fn(),
   getProjectAnchors: vi.fn(),
   logMemoryEvent: vi.fn(),
@@ -14,6 +15,7 @@ const mocks = vi.hoisted(() => ({
   historicalRecall: vi.fn(),
 }));
 
+vi.mock("@/lib/supabase/admin", () => ({ supabaseAdmin: mocks.candidateAdmin }));
 vi.mock("@/lib/memory/retrieval", () => ({
   getMemoryContext: mocks.getMemoryContext,
   getAlwaysIncludedMemoryAnchors: mocks.getAlwaysIncludedMemoryAnchors,
@@ -37,7 +39,29 @@ const emptyMemory = { core: [], normal: [], sensitive: [], keysUsed: [] };
 function promptClient(){const query:any={select:vi.fn(),eq:vi.fn(),not:vi.fn(),order:vi.fn(),limit:vi.fn(),maybeSingle:mocks.maybeSingle};query.select.mockReturnValue(query);query.eq.mockReturnValue(query);query.not.mockReturnValue(query);query.order.mockReturnValue(query);query.limit.mockReturnValue(query);return{from:vi.fn(()=>query)} as unknown as SupabaseClient;}
 describe("buildPromptContext freshness",()=>{
  beforeEach(()=>mocks.historicalRecall.mockResolvedValue([]));
- beforeEach(()=>{vi.clearAllMocks();mocks.loadRuntimeState.mockResolvedValue(null);mocks.loadDurableBehaviorCorrections.mockResolvedValue([]);mocks.maybeSingle.mockResolvedValue({data:{persona:"Arbor",framework_version:"v1",description:"Grounded"},error:null});mocks.getProjectAnchors.mockResolvedValue([]);mocks.getMemoryContext.mockResolvedValue(emptyMemory);mocks.getAlwaysIncludedMemoryAnchors.mockResolvedValue([]);mocks.logMemoryEvent.mockResolvedValue(undefined);});
+ beforeEach(()=>{vi.clearAllMocks();mocks.candidateAdmin.mockImplementation(() => { throw new Error("optional candidate storage unavailable"); });mocks.loadRuntimeState.mockResolvedValue(null);mocks.loadDurableBehaviorCorrections.mockResolvedValue([]);mocks.maybeSingle.mockResolvedValue({data:{persona:"Arbor",framework_version:"v1",description:"Grounded"},error:null});mocks.getProjectAnchors.mockResolvedValue([]);mocks.getMemoryContext.mockResolvedValue(emptyMemory);mocks.getAlwaysIncludedMemoryAnchors.mockResolvedValue([]);mocks.logMemoryEvent.mockResolvedValue(undefined);});
+ it("changes actual prompt evidence only when candidate recurrence has distinct sources", async () => {
+  const args = { supabase: promptClient(), authedUserId: "user-1", projectId: "project-1",
+    conversationId: "conversation-1", latestUserText: "What should we work on next?" };
+  const content = "Synthetic candidate suggests checking the unfinished receipt.";
+  const load = (threads: string[]) => {
+    const q: any = {};
+    for (const k of ["select", "eq", "order"]) q[k] = () => q;
+    q.limit = async () => ({ data: [{ id: "candidate-1", user_id: "user-1", project_id: "project-1",
+      status: "proposed", candidate_json: { content, score: 0.6, confidence: 0.5,
+        confirm_count: 0, observed_threads: threads } }], error: null });
+    mocks.candidateAdmin.mockReturnValue({ from: () => q });
+  };
+  load(["thread-1", " thread-1 ", "thread-1"]);
+  const duplicate = await buildPromptContext(args);
+  expect(duplicate.systemPrompt).not.toContain(content);
+  expect(duplicate.injectedCandidateIds).toEqual([]);
+  load(["thread-1", "thread-2"]);
+  const independent = await buildPromptContext(args);
+  expect(independent.systemPrompt).toContain(content);
+  expect(independent.systemPrompt).toContain("NOT CANONICAL FACTS");
+  expect(independent.injectedCandidateIds).toEqual(["candidate-1"]);
+ });
  it("uses the current message on every prompt build",async()=>{await buildPromptContext({supabase:promptClient(),authedUserId:"user-1",projectId:"project-1",conversationId:"conversation-1",latestUserText:"first current message"});await buildPromptContext({supabase:promptClient(),authedUserId:"user-1",projectId:"project-1",conversationId:"conversation-1",latestUserText:"second current message"});expect(mocks.getMemoryContext).toHaveBeenCalledTimes(2);expect(mocks.getMemoryContext).toHaveBeenNthCalledWith(1,expect.objectContaining({latestUserText:"first current message"}));expect(mocks.getMemoryContext).toHaveBeenNthCalledWith(2,expect.objectContaining({latestUserText:"second current message"}));});
  it("never reuses a prior turn's safety addendum",async()=>{const first=await buildPromptContext({supabase:promptClient(),authedUserId:"user-1",projectId:"project-1",conversationId:"conversation-1",latestUserText:"first",safety:{systemAddendum:"SAFETY-FIRST-TURN"}});const second=await buildPromptContext({supabase:promptClient(),authedUserId:"user-1",projectId:"project-1",conversationId:"conversation-1",latestUserText:"second",safety:{systemAddendum:"SAFETY-SECOND-TURN"}});expect(first.systemPrompt).toContain("SAFETY-FIRST-TURN");expect(second.systemPrompt).toContain("SAFETY-SECOND-TURN");expect(second.systemPrompt).not.toContain("SAFETY-FIRST-TURN");});
  it("projects permanent corrections even with no recalled runtime or selected general memories", async () => {

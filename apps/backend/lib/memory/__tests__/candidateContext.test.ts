@@ -68,6 +68,21 @@ describe("provisional candidate owner and forgetting guards", () => {
     expect(malicious.query.eq).toHaveBeenCalledWith("status", "proposed");
   });
 
+  it("does not select a weak candidate by counting copies of one thread as independent observations", async () => {
+    mockedAdmin([
+      candidate("duplicate-thread", { candidate_json: { content: "duplicate-thread",
+        score: 0.6, confidence: 0.5, confirm_count: 0, observed_threads: ["one", " one ", "one"] } }),
+      candidate("blank-threads", { candidate_json: { content: "blank-threads",
+        score: 0.6, confidence: 0.5, confirm_count: 0, observed_threads: ["", " ", ""] } }),
+      candidate("independent-threads", { candidate_json: { content: "independent-threads",
+        score: 0.6, confidence: 0.5, confirm_count: 0, observed_threads: ["one", "two"] } }),
+    ]);
+    const result = await getProvisionalMemoryCandidateContext({ userId, projectId, latestUserText: "continue" });
+    expect(result.selected.map(item => item.id)).toEqual(["independent-threads"]);
+    expect(result.promptBlock).not.toContain("duplicate-thread");
+    expect(result.promptBlock).not.toContain("blank-threads");
+  });
+
   it("fails closed when administrative candidate storage is unavailable", async () => {
     mockedAdmin([], { message: "not authorized" });
     const result = await getProvisionalMemoryCandidateContext({

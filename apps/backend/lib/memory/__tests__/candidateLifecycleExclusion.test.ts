@@ -103,6 +103,38 @@ describe("B12 candidate lifecycle exclusion (synthetic only)", () => {
     }
   });
 
+  it("does not report promotion when the final candidate status write changes no row", async () => {
+    const row = { id: "changed", user_id: owner, project_id: project,
+      status: "proposed", candidate_json: candidateJson };
+    const read = table([row]);
+    const write = table([]);
+    const from = vi.fn().mockReturnValueOnce(read).mockReturnValueOnce(write);
+    mocks.admin.mockReturnValue({ from });
+    mocks.upsert.mockResolvedValue({ created: ["learned.preference.coffee"], updated: [] });
+    const result = await promoteEligibleMemoryCandidates({ userId: owner, projectId: project,
+      conversationId: "synthetic-thread", supabase: {} as any });
+    expect(result.promoted).toEqual([]);
+    expect(mocks.upsert).toHaveBeenCalledTimes(1); // Durable write may already exist; no rollback implied.
+  });
+
+  it.each(["ignored", "failed", "status error"])("does not report completed capture after %s persistence", async (failure) => {
+    const row = { id: "candidate", user_id: owner, project_id: project,
+      status: "proposed", candidate_json: candidateJson };
+    const read = table([row]);
+    const write = table([row]);
+    write.maybeSingle = async () => ({ data: null, error: new Error("synthetic save failure") });
+    const from = vi.fn().mockReturnValueOnce(read).mockReturnValueOnce(write);
+    mocks.admin.mockReturnValue({ from });
+    if (failure === "failed") mocks.upsert.mockRejectedValue(new Error("synthetic save failure"));
+    else mocks.upsert.mockResolvedValue({ created: failure === "ignored" ? [] : ["learned.preference.coffee"],
+      updated: [], ignored: failure === "ignored" ? ["learned.preference.coffee"] : [] });
+    const call = promoteEligibleMemoryCandidates({ userId: owner, projectId: project,
+      conversationId: "synthetic-thread", supabase: {} as any });
+    if (failure === "ignored") await expect(call).resolves.toEqual({ promoted: [] });
+    else await expect(call).rejects.toThrow("synthetic save failure");
+    expect(from).toHaveBeenCalledTimes(failure === "status error" ? 2 : 1);
+  });
+
   it("preserves ordinary promotion of a valid eligible scoped synthetic candidate", async () => {
     const key = "learned.preference.coffee";
     const row = { id: "c2", user_id: owner, project_id: project,

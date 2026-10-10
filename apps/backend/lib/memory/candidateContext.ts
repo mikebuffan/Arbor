@@ -46,7 +46,10 @@ function candidateRank(json: CandidateJson): number {
   const score = Math.max(0, Math.min(1, Number(json.score ?? 0)));
   const confidence = Math.max(0, Math.min(1, Number(json.confidence ?? 0)));
   const confirmations = Math.min(1, Math.max(0, Number(json.confirm_count ?? 0)) / 3);
-  const threadBreadth = Math.min(1, (json.observed_threads?.length ?? 0) / 3);
+  // Repeated copies of one observation source are not independent recurrence.
+  const distinctThreads = new Set((json.observed_threads ?? [])
+    .map((thread) => thread.trim()).filter(Boolean));
+  const threadBreadth = Math.min(1, distinctThreads.size / 3);
   return score * 0.45 + confidence * 0.30 + confirmations * 0.15 + threadBreadth * 0.10;
 }
 
