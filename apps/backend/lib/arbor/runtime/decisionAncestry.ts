@@ -69,7 +69,7 @@ function checkEvent(event: DecisionTrailEvent, scope: DecisionTrailScope): void 
       !KINDS.includes(event.kind) ||
       !Array.isArray(event.evidenceRefs) ||
       event.evidenceRefs.length > MAX_REFS ||
-      event.evidenceRefs.some(ref => !checkedText(ref, 200)) ||
+      Array.from(event.evidenceRefs).some(ref => !checkedText(ref, 200)) ||
       (event.supersedesEventId !== undefined &&
         (!checkedText(event.supersedesEventId, 200) ||
           event.supersedesEventId === event.id))) {
