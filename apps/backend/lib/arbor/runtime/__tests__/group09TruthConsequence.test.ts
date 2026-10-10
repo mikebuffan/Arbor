@@ -63,6 +63,8 @@ describe("Group 09 source-bound truth and consequence HOLD", () => {
   const consequence = (changes: Record<string, unknown> = {}) => ({
     receiptId: "host:receipt:001",
     consequenceRef: "host:consequence:001",
+    decisionId: "decision:example:001",
+    choiceId: "choice:current:001",
     userId: scope.userId, projectId: scope.projectId,
     conversationId: scope.conversationId, turnId: scope.turnId,
     status: "confirmed", reviewedByHost: true,
@@ -71,6 +73,8 @@ describe("Group 09 source-bound truth and consequence HOLD", () => {
   const receiptView = (changes: Record<string, unknown> = {}, signal: FireflyRoundaboutInput["signal"] = "retrieval") =>
     firefly({
       verifiedConsequenceRef: "host:consequence:001",
+      decisionId: "decision:example:001",
+      choiceId: "choice:current:001",
       consequenceReceipt: consequence(changes),
       signal,
     } as Partial<FireflyRoundaboutInput>);
@@ -105,6 +109,44 @@ describe("Group 09 source-bound truth and consequence HOLD", () => {
     { consequenceRef: "another-outcome" },
   ])("rejects a foreign or mismatched purported outcome record: %j", (change) => {
     expect(() => receiptView(change)).toThrow("firefly_roundabout_consequence_receipt_mismatch");
+  });
+
+  it.each([
+    { decisionId: "decision:unrelated" },
+    { choiceId: "choice:unrelated" },
+  ])("never applies one outcome to a different decision or choice: %j", change => {
+    expect(() => receiptView(change))
+      .toThrow("firefly_roundabout_consequence_receipt_mismatch");
+  });
+
+  it("rejects confirmed outcome without explicit current decision and choice identity", () => {
+    const record = consequence();
+    expect(() => firefly({
+      decisionId: "decision:example:001",
+      verifiedConsequenceRef: record.consequenceRef,
+      consequenceReceipt: record,
+    } as Partial<FireflyRoundaboutInput>))
+      .toThrow("firefly_roundabout_choice_binding_required");
+    expect(() => firefly({
+      choiceId: "choice:current:001",
+      verifiedConsequenceRef: record.consequenceRef,
+      consequenceReceipt: record,
+    } as Partial<FireflyRoundaboutInput>))
+      .toThrow("firefly_roundabout_choice_binding_required");
+  });
+
+  it("holds on an old choice receipt after a new choice replaces it", () => {
+    const prior = receiptView();
+    expect(prior.suggestedNextStage).toBe("consequence");
+    const newChoice = firefly({
+      decisionId: "decision:example:001",
+      choiceId: "choice:revised:002",
+      verifiedConsequenceRef: "host:consequence:001",
+      consequenceReceipt: consequence(),
+    } as Partial<FireflyRoundaboutInput>);
+    expect(newChoice.suggestedNextStage).toBe("second_choice");
+    expect(newChoice.decision).toBe("hold");
+    expect(newChoice.grantsExecution).toBe(false);
   });
 
   it("changes from apparent progress to re-observation when a reviewed negative consequence arrives", () => {
