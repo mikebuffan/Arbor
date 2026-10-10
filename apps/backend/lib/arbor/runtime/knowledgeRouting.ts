@@ -142,6 +142,9 @@ export type FireflyRoundaboutInput = {
    * not verify itself: the trusted caller must check the real outcome receipt.
    */
   verifiedConsequenceRef?: string | null;
+  /** Exact decision and selected choice whose consequence is being reviewed. */
+  decisionId?: string;
+  choiceId?: string;
   /**
    * A separate scoped host readback of the consequence. This function checks
    * the fields agree but cannot independently authenticate host storage.
@@ -150,6 +153,8 @@ export type FireflyRoundaboutInput = {
   consequenceReceipt?: {
     receiptId: string;
     consequenceRef: string;
+    decisionId: string;
+    choiceId: string;
     userId: string;
     projectId: string;
     conversationId: string;
@@ -239,6 +244,13 @@ export function routeFireflyPacket(input: FireflyRoundaboutInput): FireflyRounda
     throw new Error("firefly_roundabout_consequence_ref_invalid");
   const receipt = input.consequenceReceipt;
   if (receipt != null) {
+    // An outcome must belong to the exact decision *and* choice. Scope and
+    // review turn alone are too broad: a single turn can evaluate alternatives.
+    // Missing identities cannot quietly inherit the current choice.
+    const boundId = (v: unknown) =>
+      typeof v === "string" && /^[A-Za-z0-9._:-]{4,200}$/.test(v);
+    if (!boundId(input.decisionId) || !boundId(input.choiceId))
+      throw new Error("firefly_roundabout_choice_binding_required");
     if (!receipt || typeof receipt !== "object" ||
         typeof receipt.receiptId !== "string" ||
         !/^[A-Za-z0-9._:-]{4,200}$/.test(receipt.receiptId) ||
@@ -246,6 +258,8 @@ export function routeFireflyPacket(input: FireflyRoundaboutInput): FireflyRounda
         typeof receipt.reviewedByHost !== "boolean")
       throw new Error("firefly_roundabout_consequence_receipt_invalid");
     if (!outcomeRef || receipt.consequenceRef !== outcomeRef ||
+        receipt.decisionId !== input.decisionId ||
+        receipt.choiceId !== input.choiceId ||
         receipt.userId !== scope.userId ||
         receipt.projectId !== scope.projectId ||
         receipt.conversationId !== scope.conversationId ||
