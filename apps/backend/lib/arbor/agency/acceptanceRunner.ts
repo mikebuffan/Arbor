@@ -171,7 +171,9 @@ export async function runAcceptanceComparison(input: {
           // trace before checking whether they qualify for a completed arm.
           await record({ type: "model-response", caseId: c.id, label, ...receipt,
             output: response.output, outputText: response.output_text });
-          requireValue(response.id && response.model && !responseIds.has(response.id), "acceptance_invalid_provider_receipt");
+          requireValue(typeof response.id === "string" && response.id.trim().length > 0 &&
+            typeof response.model === "string" && response.model.trim().length > 0 &&
+            !responseIds.has(response.id), "acceptance_invalid_provider_receipt");
           responseIds.add(response.id);
           requireValue(response.status === "completed", "acceptance_provider_response_unfinished");
           requireValue(!reportedModel || reportedModel === response.model, "acceptance_provider_model_changed");

@@ -340,3 +340,19 @@ describe("isolated acceptance runner (mock provider, never live acceptance)", ()
   });
 
 });
+
+ it.each([
+   { field: "id", value: "   " }, { field: "id", value: 42 },
+   { field: "model", value: "   " }, { field: "model", value: 42 },
+ ])("rejects malformed provider receipt $field=$value while retaining the rejected response", async ({field, value}) => {
+   const events: Record<string, unknown>[] = [];
+   let count = 0;
+   const result = await runAcceptanceComparison({ generation, assignment, config,
+     createResponse: async () => ({ ...response(`malformed-${++count}`), [field]: value } as unknown as Response),
+     provision: provisionAcceptanceFixture, record: async e => { events.push(e); } });
+   expect(result.pairs).toEqual([]);
+   expect(result.failures).toHaveLength(2);
+   expect(result.failures.every(f => f.code === "acceptance_invalid_provider_receipt")).toBe(true);
+   expect(events.filter(e => e.type === "model-response")).toHaveLength(2);
+   expect(events.some(e => e.type === "arm-captured")).toBe(false);
+ });
