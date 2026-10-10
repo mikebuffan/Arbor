@@ -53,9 +53,10 @@ describe("memory route ownership", () => {
       data: stage === "read" ? null : [{ id: "00000000-0000-4000-8000-000000000099", locked: false }],
       error: stage === "read" ? privateError : null,
     }).then(resolve);
-    const write: Record<string, any> = { update: vi.fn(), in: vi.fn() };
-    write.update.mockReturnValue(write);
-    write.in.mockResolvedValue({ error: privateError });
+    const write: Record<string, any> = {};
+    for (const method of ["update", "in", "eq", "is", "select"]) write[method] = vi.fn(() => write);
+    write.then = (resolve: (value: unknown) => unknown) =>
+      Promise.resolve({ data: null, error: privateError }).then(resolve);
     mocks.userClient.from.mockReturnValueOnce(read).mockReturnValueOnce(write);
     const response = await deleteMemoryItem(new Request("https://arbor.test/api/memory/delete", {
       method: "POST", headers: { "content-type": "application/json" },
@@ -65,6 +66,57 @@ describe("memory route ownership", () => {
     expect(await response.json()).toEqual({ ok: false, error: "server_error" });
     expect(read.eq).toHaveBeenCalledWith("user_id", "user-a");
     if (stage === "read") expect(write.update).not.toHaveBeenCalled();
+  });
+
+  it.each(["pin", "discard", "confirmFact"])("redacts private item mutation errors: %s", async (action) => {
+    const query: Record<string, any> = {};
+    for (const method of ["update", "eq", "select"]) query[method] = vi.fn(() => query);
+    query.maybeSingle = vi.fn().mockResolvedValue({ data: null,
+      error: { message: "synthetic-private-storage-detail" } });
+    mocks.userClient.from.mockReturnValue(query);
+    const response = await patchMemoryItem(new Request("https://arbor.test/api/memory/item/owned", {
+      method: "PATCH", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ action, pinned: true }),
+    }) as never, { params: Promise.resolve({ id: "owned" }) });
+    expect(response.status).toBe(500);
+    expect(await response.json()).toEqual({ ok: false, error: "server_error" });
+    expect(query.eq).toHaveBeenCalledWith("user_id", "user-a");
+  });
+
+  it("redacts private database errors in owner review", async () => {
+    const query: Record<string, any> = {};
+    for (const method of ["select", "eq", "is", "order", "limit"]) query[method] = vi.fn(() => query);
+    query.then = (resolve: (value: unknown) => unknown) => Promise.resolve({ data: null,
+      error: { message: "synthetic-private-storage-detail" } }).then(resolve);
+    mocks.userClient.from.mockReturnValue(query);
+    const response = await listMemoryItems(new Request("https://arbor.test/api/memory/items") as never);
+    expect(response.status).toBe(500);
+    expect(await response.json()).toEqual({ ok: false, error: "server_error" });
+  });
+
+  it.each([0, 1, 2])("reports only confirmed deletion outcomes when %s of 2 selected rows change", async (changed) => {
+    const ids = ["00000000-0000-4000-8000-000000000098", "00000000-0000-4000-8000-000000000099"];
+    const read: Record<string, any> = {};
+    for (const method of ["select", "eq", "is"]) read[method] = vi.fn(() => read);
+    read.then = (resolve: (value: unknown) => unknown) => Promise.resolve({
+      data: ids.map(id => ({ id, locked: false })), error: null }).then(resolve);
+    const write: Record<string, any> = {};
+    for (const method of ["update", "in", "eq", "is", "select"]) write[method] = vi.fn(() => write);
+    write.then = (resolve: (value: unknown) => unknown) => Promise.resolve({
+      data: ids.slice(0, changed).map(id => ({ id })), error: null }).then(resolve);
+    mocks.userClient.from.mockReturnValueOnce(read).mockReturnValueOnce(write);
+    const response = await deleteMemoryItem(new Request("https://arbor.test/api/memory/delete", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ key: "shared-key", projectId: "00000000-0000-4000-8000-000000000002" }),
+    }));
+    expect(response.status).toBe(changed === 2 ? 200 : 409);
+    expect(await response.json()).toEqual(changed === 2
+      ? { ok: true, deletedCount: 2, ids }
+      : { ok: false, error: "memory_changed_during_delete" });
+    expect(write.eq).toHaveBeenCalledWith("user_id", "user-a");
+    expect(write.eq).toHaveBeenCalledWith("project_id", "00000000-0000-4000-8000-000000000002");
+    expect(write.eq).toHaveBeenCalledWith("locked", false);
+    expect(write.is).toHaveBeenCalledWith("deleted_at", null);
   });
 
   it("returns 404 when an admin-backed item mutation cannot find an owned row", async () => {

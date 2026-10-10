@@ -115,7 +115,7 @@ export async function GET(req: NextRequest) {
     q = q.order("pinned", {ascending: false}).order("importance", {ascending: false})
       .order("last_reinforced_at", {ascending: false}).order("mention_count", {ascending: false}).limit(500);
     const {data: items, error: qErr} = await q;
-    if (qErr) return NextResponse.json({error: qErr.message}, {status: 500});
+    if (qErr) return routeErrorResponse(qErr);
     return NextResponse.json({items: items ?? []});
   } catch (error: unknown) {
     return routeErrorResponse(error);
