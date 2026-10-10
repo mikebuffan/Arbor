@@ -209,6 +209,30 @@ describe("owner-scoped ARK -> Arbor Layer read crossing", () => {
     expect(fallback.continuity.startupPrompt).toContain("Finish the scoped ARK integration");
   });
 
+  it("returns authorized durable correction rules even when a reopened private conversation has no exact runtime snapshot", async () => {
+    mock.loadRuntimeState.mockResolvedValueOnce(null);
+    mock.loadDurableBehaviorCorrections.mockResolvedValueOnce([{
+      id: "behavior:agency-followthrough", kind: "behavior",
+      value: "Do not wait for another go; continue approved safe work.",
+      source: "text", observedAt: "2026-10-10T00:01:00.000Z",
+      confidence: 1, protected: true, occurrences: 2,
+    }]);
+    const result = await readArkLayerContext({
+      supabase: {} as never, authenticatedUserId: userId, projectId,
+      conversationId, mode: "text", requireExactConversation: true,
+    });
+    expect(result.continuity.available).toBe(false);
+    expect(result.continuity.source).toBe("unavailable");
+    expect(result.continuity.currentGoal).toBeNull();
+    expect(result.continuity.startupPrompt).toBeNull();
+    expect(result.continuity.behavioralCorrections).toEqual([
+      "Do not wait for another go; continue approved safe work.",
+    ]);
+    expect(result.behavior.guardRequirements).toContain(
+      "Do not wait for another go; continue approved safe work.");
+    expect(result.ark.liveExecutionVerified).toBe(false);
+  });
+
   it("rejects another user or project before ARK or continuity reads", async () => {
     mock.assertProjectOwnedByUser.mockRejectedValue(new Error("project_not_found"));
     await expect(readArkLayerContext({
