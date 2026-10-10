@@ -84,7 +84,8 @@ bool grovePrivateOwnerGrantMatches({
     grant['user_id'] == userId &&
     grant['revoked_at'] == null;
 
-class _GrovePrivateAuthGateState extends State<GrovePrivateAuthGate> {
+class _GrovePrivateAuthGateState extends State<GrovePrivateAuthGate>
+    with WidgetsBindingObserver {
   StreamSubscription<AuthState>? _subscription;
   bool _authenticated = false;
   bool _checking = false;
@@ -94,6 +95,7 @@ class _GrovePrivateAuthGateState extends State<GrovePrivateAuthGate> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     final auth = Supabase.instance.client.auth;
     _signedInPrivateRealm = GrovePrivateSession.belongsToRealm(
       token: auth.currentSession?.accessToken,
@@ -104,6 +106,15 @@ class _GrovePrivateAuthGateState extends State<GrovePrivateAuthGate> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _refreshAccess();
     });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // A grant can be revoked while the phone is backgrounded without
+    // emitting a new auth-token event. Recheck before showing private UI.
+    if (state == AppLifecycleState.resumed && mounted) {
+      _refreshAccess();
+    }
   }
 
   void _refreshAccess() {
@@ -155,6 +166,7 @@ class _GrovePrivateAuthGateState extends State<GrovePrivateAuthGate> {
   @override
   void dispose() {
     ++_accessGeneration;
+    WidgetsBinding.instance.removeObserver(this);
     _subscription?.cancel();
     super.dispose();
   }
