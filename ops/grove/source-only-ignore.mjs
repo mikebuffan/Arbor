@@ -2,6 +2,7 @@
 // One existing isolated test project may build this exact branch as Preview.
 // This exception grants no runtime credentials, database access or model budget.
 const branches = new Set([
+  "fix/d09-reviewed-outcome-20261010",
   "fix/independence-holdout-receipt-readback-20261010",
   "fix/independence-paired-protocol-parity-20261010",
   "fix/independence-paired-outcome-evaluation-20261010",
