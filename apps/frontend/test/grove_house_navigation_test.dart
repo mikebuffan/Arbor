@@ -160,4 +160,64 @@ void main() {
     expect(tester.widget<TextField>(find.byType(TextField)).controller!.text,
         isEmpty);
   });
+
+  testWidgets('320px Grove painting pins each activate their own room action',
+      (tester) async {
+    tester.view.physicalSize = const Size(320, 720);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final taps = <GroveRoomAction>[];
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: SingleChildScrollView(
+          child: GroveHouseRoom(onOpen: taps.add),
+        ),
+      ),
+    ));
+    await tester.pump();
+
+    const expected = <String, GroveRoomAction>{
+      'Annabelle’s Kitchen': GroveRoomAction.kitchen,
+      'The staircase': GroveRoomAction.stairs,
+      'The shelves and memory': GroveRoomAction.shelves,
+      'Moss on the couch': GroveRoomAction.moss,
+      'The Living Window': GroveRoomAction.window,
+      'Talk to Arbor': GroveRoomAction.arbor,
+      'The desk and projects': GroveRoomAction.desk,
+    };
+    for (final entry in expected.entries) {
+      await tester.tap(find.byTooltip(entry.key));
+      await tester.pump();
+      expect(taps.last, entry.value, reason: entry.key);
+    }
+  });
+
+  testWidgets('large phone text still permits accessible Kitchen door tap',
+      (tester) async {
+    tester.view.physicalSize = const Size(320, 720);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    GroveRoomAction? opened;
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: MediaQuery(
+          data: const MediaQueryData(textScaler: TextScaler.linear(1.8)),
+          child: SingleChildScrollView(
+            child: GroveHouseRoom(onOpen: (action) => opened = action),
+          ),
+        ),
+      ),
+    ));
+    await tester.pump();
+    await tester.ensureVisible(find.widgetWithText(OutlinedButton, 'Kitchen'));
+    await tester.pump();
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Kitchen'));
+    expect(opened, GroveRoomAction.kitchen);
+    expect(tester.takeException(), isNull);
+  });
+
 }
