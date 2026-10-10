@@ -45,6 +45,38 @@ class _GroveDiaryDraftViewState extends State<GroveDiaryDraftView> {
     setState(() => _previewVisible = false);
   }
 
+  Future<void> _confirmClear() async {
+    // The diary deliberately has no storage. A mis-tap must not erase a
+    // nonempty unsaved draft without a specific confirmation.
+    if (_title.text.trim().isEmpty &&
+        _entry.text.trim().isEmpty &&
+        _context.text.trim().isEmpty) {
+      _clear();
+      return;
+    }
+    final discard = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Discard unsaved diary draft?'),
+        content: const Text(
+          'This writing is not saved. Clearing it cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Keep draft'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Discard draft'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted || discard != true) return;
+    _clear();
+  }
+
   @override
   Widget build(BuildContext context) => EnvironmentPanel(
         child: Column(
@@ -122,7 +154,7 @@ class _GroveDiaryDraftViewState extends State<GroveDiaryDraftView> {
                 ),
                 OutlinedButton(
                   key: const ValueKey('diary-clear-button'),
-                  onPressed: _clear,
+                  onPressed: _confirmClear,
                   child: const Text('Clear draft'),
                 ),
               ],
