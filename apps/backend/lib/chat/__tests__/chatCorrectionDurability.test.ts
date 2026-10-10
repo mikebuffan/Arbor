@@ -255,6 +255,46 @@ describe("explicit correction request-path durability", () => {
     );
   });
 
+  it("preserves completed verification and skipped proposals when chat needs protected approval", async () => {
+    mocks.buildArborAgencyTools.mockReturnValue({
+      get: (name: string) => ({
+        name,
+        risk: name === "publish_fixture" ? "high_consequence" : "read",
+      }),
+    });
+    mocks.runOpenAIAgencyAgent.mockImplementation(async ({ hooks }) => {
+      await hooks.onToolSelected({ round: 0, name: "arbor_read_runtime_state", arguments: {} });
+      await hooks.onToolResult({ round: 0, name: "arbor_read_runtime_state", result: { ok: true } });
+      await hooks.onToolSelected({ round: 0, name: "publish_fixture", arguments: {} });
+      await hooks.onBoundary({
+        round: 0,
+        name: "publish_fixture",
+        reason: "high_consequence_fork",
+        arguments: {},
+        completedBeforeBoundary: ["arbor_read_runtime_state"],
+        deferredToolNames: ["annabelle_set_working_delta", "publish_fixture"],
+      });
+      return {
+        status: "blocked", reason: "high_consequence_fork",
+        toolName: "publish_fixture", arguments: {},
+        responseId: "blocked-once", toolCalls: 1,
+      };
+    });
+    const response = await POST(request());
+    expect(response.status).toBe(200);
+    expect(mocks.blockAgencySession).toHaveBeenCalledWith(expect.objectContaining({
+      blocker: "high_consequence_fork",
+      unresolvedWork: [
+        "complete boundary action: publish_fixture",
+        "verify capability result: arbor_read_runtime_state",
+        "reassess deferred capability: annabelle_set_working_delta",
+        "reassess deferred capability: publish_fixture",
+      ],
+    }));
+    expect(mocks.completeAgencySession).not.toHaveBeenCalled();
+    expect(mocks.runOpenAIAgencyAgent).toHaveBeenCalledTimes(1);
+  });
+
   it("does not make success returnable until the correction is durable", async () => {
     let releaseCorrection: (() => void) | null = null;
     const correctionGate = new Promise<void>((resolve) => { releaseCorrection = resolve; });

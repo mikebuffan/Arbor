@@ -211,6 +211,41 @@ describe("Independent initiative follow-through: synthetic transport, not a real
     expect(responseCreate).toHaveBeenCalledOnce();
   });
 
+  it("reports completed and unexecuted tool proposals at a protected boundary without replay", async () => {
+    const { tools, writes } = fixture({ independentlyRunnableSafeAction: true });
+    tools.register({
+      name: "dependent_work",
+      risk: "reversible_write",
+      description: "Needs a separate decision first",
+      parameters: { type: "object", properties: {}, required: [], additionalProperties: false },
+      execute: async () => { writes.push("dependent-work"); return {}; },
+    });
+    const selected = [
+      toolCall("protected-1", "publish_fixture"),
+      toolCall("allowed-1", "complete_fixture_task", { task: "safeFirst" }),
+      toolCall("dependent-1", "dependent_work"),
+      toolCall("protected-2", "publish_fixture"),
+    ];
+    const onBoundary = vi.fn(async () => {});
+    const result = await runOpenAIAgencyAgent({
+      instructions: "Keep pending work visible, do not cross approval.",
+      userText: "Complete independent work and preserve later tasks.",
+      context, tools, verifyCompletion: false,
+      responseCreate: async () => ({
+        ...selected[0], id: "boundary-with-pending",
+        output: selected.flatMap((item) => item.output),
+      } as Response),
+      hooks: { onBoundary },
+    });
+    expect(result).toMatchObject({ status: "blocked", toolName: "publish_fixture", toolCalls: 1 });
+    expect(writes).toEqual(["safeFirst"]);
+    expect(onBoundary).toHaveBeenCalledWith(expect.objectContaining({
+      completedBeforeBoundary: ["complete_fixture_task"],
+      deferredToolNames: ["dependent_work", "publish_fixture"],
+    }));
+    expect(unexpectedLiveProvider).not.toHaveBeenCalled();
+  });
+
   it("never moves an unmarked reversible action past a protected tool", async () => {
     const { writes, tools } = fixture();
     const mixed = toolCall("protected-call", "publish_fixture");
