@@ -121,7 +121,13 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('workshop-stage-fixture')));
     await tester.pump();
     expect(find.text('Workshop · 1 listed'), findsOneWidget);
-    expect(find.text('Workstation'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('inventory-item-observatory-desk')),
+        matching: find.text('Workstation'),
+      ),
+      findsOneWidget,
+    );
 
     await tester.tap(find.byKey(const ValueKey('workshop-reset-preview')));
     await tester.pump();
