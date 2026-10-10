@@ -68,6 +68,7 @@ jobs:
           lib/arbor/agency/__tests__/updateLifecycle.test.ts
           lib/arbor/runtime/__tests__/decisionAncestry.test.ts
           lib/arbor/runtime/__tests__/oneArborReopenedJudgment.test.ts
+          lib/arbor/runtime/__tests__/correctionLearningRecheck.test.ts
       - name: Type-check existing backend
         working-directory: apps/backend
         run: pnpm exec tsc --noEmit
