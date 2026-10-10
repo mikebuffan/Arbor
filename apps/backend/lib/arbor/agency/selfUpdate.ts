@@ -41,6 +41,14 @@ export function evaluateSelfUpdate(
     };
   }
 
+  if (!Number.isSafeInteger(evidence.verificationCount) || evidence.verificationCount < 0) {
+    return {
+      disposition: "continue_verifying",
+      reason: "invalid verification count cannot establish repeated verification",
+      delta,
+    };
+  }
+
   if (evidence.verificationCount < 2) {
     return {
       disposition: "continue_verifying",

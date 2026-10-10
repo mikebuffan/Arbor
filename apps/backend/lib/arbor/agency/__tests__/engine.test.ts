@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { recordStrategyCandidate, readStrategyRetention } from "../strategyRetention";
 import {
   runAgency,
   type AgencyRuntime,
@@ -176,4 +177,24 @@ describe("runAgency", () => {
       ),
     ).toBe(false);
   });
+});
+
+it("keeps restored pending learning across a replayed retained audit in the actual agency loop", async () => {
+  const notes = recordStrategyCandidate(["strategy A"], "strategy B").notes;
+  const persisted: string[][] = [];
+  const result = await runAgency({ goal: "synthetic recovery", runtime: {
+    async loadSharedState() { return { completed: 0 }; },
+    async loadAgencyState() { return { goal: "synthetic recovery", status: "active", currentStep: 0,
+      unresolvedWork: ["two safe steps"], recurringWeaknesses: [], strategyNotes: JSON.parse(JSON.stringify(notes)) }; },
+    async assess({ shared }) { return { complete: shared.completed === 2, unresolvedWork: shared.completed === 2 ? [] : ["next safe step"] }; },
+    async choose({ shared }) { return { id: `step-${shared.completed}`, description: "synthetic safe step", reversible: true }; },
+    async execute() { return 1; },
+    async integrate({ shared }) { return { completed: shared.completed + 1 }; },
+    async verify() { return { ok: true, evidence: "synthetic verified outcome" }; },
+    async selfAudit({ shared }) { return { strategyChange: shared.completed === 1 ? "strategy A" : "strategy B" }; },
+    async persist({ agency }) { persisted.push([...agency.strategyNotes]); },
+  } });
+  expect(readStrategyRetention(persisted[0]).pending).toEqual({ strategy: "strategy B", confirmations: 1 });
+  expect(readStrategyRetention(result.agency.strategyNotes)).toEqual({ retained: ["strategy A", "strategy B"], pending: null });
+  expect(result.agency.status).toBe("complete");
 });

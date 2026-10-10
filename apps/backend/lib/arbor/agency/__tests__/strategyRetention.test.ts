@@ -126,3 +126,13 @@ describe("agency strategy retention", () => {
     );
   });
 });
+
+it("preserves an unrelated pending candidate when a retained strategy is replayed", () => {
+  const first = recordStrategyCandidate(["strategy A"], "strategy B");
+  const replay = recordStrategyCandidate(JSON.parse(JSON.stringify(first.notes)), "strategy A");
+  expect(replay.disposition).toBe("retained");
+  expect(readStrategyRetention(replay.notes)).toEqual({ retained: ["strategy A"],
+    pending: { strategy: "strategy B", confirmations: 1 } });
+  const second = recordStrategyCandidate(replay.notes, "strategy B");
+  expect(readStrategyRetention(second.notes)).toEqual({ retained: ["strategy A", "strategy B"], pending: null });
+});
