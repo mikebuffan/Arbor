@@ -256,3 +256,27 @@ test("composed One Arbor and Grove branch is fenced in all projects and environm
     }
   }
 });
+
+test("dedicated Grove draft has no jobs; shared Firefly schedules remain", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const grove = JSON.parse(await readFile(
+    new URL("../../apps/backend/vercel.grove.json", import.meta.url), "utf8"));
+  const fireflyBackend = JSON.parse(await readFile(
+    new URL("../../apps/backend/vercel.json", import.meta.url), "utf8"));
+  const fireflyRoot = JSON.parse(await readFile(
+    new URL("../../vercel.json", import.meta.url), "utf8"));
+  assert.deepEqual(grove.crons, [], "dedicated Grove proposal cannot carry Firefly cron");
+  assert.equal(grove.ignoreCommand, "node ../../ops/grove/source-only-ignore.mjs");
+  assert.ok(fireflyBackend.crons.some(x => x.path === "/api/admin/system/heartbeat"),
+    "never delete backend Firefly heartbeat to satisfy Grove");
+  assert.ok(fireflyRoot.crons.some(x => x.path === "/api/admin/system/heartbeat"),
+    "never delete root Firefly heartbeat to satisfy Grove");
+  const protectedBranch = "review/one-arbor-grove-440-441-compose-20261010";
+  const groveProject = "prj_nw2X0SyLn4e8CXWZ83MEs4jwn1JN";
+  for (const stage of ["preview", "production", "development", ""]) {
+    assert.equal(exitCode({
+      VERCEL_PROJECT_ID: groveProject, VERCEL_ENV: stage,
+      VERCEL_GIT_COMMIT_REF: protectedBranch,
+    }), 0, "source review must never build on the dedicated host");
+  }
+});
