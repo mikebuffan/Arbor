@@ -139,6 +139,31 @@ void main() {
     expect(empty.conversations, isEmpty);
   });
 
+  test('case-varied duplicate conversation IDs fail closed', () {
+    const id = 'abcdefab-1234-4000-8000-abcdef123456';
+    final entry = {
+      ...(choices()['conversations'] as List).single as Map<String, dynamic>,
+      'conversationId': id,
+    };
+    expect(() => parseGrovePrivateConversations({
+      ...choices(), 'conversations': [entry, {...entry, 'conversationId': id.toUpperCase()}],
+    }, projectId: project), throwsFormatException);
+  });
+
+  test('case-varied duplicate saved request IDs fail closed', () {
+    const id = 'abcdefab-1234-4000-8000-abcdef123456';
+    final entry = {
+      ...(history()['turns'] as List).single as Map<String, dynamic>,
+      'requestId': id,
+    };
+    expect(() => parseGrovePrivateHistory({
+      ...history(), 'turns': [entry, {
+        ...entry, 'requestId': id.toUpperCase(),
+        'createdAt': '2026-09-23T01:00:00Z',
+      }],
+    }, projectId: project, conversationId: conversation), throwsFormatException);
+  });
+
   test('explicit new private conversation uses database-minted ID and no work authority', () {
     final parsed = parseGrovePrivateCreatedConversation(
       created(), projectId: project,

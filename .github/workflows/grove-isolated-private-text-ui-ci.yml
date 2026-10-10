@@ -12,6 +12,7 @@ on:
       - review/grove-ui-phone-compose-20261010
       - review/grove-fullstack-source-compose-20261010
       - test/grove-android-debug-20261010
+      - fix/grove-uuid-duplicate-scope-20261010
 
 permissions:
   contents: read
@@ -51,6 +52,8 @@ jobs:
           test/grove_group6_draft_safety_test.dart
           test/grove_diary_draft_test.dart
           test/grove_house_navigation_test.dart
+          lib/environment/grove_living_window_panel.dart
+          test/grove_living_window_panel_test.dart
           lib/environment/grove_private_conversations.dart
           lib/environment/grove_pending_turn_store.dart
           test/grove_private_text_page_test.dart
@@ -67,6 +70,7 @@ jobs:
         run: >-
           flutter test
           test/grove_house_navigation_test.dart
+          test/grove_living_window_panel_test.dart
           test/environment_navigation_test.dart
           test/grove_responsive_wrap_test.dart
           test/grove_memory_shelf_view_test.dart
@@ -106,7 +110,7 @@ jobs:
 
   grove-android-debug:
     name: Grove unconfigured Android debug compile (source only)
-    if: github.repository == 'mikebuffan/Arbor' && github.ref == 'refs/heads/test/grove-android-debug-20261010'
+    if: github.repository == 'mikebuffan/Arbor' && (github.ref == 'refs/heads/test/grove-android-debug-20261010' || github.ref == 'refs/heads/fix/grove-uuid-duplicate-scope-20261010')
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     defaults:

@@ -21,9 +21,10 @@ List<String> parseGroveGrantedProjectIds(Map<String, dynamic>? payload) {
       r'^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$';
   final uuid = RegExp(uuidPattern, caseSensitive: false);
   final projects = <String>[];
+  final normalized = <String>{};
   for (final entry in raw) {
     if (entry is! String || !uuid.hasMatch(entry) ||
-        projects.contains(entry)) {
+        !normalized.add(entry.toLowerCase())) {
       throw const FormatException('Invalid private Grove project grant');
     }
     projects.add(entry);
