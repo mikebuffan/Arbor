@@ -64,3 +64,55 @@ it("keeps missing and self dependencies waiting even for the top-ranked item",()
   {id:"independent",dependencies:[],status:"pending",priority:1},
  ]).runnable).toEqual(["independent"]);
 });
+
+it("a max-priority pending protected action never enters runnable work",()=> {
+ const items=[
+  {id:"protected-action",dependencies:[],status:"pending" as const,protectedBoundary:true,priority:100},
+  {id:"safe-inspection",dependencies:[],status:"pending" as const,priority:1},
+ ];
+ expect(planBacklogContinuation(items)).toMatchObject({
+  runnable:["safe-inspection"],humanBoundaries:["protected-action"],
+ });
+ expect(nextIndependentWork(items,"unrelated")).toBe("safe-inspection");
+});
+
+ 
+describe("D10/E09 reviewed consequences in the existing recommendation path", () => {
+ const items = [
+  {id:"high-plan",decisionId:"decision-001",choiceId:"choice-001",dependencies:[],status:"pending" as const,priority:95},
+  {id:"safe-alternative",dependencies:[],status:"pending" as const,priority:1},
+ ];
+ const outcome = (changes: Record<string,unknown> = {}) => {
+  const scope = {userId:"fixture-owner",projectId:"fixture-project",conversationId:"fixture-conversation",turnId:"fixture-turn"};
+  const receipt = {receiptId:"receipt-001",consequenceRef:"outcome-001",decisionId:"decision-001",choiceId:"choice-001",
+   ...scope,status:"confirmed",reviewedByHost:true};
+  return {taskId:"high-plan",firefly:{
+   scope,domain:"decision",stage:"second_choice",rhythm:"stability",signal:"prediction_error",
+   decisionId:"decision-001",choiceId:"choice-001",verifiedConsequenceRef:"outcome-001",
+   packet:{packetType:"observation",meaning:"Synthetic observed negative result",confidence:1,relevance:1,
+    provenance:[{sourceKind:"synthetic",sourceRef:"fixture-source"}]},
+   consequenceReceipt:receipt,...changes,
+  }};
+ };
+ // Cast solely for the red-phase test: the existing planner has no second/third argument yet.
+ const recommend = (review?: unknown) =>
+  (nextIndependentWork as (...args: any[]) => string|null)(items,"unrelated",review);
+
+ it("a high-confidence claimed negative result does not change the recommendation",()=>{
+  expect(recommend()).toBe("high-plan");
+  expect(recommend(outcome({consequenceReceipt:null}))).toBe("high-plan");
+  expect(recommend(outcome({consequenceReceipt:{...outcome().firefly.consequenceReceipt,status:"pending"}}))).toBe("high-plan");
+ });
+ it("a separately host-reviewed exact decision/choice negative outcome reopens choice and recommends independent safe work",()=>{
+  expect(recommend(outcome())).toBe("safe-alternative");
+ });
+ it("an outcome linked to a different choice must never redirect this task",()=>{
+  expect(()=>recommend(outcome({choiceId:"choice-other"}))).toThrow();
+ });
+ it("a foreign-project review must not redirect a scoped outcome",()=>{
+  expect(()=>recommend(outcome({consequenceReceipt:{...outcome().firefly.consequenceReceipt,projectId:"foreign-project"}}))).toThrow();
+ });
+ it("confirmed favorable outcome alone does not imply completed work",()=>{
+  expect(recommend(outcome({signal:"retrieval"}))).toBe("high-plan");
+ });
+});
