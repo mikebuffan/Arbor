@@ -299,3 +299,13 @@ test("dedicated private Grove project cannot auto-build main or unlisted refs be
     assert.equal(exitCode({VERCEL_GIT_COMMIT_REF: ref}), 1);
   }
 });
+
+test("Grove and D10/E09 cross-lane composition is source-only before branch creation",()=>{
+ const refs=["review/d10-e09-authenticated-ci-readback-20261010","test/d10-e09-reviewed-outcome-recommendation-20261010","fix/d10-e09-pending-protection-20261010","review/one-arbor-grove-d10-e09-compose-20261010"];
+ for(const ref of refs) for(const stage of ["preview","production","development",""]){
+  for(const id of ["prj_JArYlugmdFovY10CxZ0LEJmcrsKC","prj_nw2X0SyLn4e8CXWZ83MEs4jwn1JN",""])
+   assert.equal(exitCode({VERCEL_ENV:stage,VERCEL_PROJECT_ID:id,VERCEL_GIT_COMMIT_REF:ref}),0);
+ }
+ assert.equal(exitCode({VERCEL_PROJECT_ID:"prj_nw2X0SyLn4e8CXWZ83MEs4jwn1JN",VERCEL_GIT_COMMIT_REF:"main"}),0);
+ assert.equal(exitCode({VERCEL_GIT_COMMIT_REF:"main"}),1);
+});
