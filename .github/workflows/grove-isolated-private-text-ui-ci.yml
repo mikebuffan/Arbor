@@ -9,6 +9,7 @@ on:
       - test/grove-group6-workspaces-20261010
       - test/grove-group8-accessibility-20261010
       - review/grove-combined-ui-diary-20261010
+      - review/grove-ui-phone-compose-20261010
 
 permissions:
   contents: read
@@ -76,6 +77,18 @@ jobs:
           test/grove_diary_draft_test.dart
           test/grove_group6_draft_safety_test.dart
           test/grove_room_inventory_panel_test.dart
+
+      - name: Verify composed phone parser, local draft, private Text and scope together
+        run: >-
+          timeout 240s flutter test --reporter expanded --concurrency=1
+          test/grove_private_conversations_test.dart
+          test/grove_pending_turn_store_test.dart
+          test/grove_private_text_page_test.dart
+          test/grove_private_auth_boundary_test.dart
+          test/grove_private_project_gate_test.dart
+          test/grove_private_projects_truth_test.dart
+          test/grove_runtime_scope_test.dart
+          test/grove_talk_private_boundary_test.dart
 
       - name: Verify Grove source-only deployment fences
         working-directory: .
