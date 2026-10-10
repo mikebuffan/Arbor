@@ -116,3 +116,49 @@ describe("D10/E09 reviewed consequences in the existing recommendation path", ()
   expect(recommend(outcome({signal:"retrieval"}))).toBe("high-plan");
  });
 });
+
+describe("D10/E09 review of completed ancestors must not green-light dependent work",()=>{
+ const scope={userId:"synthetic-owner",projectId:"synthetic-project",conversationId:"synthetic-thread",turnId:"synthetic-turn"};
+ const review={
+  taskId:"source-choice",
+  firefly:{
+   scope,domain:"decision" as const,stage:"second_choice" as const,
+   rhythm:"stability" as const,signal:"prediction_error" as const,
+   decisionId:"decision-original",choiceId:"choice-original",
+   verifiedConsequenceRef:"result-negative",
+   packet:{packetType:"observation",meaning:"Synthetic adverse result requiring re-observation",
+    confidence:0.8,provenance:[{sourceKind:"synthetic",sourceRef:"fixture-outcome"}]},
+   consequenceReceipt:{receiptId:"host-receipt-1",consequenceRef:"result-negative",
+    decisionId:"decision-original",choiceId:"choice-original",
+    ...scope,status:"confirmed" as const,reviewedByHost:true}
+  }
+ };
+ it("keeps a completed original record but holds its dependent after adverse review",()=>{
+  const items=[
+   {id:"source-choice",decisionId:"decision-original",choiceId:"choice-original",
+    dependencies:[],status:"complete" as const,priority:99},
+   {id:"dependent",dependencies:["source-choice"],status:"pending" as const,priority:95},
+   {id:"independent",dependencies:[],status:"pending" as const,priority:1}
+  ];
+  expect(nextIndependentWork(items,"unknown")).toBe("dependent");
+  const plan=planBacklogContinuation(items,review);
+  expect(plan).toMatchObject({runnable:["independent"],waiting:["dependent"],
+   complete:["source-choice"],reconsideration:["source-choice"]});
+  expect(nextIndependentWork(items,"unknown",review)).toBe("independent");
+ });
+ it("holds transitive dependent work even when an intermediate task had completed",()=>{
+  const items=[
+   {id:"source-choice",decisionId:"decision-original",choiceId:"choice-original",
+    dependencies:[],status:"complete" as const},
+   {id:"intermediate-complete",dependencies:["source-choice"],status:"complete" as const},
+   {id:"grandchild",dependencies:["intermediate-complete"],status:"pending" as const,priority:100},
+   {id:"unrelated-complete",dependencies:[],status:"complete" as const},
+   {id:"other",dependencies:["unrelated-complete"],status:"pending" as const,priority:1}
+  ];
+  const plan=planBacklogContinuation(items,review);
+  expect(plan.runnable).toEqual(["other"]);
+  expect(plan.waiting).toEqual(["grandchild"]);
+  expect(plan.complete).toEqual(["source-choice","intermediate-complete","unrelated-complete"]);
+  expect(plan.reconsideration).toEqual(["source-choice"]);
+ });
+});

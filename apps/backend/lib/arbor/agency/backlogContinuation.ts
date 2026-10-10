@@ -52,6 +52,18 @@ export function planBacklogContinuation(items:readonly BacklogItem[],review?:Bac
       (route.decision==="hold"&&route.reason==="contradiction_hold")))
    reconsiderId=target.id;
  }
+ // Preserve historical completion records but treat a reviewed adverse
+ // consequence as an advisory hold on every dependent recommendation.
+ // Even a completed intermediary must not re-open a blocked dependency path.
+ const affected=new Set<string>(reconsiderId?[reconsiderId]:[]);
+ for(let changed=true;changed;){
+  changed=false;
+  for(const item of items){
+   if(!affected.has(item.id)&&item.dependencies.some(id=>affected.has(id))){
+    affected.add(item.id);changed=true;
+   }
+  }
+ }
  const completed=new Set(items.filter(x=>x.status==="complete").map(x=>x.id));
  const runnable:string[]=[];const waiting:string[]=[];const humanBoundaries:string[]=[];
  for(const item of items){
@@ -59,14 +71,14 @@ export function planBacklogContinuation(items:readonly BacklogItem[],review?:Bac
   // A pending protected action is not safe to run just because it has
   // high priority. Existing approval and protected boundaries win first.
   if(item.protectedBoundary){humanBoundaries.push(item.id);continue;}
-  if(item.id===reconsiderId){waiting.push(item.id);continue;}
+  if(affected.has(item.id)){waiting.push(item.id);continue;}
   const depsReady=item.dependencies.every(x=>completed.has(x));
   if(item.status==="pending"&&depsReady)runnable.push(item.id);else waiting.push(item.id);
  }
  const priorityOf=(id:string)=>items.find(x=>x.id===id)?.priority??0;
  // Stable ordering for equal priorities (Array.sort is stable on supported hosts).
  runnable.sort((a,b)=>priorityOf(b)-priorityOf(a));
- return{runnable,waiting,humanBoundaries,complete:[...completed],reconsideration:reconsiderId&&!completed.has(reconsiderId)?[reconsiderId]:[]};
+ return{runnable,waiting,humanBoundaries,complete:[...completed],reconsideration:reconsiderId?[reconsiderId]:[]};
 }
 export function nextIndependentWork(items:readonly BacklogItem[],blockedId:string,review?:BacklogReviewedOutcome):string|null{
  const plan=planBacklogContinuation(items,review);
