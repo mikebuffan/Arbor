@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "kind": "trusted-source-repair-review-bindings",
+  "policy": "A task binding is reviewed source metadata, not permission or completion. An exact successful CI SHA and required job steps are required before emitting REASSESS_ONLY flags.",
+  "repository": "mikebuffan/Arbor",
+  "bindings": [
+    {
+      "branch": "fix/chat-boundary-pending-receipts-20261009",
+      "headSha": "47a2b0a93a7abec612b5cd61d2e04c0f78dbd816",
+      "taskIds": [
+        "A09"
+      ],
+      "stage": "source_verified",
+      "workflow": "One Arbor verified boundary receipt and chat source acceptance",
+      "job": "identity-security",
+      "requiredSteps": [
+        "Verify 223 retained source fingerprints",
+        "Verify review branch can never trigger Vercel build",
+        "Verify identity issuer negative and positive controls",
+        "Type-check existing backend",
+        "Full backend regression",
+        "Production backend build"
+      ]
+    }
+  ]
+}
