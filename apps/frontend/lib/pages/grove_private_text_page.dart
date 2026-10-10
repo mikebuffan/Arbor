@@ -403,7 +403,27 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel>
           ? preferred
           : choices.conversations.length == 1
               ? choices.conversations.single.conversationId : null;
-      setState(() { _choices = choices; _loading = selected != null; });
+      // A refreshed owner-scoped list is an authorization boundary.
+      // If the old thread vanished, unmount its private text immediately,
+      // even while a different authorized conversation is still loading.
+      // An opted-in unsent draft was saved above before the list request.
+      final previousStillSelected = previousId != null && previousId == selected;
+      setState(() {
+        _choices = choices;
+        _loading = selected != null;
+        if (!previousStillSelected) {
+          _draftTimer?.cancel();
+          _selected = null;
+          _history = null;
+          _pendingId = null;
+          _pendingText = null;
+          _unsavedReply = null;
+          _keepDraft = false;
+          _draftBlocked = false;
+          _draftStatus = null;
+          _setInput('');
+        }
+      });
       if (selected != null) await _choose(selected, generation: generation);
     } catch (_) {
       if (!_valid || generation != _generation) return;
