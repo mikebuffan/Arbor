@@ -32,9 +32,22 @@ Validation: exact original `G01–G82` mapped once each; 82 unique; no omissions
 - Existing isolated draft: [Grove PR #410](https://github.com/mikebuffan/Arbor/pull/410), based on reviewed #408, no merge or deployment.
 - Confirmed Grove-only privacy defect: when a list refresh removes a prior authorized conversation, stale private text and Send could remain rendered. Scoped source repair and two Flutter regressions are committed in PR #410.
 - Added branch-scoped, read-only Flutter source CI for private Text/auth/draft cases and existing Home/navigation; no backend/test fixtures were rewritten.
-- Flutter CI verification **pending** at initial writing: observe GitHub Actions outcome and correct only concrete frontend test failures.
+- Flutter branch acceptance **SOURCE-TESTED**: exact source run [38032600648](https://github.com/mikebuffan/Arbor/actions/runs/38032600648) green with 50 private scope/draft/conversation tests plus 8 house/navigation tests. Analyzer had 20 nonfatal info lints; no warnings or errors.
 - Vercel source-only branch entry verified; prior automatic branch build was canceled.
 - Group 01 exit: source-only branch and owner boundary reviewed, Flutter CI result recorded, no hosted/private/production changes; screenshot/device tasks G65 remain gated for actual Android hardware.
+
+## Batch 02 — private entry / authorization source repair
+
+- Current isolated draft #410 also includes a distinct source-only project gate foreground-revalidation repair plus regression test. `GrovePrivateProjectGate` now hides its previously authorized room while rechecking projects after device resume, and rejects a failed/revoked refresh rather than leaving stale private UI visible.
+- Outer `GrovePrivateAuthGate` now also rechecks owner invitation on resume. Its backend grant remains server-enforced; physical-device and real-revocation acceptance are still outstanding.
+- Exact source CI run [38032957993](https://github.com/mikebuffan/Arbor/actions/runs/38032957993) green: **51 private scope/draft/conversation/auth/project tests, 8 existing house/navigation tests**. Analyzer exited success with 22 informational lints, no warnings or errors.
+- G11/G12 trusted actual owner sign-in/hosting remain cross-owner integration gates; no Supabase configuration, grants, private access, or Vercel deployment activated here.
+
+## Batch 03 — continuity and recovery source checks
+
+- Existing tests already cover stable retry identity, saved draft restoration, stale history, account/project scope, failed write, explicit discard, and private/public Talk isolation. Reuse those tests rather than inventing another draft store.
+- Next independent check: expand existing isolated Flutter CI to cover runtime scope, truthful private projects, public/private Talk boundary and composed Grove regression; no app code changes unless a real failure is reproduced.
+- Actual Android force-close/airplane mode acceptance remains for later device testing.
 
 ## Dependency notes
 
