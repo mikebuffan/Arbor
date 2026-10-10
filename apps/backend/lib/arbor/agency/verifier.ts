@@ -47,18 +47,23 @@ export function parseAgencyVerification(
             .filter(Boolean)
         : [];
 
-    const score =
+    // Missing, nonnumeric and out-of-range scores are not proof of
+    // completion. Never fabricate a perfect score for a malformed verifier.
+    const scoreFinite =
       typeof parsed.score === "number" &&
-      Number.isFinite(parsed.score)
-        ? Math.max(0, Math.min(1, parsed.score))
-        : parsed.complete
-          ? 1
-          : 0;
+      Number.isFinite(parsed.score);
+    const scoreValid =
+      scoreFinite && (parsed.score as number) >= 0 &&
+      (parsed.score as number) <= 1;
+    const score = scoreFinite
+      ? Math.max(0, Math.min(1, parsed.score as number))
+      : 0;
 
     const evidence = strings(parsed.evidence);
     const unresolvedWork = strings(parsed.unresolvedWork);
     const complete =
       parsed.complete &&
+      scoreValid &&
       unresolvedWork.length === 0 &&
       evidence.length > 0;
 
@@ -71,7 +76,9 @@ export function parseAgencyVerification(
           : unresolvedWork.length
             ? unresolvedWork
             : parsed.complete
-              ? ["completion claim lacked evidence"]
+              ? [scoreValid
+                  ? "completion claim lacked evidence"
+                  : "verification score missing or invalid"]
               : [],
       evidence,
       strategyCorrection:
