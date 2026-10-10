@@ -187,6 +187,30 @@ describe("Grove-only private conversation durability (fixtures, migration OFF)",
     expect(data.records.size).toBe(2);
   });
 
+  it("a completion resolved as an existing row cannot recapture an older turn", async () => {
+    const data = fakeStore();
+    const racedStore: GrovePrivateTranscriptStore = {
+      ...data.store,
+      persistCompleted: async input => {
+        const result = await data.store.persistCompleted(input);
+        // Simulate another worker winning the durable completion race.
+        return { ...result, created: false };
+      },
+    };
+    const h = host(racedStore);
+    const prepared = await h.prepare("Already committed elsewhere", firstId);
+    const capture = vi.fn(async () => {});
+    prepared.captureRuntimeTurn = capture;
+    const response = await respondToVerifiedPrivateGroveTurn({
+      prepared, features: flags, dependencies: {sendModel: h.sendModel as never},
+    });
+    expect(response).toMatchObject({
+      status: "responded", persisted: true, replayed: true,
+    });
+    expect(capture).not.toHaveBeenCalled();
+    expect(data.records.size).toBe(1);
+  });
+
   it("recovers canonical ARK goal and correction on restart, not from chat prose", async () => {
     const data = fakeStore();
     const initial = host(data.store);
