@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "kind": "verified-source-receipts-for-review-only",
+  "note": "Receipts refer to verified, source-only GitHub CI. These events do NOT prove host acceptance, close tasks, permit deployment, or authorize execution.",
+  "verifiedEvents": [
+    {
+      "taskId": "A09",
+      "stage": "source_verified",
+      "outcome": "verified",
+      "receipt": "https://github.com/mikebuffan/Arbor/actions/runs/38026869361"
+    }
+  ],
+  "processedEventKeys": []
+}
