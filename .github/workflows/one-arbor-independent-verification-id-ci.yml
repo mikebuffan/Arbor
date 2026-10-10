@@ -8,6 +8,7 @@ on:
       - fix/independence-invalid-verifier-score-20261010
       - fix/independence-host-result-evidence-20261010
       - fix/independence-paired-outcome-evaluation-20261010
+      - fix/independence-paired-protocol-parity-20261010
 
 permissions:
   contents: read
