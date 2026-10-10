@@ -67,6 +67,8 @@ test("false 97-task coverage and invented target IDs fail closed", () => {
   assert.throws(()=>validateUnlockView(missing),/not_exactly_97/);
   const unknown=clone(); unknown.reviewTriggers[0].to.push("Z99");
   assert.throws(()=>validateUnlockView(unknown),/invalid_trigger_target/);
+  const invented=clone(); invented.groups[0].ids[0]="A98";
+  assert.throws(()=>validateUnlockView(invented),/original_task_identity_mismatch/);
 });
 
 test("no transitive unlocks without their own verified receipt", () => {
