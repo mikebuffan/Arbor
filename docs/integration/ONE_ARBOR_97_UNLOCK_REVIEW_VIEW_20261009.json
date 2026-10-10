@@ -4,7 +4,7 @@
   "authoritativeSource": "ONE_ARBOR_97_TASKS_15_ORDERED_WORK_GROUPS_20261007.md",
   "reassessmentSource": "ONE_ARBOR_97_TASK_DEPENDENCY_REASSESSMENT_20261009.md",
   "rule": "Verification triggers review only. No implicit status promotion, live acceptance, tool authority, execution or scheduling.",
-  "coverage": "All 97 IDs mapped once; recorded review triggers are an intentionally partial evidence-based subset, not a complete prerequisite graph.",
+  "coverage": "All 97 original task IDs mapped once; partial evidence-based direct review triggers only. 2026-10-10 source review added B15, D12 and D09 direct recheck edges without implicit task promotion.",
   "groups": [
     {
       "group": 1,
@@ -375,6 +375,36 @@
         "G12"
       ],
       "reason": "Physical installed-phone acceptance reopens surface checks"
+    },
+    {
+      "from": "B15",
+      "minStage": "source_verified",
+      "to": [
+        "B16",
+        "D05",
+        "E07"
+      ],
+      "reason": "New causal ancestry checks affect What Changed, decision review and associated receipt semantics; reassess exact source use, not host truth"
+    },
+    {
+      "from": "D12",
+      "minStage": "source_verified",
+      "to": [
+        "C04",
+        "D09",
+        "D13"
+      ],
+      "reason": "Evidence-qualified learning and controlled before/after evaluation may reopen independent judgment and Firefly behavior tests; no live learning claim"
+    },
+    {
+      "from": "D09",
+      "minStage": "source_verified",
+      "to": [
+        "D10",
+        "D11",
+        "E09"
+      ],
+      "reason": "Decision- and choice-bound consequence HOLD may reopen Glow vs Noise, veto and priority-review source comparisons; not permission to act"
     }
   ]
 }
