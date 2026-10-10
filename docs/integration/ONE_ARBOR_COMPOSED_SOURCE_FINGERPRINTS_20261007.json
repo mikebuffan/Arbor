@@ -214,7 +214,7 @@
     "docs/integration/ONE_ARBOR_INDEPENDENCE_RESUME_PRIORITY_20261009.md": "bbf4b64230910a113f44b7b22bd658799e2bac6b",
     "apps/backend/lib/arbor/agency/__tests__/yieldPolicy.test.ts": "697ebeecee133dbbdc9a3ecbff65517fb86cc349",
     "docs/integration/ONE_ARBOR_INDEPENDENCE_NEGATIVE_PROOF_20261009.md": "5cb7df6be8d8497f7242f546fd970fb5f33fdc0c",
-    "apps/backend/lib/arbor/agency/openaiAgent.ts": "af2e4fc7d1259faf67c6eef2ca7f5d526b0477f7",
+    "apps/backend/lib/arbor/agency/openaiAgent.ts": "9721884f0601aa50f3ce00f51300413490d49734",
     "apps/backend/lib/arbor/agency/__tests__/providerCompletionBoundary.test.ts": "18963f463b383a4c10b15270b1f6357d28e98a62",
     "docs/integration/ONE_ARBOR_CHAT_PROVIDER_COMPLETION_20261009.md": "ff5a00c7a025f4564acf50ae0e19a6927ab995db",
     "docs/integration/ONE_ARBOR_INDEPENDENT_CHAT_INTEGRATION_20261009.md": "5dcd7ab0e9d37ca2614b27a6173e6d6330f2033a",
