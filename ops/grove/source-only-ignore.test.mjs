@@ -101,3 +101,12 @@ test("GitHub run discovery draft remains source-only in every environment", () =
     }
   }
 });
+ 
+test("cross-round receipt draft remains source-only for every project and environment", () => {
+  const ref = "fix/cross-round-receipt-retention-20261009";
+  for (const stage of ["preview","production","development",""]) {
+    for (const id of [project,"prj_JArYlugmdFovY10CxZ0LEJmcrsKC",""]) {
+      assert.equal(exitCode({VERCEL_ENV:stage,VERCEL_PROJECT_ID:id,VERCEL_GIT_COMMIT_REF:ref}),0);
+    }
+  }
+});
