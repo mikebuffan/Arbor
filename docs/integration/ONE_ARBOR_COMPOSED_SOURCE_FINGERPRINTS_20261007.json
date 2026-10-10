@@ -219,7 +219,7 @@
     "docs/integration/ONE_ARBOR_CHAT_PROVIDER_COMPLETION_20261009.md": "ff5a00c7a025f4564acf50ae0e19a6927ab995db",
     "docs/integration/ONE_ARBOR_INDEPENDENT_CHAT_INTEGRATION_20261009.md": "5dcd7ab0e9d37ca2614b27a6173e6d6330f2033a",
     "docs/integration/ONE_ARBOR_INDEPENDENCE_BUDGET_PREFLIGHT_20261009.md": "fb417ba4f4718fd87d13a5d4aa81b7af293a1b97",
-    "ops/grove/source-only-ignore.test.mjs": "e0b6813404a4b28506493d3281866e52dcab9f52",
+    "ops/grove/source-only-ignore.test.mjs": "92ecc847e3151fbff7a53d3a5c138f440c46208f",
     "docs/integration/ONE_ARBOR_ISOLATED_PREVIEW_FENCE_REPAIR_20261009.md": "aac8515a6d6311263737396302e03a5a1f542064",
     "apps/backend/app/api/memory/delete/route.ts": "de79dea1b5d65a3eabb106b77ddb550cc2016178",
     "apps/backend/lib/memory/__tests__/routeOwnership.test.ts": "7427c98233aec1f894dbdbd910e1b71adc86f1bf",
@@ -272,7 +272,8 @@
     ".github/workflows/grove-retention-disposable-ci.yml": "832c024a526a3fc6c51f217e5f5212f23de141d4",
     "ops/integration/one-arbor-ci-outcome-readback.mjs": "218f52be557f34b44b283848b706a06a1431c303",
     "ops/integration/__tests__/one-arbor-ci-outcome-readback.test.mjs": "529e7a1d3d0a488cdfa92059428b2f728da0c384",
-    "docs/integration/ONE_ARBOR_REAL_OUTCOME_AND_MODEL_GATE_20261010.md": "e08a8c2438bb21bc62bd93c7ac2ee550b6942a4b"
+    "docs/integration/ONE_ARBOR_REAL_OUTCOME_AND_MODEL_GATE_20261010.md": "e08a8c2438bb21bc62bd93c7ac2ee550b6942a4b",
+    "docs/integration/ONE_ARBOR_GROVE_D10_E09_SOURCE_COMPOSITION_20261010.md": "15a7772c776d27aa910fd11a21fe9251c52305d9"
   },
   "comment": "Source-only incorporation from Library ONE_ARBOR_CODE_REPAIRS_20261009.zip: 17 exact source/test blobs verified, packages reconciled with original PR #372 head, 3 focused tests added; CI/release acceptance remain separately gated."
 }

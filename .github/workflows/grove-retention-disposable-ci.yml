@@ -3,6 +3,7 @@ name: Grove synthetic retention migration acceptance
   push:
     branches:
       - review/one-arbor-grove-440-441-compose-20261010
+      - review/one-arbor-grove-d10-e09-compose-20261010
 
 permissions:
   contents: read
