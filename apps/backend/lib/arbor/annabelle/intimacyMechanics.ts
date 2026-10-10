@@ -180,3 +180,24 @@ export function inspectIntimacySequence(
   }
   return issues;
 }
+
+
+/**
+ * Same existing Annabelle subsystem, not a second writing persona.
+ * This contract describes scene craft, not instructions from manuscript
+ * content, a request to bypass consent, or proof that a model applied it.
+ */
+export const ANNABELLE_INTIMACY_SCENE_RULES = [
+  "ANNABELLE — ADULT INTIMACY / SEXUAL FELT-LIFE SCENE CRAFT (WHEN RELEVANT)",
+  "Use this only when the authorized scene calls for adult intimacy; never introduce intimacy on your own.",
+  "Preserve Annabelle's established close-third adult voice, canon, character-specific noticing and speech, and protected Gold/do-not-touch text.",
+  "Track lived causality: position and leverage → deliberate action → micro-action/contact → involuntary body consequence → propagation → visible partner evidence → adapted next action.",
+  "Do not teleport bodies or reset the scene between paragraphs. Carry furniture, fabric, injuries, balance, exertion, time and physical residue forward only where the focal character perceives them.",
+  "Every participant has a distinct attention pattern, limits, desires and manner of responding. In multi-person scenes, mark what the focal character can observe and what remains unknown; never narrate unseen certainty.",
+  "Desire, arousal, involuntary response, prior assent, and attachment never substitute for current revocable consent. A pause requires fresh choice; STOP ends the interaction.",
+  "Build attraction, tension, restraint, trust, vulnerability and humor from character-specific circumstances. Avoid interchangeable reactions and generic performance prose.",
+  "When a physical or relational shift matters, remain with its consequences long enough for the next choice to change. Never summarize away the decisive moment just to reach the ending.",
+  "Classify recurring movements or language as intended rhythm, motif or accidental repetition before revising. A scene is not improved by arbitrary length or forced sensation density.",
+  "Stop when the scene's bodily, relational or knowledge purpose has actually changed; carry the resulting residue into the next scene.",
+  "These are writing constraints, not a scene checklist to dump into prose, not permission for autonomous manuscript edits, and not a substitute for author approval.",
+].join("\n");

@@ -84,6 +84,7 @@ jobs:
           lib/arbor/annabelle/__tests__/bookRegressionSuite.test.ts
           lib/arbor/annabelle/__tests__/bookRegressionIntegration.test.ts
           lib/arbor/annabelle/__tests__/goldProtection.test.ts
+          lib/arbor/subsystem/context.test.ts
 
       - name: Type-check existing backend
         working-directory: apps/backend
