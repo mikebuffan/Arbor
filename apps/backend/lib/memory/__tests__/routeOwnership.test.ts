@@ -16,6 +16,7 @@ vi.mock("@/lib/supabase/bearer", () => ({
 
 vi.mock("@/lib/memory/store", () => ({
   upsertMemoryItems: mocks.upsertMemoryItems,
+  correctMemoryItem: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/ownership", () => ({
@@ -23,6 +24,7 @@ vi.mock("@/lib/auth/ownership", () => ({
 }));
 
 import { PATCH as patchMemoryItem } from "@/app/api/memory/item/[id]/route";
+import { POST as confirmMemory } from "@/app/api/memory/confirm/route";
 import { POST as deleteMemoryItem } from "@/app/api/memory/delete/route";
 import {
   GET as listMemoryItems,
@@ -66,6 +68,28 @@ describe("memory route ownership", () => {
     expect(await response.json()).toEqual({ ok: false, error: "server_error" });
     expect(read.eq).toHaveBeenCalledWith("user_id", "user-a");
     if (stage === "read") expect(write.update).not.toHaveBeenCalled();
+  });
+
+  it.each(["read", "delete"])("redacts private confirmation errors: %s", async (stage) => {
+    const privateError = { message: "synthetic-private-storage-detail" };
+    const read: Record<string, any> = {};
+    for (const method of ["select", "eq", "is", "neq", "order", "limit"]) read[method] = vi.fn(() => read);
+    read.then = (resolve: (value: unknown) => unknown) => Promise.resolve({
+      data: stage === "read" ? null : [{ id: "pending", user_id: "user-a", project_id: null,
+        question: "Save this?", ops: [{ key: "preference", value: "synthetic" }], event_type: null,
+        created_at: "2026-10-09T18:00:00Z" }], error: stage === "read" ? privateError : null }).then(resolve);
+    const write: Record<string, any> = {};
+    for (const method of ["delete", "eq", "is"]) write[method] = vi.fn(() => write);
+    write.then = (resolve: (value: unknown) => unknown) => Promise.resolve({ error: privateError }).then(resolve);
+    mocks.userClient.from.mockReturnValueOnce(read).mockReturnValueOnce(write);
+    const response = await confirmMemory(new Request("https://arbor.test/api/memory/confirm", {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ decision: "no" }),
+    }) as never);
+    expect(response.status).toBe(500);
+    expect(await response.json()).toEqual({ ok: false, error: "server_error" });
+    expect(read.eq).toHaveBeenCalledWith("user_id", "user-a");
+    if (stage === "read") expect(write.delete).not.toHaveBeenCalled();
+    else expect(write.eq).toHaveBeenCalledWith("user_id", "user-a");
   });
 
   it.each(["pin", "discard", "confirmFact"])("redacts private item mutation errors: %s", async (action) => {

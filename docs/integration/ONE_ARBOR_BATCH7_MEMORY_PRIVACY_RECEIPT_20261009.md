@@ -4,11 +4,11 @@ Parent: PR #390 at `3a9167251bf40177f37c29352d9b5b0995398429`, tree `57a97980c64
 
 ## Actual repairs
 
-Four existing API error branches leaked raw database messages: owner review (`GET /api/memory/items`) and pin/discard/confirmFact item mutations. They now use the existing sanitized `routeErrorResponse`; authorization responses and successful item payloads remain supported. Existing DELETE read/write error redaction is retained.
+Six existing API error branches leaked raw database messages: owner review (`GET /api/memory/items`), pin/discard/confirmFact item mutations, and confirmation candidate read/pending deletion. They now use the existing sanitized `routeErrorResponse`; authorization responses and successful item payloads remain supported. Existing DELETE read/write error redaction is retained.
 
 DELETE previously reported the number of rows selected as the number deleted, without reading the mutation result. A zero-row or partial update could report total success. The mutation now repeats authenticated owner, selected scope, unlocked and not-already-deleted predicates, selects returned IDs, and requires all selected rows to have changed before returning success. A zero/partial result returns sanitized `409 memory_changed_during_delete`. Partial writes may already be committed: this is not transactional rollback or whole-account erasure. A lock acquired before the mutation is protected by its write predicate. RLS remains enabled and no policy is broadened.
 
-Seven new route regressions failed against unchanged parent source: four message leaks, two false-success outcomes and missing write ownership guard in the successful case. All 14 route tests now pass, including existing DELETE error redaction and foreign-project/owner negatives. Fixtures are synthetic; no live memory was changed.
+Nine new route regressions failed before repair: six message leaks, two false-success outcomes and missing write ownership guard in the successful case. All 16 route tests now pass, including existing DELETE error redaction and foreign-project/owner negatives. Fixtures are synthetic; no live memory was changed.
 
 ## Five task outcomes
 
@@ -22,9 +22,9 @@ Seven new route regressions failed against unchanged parent source: four message
 
 ## Verification and limits
 
-- Local: 379 tests passed across 53 suites covering memory, durable correction writes, temporal precedence, promotion and actual prompt construction; counts include the 14 route regressions.
+- Local: 381 tests passed across 53 suites covering memory, durable correction writes, temporal precedence, promotion and actual prompt construction; counts include the 16 route checks.
 - Backend TypeScript no-emit passed. External networking is denied by test setup; only fake provider credentials were used.
-- All six deployment-fence tests and 192 exact composed-source pins passed before publication. Remote full regression/build result is recorded separately in the PR/assessment after completion.
+- All six deployment-fence tests and 193 exact composed-source pins passed before publication. Remote full regression/build result is recorded separately in the PR/assessment after completion.
 - Current official Supabase update docs confirm `.select()` returns changed rows; changelog inspected, no SDK/schema/policy upgrade added. No live query, paid provider call, main merge, deployment, key/grant/settings change or data ingestion.
 
 Group 7 remains PARTIAL with two concrete repaired defects. Source/fixture proof does not accept the deployed database, device or model. Continue one group at a time.

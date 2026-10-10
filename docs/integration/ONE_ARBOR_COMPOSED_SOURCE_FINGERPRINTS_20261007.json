@@ -221,7 +221,7 @@
     "ops/grove/source-only-ignore.test.mjs": "020246a5ba7298473a006389d78905a95195e8ae",
     "docs/integration/ONE_ARBOR_ISOLATED_PREVIEW_FENCE_REPAIR_20261009.md": "aac8515a6d6311263737396302e03a5a1f542064",
     "apps/backend/app/api/memory/delete/route.ts": "de79dea1b5d65a3eabb106b77ddb550cc2016178",
-    "apps/backend/lib/memory/__tests__/routeOwnership.test.ts": "dab48307e625a1af995c2b208160186c1a59defe",
+    "apps/backend/lib/memory/__tests__/routeOwnership.test.ts": "7427c98233aec1f894dbdbd910e1b71adc86f1bf",
     "apps/frontend/test/grove_private_text_page_test.dart": "d1344f0a0ff78fc97b3473f887b7b7a300bea745",
     "apps/frontend/lib/pages/grove_private_text_page.dart": "3549d1768207a7aa646bb0e60f6ff8dbc899e510",
     "apps/backend/lib/grove/__tests__/privateReadBroker.test.ts": "a96b1a89cf7d13cd63063039f6092c84cc6de366",
@@ -231,7 +231,8 @@
     "docs/integration/ONE_ARBOR_BATCH5_PENDING_ACTION_RECEIPT_20261010.md": "1318195d23bcc2f63535884c5d0fbf62f2eb2e72",
     "docs/integration/ONE_ARBOR_BATCH6_RESTART_RECEIPT_20261010.md": "8cd1cc261e852cf5a0e598bccdde614f8acf5910",
     "apps/backend/app/api/memory/item/[id]/route.ts": "e7ca9ab38d8b7e78ccab4a95dc2b8eb7818f7f65",
-    "docs/integration/ONE_ARBOR_BATCH7_MEMORY_PRIVACY_RECEIPT_20261009.md": "64f79892a5f4eb0c49a98808817d8ad36e3253b8"
+    "docs/integration/ONE_ARBOR_BATCH7_MEMORY_PRIVACY_RECEIPT_20261009.md": "e04ab34995783914ce7e541c068e87dd88d3c5af",
+    "apps/backend/app/api/memory/confirm/route.ts": "76d3c820a6e9db0e9f040370cd3e2a0c94266dc8"
   },
   "comment": "Source-only incorporation from Library ONE_ARBOR_CODE_REPAIRS_20261009.zip: 17 exact source/test blobs verified, packages reconciled with original PR #372 head, 3 focused tests added; CI/release acceptance remain separately gated."
 }
