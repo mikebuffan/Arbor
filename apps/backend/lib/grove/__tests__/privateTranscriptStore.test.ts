@@ -584,6 +584,43 @@ describe("Grove-only private conversation durability (fixtures, migration OFF)",
     expect(data.records.size).toBe(0);
   });
 
+  it("preserves a committed turn after separate runtime capture failure and replays without a second model call", async () => {
+    const data = fakeStore();
+    const h = host(data.store);
+    const prepared = await h.prepare("Keep this turn after restart", firstId);
+    const failedCapture = vi.fn(async () => {
+      throw new Error("exact_runtime_save_failed");
+    });
+    prepared.captureRuntimeTurn = failedCapture;
+    await expect(respondToVerifiedPrivateGroveTurn({
+      prepared, features: flags,
+      dependencies: {sendModel: h.sendModel as never},
+    })).rejects.toThrow("exact_runtime_save_failed");
+    expect(data.records.size).toBe(1);
+    expect(h.sendModel).toHaveBeenCalledTimes(1);
+    expect(failedCapture).toHaveBeenCalledTimes(1);
+
+    const reopened = host(data.store);
+    const retry = await reopened.respond("Keep this turn after restart", firstId);
+    expect(retry).toMatchObject({
+      status: "responded", persisted: true, replayed: true,
+      requestId: firstId, grantsExecution: false, verifiesCompletion: false,
+    });
+    expect(reopened.sendModel).not.toHaveBeenCalled();
+
+    const later = host(data.store);
+    await expect(later.respond("Continue from the saved turn", secondId))
+      .resolves.toMatchObject({status: "responded", persisted: true, replayed: false});
+    expect(later.sendModel).toHaveBeenCalledWith(
+      expect.objectContaining({messages: [
+        {role: "user", content: "Keep this turn after restart"},
+        {role: "assistant", content: "Arbor answer"},
+        {role: "user", content: "Continue from the saved turn"},
+      ]}),
+    );
+    expect(data.records.size).toBe(2);
+  });
+
   it("never returns persistence success if the Grove write fails", async () => {
     const data = fakeStore();
     const failed: GrovePrivateTranscriptStore = {
