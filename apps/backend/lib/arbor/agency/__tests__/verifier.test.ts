@@ -24,6 +24,25 @@ describe("parseAgencyVerification", () => {
     });
   });
 
+  it.each([
+    { label: "missing score", score: undefined },
+    { label: "null score", score: null },
+    { label: "string score", score: "0.95" },
+    { label: "out-of-range score", score: 4 },
+  ])("rejects claimed completion with $label rather than fabricating perfect proof", ({ score }) => {
+    const payload: Record<string, unknown> = {
+      complete: true,
+      unresolvedWork: [],
+      evidence: ["claimed work completed"],
+      strategyCorrection: null,
+      behaviorViolations: [],
+    };
+    if (score !== undefined) payload.score = score;
+    const result = parseAgencyVerification(JSON.stringify(payload));
+    expect(result.complete).toBe(false);
+    expect(result.unresolvedWork).toContain("verification score missing or invalid");
+  });
+
   it("rejects complete=true when no completion evidence is returned", () => {
     const result = parseAgencyVerification(
       JSON.stringify({
