@@ -155,3 +155,16 @@ test("Grove Group 6 workspace review cannot trigger any Vercel build", () => {
     }
   }
 });
+
+test("Grove Group 8 accessibility review remains no-deploy", () => {
+  const ref = "test/grove-group8-accessibility-20261010";
+  for (const stage of ["preview", "production", "development", ""]) {
+    for (const id of [project, "prj_JArYlugmdFovY10CxZ0LEJmcrsKC", ""]) {
+      assert.equal(exitCode({
+        VERCEL_ENV: stage,
+        VERCEL_PROJECT_ID: id,
+        VERCEL_GIT_COMMIT_REF: ref,
+      }), 0, stage + " " + id);
+    }
+  }
+});
