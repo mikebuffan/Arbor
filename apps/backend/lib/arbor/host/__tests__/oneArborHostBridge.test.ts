@@ -32,6 +32,21 @@ const base: OneArborHostState = {
 };
 
 describe("One Arbor host bridge", () => {
+  it("restores operating self-knowledge across authority and surface switches without doubling the main prompt anchor", () => {
+    for (const surface of ["text", "voice"] as const) {
+      for (const authority of ["arbor", "annabelle"] as const) {
+        const state = { ...base, surface, authority };
+        const standalone = projectHostStartup(state);
+        expect(standalone.promptBlock.match(/ARBOR OPERATING SELF-MODEL/g)).toHaveLength(1);
+        expect(standalone.promptBlock).toContain("Arbor Layer:");
+        expect(standalone.promptBlock).toContain("Independent LM:");
+        expect(standalone.promptBlock.indexOf("ARBOR OPERATING SELF-MODEL")).toBeLessThan(
+          standalone.promptBlock.indexOf("ONE ARBOR HOST CONTINUITY"));
+        expect(projectHostStartup(state, { includeIdentityAnchor: false }).promptBlock)
+          .not.toContain("ARBOR OPERATING SELF-MODEL");
+      }
+    }
+  });
   it("moves Text to Voice without resetting continuity", () => {
     const voice = switchHostSurface(
       base,

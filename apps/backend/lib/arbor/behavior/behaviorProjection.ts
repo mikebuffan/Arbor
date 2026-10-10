@@ -2,6 +2,7 @@ import type { WorkOrderDecision } from "./workOrderBoundary";
 import { createHash } from "node:crypto";
 import { canonicalPersonalityRules, requestedPersonalityRules, PERSONALITY_STABILITY_RULE } from "../selfModel/personalityProjection";
 import { ARBOR_CONVERSATION_CALIBRATION } from "../selfModel/conversationCalibration";
+import { ARBOR_OPERATING_SELF_MODEL_RULES, operatingSelfModelReceipt } from "../selfModel/operatingSelfModel";
 
 export type ArborInteractionMode = "text" | "voice" | "annabelle";
 
@@ -114,6 +115,7 @@ export function buildArborBehaviorProjection(
     coreRules: CORE_RULES,
     personalityRules,
     conversationCalibration: ARBOR_CONVERSATION_CALIBRATION,
+    operatingSelfModel: operatingSelfModelReceipt(),
     philosophy,
     stableBehaviorMaterial,
     correctionRules,
@@ -149,6 +151,7 @@ export function buildArborBehaviorProjection(
 
   const guardRequirements = clean([
     ...CORE_RULES,
+    ...ARBOR_OPERATING_SELF_MODEL_RULES,
     ...personalityRules,
     ...modeRules,
     ...correctionRules,

@@ -40,6 +40,23 @@ function promptClient(){const query:any={select:vi.fn(),eq:vi.fn(),not:vi.fn(),o
 describe("buildPromptContext freshness",()=>{
  beforeEach(()=>mocks.historicalRecall.mockResolvedValue([]));
  beforeEach(()=>{vi.clearAllMocks();mocks.candidateAdmin.mockImplementation(() => { throw new Error("optional candidate storage unavailable"); });mocks.loadRuntimeState.mockResolvedValue(null);mocks.loadDurableBehaviorCorrections.mockResolvedValue([]);mocks.maybeSingle.mockResolvedValue({data:{persona:"Arbor",framework_version:"v1",description:"Grounded"},error:null});mocks.getProjectAnchors.mockResolvedValue([]);mocks.getMemoryContext.mockResolvedValue(emptyMemory);mocks.getAlwaysIncludedMemoryAnchors.mockResolvedValue([]);mocks.logMemoryEvent.mockResolvedValue(undefined);});
+ it.each(["text", "voice"] as const)("loads operating self-knowledge without recalled memories: %s", async interactionMode => {
+  const result = await buildPromptContext({ supabase: promptClient(), authedUserId: "user-1",
+    latestUserText: "What do your layers do?", interactionMode });
+  expect(result.injectedMemoryItems).toEqual([]);
+  expect(result.systemPrompt.match(/ARBOR OPERATING SELF-MODEL/g)).toHaveLength(1);
+  for (const component of ["Arbor Layer:", "ARK:", "Grove:", "Independent LM:"]) {
+    expect(result.systemPrompt).toContain(component);
+    expect(result.systemPrompt.indexOf(component)).toBeLessThan(result.systemPrompt.indexOf("ACTIVE SUBSYSTEM: ARBOR."));
+  }
+  expect(result.behaviorGuardRequirements.some(rule => rule.includes("Before saying a capability is unavailable"))).toBe(true);
+  expect(result.systemPrompt).not.toContain('Never say "I don\'t have memory"');
+  expect(result.systemPrompt).toContain("Report the specific missing context");
+  expect(mocks.logMemoryEvent).toHaveBeenCalledWith("prompt_built", expect.objectContaining({
+    operatingSelfModelVersion: "2026-10-10.1",
+    operatingSelfModelFingerprint: expect.stringMatching(/^[a-f0-9]{64}$/),
+  }));
+ });
  it("changes actual prompt evidence only when candidate recurrence has distinct sources", async () => {
   const args = { supabase: promptClient(), authedUserId: "user-1", projectId: "project-1",
     conversationId: "conversation-1", latestUserText: "What should we work on next?" };
