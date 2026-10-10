@@ -539,7 +539,26 @@ export async function runOpenAIAgencyAgent(
         output: string;
       }> = [];
 
-    for (const { call, tool, args } of prepared) {
+    // When a batch includes a protected action, keep its human boundary.
+    // Before returning for approval, finish only earlier safe calls and
+    // later safe calls explicitly certified *independent* by trusted registry
+    // metadata. Never infer independence from a model's call order or prose.
+    // A selected protected operation is still returned as blocked, not done.
+    const protectedIndex = prepared.findIndex(({ tool }) =>
+      toolNeedsUserBoundary(tool),
+    );
+    const executionOrder = protectedIndex < 0
+      ? prepared
+      : [
+          ...prepared.slice(0, protectedIndex),
+          ...prepared.slice(protectedIndex + 1).filter(({ tool }) =>
+            !toolNeedsUserBoundary(tool) &&
+            tool.mayRunBeforeProtectedBoundary === true,
+          ),
+          prepared[protectedIndex],
+        ];
+
+    for (const { call, tool, args } of executionOrder) {
 
       attemptedRoutes.add(
         tool.name,
