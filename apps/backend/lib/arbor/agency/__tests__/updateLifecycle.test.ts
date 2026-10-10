@@ -152,6 +152,7 @@ describe("Arbor self-update lifecycle", () => {
       update,
       {
         verificationId: "resp_lifecycle_01",
+        verifiedOutcome: true,
         score: 0.9,
         behavior,
         protectedCorrections: [
@@ -183,6 +184,7 @@ describe("Arbor self-update lifecycle", () => {
     });
     update = recordSelfUpdateVerification(update, {
         verificationId: "resp_lifecycle_02",
+        verifiedOutcome: true,
       score: NaN,
       behavior,
       protectedCorrections: [],
@@ -192,6 +194,7 @@ describe("Arbor self-update lifecycle", () => {
 
     update = recordSelfUpdateVerification(update, {
         verificationId: "resp_lifecycle_03",
+        verifiedOutcome: true,
       score: 0.8,
       behavior,
       protectedCorrections: [],
@@ -202,6 +205,7 @@ describe("Arbor self-update lifecycle", () => {
 
     update = recordSelfUpdateVerification(update, {
         verificationId: "resp_lifecycle_04",
+        verifiedOutcome: true,
       score: 0.9,
       behavior,
       protectedCorrections: [],
@@ -222,6 +226,7 @@ describe("Arbor self-update lifecycle", () => {
     });
     update = recordSelfUpdateVerification(update, {
         verificationId: "resp_lifecycle_05",
+        verifiedOutcome: true,
       score: Infinity,
       behavior,
       protectedCorrections: [],
@@ -246,6 +251,7 @@ describe("Arbor self-update lifecycle", () => {
       update,
       {
         verificationId: "resp_lifecycle_06",
+        verifiedOutcome: true,
         score: 0.8,
         behavior,
         protectedCorrections: [],
@@ -257,6 +263,7 @@ describe("Arbor self-update lifecycle", () => {
       update,
       {
         verificationId: "resp_lifecycle_07",
+        verifiedOutcome: true,
         score: 0.9,
         behavior,
         protectedCorrections: [],
@@ -296,6 +303,7 @@ describe("Arbor self-update lifecycle", () => {
       update,
       {
         verificationId: "resp_lifecycle_08",
+        verifiedOutcome: true,
         score: 0.95,
         behavior: changed,
         protectedCorrections: [],
@@ -307,6 +315,7 @@ describe("Arbor self-update lifecycle", () => {
       update,
       {
         verificationId: "resp_lifecycle_09",
+        verifiedOutcome: true,
         score: 0.95,
         behavior: changed,
         protectedCorrections: [],
@@ -333,6 +342,7 @@ describe("Arbor self-update lifecycle", () => {
       update,
       {
         verificationId: "resp_lifecycle_10",
+        verifiedOutcome: true,
         score: 0.9,
         behavior,
         protectedCorrections: [],
@@ -345,6 +355,7 @@ describe("Arbor self-update lifecycle", () => {
       update,
       {
         verificationId: "resp_lifecycle_11",
+        verifiedOutcome: true,
         score: 0.95,
         behavior,
         protectedCorrections: [],
