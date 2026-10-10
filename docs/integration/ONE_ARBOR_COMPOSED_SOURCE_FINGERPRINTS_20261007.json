@@ -57,7 +57,7 @@
     "apps/arbor-control-backend/src/selfModelObservations.ts": "5a21a5bb3c97ae652c8eecf03e5ff36def3087a4",
     "apps/arbor-control-backend/src/selfModelClaims.ts": "9bf0d7bd2f50fe61338a8967cd1b0a0c7d3e1b52",
     "docs/integration/ONE_ARBOR_GROUP06_IDENTITY_EVIDENCE_GATE_20261007.md": "bd43f7b8a8c2e90208b6839d582d5f698fcc570c",
-    "ops/grove/source-only-ignore.mjs": "3a16bfcda585e2b41e680fbfb1bd0207c2c33dab",
+    "ops/grove/source-only-ignore.mjs": "939a6d9d64ea4683294b15011ed6979b5148490c",
     ".github/workflows/one-arbor-group04-shelf-pagination.yml": "41790290a7fa86974dcca3fbbcc15bc96e0cac88",
     "apps/backend/lib/memory/__tests__/shelfPageRead.test.ts": "35b5c43abb6b2c774a1ae3aa75b33507c1e4d3bb",
     "apps/frontend/lib/environment/grove_memory_shelf_view.dart": "31e54c5c459cadce0eeba4bb577922c419cde71a",
