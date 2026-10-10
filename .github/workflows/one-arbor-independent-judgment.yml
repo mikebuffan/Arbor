@@ -3,6 +3,7 @@ name: One Arbor independent judgment source acceptance (not model evaluation)
 on:
   push:
     branches:
+      - fix/arbor-layer-audit-startup-20261010
       - fix/batch8-candidate-evidence-receipts-20261009
       - fix/batch9-self-model-evidence-20261009
       - fix/batch10-voice-unicode-chunks-20261009
