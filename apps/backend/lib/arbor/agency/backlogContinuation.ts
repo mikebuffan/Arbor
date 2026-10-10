@@ -36,7 +36,9 @@ export function planBacklogContinuation(items:readonly BacklogItem[]):BacklogCon
  const runnable:string[]=[];const waiting:string[]=[];const humanBoundaries:string[]=[];
  for(const item of items){
   if(item.status==="complete")continue;
-  if(item.status==="blocked"&&item.protectedBoundary){humanBoundaries.push(item.id);continue;}
+  // A pending protected action is not safe to run just because it has
+  // high priority. Existing approval and protected boundaries win first.
+  if(item.protectedBoundary){humanBoundaries.push(item.id);continue;}
   const depsReady=item.dependencies.every(x=>completed.has(x));
   if(item.status==="pending"&&depsReady)runnable.push(item.id);else waiting.push(item.id);
  }
