@@ -53,6 +53,12 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('diary-clear-button')));
     await tester.pumpAndSettle();
+    // The newer Grove Diary guard requires explicit confirmation for any
+    // nonempty unsaved writing. Until then the user's draft survives.
+    expect(find.text('Discard unsaved diary draft?'), findsOneWidget);
+    expect(find.text('Revised wording.'), findsOneWidget);
+    await tester.tap(find.text('Discard draft'));
+    await tester.pumpAndSettle();
     expect(find.text('Revised wording.'), findsNothing);
     expect(find.byKey(const ValueKey('diary-preview-label')), findsNothing);
   });

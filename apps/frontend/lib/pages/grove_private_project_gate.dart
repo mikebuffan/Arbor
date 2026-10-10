@@ -57,7 +57,8 @@ class GrovePrivateProjectGate extends StatefulWidget {
       _GrovePrivateProjectGateState();
 }
 
-class _GrovePrivateProjectGateState extends State<GrovePrivateProjectGate> {
+class _GrovePrivateProjectGateState extends State<GrovePrivateProjectGate>
+    with WidgetsBindingObserver {
   List<String> _projects = const [];
   bool _busy = true;
   bool _approved = false;
@@ -69,7 +70,18 @@ class _GrovePrivateProjectGateState extends State<GrovePrivateProjectGate> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     unawaited(_load());
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Revocations can happen while the private house is backgrounded.
+    // Unmount the last authorized room while we re-read current grants;
+    // no previous approval may survive an unverified foreground session.
+    if (state == AppLifecycleState.resumed && mounted) {
+      unawaited(_load());
+    }
   }
 
   Future<List<String>> _discover() async {
@@ -188,6 +200,7 @@ class _GrovePrivateProjectGateState extends State<GrovePrivateProjectGate> {
   @override
   void dispose() {
     ++_generation;
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 

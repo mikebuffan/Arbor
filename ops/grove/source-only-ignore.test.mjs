@@ -173,3 +173,18 @@ test("Grove phone history order branch cannot deploy", () => {
     }
   }
 });
+
+
+test("composed Grove source owners and current full-stack candidate remain no-deploy", () => {
+  const refs = ["fix/grove-private-refresh-revocation-20261009","test/grove-group5-rooms-20261010","test/grove-group6-workspaces-20261010","test/grove-group8-accessibility-20261010","review/grove-combined-ui-diary-20261010","review/grove-ui-phone-compose-20261010","review/grove-fullstack-source-compose-20261010"];
+  for (const ref of refs) {
+    for (const stage of ["preview", "production", "development", ""]) {
+      for (const id of [project, "prj_JArYlugmdFovY10CxZ0LEJmcrsKC", ""]) {
+        assert.equal(exitCode({
+          VERCEL_ENV: stage, VERCEL_PROJECT_ID: id,
+          VERCEL_GIT_COMMIT_REF: ref,
+        }), 0, ref + " " + stage + " " + id);
+      }
+    }
+  }
+});

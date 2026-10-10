@@ -106,6 +106,39 @@ void main() {
     expect(find.text('PRIVATE HOUSE READY'), findsOneWidget);
   });
 
+  testWidgets('resuming private Grove rechecks project grants before exposing room',
+      (tester) async {
+    final blockedRead = Completer<List<String>>();
+    var reads = 0;
+    await tester.pumpWidget(MaterialApp(
+      home: GrovePrivateProjectGate(
+        loadProjects: () {
+          reads++;
+          return reads == 1 ? Future.value([projectA]) : blockedRead.future;
+        },
+        selectProject: (_) async {},
+        child: const Text('PRIVATE HOUSE READY'),
+      ),
+    ));
+    await tester.pumpAndSettle();
+    expect(reads, 1);
+    expect(find.text('PRIVATE HOUSE READY'), findsOneWidget);
+
+    // A project grant could have been revoked while the app was asleep.
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump();
+    expect(reads, 2);
+    expect(find.text('PRIVATE HOUSE READY'), findsNothing,
+        reason: 'Never keep previously authorized private content visible '
+            'while foreground revalidation is pending.');
+
+    blockedRead.completeError(StateError('synthetic revoked access'));
+    await tester.pumpAndSettle();
+    expect(find.text('PRIVATE HOUSE READY'), findsNothing);
+    expect(find.text('Private Grove project access could not be verified.'),
+        findsOneWidget);
+  });
+
   testWidgets('failed grant fetch denies access and offers retry',
       (tester) async {
     await tester.pumpWidget(MaterialApp(
