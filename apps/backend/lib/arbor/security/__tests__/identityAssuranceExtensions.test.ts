@@ -192,6 +192,25 @@ describe("identity assurance extensions", () => {
       ).valid,
     ).toBe(false);
   });
+  it.each([
+    ["blank challenge ID", { challengeId: " " }],
+    ["non-string challenge ID", { challengeId: 123 }],
+    ["invalid observation time", { observedAt: "not-a-date" }],
+    ["non-string observation time", { observedAt: null }],
+    ["unknown runtime method", { method: "unexpected" }],
+  ])("rejects malformed step-up evidence: %s", (_label, override) => {
+    const result = stepUpResultToIdentityEvidence({
+      challengeId: "valid",
+      method: "passkey",
+      verified: true,
+      issuer: "device_os",
+      observedAt: "2026-10-10T21:00:00Z",
+      ...override,
+    } as Parameters<typeof stepUpResultToIdentityEvidence>[0]);
+    expect(result).toEqual([]);
+    expect(evaluateIdentityAssurance({ evidence: result }).trustState).toBe("unknown");
+  });
+
   it("does not mint identity evidence from an unknown step-up issuer", () => {
     // External JSON can contain strings that bypass compile-time issuer typing.
     const untrustedEvidence = stepUpResultToIdentityEvidence({
