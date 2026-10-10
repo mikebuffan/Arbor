@@ -184,7 +184,12 @@ export function createCorrection(input: {
   kind?: ArborCorrectionKind;
   confidence?: number;
   protected?: boolean;
+  /** Trusted host's stable user-message ID. Reuse on retries; never generate here. */
+  observationId?: string;
 }): ArborCorrection {
+  if (input.observationId !== undefined &&
+      !/^[A-Za-z0-9._:-]{4,200}$/.test(input.observationId))
+    throw new Error("arbor_correction_invalid_observation_ids");
   const kind = input.kind ?? classifyCorrection(input.value);
 
   return {
@@ -196,6 +201,10 @@ export function createCorrection(input: {
     confidence: input.confidence ?? 1,
     protected: input.protected ?? true,
     occurrences: 1,
+    ...(input.observationId ? {
+      observationIds: [input.observationId],
+      legacyOccurrences: 0,
+    } : {}),
   };
 }
 
