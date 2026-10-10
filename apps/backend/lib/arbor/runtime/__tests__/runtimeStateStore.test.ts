@@ -204,6 +204,36 @@ function database(states: ArborRuntimeState[]) {
   return { supabase, queriedScopes };
 }
 
+describe("strict private-conversation runtime read", () => {
+  it("does not relabel another thread's goal as the blank requested conversation", async () => {
+    const old = fixture("older", "2026-10-01T00:10:00Z");
+    old.currentGoal = "private earlier conversation objective";
+    const blank = fixture("fresh", "2026-10-01T00:30:00Z");
+    blank.currentGoal = null;
+    blank.lastMeaningfulUserTurn = null;
+    blank.lastMeaningfulArborTurn = null;
+    const db = database([old, blank]);
+    const exact = await loadRuntimeState({
+      supabase: db.supabase, userId: "owner", projectId: "project",
+      conversationId: "fresh", exactOnly: true,
+    });
+    expect(exact?.conversationId).toBe("fresh");
+    expect(exact?.currentGoal).toBeNull();
+    expect(exact?.lastMeaningfulUserTurn).toBeNull();
+    expect(db.queriedScopes).toHaveLength(1);
+  });
+
+  it("returns no continuity when exact requested conversation has no row", async () => {
+    const db = database([fixture("older", "2026-10-01T00:10:00Z")]);
+    const exact = await loadRuntimeState({
+      supabase: db.supabase, userId: "owner", projectId: "project",
+      conversationId: "brand-new", exactOnly: true,
+    });
+    expect(exact).toBeNull();
+    expect(db.queriedScopes).toHaveLength(1);
+  });
+});
+
 describe("cross-thread correction recall", () => {
   it("restores newer corrections from another surface without replacing an active thread's goal", async () => {
     const old = fixture("old", "2026-10-01T00:10:00Z");
