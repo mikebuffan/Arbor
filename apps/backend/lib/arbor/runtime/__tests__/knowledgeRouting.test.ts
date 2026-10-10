@@ -95,6 +95,13 @@ describe("Firefly Principle on canonical knowledge roundabout", () => {
     const finished = route({
       stage: "second_choice",
       verifiedConsequenceRef: "host-reviewed-outcome",
+      consequenceReceipt: {
+        receiptId: "host:readback:valid",
+        consequenceRef: "host-reviewed-outcome",
+        ...fireflyScope,
+        status: "confirmed",
+        reviewedByHost: true,
+      },
     });
     expect(finished.suggestedNextStage).toBe("consequence");
     expect(finished.consequenceVerifiedByThisCode).toBe(false);
