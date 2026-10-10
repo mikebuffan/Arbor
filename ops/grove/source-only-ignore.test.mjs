@@ -201,3 +201,15 @@ test("Grove unconfigured Android debug compile branch never deploys", () => {
     }
   }
 });
+
+test("Annabelle intimacy extension remains source-only and cannot deploy", () => {
+  const ref = "fix/annabelle-sexual-felt-life-sequence-20261010";
+  for (const stage of ["preview", "production", "development", ""]) {
+    for (const projectId of [project, "prj_JArYlugmdFovY10CxZ0LEJmcrsKC", ""]) {
+      assert.equal(exitCode({
+        VERCEL_ENV: stage, VERCEL_PROJECT_ID: projectId,
+        VERCEL_GIT_COMMIT_REF: ref,
+      }), 0, stage + " " + projectId);
+    }
+  }
+});

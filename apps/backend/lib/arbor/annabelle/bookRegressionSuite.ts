@@ -5,6 +5,7 @@ import{inspectRelationshipDynamics,type RelationshipBeat}from"./relationshipDyna
 import{analyzeMotifs,downstreamImpact,type MotifEvent}from"./motifImpact";
 import{buildAnnabelleContinuityReport,type AnnabelleContinuityBeat}from"./continuityEngine";
 import{analyzeScreenTime,type ScreenBeat}from"./screenTimeBalance";
+import{inspectIntimacySequence,type IntimacySequence}from"./intimacyMechanics";
 
 export type BookRegressionInput={
  text:string;
@@ -15,6 +16,7 @@ export type BookRegressionInput={
  intentionalMotifs?:readonly string[];
  continuity?:readonly AnnabelleContinuityBeat[];
  screenBeats?:readonly ScreenBeat[];
+ intimacySequences?:readonly IntimacySequence[];
  changedChapter?:number;
 };
 
@@ -26,6 +28,8 @@ export function runBookRegressionSuite(input:BookRegressionInput){
  const motifs=analyzeMotifs(input.motifs??[]);
  const continuity=buildAnnabelleContinuityReport(input.continuity??[]);
  const screenTime=analyzeScreenTime(input.screenBeats??[]);
+ const intimacy=(input.intimacySequences??[]).flatMap((sequence,index)=>
+  inspectIntimacySequence(sequence).map(issue=>({...issue,sequenceIndex:index})));
  const changedChapter=input.changedChapter;
  const downstream=changedChapter===undefined?null:downstreamImpact({
   changedChapter,
@@ -34,5 +38,5 @@ export function runBookRegressionSuite(input:BookRegressionInput){
   motifChapters:(input.motifs??[]).map(x=>x.chapter),
  });
  const blocking=local.blockers.length+physical.length+relationships.filter(x=>x.kind!=="unrepaired-rupture").length;
- return{local,repetition,physical,relationships,motifs,continuity,screenTime,downstream,blocking};
+ return{local,repetition,physical,relationships,motifs,continuity,screenTime,intimacy,downstream,blocking};
 }
