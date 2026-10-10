@@ -629,6 +629,58 @@ describe("Grove-only private conversation durability (fixtures, migration OFF)",
     })).toThrow("grove_transcript_history_limit");
   });
 
+  it("keeps correctly ordered distinct-time restart history chronological", () => {
+    const old = {...row({requestId:firstId,userText:"First saved question",
+      assistantText:"First saved answer"}),created_at:"2026-10-09T12:00:00.000Z"};
+    const newer = {...row({requestId:secondId,userText:"Second saved question",
+      assistantText:"Second saved answer"}),created_at:"2026-10-09T13:00:00.000Z"};
+    expect(selectPrivateModelHistory({completedNewestFirst:[newer,old],
+      scope,userText:"Third saved question"})).toEqual([
+        {role:"user",content:"First saved question"},
+        {role:"assistant",content:"First saved answer"},
+        {role:"user",content:"Second saved question"},
+        {role:"assistant",content:"Second saved answer"},
+        {role:"user",content:"Third saved question"},
+      ]);
+  });
+
+  it("rejects inverted restarted transcript history before a model call", async () => {
+    const data=fakeStore();
+    await host(data.store).respond("First saved question",firstId);
+    await host(data.store).respond("Second saved question",secondId);
+    const inverted: GrovePrivateTranscriptStore={
+      ...data.store,
+      async listRecent(s) {
+        const records=await data.store.listRecent(s);
+        return records.map(saved=>({
+          ...saved,created_at:saved.request_id===firstId
+            ? "2026-10-09T12:00:00.000Z"
+            : "2026-10-09T13:00:00.000Z",
+        })).reverse();
+      },
+    };
+    const reopened=host(inverted);
+    await expect(reopened.respond("Third saved question",
+      "00000000-0000-4000-8000-000000000012"))
+      .rejects.toThrow("grove_transcript_history_out_of_order");
+    expect(reopened.sendModel).not.toHaveBeenCalled();
+    expect(data.records.size).toBe(2);
+  });
+
+  it("validates every scoped saved row even past the LM budget cutoff", () => {
+    const first = row({requestId:firstId,userText:"u".repeat(3000),
+      assistantText:"a".repeat(3000)});
+    const second = row({requestId:secondId,userText:"u".repeat(3000),
+      assistantText:"a".repeat(3000)});
+    const foreign = {...row({
+      requestId:"00000000-0000-4000-8000-000000000013",
+      userText:"Should never be trusted",assistantText:"Foreign answer",
+    }),grove_user_id:"00000000-0000-4000-8000-000000000099"};
+    expect(() => selectPrivateModelHistory({
+      completedNewestFirst:[first,second,foreign],scope,userText:"Next",
+    })).toThrow("grove_transcript_scope_invalid");
+  });
+
   it("honors strict LM receiver 13-message and 12,000-char limits", () => {
     const recent = Array.from({length: 6}, (_, i) => row({
       requestId: [
