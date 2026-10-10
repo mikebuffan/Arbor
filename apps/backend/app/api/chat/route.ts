@@ -731,14 +731,31 @@ export async function POST(req: Request) {
             },
           );
         },
-        async onBoundary({ name, reason }) {
+        async onBoundary({ name, reason, completedBeforeBoundary, deferredToolNames }) {
+          // Do not erase verified-but-unreviewed tool results when a later
+          // protected action stops the batch. Deferred proposals remain
+          // *reassessment* notes, never instructions to replay their arguments.
+          const pendingVerification = new Set([
+            ...agencyState.unresolvedWork.filter((item) =>
+              item.startsWith("verify capability result: "),
+            ),
+            ...completedBeforeBoundary.map((tool) =>
+              `verify capability result: ${tool}`,
+            ),
+          ]);
           agencyState = await blockAgencySession({
             supabase,
             userId,
             projectId,
             agency: agencyState,
             blocker: reason,
-            unresolvedWork: [`complete boundary action: ${name}`],
+            unresolvedWork: [
+              `complete boundary action: ${name}`,
+              ...pendingVerification,
+              ...deferredToolNames.map((tool) =>
+                `reassess deferred capability: ${tool}`,
+              ),
+            ],
           });
 
           await timeline.record(
