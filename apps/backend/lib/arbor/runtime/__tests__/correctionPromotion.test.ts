@@ -42,6 +42,39 @@ describe("correction promotion engine", () => {
     });
   });
 
+  it.each([NaN, Infinity, -Infinity, 1.25, -1, 0, Number.MAX_SAFE_INTEGER + 1])(
+    "does not infer promotion from invalid occurrence count %s",
+    occurrences => {
+      const correction = {
+        ...createCorrection({
+          value: "Why did you stop? Keep going.",
+          source: "text",
+          observedAt: "2026-10-09T20:00:00.000Z",
+        }),
+        occurrences,
+      };
+      expect(correctionPromotionItem(correction)).toBeNull();
+      expect(correctionPromotionItem(correction, true)).toBeNull();
+    },
+  );
+
+  it.each([NaN, Infinity, -Infinity])(
+    "rejects invalid correction confidence %s even with explicit authorization",
+    confidence => {
+      const correction = {
+        ...createCorrection({
+          value: "Why did you stop? Keep going.",
+          source: "text",
+          observedAt: "2026-10-09T20:00:00.000Z",
+        }),
+        occurrences: 2,
+        confidence,
+      };
+      expect(correctionPromotionItem(correction)).toBeNull();
+      expect(correctionPromotionItem(correction, true)).toBeNull();
+    },
+  );
+
   it("does not turn acoustic corrections into text behavior memory", () => {
     const correction = {
       ...createCorrection({
