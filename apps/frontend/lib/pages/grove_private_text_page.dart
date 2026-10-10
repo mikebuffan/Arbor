@@ -487,7 +487,7 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel>
             // A complete scoped history pair closes the pending turn without
             // another model request. Keep the explicit retention preference.
             await widget.pendingStore!.save(id, const GrovePendingTurn(text: ''),
-              completedRequestId: draft!.requestId);
+              completedRequestId: draft.requestId);
             draft = const GrovePendingTurn(text: '');
           }
         }
