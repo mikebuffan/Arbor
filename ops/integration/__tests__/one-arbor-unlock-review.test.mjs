@@ -20,12 +20,14 @@ test("recorded exact-head source repairs reopen 18 original tasks but complete n
   const sourceDoc=JSON.parse(readFileSync(resolve(root,
     "docs/integration/ONE_ARBOR_UNLOCK_VERIFIED_RECEIPTS_20261009.json"),"utf8"));
   assert.deepEqual(sourceDoc.verifiedEvents.map(x=>x.taskId),
-    ["A09","B11","E07","C08","B15","D12","D09"]);
+    ["A09","B11","E07","C08","B15","D12","D09","B11","C08"]);
   const review=findUnlockReviews(view,sourceDoc.verifiedEvents,sourceDoc.processedEventKeys);
   assert.equal(review.originalTaskCount,97);
   assert.equal(review.groupCount,7);
-  assert.equal(review.verifiedEventsEvaluated,7);
+  assert.equal(review.verifiedEventsEvaluated,9);
   assert.equal(review.flaggedTasks.length,18);
+  assert.deepEqual(sourceDoc.verifiedEvents.slice(-2).map(x=>x.receipt),
+    Array(2).fill("https://github.com/mikebuffan/Arbor/actions/runs/38058129302"));
   assert.deepEqual(review.flaggedTasks.filter(x=>["D10","D11","E09"].includes(x.taskId))
     .map(x=>x.taskId),["D10","D11","E09"]);
   assert.ok(review.flaggedTasks.every(x=>

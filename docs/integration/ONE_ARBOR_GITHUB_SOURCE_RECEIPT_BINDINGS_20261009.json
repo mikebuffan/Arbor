@@ -112,7 +112,26 @@
         "Full backend regression",
         "Backend build (CI only)"
       ]
+    },
+    {
+      "branch": "fix/one-arbor-correction-count-saturation-20261010",
+      "headSha": "2720b05d47cde2b6d754903148ba00841ec97a02",
+      "taskIds": [
+        "B11",
+        "C08"
+      ],
+      "stage": "source_verified",
+      "workflow": "One Arbor verified boundary receipt and chat source acceptance",
+      "job": "identity-security",
+      "requiredSteps": [
+        "Verify 223 retained source fingerprints",
+        "Verify review branch can never trigger Vercel build",
+        "Verify identity issuer negative and positive controls",
+        "Type-check existing backend",
+        "Full backend regression",
+        "Production backend build"
+      ]
     }
   ],
-  "note": "Six explicit source-only CI branch/task bindings, reviewed against exact GitHub push-run and successful workflow-job steps. PR prose and unverifiable source declarations cannot grant host acceptance, task completion, or execution authority. No transitive promotion."
+  "note": "Seven explicit reviewed source-only CI branch/task bindings, with exact SHA/job/step confirmation. The seventh records new B11/C08 saturation/overflow evidence, not a new task, host acceptance, approval or execution."
 }
