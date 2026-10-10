@@ -116,7 +116,7 @@
     "docs/integration/ONE_ARBOR_GROUP14_ANNABELLE_MANUSCRIPT_EDITORIAL_RECEIPT_20261007.md": "0d29cc28ed62b5719b9233891732debb719b08df",
     "docs/integration/ONE_ARBOR_GROUP15_LIFE_RECORDS_20261007.md": "e242c0c9eff805d9815bc3e97625505783fc932e",
     "docs/integration/ONE_ARBOR_GROUPS_01_15_SOURCE_CONSOLIDATION_20261007.md": "ddfa33ca248cd97bc2657b0075ca7e739805e0a3",
-    "apps/backend/lib/arbor/runtime/decisionAncestry.ts": "e131a9a47a7ffb0df72cdd649abccba9f11f8a51",
+    "apps/backend/lib/arbor/runtime/decisionAncestry.ts": "e42f2276898d0008b7aa1315dc8673fcd70d5901",
     "apps/backend/lib/arbor/runtime/discoveryRadar.ts": "edd161a7ae55b5439641335a8bc93ef53fe7021c",
     "apps/backend/lib/arbor/runtime/__tests__/group11SourceBoundary.test.ts": "df8ad7d637e55cbaf286ed3589fea7a8c88d76d2",
     "apps/backend/lib/arbor/behavior/behaviorProjection.ts": "d1bcb154bf51f80faa2db4671c44c61a40eb9bd4",
