@@ -96,6 +96,7 @@ describe("Arbor self-update lifecycle", () => {
     });
     const replayedObservation = {
       verificationId: "resp_one_and_the_same",
+      verifiedOutcome: true,
       score: 0.9,
       behavior,
       protectedCorrections: [],
