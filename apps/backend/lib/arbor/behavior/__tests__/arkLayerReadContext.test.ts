@@ -225,9 +225,9 @@ describe("owner-scoped ARK -> Arbor Layer read crossing", () => {
     expect(result.continuity.source).toBe("unavailable");
     expect(result.continuity.currentGoal).toBeNull();
     expect(result.continuity.startupPrompt).toBeNull();
-    expect(result.continuity.behavioralCorrections).toEqual([
-      "Do not wait for another go; continue approved safe work.",
-    ]);
+    // Global calibration is a trusted behavior guard, not invented
+    // per-conversation runtime history.
+    expect(result.continuity.behavioralCorrections).toEqual([]);
     expect(result.behavior.guardRequirements).toContain(
       "Do not wait for another go; continue approved safe work.");
     expect(result.ark.liveExecutionVerified).toBe(false);
