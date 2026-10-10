@@ -1,3 +1,4 @@
+import {routeFireflyPacket,type FireflyRoundaboutInput} from "../runtime/knowledgeRouting";
 export type BacklogItem={
  id:string;
  dependencies:string[];
@@ -5,15 +6,19 @@ export type BacklogItem={
  protectedBoundary?:boolean;
  /** Optional, trusted caller-supplied urgency; no model inference or authority grant. */
  priority?:number;
+ decisionId?:string;
+ choiceId?:string;
 };
+export type BacklogReviewedOutcome={taskId:string;firefly:FireflyRoundaboutInput};
 export type BacklogContinuationPlan={
  runnable:string[];
  waiting:string[];
  humanBoundaries:string[];
  complete:string[];
+ reconsideration:string[];
 };
 
-export function planBacklogContinuation(items:readonly BacklogItem[]):BacklogContinuationPlan{
+export function planBacklogContinuation(items:readonly BacklogItem[],review?:BacklogReviewedOutcome):BacklogContinuationPlan{
  // Fail closed on malformed ranking input; preserve prior input order when
  // no trusted priority is present. Priority never bypasses dependencies or STOP.
  const ids=new Set<string>();
@@ -32,6 +37,21 @@ export function planBacklogContinuation(items:readonly BacklogItem[]):BacklogCon
     (!Number.isSafeInteger(item.priority)||item.priority<0||item.priority>100))
    throw new Error("backlog_invalid_priority");
  }
+ let reconsiderId:string|null=null;
+ if(review!==undefined){
+  const target=items.find(item=>item.id===review.taskId);
+  const input=review.firefly;
+  if(!target||!target.decisionId||!target.choiceId||!input||
+    input.decisionId!==target.decisionId||input.choiceId!==target.choiceId)
+   throw new Error("backlog_outcome_choice_binding_mismatch");
+  // This pure read-only gate checks consistency, NOT receipt authenticity.
+  // The trusted host must authenticate each consequence before this call.
+  const route=routeFireflyPacket(input), receipt=input.consequenceReceipt;
+  if(receipt?.status==="confirmed"&&receipt.reviewedByHost===true&&
+     ((route.decision==="backtrack"&&route.reason==="correction_backtrack")||
+      (route.decision==="hold"&&route.reason==="contradiction_hold")))
+   reconsiderId=target.id;
+ }
  const completed=new Set(items.filter(x=>x.status==="complete").map(x=>x.id));
  const runnable:string[]=[];const waiting:string[]=[];const humanBoundaries:string[]=[];
  for(const item of items){
@@ -39,15 +59,16 @@ export function planBacklogContinuation(items:readonly BacklogItem[]):BacklogCon
   // A pending protected action is not safe to run just because it has
   // high priority. Existing approval and protected boundaries win first.
   if(item.protectedBoundary){humanBoundaries.push(item.id);continue;}
+  if(item.id===reconsiderId){waiting.push(item.id);continue;}
   const depsReady=item.dependencies.every(x=>completed.has(x));
   if(item.status==="pending"&&depsReady)runnable.push(item.id);else waiting.push(item.id);
  }
  const priorityOf=(id:string)=>items.find(x=>x.id===id)?.priority??0;
  // Stable ordering for equal priorities (Array.sort is stable on supported hosts).
  runnable.sort((a,b)=>priorityOf(b)-priorityOf(a));
- return{runnable,waiting,humanBoundaries,complete:[...completed]};
+ return{runnable,waiting,humanBoundaries,complete:[...completed],reconsideration:reconsiderId&&!completed.has(reconsiderId)?[reconsiderId]:[]};
 }
-export function nextIndependentWork(items:readonly BacklogItem[],blockedId:string):string|null{
- const plan=planBacklogContinuation(items);
+export function nextIndependentWork(items:readonly BacklogItem[],blockedId:string,review?:BacklogReviewedOutcome):string|null{
+ const plan=planBacklogContinuation(items,review);
  return plan.runnable.find(id=>id!==blockedId)??null;
 }
