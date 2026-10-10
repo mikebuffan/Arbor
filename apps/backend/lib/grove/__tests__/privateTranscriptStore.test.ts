@@ -204,6 +204,7 @@ describe("Grove-only private conversation durability (fixtures, migration OFF)",
       supabase: { private: "firefly" },
       authenticatedUserId: ownerId,
       projectId, conversationId, mode: "text", latestUserText: "What remains?",
+      requireExactConversation: true,
     });
     expect(restarted.sendModel).toHaveBeenCalledWith(
       expect.objectContaining({
