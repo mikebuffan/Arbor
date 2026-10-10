@@ -46,6 +46,7 @@ jobs:
           lib/arbor/security/__tests__/identityAssuranceExtensions.test.ts
           lib/arbor/agency/__tests__/engineResume.test.ts
           lib/arbor/agency/__tests__/independentFollowthrough.test.ts
+          lib/arbor/agency/__tests__/tools.test.ts
       - name: Type-check existing backend
         working-directory: apps/backend
         run: pnpm exec tsc --noEmit
