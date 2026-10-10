@@ -26,24 +26,47 @@ const mock=(runs=[run],jobs=[completeJob])=>async url=> {
 };
 
 test("reviewed task bindings retain exact original IDs and source gates",()=>{
-  assert.equal(validateRunBindings(view,doc).length,1);
+  assert.equal(validateRunBindings(view,doc).length,2);
   assert.deepEqual(source.taskIds,["A09"]);
 });
 test("authentic-looking exact-head green source job emits only reassessment flags",async()=>{
   const result=await discoverVerifiedUnlockReviews(view,doc,mock());
-  assert.equal(result.checkedBindings,1);
+  assert.equal(result.checkedBindings,2);
   assert.equal(result.verifiedReceiptEvents,1);
   assert.deepEqual(result.review.flaggedTasks.map(x=>x.taskId),["A04","F09","B11","B15","E07"]);
   assert.equal(result.review.actionsStarted.length,0);
   assert.equal(result.review.changedTaskStatuses.length,0);
   assert.ok(result.review.flaggedTasks.every(x=>x.mayAutoExecute===false && x.authorizationChanged===false));
 });
+test("two genuine exact-head runs independently flag new B11/E07 dependency reviews",async()=>{
+  const bound=doc.bindings[1];
+  assert.deepEqual(bound.taskIds,["B11","E07"]);
+  const second={
+    ...run, id:38028889757, head_branch:bound.branch, head_sha:bound.headSha,
+    html_url:"https://github.com/mikebuffan/Arbor/actions/runs/38028889757",
+  };
+  const read=async(url)=>{
+    if(url.includes("/jobs?"))return {jobs:[completeJob]};
+    if(url.includes(encodeURIComponent(bound.branch)))return {workflow_runs:[second]};
+    if(url.includes("/actions/runs?"))return {workflow_runs:[run]};
+    throw Error("unknown_github_path");
+  };
+  const result=await discoverVerifiedUnlockReviews(view,doc,read);
+  assert.equal(result.verifiedReceiptEvents,3);
+  assert.deepEqual(result.notYetVerified,[]);
+  assert.deepEqual(result.review.flaggedTasks.map(x=>x.taskId),[
+    "A04","F09","B11","C06","C08","B15","D12","E07",
+  ]);
+  assert.deepEqual(result.review.actionsStarted,[]);
+  assert.ok(result.review.flaggedTasks.every(x=>
+    x.disposition==="REASSESS_ONLY" && x.mayAutoExecute===false && x.completionChanged===false));
+});
 test("does not promote a successful job when required safety steps were skipped",async()=>{
   const changed=structuredClone(completeJob);
   changed.steps.find(s=>s.name==="Full backend regression").conclusion="skipped";
   const result=await discoverVerifiedUnlockReviews(view,doc,mock([run],[changed]));
   assert.equal(result.verifiedReceiptEvents,0);
-  assert.equal(result.notYetVerified.length,1);
+  assert.equal(result.notYetVerified.length,2);
   assert.deepEqual(result.review.flaggedTasks,[]);
 });
 test("rejects stale heads, wrong branches, and other repositories",async()=>{

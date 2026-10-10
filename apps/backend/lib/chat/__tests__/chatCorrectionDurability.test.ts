@@ -295,6 +295,49 @@ describe("explicit correction request-path durability", () => {
     expect(mocks.runOpenAIAgencyAgent).toHaveBeenCalledTimes(1);
   });
 
+  it("retains verification receipts across provider rounds before a later approval boundary", async () => {
+    mocks.buildArborAgencyTools.mockReturnValue({
+      get: (name: string) => ({
+        name, risk: name === "publish_fixture" ? "high_consequence" : "read",
+      }),
+    });
+    // Model persisted state transitions rather than returning the same fixture.
+    mocks.recordAgencyProgress.mockImplementation(async ({ agency, unresolvedWork }) => ({
+      ...agency, unresolvedWork: unresolvedWork ?? agency.unresolvedWork,
+    }));
+    mocks.runOpenAIAgencyAgent.mockImplementation(async ({ hooks }) => {
+      await hooks.onToolSelected({ round: 0, name: "arbor_read_runtime_state", arguments: {} });
+      await hooks.onToolResult({ round: 0, name: "arbor_read_runtime_state", result: { ok: true } });
+      // The next provider round chooses another eligible safe read. A prior
+      // verified-result obligation must survive selection of the next action.
+      await hooks.onToolSelected({ round: 1, name: "annabelle_read_workspace", arguments: {} });
+      await hooks.onToolResult({ round: 1, name: "annabelle_read_workspace", result: { ok: true } });
+      await hooks.onToolSelected({ round: 1, name: "publish_fixture", arguments: {} });
+      await hooks.onBoundary({
+        round: 1, name: "publish_fixture", reason: "high_consequence_fork",
+        arguments: {},
+        completedBeforeBoundary: ["annabelle_read_workspace"],
+        deferredToolNames: [],
+      });
+      return {
+        status: "blocked", reason: "high_consequence_fork",
+        toolName: "publish_fixture", arguments: {},
+        responseId: "cross-round-blocked", toolCalls: 2,
+      };
+    });
+    const response = await POST(request());
+    expect(response.status).toBe(200);
+    expect(mocks.blockAgencySession).toHaveBeenCalledWith(expect.objectContaining({
+      blocker: "high_consequence_fork",
+      unresolvedWork: [
+        "complete boundary action: publish_fixture",
+        "verify capability result: arbor_read_runtime_state",
+        "verify capability result: annabelle_read_workspace",
+      ],
+    }));
+    expect(mocks.completeAgencySession).not.toHaveBeenCalled();
+  });
+
   it("does not make success returnable until the correction is durable", async () => {
     let releaseCorrection: (() => void) | null = null;
     const correctionGate = new Promise<void>((resolve) => { releaseCorrection = resolve; });

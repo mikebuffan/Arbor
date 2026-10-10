@@ -458,6 +458,21 @@ export async function POST(req: Request) {
         })
       : undefined;
 
+    // Successful tool results must remain pending verification across later
+    // provider rounds and actions, not disappear when a new tool is selected.
+    // They are obligations to check, never credentials or execution receipts.
+    const keepPendingVerification = (next: string[]): string[] => {
+      const isReceipt = (item: string) =>
+        item.startsWith("verify capability result: ");
+      // Keep the newly selected action at the front, but preserve pending
+      // verifications in their original order. This is not proof of execution.
+      return [...new Set([
+        ...next.filter((item) => !isReceipt(item)),
+        ...agencyState.unresolvedWork.filter(isReceipt),
+        ...next.filter(isReceipt),
+      ])];
+    };
+
     const agentResult = await runOpenAIAgencyAgent({
       instructions: systemPrompt,
       goal: agencyState.goal,
@@ -562,7 +577,7 @@ export async function POST(req: Request) {
             projectId,
             agency: agencyState,
             step: agencyState.currentStep,
-            unresolvedWork: [`execute capability: ${name}`],
+            unresolvedWork: keepPendingVerification([`execute capability: ${name}`]),
             ...(execution ? { execution } : {}),
           });
 
@@ -591,7 +606,7 @@ export async function POST(req: Request) {
             // Keep durable unfinished work alive until the verifier explicitly
             // proves completion. This also makes a process interruption between
             // action and verification resumable on the next turn.
-            unresolvedWork: [`verify capability result: ${name}`],
+            unresolvedWork: keepPendingVerification([`verify capability result: ${name}`]),
             ...(arkExecutionEnabled ? { execution: null } : {}),
           });
 
@@ -609,7 +624,7 @@ export async function POST(req: Request) {
             projectId,
             agency: agencyState,
             step: agencyState.currentStep,
-            unresolvedWork: [`recover capability: ${name}`],
+            unresolvedWork: keepPendingVerification([`recover capability: ${name}`]),
             recurringWeakness: `tool failure: ${name}`,
             strategyChange:
               `When ${name} fails, inspect the failure and choose another reversible route before stopping.`,
@@ -712,9 +727,11 @@ export async function POST(req: Request) {
             // Keep that ownership marker until completeAgencySession clears it.
             unresolvedWork: complete
               ? ["finalize verified goal"]
-              : unresolvedWork.length
-                ? unresolvedWork
-                : [`continue goal: ${agencyState.goal}`],
+              : keepPendingVerification(
+                  unresolvedWork.length
+                    ? unresolvedWork
+                    : [`continue goal: ${agencyState.goal}`],
+                ),
           });
 
           await timeline.record(
