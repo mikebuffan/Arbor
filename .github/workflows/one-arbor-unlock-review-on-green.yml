@@ -1,0 +1,53 @@
+name: One Arbor automatic unlock review (default-branch gated)
+
+# This workflow is inert until reviewed and merged onto the default branch.
+# Runs no code from an untrusted workflow_run head. Only GitHub read access.
+on:
+  workflow_run:
+    workflows:
+      - One Arbor verified boundary receipt and chat source acceptance
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: one-arbor-review-only-receipts-${{ github.event.workflow_run.id || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  review:
+    if: >-
+      github.repository == 'mikebuffan/Arbor' &&
+      (github.event_name == 'workflow_dispatch' ||
+       github.event.workflow_run.conclusion == 'success')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout reviewed default-branch code only
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.repository.default_branch }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify read-only discovery and original 97-task integrity
+        run: |
+          node --test ops/integration/__tests__/one-arbor-unlock-review.test.mjs
+          node --test ops/integration/__tests__/one-arbor-github-run-discovery.test.mjs
+      - name: Derive evidence-bound review flags
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          node ops/integration/one-arbor-github-run-discovery.mjs > one-arbor-unlock-review.json
+          node -e 'const r=require("./one-arbor-unlock-review.json"); console.log("ONE ARBOR VERIFIED REVIEW: "+r.review.originalTaskCount+" original tasks; "+r.verifiedReceiptEvents+" CI source events; "+r.review.flaggedTasks.length+" reassess-only flags; "+r.review.actionsStarted.length+" actions started")'
+      - name: Save read-only review artifact without changing source or task status
+        uses: actions/upload-artifact@v4
+        with:
+          name: one-arbor-unlock-review
+          path: one-arbor-unlock-review.json
+          if-no-files-found: error
+          retention-days: 7

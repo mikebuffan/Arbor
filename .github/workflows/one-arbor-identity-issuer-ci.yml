@@ -7,6 +7,7 @@ on:
       - fix/chat-safe-batch-followthrough-20261009
       - fix/chat-boundary-pending-receipts-20261009
       - fix/one-arbor-97-unlock-review-20261009
+      - fix/one-arbor-github-run-discovery-20261009
 
 permissions:
   contents: read
@@ -68,3 +69,35 @@ jobs:
         run: pnpm --filter firefly-backend test
       - name: Production backend build
         run: pnpm --filter firefly-backend build
+
+  unlock-receipt-discovery:
+    name: Read-only GitHub receipt discovery
+    needs: identity-security
+    if: github.repository == 'mikebuffan/Arbor' && needs.identity-security.result == 'success'
+    permissions:
+      contents: read
+      actions: read
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify GitHub receipt discovery negative controls
+        run: node --test ops/integration/__tests__/one-arbor-github-run-discovery.test.mjs
+      - name: Read exact successful GitHub CI receipts and emit reassessment only
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          node ops/integration/one-arbor-github-run-discovery.mjs > one-arbor-unlock-review.json
+          node -e 'const r=require("./one-arbor-unlock-review.json"); console.log("Verified source events: "+r.verifiedReceiptEvents+"; review flags: "+r.review.flaggedTasks.length+"; actions: "+r.review.actionsStarted.length+"; not yet verified: "+r.notYetVerified.length)'
+      - name: Preserve bounded review artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: one-arbor-unlock-review
+          path: one-arbor-unlock-review.json
+          if-no-files-found: error
+          retention-days: 7
