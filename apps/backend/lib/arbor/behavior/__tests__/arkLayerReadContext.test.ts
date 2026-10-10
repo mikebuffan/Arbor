@@ -167,6 +167,18 @@ describe("owner-scoped ARK -> Arbor Layer read crossing", () => {
     expect(result.behavior.promptBlock).toContain(JSON.stringify(claim));
   });
 
+  it("requests exact-only continuity for a private-host call instead of a project fallback", async () => {
+    const result = await readArkLayerContext({
+      supabase: {} as never, authenticatedUserId: userId,
+      projectId, conversationId, mode: "text",
+      requireExactConversation: true,
+    });
+    expect(mock.loadRuntimeState).toHaveBeenCalledWith(expect.objectContaining({
+      userId, projectId, conversationId, exactOnly: true,
+    }));
+    expect(result.continuity.source).toBe("requested_conversation");
+  });
+
   it("distinguishes project latest from a requested conversation and a fallback", async () => {
     const latest = await readArkLayerContext({
       supabase: {} as never, authenticatedUserId: userId, projectId, mode: "text",
