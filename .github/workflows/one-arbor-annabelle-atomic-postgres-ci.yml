@@ -64,5 +64,55 @@ jobs:
           docker exec "$name" psql --username postgres --dbname postgres \
             --set ON_ERROR_STOP=on \
             --file /source/ops/annabelle/disposable-db/acceptance.sql
+          # Use two distinct psql connections against the same isolated DB.
+          # A successful fixture leaves owner A at edit_version=2, 2 receipts.
+          run_save() {
+            local request_id="$1" expected="$2" draft="$3" log="$4"
+            docker exec "$name" psql --username postgres --dbname postgres \
+              --set ON_ERROR_STOP=on --tuples-only --no-align \
+              -c "SET ROLE authenticated;" \
+              -c "SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',false);" \
+              -c "SELECT public.annabelle_save_workspace_atomic(
+                '00000000-0000-4000-8000-000000000011',
+                '$request_id',$expected,
+                '[\"synthetic canon\"]'::jsonb,'[]'::jsonb,'[]'::jsonb,'[]'::jsonb,
+                '$draft','concurrent');" > "$log" 2>&1
+          }
+          # Two distinct edits from the same version: one commit, one conflict.
+          run_save '00000000-0000-4000-8000-000000000041' 2 'parallel A' "$RUNNER_TEMP/annabelle-a.log" &
+          a_pid=$!
+          run_save '00000000-0000-4000-8000-000000000042' 2 'parallel B' "$RUNNER_TEMP/annabelle-b.log" &
+          b_pid=$!
+          set +e
+          wait "$a_pid"; a_status=$?
+          wait "$b_pid"; b_status=$?
+          set -e
+          if [ "$a_status" -eq 0 ] && [ "$b_status" -ne 0 ]; then
+            grep -q 'annabelle_atomic_version_conflict' "$RUNNER_TEMP/annabelle-b.log"
+          elif [ "$b_status" -eq 0 ] && [ "$a_status" -ne 0 ]; then
+            grep -q 'annabelle_atomic_version_conflict' "$RUNNER_TEMP/annabelle-a.log"
+          else
+            echo 'Two-server divergent saves did not serialize correctly'; exit 1
+          fi
+          state="$(docker exec "$name" psql -U postgres -d postgres -tA \
+            -c "SELECT edit_version::text||':'||(SELECT count(*)::text FROM public.annabelle_workspace_revisions)
+                FROM public.annabelle_workspace_state
+                WHERE project_id='00000000-0000-4000-8000-000000000011'")"
+          [ "$state" = '3:3' ]
+          # Same persistent request ID over two connections: one commit, one replay.
+          run_save '00000000-0000-4000-8000-000000000043' 3 'parallel identical' "$RUNNER_TEMP/annabelle-c.log" &
+          c_pid=$!
+          run_save '00000000-0000-4000-8000-000000000043' 3 'parallel identical' "$RUNNER_TEMP/annabelle-d.log" &
+          d_pid=$!
+          wait "$c_pid"
+          wait "$d_pid"
+          grep -q 'committed' "$RUNNER_TEMP/annabelle-c.log" || grep -q 'committed' "$RUNNER_TEMP/annabelle-d.log"
+          grep -q 'replayed' "$RUNNER_TEMP/annabelle-c.log" || grep -q 'replayed' "$RUNNER_TEMP/annabelle-d.log"
+          state="$(docker exec "$name" psql -U postgres -d postgres -tA \
+            -c "SELECT edit_version::text||':'||(SELECT count(*)::text FROM public.annabelle_workspace_revisions)
+                FROM public.annabelle_workspace_state
+                WHERE project_id='00000000-0000-4000-8000-000000000011'")"
+          [ "$state" = '4:4' ]
+          echo 'ANNABELLE_DISPOSABLE_TWO_CLIENT_CONCURRENCY=PASS'
       - name: Ensure reviewed repository files were not rewritten
         run: git diff --exit-code
