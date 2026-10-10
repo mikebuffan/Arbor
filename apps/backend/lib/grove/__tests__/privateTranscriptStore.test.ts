@@ -636,6 +636,24 @@ describe("Grove-only private conversation durability (fixtures, migration OFF)",
     expect(data.records.size).toBe(0);
   });
 
+  it("never captures a runtime turn when the durable transcript commit fails", async () => {
+    const data = fakeStore();
+    const denied: GrovePrivateTranscriptStore = {
+      ...data.store,
+      persistCompleted: async () => { throw new Error("synthetic_commit_failed"); },
+    };
+    const h = host(denied);
+    const prepared = await h.prepare("Do not claim a partial save", firstId);
+    const capture = vi.fn(async () => {});
+    prepared.captureRuntimeTurn = capture;
+    await expect(respondToVerifiedPrivateGroveTurn({
+      prepared, features: flags, dependencies: {sendModel: h.sendModel as never},
+    })).rejects.toThrow("synthetic_commit_failed");
+    expect(capture).not.toHaveBeenCalled();
+    expect(data.records.size).toBe(0);
+    expect(h.sendModel).toHaveBeenCalledTimes(1);
+  });
+
   it("cross-conversation rows are NOT model history and a bad scope fails", async () => {
     const first = row({
       requestId: firstId,
