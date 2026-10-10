@@ -10,6 +10,7 @@ on:
       - fix/one-arbor-github-run-discovery-20261009
       - fix/cross-round-receipt-retention-20261009
       - fix/unlock-c08-correction-count-20261009
+      - fix/d12-unverified-score-20261009
 
 permissions:
   contents: read
@@ -59,6 +60,7 @@ jobs:
           lib/arbor/agency/__tests__/tools.test.ts
           lib/chat/__tests__/chatCorrectionDurability.test.ts
           lib/arbor/runtime/__tests__/correctionPromotion.test.ts
+          lib/arbor/agency/__tests__/selfUpdateController.test.ts
       - name: Type-check existing backend
         working-directory: apps/backend
         run: pnpm exec tsc --noEmit
