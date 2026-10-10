@@ -60,3 +60,18 @@ describe("Voice renderer primitives", () => {
     expect(instructions).toContain("therapy");
   });
 });
+
+it("keeps a Unicode character intact at a hard speech boundary", () => {
+  const text = "x".repeat(1799) + "😀" + "z".repeat(1800);
+  const chunks = chunkExact(text);
+  expect(chunks.join("")).toBe(text);
+  expect(chunks.every(chunk => chunk.length <= 1800)).toBe(true);
+  expect(chunks.map(chunk => Buffer.from(chunk, "utf8").toString("utf8")).join("")).toBe(text);
+});
+
+it.each([0, 1, -1, 2.5, NaN, Infinity])("rejects a non-progressing chunk limit %s", limit => {
+  expect(() => chunkExact("😀abc", limit)).toThrow("voice_chunk_limit_invalid");
+});
+it("preserves consecutive Unicode pairs at the smallest valid chunk limit", () => {
+  expect(chunkExact("😀😀x", 2)).toEqual(["😀", "😀", "x"]);
+});

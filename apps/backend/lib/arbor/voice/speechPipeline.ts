@@ -23,6 +23,11 @@ export function chunkCanonicalSpeechText(
   text: string,
   maxChars = MAX_TTS_CHARS,
 ): string[] {
+  // A UTF-16 pair needs two code units; smaller or nonintegral limits
+  // cannot guarantee forward progress while preserving a whole character.
+  if (!Number.isSafeInteger(maxChars) || maxChars < 2) {
+    throw new Error("voice_chunk_limit_invalid");
+  }
   if (!text) return [];
   if (text.length <= maxChars) return [text];
 
@@ -50,10 +55,17 @@ export function chunkCanonicalSpeechText(
     ];
 
     const localCut = Math.max(...candidates);
-    const cut =
+    let cut =
       localCut >= Math.floor(maxChars * 0.6)
         ? start + localCut + boundaryWidth(window, localCut)
         : hardEnd;
+
+    // Do not send either half of a valid surrogate pair to the provider.
+    const before = text.charCodeAt(cut - 1);
+    const after = text.charCodeAt(cut);
+    if (before >= 0xd800 && before <= 0xdbff && after >= 0xdc00 && after <= 0xdfff) {
+      cut -= 1;
+    }
 
     chunks.push(text.slice(start, cut));
     start = cut;
