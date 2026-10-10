@@ -668,6 +668,42 @@ describe("Grove-only private conversation durability (fixtures, migration OFF)",
     expect(transcriptRowToUnverifiedReply(first, scope).workReceipts).toEqual([]);
   });
 
+  it("accepts canonical PostgreSQL UUID rows for case-varied validated scope", () => {
+    const caseScope = {
+      groveUserId: "abcdefab-0000-4000-8000-000000000001",
+      projectId: "abcdefab-0000-4000-8000-000000000003",
+      conversationId: "abcdefab-0000-4000-8000-000000000004",
+    };
+    const saved = row({scope: caseScope,
+      requestId: "abcdefab-0000-4000-8000-000000000006",
+      userText: "Earlier turn", assistantText: "Saved reply"});
+    const upperScope = {
+      groveUserId: caseScope.groveUserId.toUpperCase(),
+      projectId: caseScope.projectId.toUpperCase(),
+      conversationId: caseScope.conversationId.toUpperCase(),
+    };
+    expect(selectPrivateModelHistory({
+      completedNewestFirst: [saved], scope: upperScope,
+      userText: "Continue",
+    })).toEqual([
+      {role: "user", content: "Earlier turn"},
+      {role: "assistant", content: "Saved reply"},
+      {role: "user", content: "Continue"},
+    ]);
+    expect(transcriptRowToUnverifiedReply(saved, upperScope).reply)
+      .toBe("Saved reply");
+  });
+
+  it("treats two spellings of one UUID as a duplicate saved turn", () => {
+    const saved = row({requestId: "abcdefab-0000-4000-8000-000000000006",
+      userText: "Original", assistantText: "Reply"});
+    expect(() => selectPrivateModelHistory({
+      completedNewestFirst: [saved, {
+        ...saved, request_id: saved.request_id.toUpperCase(),
+      }], scope, userText: "Next",
+    })).toThrow("grove_transcript_history_duplicate_request");
+  });
+
   it("denies repeated request identity in model history rather than doubling old context", () => {
     const old = row({requestId:firstId,userText:"Earlier private input",
       assistantText:"Earlier unverified reply"});
@@ -907,6 +943,29 @@ describe("Grove fenced DB completion contract (synthetic mock only)", () => {
 });
 
 describe("Supabase Grove service store scope (no real database)", () => {
+  it("accepts PostgreSQL canonicalized request ID after uppercase client retry", async () => {
+    const canonical = row({
+      requestId: "abcdefab-0000-4000-8000-000000000006",
+      userText: "Canonical request", assistantText: "Canonical reply",
+    });
+    const chain: any = {
+      select: vi.fn(), eq: vi.fn(),
+      maybeSingle: vi.fn(async () => ({data: canonical, error: null})),
+    };
+    chain.select.mockReturnValue(chain);
+    chain.eq.mockReturnValue(chain);
+    const store = createSupabaseGrovePrivateTranscriptStore({
+      from: vi.fn(() => chain),
+    } as never);
+    const saved = await store.getCompleted({
+      ...scope, requestId: canonical.request_id.toUpperCase(),
+    });
+    expect(saved?.assistant_text).toBe("Canonical reply");
+    expect(chain.eq).toHaveBeenCalledWith(
+      "request_id", canonical.request_id.toUpperCase(),
+    );
+  });
+
   it("rejects a provider returning a different request ID despite scoped query", async () => {
     const wrong = row({
       requestId:secondId,userText:"Same text",

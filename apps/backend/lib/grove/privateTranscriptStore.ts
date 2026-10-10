@@ -71,10 +71,16 @@ function assertRequestId(requestId: string): void {
   if (typeof requestId !== "string" || !uuid.test(requestId))
     throw new RouteAccessError(409, "grove_transcript_request_invalid");
 }
+/** PostgreSQL UUID columns round-trip as lower case, while validated caller
+ * UUIDs can legally use upper case. Normalize identity only for comparison. */
+function sameUuid(a: unknown, b: string): boolean {
+  return typeof a === "string" && uuid.test(a) && uuid.test(b) &&
+    a.toLowerCase() === b.toLowerCase();
+}
 function assertRow(row: GrovePrivateTranscriptRow, scope: GrovePrivateTranscriptScope): void {
-  if (!row || row.grove_user_id !== scope.groveUserId ||
-      row.firefly_project_id !== scope.projectId ||
-      row.firefly_conversation_id !== scope.conversationId ||
+  if (!row || !sameUuid(row.grove_user_id, scope.groveUserId) ||
+      !sameUuid(row.firefly_project_id, scope.projectId) ||
+      !sameUuid(row.firefly_conversation_id, scope.conversationId) ||
       !uuid.test(row.request_id) ||
       typeof row.user_text !== "string" ||
       !row.user_text.trim() || row.user_text.length > 3000 ||
@@ -93,7 +99,7 @@ function conflict(): never {
 function assertSameRequest(
   row: GrovePrivateTranscriptRow, input: { requestId: string; userText: string },
 ): void {
-  if (row.request_id !== input.requestId || row.user_text !== input.userText)
+  if (!sameUuid(row.request_id, input.requestId) || row.user_text !== input.userText)
     conflict();
 }
 function scopedQuery(supabase: SupabaseClient, scope: GrovePrivateTranscriptScope) {
@@ -118,7 +124,7 @@ export function createSupabaseGrovePrivateTranscriptStore(
       assertRow(data as GrovePrivateTranscriptRow, input);
       // A scoped query does not justify trusting a stale/misrouted provider
       // result. Never replay a different request ID, even with identical text.
-      if ((data as GrovePrivateTranscriptRow).request_id !== input.requestId)
+      if (!sameUuid((data as GrovePrivateTranscriptRow).request_id, input.requestId))
         conflict();
       return data as GrovePrivateTranscriptRow;
     },
@@ -238,9 +244,10 @@ export function selectPrivateModelHistory(input: {
   for (const row of input.completedNewestFirst) {
     assertRow(row, input.scope);
     // A repeated source pair must not become two independent LM memories.
-    if (seenRequests.has(row.request_id))
+    const requestKey = row.request_id.toLowerCase();
+    if (seenRequests.has(requestKey))
       throw new Error("grove_transcript_history_duplicate_request");
-    seenRequests.add(row.request_id);
+    seenRequests.add(requestKey);
     const observed = Date.parse(row.created_at);
     if (observed > newestToOldest)
       throw new Error("grove_transcript_history_out_of_order");
