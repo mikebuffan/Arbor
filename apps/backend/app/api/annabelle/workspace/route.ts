@@ -47,10 +47,24 @@ function failure(error: unknown) {
     return output({ ok: false, error: "invalid_workspace_request" }, 400);
   const issue = error as { code?: unknown; message?: unknown } | null;
   const message = typeof issue?.message === "string" ? issue.message : "";
+  if (message === "annabelle_test_project_contains_manuscript")
+    return output({ ok: false, error: message }, 409);
   if (message === "annabelle_atomic_version_conflict" ||
       message === "annabelle_atomic_request_id_conflict")
     return output({ ok: false, error: message }, 409);
   return routeErrorResponse(error);
+}
+
+// Even a misconfigured allowlist must never write into a manuscript project.
+async function assertEmptySyntheticProject(
+  supabase: Awaited<ReturnType<typeof requireUser>>["supabase"],
+  userId: string, projectId: string,
+): Promise<void> {
+  const { data, error } = await supabase.from("annabelle_manuscripts")
+    .select("id").eq("user_id", userId).eq("project_id", projectId).limit(1);
+  if (error) throw error;
+  if ((data?.length ?? 0) > 0)
+    throw new Error("annabelle_test_project_contains_manuscript");
 }
 
 export async function GET(req: Request) {
@@ -60,6 +74,7 @@ export async function GET(req: Request) {
     const projectId = ProjectId.parse(new URL(req.url).searchParams.get("projectId"));
     if (deniedProject(projectId)) return output({ ok: false, error: "synthetic_project_only" }, 404);
     await assertProjectOwnedByUser(supabase, userId, projectId);
+    await assertEmptySyntheticProject(supabase, userId, projectId);
     const { workspace, editVersion } = await loadVersionedAnnabelleWorkspace({ supabase, userId, projectId });
     return output({ ok: true, workspace, editVersion });
   } catch (error) {
@@ -97,6 +112,7 @@ export async function POST(req: Request) {
     if (deniedProject(body.projectId)) return output({ ok: false, error: "synthetic_project_only" }, 404);
     const { userId, supabase } = await requireUser(req);
     await assertProjectOwnedByUser(supabase, userId, body.projectId);
+    await assertEmptySyntheticProject(supabase, userId, body.projectId);
     const scope = {
       supabase, userId, projectId: body.projectId,
       requestId: body.requestId, expectedVersion: body.expectedVersion,
