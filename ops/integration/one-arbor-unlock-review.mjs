@@ -2,9 +2,14 @@
 // This is not a scheduler, completion prover, permission engine, or second backlog.
 // Caller-supplied receipts must be independently verified before inclusion.
 import { readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { resolve, dirname } from "node:path";
 
+// SHA-256 of the sorted exact original 97 task IDs, comma-separated.
+// Checksum anchors task *identity*, not completion or graph correctness.
+// Derived from the existing 97-task master/reassessment, not a new master.
+const ORIGINAL_97_IDS_SHA256 = "fe90bea83283ecda5ff0ce165e60798d73ade9e443efba36b252bd576099413f";
 const STAGES = new Set(["source_verified", "host_accepted"]);
 const STAGE_RANK = { source_verified: 1, host_accepted: 2 };
 
@@ -31,6 +36,10 @@ export function validateUnlockView(view) {
     }
   }
   if (ids.size !== 97) fail("not_exactly_97_unique_tasks");
+  const digest = createHash("sha256")
+    .update([...ids].sort().join(","))
+    .digest("hex");
+  if (digest !== ORIGINAL_97_IDS_SHA256) fail("original_task_identity_mismatch");
   const edgeKeys = new Set();
   for (const edge of view.reviewTriggers) {
     if (!isPlain(edge) || !ids.has(edge.from) ||
