@@ -86,6 +86,26 @@ export async function persistAnnabelleWorkspace(input: {
   if (error) {
     throw error;
   }
+
+  // Require exact owner-scoped readback before claiming that a draft was saved.
+  const { data: saved, error: readError } = await input.supabase
+    .from("annabelle_workspace_state")
+    .select("canon,locked_passages,scene_state,unresolved_decisions,working_delta")
+    .eq("user_id", input.userId)
+    .eq("project_id", input.projectId)
+    .maybeSingle();
+  if (readError) throw readError;
+  const sameArray = (actual: unknown, expected: string[]) =>
+    Array.isArray(actual) && actual.length === expected.length &&
+    actual.every((item, index) => item === expected[index]);
+  if (!saved ||
+    !sameArray(saved.canon, input.workspace.canon) ||
+    !sameArray(saved.locked_passages, input.workspace.lockedPassages) ||
+    !sameArray(saved.scene_state, input.workspace.sceneState) ||
+    !sameArray(saved.unresolved_decisions, input.workspace.unresolvedDecisions) ||
+    saved.working_delta !== input.workspace.workingDelta) {
+    throw new Error("annabelle_workspace_save_readback_mismatch");
+  }
 }
 
 export async function persistAnnabelleWorkspaceRevision(input: {
