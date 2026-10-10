@@ -2,6 +2,7 @@
 // One existing isolated test project may build this exact branch as Preview.
 // This exception grants no runtime credentials, database access or model budget.
 const branches = new Set([
+  "fix/cross-round-receipt-retention-20261009",
   "fix/one-arbor-github-run-discovery-20261009",
   "fix/one-arbor-97-unlock-review-20261009",
   "fix/chat-boundary-pending-receipts-20261009",
