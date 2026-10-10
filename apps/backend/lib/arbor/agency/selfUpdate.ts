@@ -23,13 +23,15 @@ export type SelfUpdateDecision = {
 export function evaluateSelfUpdate(
   evidence: SelfUpdateEvidence,
 ): SelfUpdateDecision {
-  const before = Number.isFinite(evidence.beforeScore)
-    ? evidence.beforeScore
-    : 0;
-  const after = Number.isFinite(evidence.afterScore)
-    ? evidence.afterScore
-    : 0;
-  const delta = after - before;
+  // Missing/invalid scores are not evidence of improvement. In particular,
+  // falling back to zero can falsely retain an unverified strategy. A pair of
+  // finite numbers may also overflow when subtracted, so validate the delta.
+  const rawDelta = evidence.afterScore - evidence.beforeScore;
+  const validScores =
+    Number.isFinite(evidence.beforeScore) &&
+    Number.isFinite(evidence.afterScore) &&
+    Number.isFinite(rawDelta);
+  const delta = validScores ? rawDelta : 0;
 
   if (evidence.identityRegression || evidence.newFailureIntroduced) {
     return {
@@ -37,6 +39,14 @@ export function evaluateSelfUpdate(
       reason: evidence.identityRegression
         ? "verification detected identity regression"
         : "verification detected a new failure caused by the update",
+      delta,
+    };
+  }
+
+  if (!validScores) {
+    return {
+      disposition: "continue_verifying",
+      reason: "invalid or overflowing scores cannot establish improvement",
       delta,
     };
   }
