@@ -16,6 +16,30 @@ test("all original 97 IDs occur exactly once in seven fixed groups", () => {
   assert.deepEqual(view.groups.map(g => g.ids.length),[11,7,3,17,27,11,21]);
 });
 
+test("recorded exact-head source repairs reopen 18 original tasks but complete nothing",()=>{
+  const sourceDoc=JSON.parse(readFileSync(resolve(root,
+    "docs/integration/ONE_ARBOR_UNLOCK_VERIFIED_RECEIPTS_20261009.json"),"utf8"));
+  assert.deepEqual(sourceDoc.verifiedEvents.map(x=>x.taskId),
+    ["A09","B11","E07","C08","B15","D12","D09"]);
+  const review=findUnlockReviews(view,sourceDoc.verifiedEvents,sourceDoc.processedEventKeys);
+  assert.equal(review.originalTaskCount,97);
+  assert.equal(review.groupCount,7);
+  assert.equal(review.verifiedEventsEvaluated,7);
+  assert.equal(review.flaggedTasks.length,18);
+  assert.deepEqual(review.flaggedTasks.filter(x=>["D10","D11","E09"].includes(x.taskId))
+    .map(x=>x.taskId),["D10","D11","E09"]);
+  assert.ok(review.flaggedTasks.every(x=>
+    x.disposition==="REASSESS_ONLY" &&
+    x.completionChanged===false && x.authorizationChanged===false &&
+    x.mayAutoExecute===false));
+  assert.deepEqual(review.actionsStarted,[]);
+  assert.deepEqual(review.changedTaskStatuses,[]);
+  const acknowledged=findUnlockReviews(view,sourceDoc.verifiedEvents,
+    sourceDoc.verifiedEvents.map(x=>x.receipt+"|"+x.taskId+"|"+x.stage));
+  assert.deepEqual(acknowledged.flaggedTasks,[]);
+  assert.equal(acknowledged.verifiedEventsEvaluated,0);
+});
+
 test("verified A09 source repair flags only direct dependent reviews", () => {
   const result = findUnlockReviews(view,[evidence("A09")]);
   assert.deepEqual(result.flaggedTasks.map(x=>x.taskId),["A04","F09","B11","B15","E07"]);
