@@ -46,7 +46,7 @@ function request(method: "GET" | "POST", body?: unknown, target = projectId) {
 
 describe("Annabelle synthetic editor API boundary", () => {
   beforeEach(() => {
-    vi.resetAllMocks();
+    vi.clearAllMocks();
     hasManuscript = false;
     vi.stubEnv("ANNABELLE_ATOMIC_WORKSPACE_ENABLED", "true");
     vi.stubEnv("ANNABELLE_SYNTHETIC_WORKSPACE_ENABLED", "true");
