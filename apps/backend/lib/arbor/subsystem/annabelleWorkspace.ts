@@ -238,20 +238,25 @@ export async function restoreLatestAnnabelleWorkspaceRevision(input: {
   expectedVersion?: number;
   requestId?: string;
 }): Promise<AnnabelleWorkspace> {
-  const { data, error } = await input.supabase
+  const revisions = input.supabase
     .from("annabelle_workspace_revisions")
     .select("snapshot")
     .eq("user_id", input.userId)
-    .eq("project_id", input.projectId)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .eq("project_id", input.projectId);
+  // Postgres timestamps reflect transaction start, not necessarily the final
+  // serialization order. Atomic restoration must follow committed versions.
+  const ordered = annabelleAtomicWorkspaceEnabled()
+    ? revisions.order("resulting_version", { ascending: false, nullsFirst: false })
+    : revisions.order("created_at", { ascending: false });
+  const { data, error } = await ordered.limit(1).maybeSingle();
 
   if (error) {
     throw error;
   }
 
   if (!data?.snapshot || typeof data.snapshot !== "object") {
+    if (annabelleAtomicWorkspaceEnabled())
+      throw new Error("annabelle_atomic_revision_not_found");
     return loadAnnabelleWorkspace(input);
   }
 
