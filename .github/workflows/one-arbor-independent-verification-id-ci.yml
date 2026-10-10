@@ -5,6 +5,7 @@ on:
     branches:
       - fix/independence-verification-event-dedupe-20261010
       - fix/independence-learning-outcome-proof-20261010
+      - fix/independence-invalid-verifier-score-20261010
 
 permissions:
   contents: read
