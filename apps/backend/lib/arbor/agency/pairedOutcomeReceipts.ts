@@ -87,6 +87,14 @@ export function evaluateHoldoutWithRecordedReceipts(
     if (seenHostEvents.has(receipt.eventId)) {
       throw new Error("paired_receipt_duplicate_host_event");
     }
+    seenReceipts.add(receipt.receiptId);
+    seenHostEvents.add(receipt.eventId);
+  }
+
+  // Reject replayed host records before per-record binding checks. Otherwise
+  // a duplicate with an unrelated first binding could be misclassified as
+  // only a swapped case and conceal the more serious repeated-event problem.
+  for (const receipt of input.recordedReceipts) {
     if (receipt.source !== "host_readback" ||
         receipt.status !== "confirmed") {
       throw new Error("paired_receipt_unconfirmed_source");
@@ -103,8 +111,6 @@ export function evaluateHoldoutWithRecordedReceipts(
     if (observation.observedOutcome !== receipt.recordedOutcome) {
       throw new Error("paired_receipt_outcome_mismatch");
     }
-    seenReceipts.add(receipt.receiptId);
-    seenHostEvents.add(receipt.eventId);
   }
 
   if (seenReceipts.size !== expected.size) {
