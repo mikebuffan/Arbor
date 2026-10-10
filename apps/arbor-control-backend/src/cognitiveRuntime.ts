@@ -72,7 +72,7 @@ export function updateCognitiveRuntime(input: {
 
   const counterfactuals = input.counterfactuals
     ? rankCounterfactuals(input.counterfactuals)
-    : [...prior.counterfactuals];
+    : rankCounterfactuals(prior.counterfactuals);
 
   return {
     signals,

@@ -6,6 +6,7 @@ const branches = new Set([
   "fix/batch9-self-model-evidence-20261009",
   "fix/batch10-voice-unicode-chunks-20261009",
   "fix/batch11-strategy-evidence-continuity-20261009",
+  "fix/batch12-decision-ranking-evidence-20261009",
   "fix/batch7-memory-response-privacy-20261009",
   "fix/batch6-runtime-replay-clears-20261010",
   "fix/batch5-pending-action-completion-20261010",

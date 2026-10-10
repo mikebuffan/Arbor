@@ -56,7 +56,7 @@
     "apps/arbor-control-backend/src/selfModelObservations.ts": "5a21a5bb3c97ae652c8eecf03e5ff36def3087a4",
     "apps/arbor-control-backend/src/selfModelClaims.ts": "9bf0d7bd2f50fe61338a8967cd1b0a0c7d3e1b52",
     "docs/integration/ONE_ARBOR_GROUP06_IDENTITY_EVIDENCE_GATE_20261007.md": "bd43f7b8a8c2e90208b6839d582d5f698fcc570c",
-    "ops/grove/source-only-ignore.mjs": "a7f8e455dbe539e309f4440cb7615951a1cafb0d",
+    "ops/grove/source-only-ignore.mjs": "8ba9a24c04a16f0862114c64b86b52b2db07f5a2",
     ".github/workflows/one-arbor-group04-shelf-pagination.yml": "41790290a7fa86974dcca3fbbcc15bc96e0cac88",
     "apps/backend/lib/memory/__tests__/shelfPageRead.test.ts": "35b5c43abb6b2c774a1ae3aa75b33507c1e4d3bb",
     "apps/frontend/lib/environment/grove_memory_shelf_view.dart": "31e54c5c459cadce0eeba4bb577922c419cde71a",
@@ -73,7 +73,7 @@
     ".github/workflows/one-arbor-group15-life-records.yml": "3d584de5601401f1b82fe86fb6c8b5ac3cffcc5e",
     ".github/workflows/one-arbor-group7-conversation-voice.yml": "677dce7a97c7628129424f6d633544fd1b368f85",
     ".github/workflows/one-arbor-professional-workspace.yml": "b9d644689f344a6a1d0b6011313a2bf20b477dfd",
-    "apps/arbor-control-backend/src/cognitiveDynamics.ts": "64bc27a251fee28fa38f53dd9411384c19d1c742",
+    "apps/arbor-control-backend/src/cognitiveDynamics.ts": "2ac2037dfcfe2e59c057246e7c3fc4adc9bfb33e",
     "apps/arbor-control-backend/src/group09DecisionNegative.test.ts": "73ddfdd30ee3ba75c19ad225720170174fd24627",
     "apps/backend/lib/arbor/accessibility/__tests__/cognitiveAccessLanguage.test.ts": "0894d502df0a8e83afca5f190462d963adb34009",
     "apps/backend/lib/arbor/accessibility/cognitiveAccessLanguage.ts": "9d4e1f562d18b647aec0188a3ddcd9ee9f88ac4c",
@@ -121,7 +121,7 @@
     "apps/backend/lib/arbor/behavior/behaviorProjection.ts": "cd52561933f57ff41daf2ca1497d2dc8d414bfe8",
     "apps/backend/lib/arbor/behavior/__tests__/independentJudgmentCases.ts": "7d9b8eb3f6952812c893c5a5bd228395888e5da3",
     "apps/backend/lib/arbor/behavior/__tests__/independentJudgmentCases.test.ts": "045e1782fbacbad032738232bf960962345e2a8e",
-    ".github/workflows/one-arbor-independent-judgment.yml": "c3922c0a1f4b738bfcefb4c2f77c06bd8efc6114",
+    ".github/workflows/one-arbor-independent-judgment.yml": "33bcd8089c9e68056acf9942cf76566a69600071",
     "apps/backend/lib/prompt/buildPromptContext.ts": "c91150dbfce1755b9843b58c8c46a95e7fe50a3b",
     "apps/backend/lib/arbor/behavior/arkLayerReadContext.ts": "4c0ebd3b7968167c232f88e8619ef51fea638822",
     "apps/backend/lib/arbor/behavior/__tests__/arkLayerReadContext.test.ts": "39ce1451e64c487b39a9dd5f9aed59029afab8ce",
@@ -246,7 +246,13 @@
     "apps/backend/lib/arbor/agency/__tests__/strategyRetention.test.ts": "d0d0c50d1e716a021480370b883957ce7550ce9c",
     "apps/backend/lib/arbor/agency/selfUpdate.ts": "2610d383633688286908d23d700f88bb7830f5ad",
     "apps/backend/lib/arbor/agency/strategyRetention.ts": "c3385ced57d384fd8157267b82a57cfb508ad267",
-    "docs/integration/ONE_ARBOR_BATCH11_BODY_REFLECTION_RECEIPT_20261009.md": "eaf49689fb48f0e8ac17891063ac77679668ca62"
+    "docs/integration/ONE_ARBOR_BATCH11_BODY_REFLECTION_RECEIPT_20261009.md": "eaf49689fb48f0e8ac17891063ac77679668ca62",
+    "apps/arbor-control-backend/src/cognitiveDynamics.test.ts": "25dac125f8953328b78b087a8494979493ebba73",
+    "apps/arbor-control-backend/src/cognitiveRuntime.test.ts": "61902319fbda70cf38489b72b483aa03082f7f4f",
+    "apps/arbor-control-backend/src/cognitiveRuntime.ts": "e2d28b2641a134643bbc36af54c04107d80e53dc",
+    "apps/arbor-control-backend/src/glowNoiseDecision.test.ts": "1f4f79b830dc666efa9c05950311599de7f95a9c",
+    "apps/arbor-control-backend/src/glowNoiseDecision.ts": "cd16f753797f22e4d4c6d5a6484458ea5a12653a",
+    "docs/integration/ONE_ARBOR_BATCH12_DECISION_TRUTH_RECEIPT_20261009.md": "5e9d4abd5345d89e82d45019cfcf02bb612d260d"
   },
   "comment": "Source-only incorporation from Library ONE_ARBOR_CODE_REPAIRS_20261009.zip: 17 exact source/test blobs verified, packages reconciled with original PR #372 head, 3 focused tests added; CI/release acceptance remain separately gated."
 }
