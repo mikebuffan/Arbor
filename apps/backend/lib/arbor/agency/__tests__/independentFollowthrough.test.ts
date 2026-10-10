@@ -61,6 +61,67 @@ function textReply(id: string, content: string): Response {
 }
 
 describe("Independent initiative follow-through: synthetic transport, not a real model score", () => {
+  it.each([false, true])("checkpoints an already-owned write before a provider can claim it finished (verifier=%s)", async verifyCompletion => {
+    const { writes, tools } = fixture();
+    const onComplete = vi.fn(async () => {});
+    const onToolResult = vi.fn(async () => {});
+    const complete = vi.fn(async () => {});
+    let requests = 0;
+    const result = await runOpenAIAgencyAgent({
+      instructions: "Only report completion with a saved action result.",
+      userText: "Finish the eligible task.", tools, context,
+      responseCreate: async () => ++requests === 1
+        ? toolCall("pending-write", "complete_fixture_task", { task: "safeFirst" })
+        : textReply("premature-final", "The task is finished."),
+      verifyCompletion,
+      idempotency: { claim: async () => ({ acquired: false, result: null }), complete },
+      hooks: { onComplete, onToolResult },
+    });
+    expect(result.status).toBe("checkpointed");
+    expect(requests).toBe(1);
+    expect(writes).toEqual([]);
+    expect(complete).not.toHaveBeenCalled();
+    expect(onToolResult).not.toHaveBeenCalled();
+    expect(onComplete).not.toHaveBeenCalled();
+  });
+
+  it("reconciles an uncertain saved result without repeating the action on restart", async () => {
+    const { writes, tools } = fixture();
+    let saved: { acquired: false; result: unknown } | null = null;
+    const onComplete = vi.fn(async () => {});
+    const idempotency = {
+      claim: async () => {
+        if (saved) return saved;
+        saved = { acquired: false, result: null };
+        return { acquired: true as const, result: null };
+      },
+      complete: async () => { throw new Error("synthetic_result_save_failed"); },
+    };
+    const run = () => {
+      let requests = 0;
+      return runOpenAIAgencyAgent({
+        instructions: "Same authorized action and request identity after restart.",
+        userText: "Finish the eligible task.", tools, context, idempotency,
+        verifyCompletion: false, hooks: { onComplete },
+        responseCreate: async () => ++requests === 1
+          ? toolCall("retry-write", "complete_fixture_task", { task: "safeFirst" })
+          : textReply("final", "The action result is saved."),
+      });
+    };
+    await expect(run()).rejects.toThrow("synthetic_result_save_failed");
+    expect(writes).toEqual(["safeFirst"]);
+    expect(onComplete).not.toHaveBeenCalled();
+    expect((await run()).status).toBe("checkpointed");
+    expect(writes).toEqual(["safeFirst"]);
+    expect(onComplete).not.toHaveBeenCalled();
+    // A trusted owning execution reconciles its receipt; a retry cannot do so
+    // merely because the provider says the action is finished.
+    saved = { acquired: false, result: { task: "safeFirst", completed: true } };
+    expect((await run()).status).toBe("complete");
+    expect(writes).toEqual(["safeFirst"]);
+    expect(onComplete).toHaveBeenCalledOnce();
+  });
+
   it("inspects, finishes two eligible tasks, skips completed/blocked work, and finishes within one user turn", async () => {
     unexpectedLiveProvider.mockClear();
     const { tasks, writes, tools } = fixture();

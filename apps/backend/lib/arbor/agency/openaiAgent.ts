@@ -622,17 +622,17 @@ export async function runOpenAIAgencyAgent(
               }),
             });
           } else {
-            outputs.push({
-              type: "function_call_output",
-              call_id: call.call_id,
-              output: JSON.stringify({
-                ok: false,
-                kind: "operation_in_progress",
-                retryable: false,
-                instruction:
-                  "Do not repeat this side effect. Preserve the objective and resume after the owning execution checkpoints.",
-              }),
-            });
+            // Another execution owns this write, but no saved result proves
+            // its outcome yet. Keep this as a runtime boundary: a provider's
+            // next answer (or completion score) cannot resolve an uncertain
+            // side effect. The host retains the selected unfinished action;
+            // resume with the same identity after its owner reconciles it.
+            return {
+              status: "checkpointed",
+              text: "INTERNAL CONTINUATION REQUIRED: operation_in_progress; no saved action result. Do not repeat this side effect; reconcile the owning execution before resuming.",
+              responseId: response.id,
+              toolCalls,
+            };
           }
           continue;
         }
