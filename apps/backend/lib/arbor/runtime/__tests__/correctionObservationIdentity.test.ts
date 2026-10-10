@@ -53,6 +53,7 @@ describe("B11/C08 correction observation identity across retries and snapshots",
       ...record("message:owner:dummy"), occurrences:2,
     };
     delete legacy.observationIds;
+    delete legacy.legacyOccurrences;
     const first=mergeCorrections([legacy],[record("message:owner:201")]);
     expect(first[0].occurrences).toBe(3);
     expect(first[0].legacyOccurrences).toBe(2);
@@ -77,6 +78,7 @@ describe("B11/C08 correction observation identity across retries and snapshots",
   it("keeps an unkeyed historical retry conservative and never auto-promotes a correction",()=>{
     const older={...record("message:owner:dummy"),occurrences:2} as ArborCorrection;
     delete older.observationIds;
+    delete older.legacyOccurrences;
     const copied={...older,observedAt:"2026-10-10T11:12:00.000Z"};
     const merged=mergeCorrectionSnapshots([[older],[copied]]);
     expect(merged[0].occurrences).toBe(2);
