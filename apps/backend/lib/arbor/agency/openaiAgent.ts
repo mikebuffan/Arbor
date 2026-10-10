@@ -97,6 +97,9 @@ export type AgencyLoopHooks = {
       round: number;
       // Transport response identity supplied by the trusted verifier caller.
       verificationId: string;
+      // Host-side successful tool result, separate from model/verifier text.
+      // Not proof of independently measured real-world consequences.
+      hostObservedToolResult: boolean;
       complete: boolean;
       score: number;
       unresolvedWork: string[];
@@ -267,6 +270,10 @@ export async function runOpenAIAgencyAgent(
   // Durable-in-run evidence for the completion verifier. This lets Arbor
   // prove that an action happened without forcing the final user-facing text
   // to narrate every tool call just to satisfy verification.
+  // Unlike model descriptions or saved "verify this" markers, this flag
+  // advances only after this agent run receives an actual successful tool
+  // outcome (including a durable idempotency-result readback).
+  let hostObservedToolResult = false;
   const actionEvidence: string[] = Array.from(
     new Set(
       (input.priorActionEvidence ?? [])
@@ -462,6 +469,7 @@ export async function runOpenAIAgencyAgent(
         ?.onVerification?.({
           round,
           verificationId: typeof response.id === "string" ? response.id : "",
+          hostObservedToolResult,
           ...verification,
         });
 
@@ -643,6 +651,7 @@ export async function runOpenAIAgencyAgent(
               result: claim.result,
             });
             completedBeforeBoundary.push(tool.name);
+            hostObservedToolResult = true;
             actionEvidence.push(
               `capability ${tool.name} completed successfully (idempotent replay)`,
             );
@@ -727,6 +736,7 @@ export async function runOpenAIAgencyAgent(
               execution.result,
           });
         completedBeforeBoundary.push(tool.name);
+        hostObservedToolResult = true;
 
         actionEvidence.push(
           `capability ${tool.name} completed successfully`,

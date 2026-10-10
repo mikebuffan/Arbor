@@ -62,6 +62,62 @@ function textReply(id: string, content: string): Response {
 }
 
 describe("Independent initiative follow-through: synthetic transport, not a real model score", () => {
+  it("does not label unsupported model/verifier assertions as a host-observed outcome", async () => {
+    const { tools } = fixture();
+    const onVerification = vi.fn(async () => {});
+    const verified = JSON.stringify({
+      complete: true, score: 0.95, unresolvedWork: [],
+      evidence: ["the model says tests passed"],
+      strategyCorrection: "claim success confidently", behaviorViolations: [],
+    });
+    let calls = 0;
+    const result = await runOpenAIAgencyAgent({
+      instructions: "Do not mistake a statement for an execution receipt.",
+      userText: "Finish the example task.", tools, context,
+      verifyCompletion: true,
+      priorActionEvidence: ["an unverified previous claim"],
+      responseCreate: async () => ++calls === 1
+        ? textReply("candidate-without-action", "I completed the task.")
+        : textReply("verifier-assertion", verified),
+      hooks: { onVerification },
+    });
+    expect(result.status).toBe("complete");
+    expect(onVerification).toHaveBeenCalledOnce();
+    expect(onVerification).toHaveBeenCalledWith(expect.objectContaining({
+      complete: true,
+      hostObservedToolResult: false,
+    }));
+  });
+
+  it("distinguishes a real host-returned tool result from unsupported model text", async () => {
+    const { tools, writes } = fixture();
+    const onVerification = vi.fn(async () => {});
+    const verified = JSON.stringify({
+      complete: true, score: 0.95, unresolvedWork: [],
+      evidence: ["action completed"], strategyCorrection: null,
+      behaviorViolations: [],
+    });
+    let calls = 0;
+    const result = await runOpenAIAgencyAgent({
+      instructions: "Observe the actual result of the permitted action.",
+      userText: "Finish the eligible task.", tools, context,
+      verifyCompletion: true,
+      responseCreate: async () => {
+        calls++;
+        if (calls === 1) return toolCall("candidate-tool-call", "complete_fixture_task", {task: "safeFirst"});
+        if (calls === 2) return textReply("candidate-after-tool", "The safe task completed.");
+        return textReply("verifier-after-tool", verified);
+      },
+      hooks: { onVerification },
+    });
+    expect(result.status).toBe("complete");
+    expect(writes).toEqual(["safeFirst"]);
+    expect(onVerification).toHaveBeenCalledWith(expect.objectContaining({
+      complete: true,
+      hostObservedToolResult: true,
+    }));
+  });
+
   it.each([false, true])("checkpoints an already-owned write before a provider can claim it finished (verifier=%s)", async verifyCompletion => {
     const { writes, tools } = fixture();
     const onComplete = vi.fn(async () => {});

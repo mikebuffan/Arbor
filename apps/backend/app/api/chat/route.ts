@@ -647,6 +647,7 @@ export async function POST(req: Request) {
           complete,
           score,
           verificationId,
+          hostObservedToolResult,
           unresolvedWork,
           evidence,
           strategyCorrection,
@@ -664,6 +665,7 @@ export async function POST(req: Request) {
                   // Only a completed, evidence-backed and clean outcome
                   // qualifies as progress toward retaining a strategy.
                   verifiedOutcome:
+                    hostObservedToolResult &&
                     complete &&
                     evidence.length > 0 &&
                     unresolvedWork.length === 0 &&
