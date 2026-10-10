@@ -225,10 +225,7 @@ export async function readArkLayerContext(input: {
       currentGoal: state?.currentGoal ?? null,
       unresolvedWork: state?.agency?.unresolvedWork ?? [],
       acousticCorrections: startup?.acousticCorrections ?? [],
-      // A brand-new exact conversation may have no runtime snapshot, while
-      // authorized permanent behavior corrections still exist independently.
-      // Report those rules without claiming the old conversation was restored.
-      behavioralCorrections: startup?.behaviorCorrections ?? correctionRules,
+      behavioralCorrections: startup?.behaviorCorrections ?? [],
       startupPrompt: startup?.startup.promptBlock ?? null,
     },
     selectedAttachment: selectedFile && input.selectedAttachment ? {
