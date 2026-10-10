@@ -3,6 +3,7 @@ name: One Arbor independent judgment source acceptance (not model evaluation)
 on:
   push:
     branches:
+      - fix/batch15-ui-source-acceptance-20261009
       - fix/batch14-worker-limit-validation-20261009
       - fix/batch13-history-discovery-list-validation-20261009
       - fix/arbor-layer-audit-startup-20261010
