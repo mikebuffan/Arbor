@@ -77,7 +77,7 @@ GrovePrivateConversationChoices parseGrovePrivateConversations(
   for (final item in list) {
     final row = _object(item);
     final id = row['conversationId'];
-    if (id is! String || !_validId(id) || !seen.add(id)) {
+    if (id is! String || !_validId(id) || !seen.add(id.toLowerCase())) {
       throw const FormatException('Invalid or duplicate Grove conversation');
     }
     choices.add(GrovePrivateConversationChoice(
@@ -182,7 +182,7 @@ GrovePrivateHistory parseGrovePrivateHistory(
     final id = row['requestId'];
     final user = row['userText'];
     final assistant = row['assistantText'];
-    if (id is! String || !_validId(id) || !ids.add(id) ||
+    if (id is! String || !_validId(id) || !ids.add(id.toLowerCase()) ||
         user is! String || user.trim().isEmpty || user.length > 3000 ||
         assistant is! String || assistant.trim().isEmpty ||
         assistant.length > 20000 || !_verification(row['replyVerification'])) {
