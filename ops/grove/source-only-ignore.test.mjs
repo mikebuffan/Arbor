@@ -128,3 +128,12 @@ test("D12 self-update score review stays source-only", () => {
    }
  }
 });
+
+test("combined Grove exact-conversation continuity branch stays source-only", () => {
+  const ref = "fix/one-arbor-exact-grove-continuity-20261009";
+  for (const stage of ["preview","production","development",""]) {
+    for(const id of [project,"prj_JArYlugmdFovY10CxZ0LEJmcrsKC",""]) {
+      assert.equal(exitCode({VERCEL_ENV:stage,VERCEL_PROJECT_ID:id,VERCEL_GIT_COMMIT_REF:ref}),0);
+    }
+  }
+});
