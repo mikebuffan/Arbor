@@ -150,6 +150,7 @@ describe("real module composition — LIVE FEATURES STILL OFF", () => {
       authenticatedUserId: uuids.owner,
       projectId: uuids.project, conversationId: uuids.conversation, mode: "text",
       latestUserText: "List and go",
+      requireExactConversation: true,
     });
     expect(prepared.arkLayer.continuity.currentGoal).toBe("Finish Grove");
     expect(prepared.status).toBe("ready");

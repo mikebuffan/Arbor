@@ -167,6 +167,32 @@ describe("owner-scoped ARK -> Arbor Layer read crossing", () => {
     expect(result.behavior.promptBlock).toContain(JSON.stringify(claim));
   });
 
+  it("requests exact-only continuity for a private-host call instead of a project fallback", async () => {
+    const result = await readArkLayerContext({
+      supabase: {} as never, authenticatedUserId: userId,
+      projectId, conversationId, mode: "text",
+      requireExactConversation: true,
+    });
+    expect(mock.loadRuntimeState).toHaveBeenCalledWith(expect.objectContaining({
+      userId, projectId, conversationId, exactOnly: true,
+    }));
+    expect(result.continuity.source).toBe("requested_conversation");
+  });
+
+  it("holds when an exact-only receiver supplies no conversation or a foreign-thread state", async () => {
+    await expect(readArkLayerContext({
+      supabase: {} as never, authenticatedUserId: userId, projectId,
+      mode: "text", requireExactConversation: true,
+    })).rejects.toMatchObject({ status: 404, code: "ark_layer_exact_conversation_required" });
+    expect(mock.readArkProjectSnapshot).not.toHaveBeenCalled();
+
+    mock.loadRuntimeState.mockResolvedValueOnce(state({conversationId: "different-thread"}));
+    await expect(readArkLayerContext({
+      supabase: {} as never, authenticatedUserId: userId,
+      projectId, conversationId, mode: "text", requireExactConversation: true,
+    })).rejects.toThrow("ark_layer_continuity_scope_mismatch");
+  });
+
   it("distinguishes project latest from a requested conversation and a fallback", async () => {
     const latest = await readArkLayerContext({
       supabase: {} as never, authenticatedUserId: userId, projectId, mode: "text",
@@ -181,6 +207,30 @@ describe("owner-scoped ARK -> Arbor Layer read crossing", () => {
     });
     expect(fallback.continuity.source).toBe("project_fallback");
     expect(fallback.continuity.startupPrompt).toContain("Finish the scoped ARK integration");
+  });
+
+  it("returns authorized durable correction rules even when a reopened private conversation has no exact runtime snapshot", async () => {
+    mock.loadRuntimeState.mockResolvedValueOnce(null);
+    mock.loadDurableBehaviorCorrections.mockResolvedValueOnce([{
+      id: "behavior:agency-followthrough", kind: "behavior",
+      value: "Do not wait for another go; continue approved safe work.",
+      source: "text", observedAt: "2026-10-10T00:01:00.000Z",
+      confidence: 1, protected: true, occurrences: 2,
+    }]);
+    const result = await readArkLayerContext({
+      supabase: {} as never, authenticatedUserId: userId, projectId,
+      conversationId, mode: "text", requireExactConversation: true,
+    });
+    expect(result.continuity.available).toBe(false);
+    expect(result.continuity.source).toBe("unavailable");
+    expect(result.continuity.currentGoal).toBeNull();
+    expect(result.continuity.startupPrompt).toBeNull();
+    // Global calibration is a trusted behavior guard, not invented
+    // per-conversation runtime history.
+    expect(result.continuity.behavioralCorrections).toEqual([]);
+    expect(result.behavior.guardRequirements).toContain(
+      "Do not wait for another go; continue approved safe work.");
+    expect(result.ark.liveExecutionVerified).toBe(false);
   });
 
   it("rejects another user or project before ARK or continuity reads", async () => {

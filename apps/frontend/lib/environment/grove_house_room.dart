@@ -206,7 +206,8 @@ class _GroveHouseRoomState extends State<GroveHouseRoom> {
   Widget _pin(double width, double x, double y, IconData icon,
       String label, GroveRoomAction target) {
     final height = width * 409 / 709;
-    final size = width < 450 ? 31.0 : 43.0;
+    // Keep hotspots usable on a narrow phone without changing room artwork.
+    final size = width < 450 ? 44.0 : 48.0;
     return Positioned(
       left: (width * x - size / 2).clamp(0, width - size).toDouble(),
       top: (height * y - size / 2).clamp(0, height - size).toDouble(),

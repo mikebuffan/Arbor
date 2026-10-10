@@ -2,6 +2,7 @@
 // One existing isolated test project may build this exact branch as Preview.
 // This exception grants no runtime credentials, database access or model budget.
 const branches = new Set([
+  "review/one-arbor-grove-440-441-compose-20261010",
   "review/one-arbor-440-receipt-refresh-20261010",
   "fix/one-arbor-correction-count-saturation-20261010",
   "test/one-arbor-observation-reopen-20261010",
@@ -105,7 +106,22 @@ const branches = new Set([
   "review/one-arbor-discovery-progress-20261009",
   "review/one-arbor-chat-response-guard-20261009",
   "review/one-arbor-independent-chat-integration-20261009",
-  "review/one-arbor-independence-budget-preflight-20261009"
+  "review/one-arbor-independence-budget-preflight-20261009",
+  "fix/grove-approved-api-host-20261010",
+  "fix/grove-uuid-duplicate-scope-20261010",
+  "test/grove-android-debug-20261010",
+  "fix/grove-private-refresh-revocation-20261009",
+  "test/grove-group5-rooms-20261010",
+  "test/grove-group6-workspaces-20261010",
+  "test/grove-group8-accessibility-20261010",
+  "review/grove-combined-ui-diary-20261010",
+  "review/grove-ui-phone-compose-20261010",
+  "review/grove-fullstack-source-compose-20261010",
+  "fix/grove-phone-history-order-20261010",
+  "fix/grove-global-correction-restart-20261010",
+  "fix/grove-restart-history-order-20261010",
+  "fix/grove-replay-runtime-capture-20261010",
+  "fix/one-arbor-exact-grove-continuity-20261009",
 ]);
 const isolatedProject = process.env.VERCEL_PROJECT_ID === "prj_bliWIoBwJ053cXPIBB9uJzpW4PK6";
 const isolatedPreview =

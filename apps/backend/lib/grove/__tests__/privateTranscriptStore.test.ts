@@ -168,6 +168,49 @@ describe("Grove-only private conversation durability (fixtures, migration OFF)",
     expect(data.records.size).toBe(2);
   });
 
+  it("a replay of an older saved turn never rewinds the latest runtime capture", async () => {
+    const data = fakeStore();
+    await host(data.store).respond("First saved turn", firstId);
+    await host(data.store).respond("Newer saved turn", secondId);
+    let latestCaptured = "Newer saved turn";
+    const reopened = host(data.store);
+    const prepared = await reopened.prepare("First saved turn", firstId);
+    const capture = vi.fn(async () => { latestCaptured = "First saved turn"; });
+    prepared.captureRuntimeTurn = capture;
+    const result = await respondToVerifiedPrivateGroveTurn({
+      prepared, features: flags,
+    });
+    expect(result).toMatchObject({ status: "responded", persisted: true, replayed: true });
+    expect(reopened.sendModel).not.toHaveBeenCalled();
+    expect(capture).not.toHaveBeenCalled();
+    expect(latestCaptured).toBe("Newer saved turn");
+    expect(data.records.size).toBe(2);
+  });
+
+  it("a completion resolved as an existing row cannot recapture an older turn", async () => {
+    const data = fakeStore();
+    const racedStore: GrovePrivateTranscriptStore = {
+      ...data.store,
+      persistCompleted: async input => {
+        const result = await data.store.persistCompleted(input);
+        // Simulate another worker winning the durable completion race.
+        return { ...result, created: false };
+      },
+    };
+    const h = host(racedStore);
+    const prepared = await h.prepare("Already committed elsewhere", firstId);
+    const capture = vi.fn(async () => {});
+    prepared.captureRuntimeTurn = capture;
+    const response = await respondToVerifiedPrivateGroveTurn({
+      prepared, features: flags, dependencies: {sendModel: h.sendModel as never},
+    });
+    expect(response).toMatchObject({
+      status: "responded", persisted: true, replayed: true,
+    });
+    expect(capture).not.toHaveBeenCalled();
+    expect(data.records.size).toBe(1);
+  });
+
   it("recovers canonical ARK goal and correction on restart, not from chat prose", async () => {
     const data = fakeStore();
     const initial = host(data.store);
@@ -204,6 +247,7 @@ describe("Grove-only private conversation durability (fixtures, migration OFF)",
       supabase: { private: "firefly" },
       authenticatedUserId: ownerId,
       projectId, conversationId, mode: "text", latestUserText: "What remains?",
+      requireExactConversation: true,
     });
     expect(restarted.sendModel).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -540,6 +584,43 @@ describe("Grove-only private conversation durability (fixtures, migration OFF)",
     expect(data.records.size).toBe(0);
   });
 
+  it("preserves a committed turn after separate runtime capture failure and replays without a second model call", async () => {
+    const data = fakeStore();
+    const h = host(data.store);
+    const prepared = await h.prepare("Keep this turn after restart", firstId);
+    const failedCapture = vi.fn(async () => {
+      throw new Error("exact_runtime_save_failed");
+    });
+    prepared.captureRuntimeTurn = failedCapture;
+    await expect(respondToVerifiedPrivateGroveTurn({
+      prepared, features: flags,
+      dependencies: {sendModel: h.sendModel as never},
+    })).rejects.toThrow("exact_runtime_save_failed");
+    expect(data.records.size).toBe(1);
+    expect(h.sendModel).toHaveBeenCalledTimes(1);
+    expect(failedCapture).toHaveBeenCalledTimes(1);
+
+    const reopened = host(data.store);
+    const retry = await reopened.respond("Keep this turn after restart", firstId);
+    expect(retry).toMatchObject({
+      status: "responded", persisted: true, replayed: true,
+      requestId: firstId, grantsExecution: false, verifiesCompletion: false,
+    });
+    expect(reopened.sendModel).not.toHaveBeenCalled();
+
+    const later = host(data.store);
+    await expect(later.respond("Continue from the saved turn", secondId))
+      .resolves.toMatchObject({status: "responded", persisted: true, replayed: false});
+    expect(later.sendModel).toHaveBeenCalledWith(
+      expect.objectContaining({messages: [
+        {role: "user", content: "Keep this turn after restart"},
+        {role: "assistant", content: "Arbor answer"},
+        {role: "user", content: "Continue from the saved turn"},
+      ]}),
+    );
+    expect(data.records.size).toBe(2);
+  });
+
   it("never returns persistence success if the Grove write fails", async () => {
     const data = fakeStore();
     const failed: GrovePrivateTranscriptStore = {
@@ -553,6 +634,24 @@ describe("Grove-only private conversation durability (fixtures, migration OFF)",
       .rejects.toThrow("private_db_unavailable");
     expect(h.sendModel).toHaveBeenCalledTimes(1);
     expect(data.records.size).toBe(0);
+  });
+
+  it("never captures a runtime turn when the durable transcript commit fails", async () => {
+    const data = fakeStore();
+    const denied: GrovePrivateTranscriptStore = {
+      ...data.store,
+      persistCompleted: async () => { throw new Error("synthetic_commit_failed"); },
+    };
+    const h = host(denied);
+    const prepared = await h.prepare("Do not claim a partial save", firstId);
+    const capture = vi.fn(async () => {});
+    prepared.captureRuntimeTurn = capture;
+    await expect(respondToVerifiedPrivateGroveTurn({
+      prepared, features: flags, dependencies: {sendModel: h.sendModel as never},
+    })).rejects.toThrow("synthetic_commit_failed");
+    expect(capture).not.toHaveBeenCalled();
+    expect(data.records.size).toBe(0);
+    expect(h.sendModel).toHaveBeenCalledTimes(1);
   });
 
   it("cross-conversation rows are NOT model history and a bad scope fails", async () => {
@@ -583,6 +682,58 @@ describe("Grove-only private conversation durability (fixtures, migration OFF)",
       completedNewestFirst:null as never,
       scope, userText:"Continue",
     })).toThrow("grove_transcript_history_limit");
+  });
+
+  it("keeps correctly ordered distinct-time restart history chronological", () => {
+    const old = {...row({requestId:firstId,userText:"First saved question",
+      assistantText:"First saved answer"}),created_at:"2026-10-09T12:00:00.000Z"};
+    const newer = {...row({requestId:secondId,userText:"Second saved question",
+      assistantText:"Second saved answer"}),created_at:"2026-10-09T13:00:00.000Z"};
+    expect(selectPrivateModelHistory({completedNewestFirst:[newer,old],
+      scope,userText:"Third saved question"})).toEqual([
+        {role:"user",content:"First saved question"},
+        {role:"assistant",content:"First saved answer"},
+        {role:"user",content:"Second saved question"},
+        {role:"assistant",content:"Second saved answer"},
+        {role:"user",content:"Third saved question"},
+      ]);
+  });
+
+  it("rejects inverted restarted transcript history before a model call", async () => {
+    const data=fakeStore();
+    await host(data.store).respond("First saved question",firstId);
+    await host(data.store).respond("Second saved question",secondId);
+    const inverted: GrovePrivateTranscriptStore={
+      ...data.store,
+      async listRecent(s) {
+        const records=await data.store.listRecent(s);
+        return records.map(saved=>({
+          ...saved,created_at:saved.request_id===firstId
+            ? "2026-10-09T12:00:00.000Z"
+            : "2026-10-09T13:00:00.000Z",
+        })).reverse();
+      },
+    };
+    const reopened=host(inverted);
+    await expect(reopened.respond("Third saved question",
+      "00000000-0000-4000-8000-000000000012"))
+      .rejects.toThrow("grove_transcript_history_out_of_order");
+    expect(reopened.sendModel).not.toHaveBeenCalled();
+    expect(data.records.size).toBe(2);
+  });
+
+  it("validates every scoped saved row even past the LM budget cutoff", () => {
+    const first = row({requestId:firstId,userText:"u".repeat(3000),
+      assistantText:"a".repeat(3000)});
+    const second = row({requestId:secondId,userText:"u".repeat(3000),
+      assistantText:"a".repeat(3000)});
+    const foreign = {...row({
+      requestId:"00000000-0000-4000-8000-000000000013",
+      userText:"Should never be trusted",assistantText:"Foreign answer",
+    }),grove_user_id:"00000000-0000-4000-8000-000000000099"};
+    expect(() => selectPrivateModelHistory({
+      completedNewestFirst:[first,second,foreign],scope,userText:"Next",
+    })).toThrow("grove_transcript_scope_invalid");
   });
 
   it("honors strict LM receiver 13-message and 12,000-char limits", () => {

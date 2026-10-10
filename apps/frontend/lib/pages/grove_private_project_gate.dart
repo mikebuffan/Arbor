@@ -21,9 +21,10 @@ List<String> parseGroveGrantedProjectIds(Map<String, dynamic>? payload) {
       r'^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$';
   final uuid = RegExp(uuidPattern, caseSensitive: false);
   final projects = <String>[];
+  final normalized = <String>{};
   for (final entry in raw) {
     if (entry is! String || !uuid.hasMatch(entry) ||
-        projects.contains(entry)) {
+        !normalized.add(entry.toLowerCase())) {
       throw const FormatException('Invalid private Grove project grant');
     }
     projects.add(entry);
@@ -57,7 +58,8 @@ class GrovePrivateProjectGate extends StatefulWidget {
       _GrovePrivateProjectGateState();
 }
 
-class _GrovePrivateProjectGateState extends State<GrovePrivateProjectGate> {
+class _GrovePrivateProjectGateState extends State<GrovePrivateProjectGate>
+    with WidgetsBindingObserver {
   List<String> _projects = const [];
   bool _busy = true;
   bool _approved = false;
@@ -69,7 +71,18 @@ class _GrovePrivateProjectGateState extends State<GrovePrivateProjectGate> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     unawaited(_load());
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Revocations can happen while the private house is backgrounded.
+    // Unmount the last authorized room while we re-read current grants;
+    // no previous approval may survive an unverified foreground session.
+    if (state == AppLifecycleState.resumed && mounted) {
+      unawaited(_load());
+    }
   }
 
   Future<List<String>> _discover() async {
@@ -188,6 +201,7 @@ class _GrovePrivateProjectGateState extends State<GrovePrivateProjectGate> {
   @override
   void dispose() {
     ++_generation;
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 

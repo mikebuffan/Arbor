@@ -76,6 +76,8 @@ export async function readArkLayerContext(input: {
   authenticatedUserId: string;
   projectId: string;
   conversationId?: string | null;
+  /** Private Grove requires exact conversation state, never project fallback. */
+  requireExactConversation?: boolean;
   /** Only on explicit file selection; omitted for ordinary conversation reads. */
   selectedAttachment?: { conversationId: string; attachmentId: string } | null;
   mode: ArborInteractionMode;
@@ -88,6 +90,9 @@ export async function readArkLayerContext(input: {
   // An explicitly selected file must belong to the CURRENT requested
   // conversation, not merely another conversation under the same project.
   // Reject a missing/mismatching conversation before any scoped DB read.
+  if (input.requireExactConversation && !input.conversationId) {
+    throw new RouteAccessError(404, "ark_layer_exact_conversation_required");
+  }
   if (input.selectedAttachment &&
       (!input.conversationId ||
        input.selectedAttachment.conversationId !== input.conversationId)) {
@@ -118,6 +123,7 @@ export async function readArkLayerContext(input: {
           userId,
           projectId,
           conversationId: input.conversationId,
+          ...(input.requireExactConversation ? { exactOnly: true } : {}),
         })
       : loadLatestRuntimeState({ supabase, userId, projectId }),
     input.selectedAttachment
@@ -138,7 +144,8 @@ export async function readArkLayerContext(input: {
   // mis-scoped persisted JSON state simply because it came from a scoped row.
   if (
     storedState &&
-    (storedState.userId !== userId || storedState.projectId !== projectId)
+    (storedState.userId !== userId || storedState.projectId !== projectId ||
+      (input.requireExactConversation && storedState.conversationId !== input.conversationId))
   ) throw new Error("ark_layer_continuity_scope_mismatch");
 
   const state = storedState

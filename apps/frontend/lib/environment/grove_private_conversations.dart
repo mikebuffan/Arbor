@@ -77,7 +77,7 @@ GrovePrivateConversationChoices parseGrovePrivateConversations(
   for (final item in list) {
     final row = _object(item);
     final id = row['conversationId'];
-    if (id is! String || !_validId(id) || !seen.add(id)) {
+    if (id is! String || !_validId(id) || !seen.add(id.toLowerCase())) {
       throw const FormatException('Invalid or duplicate Grove conversation');
     }
     choices.add(GrovePrivateConversationChoice(
@@ -176,23 +176,31 @@ GrovePrivateHistory parseGrovePrivateHistory(
   }
   final ids = <String>{};
   final turns = <GrovePrivateCompleteTurn>[];
+  DateTime? previousCreatedAt;
   for (final entry in raw) {
     final row = _object(entry);
     final id = row['requestId'];
     final user = row['userText'];
     final assistant = row['assistantText'];
-    if (id is! String || !_validId(id) || !ids.add(id) ||
+    if (id is! String || !_validId(id) || !ids.add(id.toLowerCase()) ||
         user is! String || user.trim().isEmpty || user.length > 3000 ||
         assistant is! String || assistant.trim().isEmpty ||
         assistant.length > 20000 || !_verification(row['replyVerification'])) {
       throw const FormatException('Invalid private Grove turn');
     }
+    final createdAt = _date(row['createdAt']);
+    // The phone displays and recovers the host's newest-first window.
+    // Don't trust a label if the actual scoped timestamps contradict it.
+    if (previousCreatedAt != null && createdAt.isAfter(previousCreatedAt)) {
+      throw const FormatException('Private Grove history out of order');
+    }
+    previousCreatedAt = createdAt;
     turns.add(GrovePrivateCompleteTurn(
       requestId: id,
       userText: user,
       assistantText: assistant,
       replyVerification: row['replyVerification'] as String,
-      createdAt: _date(row['createdAt']),
+      createdAt: createdAt,
     ));
   }
   return GrovePrivateHistory(
