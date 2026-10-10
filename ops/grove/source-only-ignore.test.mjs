@@ -137,3 +137,13 @@ test("B15 causal ancestry draft remains source-only in all stages", () => {
     }
   }
 });
+
+
+test("new #440 receipt-review branch stays source-only on every project and stage", () => {
+  const ref = "review/one-arbor-440-receipt-refresh-20261010";
+  for (const stage of ["preview", "production", "development", ""]) {
+    for (const projectId of [project, "prj_JArYlugmdFovY10CxZ0LEJmcrsKC", ""]) {
+      assert.equal(exitCode({ VERCEL_ENV: stage, VERCEL_PROJECT_ID: projectId, VERCEL_GIT_COMMIT_REF: ref }), 0);
+    }
+  }
+});

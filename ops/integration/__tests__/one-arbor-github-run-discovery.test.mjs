@@ -32,9 +32,9 @@ test("reviewed task bindings retain exact original IDs and source gates",()=>{
   assert.deepEqual(source.taskIds,["A09"]);
 });
 test("new reviewed source bindings require entire correct source-workflow gate",()=>{
-  assert.equal(validateRunBindings(view,reviewedDoc).length,6);
-  assert.deepEqual(reviewedDoc.bindings.slice(3).map(x=>x.taskIds),[["B15"],["D12"],["D09"]]);
-  assert.deepEqual(reviewedDoc.bindings.slice(3).map(x=>x.job),
+  assert.equal(validateRunBindings(view,reviewedDoc).length,7);
+  assert.deepEqual(reviewedDoc.bindings.slice(3,6).map(x=>x.taskIds),[["B15"],["D12"],["D09"]]);
+  assert.deepEqual(reviewedDoc.bindings.slice(3,6).map(x=>x.job),
     ["identity-security","verification-source","verification-source"]);
   for(const mutate of [
     x=>{x.bindings[5].requiredSteps=x.bindings[5].requiredSteps.filter(s=>s!=="Enforce source-only Vercel branches");},
@@ -47,10 +47,10 @@ test("new reviewed source bindings require entire correct source-workflow gate",
   }
 });
 
-test("all six source-only exact-head receipts flag new downstream reviews, never execution",async()=>{
+test("all seven source-only exact-head bindings flag new downstream reviews, never execution",async()=>{
   const confirmedRuns=[
     38026869361,38028889757,38029454170,
-    38031249508,38038583653,38040681076,
+    38031249508,38038583653,38040681076,38058129302,
   ];
   const rows=reviewedDoc.bindings.map((binding,index)=>({
     binding,id:confirmedRuns[index],
@@ -80,9 +80,10 @@ test("all six source-only exact-head receipts flag new downstream reviews, never
     throw Error("unknown_github_path");
   };
   const result=await discoverVerifiedUnlockReviews(view,reviewedDoc,read);
-  assert.equal(result.checkedBindings,6);
-  assert.equal(result.verifiedReceiptEvents,7);
+  assert.equal(result.checkedBindings,7);
+  assert.equal(result.verifiedReceiptEvents,9);
   assert.deepEqual(result.notYetVerified,[]);
+  assert.deepEqual(reviewedDoc.bindings.at(-1).taskIds,["B11","C08"]);
   assert.deepEqual(result.review.flaggedTasks.map(x=>x.taskId),[
     "A04","F09","B11","C06","C08","C10","B15","B16",
     "C04","D05","D09","D10","D11","D12","D13","E07","E09","C09",
