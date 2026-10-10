@@ -111,6 +111,27 @@ export function projectDecisionAncestry(input: {
     Date.parse(a.occurredAt) - Date.parse(b.occurredAt) ||
     a.id.localeCompare(b.id)
   );
+  // A caller-supplied link is not proof of chronological causality.
+  // Missing predecessors remain visible as missing evidence, but a known
+  // predecessor cannot occur after its purported replacement. Likewise a
+  // cycle cannot be treated as settled decision history.
+  const byEventId = new Map(events.map(event => [event.id, event]));
+  for (const event of events) {
+    if (!event.supersedesEventId) continue;
+    const predecessor = byEventId.get(event.supersedesEventId);
+    if (!predecessor) continue;
+    if (Date.parse(event.occurredAt) < Date.parse(predecessor.occurredAt))
+      throw new Error("decision_ancestry_invalid_causal_link");
+
+    const visited = new Set<string>([event.id]);
+    let parentId: string | undefined = event.supersedesEventId;
+    while (parentId && byEventId.has(parentId)) {
+      if (visited.has(parentId))
+        throw new Error("decision_ancestry_invalid_causal_link");
+      visited.add(parentId);
+      parentId = byEventId.get(parentId)?.supersedesEventId;
+    }
+  }
   const ids = new Set(events.map(event => event.id));
   const superseded = new Set(events
     .map(event => event.supersedesEventId)

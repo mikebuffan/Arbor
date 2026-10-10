@@ -98,6 +98,46 @@ describe("bounded read-only Decision Ancestry projection", () => {
     expect(view.warnings).toContain("correction_requires_review");
   });
 
+  it("rejects a backdated correction that claims to supersede a later decision", () => {
+    const choice = event("choice-new", "choice", {
+      occurredAt: "2026-10-09T12:00:00.000Z",
+    });
+    const backdated = event("correction-old", "correction", {
+      occurredAt: "2026-10-09T11:00:00.000Z",
+      supersedesEventId: choice.id,
+    });
+    // No later correction should erase a decision using an earlier event time.
+    // The host must correct/review the chronology instead of inventing ancestry.
+    expect(() => project([backdated, choice]))
+      .toThrow("decision_ancestry_invalid_causal_link");
+  });
+
+  it("rejects causal cycles rather than silently treating every choice as superseded", () => {
+    const first = event("first", "choice", {
+      occurredAt: "2026-10-09T12:00:00.000Z",
+      supersedesEventId: "second",
+    });
+    const second = event("second", "choice", {
+      occurredAt: "2026-10-09T12:00:00.000Z",
+      supersedesEventId: "first",
+    });
+    expect(() => project([first, second]))
+      .toThrow("decision_ancestry_invalid_causal_link");
+  });
+
+  it("accepts explicit equal-time links without inferring one from timestamp alone", () => {
+    const earlier = event("proposal", "proposal", {
+      occurredAt: "2026-10-09T12:00:00.000Z",
+    });
+    const chosen = event("choice", "choice", {
+      occurredAt: "2026-10-09T12:00:00.000Z",
+      supersedesEventId: earlier.id,
+    });
+    const projected = project([chosen, earlier]);
+    expect(projected.currentChoice?.id).toBe(chosen.id);
+    expect(projected.warnings).not.toContain("missing_predecessor");
+  });
+
   it("rejects an event that falsely supersedes itself", () => {
     expect(() => project([event("a", "choice", {
       supersedesEventId: "a",
