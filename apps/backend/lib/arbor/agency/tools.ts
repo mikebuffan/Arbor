@@ -24,6 +24,13 @@ export type AgencyTool = {
    */
   alternateRoutes?: string[];
 
+  /**
+   * Trusted registry assertion that this read or reversible action is
+   * independent of other operations requiring human approval. This flag is
+   * never a model-supplied argument and does not grant new tool authority.
+   */
+  mayRunBeforeProtectedBoundary?: boolean;
+
   execute(
     args: Record<string, unknown>,
     context: AgencyToolContext,
@@ -35,6 +42,14 @@ export class AgencyToolRegistry {
     new Map<string, AgencyTool>();
 
   register(tool: AgencyTool): this {
+    if (tool.mayRunBeforeProtectedBoundary !== undefined &&
+        typeof tool.mayRunBeforeProtectedBoundary !== "boolean") {
+      throw new Error("agency_tool_invalid_independent_flag");
+    }
+    if (tool.mayRunBeforeProtectedBoundary === true &&
+        toolNeedsUserBoundary(tool)) {
+      throw new Error("agency_protected_tool_cannot_run_early");
+    }
     if (this.tools.has(tool.name)) {
       throw new Error(
         `agency_tool_duplicate:${tool.name}`,
