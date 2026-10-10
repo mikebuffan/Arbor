@@ -40,7 +40,25 @@
         "Full backend regression",
         "Production backend build"
       ]
+    },
+    {
+      "branch": "fix/unlock-c08-correction-count-20261009",
+      "headSha": "813336586f3f37138921e9e2c6c1024cfe73c8bd",
+      "taskIds": [
+        "C08"
+      ],
+      "stage": "source_verified",
+      "workflow": "One Arbor verified boundary receipt and chat source acceptance",
+      "job": "identity-security",
+      "requiredSteps": [
+        "Verify 223 retained source fingerprints",
+        "Verify review branch can never trigger Vercel build",
+        "Verify identity issuer negative and positive controls",
+        "Type-check existing backend",
+        "Full backend regression",
+        "Production backend build"
+      ]
     }
   ],
-  "note": "Binding B11/E07 to exact source-tested chat receipt preservation does not prove authenticated hosted restart or complete either task."
+  "note": "Binding B11/E07 to exact source-tested chat receipt preservation does not prove authenticated hosted restart or complete either task. C08 binding identifies source-only malformed correction promotion guard verified at exact head 81333658; no live model or permanent write acceptance."
 }
