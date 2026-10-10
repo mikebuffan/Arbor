@@ -157,3 +157,12 @@ jobs:
         run: >-
           flutter test --reporter expanded
           test/grove_pending_turn_store_test.dart
+      - name: Verify combined Grove phone, local draft and private scope UI
+        run: >-
+          timeout 240s flutter test --reporter expanded --concurrency=1
+          test/grove_private_text_page_test.dart
+          test/grove_private_auth_boundary_test.dart
+          test/grove_private_project_gate_test.dart
+          test/grove_private_projects_truth_test.dart
+          test/grove_runtime_scope_test.dart
+          test/grove_talk_private_boundary_test.dart
