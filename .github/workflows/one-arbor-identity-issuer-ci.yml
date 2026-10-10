@@ -1,0 +1,44 @@
+name: One Arbor identity issuer source acceptance
+
+on:
+  push:
+    branches:
+      - fix/batch20-identity-issuer-gate-20261009
+
+permissions:
+  contents: read
+
+concurrency:
+  group: one-arbor-identity-issuer-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  identity-security:
+    if: github.repository == 'mikebuffan/Arbor'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      CI: 'true'
+      OPENAI_API_KEY: ci-placeholder-not-a-real-key
+      AWS_EC2_METADATA_DISABLED: 'true'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Resolve locked dependencies
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.30.3 --activate
+          pnpm install --frozen-lockfile
+      - name: Verify identity issuer negative and positive controls
+        working-directory: apps/backend
+        run: >-
+          pnpm exec vitest run
+          lib/arbor/security/__tests__/identityAssurance.test.ts
+          lib/arbor/security/__tests__/identityAssuranceExtensions.test.ts
+      - name: Type-check existing backend
+        working-directory: apps/backend
+        run: pnpm exec tsc --noEmit
