@@ -76,7 +76,7 @@ describe("paired offline host-outcome holdout evaluator", () => {
 
   it("rejects missing, swapped, reused or incorrectly labeled run provenance", () => {
     expect(() => evaluatePairedOutcomeHoldout({
-      ...base, beforeRun: undefined,
+      ...base, beforeRun: undefined as unknown as typeof base.beforeRun,
     })).toThrow("paired_holdout_run_metadata_required");
     expect(() => evaluatePairedOutcomeHoldout({
       ...base, afterRun: { ...base.afterRun, phase: "before" as "after" },
