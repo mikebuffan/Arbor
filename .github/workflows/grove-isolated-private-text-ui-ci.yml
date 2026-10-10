@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - fix/grove-private-refresh-revocation-20261009
+      - test/grove-group5-rooms-20261010
 
 permissions:
   contents: read
