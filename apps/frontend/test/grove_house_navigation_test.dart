@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/environment/arbor_environment_shell.dart';
 import 'package:frontend/environment/grove_house_room.dart';
+import 'package:frontend/environment/annabelle_kitchen_view.dart';
 
 void main() {
   testWidgets('narrow phone Grove pins provide readable touch targets',
@@ -150,6 +151,11 @@ void main() {
     await tester.ensureVisible(find.text('Back to the Grove'));
     await tester.pump(const Duration(milliseconds: 200));
     await tester.tap(find.text('Back to the Grove'));
+    await tester.pumpAndSettle();
+    // Deliberate confirmation, never a silent note loss.
+    expect(find.text('Leave Annabelle’s kitchen?'), findsOneWidget);
+    expect(find.text('unsaved scene note'), findsOneWidget);
+    await tester.tap(find.text('Leave without saving'));
     await tester.pump(const Duration(milliseconds: 300));
     await tester.ensureVisible(find.widgetWithText(OutlinedButton, 'Kitchen'));
     await tester.pump(const Duration(milliseconds: 200));
@@ -159,6 +165,58 @@ void main() {
     expect(find.text('unsaved scene note'), findsNothing);
     expect(tester.widget<TextField>(find.byType(TextField)).controller!.text,
         isEmpty);
+  });
+
+  testWidgets('Kitchen protects nonempty notes before Talk or Home navigation',
+      (tester) async {
+    var homeCalls = 0;
+    var talkCalls = 0;
+    await tester.pumpWidget(MaterialApp(home: Scaffold(
+      body: SingleChildScrollView(child: AnnabelleKitchenView(
+        onReturnHome: () => homeCalls++,
+        onOpenConversation: () => talkCalls++,
+      )),
+    )));
+    await tester.enterText(find.byType(TextField), 'Unsaved kitchen scene.');
+    FocusManager.instance.primaryFocus?.unfocus();
+    await tester.pump();
+    await tester.ensureVisible(find.text('Existing Talk (Arbor)'));
+    await tester.pump();
+    await tester.tap(find.text('Existing Talk (Arbor)'));
+    await tester.pumpAndSettle();
+    expect(find.text('Leave Annabelle’s kitchen?'), findsOneWidget);
+    expect(talkCalls, 0);
+    await tester.tap(find.text('Keep writing'));
+    await tester.pumpAndSettle();
+    expect(talkCalls, 0);
+    expect(tester.widget<TextField>(find.byType(TextField)).controller!.text,
+        'Unsaved kitchen scene.');
+
+    await tester.ensureVisible(find.text('Back to the Grove'));
+    await tester.pump();
+    await tester.tap(find.text('Back to the Grove'));
+    await tester.pumpAndSettle();
+    expect(homeCalls, 0);
+    await tester.tap(find.text('Leave without saving'));
+    await tester.pumpAndSettle();
+    expect(homeCalls, 1);
+    expect(talkCalls, 0);
+  });
+
+  testWidgets('Empty Kitchen scratchpad permits ordinary navigation',
+      (tester) async {
+    var homeCalls = 0;
+    await tester.pumpWidget(MaterialApp(home: Scaffold(
+      body: SingleChildScrollView(child: AnnabelleKitchenView(
+        onReturnHome: () => homeCalls++,
+        onOpenConversation: () {},
+      )),
+    )));
+    await tester.ensureVisible(find.text('Back to the Grove'));
+    await tester.tap(find.text('Back to the Grove'));
+    await tester.pump();
+    expect(find.text('Leave Annabelle’s kitchen?'), findsNothing);
+    expect(homeCalls, 1);
   });
 
   testWidgets('320px Grove painting pins each activate their own room action',
