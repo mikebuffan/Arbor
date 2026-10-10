@@ -2,6 +2,7 @@
 // One existing isolated test project may build this exact branch as Preview.
 // This exception grants no runtime credentials, database access or model budget.
 const branches = new Set([
+  "fix/grove-global-correction-restart-20261010",
   "fix/grove-restart-history-order-20261010",
   "fix/grove-replay-runtime-capture-20261010",
   "fix/one-arbor-exact-grove-continuity-20261009",
