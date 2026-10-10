@@ -10,6 +10,7 @@ on:
       - fix/independence-paired-outcome-evaluation-20261010
       - fix/independence-paired-protocol-parity-20261010
       - fix/independence-holdout-receipt-readback-20261010
+      - fix/d09-reviewed-outcome-20261010
 
 permissions:
   contents: read
