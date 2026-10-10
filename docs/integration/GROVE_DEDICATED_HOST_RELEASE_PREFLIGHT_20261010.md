@@ -10,7 +10,8 @@ This restores the previously reviewed no-cron Grove configuration contract from 
 - Dedicated Vercel project `grove-private-api` (`prj_nw2X0SyLn4e8CXWZ83MEs4jwn1JN`) exists; provider metadata reports `live=false` and SSO protection. Presence of the project is not proof of a configured private host.
 - `apps/backend/vercel.grove.json` has `crons: []` and the same existing no-build branch fence. This **alternate filename is not automatically selected by Vercel**.
 - `apps/backend/vercel.json` and repository-root `vercel.json` are untouched; both retain Firefly heartbeat schedules.
-- Existing `ops/grove/source-only-ignore.test.mjs` now verifies this distinction and the no-build protection for this review branch. All historical source fingerprints remain protected, with new proposal files separately pinned.
+- The existing shared ignore script additionally **refuses every build on the exact dedicated Grove Vercel project ID**, including `main` and unknown branches, until there is a separately reviewed owner-approved release. This is a source-only guard until the host's effective configuration actually uses it; it does not change Firefly/Preview build decisions.
+- Existing `ops/grove/source-only-ignore.test.mjs` verifies no-cron separation and both the combined review branch fence and dedicated-project fail-closed behavior. All historical source fingerprints remain protected, with new proposal files separately pinned.
 
 ## Before selecting this for any real dedicated deployment
 

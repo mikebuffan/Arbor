@@ -123,6 +123,11 @@ const branches = new Set([
   "fix/grove-replay-runtime-capture-20261010",
   "fix/one-arbor-exact-grove-continuity-20261009",
 ]);
+// The dedicated Grove host has no owner-approved release branch, private API
+// hostname, transcript migration or billed LM. Ignore *every* build for this
+// exact project until a separately reviewed release changes this gate.
+// Do not weaken the ordinary Firefly or isolated Preview build decisions.
+const dedicatedGroveProject = process.env.VERCEL_PROJECT_ID === "prj_nw2X0SyLn4e8CXWZ83MEs4jwn1JN";
 const isolatedProject = process.env.VERCEL_PROJECT_ID === "prj_bliWIoBwJ053cXPIBB9uJzpW4PK6";
 const isolatedPreview =
   process.env.VERCEL_ENV === "preview" &&
@@ -131,4 +136,6 @@ const isolatedPreview =
     "review/one-arbor-independence-budget-preflight-20261009";
 process.exitCode = isolatedProject
   ? (isolatedPreview ? 1 : 0)
-  : (branches.has(process.env.VERCEL_GIT_COMMIT_REF) ? 0 : 1);
+  : dedicatedGroveProject
+    ? 0 // No approved Grove release: fail closed for every branch/stage.
+    : (branches.has(process.env.VERCEL_GIT_COMMIT_REF) ? 0 : 1);

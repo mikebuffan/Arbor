@@ -280,3 +280,22 @@ test("dedicated Grove draft has no jobs; shared Firefly schedules remain", async
     }), 0, "source review must never build on the dedicated host");
   }
 });
+
+test("dedicated private Grove project cannot auto-build main or unlisted refs before release approval", () => {
+  const groveProject = "prj_nw2X0SyLn4e8CXWZ83MEs4jwn1JN";
+  for (const stage of ["preview", "production", "development", ""]) {
+    for (const ref of ["main", "production", "unlisted-feature", "",
+      "review/one-arbor-grove-440-441-compose-20261010"]) {
+      assert.equal(exitCode({
+        VERCEL_PROJECT_ID: groveProject,
+        VERCEL_ENV: stage, VERCEL_GIT_COMMIT_REF: ref,
+      }), 0, "unapproved private Grove build must be ignored");
+    }
+  }
+  // Existing shared Firefly builds remain unaffected by the Grove-specific lock.
+  for (const ref of ["main", "production", "unlisted-feature"]) {
+    assert.equal(exitCode({VERCEL_PROJECT_ID: "prj_JArYlugmdFovY10CxZ0LEJmcrsKC",
+      VERCEL_GIT_COMMIT_REF: ref}), 1);
+    assert.equal(exitCode({VERCEL_GIT_COMMIT_REF: ref}), 1);
+  }
+});
