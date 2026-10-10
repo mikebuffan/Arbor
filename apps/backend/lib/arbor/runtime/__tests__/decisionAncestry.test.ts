@@ -202,3 +202,14 @@ describe("bounded read-only Decision Ancestry projection", () => {
     expect(() => project(tooMany)).toThrow("decision_ancestry_invalid_input");
   });
 });
+
+
+describe("complete history reference validation", () => {
+  it.each([
+    { refs: new Array<string>(1) },
+    { refs: Object.assign(new Array<string>(2), { 0: "source" }) },
+  ])("rejects sparse outcome evidence instead of accepting missing refs", ({ refs }) => {
+    expect(() => project([event("outcome", "observed_outcome", { evidenceRefs: refs })]))
+      .toThrow("decision_ancestry_invalid_event");
+  });
+});

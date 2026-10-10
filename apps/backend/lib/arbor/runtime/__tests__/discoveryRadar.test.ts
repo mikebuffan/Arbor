@@ -168,3 +168,17 @@ describe("visited source-family progress", () => {
       .toThrow("discovery_radar_access_denied");
   });
 });
+
+
+describe("complete discovery scope and visited-list validation", () => {
+  it("rejects a missing project ID alongside the allowed project", () => {
+    const ids = Object.assign(new Array<string>(2), { 0: "arbor" });
+    expect(() => projectDiscoveryRadar(input([], { authorizedProjectIds: ids })))
+      .toThrow("discovery_radar_invalid_input");
+  });
+  it("rejects a missing visited ID alongside a real visited record", () => {
+    const ids = Object.assign(new Array<string>(2), { 0: "visited" });
+    expect(() => projectDiscoveryRadar(input([item("candidate")], { visitedEvidenceIds: ids })))
+      .toThrow("discovery_radar_invalid_visited_ids");
+  });
+});

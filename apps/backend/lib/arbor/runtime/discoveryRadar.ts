@@ -85,7 +85,7 @@ export function projectDiscoveryRadar(input: {
   requireScope(input.scope);
   if (!Array.isArray(input.candidates) || input.candidates.length > 32 ||
       !Array.isArray(input.authorizedProjectIds) || input.authorizedProjectIds.length > 20 ||
-      input.authorizedProjectIds.some(id => !good(id, 200)) ||
+      Array.from(input.authorizedProjectIds).some(id => !good(id, 200)) ||
       new Set(input.authorizedProjectIds).size !== input.authorizedProjectIds.length ||
       (input.crossProjectEnabled !== undefined && typeof input.crossProjectEnabled !== "boolean") ||
       !Array.isArray(input.visitedEvidenceIds ?? []))
@@ -95,7 +95,7 @@ export function projectDiscoveryRadar(input: {
   // them before handing the set to the existing Pattern Hop engine.
   const visitedIds = input.visitedEvidenceIds ?? [];
   if (visitedIds.length > 128 ||
-      visitedIds.some(id => !good(id, 200)) ||
+      Array.from(visitedIds).some(id => !good(id, 200)) ||
       new Set(visitedIds).size !== visitedIds.length)
     throw new Error("discovery_radar_invalid_visited_ids");
 
