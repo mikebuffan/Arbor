@@ -102,7 +102,8 @@ export interface CounterfactualOption {
 
 export function rankCounterfactuals(options: CounterfactualOption[]): CounterfactualOption[] {
   return [...options]
-    .filter((o) => !o.blocked)
+    .filter((o) => !o.blocked && Number.isFinite(o.expectedUtility) &&
+      Number.isFinite(o.evidenceConfidence))
     .sort((a, b) => {
       const aScore = a.expectedUtility * clamp(a.evidenceConfidence) + (a.reversible ? 0.05 : 0);
       const bScore = b.expectedUtility * clamp(b.evidenceConfidence) + (b.reversible ? 0.05 : 0);

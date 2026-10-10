@@ -98,3 +98,9 @@ describe("Glow vs Noise sourced decisions", () => {
     expect(options).toEqual(prior);
   });
 });
+
+it.each([{ evidenceRefs: new Array<string>(1) }, { evidenceRefs: Object.assign(new Array<string>(2), { 0: "source" }) }])(
+  "rejects sparse evidence arrays instead of ranking an unsourced priority", ({ evidenceRefs }) => {
+    expect(() => view([option("sparse", { evidenceRefs })])).toThrow("glow_noise_option_invalid");
+  },
+);

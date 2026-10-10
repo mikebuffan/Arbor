@@ -74,7 +74,7 @@ export function projectGlowNoise(input: {
         !bounded(item.expectedUtility) || !bounded(item.evidenceConfidence) ||
         typeof item.reversible !== "boolean" || typeof item.blocked !== "boolean" ||
         !Array.isArray(item.evidenceRefs) || item.evidenceRefs.length > 10 ||
-        item.evidenceRefs.some((ref: string) => !nonempty(ref)))
+        Array.from(item.evidenceRefs).some((ref) => !nonempty(ref)))
       throw Error("glow_noise_option_invalid");
     if (seen.has(item.id)) throw Error("glow_noise_duplicate_option");
     seen.add(item.id);

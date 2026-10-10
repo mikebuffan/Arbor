@@ -98,3 +98,21 @@ describe("persistent cognitive runtime", () => {
     expect(rendered).toContain("do not replace current Arbor identity");
   });
 });
+
+it("filters nonfinite choices at the actual cognitive runtime boundary", () => {
+  const good = { id: "grounded", expectedUtility: 0.4, evidenceConfidence: 0.8, reversible: true };
+  const counterfactuals = [{ ...good, id: "invalid", expectedUtility: Infinity }, good];
+  const state = updateCognitiveRuntime({ counterfactuals, now: Date.parse("2026-10-10T03:00:00Z") });
+  expect(state.counterfactuals).toEqual([good]);
+  expect(counterfactuals).toHaveLength(2);
+});
+
+it("revalidates restored counterfactual choices before displaying their rank", () => {
+  const now = Date.parse("2026-10-10T03:00:00Z");
+  const good = { id: "grounded", expectedUtility: 0.4, evidenceConfidence: 0.8, reversible: true };
+  const prior = { ...emptyCognitiveRuntimeState(now), counterfactuals: [
+    { ...good, id: "corrupt", expectedUtility: NaN }, { ...good, id: "blocked", blocked: true }, good] };
+  const state = updateCognitiveRuntime({ prior, now });
+  expect(state.counterfactuals).toEqual([good]);
+  expect(prior.counterfactuals).toHaveLength(3);
+});

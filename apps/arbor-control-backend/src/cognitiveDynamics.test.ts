@@ -109,3 +109,14 @@ describe("bridge temporal lifecycle", () => {
       .not.toContain("future");
   });
 });
+
+it.each([
+  { field: "expectedUtility", value: NaN }, { field: "expectedUtility", value: Infinity },
+  { field: "expectedUtility", value: -Infinity }, { field: "evidenceConfidence", value: NaN },
+  { field: "evidenceConfidence", value: Infinity }, { field: "evidenceConfidence", value: -Infinity },
+])("excludes malformed counterfactual $field=$value from ranking", ({field, value}) => {
+  const good = { id: "grounded", expectedUtility: 0.4, evidenceConfidence: 0.8, reversible: true };
+  const bad = { ...good, id: "unsupported", [field]: value };
+  expect(rankCounterfactuals([bad, good]).map(x => x.id)).toEqual(["grounded"]);
+  expect(rankCounterfactuals([bad])).toEqual([]);
+});
