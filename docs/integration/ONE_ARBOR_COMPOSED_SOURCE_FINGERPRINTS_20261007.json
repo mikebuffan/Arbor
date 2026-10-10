@@ -208,7 +208,7 @@
     "apps/backend/lib/arbor/agency/__tests__/independentFollowthrough.test.ts": "40819299fda78d94d6beb5a5d3bc9513ef759261",
     "docs/integration/ONE_ARBOR_INDEPENDENT_FOLLOWTHROUGH_20261009.md": "198049067b47837f3726a5a64da5f3898760aeb2",
     "apps/backend/lib/arbor/agency/engine.ts": "c3b58c8517302c26356c6a36ff8d4e5b29a3c447",
-    "apps/backend/lib/arbor/agency/backlogContinuation.ts": "9d1c42cd589f134b0b3cf4b0e0325f61df10f704",
+    "apps/backend/lib/arbor/agency/backlogContinuation.ts": "8eba07628f0f12169e1676e01a89c276215cb82c",
     "apps/backend/lib/arbor/agency/__tests__/engineResume.test.ts": "65ee00d87d4b25f2837470d25ad32c6540340480",
     "apps/backend/lib/arbor/agency/__tests__/backlogContinuation.test.ts": "623912ecb0a60d79839487fda9c3d9b7c1fa76b1",
     "docs/integration/ONE_ARBOR_INDEPENDENCE_RESUME_PRIORITY_20261009.md": "bbf4b64230910a113f44b7b22bd658799e2bac6b",
