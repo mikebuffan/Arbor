@@ -17,6 +17,7 @@ on:
       - fix/grove-global-correction-restart-20261010
       - fix/grove-phone-history-order-20261010
       - review/grove-fullstack-source-compose-20261010
+      - fix/annabelle-sexual-felt-life-sequence-20261010
 
 permissions:
   contents: read
@@ -74,6 +75,16 @@ jobs:
           lib/grove/__tests__/privateTranscriptStore.test.ts
           lib/grove/__tests__/arkSpineContinuity.test.ts
           lib/arbor/host/__tests__/oneArborAcceptance.test.ts
+      - name: Verify existing Annabelle intimacy mechanics and book integration
+        working-directory: apps/backend
+        run: >-
+          pnpm exec vitest run
+          lib/arbor/annabelle/__tests__/intimacyMechanics.test.ts
+          lib/arbor/annabelle/__tests__/embodiedMechanics.test.ts
+          lib/arbor/annabelle/__tests__/bookRegressionSuite.test.ts
+          lib/arbor/annabelle/__tests__/bookRegressionIntegration.test.ts
+          lib/arbor/annabelle/__tests__/goldProtection.test.ts
+
       - name: Type-check existing backend
         working-directory: apps/backend
         run: pnpm exec tsc --noEmit
