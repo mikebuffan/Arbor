@@ -977,7 +977,7 @@ describe("Grove owner deletion requires independent durable custody", () => {
     // custody, and a Grove service role is NOT an external recovery ledger.
     vi.stubEnv("GROVE_EXTERNAL_DELETE_CUSTODY_READY", "true");
     await expect(deletePrivateGroveConversation(req(), projectId, conversationId))
-      .rejects.toMatchObject({status: 503, code: "grove_private_delete_custody_unavailable"});
+      .rejects.toMatchObject({status: 500, code: "grove_private_delete_custody_unavailable"});
     expect(mocks.assertConversationOwnedByUser).toHaveBeenCalled();
     expect(mocks.fromCalls).toContain("grove_private_conversation_tombstones");
     // The mocked service clients do not implement .rpc(). If the deletion
