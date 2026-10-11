@@ -146,3 +146,52 @@ jobs:
             --file /source/ops/grove/disposable-db/private-conversation-backup-replay-acceptance.sql
       - name: Assert fixtures did not rewrite source
         run: git diff --exit-code
+
+
+  grove-android-synthetic:
+    name: Grove Android debug compilation (offline, no artifact publication)
+    if: github.repository == 'mikebuffan/Arbor' && github.ref == 'refs/heads/test/grove-private-talk-readiness-20261011'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    env:
+      CI: 'true'
+      FLUTTER_SUPPRESS_ANALYTICS: 'true'
+      DART_SUPPRESS_ANALYTICS: 'true'
+      AWS_EC2_METADATA_DISABLED: 'true'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.47.6'
+          cache: true
+      - name: Keep private Grove source branch excluded from Vercel
+        run: |
+          VERCEL_GIT_COMMIT_REF=test/grove-private-talk-readiness-20261011 VERCEL_ENV=production node ops/grove/source-only-ignore.mjs
+      - name: Resolve existing locked Flutter packages
+        working-directory: apps/frontend
+        run: flutter pub get --enforce-lockfile
+      - name: Assert dependency lockfile unchanged
+        run: git diff --exit-code -- apps/frontend/pubspec.lock
+      - name: Compile unconfigured Grove debug APK only; private Talk OFF
+        working-directory: apps/frontend
+        run: >-
+          timeout 900s flutter build apk --debug --flavor grove
+          --dart-define=GROVE_STANDALONE=true
+          --dart-define=GROVE_PRIVATE_TALK_PREVIEW=false
+          --dart-define=GROVE_PRIVATE_NEW_CONVERSATION_PREVIEW=false
+      - name: Validate local binary and leave it unpublished
+        working-directory: apps/frontend
+        run: |
+          set -euo pipefail
+          test -s build/app/outputs/flutter-apk/app-grove-debug.apk
+          unzip -t -q build/app/outputs/flutter-apk/app-grove-debug.apk
+          echo "GROVE_SYNTHETIC_DEBUG_APK_SOURCE_COMPILE=PASS; OWNER_INSTALL=HOLD; PRIVATE_TALK=OFF"
