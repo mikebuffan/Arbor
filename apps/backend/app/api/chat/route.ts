@@ -12,6 +12,7 @@ import {
   routeErrorResponse,
 } from "@/lib/auth/routeAuthorization";
 import { buildPromptContext } from "@/lib/prompt/buildPromptContext";
+import { classifyConversationWorkControl, hasLiveAgencyGoal, isStandaloneContinuationCue } from "@/lib/arbor/continuity/longitudinalPolicy";
 import { runOpenAIAgencyAgent } from "@/lib/arbor/agency/openaiAgent";
 import { buildArborAgencyTools } from "@/lib/arbor/agency/arborTools";
 import {
@@ -23,6 +24,8 @@ import { arkAgencyPlanId } from "@/lib/ark/agencyPlanId";
 import { toolNeedsUserBoundary } from "@/lib/arbor/agency/tools";
 import {
   beginAgencySession,
+  readPriorAgencySession,
+  holdAgencyForConversationControl,
   blockAgencySession,
   checkpointAgencySession,
   completeAgencySession,
@@ -55,6 +58,7 @@ import {
   claimUserTurn,
   createSupabaseChatTurnStore,
   finalizeAndPersistAssistantTurn,
+  persistFinalAssistantTurn,
   getCompletedAssistantTurn,
   resolveConversationForTurn,
 } from "@/lib/chat/turnPersistence";
@@ -236,6 +240,88 @@ export async function POST(req: Request) {
       userText,
     });
 
+    const completedTurn = await getCompletedAssistantTurn({
+      store: turnStore,
+      messageId: resolvedTurn.ids.assistantMessageId,
+      userId,
+      projectId,
+      conversationId: convoId,
+    });
+    if (completedTurn) {
+      schedulePendingBehaviorCorrectionRecovery({ supabase, userId });
+      return NextResponse.json(
+        buildChatSuccessResponse({
+          projectId,
+          conversationId: convoId,
+          assistantText: completedTurn.content,
+        }),
+        { status: 200, headers: getCorsHeaders(req) },
+      );
+    }
+
+
+    // Fail closed on conversational STOP/pause/refusal. This check runs after
+    // idempotent completed-turn readback but before creating/resuming any goal.
+    // A targetless "cancel it" only holds and asks; never cancel an ARK task.
+    const conversationControl = classifyConversationWorkControl(userText);
+    if (conversationControl) {
+      await holdAgencyForConversationControl({ supabase, userId, projectId });
+      const replyText = conversationControl === "pause"
+        ? "I've paused further conversational work. An external action already running may require its own STOP; no durable ARK objective was canceled."
+        : conversationControl === "cancel_target"
+          ? "I've held further conversational work. Which specific task should be canceled? I haven't canceled a durable ARK objective or stopped any already-running external action."
+          : conversationControl === "clarify"
+            ? "I'm holding further work so I don't act on the wrong item. Which one did you mean?"
+            : "Understood. I won't treat that as permission to continue.";
+
+      // Safe fixed control acknowledgement; no inference or paid safety call.
+      const controlReply = await persistFinalAssistantTurn({
+        store: turnStore,
+        messageId: resolvedTurn.ids.assistantMessageId,
+        userId,
+        projectId,
+        conversationId: convoId,
+        episodeId,
+        assistantText: replyText,
+      });
+      return NextResponse.json(
+        buildChatSuccessResponse({
+          projectId,
+          conversationId: convoId,
+          assistantText: controlReply.record.content,
+        }),
+        { status: 200, headers: getCorsHeaders(req) },
+      );
+    }
+
+    // GO/NEXT requires an actual unfinished goal, not just a conversational
+    // shorthand token. Owner-scoped state is read without creating a task.
+    if (isStandaloneContinuationCue(userText)) {
+      const priorAgency = await readPriorAgencySession({
+        supabase, userId, projectId, conversationId: convoId,
+      });
+      if (!hasLiveAgencyGoal(priorAgency)) {
+        const reply = await persistFinalAssistantTurn({
+          store: turnStore,
+          messageId: resolvedTurn.ids.assistantMessageId,
+          userId,
+          projectId,
+          conversationId: convoId,
+          episodeId,
+          assistantText: "I don't have an unfinished task to resume. What would you like me to work on?",
+        });
+        return NextResponse.json(
+          buildChatSuccessResponse({
+            projectId,
+            conversationId: convoId,
+            assistantText: reply.record.content,
+          }),
+          { status: 200, headers: getCorsHeaders(req) },
+        );
+      }
+    }
+
+    // A conversational pause/refusal must bypass routine memory processing.
     // Arbor v1 automatic-learning signal ingest. This is deliberately
     // best-effort: memory learning may fail without taking chat down.
     await ingestMemorySignals({
@@ -255,24 +341,6 @@ export async function POST(req: Request) {
       });
     });
 
-    const completedTurn = await getCompletedAssistantTurn({
-      store: turnStore,
-      messageId: resolvedTurn.ids.assistantMessageId,
-      userId,
-      projectId,
-      conversationId: convoId,
-    });
-    if (completedTurn) {
-      schedulePendingBehaviorCorrectionRecovery({ supabase, userId });
-      return NextResponse.json(
-        buildChatSuccessResponse({
-          projectId,
-          conversationId: convoId,
-          assistantText: completedTurn.content,
-        }),
-        { status: 200, headers: getCorsHeaders(req) },
-      );
-    }
 
     let agencyState = await beginAgencySession({
       supabase,

@@ -45,6 +45,44 @@ const STOPWORDS = new Set([
   "which","with","would","your",
 ]);
 
+
+/** Conversation control is a hold, not a new task or a durable ARK cancellation.
+ * Explicit switches such as "stop that, new task..." stay in the existing
+ * separately scoped goal-switch path. Negated STOP is not treated as STOP. */
+export type ConversationWorkControl = "pause" | "cancel_target" | "clarify" | "refuse";
+export function classifyConversationWorkControl(userText: string): ConversationWorkControl | null {
+  // Strip only conversational politeness around short *control commands*.
+  // Never erase negation or reinterpret arbitrary prose as a STOP instruction.
+  const text = userText.trim().toLowerCase().replace(/[’]/g, "'")
+    .replace(/\s+/g, " ")
+    .replace(/[.!?]+$/, "")
+    .replace(/[\s,]+please$/, "")
+    .replace(/^(?:(?:can|could|would) you(?: please)?|please)[\s,]+/, "")
+    .replace(/^please[\s,]+/, "")
+    .replace(/^no[\s,]+(?=(?:don't|do not|never|wait)\b)/, "");
+  if (!text) return null;
+
+  if (/^(?:no|nope|nah|no thanks)$/.test(text)) return "refuse";
+  if (/^(?:not (?:that|this)(?: one)?|neither(?: of those)?)$/.test(text)) return "clarify";
+  if (/^(?:do not|don't|never) (?:go|go ahead|continue|keep going|resume|proceed|do it)(?: (?:yet|with (?:that|this)))?$/.test(text)) return "pause";
+  if (/^(?:wait(?: a (?:sec|second|minute|moment))?|wait on (?:this|that|it)|hold (?:up|it)|hold on(?: (?:to|on) (?:this|that|it))?|pause(?: (?:this|that|it|(?:the|this|that) task)| for a (?:moment|minute))?)$/.test(text)) return "pause";
+  if (/^(?:stop(?: now| (?:this|that|it|working|(?:the|this|that) task)| working on (?:this|that|it))?|cancel(?: (?:this|that|it|(?:the|this|that) task))?)$/.test(text)) return "cancel_target";
+  if (/^(?:stop|cancel|pause) (?:this|that|it)(?: one)? (?:but|and) (?:keep|continue|resume)\b/.test(text)) return "clarify";
+  return null;
+}
+
+/** A short reply such as GO/NEXT is meaningful only with genuine unfinished work.
+ * These are not independent authorization or goal creation requests. */
+export function isStandaloneContinuationCue(userText: string): boolean {
+  const text = userText.trim();
+  return EXPLICIT_CONTINUATION.test(text) ||
+    COMPACT_WORKFLOW_CONTINUATION.test(text) ||
+    ROUTINE_WORKFLOW_CONTINUATION.test(text) ||
+    MORE_WORK_FOLLOWUP.test(text) ||
+    WORKFLOW_CHOICE_FOLLOWUP.test(text) ||
+    /^next[.!?\s]*$/i.test(text);
+}
+
 export function hasLiveAgencyGoal(prior: AgencyState | null): prior is AgencyState {
   return Boolean(
     prior &&
@@ -101,6 +139,7 @@ function looksLikeContinuationFollowup(userText: string, prior: AgencyState) {
 }
 
 export function shouldCarryGoal(userText: string, prior: AgencyState | null) {
+  if (classifyConversationWorkControl(userText)) return false;
   if (!hasLiveAgencyGoal(prior)) return false;
   if (explicitlySupersedes(userText) || NEGATED_CONTINUATION.test(userText)) return false;
   if (explicitlyContinues(userText)) return true;

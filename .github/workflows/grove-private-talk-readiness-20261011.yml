@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - test/grove-private-talk-readiness-20261011
+      - review/one-arbor-foundation-source-compose-20261011
 
 permissions:
   contents: read
@@ -71,6 +72,23 @@ jobs:
           lib/grove/__tests__/privateTranscriptStore.test.ts
           lib/grove/__tests__/privateTranscriptRoute.test.ts
           lib/grove/__tests__/groveDeploymentConfig.test.ts
+      - name: Combined ARK STOP plus Grove foundation regressions (no execution)
+        working-directory: apps/backend
+        run: >-
+          pnpm exec vitest run
+          lib/ark/__tests__/agencyToolExecutor.test.ts
+          lib/ark/__tests__/acceptanceExecutor.test.ts
+          lib/ark/__tests__/runner.test.ts
+          lib/ark/__tests__/stopSemantics.test.ts
+          lib/ark/__tests__/cancelObjective.test.ts
+          lib/arbor/agency/__tests__/toolExecution.test.ts
+          lib/arbor/agency/__tests__/continuation.test.ts
+          lib/arbor/agency/__tests__/conversationHoldRoundTrip.test.ts
+          lib/arbor/continuity/__tests__/longitudinalShorthand.integration.test.ts
+          lib/arbor/language/__tests__/contextualReferenceResolution.test.ts
+          lib/arbor/agency/__tests__/sessionInterruption.reconciliation.test.ts
+          lib/chat/__tests__/chatRoute.contract.test.ts
+          lib/arbor/pragmatics/__tests__/humorPolicy.test.ts
       - name: Typecheck unchanged private backend
         working-directory: apps/backend
         run: pnpm exec tsc --noEmit
