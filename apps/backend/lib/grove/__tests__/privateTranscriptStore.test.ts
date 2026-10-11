@@ -1153,3 +1153,28 @@ describe("private Grove archive pages — scope, expiry and no LM widening", () 
       .rejects.toThrow("grove_transcript_scope_invalid");
   });
 });
+
+
+describe("Grove archive microsecond boundary", () => {
+  it("keeps equal-millisecond PostgreSQL rows in exact keyset order", async () => {
+    let value = "2026-09-23T12:00:00.123455Z";
+    const chain: any = {
+      select: vi.fn(), eq: vi.fn(), or: vi.fn(), order: vi.fn(),
+      limit: vi.fn(async () => ({ data: [{
+        ...row({ requestId: firstId,
+          userText: "Submillisecond user", assistantText: "Submillisecond answer" }),
+        created_at: value,
+      }], error: null })),
+    };
+    for (const method of ["select", "eq", "or", "order"])
+      chain[method].mockReturnValue(chain);
+    const store = createSupabaseGrovePrivateTranscriptStore({
+      from: vi.fn(() => chain),
+    } as never);
+    const before = { createdAt: "2026-09-23T12:00:00.123456Z", requestId: secondId };
+    expect((await store.listHistoryPage!(scope, before)).rows).toHaveLength(1);
+    value = "2026-09-23T12:00:00.123457Z";
+    await expect(store.listHistoryPage!(scope, before))
+      .rejects.toThrow("grove_private_history_page_out_of_range");
+  });
+});
