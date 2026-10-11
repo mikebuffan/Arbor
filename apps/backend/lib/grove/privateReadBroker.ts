@@ -609,7 +609,7 @@ export async function readPrivateGroveConversations(
   const seen = new Set<string>();
   const records: GrovePrivateConversationChoice[] = [];
   let previous: { updated_at: string; id: string } | null = null;
-  for (const row of data) {
+  for (const [index, row] of data.entries()) {
     if (!row || row.user_id !== fireflyUserId ||
         row.project_id !== projectId ||
         typeof row.id !== "string" || !validUuid.test(row.id) ||
@@ -635,7 +635,7 @@ export async function readPrivateGroveConversations(
       }
     }
     previous = row;
-    if (hidden.has(row.id.toLowerCase()) || (archive?.enabled && records.length >= 20))
+    if (hidden.has(row.id.toLowerCase()) || (archive?.enabled && index >= 20))
       continue;
     if (records.length < 20)
       records.push({
