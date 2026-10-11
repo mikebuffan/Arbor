@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AgencyState } from "../engine";
-import { classifyConversationWorkControl, shouldCarryGoal } from "../../continuity/longitudinalPolicy";
+import { classifyConversationWorkControl, isStandaloneContinuationCue, shouldCarryGoal } from "../../continuity/longitudinalPolicy";
 import { buildAgencySessionState } from "../session";
 import {
   resolveAgencyGoal,
@@ -18,6 +18,28 @@ const prior: AgencyState = {
 };
 
 describe("agency continuation", () => {
+
+  it.each([
+    "go", "next", "keep going", "list prompt go", "anything else?",
+    "your choice", "okay", "yes", "do your usual routine",
+  ])("does not manufacture an agency goal from %s without unfinished work", message => {
+    expect(isStandaloneContinuationCue(message)).toBe(true);
+    expect(shouldCarryGoal(message, null)).toBe(false);
+    expect(() => buildAgencySessionState({ userText: message, prior: null }))
+      .toThrow("continuation_without_unfinished_goal");
+    expect(() => buildAgencySessionState({
+      userText: message, prior: { ...prior, status: "complete" },
+    })).toThrow("continuation_without_unfinished_goal");
+    expect(() => buildAgencySessionState({
+      userText: message, prior: { ...prior, unresolvedWork: [] },
+    })).toThrow("continuation_without_unfinished_goal");
+  });
+
+  it("does not turn a conversational question into a blocked continuation", () => {
+    expect(isStandaloneContinuationCue("What's next?")).toBe(false);
+    expect(isStandaloneContinuationCue("Please explain what happened")).toBe(false);
+  });
+
 
   it.each([
     ["Pause that", "pause"],

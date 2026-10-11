@@ -63,6 +63,18 @@ export function classifyConversationWorkControl(userText: string): ConversationW
   return null;
 }
 
+/** A short reply such as GO/NEXT is meaningful only with genuine unfinished work.
+ * These are not independent authorization or goal creation requests. */
+export function isStandaloneContinuationCue(userText: string): boolean {
+  const text = userText.trim();
+  return EXPLICIT_CONTINUATION.test(text) ||
+    COMPACT_WORKFLOW_CONTINUATION.test(text) ||
+    ROUTINE_WORKFLOW_CONTINUATION.test(text) ||
+    MORE_WORK_FOLLOWUP.test(text) ||
+    WORKFLOW_CHOICE_FOLLOWUP.test(text) ||
+    /^next[.!?\s]*$/i.test(text);
+}
+
 export function hasLiveAgencyGoal(prior: AgencyState | null): prior is AgencyState {
   return Boolean(
     prior &&

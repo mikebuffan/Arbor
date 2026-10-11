@@ -12,7 +12,7 @@ import {
   routeErrorResponse,
 } from "@/lib/auth/routeAuthorization";
 import { buildPromptContext } from "@/lib/prompt/buildPromptContext";
-import { classifyConversationWorkControl } from "@/lib/arbor/continuity/longitudinalPolicy";
+import { classifyConversationWorkControl, hasLiveAgencyGoal, isStandaloneContinuationCue } from "@/lib/arbor/continuity/longitudinalPolicy";
 import { runOpenAIAgencyAgent } from "@/lib/arbor/agency/openaiAgent";
 import { buildArborAgencyTools } from "@/lib/arbor/agency/arborTools";
 import {
@@ -24,6 +24,7 @@ import { arkAgencyPlanId } from "@/lib/ark/agencyPlanId";
 import { toolNeedsUserBoundary } from "@/lib/arbor/agency/tools";
 import {
   beginAgencySession,
+  readPriorAgencySession,
   holdAgencyForConversationControl,
   blockAgencySession,
   checkpointAgencySession,
@@ -291,6 +292,33 @@ export async function POST(req: Request) {
         }),
         { status: 200, headers: getCorsHeaders(req) },
       );
+    }
+
+    // GO/NEXT requires an actual unfinished goal, not just a conversational
+    // shorthand token. Owner-scoped state is read without creating a task.
+    if (isStandaloneContinuationCue(userText)) {
+      const priorAgency = await readPriorAgencySession({
+        supabase, userId, projectId, conversationId: convoId,
+      });
+      if (!hasLiveAgencyGoal(priorAgency)) {
+        const reply = await persistFinalAssistantTurn({
+          store: turnStore,
+          messageId: resolvedTurn.ids.assistantMessageId,
+          userId,
+          projectId,
+          conversationId: convoId,
+          episodeId,
+          assistantText: "I don't have an unfinished task to resume. What would you like me to work on?",
+        });
+        return NextResponse.json(
+          buildChatSuccessResponse({
+            projectId,
+            conversationId: convoId,
+            assistantText: reply.record.content,
+          }),
+          { status: 200, headers: getCorsHeaders(req) },
+        );
+      }
     }
 
     // A conversational pause/refusal must bypass routine memory processing.

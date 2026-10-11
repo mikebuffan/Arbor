@@ -3,7 +3,9 @@ import type { AgencyState } from "../engine";
 import {
   beginAgencySession,
   holdAgencyForConversationControl,
+  readPriorAgencySession,
 } from "../session";
+import { hasLiveAgencyGoal, isStandaloneContinuationCue } from "../../continuity/longitudinalPolicy";
 
 const userId = "11111111-1111-4111-8111-111111111111";
 const projectId = "22222222-2222-4222-8222-222222222222";
@@ -90,6 +92,16 @@ function fakeOwnedStore(initial: AgencyState, staleCheckpoint = false) {
 }
 
 describe("owned conversation hold and resume through the durable checkpoint adapter", () => {
+  it("preserves an unfinished-goal free state without inventing work on bare GO", async () => {
+    const db = fakeOwnedStore({ ...currentState("complete"), unresolvedWork: [] });
+    const scope = { supabase: db.supabase, userId, projectId };
+    const prior = await readPriorAgencySession(scope);
+    expect(prior?.status).toBe("complete");
+    expect(hasLiveAgencyGoal(prior)).toBe(false);
+    expect(isStandaloneContinuationCue("go")).toBe(true);
+    expect(db.calls).toHaveLength(0);
+  });
+
   it("pauses an existing active goal, reads back the checkpoint, then resumes the same goal on GO", async () => {
     const original = currentState();
     const db = fakeOwnedStore(original);

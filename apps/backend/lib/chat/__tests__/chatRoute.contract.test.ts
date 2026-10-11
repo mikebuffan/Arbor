@@ -14,6 +14,24 @@ import {
 import { assertProjectOwnedByUser } from "@/lib/auth/ownership";
 
 describe("chat Milestone 1A contract", () => {
+  it("guards a bare continuation with owner-scoped unfinished-goal readback before ingestion and agent execution", () => {
+    const routePath = fileURLToPath(new URL("../../../app/api/chat/route.ts", import.meta.url));
+    const source = fs.readFileSync(routePath, "utf8");
+    const control = source.indexOf("const conversationControl = classifyConversationWorkControl(userText)");
+    const unbound = source.indexOf("if (isStandaloneContinuationCue(userText))");
+    const memory = source.indexOf("await ingestMemorySignals({");
+    const session = source.indexOf("let agencyState = await beginAgencySession({");
+    expect(unbound).toBeGreaterThan(control);
+    expect(memory).toBeGreaterThan(unbound);
+    expect(session).toBeGreaterThan(memory);
+    const boundary = source.slice(unbound, memory);
+    expect(boundary).toContain("readPriorAgencySession");
+    expect(boundary).toContain("!hasLiveAgencyGoal(priorAgency)");
+    expect(boundary).toContain("persistFinalAssistantTurn");
+    expect(boundary).toContain("return NextResponse.json");
+    expect(boundary).not.toContain("runOpenAIAgencyAgent");
+  });
+
   it("preserves project and conversation IDs during safety replacement", () => {
     expect(
       buildChatSuccessResponse({

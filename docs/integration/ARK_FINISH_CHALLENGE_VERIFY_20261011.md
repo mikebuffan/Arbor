@@ -1,0 +1,51 @@
+# Arbor — Finish → Challenge → Verify (2026-10-11)
+
+## Purpose
+Improve actual reliability and usefulness without expanding architecture. This is
+a working-method receipt for the existing 97-task order, **not** a new workstream,
+permission grant, deployment order, or evidence of AI sentience.
+
+## Standard working loop
+1. **Select one demonstrated problem** already in scope, with ownership, parent
+   branch, source head and downstream consumers verified.
+2. **List the minimum tests and repair criteria** before editing. Keep failures,
+   assumptions, and unknowns explicit.
+3. **Repair in owned existing components** on an isolated, deployment-fenced
+   source branch. Do not add substitute engines or silently enlarge scope.
+4. **Challenge** with negative/ambiguous cases, interrupted sessions, stale and
+   concurrent writes, unknown targets, conflicting evidence and authorization.
+5. **Verify exact commit SHA** with repeatable source tests, typecheck, readback,
+   any applicable database or host evidence. Distinguish mocks from live execution.
+6. **Finish or block**. One receipt: changed files, passing/failed tests, what
+   actually happened, limitations and exactly what will unlock the next step.
+   Only move on after the repair is verified at the *appropriate* acceptance
+   layer. A later host acceptance can remain a named blocker while independent
+   safe source tasks continue.
+
+## Nonnegotiables
+- User STOP, pause, refusal and target changes are never treated as GO.
+- Bare GO/NEXT cannot manufacture a task when there is no unfinished goal.
+- Conversational checkpoint is not cancellation of a durable ARK objective
+  and cannot revoke an external action already dispatched.
+- No new permission, paid inference, production, main merge, workers, external
+  ingestion, or protected queued objective handling without explicit approval.
+- No claims of real-world behavior, autonomy, learning or subjective experience
+  from source tests or simulated database mocks.
+- Preserve provenance, original ownership, protected blockers and recovery
+  checkpoints, including cases where a requested action cannot be completed.
+
+## Reporting
+Use concise plain English:
+**Fixed | Tested | Still unknown/blocked | Next.**
+Record measured effects rather than speed estimates, applause or architectural
+complexity. Update the canonical list's task status only with relevant receipts.
+Ideas unrelated to the current fix go on the future-work list.
+
+## 2026-10-11 source receipt
+- PR #451 holds user-controlled conversational work without submitting a
+  durable ARK cancel, tests pause → checkpoint → GO, and protects blocked work.
+- Found follow-on source defect: without an unfinished goal, shorthand such as
+  GO or NEXT could create a new agency goal named after the shorthand.
+- Current narrow repair adds a source guard and regression checks; real
+  authenticated hosted interruption/resume, in-flight external action fencing,
+  and dispatch cancellation remain distinct acceptance obligations.
