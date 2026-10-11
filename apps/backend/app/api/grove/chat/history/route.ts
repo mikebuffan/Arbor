@@ -7,6 +7,7 @@ import {
 import { grovePrivateTurnFeatures } from "@/lib/grove/privateConversationLoop";
 import {
   createSupabaseGrovePrivateTranscriptStore,
+  issueGrovePrivateHistoryCursor, readGrovePrivateHistoryCursor,
 } from "@/lib/grove/privateTranscriptStore";
 
 export const runtime = "nodejs";
@@ -15,7 +16,9 @@ export const dynamic = "force-dynamic";
 const querySchema = z.object({
   projectId: z.string().uuid(),
   conversationId: z.string().uuid(),
-}).strict();
+  page: z.literal("archive").optional(),
+  cursor: z.string().min(1).max(768).optional(),
+}).strict().refine(values => !values.cursor || values.page === "archive");
 
 const json = (body: Record<string, unknown>, status: number) =>
   NextResponse.json(body, {
@@ -58,11 +61,27 @@ export async function GET(req: Request) {
         authorized.access !== "read-only")
       throw new RouteAccessError(403, "grove_private_scope_rejected");
     const store = createSupabaseGrovePrivateTranscriptStore(authorized.groveAdmin);
-    const rows = await store.listRecent({
+    const storeScope = {
       groveUserId: authorized.groveUserId,
       projectId: scope.projectId,
       conversationId: scope.conversationId,
-    });
+    };
+    // Historical browsing never expands the bounded six-pair LM context.
+    // Legacy phone reads retain their original window and response shape.
+    const archive = scope.page === "archive";
+    const secret = archive ? process.env.GROVE_SERVICE_ROLE_KEY ?? "" : "";
+    const before = archive && scope.cursor
+      ? readGrovePrivateHistoryCursor({
+          scope: storeScope, cursor: scope.cursor, secret,
+        }) : undefined;
+    if (archive && !store.listHistoryPage)
+      throw new RouteAccessError(500, "grove_private_history_unavailable");
+    const page = archive ? await store.listHistoryPage!(storeScope, before) : null;
+    const rows = page ? page.rows : await store.listRecent(storeScope);
+    if (!Array.isArray(rows) || rows.length > 6 ||
+        (page && (typeof page.hasMore !== "boolean" ||
+          (page.hasMore && rows.length !== 6))))
+      throw new RouteAccessError(500, "grove_private_history_unavailable");
     // If the Grove invitation, owner mapping, project grant or Firefly
     // conversation is revoked WHILE this private read is running, fail closed
     // rather than return its private content from a stale service-role read.
@@ -82,7 +101,14 @@ export async function GET(req: Request) {
       // Newest-first complete pairs; UI reverses them to display a timeline.
       order: "newest_first",
       windowLimit: 6,
-      historyMayBeTruncated: rows.length === 6,
+      historyMayBeTruncated: page ? page.hasMore : rows.length === 6,
+      ...(archive ? { nextCursor: page!.hasMore
+        ? issueGrovePrivateHistoryCursor({
+            scope: storeScope,
+            key: { createdAt: rows[rows.length - 1].created_at,
+              requestId: rows[rows.length - 1].request_id },
+            secret,
+          }) : null } : {}),
       turns: rows.map(row => ({
         requestId: row.request_id,
         userText: row.user_text,
