@@ -14,7 +14,8 @@ vi.mock("@/lib/grove/privateConversationLoop", () => ({
 vi.mock("@/lib/grove/privateReadBroker", () => ({
   authorizePrivateGroveConversation: mocks.authorize,
 }));
-vi.mock("@/lib/grove/privateTranscriptStore", () => ({
+vi.mock("@/lib/grove/privateTranscriptStore", async importOriginal => ({
+  ...(await importOriginal<typeof import("@/lib/grove/privateTranscriptStore")>()),
   createSupabaseGrovePrivateTranscriptStore: mocks.createStore,
 }));
 
