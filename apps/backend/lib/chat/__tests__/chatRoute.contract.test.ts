@@ -48,6 +48,24 @@ describe("chat Milestone 1A contract", () => {
     ).rejects.toMatchObject({ status: 404, code: "project_not_found" });
   });
 
+  it("handles pause/refusal before memory processing or agency execution and does not claim ARK cancellation", () => {
+    const routePath = fileURLToPath(new URL("../../../app/api/chat/route.ts", import.meta.url));
+    const source = fs.readFileSync(routePath, "utf8");
+    const control = source.indexOf("const conversationControl = classifyConversationWorkControl(userText)");
+    const memory = source.indexOf("await ingestMemorySignals({");
+    const agency = source.indexOf("let agencyState = await beginAgencySession({");
+    expect(control).toBeGreaterThan(0);
+    expect(memory).toBeGreaterThan(control);
+    expect(agency).toBeGreaterThan(memory);
+    const controlBlock = source.slice(control, memory);
+    expect(controlBlock).toContain("await holdAgencyForConversationControl");
+    expect(controlBlock).toContain("persistFinalAssistantTurn");
+    expect(controlBlock).toContain("return NextResponse.json");
+    expect(controlBlock).not.toContain("cancelArkObjective");
+    expect(controlBlock).not.toContain("control_ark_objective");
+    expect(controlBlock).toContain("already running may require its own STOP");
+  });
+
   it("uses one prompt builder and no route-local memory injection", () => {
     const routePath = fileURLToPath(
       new URL("../../../app/api/chat/route.ts", import.meta.url),

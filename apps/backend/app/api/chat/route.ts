@@ -266,9 +266,9 @@ export async function POST(req: Request) {
     if (conversationControl) {
       await holdAgencyForConversationControl({ supabase, userId, projectId });
       const replyText = conversationControl === "pause"
-        ? "Paused. I won't continue this task until you ask. No durable ARK objective has been canceled."
+        ? "I've paused further conversational work. An external action already running may require its own STOP; no durable ARK objective was canceled."
         : conversationControl === "cancel_target"
-          ? "I've held further work. Which specific task do you want canceled? I haven't canceled a durable ARK objective."
+          ? "I've held further conversational work. Which specific task should be canceled? I haven't canceled a durable ARK objective or stopped any already-running external action."
           : conversationControl === "clarify"
             ? "I'm holding further work so I don't act on the wrong item. Which one did you mean?"
             : "Understood. I won't treat that as permission to continue.";
