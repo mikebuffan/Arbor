@@ -233,6 +233,8 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel>
   final _input = TextEditingController();
   GrovePrivateConversationChoices? _choices;
   GrovePrivateHistory? _history;
+  bool _archiveStarted = false;
+  String? _olderCursor;
   String? _selected;
   String? _pendingId;
   String? _pendingText;
@@ -416,6 +418,8 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel>
       final choices = await widget.client.listExisting(widget.projectId)
           .timeout(_groveReadDeadline);
       if (!_valid || generation != _generation) return;
+      _archiveStarted = false;
+      _olderCursor = null;
       final preferred = previousId ?? widget.initialConversationId;
       final selected = choices.conversations.any((c) =>
           c.conversationId == preferred)
@@ -449,6 +453,58 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel>
       setState(() {
         _loading = false;
         _error = 'Private Grove conversations could not be verified.';
+      });
+    }
+  }
+
+
+  /// Manual archive pagination only; never auto-walk every conversation or
+  /// append saved bodies to a model prompt. Preserve user draft/selection.
+  Future<void> _loadOlder() async {
+    if (!_valid || _loading || _sending || _pendingId != null ||
+        _draftBlocked || _changingDraft || _choices == null ||
+        (_archiveStarted && _olderCursor == null)) return;
+    final generation = ++_generation;
+    final before = _archiveStarted ? _olderCursor : null;
+    setState(() { _loading = true; _error = null; });
+    try {
+      await _saveDraft();
+      if (!_valid || generation != _generation) return;
+      final page = await widget.client.listArchive(
+        widget.projectId, cursor: before,
+      ).timeout(_groveReadDeadline);
+      if (!_valid || generation != _generation) return;
+      if (page.projectId != widget.projectId)
+        throw StateError('Grove conversation archive scope changed');
+      final existing = _choices!;
+      final seen = existing.conversations
+          .map((choice) => choice.conversationId.toLowerCase()).toSet();
+      final merged = [...existing.conversations];
+      for (final choice in page.conversations) {
+        if (seen.add(choice.conversationId.toLowerCase())) {
+          merged.add(choice);
+        }
+      }
+      setState(() {
+        _choices = GrovePrivateConversationChoices(
+          projectId: widget.projectId,
+          conversations: List.unmodifiable(merged),
+          mayBeTruncated: page.nextCursor != null,
+          nextCursor: page.nextCursor,
+        );
+        _archiveStarted = true;
+        _olderCursor = page.nextCursor;
+        _loading = false;
+      });
+    } catch (_) {
+      if (!_valid || generation != _generation) return;
+      // A failed private read may mean revocation. Do not leave content
+      // onscreen under an unverified owner/project/conversation scope.
+      setState(() {
+        _loading = false;
+        _choices = null; _selected = null; _history = null;
+        _archiveStarted = false; _olderCursor = null;
+        _error = 'Could not verify older Grove conversations. Refresh to retry.';
       });
     }
   }
@@ -630,6 +686,7 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel>
           ].take(20).toList(growable: false),
           mayBeTruncated: current.mayBeTruncated ||
               current.conversations.length >= 20,
+          nextCursor: current.nextCursor,
         );
       });
       await _choose(created.conversationId, generation: generation);
@@ -805,9 +862,14 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel>
               const Text('New private conversations are not enabled in '
                   'this Grove build.',
                 style: TextStyle(color: Colors.white70)),
-            if (choices?.mayBeTruncated == true)
-              const Text('Showing the latest 20 conversations only.',
-                  style: TextStyle(color: Colors.white70)),
+            if (!_loading && choices != null &&
+                (_archiveStarted ? _olderCursor != null :
+                  choices.mayBeTruncated))
+              TextButton(
+                onPressed: _sending || _pendingId != null || _draftBlocked ||
+                    _changingDraft ? null : _loadOlder,
+                child: const Text('Load older conversations'),
+              ),
             if (_error != null)
               Text(_error!, style: const TextStyle(
                   color: Colors.orangeAccent)),
