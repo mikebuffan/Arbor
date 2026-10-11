@@ -233,6 +233,8 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel>
   final _input = TextEditingController();
   GrovePrivateConversationChoices? _choices;
   GrovePrivateHistory? _history;
+  bool _turnArchiveStarted = false;
+  String? _olderTurnCursor;
   bool _archiveStarted = false;
   String? _olderCursor;
   String? _selected;
@@ -529,6 +531,7 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel>
       _loading = true;
       _selected = null;
       _history = null;
+      _turnArchiveStarted = false; _olderTurnCursor = null;
       _pendingId = null;
       _pendingText = null;
       _unsavedReply = null;
@@ -570,6 +573,7 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel>
         if (!_valid || current != _generation) return;
         setState(() {
           _selected = id; _history = history; _loading = false;
+          _turnArchiveStarted = false; _olderTurnCursor = null;
           _draftBlocked = true;
           _error = 'A saved device draft could not be recovered. '
               'Sending is blocked until you erase it explicitly.';
@@ -580,6 +584,7 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel>
       setState(() {
         _selected = id;
         _history = history;
+        _turnArchiveStarted = false; _olderTurnCursor = null;
         _keepDraft = draft != null;
         _pendingId = draft?.requestId;
         _pendingText = draft?.requestId == null ? null : draft!.text;
@@ -592,6 +597,80 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel>
       setState(() {
         _loading = false;
         _error = 'Grove could not open that private conversation.';
+      });
+    }
+  }
+
+
+  /// Manual older-message browsing, never a model-memory injection. A fresh
+  /// private authorization and tombstone check happens for EACH page.
+  Future<void> _loadOlderMessages() async {
+    final id = _selected;
+    final existing = _history;
+    if (!_valid || _loading || _sending || _pendingId != null ||
+        _draftBlocked || _changingDraft || id == null || existing == null ||
+        (_turnArchiveStarted ? _olderTurnCursor == null :
+          !existing.mayBeTruncated)) return;
+    final generation = ++_generation;
+    final before = _turnArchiveStarted ? _olderTurnCursor : null;
+    setState(() { _loading = true; _error = null; });
+    try {
+      await _saveDraft();
+      if (!_valid || generation != _generation) return;
+      final page = await widget.client.loadArchive(
+        projectId: widget.projectId, conversationId: id,
+        cursor: before,
+      ).timeout(_groveReadDeadline);
+      if (!_valid || generation != _generation) return;
+      if (page.projectId != widget.projectId || page.conversationId != id)
+        throw StateError('Private historical message scope changed');
+      final merged = [...existing.turnsNewestFirst];
+      if (before == null) {
+        // First archive page must agree with the already-opened recent view.
+        // Otherwise a concurrent new turn requires a fresh owner-scoped reopen.
+        if (page.turnsNewestFirst.length != merged.length)
+          throw StateError('Private history shifted during archive read');
+        for (var i = 0; i < merged.length; i++) {
+          final a = merged[i], b = page.turnsNewestFirst[i];
+          if (a.requestId.toLowerCase() != b.requestId.toLowerCase() ||
+              a.userText != b.userText || a.assistantText != b.assistantText ||
+              a.replyVerification != b.replyVerification ||
+              a.createdAt != b.createdAt) {
+            throw StateError('Private history changed during archive read');
+          }
+        }
+      } else {
+        final known = merged.map((turn) => turn.requestId.toLowerCase()).toSet();
+        final oldest = merged.last;
+        for (final turn in page.turnsNewestFirst) {
+          final earlier = turn.createdAt.isBefore(oldest.createdAt) ||
+              (turn.createdAt == oldest.createdAt &&
+                turn.requestId.toLowerCase().compareTo(
+                    oldest.requestId.toLowerCase()) < 0);
+          if (!earlier || !known.add(turn.requestId.toLowerCase()))
+            throw StateError('Private archive page overlaps another message');
+          merged.add(turn);
+        }
+      }
+      setState(() {
+        _history = GrovePrivateHistory(
+          projectId: widget.projectId, conversationId: id,
+          turnsNewestFirst: List.unmodifiable(merged),
+          mayBeTruncated: page.nextCursor != null,
+          nextCursor: page.nextCursor,
+        );
+        _turnArchiveStarted = true;
+        _olderTurnCursor = page.nextCursor;
+        _loading = false;
+      });
+    } catch (_) {
+      if (!_valid || generation != _generation) return;
+      // A rejected/expired cursor or revoked grant never leaves old private
+      // content visible under an unverified session.
+      setState(() {
+        _history = null; _selected = null; _loading = false;
+        _turnArchiveStarted = false; _olderTurnCursor = null;
+        _error = 'Could not verify older messages. Refresh conversations to reopen.';
       });
     }
   }
@@ -755,6 +834,9 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel>
       if (!_valid || generation != _generation) return;
       setState(() {
         _history = history ?? _history;
+        if (history != null) {
+          _turnArchiveStarted = false; _olderTurnCursor = null;
+        }
         _unsavedReply = reply.persisted ? null : reply.text;
         _setInput('');
         _pendingId = null;
@@ -881,9 +963,17 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel>
                 : ListView(
                     key: ValueKey(_selected),
                     children: [
-                      if (_history!.mayBeTruncated)
-                        const Text('Showing six recent complete turns only.',
+                      if (!_turnArchiveStarted && _history!.mayBeTruncated)
+                        const Text('Older saved messages are available to browse.',
                           style: TextStyle(color: Colors.white70)),
+                      if (!_loading && (_turnArchiveStarted
+                          ? _olderTurnCursor != null : _history!.mayBeTruncated))
+                        TextButton(
+                          onPressed: _sending || _pendingId != null ||
+                              _draftBlocked || _changingDraft
+                              ? null : _loadOlderMessages,
+                          child: const Text('Load older messages'),
+                        ),
                       for (final turn in _history!.turnsNewestFirst.reversed)
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
