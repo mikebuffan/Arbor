@@ -189,6 +189,18 @@ export function readGrovePrivateHistoryCursor(input: {
   return key;
 }
 
+/** Compare PostgreSQL timestamps to microsecond precision, not JS millisecond
+ * precision. Equal-millisecond rows must not be skipped in archive paging. */
+function compareHistoryTimes(a: string, b: string): number {
+  const whole = Date.parse(a) - Date.parse(b);
+  if (whole) return whole;
+  const microRemainder = (value: string): number => {
+    const fraction = /:\\d{2}\\.(\\d{1,6})(?:Z|[+-]\\d{2}:\\d{2})$/.exec(value)?.[1] ?? "";
+    return Number(fraction.padEnd(6, "0").slice(3) || "0");
+  };
+  return microRemainder(a) - microRemainder(b);
+}
+
 function scopedQuery(supabase: SupabaseClient, scope: GrovePrivateTranscriptScope) {
   return supabase.from("grove_private_turns")
     .select(fields)
@@ -285,13 +297,18 @@ export function createSupabaseGrovePrivateTranscriptStore(
         const id = row.request_id.toLowerCase();
         if (seen.has(id)) throw new Error("grove_private_history_duplicate");
         seen.add(id);
-        if (before && !(Date.parse(row.created_at) < Date.parse(before.createdAt) ||
-            (row.created_at === before.createdAt && id < before.requestId.toLowerCase())))
-          throw new Error("grove_private_history_page_out_of_range");
-        if (previous && !(Date.parse(row.created_at) < Date.parse(previous.created_at) ||
-            (row.created_at === previous.created_at &&
+        if (before) {
+          const timeOrder = compareHistoryTimes(row.created_at, before.createdAt);
+          if (!(timeOrder < 0 || (timeOrder === 0 &&
+              id < before.requestId.toLowerCase())))
+            throw new Error("grove_private_history_page_out_of_range");
+        }
+        if (previous) {
+          const timeOrder = compareHistoryTimes(row.created_at, previous.created_at);
+          if (!(timeOrder < 0 || (timeOrder === 0 &&
               id < previous.request_id.toLowerCase())))
-          throw new Error("grove_private_history_page_out_of_order");
+            throw new Error("grove_private_history_page_out_of_order");
+        }
         previous = row;
       }
       return { rows: rows.slice(0, 6), hasMore: rows.length > 6 };
