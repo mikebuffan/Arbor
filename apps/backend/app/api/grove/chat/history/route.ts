@@ -50,6 +50,12 @@ export async function GET(req: Request) {
   }
   try {
     const url = new URL(req.url);
+    // Explicit owner-only history search stays OFF until the existing Grove
+    // transcript schema, query indexes and bounded-cost live proof are approved.
+    if (url.searchParams.has("search") &&
+        process.env.GROVE_PRIVATE_HISTORY_SEARCH_ENABLED !== "true") {
+      return json({ok:false,error:"grove_private_history_search_not_enabled"},404);
+    }
     const params: Record<string, string> = {};
     for (const [key, value] of url.searchParams.entries()) {
       if (Object.prototype.hasOwnProperty.call(params, key)) {
