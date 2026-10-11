@@ -288,11 +288,13 @@ void main() {
     ));
     await tester.pumpAndSettle();
     expect(client.phraseSearches, 0);
-    final searchField = find.widgetWithText(
-      TextField, 'Search saved messages in this conversation');
-    await tester.enterText(searchField, 'Ever After');
     await tester.ensureVisible(find.text('Search saved messages'));
     await tester.tap(find.text('Search saved messages'));
+    await tester.pumpAndSettle();
+    expect(find.text('Search this saved conversation'), findsOneWidget);
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Saved message phrase'), 'Ever After');
+    await tester.tap(find.text('Find matches'));
     await tester.pumpAndSettle();
     expect(client.phraseSearches, 1);
     expect(find.text('Ever After chapter one'), findsOneWidget);
