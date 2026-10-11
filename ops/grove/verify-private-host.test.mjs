@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {
   assertPrivateGroveOrigin, verifyPrivateGroveHost,
   inspectPrivateGroveTalkKeyMetadata, PRIVATE_GROVE_TALK_KEY_GROUPS,
-  inspectGroveRestoreDeletionCoverage,
+  inspectGroveRestoreDeletionCoverage, inspectPrivateGroveReleaseLayout,
 } from "./verify-private-host.mjs";
 
 const origin = "https://grove-private-api.example.org";
@@ -215,4 +215,74 @@ test("foreign owner/project, malformed, duplicate and content-bearing metadata c
   }));
   assert.equal(differentOwner.missingTombstoneCount,1);
   assert.equal(differentOwner.readyForRestore,false);
+});
+
+
+const repoRoot = new URL("../../", import.meta.url);
+const configs = await Promise.all([
+  import("node:fs/promises").then(m =>
+    m.readFile(new URL("vercel.json",repoRoot),"utf8").then(JSON.parse)),
+  import("node:fs/promises").then(m =>
+    m.readFile(new URL("apps/backend/vercel.json",repoRoot),"utf8").then(JSON.parse)),
+  import("node:fs/promises").then(m =>
+    m.readFile(new URL("apps/backend/grove.vercel.json",repoRoot),"utf8").then(JSON.parse)),
+]);
+const releaseFixture = (overrides={}) => ({
+  projectId:"prj_nw2X0SyLn4e8CXWZ83MEs4jwn1JN",
+  rootDirectory:null,
+  repositoryConfig:configs[0],backendConfig:configs[1],
+  groveCandidateConfig:configs[2],
+  ...overrides,
+});
+test("current dedicated Grove root metadata cannot inherit Firefly cron",()=>{
+  const result=inspectPrivateGroveReleaseLayout(releaseFixture());
+  assert.equal(result.evaluatedRoot,"repository-root");
+  assert.equal(result.effectiveConfigPath,"vercel.json");
+  assert.ok(result.effectiveCronCount>0);
+  assert.equal(result.candidateNoCron,true);
+  assert.equal(result.status,"HOLD_INHERITED_FIREFLY_CONFIG");
+  assert.equal(result.readyForDeployment,false);
+});
+test("pointing Grove at apps/backend also inherits an existing heartbeat",()=>{
+  const result=inspectPrivateGroveReleaseLayout(
+    releaseFixture({rootDirectory:"apps/backend"}));
+  assert.equal(result.effectiveConfigPath,"apps/backend/vercel.json");
+  assert.ok(result.effectiveCronCount>0);
+  assert.equal(result.status,"HOLD_INHERITED_FIREFLY_CONFIG");
+  assert.equal(result.readyForDeployment,false);
+});
+test("review-only no-cron alternate filename is NOT effective Vercel config",()=>{
+  const result=inspectPrivateGroveReleaseLayout(releaseFixture());
+  assert.equal(result.candidateNoCron,true);
+  assert.equal(result.alternateCandidateIsEffective,false);
+  assert.equal(result.sourceNoCronVerified,false);
+  assert.equal(result.readyForPrivateModel,false);
+});
+test("even hypothetical exact no-cron effective config never authorizes deploy",()=>{
+  const result=inspectPrivateGroveReleaseLayout(releaseFixture({
+    rootDirectory:"apps/backend",backendConfig:configs[2],
+  }));
+  assert.equal(result.effectiveCronCount,0);
+  assert.equal(result.sourceNoCronVerified,true);
+  assert.equal(result.status,"HOLD_OWNER_RELEASE_AUTHORIZATION");
+  assert.equal(result.readyForDeployment,false);
+  assert.equal(result.readyForSchemaMigration,false);
+});
+test("wrong project, unsupported path, missing config or bad ignore fails closed",()=>{
+  for (const input of [
+    releaseFixture({projectId:"unrelated"}),
+    releaseFixture({rootDirectory:"apps/frontend"}),
+    releaseFixture({backendConfig:null}),
+    releaseFixture({repositoryConfig:{crons:[],ignoreCommand:"echo build"}}),
+    releaseFixture({groveCandidateConfig:{crons:[{path:"/api/heartbeat",schedule:"* * * * *"}],ignoreCommand:"node ops/grove/source-only-ignore.mjs"}}),
+  ]) {
+    if (input.projectId==="unrelated"||input.rootDirectory==="apps/frontend"||
+      input.backendConfig===null||input.repositoryConfig?.ignoreCommand==="echo build") {
+      assert.throws(()=>inspectPrivateGroveReleaseLayout(input),
+        /grove_release_(layout_metadata|config)_invalid/);
+    } else {
+      assert.equal(inspectPrivateGroveReleaseLayout(input).status,
+        "HOLD_CANDIDATE_HAS_CRONS");
+    }
+  }
 });

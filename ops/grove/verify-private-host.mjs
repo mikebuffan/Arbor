@@ -140,6 +140,60 @@ export function inspectGroveRestoreDeletionCoverage(input) {
   });
 }
 
+/** Source-only release-layout verifier; not a Vercel deployment permission.
+ * Never trusts an alternate filename as Vercel's effective vercel.json.
+ * Does not access remote provider credentials or permit scheduled workers. */
+export function inspectPrivateGroveReleaseLayout({
+  projectId, rootDirectory, repositoryConfig, backendConfig,
+  groveCandidateConfig,
+}) {
+  const dedicatedId = "prj_nw2X0SyLn4e8CXWZ83MEs4jwn1JN";
+  if (projectId !== dedicatedId ||
+      (rootDirectory !== null && rootDirectory !== "" &&
+       rootDirectory !== "apps/backend") ||
+      ![repositoryConfig,backendConfig,groveCandidateConfig]
+        .every(x => x && typeof x === "object" && !Array.isArray(x))) {
+    throw Error("grove_release_layout_metadata_invalid");
+  }
+  const root = rootDirectory === "apps/backend" ?
+    "apps/backend" : "repository-root";
+  const effective = root === "repository-root" ?
+    repositoryConfig : backendConfig;
+  const configOK = cfg =>
+    Array.isArray(cfg.crons) && cfg.crons.length <= 20 &&
+    cfg.crons.every(x => x && typeof x.path === "string" &&
+      typeof x.schedule === "string") &&
+    typeof cfg.ignoreCommand === "string" &&
+    cfg.ignoreCommand.includes("ops/grove/source-only-ignore.mjs");
+  if (!configOK(effective) || !configOK(groveCandidateConfig))
+    throw Error("grove_release_config_invalid");
+  const expectedIgnore = root === "repository-root" ?
+    "node ops/grove/source-only-ignore.mjs" :
+    "node ../../ops/grove/source-only-ignore.mjs";
+  const inheritedCronCount = effective.crons.length;
+  const candidateNoCron = groveCandidateConfig.crons.length === 0;
+  const effectiveNoCron = inheritedCronCount === 0 &&
+    effective.ignoreCommand === expectedIgnore;
+  return Object.freeze({
+    scope: "metadata_and_repository_source_only",
+    projectId, evaluatedRoot: root,
+    effectiveConfigPath: root === "repository-root" ?
+      "vercel.json" : "apps/backend/vercel.json",
+    alternateCandidateIsEffective: false,
+    effectiveCronCount: inheritedCronCount,
+    candidateNoCron,
+    sourceNoCronVerified: effectiveNoCron,
+    status: !candidateNoCron ? "HOLD_CANDIDATE_HAS_CRONS" :
+      !effectiveNoCron ? "HOLD_INHERITED_FIRE FLY_CONFIG".replace(" ","") :
+      "HOLD_OWNER_RELEASE_AUTHORIZATION",
+    readyForDeployment: false,
+    readyForPrivateModel: false,
+    readyForSchemaMigration: false,
+    requiresExactApprovedDeploymentConfig: true,
+    requiresApprovedBudgetAndOwner: true,
+  });
+}
+
 const foreignPublicPaths = [
   "/api/chat",
   "/api/public/chat",
