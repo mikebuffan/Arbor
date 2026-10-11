@@ -33,7 +33,7 @@ import {
   readPrivateGroveProjects,
   readPrivateGroveConversations,
   issueGroveConversationArchiveCursor, readGroveConversationArchiveCursor,
-  createPrivateGroveConversation,
+  createPrivateGroveConversation, deletePrivateGroveConversation,
   authorizePrivateGroveConversation,
 } from "@/lib/grove/privateReadBroker";
 import { GET } from "@/app/api/grove/ark/status/route";
@@ -960,5 +960,45 @@ describe("Grove historical conversation discovery (source-only)", () => {
     await expect(readPrivateGroveConversations(req(), projectId, {
       enabled: true,
     })).rejects.toThrow("grant revoked mid page");
+  });
+});
+
+describe("Grove owner deletion requires independent durable custody", () => {
+  it("keeps deletion off without flag, even before contacting Grove Auth", async () => {
+    vi.stubEnv("GROVE_PRIVATE_CONVERSATION_DELETE_ENABLED", "");
+    await expect(deletePrivateGroveConversation(req(), projectId, conversationId))
+      .rejects.toMatchObject({status: 404, code: "grove_private_deletion_not_enabled"});
+    expect(mocks.createClient).not.toHaveBeenCalled();
+  });
+
+  it("HOLDs an otherwise authorized delete before any database deletion RPC", async () => {
+    vi.stubEnv("GROVE_PRIVATE_CONVERSATION_DELETE_ENABLED", "true");
+    // A runtime environment flag cannot impersonate independent durable
+    // custody, and a Grove service role is NOT an external recovery ledger.
+    vi.stubEnv("GROVE_EXTERNAL_DELETE_CUSTODY_READY", "true");
+    await expect(deletePrivateGroveConversation(req(), projectId, conversationId))
+      .rejects.toMatchObject({status: 503, code: "grove_private_delete_custody_unavailable"});
+    expect(mocks.assertConversationOwnedByUser).toHaveBeenCalled();
+    expect(mocks.fromCalls).toContain("grove_private_conversation_tombstones");
+    // The mocked service clients do not implement .rpc(). If the deletion
+    // RPC were reached, this would fail with an unrelated TypeError instead.
+    expect(mocks.insertedRows).toHaveLength(0);
+  });
+
+  it("rejects a foreign conversation before even consulting deletion custody", async () => {
+    vi.stubEnv("GROVE_PRIVATE_CONVERSATION_DELETE_ENABLED", "true");
+    mocks.assertConversationOwnedByUser.mockRejectedValueOnce(
+      new Error("foreign conversation was denied"));
+    await expect(deletePrivateGroveConversation(req(), projectId, conversationId))
+      .rejects.toThrow("foreign conversation was denied");
+  });
+
+  it("fails closed when Grove deletion tombstone checking is unavailable", async () => {
+    vi.stubEnv("GROVE_PRIVATE_CONVERSATION_DELETE_ENABLED", "true");
+    mocks.lookup.set("grove_private_conversation_tombstones", {
+      data: null, error: {message: "synthetic schema not applied"},
+    });
+    await expect(deletePrivateGroveConversation(req(), projectId, conversationId))
+      .rejects.toMatchObject({status: 500, code: "grove_private_delete_fence_unavailable"});
   });
 });
