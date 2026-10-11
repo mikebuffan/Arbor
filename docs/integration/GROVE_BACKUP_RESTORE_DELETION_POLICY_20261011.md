@@ -111,3 +111,91 @@ retention, removal/expiration and handling of previously user-deleted text,
 the independent deletion-state custody across physical restores, and
 appropriate provenance/rollback. No silent automatic cleanup of real backups
 is authorized by the tests. Keep actual Grove host, model and migrations OFF.
+
+## Quarantined full-restore design and custody contract — source-only review (2026-10-11)
+
+**Rehearsal only:** Existing disposable PostgreSQL acceptance now also includes
+\`ops/grove/disposable-db/private-conversation-restore-quarantine-acceptance.sql\`.
+It simulates a backed-up old turn after removing a newer tombstone, reapplies
+a *synthetic known deleted scope* before any hypothetical read, checks the
+deleted turns and pending claims are absent, retains an unrelated saved chat,
+then rolls the entire simulated restore back with a PostgreSQL exception
+subtransaction. The rehearsal must emit
+\`GROVE_RESTORE_QUARANTINE_SYNTHETIC_REAPPLY=PASS\` and **still HOLD live
+restore**. This is not a second restoration engine, no host endpoint, and not
+evidence an external deletion ledger is deployed.
+
+### Independent deletion-state custody (NOT IMPLEMENTED)
+
+The source-only checker \`inspectGroveRestoreDeletionCoverage\` compares
+metadata sets but **never authenticates the alleged "external" ledger**.
+Before a real owner Delete button or physical restore is accepted, a *separate
+reviewed provider/custody mechanism* must supply all of:
+
+1. **Independent failure domain:** append-only deletion intent/commit receipts
+   held outside the Grove database, its snapshots, its restore point and
+   Grove service-role permissions; independently access-controlled audit and
+   encryption/signing keys. Neither the restored database nor a user/model
+   prompt may manufacture missing records.
+2. **Exact identity and durable acknowledgement:** a scope tuple of Grove
+   user UUID, Firefly project UUID, Firefly conversation UUID; idempotent
+   deletion-event ID, monotonic ordering/watermark, timestamp, confirmed
+   persistence and an integrity-verifiable custody receipt. No transcript body
+   is required in the ledger. Owner deletion must not be reported successful
+   before both the independent durable intent and the transactional scoped
+   tombstone/purge are demonstrably committed. If intent is durable but DB
+   completion is uncertain, retain a **blocking unresolved** event: a restore
+   cannot mistake an incomplete state for an authorized resurrection.
+   This is a proposed cross-provider protocol, NOT implemented.
+3. **Completeness and freshness proof:** independent authoritative record
+   stream with verified sequence/checkpoint continuity through a watermark
+   newer than the snapshot and through the release decision. Empty/no-events
+   cannot be inferred from an unreachable store. A caller-supplied JSON array,
+   even if it contains all locally known UUIDs, is NOT proof of completeness.
+   Missing, stale, tampered, divergent, duplicate or otherwise uncertain
+   custody => HOLD, not a best-effort restore.
+4. **Reconciliation and quarantine:** keep all restored/private endpoints,
+   inbound requests, model sends, workers, cron/webhooks and message reads
+   unavailable throughout recovery. Verify exact snapshot/source and trusted
+   ledger; reapply authoritative deleted-scope tombstones and purge matching
+   saved turns plus claims *before* serving anything; independently count/read
+   back every affected scope, unrelated scope, and owner grants; quarantine
+   any unresolved claim. Do not equate restoring original SQL triggers with
+   restoring a later external deletion record.
+5. **Rollback and retention:** a failed migration rolls back by preserving
+   the original intact system, NOT by publishing an older pre-deletion
+   snapshot. Do not undo an explicitly requested user deletion. Maintain the
+   deletion record as needed to fence EVERY still-restorable copy, even as
+   encrypted Grove-managed snapshots independently expire within the
+   owner-approved maximum of 30 elapsed days. Real provider encryption,
+   erasure confirmation, access review, key rotation and rollback evidence
+   require separate approval.
+
+**Important hosting hazard:** Supabase documents that cloning/restoring a
+physical project backup can re-activate restored \`pg_cron\`, \`pg_net\`,
+webhooks or wrappers as soon as the clone comes online; a separate project
+alone does not guarantee a safely silent quarantine. Do **not** run a binary
+clone or point-in-time restore for this test. Require an explicitly isolated,
+automation-disabled recovery environment or a reviewed logical restore
+procedure before any future approved rehearsal. Official reference:
+https://supabase.com/docs/guides/platform/clone-project
+
+Supabase also documents that PITR is an independently billed add-on and is
+not covered by its Spend Cap; **do not turn it on** in order to resolve this
+design review. https://supabase.com/docs/guides/platform/manage-your-usage/point-in-time-recovery
+
+### Gate resolution
+
+| Condition | Source-only state |
+| --- | --- |
+| Synthetic two-session user deletion / scoped backup replay | Proven offline |
+| Deliberate missing-tombstone full-snapshot resurrection risk | Proven UNSAFE offline |
+| New quarantined reapplication + rollback rehearsal | Needs exact-head CI receipt |
+| Independent signed/deletion-ledger custody | NOT BUILT / HOLD |
+| Provider 30-day encrypted snapshot enforcement and erasure | NOT VERIFIED / HOLD |
+| Actual no-automation isolated full restore and current owner readback | NOT RUN / HOLD |
+| Grove deployed transcript migrations, authorized phone and runtime | NOT RUN / HOLD |
+
+No SQL fixture here should ever be pointed at the actual Grove, Firefly, ARK
+or other Supabase project. The original 97-task master classifications stay
+unchanged. No new task IDs or live release authority.
