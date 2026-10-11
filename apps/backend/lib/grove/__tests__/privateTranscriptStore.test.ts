@@ -1186,6 +1186,7 @@ describe("Grove requested historical phrase search, read-only and scoped", () =>
     expect(validateGrovePrivateSearchPhrase("Laila school")).toBe("Laila school");
     for (const bad of ["", "a", " hello", "hello ", "%secret%", "_secret",
       "hi,assistant_text.ilike.%", "a.b", "x(y)", "what?", "a\nb",
+      "a-b", "a b", "1 2 3",
       "<script>", "a".repeat(65)]) {
       expect(() => validateGrovePrivateSearchPhrase(bad))
         .toThrow("grove_private_history_search_invalid");
