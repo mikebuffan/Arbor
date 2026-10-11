@@ -69,7 +69,7 @@ describe("explicit Grove-only saved conversation deletion", () => {
     ]);
   });
   it("does not treat a denied or unconfirmed database deletion as success",async()=>{
-    for (const status of [403,404,503] as const){
+    for (const status of [403,404,500] as const){
       mock.delete.mockRejectedValueOnce(
         new RouteAccessError(status,"grove_private_delete_rejected"));
       const res=await POST(request(scope));

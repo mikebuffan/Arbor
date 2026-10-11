@@ -19,3 +19,6 @@
 6. **Live gates:** owner approves detailed deletion scope (Grove-only vs other app), backup/export and retention, isolated schema migration/grants/rollback, exact host permission and phone build, then checks real delete and independently verified absence. Remain gated until then.
 
 **No live effects:** All code is in source-only draft #452, current Grove database migration and flags remain unchanged, no Vercel build or paid inference.
+
+## Expected-red source typecheck and bounded repair
+First combined source CI [38152816952](https://github.com/mikebuffan/Arbor/actions/runs/38152816952) proved 8/8 focused backend suites passing and the disposable PostgreSQL delete test passing, but TypeScript rejected the new 503 status in the pre-existing `RouteAccessError` union. The deletion broker now uses the existing fail-closed 500 error type, with unchanged non-success behavior. Await a new exact-head green run before source acceptance. No database or host change.

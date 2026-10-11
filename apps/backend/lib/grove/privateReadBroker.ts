@@ -309,7 +309,7 @@ async function assertPrivateGroveConversationNotDeleted(
       data.grove_user_id.toLowerCase() !== groveUserId.toLowerCase() ||
       data.firefly_project_id.toLowerCase() !== projectId.toLowerCase() ||
       data.firefly_conversation_id.toLowerCase() !== conversationId.toLowerCase()))) {
-    throw new RouteAccessError(503, "grove_private_delete_fence_unavailable");
+    throw new RouteAccessError(500, "grove_private_delete_fence_unavailable");
   }
   if (data) throw new RouteAccessError(404, "grove_private_conversation_deleted");
 }
@@ -453,7 +453,7 @@ export async function deletePrivateGroveConversation(
   if (error || !data || typeof data !== "object" || Array.isArray(data) ||
       data.status !== "deleted" ||
       !Number.isSafeInteger(data.removedTurns) || data.removedTurns < 0) {
-    throw new RouteAccessError(503, "grove_private_delete_not_confirmed");
+    throw new RouteAccessError(500, "grove_private_delete_not_confirmed");
   }
 }
 
@@ -483,7 +483,7 @@ export async function readPrivateGroveConversations(
       data.length > 0) {
     const ids = data.map(row => row?.id);
     if (ids.some(id => typeof id !== "string" || !validUuid.test(id)))
-      throw new RouteAccessError(503, "grove_private_delete_fence_unavailable");
+      throw new RouteAccessError(500, "grove_private_delete_fence_unavailable");
     const { data: tombstones, error: tombstoneError } = await groveAdmin
       .from("grove_private_conversation_tombstones")
       .select("firefly_conversation_id")
@@ -496,7 +496,7 @@ export async function readPrivateGroveConversations(
           !validUuid.test(row.firefly_conversation_id) ||
           !(ids as string[]).some(id => id.toLowerCase() ===
             row.firefly_conversation_id.toLowerCase()))) {
-      throw new RouteAccessError(503, "grove_private_delete_fence_unavailable");
+      throw new RouteAccessError(500, "grove_private_delete_fence_unavailable");
     }
     for (const row of tombstones)
       hidden.add(row.firefly_conversation_id.toLowerCase());
