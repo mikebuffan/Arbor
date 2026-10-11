@@ -682,6 +682,40 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel>
   }
 
 
+  /// Search input is modal so normal Grove Talk retains its single message
+  /// field and the user must deliberately opt into reading old saved text.
+  Future<void> _openSearchDialog() async {
+    if (!_valid || _loading || _sending || _draftBlocked ||
+        _changingDraft || _pendingId != null || _selected == null) return;
+    _searchInput.clear();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Search this saved conversation'),
+        content: TextField(
+          controller: _searchInput,
+          maxLength: 64,
+          autofocus: true,
+          decoration: const InputDecoration(
+            labelText: 'Saved message phrase',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel search'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Find matches'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && _valid) await _searchSavedMessages();
+  }
+
   /// Explicit local-display search of the currently authorized conversation.
   /// No results are passed as model context or stored on the device.
   Future<void> _searchSavedMessages() async {
@@ -1064,20 +1098,10 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel>
                   ),
             ),
             if (_selected != null) ...[
-              TextField(
-                controller: _searchInput,
-                enabled: !_loading && !_sending && !_draftBlocked &&
-                    !_changingDraft && _pendingId == null,
-                maxLength: 64,
-                decoration: const InputDecoration(
-                  labelText: 'Search saved messages in this conversation',
-                  border: OutlineInputBorder(),
-                ),
-              ),
               TextButton(
                 onPressed: _loading || _sending || _draftBlocked ||
                     _changingDraft || _pendingId != null
-                    ? null : _searchSavedMessages,
+                    ? null : _openSearchDialog,
                 child: const Text('Search saved messages'),
               ),
               if (widget.pendingStore != null)
