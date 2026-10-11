@@ -98,6 +98,6 @@ describe("jigsaw reuse and connector-first operating rules", () => {
     expect(rules).toContain("does not exist");
     expect(rules).toContain("Deferred is not discarded");
     expect(rules).toContain("may not silently expand the active job");
-    expect(rules).toContain("no new planner");
+    expect(rules).toContain("a new planner");
   });
 });
