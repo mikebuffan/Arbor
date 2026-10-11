@@ -11,6 +11,7 @@ import { mergeCorrectionSnapshots } from "@/lib/arbor/runtime/runtimeState";
 import { behaviorCorrections } from "@/lib/arbor/runtime/corrections";
 import { promptDataBlock } from "@/lib/arbor/promptData";
 import { renderCanonicalIdentityAnchor } from "@/lib/arbor/selfModel/canonicalIdentityAnchor";
+import { ARBOR_OPERATING_SELF_MODEL_VERSION } from "@/lib/arbor/selfModel/operatingSelfModel";
 import { arkMcpUserContext } from "./context";
 import {
   isArkMcpSubmissionEnabled,
@@ -70,6 +71,10 @@ export function registerArkReadTools(server: McpServer): void {
         canSubmitBehaviorTests: z.boolean(),
         canControlObjectives: z.boolean(),
         oauthClientId: z.string().nullable(),
+        // Build-reported source ID is informational, never an authority grant.
+        reportedSourceCommit: z.string().regex(/^[a-f0-9]{40}$/).nullable(),
+        sourceCommitEvidence: z.enum(["vercel_build_environment", "unavailable"]),
+        operatingSelfModelVersion: z.string(),
       }),
       annotations: ReadOnlyAnnotations,
       _meta: { "openai/profile": true },
@@ -93,7 +98,13 @@ export function registerArkReadTools(server: McpServer): void {
         canSubmitReadTasks: Boolean(canSubmit),
         canSubmitBehaviorTests: Boolean(canSubmitBehaviorTests),
         canControlObjectives: Boolean(canControlObjectives),
-        oauthClientId: typeof auth?.extra?.oauthClientId === "string" ? auth.extra.oauthClientId : null });
+        oauthClientId: typeof auth?.extra?.oauthClientId === "string" ? auth.extra.oauthClientId : null,
+        // Only a validated build-provided SHA; no token, hostname, or untrusted input echoed.
+        reportedSourceCommit: /^[a-f0-9]{40}$/.test(process.env.VERCEL_GIT_COMMIT_SHA ?? "")
+          ? process.env.VERCEL_GIT_COMMIT_SHA! : null,
+        sourceCommitEvidence: /^[a-f0-9]{40}$/.test(process.env.VERCEL_GIT_COMMIT_SHA ?? "")
+          ? "vercel_build_environment" as const : "unavailable" as const,
+        operatingSelfModelVersion: ARBOR_OPERATING_SELF_MODEL_VERSION });
     },
   );
 

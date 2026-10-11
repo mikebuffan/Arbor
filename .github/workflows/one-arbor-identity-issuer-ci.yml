@@ -24,6 +24,7 @@ on:
       - test/d10-e09-reviewed-outcome-recommendation-20261010
       - review/d10-e09-authenticated-ci-readback-20261010
       - review/one-arbor-grove-d10-e09-compose-20261010
+      - fix/one-arbor-plan-first-workflow-20261010
 
 permissions:
   contents: read

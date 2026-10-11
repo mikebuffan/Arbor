@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 vi.mock("../context", () => ({ arkMcpUserContext: () => ({ userId: "owner", email: null, supabase: {} }) }));
 import { registerArkReadTools } from "../registerArkReadTools";
+import { ARBOR_OPERATING_SELF_MODEL_VERSION } from "@/lib/arbor/selfModel/operatingSelfModel";
 
 describe("ARK MCP tool boundary", () => {
   it("registers only explicitly read-only tools", () => {
@@ -86,4 +87,34 @@ describe("ARK MCP tool boundary", () => {
       extra: { arkAcceptanceProjectIds: ["project"] } } } });
     expect(r.structuredContent).toMatchObject({ access: "read-only", canSubmitBehaviorTests: false, oauthClientId: null });
   });
+  it("reports an exact build SHA and operating model version without expanding permissions", async () => {
+    const sha = "a".repeat(40);
+    const runProfile = async () => {
+      const registerTool = vi.fn();
+      registerArkReadTools({ registerTool } as never);
+      const [, , run] = registerTool.mock.calls.find(c => c[0] === "get_arbor_profile")!;
+      return (await run({}, { http: { authInfo: { scopes: ["ark.read"], extra: {} } } })).structuredContent;
+    };
+    try {
+      vi.stubEnv("VERCEL_GIT_COMMIT_SHA", sha);
+      const valid = await runProfile();
+      expect(valid).toMatchObject({
+        access: "read-only", canSubmitReadTasks: false, canControlObjectives: false,
+        reportedSourceCommit: sha, sourceCommitEvidence: "vercel_build_environment",
+        operatingSelfModelVersion: ARBOR_OPERATING_SELF_MODEL_VERSION,
+      });
+      vi.stubEnv("VERCEL_GIT_COMMIT_SHA", "not-a-real-sha");
+      const invalid = await runProfile();
+      expect(invalid.reportedSourceCommit).toBeNull();
+      expect(invalid.sourceCommitEvidence).toBe("unavailable");
+      vi.stubEnv("VERCEL_GIT_COMMIT_SHA", "");
+      const missing = await runProfile();
+      expect(missing.reportedSourceCommit).toBeNull();
+      expect(missing.sourceCommitEvidence).toBe("unavailable");
+      expect(missing.operatingSelfModelVersion).toBe(ARBOR_OPERATING_SELF_MODEL_VERSION);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
 });

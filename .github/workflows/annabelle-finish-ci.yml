@@ -6,6 +6,7 @@ on:
       - feature/annabelle-finish-20261006
       - integration/one-arbor-machine-ready-20261006
       - integration/one-arbor-pre-vercel-20261006
+      - fix/one-arbor-plan-first-workflow-20261010
 
 permissions:
   contents: read

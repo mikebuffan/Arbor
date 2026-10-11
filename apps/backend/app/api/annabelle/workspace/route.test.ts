@@ -94,7 +94,9 @@ describe("Annabelle synthetic editor API boundary", () => {
   });
 
   it("routes an approved fictional edit through the actual atomic workspace owner", async () => {
-    mocks.loadVersionedAnnabelleWorkspace.mockResolvedValue({ workspace, editVersion: 1 });
+    mocks.loadVersionedAnnabelleWorkspace.mockResolvedValue({
+      workspace: { ...workspace, workingDelta: "Synthetic prose." }, editVersion: 1,
+    });
     const result = await POST(request("POST", {
       action: "save", projectId, requestId, expectedVersion: 0,
       workingDelta: "Synthetic prose.",
@@ -105,6 +107,67 @@ describe("Annabelle synthetic editor API boundary", () => {
       expect.any(Function),
     );
     expect((await result.json()).editVersion).toBe(1);
+  });
+
+
+  it("does not claim a save if another edit wins before independent response readback", async () => {
+    mocks.loadVersionedAnnabelleWorkspace.mockResolvedValue({
+      workspace: { ...workspace, workingDelta: "Later writer's version." },
+      editVersion: 2,
+    });
+    const result = await POST(request("POST", {
+      action: "save", projectId, requestId, expectedVersion: 0,
+      workingDelta: "Synthetic prose.",
+    }));
+    expect(result.status).toBe(409);
+    expect(await result.json()).toMatchObject({
+      ok: false, error: "annabelle_atomic_post_write_changed",
+    });
+    expect(mocks.updateAnnabelleWorkspace).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not claim a save even when the version matches but content readback differs", async () => {
+    mocks.loadVersionedAnnabelleWorkspace.mockResolvedValue({
+      workspace: { ...workspace, workingDelta: "Unrelated payload." },
+      editVersion: 1,
+    });
+    const result = await POST(request("POST", {
+      action: "save", projectId, requestId, expectedVersion: 0,
+      workingDelta: "Synthetic prose.",
+    }));
+    expect(result.status).toBe(409);
+    expect((await result.json()).ok).toBe(false);
+  });
+
+  it("does not label a superseded restored draft with the newer edit version", async () => {
+    mocks.restoreLatestAnnabelleWorkspaceRevision.mockResolvedValue({
+      ...workspace, workingDelta: "Restored version.",
+    });
+    mocks.loadVersionedAnnabelleWorkspace.mockResolvedValue({
+      workspace: { ...workspace, workingDelta: "Concurrent writer." },
+      editVersion: 4,
+    });
+    const result = await POST(request("POST", {
+      action: "restore", projectId, requestId, expectedVersion: 2,
+    }));
+    expect(result.status).toBe(409);
+    expect(await result.json()).toMatchObject({
+      ok: false, error: "annabelle_atomic_post_write_changed",
+    });
+    expect(mocks.restoreLatestAnnabelleWorkspaceRevision).toHaveBeenCalledTimes(1);
+  });
+
+  it("confirms a single exact synthetic restore version and readback", async () => {
+    const restored = { ...workspace, workingDelta: "Synthetic earlier draft." };
+    mocks.restoreLatestAnnabelleWorkspaceRevision.mockResolvedValue(restored);
+    mocks.loadVersionedAnnabelleWorkspace.mockResolvedValue({ workspace: restored, editVersion: 3 });
+    const response = await POST(request("POST", {
+      action: "restore", projectId, requestId, expectedVersion: 2,
+    }));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      ok: true, restored: true, workspace: restored, editVersion: 3,
+    });
   });
 
   it("rejects missing revision tokens before any write", async () => {

@@ -187,14 +187,47 @@ export async function updateAnnabelleWorkspace(
       throw new Error("annabelle_atomic_expected_version_required");
     if (!input.requestId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(input.requestId))
       throw new Error("annabelle_atomic_request_id_required");
+    const expectedVersion = input.expectedVersion as number;
     const { workspace: current, editVersion } = await loadVersionedAnnabelleWorkspace(input);
-    if (editVersion !== input.expectedVersion)
-      throw new Error("annabelle_atomic_version_conflict");
-    const next = mutate(current);
+    // The SQL transaction recognizes an exact request ID replay BEFORE
+    // checking the current version. Reconstruct the original preimage from
+    // that already-owned revision rather than rejecting every honest retry
+    // here (or recomputing a different payload from the current draft).
+    let preimage = current;
+    if (editVersion !== expectedVersion) {
+      if (editVersion !== expectedVersion + 1)
+        throw new Error("annabelle_atomic_version_conflict");
+      const { data: receipt, error: receiptError } = await input.supabase
+        .from("annabelle_workspace_revisions")
+        .select("snapshot,resulting_version")
+        .eq("id", input.requestId)
+        .eq("user_id", input.userId)
+        .eq("project_id", input.projectId)
+        .maybeSingle();
+      if (receiptError) throw receiptError;
+      if (!receipt || receipt.resulting_version !== expectedVersion + 1 ||
+          !receipt.snapshot || typeof receipt.snapshot !== "object" ||
+          Array.isArray(receipt.snapshot))
+        throw new Error("annabelle_atomic_version_conflict");
+      const prior = receipt.snapshot as Record<string, unknown>;
+      if (![prior.canon, prior.lockedPassages, prior.sceneState,
+             prior.unresolvedDecisions].every(value =>
+               Array.isArray(value) && value.every(item => typeof item === "string")) ||
+          !(typeof prior.workingDelta === "string" || prior.workingDelta === null))
+        throw new Error("annabelle_atomic_revision_invalid");
+      preimage = {
+        canon: toStrings(prior.canon),
+        lockedPassages: toStrings(prior.lockedPassages),
+        sceneState: toStrings(prior.sceneState),
+        unresolvedDecisions: toStrings(prior.unresolvedDecisions),
+        workingDelta: prior.workingDelta as string | null,
+      };
+    }
+    const next = mutate(preimage);
     const { data, error } = await input.supabase.rpc("annabelle_save_workspace_atomic", {
       p_project_id: input.projectId,
       p_request_id: input.requestId,
-      p_expected_version: editVersion,
+      p_expected_version: expectedVersion,
       p_canon: next.canon,
       p_locked_passages: next.lockedPassages,
       p_scene_state: next.sceneState,
@@ -204,10 +237,11 @@ export async function updateAnnabelleWorkspace(
     });
     if (error) throw error;
     if (!data || !["committed", "replayed"].includes(data.status) ||
-        data.editVersion !== editVersion + 1)
+        data.editVersion !== expectedVersion + 1 ||
+        (editVersion !== expectedVersion && data.status !== "replayed"))
       throw new Error("annabelle_atomic_receipt_invalid");
     const verified = await loadVersionedAnnabelleWorkspace(input);
-    if (verified.editVersion !== editVersion + 1 ||
+    if (verified.editVersion !== expectedVersion + 1 ||
         !equalWorkspace(verified.workspace, next))
       throw new Error("annabelle_atomic_readback_mismatch");
     return next;
@@ -238,15 +272,20 @@ export async function restoreLatestAnnabelleWorkspaceRevision(input: {
   expectedVersion?: number;
   requestId?: string;
 }): Promise<AnnabelleWorkspace> {
+  const atomic = annabelleAtomicWorkspaceEnabled();
+  if (atomic && (!Number.isSafeInteger(input.expectedVersion) ||
+      (input.expectedVersion ?? -1) < 0))
+    throw new Error("annabelle_atomic_expected_version_required");
   const revisions = input.supabase
     .from("annabelle_workspace_revisions")
     .select("snapshot")
     .eq("user_id", input.userId)
     .eq("project_id", input.projectId);
-  // Postgres timestamps reflect transaction start, not necessarily the final
-  // serialization order. Atomic restoration must follow committed versions.
-  const ordered = annabelleAtomicWorkspaceEnabled()
-    ? revisions.order("resulting_version", { ascending: false, nullsFirst: false })
+  // Bind the restoration target to the version the caller actually read.
+  // Reusing the same request after a lost response must pick the SAME prior
+  // snapshot, not the newer revision created by the first restoration.
+  const ordered = atomic
+    ? revisions.eq("resulting_version", input.expectedVersion as number)
     : revisions.order("created_at", { ascending: false });
   const { data, error } = await ordered.limit(1).maybeSingle();
 

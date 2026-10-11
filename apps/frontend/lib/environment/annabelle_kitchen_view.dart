@@ -14,10 +14,10 @@ class AnnabelleKitchenView extends StatefulWidget {
   final VoidCallback onOpenConversation;
 
   @override
-  State<AnnabelleKitchenView> createState() => _AnnabelleKitchenViewState();
+  State<AnnabelleKitchenView> createState() => AnnabelleKitchenViewState();
 }
 
-class _AnnabelleKitchenViewState extends State<AnnabelleKitchenView> {
+class AnnabelleKitchenViewState extends State<AnnabelleKitchenView> {
   final GroveHouseClock _clock = GroveHouseClock.shared;
   final TextEditingController _scratchpad = TextEditingController();
 
@@ -40,21 +40,16 @@ class _AnnabelleKitchenViewState extends State<AnnabelleKitchenView> {
     super.dispose();
   }
 
-  Future<void> _confirmLeave(VoidCallback navigate) async {
-    // The kitchen preview has no durable workspace write. An ordinary room
-    // change must not silently discard notes before the author copies them.
-    if (_scratchpad.text.isEmpty) {
-      navigate();
-      return;
-    }
-    final leave = await showDialog<bool>(
+
+  /// Navigation through the shell also protects this visit-only scratchpad.
+  Future<bool> confirmNavigationAway() async {
+    if (_scratchpad.text.isEmpty) return true;
+    final discard = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Leave Annabelle’s kitchen?'),
-        content: const Text(
-          'Your scratchpad has not been saved. Leaving will discard it. '
-          'Choose Keep writing to copy your notes first.',
-        ),
+        content: const Text('Your scratchpad has not been saved. '
+            'Leaving will discard it. Choose Keep writing to copy your notes first.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
@@ -67,8 +62,7 @@ class _AnnabelleKitchenViewState extends State<AnnabelleKitchenView> {
         ],
       ),
     );
-    if (!mounted || leave != true) return;
-    navigate();
+    return mounted && discard == true;
   }
 
   @override
@@ -148,12 +142,12 @@ class _AnnabelleKitchenViewState extends State<AnnabelleKitchenView> {
           label: const Text('Copy notes'),
         ),
         OutlinedButton.icon(
-          onPressed: () => _confirmLeave(widget.onOpenConversation),
+          onPressed: widget.onOpenConversation,
           icon: const Icon(Icons.chat_bubble_outline),
           label: const Text('Existing Talk (Arbor)'),
         ),
         FilledButton.icon(
-          onPressed: () => _confirmLeave(widget.onReturnHome),
+          onPressed: widget.onReturnHome,
           icon: const Icon(Icons.home_outlined),
           label: const Text('Back to the Grove'),
         ),

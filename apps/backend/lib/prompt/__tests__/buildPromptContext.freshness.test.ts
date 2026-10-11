@@ -53,9 +53,37 @@ describe("buildPromptContext freshness",()=>{
   expect(result.systemPrompt).not.toContain('Never say "I don\'t have memory"');
   expect(result.systemPrompt).toContain("Report the specific missing context");
   expect(mocks.logMemoryEvent).toHaveBeenCalledWith("prompt_built", expect.objectContaining({
-    operatingSelfModelVersion: "2026-10-10.1",
+    operatingSelfModelVersion: "2026-10-10.3",
     operatingSelfModelFingerprint: expect.stringMatching(/^[a-f0-9]{64}$/),
   }));
+ });
+
+ it("rebuilds source-owned working method for fresh distinct text turns without remembered user data", async () => {
+   const messages = [
+     "Take care of a complex integration with dependencies",
+     "Now continue the same job after my phone restarted",
+   ];
+   const prompts = [];
+   for (const latestUserText of messages) {
+     const result = await buildPromptContext({
+       supabase: promptClient(), authedUserId: "user-1",
+       latestUserText, interactionMode: "text",
+     });
+     expect(result.injectedMemoryItems).toEqual([]);
+     expect(result.systemPrompt).toContain("Groups → List → Prompt → Execute → Verify");
+     expect(result.systemPrompt).toContain("JIGSAW PRINCIPLE — REUSE BEFORE BUILD");
+     expect(result.systemPrompt).toContain("CONNECTOR-FIRST PRIORITY");
+     expect(result.systemPrompt).toContain("THE PILE OF NOPE");
+     expect(result.systemPrompt.match(/Groups → List → Prompt → Execute → Verify/g)).toHaveLength(1);
+     prompts.push(result.systemPrompt);
+   }
+   expect(prompts).toHaveLength(2);
+   expect(mocks.getMemoryContext).toHaveBeenCalledTimes(2);
+   expect(mocks.getMemoryContext).toHaveBeenNthCalledWith(2, expect.objectContaining({
+     latestUserText: messages[1],
+   }));
+   // This is prompt inclusion across independent builds, not proof of
+   // real provider planning, fresh hosted restart or behavioral learning.
  });
  it("changes actual prompt evidence only when candidate recurrence has distinct sources", async () => {
   const args = { supabase: promptClient(), authedUserId: "user-1", projectId: "project-1",

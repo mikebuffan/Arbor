@@ -243,6 +243,9 @@ export async function runAgency<SharedState>(input: {
     shared = await input.runtime.integrate({ agency, shared, action, result });
 
     const verification = await input.runtime.verify({ agency, shared, action, result });
+    // The same action replayed after a checkpoint or retry is not a second
+    // independent piece of evidence that an approach worked.
+    const newActionObservation = !(agency.attemptedActionIds ?? []).includes(action.id);
 
     agency = {
       ...agency,
@@ -255,7 +258,10 @@ export async function runAgency<SharedState>(input: {
 
     const audit = await input.runtime.selfAudit({ agency, shared, verification });
 
-    const strategyUpdate = audit.strategyChange
+    // A repeated failure is a weakness/correction signal, not confirmation
+    // that the proposed repair succeeded. Never promote a method from failed
+    // verification or a replayed action identifier.
+    const strategyUpdate = audit.strategyChange && verification.ok && newActionObservation
       ? recordStrategyCandidate(agency.strategyNotes, audit.strategyChange)
       : null;
 

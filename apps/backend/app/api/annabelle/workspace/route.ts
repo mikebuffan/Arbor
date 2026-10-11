@@ -50,7 +50,8 @@ function failure(error: unknown) {
   if (message === "annabelle_test_project_contains_manuscript")
     return output({ ok: false, error: message }, 409);
   if (message === "annabelle_atomic_version_conflict" ||
-      message === "annabelle_atomic_request_id_conflict")
+      message === "annabelle_atomic_request_id_conflict" ||
+      message === "annabelle_atomic_post_write_changed")
     return output({ ok: false, error: message }, 409);
   return routeErrorResponse(error);
 }
@@ -117,15 +118,24 @@ export async function POST(req: Request) {
       supabase, userId, projectId: body.projectId,
       requestId: body.requestId, expectedVersion: body.expectedVersion,
     };
+    // The RPC is atomic, but a second caller can commit before this response's
+    // independent readback. Never label a stale payload with a newer version.
+    const confirmExactCommit = async (workspace: Awaited<ReturnType<typeof updateAnnabelleWorkspace>>) => {
+      const verified = await loadVersionedAnnabelleWorkspace(scope);
+      if (verified.editVersion !== body.expectedVersion + 1 ||
+          JSON.stringify(verified.workspace) !== JSON.stringify(workspace))
+        throw new Error("annabelle_atomic_post_write_changed");
+      return verified.editVersion;
+    };
     if (body.action === "restore") {
       const workspace = await restoreLatestAnnabelleWorkspaceRevision(scope);
-      const { editVersion } = await loadVersionedAnnabelleWorkspace(scope);
+      const editVersion = await confirmExactCommit(workspace);
       return output({ ok: true, workspace, editVersion, restored: true });
     }
     const workspace = await updateAnnabelleWorkspace({
       ...scope, reason: "synthetic draft acceptance",
     }, current => ({ ...current, workingDelta: body.workingDelta }));
-    const { editVersion } = await loadVersionedAnnabelleWorkspace(scope);
+    const editVersion = await confirmExactCommit(workspace);
     return output({ ok: true, workspace, editVersion, saved: true });
   } catch (error) {
     return failure(error);
