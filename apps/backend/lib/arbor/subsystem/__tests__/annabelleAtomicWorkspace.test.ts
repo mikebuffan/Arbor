@@ -17,18 +17,27 @@ const fixture = {
 function memoryDatabase(options: { dropWrite?: boolean; missingMigration?: boolean } = {}) {
   let state: Record<string, unknown> | null = null;
   let previous: Record<string, unknown> | null = null;
+  let lastReceipt: { id: string; snapshot: Record<string, unknown>; resultingVersion: number; payload: string } | null = null;
   const upsert = vi.fn(async () => { throw new Error("direct_upsert_must_not_run"); });
   const insert = vi.fn(async () => { throw new Error("direct_revision_insert_must_not_run"); });
   const from = vi.fn((name: string) => {
+    const filters: Record<string, unknown> = {};
     const query: any = {
-      select: () => query, eq: () => query, order: vi.fn(() => query), limit: () => query,
+      select: () => query, eq: (key: string, value: unknown) => { filters[key] = value; return query; },
+      order: vi.fn(() => query), limit: () => query,
       maybeSingle: async () => {
         if (name === "annabelle_workspace_state")
           return options.missingMigration
             ? { data: null, error: { code: "42703", message: "edit_version missing" } }
             : { data: state, error: null };
-        if (name === "annabelle_workspace_revisions")
+        if (name === "annabelle_workspace_revisions") {
+          if (filters.id !== undefined) {
+            return { data: lastReceipt?.id === filters.id ? {
+              snapshot: lastReceipt.snapshot, resulting_version: lastReceipt.resultingVersion,
+            } : null, error: null };
+          }
           return { data: previous ? { snapshot: previous } : null, error: null };
+        }
         throw new Error("unexpected_table:" + name);
       },
       upsert, insert,
@@ -39,12 +48,20 @@ function memoryDatabase(options: { dropWrite?: boolean; missingMigration?: boole
     expect(_name).toBe("annabelle_save_workspace_atomic");
     expect(args.p_project_id).toBe(owner.projectId);
     const oldVersion = state?.edit_version ?? 0;
+    const payload = JSON.stringify(args);
+    if (lastReceipt?.id === args.p_request_id) {
+      return lastReceipt.payload === payload
+        ? { data: { status: "replayed", editVersion: lastReceipt.resultingVersion }, error: null }
+        : { data: null, error: { code: "P0001", message: "annabelle_atomic_request_id_conflict" } };
+    }
     if (args.p_expected_version !== oldVersion)
       return { data: null, error: { code: "P0001", message: "annabelle_atomic_version_conflict" } };
     previous = state ? {
       canon: state.canon, lockedPassages: state.locked_passages, sceneState: state.scene_state,
       unresolvedDecisions: state.unresolved_decisions, workingDelta: state.working_delta,
     } : { canon: [], lockedPassages: [], sceneState: [], unresolvedDecisions: [], workingDelta: null };
+    lastReceipt = { id: args.p_request_id, snapshot: { ...previous },
+      resultingVersion: (oldVersion as number) + 1, payload };
     if (!options.dropWrite) state = {
       canon: args.p_canon, locked_passages: args.p_locked_passages,
       scene_state: args.p_scene_state, unresolved_decisions: args.p_unresolved_decisions,
@@ -87,6 +104,45 @@ describe("Annabelle opt-in atomic workspace cutover", () => {
     expect((await loadVersionedAnnabelleWorkspace({ ...owner, supabase: db.supabase })).editVersion).toBe(1);
     expect(db.upsert).not.toHaveBeenCalled();
     expect(db.insert).not.toHaveBeenCalled();
+  });
+
+
+  it("retries the same synthetic save across new client handles without a second revision", async () => {
+    vi.stubEnv("ANNABELLE_ATOMIC_WORKSPACE_ENABLED", "true");
+    const db = memoryDatabase();
+    const scope = { ...owner, reason: "synthetic", expectedVersion: 0, requestId: idA };
+    await updateAnnabelleWorkspace({ ...scope, supabase: db.supabase }, () => fixture);
+
+    // New wrapper simulates a reopened HTTP/server client over unchanged storage.
+    const reopened = { from: db.from, rpc: db.rpc } as unknown as SupabaseClient;
+    const recovered = await updateAnnabelleWorkspace({ ...scope, supabase: reopened }, () => fixture);
+    expect(recovered).toEqual(fixture);
+    expect(db.rpc).toHaveBeenCalledTimes(2);
+    expect((await loadVersionedAnnabelleWorkspace({ ...owner, supabase: reopened })).editVersion).toBe(1);
+    expect(db.insert).not.toHaveBeenCalled();
+  });
+
+  it("rejects a changed replay payload with the original request ID", async () => {
+    vi.stubEnv("ANNABELLE_ATOMIC_WORKSPACE_ENABLED", "true");
+    const db = memoryDatabase();
+    const input = { ...owner, supabase: db.supabase, reason: "synthetic", expectedVersion: 0, requestId: idA };
+    await updateAnnabelleWorkspace(input, () => fixture);
+    await expect(updateAnnabelleWorkspace(input, () => ({
+      ...fixture, workingDelta: "Changed replay payload",
+    }))).rejects.toMatchObject({ code: "P0001", message: "annabelle_atomic_request_id_conflict" });
+    expect((await loadVersionedAnnabelleWorkspace(input)).workspace).toEqual(fixture);
+  });
+
+  it("fails closed when the prior request's recovery snapshot is missing", async () => {
+    vi.stubEnv("ANNABELLE_ATOMIC_WORKSPACE_ENABLED", "true");
+    const db = memoryDatabase();
+    await updateAnnabelleWorkspace({
+      ...owner, supabase: db.supabase, reason: "synthetic", expectedVersion: 0, requestId: idA,
+    }, () => fixture);
+    await expect(updateAnnabelleWorkspace({
+      ...owner, supabase: db.supabase, reason: "synthetic", expectedVersion: 0, requestId: idB,
+    }, () => fixture)).rejects.toThrow("annabelle_atomic_version_conflict");
+    expect(db.rpc).toHaveBeenCalledTimes(1);
   });
 
   it("rejects missing expected versions, missing request IDs, and stale edits", async () => {
