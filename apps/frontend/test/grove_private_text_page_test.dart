@@ -36,6 +36,8 @@ class _FakePrivateClient extends GrovePrivateConversationClient {
   bool hasOlder = false;
   int historyReads = 0;
   int archivedTurnReads = 0;
+  int phraseSearches = 0;
+  bool failPhraseSearch = false;
   bool hasOlderMessages = false;
   int sends = 0;
   int creations = 0;
@@ -186,6 +188,32 @@ class _FakePrivateClient extends GrovePrivateConversationClient {
   }
 
   @override
+  Future<GrovePrivateHistory> findSavedPhrase({
+    required String projectId,
+    required String conversationId,
+    required String phrase,
+  }) async {
+    phraseSearches++;
+    expect(projectId, expectedProjectId);
+    expect(conversationId, expectedConversationId);
+    expect(phrase, 'Ever After');
+    if (failPhraseSearch) throw StateError('synthetic private access revoked');
+    return GrovePrivateHistory(
+      projectId: projectId, conversationId: conversationId,
+      mayBeTruncated: false,
+      turnsNewestFirst: [
+        GrovePrivateCompleteTurn(
+          requestId: '00000000-0000-4000-8000-000000000019',
+          userText: 'Ever After chapter one',
+          assistantText: 'One saved matching passage',
+          replyVerification: 'unverified_model_text',
+          createdAt: DateTime.utc(2025, 6, 1),
+        ),
+      ],
+    );
+  }
+
+  @override
   Future<GrovePrivateReply> send({
     required String projectId,
     required String conversationId,
@@ -252,6 +280,26 @@ Future<void> roomForRecovery(WidgetTester tester) async {
 }
 
 void main() {
+  testWidgets('Grove searches saved text explicitly without sending to LM', (tester) async {
+    await roomForRecovery(tester);
+    final client = _FakePrivateClient();
+    await tester.pumpWidget(recoveryPhone(
+      client, pendingStore(FakeDeviceStringStore()),
+    ));
+    await tester.pumpAndSettle();
+    expect(client.phraseSearches, 0);
+    final searchField = find.widgetWithText(
+      TextField, 'Search saved messages in this conversation');
+    await tester.enterText(searchField, 'Ever After');
+    await tester.ensureVisible(find.text('Search saved messages'));
+    await tester.tap(find.text('Search saved messages'));
+    await tester.pumpAndSettle();
+    expect(client.phraseSearches, 1);
+    expect(find.text('Ever After chapter one'), findsOneWidget);
+    expect(find.text('One saved matching passage'), findsOneWidget);
+    expect(client.sends, 0);
+  });
+
   testWidgets('Grove manually pages older saved messages in existing private Text', (tester) async {
     await roomForRecovery(tester);
     final client = _FakePrivateClient()..hasOlderMessages = true;
