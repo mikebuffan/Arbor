@@ -89,6 +89,15 @@ jobs:
           lib/arbor/agency/__tests__/sessionInterruption.reconciliation.test.ts
           lib/chat/__tests__/chatRoute.contract.test.ts
           lib/arbor/pragmatics/__tests__/humorPolicy.test.ts
+      - name: Install Poppler parser required by existing offline PDF tests
+        if: github.ref == 'refs/heads/review/one-arbor-foundation-source-compose-20261011'
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends poppler-utils
+          command -v pdfinfo
+          command -v pdftotext
+          command -v pdfimages
       - name: Full backend regression on composed Grove + ARK foundation only
         if: github.ref == 'refs/heads/review/one-arbor-foundation-source-compose-20261011'
         working-directory: apps/backend
