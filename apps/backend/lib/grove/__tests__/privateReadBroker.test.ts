@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   fromCalls: [] as string[],
   queryFilters: [] as Array<{ table: string; key: string; value: unknown }>,
   queryOrders: [] as Array<{ table: string; key: string; ascending: boolean }>,
+  orFilters: [] as Array<{ table: string; value: string }>,
   insertedRows: [] as Array<{table: string; values: unknown}>,
 }));
 
@@ -31,6 +32,7 @@ import {
   readPrivateGroveArk,
   readPrivateGroveProjects,
   readPrivateGroveConversations,
+  issueGroveConversationArchiveCursor, readGroveConversationArchiveCursor,
   createPrivateGroveConversation,
   authorizePrivateGroveConversation,
 } from "@/lib/grove/privateReadBroker";
@@ -72,6 +74,10 @@ function query(table: string) {
     eq: vi.fn(),
     is: vi.fn(),
     gt: vi.fn(),
+    or: vi.fn((value: string) => {
+      mocks.orFilters.push({ table, value }); return q;
+    }),
+    in: vi.fn(() => q),
     order: vi.fn(),
     insert: vi.fn((values: unknown) => {
       mocks.insertedRows.push({ table, values }); return q;
@@ -108,6 +114,7 @@ beforeEach(() => {
   mocks.fromCalls.length = 0;
   mocks.queryFilters.length = 0;
   mocks.queryOrders.length = 0;
+  mocks.orFilters.length = 0;
   mocks.insertedRows.length = 0;
   mocks.lookup.clear();
   vi.stubEnv("GROVE_API_ENABLED", "true");
@@ -843,5 +850,113 @@ describe("explicit Grove private conversation creation", () => {
       req(jwt(), projectId, "https://firefly-coral.vercel.app"), projectId,
     )).rejects.toMatchObject({ status: 404, code: "grove_route_not_found" });
     expect(mocks.insertedRows).toHaveLength(0);
+  });
+});
+
+
+describe("Grove historical conversation discovery (source-only)", () => {
+  const key = "synthetic-service-role-secret-for-discovery";
+  const archivedScope = { groveUserId: groveOwner, fireflyUserId: fireflyOwner, projectId };
+  const archived = (day: number) => ownedConversation(
+    "00000000-0000-4000-8000-" + (100 + day).toString().padStart(12, "0"),
+    { updated_at: "2025-06-" + String(day).padStart(2, "0") + "T12:00:00.123456Z" },
+  );
+
+  it("binds cursor to exact Grove+Firefly owner and project, expires and rejects forgery", () => {
+    const marker = { updatedAt: archived(1).updated_at, conversationId: archived(1).id };
+    const cursor = issueGroveConversationArchiveCursor({
+      scope: archivedScope, key: marker, secret: key, now: 1_000_000,
+    });
+    expect(readGroveConversationArchiveCursor({
+      scope: archivedScope, cursor, secret: key, now: 1_000_001,
+    })).toEqual(marker);
+    for (const invalid of [
+      { scope: { ...archivedScope, projectId: conversationId }, cursor },
+      { scope: { ...archivedScope, fireflyUserId: groveOwner }, cursor },
+      { scope: archivedScope, cursor: cursor.slice(0, -1) +
+        (cursor.endsWith("0") ? "1" : "0") },
+      { scope: archivedScope, cursor: "invalid" },
+    ]) {
+      expect(() => readGroveConversationArchiveCursor({
+        ...invalid, secret: key, now: 1_000_001,
+      })).toThrow("grove_private_conversations_cursor_invalid");
+    }
+    expect(() => readGroveConversationArchiveCursor({
+      scope: archivedScope, cursor, secret: key, now: 1_900_000,
+    })).toThrow("grove_private_conversations_cursor_invalid");
+  });
+
+  it("pages 20 RAW entries, filtering tombstones without leaking the 21st lookahead", async () => {
+    vi.stubEnv("GROVE_SERVICE_ROLE_KEY", key);
+    vi.stubEnv("GROVE_PRIVATE_CHAT_PREVIEW_ENABLED", "true");
+    const rows = Array.from({length: 21}, (_, i) => archived(21 - i));
+    mocks.lookup.set("conversations:list", { data: rows, error: null });
+    mocks.lookup.set("grove_private_conversation_tombstones:list", {
+      data: [{ firefly_conversation_id: rows[1].id }], error: null,
+    });
+    const first = await readPrivateGroveConversations(req(), projectId, { enabled: true });
+    expect(first.conversations).toHaveLength(19);
+    expect(first.conversations.some(c => c.conversationId === rows[1].id)).toBe(false);
+    expect(first.conversations.some(c => c.conversationId === rows[20].id)).toBe(false);
+    expect(first.mayBeTruncated).toBe(true);
+    expect(first.nextCursor).toMatch(/^[A-Za-z0-9_-]+\.[0-9a-f]{64}$/);
+    expect(mocks.queryFilters).toEqual(expect.arrayContaining([
+      { table: "conversations", key: "user_id", value: fireflyOwner },
+      { table: "conversations", key: "project_id", value: projectId },
+    ]));
+    mocks.lookup.set("conversations:list", { data: [rows[20]], error: null });
+    mocks.lookup.set("grove_private_conversation_tombstones:list", {data: [], error: null});
+    const second = await readPrivateGroveConversations(req(), projectId, {
+      enabled: true, cursor: first.nextCursor!,
+    });
+    expect(second.conversations.map(c => c.conversationId)).toEqual([rows[20].id]);
+    expect(second.nextCursor).toBeNull();
+    expect(second.mayBeTruncated).toBe(false);
+    expect(mocks.orFilters).toContainEqual({
+      table: "conversations",
+      value: "updated_at.lt." + rows[19].updated_at +
+        ",and(updated_at.eq." + rows[19].updated_at + ",id.lt." + rows[19].id + ")",
+    });
+  });
+
+  it("does not query Firefly conversations for a forged older-page cursor", async () => {
+    vi.stubEnv("GROVE_SERVICE_ROLE_KEY", key);
+    const cursor = issueGroveConversationArchiveCursor({
+      scope: archivedScope,
+      key: { updatedAt: archived(20).updated_at, conversationId: archived(20).id },
+      secret: key, now: Date.now() - 16 * 60 * 1000,
+    });
+    await expect(readPrivateGroveConversations(req(), projectId, {
+      enabled: true, cursor,
+    })).rejects.toMatchObject({ status: 409,
+      code: "grove_private_conversations_cursor_invalid" });
+    expect(mocks.fromCalls).not.toContain("conversations");
+  });
+
+  it("rejects out-of-order, wrong-scope and duplicate rows on archive pages", async () => {
+    vi.stubEnv("GROVE_SERVICE_ROLE_KEY", key);
+    for (const rows of [
+      [archived(2), archived(3)],
+      [archived(2), archived(2)],
+      [archived(2), { ...archived(1), user_id: groveOwner }],
+    ]) {
+      mocks.lookup.set("conversations:list", {data: rows, error: null});
+      await expect(readPrivateGroveConversations(req(), projectId, {
+        enabled: true,
+      })).rejects.toMatchObject({
+        status: 500, code: "grove_private_conversations_unavailable",
+      });
+    }
+  });
+
+  it("rechecks grant after scoped page query and before exposing IDs", async () => {
+    vi.stubEnv("GROVE_SERVICE_ROLE_KEY", key);
+    mocks.lookup.set("conversations:list", { data: [archived(1)], error: null });
+    mocks.assertProjectOwnedByUser
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error("grant revoked mid page"));
+    await expect(readPrivateGroveConversations(req(), projectId, {
+      enabled: true,
+    })).rejects.toThrow("grant revoked mid page");
   });
 });
