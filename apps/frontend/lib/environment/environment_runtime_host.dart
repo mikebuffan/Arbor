@@ -6,10 +6,20 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../api/arbor_api_client.dart';
 import '../api/arbor_session.dart';
 import '../config/arbor_config.dart';
+import '../config/grove_private_config.dart';
 import 'arbor_environment_shell.dart';
 import 'grove_app_mode.dart';
+import 'grove_private_conversations.dart';
 import 'environment_adapter.dart';
 import 'environment_state.dart';
+
+/// Source-only private host boundary for the repeatedly refreshed ARK status.
+/// Firefly preserves its original endpoint and transport.
+bool environmentStatusHostApproved({
+  required bool privateGrove,
+  required GrovePrivateConfig config,
+  required String baseUrl,
+}) => !privateGrove || (config.ready && config.apiUrl == baseUrl);
 
 class EnvironmentRuntimeBootstrap extends StatefulWidget {
   const EnvironmentRuntimeBootstrap({super.key});
@@ -27,7 +37,10 @@ class _EnvironmentRuntimeBootstrapState
   @override
   void initState() {
     super.initState();
-    _apiClient = ArborApiClient(baseUrl: ArborConfig.apiBaseUrl);
+    _apiClient = ArborApiClient(
+      baseUrl: ArborConfig.apiBaseUrl,
+      httpClient: groveStandalone ? GrovePrivateNoRedirectClient() : null,
+    );
     _adapter = _SessionAwareEnvironmentAdapter(_apiClient);
   }
 
@@ -89,6 +102,15 @@ class _SessionAwareEnvironmentAdapter implements EnvironmentRuntimeAdapter {
 
   @override
   Future<EnvironmentSnapshot> snapshot() async {
+    if (!environmentStatusHostApproved(
+      privateGrove: groveStandalone,
+      config: GrovePrivateConfig.fromBuild,
+      baseUrl: apiClient.baseUrl,
+    )) {
+      return const UnavailableEnvironmentAdapter(
+        'Private Grove ARK host is not approved.',
+      ).snapshot();
+    }
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) {
       return const UnavailableEnvironmentAdapter(
