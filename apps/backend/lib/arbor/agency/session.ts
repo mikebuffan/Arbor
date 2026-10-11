@@ -7,6 +7,7 @@ import {
 } from "./state";
 import { loadRuntimeState } from "../runtime/runtimeStateStore";
 import { resolveAgencyGoal } from "./continuation";
+import { classifyConversationWorkControl, hasLiveAgencyGoal, isStandaloneContinuationCue } from "../continuity/longitudinalPolicy";
 import { recordStrategyCandidate } from "./strategyRetention";
 import {
   preserveSuspendedOpenLoops,
@@ -92,6 +93,12 @@ export function buildAgencySessionState(input: {
   checkpointId?: string;
   now?: string;
 }): AgencyState {
+  if (classifyConversationWorkControl(input.userText)) {
+    throw new Error("conversation_control_requires_hold_boundary");
+  }
+  if (isStandaloneContinuationCue(input.userText) && !hasLiveAgencyGoal(input.prior)) {
+    throw new Error("continuation_without_unfinished_goal");
+  }
   const { goal, resume, superseded } =
     resolveAgencyGoal(input.userText, input.prior);
 
@@ -141,13 +148,34 @@ export function buildAgencySessionState(input: {
   };
 }
 
-export async function beginAgencySession(input: {
+
+/** Route-level control handling. Unlike an ordinary chat "go", this does not
+ * run any agent or cancel any durable ARK objective. Existing blocked work
+ * remains blocked, and an active conversational goal is checkpointed. */
+export async function holdAgencyForConversationControl(input: {
+  supabase: SupabaseClient;
+  userId: string;
+  projectId: string;
+}): Promise<boolean> {
+  const prior = await loadAgencyState(input);
+  if (!prior || !resumableAgency(prior)) return false;
+  if (prior.status !== "active") return true;
+  await checkpointAgencySession({
+    ...input,
+    agency: prior,
+    reason: "explicit_user_conversation_control",
+  });
+  return true;
+}
+
+/** Exactly the same owner-scoped source choice used by normal agency start.
+ * A bare GO/NEXT may inspect existing work, but must not create one. */
+export async function readPriorAgencySession(input: {
   supabase: SupabaseClient;
   userId: string;
   projectId: string;
   conversationId?: string | null;
-  userText: string;
-}): Promise<AgencyState> {
+}): Promise<AgencyState | null> {
   const [projectAgency, conversationRuntime] = await Promise.all([
     loadAgencyState(input),
     input.conversationId
@@ -159,11 +187,17 @@ export async function beginAgencySession(input: {
         })
       : Promise.resolve(null),
   ]);
+  return choosePriorAgency(projectAgency, conversationRuntime?.agency);
+}
 
-  const prior = choosePriorAgency(
-    projectAgency,
-    conversationRuntime?.agency,
-  );
+export async function beginAgencySession(input: {
+  supabase: SupabaseClient;
+  userId: string;
+  projectId: string;
+  conversationId?: string | null;
+  userText: string;
+}): Promise<AgencyState> {
+  const prior = await readPriorAgencySession(input);
 
   const agency = buildAgencySessionState({
     userText: input.userText,

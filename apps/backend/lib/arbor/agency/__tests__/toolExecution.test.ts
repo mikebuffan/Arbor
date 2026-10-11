@@ -2,6 +2,7 @@ import {
   describe,
   expect,
   it,
+  vi,
 } from "vitest";
 
 import {
@@ -88,6 +89,35 @@ describe(
         }
       },
     );
+
+
+    it("does not retry a read after STOP revokes the lease between attempts", async () => {
+      let called = 0;
+      const beforeAttempt = vi.fn()
+        .mockResolvedValueOnce(undefined)
+        .mockRejectedValueOnce(new Error("ark_lease_lost"));
+      const read = vi.fn(async () => {
+        called++;
+        throw new Error("temporary provider failure");
+      });
+      await expect(executeAgencyToolWithRecovery({
+        tool: tool({ name: "read-stoppable", risk: "read", execute: read }),
+        args: {}, context, attemptedRoutes: ["read-stoppable"],
+        beforeAttempt,
+      })).rejects.toThrow("ark_lease_lost");
+      expect(called).toBe(1);
+      expect(beforeAttempt).toHaveBeenCalledTimes(2);
+    });
+
+    it("never attempts a tool when the initial trusted STOP gate fails", async () => {
+      const execute = vi.fn(async () => ({ shouldNotHappen: true }));
+      await expect(executeAgencyToolWithRecovery({
+        tool: tool({ name: "read-stopped", risk: "read", execute }),
+        args: {}, context, attemptedRoutes: ["read-stopped"],
+        beforeAttempt: async () => { throw new Error("ark_lease_lost"); },
+      })).rejects.toThrow("ark_lease_lost");
+      expect(execute).not.toHaveBeenCalled();
+    });
 
     it(
       "does not automatically retry a failed write",

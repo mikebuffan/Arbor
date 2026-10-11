@@ -102,6 +102,9 @@ export async function executeAgencyToolWithRecovery(
     args: Record<string, unknown>;
     context: AgencyToolContext;
     attemptedRoutes: string[];
+    /** Optional trusted host lease check; a lost lease must never enter
+     * the read retry/recovery classifier or execute the next attempt. */
+    beforeAttempt?: () => Promise<void>;
   },
 ): Promise<AgencyToolExecutionOutcome> {
   const recoveredFailures:
@@ -112,6 +115,10 @@ export async function executeAgencyToolWithRecovery(
     attempt <= 2;
     attempt += 1
   ) {
+    // This gate is intentionally outside the provider recovery catch.
+    // STOP/lease revocation is not a provider failure and must not trigger
+    // a retry or an alternate-route suggestion.
+    await input.beforeAttempt?.();
     try {
       const result =
         await input.tool.execute(

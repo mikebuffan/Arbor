@@ -72,4 +72,45 @@ describe("ARK acceptance executor boundaries (mock storage/provider)", () => {
     expect(await s.execute(s)).toMatchObject({ status: "failed", retryable: false });
     expect(mocks.complete).not.toHaveBeenCalled();
   });
+
+  it("does not claim a paid operation when STOP revoked the lease during owner checks", async () => {
+    const s = setup();
+    s.heartbeat.mockRejectedValueOnce(new Error("ark_lease_lost"));
+    await expect(s.execute(s)).rejects.toThrow("ark_lease_lost");
+    expect(mocks.claim).not.toHaveBeenCalled();
+    expect(mocks.run).not.toHaveBeenCalled();
+    expect(mocks.create).not.toHaveBeenCalled();
+  });
+
+  it("does not call the model when STOP arrives just after paid idempotency claim", async () => {
+    const s = setup();
+    s.heartbeat.mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error("ark_lease_lost"));
+    mocks.run.mockImplementation(async (input: any) => {
+      await input.createResponse({ model: "synthetic-only", input: "fixture" });
+      return { pairs: [{}], failures: [], status: "captured; unscored" };
+    });
+    await expect(s.execute(s)).rejects.toThrow("ark_lease_lost");
+    expect(mocks.claim).toHaveBeenCalledOnce();
+    expect(mocks.create).not.toHaveBeenCalled();
+    expect(mocks.complete).not.toHaveBeenCalled();
+  });
+
+
+  it("propagates revoked lease during event capture, without a fake failure receipt", async () => {
+    const s = setup();
+    s.heartbeat.mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error("ark_lease_lost"));
+    mocks.run.mockImplementation(async (input: any) => {
+      await input.record({ type: "synthetic-event" });
+      return { pairs: [{}], failures: [], status: "captured; unscored" };
+    });
+    await expect(s.execute(s)).rejects.toThrow("ark_lease_lost");
+    expect(mocks.claim).toHaveBeenCalledOnce();
+    expect(s.q.insert).not.toHaveBeenCalled();
+    expect(mocks.create).not.toHaveBeenCalled();
+    expect(mocks.complete).not.toHaveBeenCalled();
+  });
+
+
 });
