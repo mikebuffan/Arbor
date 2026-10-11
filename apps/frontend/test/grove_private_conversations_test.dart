@@ -1,4 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+
 import 'package:frontend/api/arbor_api_client.dart';
 import 'package:frontend/config/grove_private_config.dart';
 import 'package:frontend/environment/grove_private_conversations.dart';
@@ -104,6 +107,38 @@ class FakeApi extends ArborApiClient {
 }
 
 void main() {
+  test('private Grove GET and POST refuse redirects before forwarding a token', () async {
+    final observed = <http.Request>[];
+    final inner = MockClient((request) async {
+      observed.add(request);
+      expect(request.followRedirects, isFalse);
+      expect(request.maxRedirects, 0);
+      expect(request.headers['authorization'], 'Bearer synthetic-only');
+      return http.Response('', 302, headers: {
+        'location': 'https://outside.example.org/capture',
+      });
+    });
+    final client = GrovePrivateNoRedirectClient(inner: inner);
+    addTearDown(client.close);
+    final getResponse = await client.get(
+      Uri.parse('$apiUrl/api/grove/chat/history'),
+      headers: {'authorization': 'Bearer synthetic-only'},
+    );
+    final postResponse = await client.post(
+      Uri.parse('$apiUrl/api/grove/chat'),
+      headers: {
+        'authorization': 'Bearer synthetic-only',
+        'content-type': 'application/json',
+      },
+      body: '{"message":"synthetic"}',
+    );
+    expect(getResponse.statusCode, 302);
+    expect(postResponse.statusCode, 302);
+    expect(observed, hasLength(2));
+    expect(observed.map((request) => request.url.host),
+      everyElement('private-grove.example.org'));
+  });
+
   test('list parses only IDs from an explicit project, never creates chats', () {
     final parsed = parseGrovePrivateConversations(
       choices(), projectId: project,

@@ -1,5 +1,27 @@
+import 'package:http/http.dart' as http;
+
 import '../api/arbor_api_client.dart';
 import '../config/grove_private_config.dart';
+
+/// Private Grove HTTP requests never follow redirects. A redirect could
+/// otherwise forward the owner's bearer token or a saved message outside the
+/// explicitly approved private host. The shared public client is unchanged.
+class GrovePrivateNoRedirectClient extends http.BaseClient {
+  GrovePrivateNoRedirectClient({http.Client? inner})
+      : _inner = inner ?? http.Client();
+
+  final http.Client _inner;
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) {
+    request.followRedirects = false;
+    request.maxRedirects = 0;
+    return _inner.send(request);
+  }
+
+  @override
+  void close() => _inner.close();
+}
 
 /// Contract for the SEPARATE, invite-only Grove host. This is NOT the public
 /// Firefly ChatApi, not a UI, and never activates private Talk or Voice.

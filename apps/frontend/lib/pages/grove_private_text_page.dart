@@ -98,7 +98,10 @@ class _GrovePrivateTextHostState extends State<GrovePrivateTextHost> {
           !_sameSession(id, token, scope.projectId)) {
         throw StateError('No verified Grove project');
       }
-      final api = ArborApiClient(baseUrl: config.apiUrl);
+      final api = ArborApiClient(
+        baseUrl: config.apiUrl,
+        httpClient: GrovePrivateNoRedirectClient(),
+      );
       if (!mounted || generation != _generation) {
         api.close();
         return;
