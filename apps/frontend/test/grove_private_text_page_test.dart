@@ -35,6 +35,9 @@ class _FakePrivateClient extends GrovePrivateConversationClient {
   int historyReads = 0;
   int sends = 0;
   int creations = 0;
+  int deletions = 0;
+  bool deleted = false;
+  bool failDeletion = false;
   bool created = false;
   bool empty = false;
   bool failOnce = false;
@@ -58,7 +61,7 @@ class _FakePrivateClient extends GrovePrivateConversationClient {
     }
     return GrovePrivateConversationChoices(
       projectId: projectId, mayBeTruncated: false,
-      conversations: empty && !created ? [] : [
+      conversations: (empty && !created) || deleted ? [] : [
         GrovePrivateConversationChoice(
           conversationId: availableConversationId,
           createdAt: DateTime.utc(2026, 9, 23),
@@ -83,6 +86,18 @@ class _FakePrivateClient extends GrovePrivateConversationClient {
       createdAt: DateTime.utc(2026, 9, 23),
       updatedAt: DateTime.utc(2026, 9, 23, 1),
     );
+  }
+
+  @override
+  Future<void> deleteSaved({
+    required String projectId,
+    required String conversationId,
+  }) async {
+    expect(projectId, expectedProjectId);
+    expect(conversationId, expectedConversationId);
+    deletions++;
+    if (failDeletion) throw StateError('synthetic unverified deletion');
+    deleted = true;
   }
 
   @override
@@ -167,9 +182,11 @@ GrovePendingTurnStore pendingStore(FakeDeviceStringStore disk, {
 
 Widget recoveryPhone(_FakePrivateClient client, GrovePendingTurnStore store, {
   bool Function()? valid,
+  bool allowDelete = false,
 }) => MaterialApp(home: Scaffold(body: GrovePrivateTextPanel(
   client: client, projectId: projectId,
   initialConversationId: conversationId, pendingStore: store,
+  allowDeleteConversations: allowDelete,
   sessionStillValid: valid ?? () => true,
   onConversationSelected: (_) async {},
 )));
@@ -180,6 +197,55 @@ Future<void> roomForRecovery(WidgetTester tester) async {
 }
 
 void main() {
+  testWidgets('Grove delete is hidden in ordinary phone builds', (tester) async {
+    await roomForRecovery(tester);
+    final client = _FakePrivateClient();
+    await tester.pumpWidget(recoveryPhone(
+      client, pendingStore(FakeDeviceStringStore()),
+    ));
+    await tester.pumpAndSettle();
+    expect(find.text('Delete saved Grove conversation'), findsNothing);
+    expect(client.deletions, 0);
+  });
+  testWidgets('Grove Delete requires explicit user confirmation', (tester) async {
+    await roomForRecovery(tester);
+    final client = _FakePrivateClient();
+    await tester.pumpWidget(recoveryPhone(
+      client, pendingStore(FakeDeviceStringStore()), allowDelete: true,
+    ));
+    await tester.pumpAndSettle();
+    expect(find.text('Earlier private answer'), findsOneWidget);
+    await tester.tap(find.text('Delete saved Grove conversation'));
+    await tester.pumpAndSettle();
+    expect(client.deletions, 0);
+    expect(find.textContaining('It does not delete the underlying Firefly conversation'),
+        findsOneWidget);
+    await tester.tap(find.text('Keep conversation'));
+    await tester.pumpAndSettle();
+    expect(client.deletions, 0);
+    await tester.tap(find.text('Delete saved Grove conversation'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete from Grove'));
+    await tester.pumpAndSettle();
+    expect(client.deletions, 1);
+    expect(find.text('Earlier private answer'), findsNothing);
+    expect(find.textContaining('will not invent one'), findsOneWidget);
+  });
+  testWidgets('unconfirmed deletion cannot claim success', (tester) async {
+    await roomForRecovery(tester);
+    final client = _FakePrivateClient()..failDeletion = true;
+    await tester.pumpWidget(recoveryPhone(
+      client, pendingStore(FakeDeviceStringStore()), allowDelete: true,
+    ));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete saved Grove conversation'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete from Grove'));
+    await tester.pumpAndSettle();
+    expect(client.deletions, 1);
+    expect(find.text('Earlier private answer'), findsNothing);
+    expect(find.textContaining('could not verify deletion'), findsOneWidget);
+  });
   testWidgets('revoked conversation disappears immediately after list refresh',
       (tester) async {
     await roomForRecovery(tester);
