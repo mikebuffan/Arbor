@@ -1,0 +1,21 @@
+# Grove user-owned conversation deletion — source-only acceptance plan (2026-10-11)
+
+**Product decision:** Saved Grove conversations remain until the user **explicitly deletes** them. No age, inactivity, sign-out, model-setting or grant-revocation auto-delete.
+
+**This is a PROPOSAL ONLY.** No production data, actual database migration, live owner delete, or phone behavior has changed.
+
+## Existing architecture respected
+- Firefly owns the underlying project/conversation record; Grove separately saves scoped private model-turn pairs.
+- A Grove Delete must not silently delete the shared Firefly conversation, archive attachments, memories, or another application’s records. The user-visible label will need to make that scope explicit.
+- The new source-only SQL proposal extends the **existing Grove transcript and claim tables** rather than creating a second transcript engine. An immutable Grove-only tombstone fences late completions, retry claims and reappearance once host discovery/auth is wired to honor it.
+- Only server service-role RPC is authorized in the **proposal**; Grove Auth verified JWT+invite+bridge+grant AND exact Firefly conversation ownership must be proved by an existing backend broker before the RPC is ever reachable. No browser or model writes/privileges.
+
+## Group-by-group developer checklist (List → Prompt → Go)
+1. **No auto-delete requirement:** source proposal has no TTL, scheduler, automatic sign-out/grant purge. Restrictive foreign keys retain other conversations.
+2. **Atomic DB deletion draft:** one exact owner/project/conversation-scoped service-role function writes a tombstone and deletes matching pending claims + completed transcript as one SQL transaction.
+3. **Re-creation fence:** inserts/updates in the existing claim and turn tables deny matching tombstone scope; late pre-delete tasks cannot resurrect the saved private conversation.
+4. **Disposable synthetic proof:** test rejected foreign user, other conversation preserved, owner deletion, idempotent repeat, late claim/turn blocked, soft grant revocation preserves unrelated data, and no anon/authenticated SQL access.
+5. **Next source implementation (NOT YET DONE):** reuse privateReadBroker for tombstone checks and list suppression, private Grove deletion API (strict owner action, feature OFF by default), exact-scope phone client, confirm-dialog and local draft/late-send safety. Never wire a Delete button to an unapproved backend.
+6. **Live gates:** owner approves detailed deletion scope (Grove-only vs other app), backup/export and retention, isolated schema migration/grants/rollback, exact host permission and phone build, then checks real delete and independently verified absence. Remain gated until then.
+
+**No live effects:** All code is in source-only draft #452, current Grove database migration and flags remain unchanged, no Vercel build or paid inference.
