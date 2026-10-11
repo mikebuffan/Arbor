@@ -169,12 +169,14 @@ void main() {
         isEmpty);
   });
 
-  testWidgets('Kitchen protects nonempty notes before Talk or Home navigation',
+  testWidgets('Kitchen exposes one explicit discard decision to the shell',
       (tester) async {
+    final kitchenKey = GlobalKey<AnnabelleKitchenViewState>();
     var homeCalls = 0;
     var talkCalls = 0;
     await tester.pumpWidget(MaterialApp(home: Scaffold(
       body: SingleChildScrollView(child: AnnabelleKitchenView(
+        key: kitchenKey,
         onReturnHome: () => homeCalls++,
         onOpenConversation: () => talkCalls++,
       )),
@@ -182,26 +184,24 @@ void main() {
     await tester.enterText(find.byType(TextField), 'Unsaved kitchen scene.');
     FocusManager.instance.primaryFocus?.unfocus();
     await tester.pump();
-    await tester.ensureVisible(find.text('Existing Talk (Arbor)'));
+
+    final keep = kitchenKey.currentState!.confirmNavigationAway();
     await tester.pump();
-    await tester.tap(find.text('Existing Talk (Arbor)'));
-    await tester.pumpAndSettle();
     expect(find.text('Leave Annabelle’s kitchen?'), findsOneWidget);
-    expect(talkCalls, 0);
     await tester.tap(find.text('Keep writing'));
-    await tester.pumpAndSettle();
-    expect(talkCalls, 0);
+    await tester.pump();
+    expect(await keep, isFalse);
     expect(tester.widget<TextField>(find.byType(TextField)).controller!.text,
         'Unsaved kitchen scene.');
 
-    await tester.ensureVisible(find.text('Back to the Grove'));
+    final discard = kitchenKey.currentState!.confirmNavigationAway();
     await tester.pump();
-    await tester.tap(find.text('Back to the Grove'));
-    await tester.pumpAndSettle();
-    expect(homeCalls, 0);
+    expect(find.text('Leave Annabelle’s kitchen?'), findsOneWidget);
     await tester.tap(find.text('Leave without saving'));
-    await tester.pumpAndSettle();
-    expect(homeCalls, 1);
+    await tester.pump();
+    expect(await discard, isTrue);
+    // The Kitchen returns an answer; only the shell actually navigates.
+    expect(homeCalls, 0);
     expect(talkCalls, 0);
   });
 

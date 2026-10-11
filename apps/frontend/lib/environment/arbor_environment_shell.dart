@@ -61,6 +61,8 @@ class ArborEnvironmentShell extends StatefulWidget {
 class _ArborEnvironmentShellState extends State<ArborEnvironmentShell> {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
   final _focusNode = FocusNode();
+  final _kitchenKey = GlobalKey<AnnabelleKitchenViewState>();
+  bool _navigationPending = false;
   late EnvironmentDestination selected;
 
   @override
@@ -78,7 +80,14 @@ class _ArborEnvironmentShellState extends State<ArborEnvironmentShell> {
   @override
   Widget build(BuildContext context) {
     final objective = widget.objective ?? EnvironmentFixture.houseHasWalls();
-    return Focus(
+    return PopScope(
+      canPop: selected != EnvironmentDestination.kitchen,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop && selected == EnvironmentDestination.kitchen) {
+          _select(EnvironmentDestination.home);
+        }
+      },
+      child: Focus(
       autofocus: true,
       focusNode: _focusNode,
       child: Shortcuts(
@@ -114,6 +123,7 @@ class _ArborEnvironmentShellState extends State<ArborEnvironmentShell> {
                     runtimeStale: widget.runtimeStale,
                     conversationLayer: widget.conversationLayer,
                     onRoomAction: _openRoom,
+                    kitchenKey: _kitchenKey,
                     onSelect: _select,
                   ),
                 ),
@@ -169,10 +179,25 @@ class _ArborEnvironmentShellState extends State<ArborEnvironmentShell> {
               ],
             )
           : null,
-    ))));
+    )))));
   }
 
-  void _select(EnvironmentDestination value) => setState(() => selected = value);
+  Future<void> _select(EnvironmentDestination value) async {
+    if (value == selected || _navigationPending) return;
+    if (selected == EnvironmentDestination.kitchen) {
+      final kitchen = _kitchenKey.currentState;
+      if (kitchen == null) return; // Never bypass an unmounted guard.
+      _navigationPending = true;
+      try {
+        if (!await kitchen.confirmNavigationAway() || !mounted) return;
+        setState(() => selected = value);
+      } finally {
+        _navigationPending = false;
+      }
+      return;
+    }
+    setState(() => selected = value);
+  }
 
   void _openRoom(GroveRoomAction action) {
     switch (action) {
@@ -269,6 +294,7 @@ class _Surface extends StatelessWidget {
     required this.runtimeStale,
     this.conversationLayer,
     required this.onRoomAction,
+    required this.kitchenKey,
     required this.onSelect,
   });
   final EnvironmentDestination selected;
@@ -279,6 +305,7 @@ class _Surface extends StatelessWidget {
   final bool runtimeStale;
   final Widget? conversationLayer;
   final ValueChanged<GroveRoomAction> onRoomAction;
+  final GlobalKey<AnnabelleKitchenViewState> kitchenKey;
   final ValueChanged<EnvironmentDestination> onSelect;
 
   @override
@@ -337,6 +364,7 @@ class _Surface extends StatelessWidget {
             )
           else if (selected == EnvironmentDestination.kitchen)
             AnnabelleKitchenView(
+              key: kitchenKey,
               onReturnHome: () => onSelect(EnvironmentDestination.home),
               onOpenConversation: () => onSelect(EnvironmentDestination.conversation),
             )
