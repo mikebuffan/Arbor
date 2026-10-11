@@ -177,6 +177,7 @@ GrovePrivateHistory parseGrovePrivateHistory(
   required String projectId,
   required String conversationId,
   bool archive = false,
+  bool search = false,
 }) {
   if (!_validId(projectId) || !_validId(conversationId) ||
       payload?['ok'] != true ||
@@ -190,6 +191,13 @@ GrovePrivateHistory parseGrovePrivateHistory(
       payload['workReceipts'] is! List ||
       payload['turns'] is! List) {
     throw const FormatException('Private Grove history unavailable');
+  }
+  if (search && (payload['searchMode'] != 'literal_phrase' ||
+      payload['searchedOnlyThisConversation'] != true ||
+      payload['searchMayBeTruncated'] is! bool ||
+      payload['historyMayBeTruncated'] != payload['searchMayBeTruncated'] ||
+      payload.containsKey('nextCursor'))) {
+    throw const FormatException('Private Grove search result not verified');
   }
   if (archive) {
     final cursor = payload['nextCursor'];
@@ -407,6 +415,81 @@ class GrovePrivateConversationClient {
     );
     return parseGrovePrivateHistory(payload,
       projectId: projectId, conversationId: conversationId);
+  }
+
+  /// Explicit literal lookup of saved exchanges in ONE verified conversation.
+  /// This does not send conversation content to an LM or an outside index.
+  Future<GrovePrivateHistory> findSavedPhrase({
+    required String projectId,
+    required String conversationId,
+    required String phrase,
+  }) async {
+    _requireReady();
+    if (!_validId(projectId) || !_validId(conversationId) ||
+        phrase.length < 3 || phrase.length > 64 || phrase.trim() != phrase ||
+        !RegExp(r'^[A-Za-z0-9][A-Za-z0-9 -]*[A-Za-z0-9]
+  Future<GrovePrivateHistory> loadArchive({
+    required String projectId,
+    required String conversationId,
+    String? cursor,
+  }) async {
+    _requireReady();
+    if (!_validId(projectId) || !_validId(conversationId) ||
+        (cursor != null && (cursor.length > 768 ||
+            !_archiveCursor.hasMatch(cursor)))) {
+      throw const FormatException('Invalid private Grove history archive scope');
+    }
+    final payload = await _api.get('/api/grove/chat/history',
+      queryParameters: {
+        'projectId': projectId,
+        'conversationId': conversationId,
+        'page': 'archive',
+        if (cursor != null) 'cursor': cursor,
+      },
+    );
+    return parseGrovePrivateHistory(payload,
+      projectId: projectId, conversationId: conversationId, archive: true);
+  }
+
+  /// Caller MUST reuse the same requestId on a network retry with identical
+  /// text; a new ID means a new turn. Never accept client-selected owner,
+  /// history, role, tool or cognitive state in the payload.
+  Future<GrovePrivateReply> send({
+    required String projectId,
+    required String conversationId,
+    required String requestId,
+    required String text,
+  }) async {
+    _requireReady();
+    if (!_validId(projectId) || !_validId(conversationId) ||
+        !_validId(requestId) || text.trim().isEmpty || text.length > 3000) {
+      throw const FormatException('Invalid Grove turn scope');
+    }
+    final payload = await _api.post('/api/grove/chat', body: {
+      'projectId': projectId,
+      'conversationId': conversationId,
+      'requestId': requestId,
+      'message': text,
+      // Send the current offset; a window preview is never inference time.
+      'timeZoneOffsetMinutes': DateTime.now().timeZoneOffset.inMinutes,
+    });
+    return parseGrovePrivateReply(payload, requestId: requestId);
+  }
+}
+
+)
+            .hasMatch(phrase)) {
+      throw const FormatException('Invalid private Grove search phrase');
+    }
+    final payload = await _api.get('/api/grove/chat/history',
+      queryParameters: {
+        'projectId': projectId,
+        'conversationId': conversationId,
+        'search': phrase,
+      },
+    );
+    return parseGrovePrivateHistory(payload,
+      projectId: projectId, conversationId: conversationId, search: true);
   }
 
   /// Manual saved-turn archive only. No model input, search, or new storage.
