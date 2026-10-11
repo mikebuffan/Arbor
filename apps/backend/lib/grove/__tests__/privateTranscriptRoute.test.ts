@@ -262,14 +262,14 @@ describe("Grove archive HTTP opt-in — legacy context never widens", () => {
       secret: "grove-test-only-private-archive-key",
       now: Date.now() - 16 * 60 * 1000,
     });
-    for (const suffix of [
-      "&cursor=" + encodeURIComponent(cursor),
-      "&page=archive&cursor=" + encodeURIComponent(cursor),
-      "&page=archive&cursor=forged",
-      "&page=archive&cursor=" + encodeURIComponent(cursor) + "&cursor=another",
-    ]) {
+    for (const [suffix, expectedStatus] of [
+      ["&cursor=" + encodeURIComponent(cursor), 400],
+      ["&page=archive&cursor=" + encodeURIComponent(cursor), 409],
+      ["&page=archive&cursor=forged", 409],
+      ["&page=archive&cursor=" + encodeURIComponent(cursor) + "&cursor=another", 400],
+    ] as const) {
       const response = await GET(req(suffix));
-      expect(response.status).toBe(400);
+      expect(response.status).toBe(expectedStatus);
     }
     expect(mocks.listHistoryPage).not.toHaveBeenCalled();
   });
