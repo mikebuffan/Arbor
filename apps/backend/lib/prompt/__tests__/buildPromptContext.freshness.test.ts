@@ -53,7 +53,7 @@ describe("buildPromptContext freshness",()=>{
   expect(result.systemPrompt).not.toContain('Never say "I don\'t have memory"');
   expect(result.systemPrompt).toContain("Report the specific missing context");
   expect(mocks.logMemoryEvent).toHaveBeenCalledWith("prompt_built", expect.objectContaining({
-    operatingSelfModelVersion: "2026-10-10.2",
+    operatingSelfModelVersion: "2026-10-10.3",
     operatingSelfModelFingerprint: expect.stringMatching(/^[a-f0-9]{64}$/),
   }));
  });
