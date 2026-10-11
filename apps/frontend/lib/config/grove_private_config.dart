@@ -60,6 +60,10 @@ class GrovePrivateConfig {
         api.scheme == 'https' &&
         auth.userInfo.isEmpty &&
         api.userInfo.isEmpty &&
+        // Approving a host does not approve an alternate network port.
+        // Even an explicit default port must be reviewed as a new origin.
+        !auth.hasPort &&
+        !api.hasPort &&
         auth.host.isNotEmpty &&
         api.host.isNotEmpty &&
         auth.path.isEmpty &&

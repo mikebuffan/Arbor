@@ -146,3 +146,19 @@ Verified original workflow CI [38149208307](https://github.com/mikebuffan/Arbor/
 **30-step disposition:** 17 narrowly completed source/metadata checks, 5 partial source/host distinctions, 7 externally gated actions, 1 exact-head APK compile NOT RUN. These are **execution-step** statuses, not 17 newly accepted original tasks or an authorization to unlock flags. No premium inference, hosted deployment, mutation, new permissions or private data retrieval.
 
 **Next exact safe item:** Group 05 #24, unconfigured debug APK compilation in a disposable source-only runner if GitHub Actions allowance is confirmed appropriate; otherwise leave explicitly NOT RUN and prioritize no-cost source/document readiness. The first real blocked milestone is Group 02 missing dedicated private host configuration and Group 04 migration/LM approval; live Group 06 must wait for a separately authorized capped deployment.
+
+## Grove phone configuration exact-origin hardening — next safe source repair
+
+Inspection of the existing `GrovePrivateConfig.ready` revealed that both
+the pinned Grove authentication hostname and the separately approved Grove API
+hostname could be reached with an explicit nonstandard TCP port. Approval was
+for the expected HTTPS hostname and default endpoint, **not a different
+network service on the same host**. Source now rejects explicit ports on
+either URL, even `:443`; the existing pinned realm, exact host, HTTPS,
+path/query/fragment, no-userinfo and public-service restrictions remain.
+A focused Flutter regression tests `:443` and `:8443` on both auth and
+API endpoints, and preserves the valid default private configuration.
+
+This is a **source-only protection** of the existing phone configuration,
+not an installed-phone test or approval to enable private Talk. It does not
+change the existing 30-step statuses or any server-side host settings.

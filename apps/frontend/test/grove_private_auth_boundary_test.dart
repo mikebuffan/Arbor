@@ -82,6 +82,26 @@ void main() {
       approvedApiHost: 'firefly-coral.vercel.app').ready, isFalse);
   });
 
+  test('approved Grove endpoints reject any explicit port', () {
+    const auth = 'https://fqjqpuaoifgbweiguacf.supabase.co';
+    const api = 'https://grove-private.example.org';
+    for (final port in [':443', ':8443']) {
+      expect(GrovePrivateConfig(
+        authUrl: '$auth$port',
+        publishableKey: privateRealm.publishableKey,
+        apiUrl: api,
+        approvedApiHost: 'grove-private.example.org',
+      ).ready, isFalse, reason: 'auth port $port');
+      expect(GrovePrivateConfig(
+        authUrl: auth,
+        publishableKey: privateRealm.publishableKey,
+        apiUrl: '$api$port',
+        approvedApiHost: 'grove-private.example.org',
+      ).ready, isFalse, reason: 'API port $port');
+    }
+    expect(privateRealm.ready, isTrue);
+  });
+
   test('old Firefly session cannot unlock an upgraded private Grove', () {
     final privateToken = tokenFor(
       'https://fqjqpuaoifgbweiguacf.supabase.co/auth/v1',
