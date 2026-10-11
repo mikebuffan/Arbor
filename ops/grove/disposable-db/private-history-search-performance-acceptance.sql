@@ -54,16 +54,15 @@ BEGIN
       AND firefly_conversation_id='00000000-0000-4000-8000-000000000021'::uuid) THEN
     RAISE EXCEPTION 'indexed phrase lookup resurrected deleted conversation';
   END IF;
-  -- Only proves indexes are eligible under a forced bitmap plan in a small
-  -- synthetic database. NOT evidence of real-world index selection or SLA.
+  -- ONLY proves trigram indexes can serve the ILIKE predicate when forced,
+  -- separately from the strict-scope result correctness tested above.
+  -- A small selective scoped query can rightly choose the existing btree
+  -- index; this synthetic plan does NOT certify real-world selection or SLA.
   PERFORM pg_catalog.set_config('enable_seqscan','off',true);
   EXECUTE $q$EXPLAIN (FORMAT JSON)
    SELECT request_id FROM public.grove_private_turns
-   WHERE grove_user_id='00000000-0000-4000-8000-000000000001'::uuid
-     AND firefly_project_id='00000000-0000-4000-8000-000000000003'::uuid
-     AND firefly_conversation_id='00000000-0000-4000-8000-000000000030'::uuid
-     AND (user_text ILIKE '%Ever After%' OR assistant_text ILIKE '%Ever After%')
-   ORDER BY created_at DESC, request_id DESC LIMIT 7$q$ INTO v_plan;
+   WHERE user_text ILIKE '%Ever After%'
+      OR assistant_text ILIKE '%Ever After%'$q$ INTO v_plan;
   v_text := v_plan::text;
   IF position('grove_private_turns_user_search_trgm' in v_text)=0 OR
      position('grove_private_turns_assistant_search_trgm' in v_text)=0 THEN
