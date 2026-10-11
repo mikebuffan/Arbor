@@ -425,4 +425,47 @@ void main() {
     final off = GrovePrivateConversationClient(api: api, config: config);
     await expectLater(off.listArchive(project), throwsStateError);
   });
+
+  test('manual saved-turn archive keeps page boundaries separate from model input', () async {
+    final cursor = 'c2NvcGU'.padRight(64, 'a') + '.' + ('f' * 64);
+    final api = FakeApi(apiUrl)..getResult = {
+      ...history(), 'historyMayBeTruncated': true, 'nextCursor': cursor,
+    };
+    final client = GrovePrivateConversationClient(
+      api: api, config: config, enabled: true,
+    );
+    final first = await client.loadArchive(
+      projectId: project, conversationId: conversation,
+    );
+    expect(first.nextCursor, cursor);
+    expect(first.turnsNewestFirst.single.userText, 'Continue our work.');
+    expect(api.query, {
+      'projectId': project, 'conversationId': conversation, 'page': 'archive',
+    });
+    api.getResult = {...history(), 'nextCursor': null};
+    final second = await client.loadArchive(
+      projectId: project, conversationId: conversation, cursor: cursor,
+    );
+    expect(second.nextCursor, isNull);
+    expect(api.query, {
+      'projectId': project, 'conversationId': conversation,
+      'page': 'archive', 'cursor': cursor,
+    });
+    final count = api.calls;
+    await expectLater(client.loadArchive(
+      projectId: project, conversationId: conversation, cursor: 'bad',
+    ), throwsFormatException);
+    expect(api.calls, count);
+    for (final invalid in [
+      {...history(), 'historyMayBeTruncated': true},
+      {...history(), 'historyMayBeTruncated': true, 'nextCursor': null},
+      {...history(), 'historyMayBeTruncated': false, 'nextCursor': cursor},
+      {...history(), 'historyMayBeTruncated': true, 'nextCursor': 'bad'},
+    ]) {
+      expect(() => parseGrovePrivateHistory(invalid,
+        projectId: project, conversationId: conversation, archive: true,
+      ), throwsFormatException);
+    }
+  });
+
 }
