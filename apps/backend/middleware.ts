@@ -51,6 +51,7 @@ export function middleware(req: NextRequest) {
       "/api/grove/ark/projects": ["GET"],
       "/api/grove/ark/handoff": ["GET"],
       "/api/grove/chat/conversations": ["GET", "POST"],
+      "/api/grove/chat/conversations/delete": ["POST"],
       "/api/grove/chat/history": ["GET"],
       "/api/grove/chat": ["POST"],
       "/api/grove/corrections": ["POST"],

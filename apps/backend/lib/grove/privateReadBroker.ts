@@ -285,6 +285,35 @@ const validUuid =
  * conversation creation or implied permission to execute an ARK objective.
  * The incoming conversation must exist, belong to the mapped Firefly owner,
  * and belong to the selected Grove-granted project. */
+async function assertPrivateGroveConversationNotDeleted(
+  groveAdmin: SupabaseClient,
+  groveUserId: string,
+  projectId: string,
+  conversationId: string,
+): Promise<void> {
+  // No tombstone schema can be assumed before the explicitly approved
+  // private-chat migration. After chat activation, missing schema fails CLOSED.
+  if (process.env.GROVE_PRIVATE_CHAT_PREVIEW_ENABLED !== "true" &&
+      process.env.GROVE_PRIVATE_CONVERSATION_DELETE_ENABLED !== "true") return;
+  const { data, error } = await groveAdmin
+    .from("grove_private_conversation_tombstones")
+    .select("grove_user_id,firefly_project_id,firefly_conversation_id")
+    .eq("grove_user_id", groveUserId)
+    .eq("firefly_project_id", projectId)
+    .eq("firefly_conversation_id", conversationId)
+    .maybeSingle();
+  if (error || (data && (
+      typeof data.grove_user_id !== "string" ||
+      typeof data.firefly_project_id !== "string" ||
+      typeof data.firefly_conversation_id !== "string" ||
+      data.grove_user_id.toLowerCase() !== groveUserId.toLowerCase() ||
+      data.firefly_project_id.toLowerCase() !== projectId.toLowerCase() ||
+      data.firefly_conversation_id.toLowerCase() !== conversationId.toLowerCase()))) {
+    throw new RouteAccessError(503, "grove_private_delete_fence_unavailable");
+  }
+  if (data) throw new RouteAccessError(404, "grove_private_conversation_deleted");
+}
+
 export async function authorizePrivateGroveConversation(
   req: Request,
   projectId: string,
@@ -300,6 +329,9 @@ export async function authorizePrivateGroveConversation(
     projectId,
     conversationId,
   });
+  await assertPrivateGroveConversationNotDeleted(
+    authorized.groveAdmin, authorized.groveUserId, projectId, conversationId,
+  );
   return {
     ...authorized,
     conversationId,
@@ -396,13 +428,42 @@ export async function createPrivateGroveConversation(
   };
 }
 
+/** Explicit, separately feature-gated owner action. This deletes only
+ * private Grove transcript + claims, never Firefly messages or conversations.
+ * The SQL proposal is transactional and leaves a durable resurrection fence.
+ * NO browser/user/model may supply the owner or bypass full host auth. */
+export async function deletePrivateGroveConversation(
+  req: Request,
+  projectId: string,
+  conversationId: string,
+): Promise<void> {
+  if (process.env.GROVE_PRIVATE_CONVERSATION_DELETE_ENABLED !== "true")
+    throw new RouteAccessError(404, "grove_private_deletion_not_enabled");
+  const authorized = await authorizePrivateGroveConversation(
+    req, projectId, conversationId,
+  );
+  const { data, error } = await authorized.groveAdmin.rpc(
+    "grove_private_delete_conversation",
+    {
+      p_grove_user_id: authorized.groveUserId,
+      p_project_id: projectId,
+      p_conversation_id: conversationId,
+    },
+  );
+  if (error || !data || typeof data !== "object" || Array.isArray(data) ||
+      data.status !== "deleted" ||
+      !Number.isSafeInteger(data.removedTurns) || data.removedTurns < 0) {
+    throw new RouteAccessError(503, "grove_private_delete_not_confirmed");
+  }
+}
+
 export async function readPrivateGroveConversations(
   req: Request,
   projectId: string,
 ): Promise<GrovePrivateConversationsResult> {
   if (!validUuid.test(projectId))
     throw new RouteAccessError(404, "grove_invalid_project_scope");
-  const { fireflyAdmin, fireflyUserId, groveUserId } =
+  const { fireflyAdmin, fireflyUserId, groveUserId, groveAdmin } =
     await authorizedPrivateGroveProject(req, projectId);
   const { data, error } = await fireflyAdmin.from("conversations")
     .select("id,user_id,project_id,created_at,updated_at")
@@ -413,6 +474,33 @@ export async function readPrivateGroveConversations(
     .limit(21);
   if (error || !Array.isArray(data) || data.length > 21)
     throw new RouteAccessError(500, "grove_private_conversations_unavailable");
+  // The shared Firefly conversation may remain after Grove-only deletion.
+  // Once private Talk is enabled, an absent/failed tombstone schema HOLDS
+  // discovery rather than accidentally resurrecting deleted Grove chats.
+  const hidden = new Set<string>();
+  if ((process.env.GROVE_PRIVATE_CHAT_PREVIEW_ENABLED === "true" ||
+       process.env.GROVE_PRIVATE_CONVERSATION_DELETE_ENABLED === "true") &&
+      data.length > 0) {
+    const ids = data.map(row => row?.id);
+    if (ids.some(id => typeof id !== "string" || !validUuid.test(id)))
+      throw new RouteAccessError(503, "grove_private_delete_fence_unavailable");
+    const { data: tombstones, error: tombstoneError } = await groveAdmin
+      .from("grove_private_conversation_tombstones")
+      .select("firefly_conversation_id")
+      .eq("grove_user_id", groveUserId)
+      .eq("firefly_project_id", projectId)
+      .in("firefly_conversation_id", ids as string[]);
+    if (tombstoneError || !Array.isArray(tombstones) ||
+        tombstones.some(row => !row ||
+          typeof row.firefly_conversation_id !== "string" ||
+          !validUuid.test(row.firefly_conversation_id) ||
+          !(ids as string[]).some(id => id.toLowerCase() ===
+            row.firefly_conversation_id.toLowerCase()))) {
+      throw new RouteAccessError(503, "grove_private_delete_fence_unavailable");
+    }
+    for (const row of tombstones)
+      hidden.add(row.firefly_conversation_id.toLowerCase());
+  }
   // Grant/bridge/Firefly ownership can change during this service-role read.
   // Revalidate before exposing even the conversation IDs or timestamps.
   const current = await authorizedPrivateGroveProject(req, projectId);
@@ -433,6 +521,7 @@ export async function readPrivateGroveConversations(
         !Number.isFinite(Date.parse(row.updated_at)))
       throw new RouteAccessError(500, "grove_private_conversations_unavailable");
     seen.add(row.id);
+    if (hidden.has(row.id.toLowerCase())) continue;
     if (records.length < 20)
       records.push({
         conversationId: row.id,
@@ -443,6 +532,8 @@ export async function readPrivateGroveConversations(
   return {
     projectId,
     conversations: records,
-    mayBeTruncated: data.length > 20,
+    // 21st raw row or a tombstone near the front can hide older accessible
+    // conversations; never claim a complete listing in that case.
+    mayBeTruncated: data.length > 20 || hidden.size > 0,
   };
 }

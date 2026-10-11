@@ -58,6 +58,7 @@ jobs:
           lib/grove/__tests__/privateReadBroker.test.ts
           lib/grove/__tests__/privateHostIsolation.test.ts
           lib/grove/__tests__/privateChatRoute.test.ts
+          lib/grove/__tests__/privateConversationDeleteRoute.test.ts
           lib/grove/__tests__/privateConversationLoop.test.ts
           lib/grove/__tests__/privateLmHostTransport.test.ts
           lib/grove/__tests__/privateTranscriptStore.test.ts
