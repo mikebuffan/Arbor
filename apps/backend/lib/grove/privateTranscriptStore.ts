@@ -211,7 +211,10 @@ function compareHistoryTimes(a: string, b: string): number {
 export function validateGrovePrivateSearchPhrase(input: unknown): string {
   if (typeof input !== "string" || input.length < 3 || input.length > 64 ||
       input.trim() !== input ||
-      !/^[\p{L}\p{N}][\p{L}\p{N} -]*[\p{L}\p{N}]$/u.test(input)) {
+      !/^[\p{L}\p{N}][\p{L}\p{N} -]*[\p{L}\p{N}]$/u.test(input) ||
+      // Under pg_trgm, searches with no three-character literal run
+      // unselectively even with GIN indexes. Hold rather than table-scan.
+      !/[\p{L}\p{N}]{3}/u.test(input)) {
     throw new RouteAccessError(409, "grove_private_history_search_invalid");
   }
   return input;
