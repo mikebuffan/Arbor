@@ -157,11 +157,14 @@ class GrovePrivateHistory {
     required this.conversationId,
     required this.mayBeTruncated,
     required this.turnsNewestFirst,
+    this.nextCursor,
   });
   final String projectId;
   final String conversationId;
   final bool mayBeTruncated;
-  /// Six latest complete pairs, NOT the entire personal history.
+  /// Only on explicitly requested archive pages.
+  final String? nextCursor;
+  /// Legacy reads remain the six latest pairs; user-requested pages may append.
   final List<GrovePrivateCompleteTurn> turnsNewestFirst;
 }
 
@@ -173,6 +176,7 @@ GrovePrivateHistory parseGrovePrivateHistory(
   Map<String, dynamic>? payload, {
   required String projectId,
   required String conversationId,
+  bool archive = false,
 }) {
   if (!_validId(projectId) || !_validId(conversationId) ||
       payload?['ok'] != true ||
@@ -186,6 +190,15 @@ GrovePrivateHistory parseGrovePrivateHistory(
       payload['workReceipts'] is! List ||
       payload['turns'] is! List) {
     throw const FormatException('Private Grove history unavailable');
+  }
+  if (archive) {
+    final cursor = payload['nextCursor'];
+    if (!payload.containsKey('nextCursor') ||
+        (cursor != null && (cursor is! String ||
+            cursor.length > 768 || !_archiveCursor.hasMatch(cursor))) ||
+        payload['historyMayBeTruncated'] != (cursor != null)) {
+      throw const FormatException('Invalid private Grove history archive');
+    }
   }
   final raw = payload['turns'] as List;
   if (raw.length > 6) {
@@ -225,6 +238,7 @@ GrovePrivateHistory parseGrovePrivateHistory(
     conversationId: conversationId,
     mayBeTruncated: payload['historyMayBeTruncated'] as bool,
     turnsNewestFirst: List.unmodifiable(turns),
+    nextCursor: archive ? payload['nextCursor'] as String? : null,
   );
 }
 
@@ -393,6 +407,30 @@ class GrovePrivateConversationClient {
     );
     return parseGrovePrivateHistory(payload,
       projectId: projectId, conversationId: conversationId);
+  }
+
+  /// Manual saved-turn archive only. No model input, search, or new storage.
+  Future<GrovePrivateHistory> loadArchive({
+    required String projectId,
+    required String conversationId,
+    String? cursor,
+  }) async {
+    _requireReady();
+    if (!_validId(projectId) || !_validId(conversationId) ||
+        (cursor != null && (cursor.length > 768 ||
+            !_archiveCursor.hasMatch(cursor)))) {
+      throw const FormatException('Invalid private Grove history archive scope');
+    }
+    final payload = await _api.get('/api/grove/chat/history',
+      queryParameters: {
+        'projectId': projectId,
+        'conversationId': conversationId,
+        'page': 'archive',
+        if (cursor != null) 'cursor': cursor,
+      },
+    );
+    return parseGrovePrivateHistory(payload,
+      projectId: projectId, conversationId: conversationId, archive: true);
   }
 
   /// Caller MUST reuse the same requestId on a network retry with identical
