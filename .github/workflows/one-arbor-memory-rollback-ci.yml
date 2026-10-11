@@ -1,0 +1,76 @@
+name: One Arbor memory function forward-reverse rehearsal (disposable)
+
+'on':
+  push:
+    branches:
+      - review/one-arbor-grove-d10-e09-compose-20261010
+    paths:
+      - '.github/workflows/one-arbor-memory-rollback-ci.yml'
+      - 'ops/integration/disposable-db/one-arbor-memory-*.sql'
+      - 'supabase/migrations/20261007013000_restore_conversation_aware_match_memories_v3.sql'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: one-arbor-memory-rollback-disposable-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  isolated-pgvector:
+    if: github.repository == 'mikebuffan/Arbor'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      AWS_EC2_METADATA_DISABLED: 'true'
+    steps:
+      - name: Reject cloud metadata before source checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          unset HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy
+          for key in HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy; do
+            printf '%s=\n' "$key" >> "$GITHUB_ENV"
+          done
+          for net in 169.254.0.0/16 100.100.100.200/32; do
+            sudo -n iptables -w 5 -I OUTPUT 1 -d "$net" -j REJECT
+          done
+          for net in fe80::/10 fc00::/7; do
+            sudo -n ip6tables -w 5 -I OUTPUT 1 -d "$net" -j REJECT
+          done
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Verify this review remains source-only and does not build Grove
+        run: |
+          node ops/integration/verify-one-arbor-composition.mjs
+          node --test ops/grove/source-only-ignore.test.mjs
+      - name: Rehearse memory function forward and reverse with synthetic PG17/pgvector
+        shell: bash
+        run: |
+          set -euo pipefail
+          name=one-arbor-memory-rehearsal
+          trap 'docker rm -f "$name" >/dev/null 2>&1 || true' EXIT
+          docker pull pgvector/pgvector:pg17
+          docker run --detach --name "$name" --network none \
+            --env POSTGRES_PASSWORD=synthetic-disposable-only \
+            --mount "type=bind,source=$GITHUB_WORKSPACE,target=/source,readonly" \
+            pgvector/pgvector:pg17
+          ready=false
+          for attempt in {1..45}; do
+            if docker exec "$name" pg_isready -U postgres; then
+              ready=true
+              break
+            fi
+            sleep 1
+          done
+          [ "$ready" = true ]
+          docker exec "$name" psql -U postgres -d postgres \
+            --set ON_ERROR_STOP=on \
+            --file /source/ops/integration/disposable-db/one-arbor-memory-forward-reverse.sql \
+            | tee /tmp/one-arbor-memory-rehearsal.txt
+          grep -q '^ONE_ARBOR_MEMORY_FUNCTION_FORWARD_REVERSE_SYNTHETIC_PASS$' \
+            /tmp/one-arbor-memory-rehearsal.txt
+          echo 'ONE_ARBOR_MEMORY_ROLLBACK_REHEARSAL=PASS; HOSTED_DATABASE_CHANGES=NONE'
+      - name: Ensure reviewed source files were not changed
+        run: git diff --exit-code
