@@ -187,14 +187,15 @@ export async function updateAnnabelleWorkspace(
       throw new Error("annabelle_atomic_expected_version_required");
     if (!input.requestId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(input.requestId))
       throw new Error("annabelle_atomic_request_id_required");
+    const expectedVersion = input.expectedVersion as number;
     const { workspace: current, editVersion } = await loadVersionedAnnabelleWorkspace(input);
     // The SQL transaction recognizes an exact request ID replay BEFORE
     // checking the current version. Reconstruct the original preimage from
     // that already-owned revision rather than rejecting every honest retry
     // here (or recomputing a different payload from the current draft).
     let preimage = current;
-    if (editVersion !== input.expectedVersion) {
-      if (editVersion !== input.expectedVersion + 1)
+    if (editVersion !== expectedVersion) {
+      if (editVersion !== expectedVersion + 1)
         throw new Error("annabelle_atomic_version_conflict");
       const { data: receipt, error: receiptError } = await input.supabase
         .from("annabelle_workspace_revisions")
@@ -204,7 +205,7 @@ export async function updateAnnabelleWorkspace(
         .eq("project_id", input.projectId)
         .maybeSingle();
       if (receiptError) throw receiptError;
-      if (!receipt || receipt.resulting_version !== input.expectedVersion + 1 ||
+      if (!receipt || receipt.resulting_version !== expectedVersion + 1 ||
           !receipt.snapshot || typeof receipt.snapshot !== "object" ||
           Array.isArray(receipt.snapshot))
         throw new Error("annabelle_atomic_version_conflict");
@@ -226,7 +227,7 @@ export async function updateAnnabelleWorkspace(
     const { data, error } = await input.supabase.rpc("annabelle_save_workspace_atomic", {
       p_project_id: input.projectId,
       p_request_id: input.requestId,
-      p_expected_version: input.expectedVersion,
+      p_expected_version: expectedVersion,
       p_canon: next.canon,
       p_locked_passages: next.lockedPassages,
       p_scene_state: next.sceneState,
@@ -236,11 +237,11 @@ export async function updateAnnabelleWorkspace(
     });
     if (error) throw error;
     if (!data || !["committed", "replayed"].includes(data.status) ||
-        data.editVersion !== input.expectedVersion + 1 ||
-        (editVersion !== input.expectedVersion && data.status !== "replayed"))
+        data.editVersion !== expectedVersion + 1 ||
+        (editVersion !== expectedVersion && data.status !== "replayed"))
       throw new Error("annabelle_atomic_receipt_invalid");
     const verified = await loadVersionedAnnabelleWorkspace(input);
-    if (verified.editVersion !== input.expectedVersion + 1 ||
+    if (verified.editVersion !== expectedVersion + 1 ||
         !equalWorkspace(verified.workspace, next))
       throw new Error("annabelle_atomic_readback_mismatch");
     return next;
