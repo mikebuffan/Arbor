@@ -75,15 +75,8 @@ jobs:
           grep -q '^ONE_ARBOR_MEMORY_FUNCTION_FORWARD_REVERSE_SYNTHETIC_PASS$' \
             /tmp/one-arbor-memory-rehearsal.txt
           echo 'ONE_ARBOR_MEMORY_ROLLBACK_REHEARSAL=PASS; HOSTED_DATABASE_CHANGES=NONE'
-          docker exec "$name" psql -U postgres -d postgres \
-            --set ON_ERROR_STOP=on \
-            --file /source/ops/integration/disposable-db/one-arbor-ark-stop-reverse.sql \
-            | tee /tmp/one-arbor-ark-rehearsal.txt
-          grep -q '^ONE_ARBOR_ARK_STOP_RESUME_FORWARD_REVERSE_SYNTHETIC_PASS
-      - name: Ensure reviewed source files were not changed
-        run: git diff --exit-code
- \
-            /tmp/one-arbor-ark-rehearsal.txt
+          docker exec "$name" psql -U postgres -d postgres --set ON_ERROR_STOP=on --file /source/ops/integration/disposable-db/one-arbor-ark-stop-reverse.sql | tee /tmp/one-arbor-ark-rehearsal.txt
+          grep -q '^ONE_ARBOR_ARK_STOP_RESUME_FORWARD_REVERSE_SYNTHETIC_PASS$' /tmp/one-arbor-ark-rehearsal.txt
           echo 'ONE_ARBOR_ARK_STOP_RESUME_ROLLBACK_REHEARSAL=PASS; HOSTED_DATABASE_CHANGES=NONE'
       - name: Ensure reviewed source files were not changed
         run: git diff --exit-code
