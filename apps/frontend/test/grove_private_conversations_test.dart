@@ -388,4 +388,41 @@ void main() {
       requestId: requestId, text: 'Continue'), throwsFormatException);
     expect(api.calls, count);
   });
+
+
+  test('manual archive pages require an exact cursor and retain no model authority', () async {
+    final cursor = 'c2NvcGVk'.padRight(64, 'a') + '.' + ('0' * 64);
+    final api = FakeApi(apiUrl)..getResult = {
+      ...choices(), 'mayBeTruncated': true, 'nextCursor': cursor,
+    };
+    final client = GrovePrivateConversationClient(
+      api: api, config: config, enabled: true,
+    );
+    final first = await client.listArchive(project);
+    expect(first.nextCursor, cursor);
+    expect(first.mayBeTruncated, isTrue);
+    expect(api.query, {'projectId': project, 'page': 'archive'});
+    api.getResult = {...choices(), 'nextCursor': null};
+    final next = await client.listArchive(project, cursor: cursor);
+    expect(next.nextCursor, isNull);
+    expect(api.query, {
+      'projectId': project, 'page': 'archive', 'cursor': cursor,
+    });
+    final calls = api.calls;
+    await expectLater(client.listArchive(project, cursor: 'not-signed'),
+        throwsFormatException);
+    expect(api.calls, calls);
+    for (final invalid in [
+      {...choices(), 'mayBeTruncated': true},
+      {...choices(), 'mayBeTruncated': true, 'nextCursor': null},
+      {...choices(), 'mayBeTruncated': false, 'nextCursor': cursor},
+      {...choices(), 'mayBeTruncated': true, 'nextCursor': 'bad'},
+      {...choices(), 'mayBeTruncated': false, 'nextCursor': 5},
+    ]) {
+      expect(() => parseGrovePrivateConversations(invalid,
+          projectId: project, archive: true), throwsFormatException);
+    }
+    final off = GrovePrivateConversationClient(api: api, config: config);
+    await expectLater(off.listArchive(project), throwsStateError);
+  });
 }
