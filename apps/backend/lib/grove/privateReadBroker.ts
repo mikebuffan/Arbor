@@ -5,6 +5,9 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { RouteAccessError } from "@/lib/auth/routeAuthorization";
 import {
+  reserveIndependentGroveDeletion, confirmIndependentGroveDeletion,
+} from "@/lib/grove/privateDeletionCustody";
+import {
   assertProjectOwnedByUser,
   assertConversationOwnedByUser,
 } from "@/lib/auth/ownership";
@@ -523,6 +526,13 @@ export async function deletePrivateGroveConversation(
   const authorized = await authorizePrivateGroveConversation(
     req, projectId, conversationId,
   );
+  // A Grove-only DB tombstone cannot outlive an older physical DB snapshot.
+  // Until independent durable custody is approved, HOLD even if someone
+  // accidentally enables the deletion flag. No client/model can bypass it.
+  const custodyScope = {
+    groveUserId: authorized.groveUserId, projectId, conversationId,
+  };
+  const intent = await reserveIndependentGroveDeletion(custodyScope);
   const { data, error } = await authorized.groveAdmin.rpc(
     "grove_private_delete_conversation",
     {
@@ -536,6 +546,9 @@ export async function deletePrivateGroveConversation(
       !Number.isSafeInteger(data.removedTurns) || data.removedTurns < 0) {
     throw new RouteAccessError(500, "grove_private_delete_not_confirmed");
   }
+  // A successful DB RPC does not prove that the independent deletion
+  // record is committed. Withhold HTTP success on missing custody readback.
+  await confirmIndependentGroveDeletion(custodyScope, intent);
 }
 
 export async function readPrivateGroveConversations(
