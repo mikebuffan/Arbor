@@ -49,9 +49,10 @@ function memoryDatabase(options: { dropWrite?: boolean; missingMigration?: boole
     expect(args.p_project_id).toBe(owner.projectId);
     const oldVersion = state?.edit_version ?? 0;
     const payload = JSON.stringify(args);
-    if (lastReceipt?.id === args.p_request_id) {
-      return lastReceipt.payload === payload
-        ? { data: { status: "replayed", editVersion: lastReceipt.resultingVersion }, error: null }
+    const existingReceipt = lastReceipt;
+    if (existingReceipt !== null && existingReceipt.id === args.p_request_id) {
+      return existingReceipt.payload === payload
+        ? { data: { status: "replayed", editVersion: existingReceipt.resultingVersion }, error: null }
         : { data: null, error: { code: "P0001", message: "annabelle_atomic_request_id_conflict" } };
     }
     if (args.p_expected_version !== oldVersion)
