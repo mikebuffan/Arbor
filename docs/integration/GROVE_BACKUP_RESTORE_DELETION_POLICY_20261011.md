@@ -199,3 +199,35 @@ design review. https://supabase.com/docs/guides/platform/manage-your-usage/point
 No SQL fixture here should ever be pointed at the actual Grove, Firefly, ARK
 or other Supabase project. The original 97-task master classifications stay
 unchanged. No new task IDs or live release authority.
+
+
+## Runtime deletion custody seam — source-only blocker (2026-10-11)
+
+The existing verified Grove owner-delete broker now calls
+`reserveIndependentGroveDeletion` **before** any transactional deletion RPC
+and `confirmIndependentGroveDeletion` **after** database confirmation but
+**before** sending a successful HTTP response. This is not a second database,
+backup engine, deletion engine or independently durable provider: the newly
+defined `apps/backend/lib/grove/privateDeletionCustody.ts` is a **server-only
+unimplemented adapter** and deliberately throws the existing broker's
+`grove_private_delete_custody_unavailable` fail-closed error at both steps.
+
+As a result even mistakenly enabling
+`GROVE_PRIVATE_CONVERSATION_DELETE_ENABLED=true` cannot silently claim that
+an old physical snapshot will respect a deletion: no actual deletion RPC is
+invoked until approved external intent storage and independent integrity
+verification exist. This also means the user-facing Delete action **cannot
+succeed yet**, even for its verified owner: this is an intentional release
+hold, not completed deletion functionality. Successful future implementation
+must record a durable owner-and-scope-bound intent, preserve uncertain intents,
+run the fenced SQL transaction, and independently persist/verify a committed
+deletion watermark before the route acknowledges success. A falsely reassuring
+in-memory receipt, a new environment variable, or a write in the same Grove
+database cannot satisfy the contract. Current tests prove this negative gate,
+not a live independent custody service.
+
+The source-only JSON metadata preflights and synthetic PostgreSQL restore
+tests remain separate, cannot provision this adapter, and grant **no** live
+backup, migration, delete, deployment, mobile installation or paid inference
+permission. The original 97-task master and Grove source/host acceptance
+statuses remain unchanged.
