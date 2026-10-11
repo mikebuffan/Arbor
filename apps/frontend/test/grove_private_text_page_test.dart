@@ -196,7 +196,7 @@ class _FakePrivateClient extends GrovePrivateConversationClient {
     phraseSearches++;
     expect(projectId, expectedProjectId);
     expect(conversationId, expectedConversationId);
-    expect(phrase, 'Ever After');
+    expect(phrase, 'Archive Plan');
     if (failPhraseSearch) throw StateError('synthetic private access revoked');
     return GrovePrivateHistory(
       projectId: projectId, conversationId: conversationId,
@@ -204,7 +204,7 @@ class _FakePrivateClient extends GrovePrivateConversationClient {
       turnsNewestFirst: [
         GrovePrivateCompleteTurn(
           requestId: '00000000-0000-4000-8000-000000000019',
-          userText: 'Ever After chapter one',
+          userText: 'Archive Plan entry one',
           assistantText: 'One saved matching passage',
           replyVerification: 'unverified_model_text',
           createdAt: DateTime.utc(2025, 6, 1),
@@ -293,11 +293,11 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Search this saved conversation'), findsOneWidget);
     await tester.enterText(
-      find.widgetWithText(TextField, 'Saved message phrase'), 'Ever After');
+      find.widgetWithText(TextField, 'Saved message phrase'), 'Archive Plan');
     await tester.tap(find.text('Find matches'));
     await tester.pumpAndSettle();
     expect(client.phraseSearches, 1);
-    expect(find.text('Ever After chapter one'), findsOneWidget);
+    expect(find.text('Archive Plan entry one'), findsOneWidget);
     expect(find.text('One saved matching passage'), findsOneWidget);
     expect(client.sends, 0);
   });
