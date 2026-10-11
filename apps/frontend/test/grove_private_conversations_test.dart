@@ -480,14 +480,14 @@ void main() {
       api: api, config: config, enabled: true,
     );
     final result = await client.findSavedPhrase(
-      projectId: project, conversationId: conversation, phrase: 'Ever After',
+      projectId: project, conversationId: conversation, phrase: 'Archive Plan',
     );
     expect(result.turnsNewestFirst.single.userText, 'Continue our work.');
     expect(api.path, '/api/grove/chat/history');
     expect(api.query, {
       'projectId': project,
       'conversationId': conversation,
-      'search': 'Ever After',
+      'search': 'Archive Plan',
     });
     final calls = api.calls;
     for (final bad in ['hi', 'foo%bar', 'a.b', '   ', 'hello,world', 'x' * 65]) {
@@ -512,7 +512,7 @@ void main() {
     }
     final off = GrovePrivateConversationClient(api: api, config: config);
     await expectLater(off.findSavedPhrase(projectId: project,
-      conversationId: conversation, phrase: 'Ever After'), throwsStateError);
+      conversationId: conversation, phrase: 'Archive Plan'), throwsStateError);
   });
 
 }
