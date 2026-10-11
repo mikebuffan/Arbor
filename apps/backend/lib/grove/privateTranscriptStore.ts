@@ -1,6 +1,6 @@
 import "server-only";
 
-import { createHash } from "node:crypto";
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { RouteAccessError } from "@/lib/auth/routeAuthorization";
 import type {
@@ -38,6 +38,16 @@ export type GrovePrivateTranscriptRow = {
   continuity_fetched: boolean;
   created_at: string;
 };
+export type GrovePrivateHistoryKey = {
+  createdAt: string;
+  requestId: string;
+};
+export type GrovePrivateHistoryPage = {
+  rows: GrovePrivateTranscriptRow[];
+  hasMore: boolean;
+};
+
+/** Archive pagination is deliberately separate from the six-pair model context. */
 export type GrovePrivateTranscriptStore = {
   getCompleted(input: GrovePrivateTranscriptScope & {
     requestId: string;
@@ -51,6 +61,9 @@ export type GrovePrivateTranscriptStore = {
     | { status: "in_progress" | "conflict" | "no_access" | "completed" }
   >;
   listRecent(scope: GrovePrivateTranscriptScope): Promise<GrovePrivateTranscriptRow[]>;
+  /** Archive-only, not model context. An absent adapter must fail closed. */
+  listHistoryPage?(scope: GrovePrivateTranscriptScope, before?: GrovePrivateHistoryKey):
+    Promise<GrovePrivateHistoryPage>;
   persistCompleted(input: GrovePrivateTranscriptScope & {
     requestId: string;
     /** Must be the current DB-issued claim token; never browser-provided. */
@@ -102,6 +115,80 @@ function assertSameRequest(
   if (!sameUuid(row.request_id, input.requestId) || row.user_text !== input.userText)
     conflict();
 }
+
+const historyTimestamp = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$/;
+const HISTORY_CURSOR_MS = 15 * 60 * 1000;
+function assertHistoryKey(key: GrovePrivateHistoryKey): void {
+  if (!key || typeof key.createdAt !== "string" ||
+      key.createdAt.length > 40 || !historyTimestamp.test(key.createdAt) ||
+      !Number.isFinite(Date.parse(key.createdAt)) ||
+      typeof key.requestId !== "string" || !uuid.test(key.requestId))
+    throw new RouteAccessError(400, "grove_private_history_cursor_invalid");
+}
+function historyCursorSignature(
+  encoded: string, scope: GrovePrivateTranscriptScope, secret: string,
+): string {
+  // A separately domain-separated HMAC derived from an EXISTING server-only
+  // Grove key. The cursor never carries the key or exposes saved text.
+  const derived = createHmac("sha256", secret)
+    .update("grove-private-history-cursor-v1").digest();
+  return createHmac("sha256", derived)
+    .update([scope.groveUserId.toLowerCase(), scope.projectId.toLowerCase(),
+      scope.conversationId.toLowerCase(), encoded].join(":"))
+    .digest("hex");
+}
+function assertCursorSecret(secret: string): void {
+  if (typeof secret !== "string" || secret.length < 16)
+    throw new RouteAccessError(500, "grove_private_history_unavailable");
+}
+/** 15-minute scoped, tamper-evident cursor; not an authorization credential. */
+export function issueGrovePrivateHistoryCursor(input: {
+  scope: GrovePrivateTranscriptScope; key: GrovePrivateHistoryKey;
+  secret: string; now?: number;
+}): string {
+  assertScope(input.scope);
+  assertHistoryKey(input.key);
+  assertCursorSecret(input.secret);
+  const now = input.now ?? Date.now();
+  if (!Number.isSafeInteger(now) || now < 0)
+    throw new RouteAccessError(500, "grove_private_history_unavailable");
+  const body = Buffer.from(JSON.stringify({
+    v: 1, t: input.key.createdAt, r: input.key.requestId.toLowerCase(),
+    exp: now + HISTORY_CURSOR_MS,
+  }), "utf8").toString("base64url");
+  return body + "." + historyCursorSignature(body, input.scope, input.secret);
+}
+export function readGrovePrivateHistoryCursor(input: {
+  scope: GrovePrivateTranscriptScope; cursor: string;
+  secret: string; now?: number;
+}): GrovePrivateHistoryKey {
+  assertScope(input.scope);
+  assertCursorSecret(input.secret);
+  const reject = (): never => {
+    throw new RouteAccessError(400, "grove_private_history_cursor_invalid");
+  };
+  if (typeof input.cursor !== "string" || input.cursor.length > 768 ||
+      !/^[A-Za-z0-9_-]{1,640}\.[0-9a-f]{64}$/.test(input.cursor)) reject();
+  const [encoded, signature] = input.cursor.split(".");
+  const expected = historyCursorSignature(encoded, input.scope, input.secret);
+  if (!timingSafeEqual(Buffer.from(signature, "hex"), Buffer.from(expected, "hex")))
+    reject();
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8"));
+  } catch { reject(); }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) reject();
+  const data = parsed as Record<string, unknown>;
+  const now = input.now ?? Date.now();
+  if (data.v !== 1 || typeof data.exp !== "number" ||
+      !Number.isSafeInteger(data.exp) || data.exp <= now ||
+      data.exp > now + HISTORY_CURSOR_MS || typeof data.t !== "string" ||
+      typeof data.r !== "string") reject();
+  const key = { createdAt: data.t as string, requestId: data.r as string };
+  assertHistoryKey(key);
+  return key;
+}
+
 function scopedQuery(supabase: SupabaseClient, scope: GrovePrivateTranscriptScope) {
   return supabase.from("grove_private_turns")
     .select(fields)
@@ -171,6 +258,43 @@ export function createSupabaseGrovePrivateTranscriptStore(
       const rows = data as GrovePrivateTranscriptRow[];
       for (const row of rows) assertRow(row, scope);
       return rows;
+    },
+    async listHistoryPage(scope, before) {
+      assertScope(scope);
+      if (before) assertHistoryKey(before);
+      let query = scopedQuery(groveServiceClient, scope);
+      if (before) {
+        // Strictly validated / signed keyset, ordered by both fields. No
+        // offset drift if a new conversation turn arrives during pagination.
+        query = query.or("created_at.lt." + before.createdAt +
+          ",and(created_at.eq." + before.createdAt +
+          ",request_id.lt." + before.requestId + ")");
+      }
+      const { data, error } = await query
+        .order("created_at", { ascending: false })
+        .order("request_id", { ascending: false })
+        .limit(7);
+      if (error) throw error;
+      if (!Array.isArray(data) || data.length > 7)
+        throw new Error("grove_private_history_invalid");
+      const rows = data as GrovePrivateTranscriptRow[];
+      const seen = new Set<string>();
+      let previous: GrovePrivateTranscriptRow | null = null;
+      for (const row of rows) {
+        assertRow(row, scope);
+        const id = row.request_id.toLowerCase();
+        if (seen.has(id)) throw new Error("grove_private_history_duplicate");
+        seen.add(id);
+        if (before && !(Date.parse(row.created_at) < Date.parse(before.createdAt) ||
+            (row.created_at === before.createdAt && id < before.requestId.toLowerCase())))
+          throw new Error("grove_private_history_page_out_of_range");
+        if (previous && !(Date.parse(row.created_at) < Date.parse(previous.created_at) ||
+            (row.created_at === previous.created_at &&
+              id < previous.request_id.toLowerCase())))
+          throw new Error("grove_private_history_page_out_of_order");
+        previous = row;
+      }
+      return { rows: rows.slice(0, 6), hasMore: rows.length > 6 };
     },
     async persistCompleted(input) {
       assertScope(input);
