@@ -43,6 +43,7 @@ jobs:
           lib/arbor/continuity/__tests__/longitudinalShorthand.integration.test.ts
           lib/arbor/language/__tests__/contextualReferenceResolution.test.ts
           lib/arbor/agency/__tests__/sessionInterruption.reconciliation.test.ts
+          lib/chat/__tests__/chatRoute.contract.test.ts
           lib/arbor/pragmatics/__tests__/humorPolicy.test.ts
       - name: Backend TypeScript typecheck
         working-directory: apps/backend
