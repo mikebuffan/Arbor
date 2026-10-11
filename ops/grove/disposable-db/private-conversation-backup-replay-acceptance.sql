@@ -109,4 +109,5 @@ END;
 $restore_replay_acceptance$;
 
 -- Group 1: combine history-query index eligibility with deletion/restore regression.
+\ir private-conversation-restore-quarantine-acceptance.sql
 \ir private-history-search-performance-acceptance.sql
