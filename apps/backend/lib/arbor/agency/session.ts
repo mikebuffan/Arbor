@@ -7,6 +7,7 @@ import {
 } from "./state";
 import { loadRuntimeState } from "../runtime/runtimeStateStore";
 import { resolveAgencyGoal } from "./continuation";
+import { classifyConversationWorkControl } from "../continuity/longitudinalPolicy";
 import { recordStrategyCandidate } from "./strategyRetention";
 import {
   preserveSuspendedOpenLoops,
@@ -92,6 +93,9 @@ export function buildAgencySessionState(input: {
   checkpointId?: string;
   now?: string;
 }): AgencyState {
+  if (classifyConversationWorkControl(input.userText)) {
+    throw new Error("conversation_control_requires_hold_boundary");
+  }
   const { goal, resume, superseded } =
     resolveAgencyGoal(input.userText, input.prior);
 
@@ -139,6 +143,26 @@ export function buildAgencySessionState(input: {
       ? { ...objective, status: "blocked" as const }
       : objective,
   };
+}
+
+
+/** Route-level control handling. Unlike an ordinary chat "go", this does not
+ * run any agent or cancel any durable ARK objective. Existing blocked work
+ * remains blocked, and an active conversational goal is checkpointed. */
+export async function holdAgencyForConversationControl(input: {
+  supabase: SupabaseClient;
+  userId: string;
+  projectId: string;
+}): Promise<boolean> {
+  const prior = await loadAgencyState(input);
+  if (!prior || !resumableAgency(prior)) return false;
+  if (prior.status !== "active") return true;
+  await checkpointAgencySession({
+    ...input,
+    agency: prior,
+    reason: "explicit_user_conversation_control",
+  });
+  return true;
 }
 
 export async function beginAgencySession(input: {

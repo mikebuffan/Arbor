@@ -12,6 +12,7 @@ import {
   routeErrorResponse,
 } from "@/lib/auth/routeAuthorization";
 import { buildPromptContext } from "@/lib/prompt/buildPromptContext";
+import { classifyConversationWorkControl } from "@/lib/arbor/continuity/longitudinalPolicy";
 import { runOpenAIAgencyAgent } from "@/lib/arbor/agency/openaiAgent";
 import { buildArborAgencyTools } from "@/lib/arbor/agency/arborTools";
 import {
@@ -23,6 +24,7 @@ import { arkAgencyPlanId } from "@/lib/ark/agencyPlanId";
 import { toolNeedsUserBoundary } from "@/lib/arbor/agency/tools";
 import {
   beginAgencySession,
+  holdAgencyForConversationControl,
   blockAgencySession,
   checkpointAgencySession,
   completeAgencySession,
@@ -55,6 +57,7 @@ import {
   claimUserTurn,
   createSupabaseChatTurnStore,
   finalizeAndPersistAssistantTurn,
+  persistFinalAssistantTurn,
   getCompletedAssistantTurn,
   resolveConversationForTurn,
 } from "@/lib/chat/turnPersistence";
@@ -269,6 +272,41 @@ export async function POST(req: Request) {
           projectId,
           conversationId: convoId,
           assistantText: completedTurn.content,
+        }),
+        { status: 200, headers: getCorsHeaders(req) },
+      );
+    }
+
+
+    // Fail closed on conversational STOP/pause/refusal. This check runs after
+    // idempotent completed-turn readback but before creating/resuming any goal.
+    // A targetless "cancel it" only holds and asks; never cancel an ARK task.
+    const conversationControl = classifyConversationWorkControl(userText);
+    if (conversationControl) {
+      await holdAgencyForConversationControl({ supabase, userId, projectId });
+      const replyText = conversationControl === "pause"
+        ? "Paused. I won't continue this task until you ask. No durable ARK objective has been canceled."
+        : conversationControl === "cancel_target"
+          ? "I've held further work. Which specific task do you want canceled? I haven't canceled a durable ARK objective."
+          : conversationControl === "clarify"
+            ? "I'm holding further work so I don't act on the wrong item. Which one did you mean?"
+            : "Understood. I won't treat that as permission to continue.";
+
+      // Safe fixed control acknowledgement; no inference or paid safety call.
+      const controlReply = await persistFinalAssistantTurn({
+        store: turnStore,
+        messageId: resolvedTurn.ids.assistantMessageId,
+        userId,
+        projectId,
+        conversationId: convoId,
+        episodeId,
+        assistantText: replyText,
+      });
+      return NextResponse.json(
+        buildChatSuccessResponse({
+          projectId,
+          conversationId: convoId,
+          assistantText: controlReply.record.content,
         }),
         { status: 200, headers: getCorsHeaders(req) },
       );

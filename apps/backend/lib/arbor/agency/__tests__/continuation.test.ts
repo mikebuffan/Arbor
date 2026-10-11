@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { AgencyState } from "../engine";
+import { classifyConversationWorkControl, shouldCarryGoal } from "../../continuity/longitudinalPolicy";
+import { buildAgencySessionState } from "../session";
 import {
   resolveAgencyGoal,
   shouldResumeAgencyGoal,
@@ -16,6 +18,36 @@ const prior: AgencyState = {
 };
 
 describe("agency continuation", () => {
+
+  it.each([
+    ["Pause that", "pause"],
+    ["Wait on this", "pause"],
+    ["Hold on", "pause"],
+    ["No, wait", "pause"],
+    ["Do not continue", "pause"],
+    ["Don't go ahead", "pause"],
+    ["Cancel it", "cancel_target"],
+    ["Stop that", "cancel_target"],
+    ["Stop", "cancel_target"],
+    ["Not that one", "clarify"],
+    ["Stop that one but keep the other", "clarify"],
+    ["No", "refuse"],
+    ["No thanks", "refuse"],
+  ] as const)("holds %s before starting or resuming work", (text, expected) => {
+    expect(classifyConversationWorkControl(text)).toBe(expected);
+    expect(shouldCarryGoal(text, prior)).toBe(false);
+    expect(() => buildAgencySessionState({ userText: text, prior }))
+      .toThrow("conversation_control_requires_hold_boundary");
+  });
+
+  it.each([
+    "go", "next", "keep going", "list prompt go", "don't stop that",
+    "Don't stop this; keep going", "do not change the goal",
+    "Stop that. New task: review safe source",
+  ])("keeps explicit continuations, negated STOP, and switches distinct: %s", text => {
+    expect(classifyConversationWorkControl(text)).toBeNull();
+  });
+
   it.each([
     "go",
     "okay",

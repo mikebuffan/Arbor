@@ -2,6 +2,7 @@
 // One existing isolated test project may build this exact branch as Preview.
 // This exception grants no runtime credentials, database access or model budget.
 const branches = new Set([
+  "fix/ark-conversation-control-hold-20261011",
   "fix/one-arbor-plan-first-workflow-20261010",
   "review/d10-e09-authenticated-ci-readback-20261010",
   "test/d10-e09-reviewed-outcome-recommendation-20261010",
