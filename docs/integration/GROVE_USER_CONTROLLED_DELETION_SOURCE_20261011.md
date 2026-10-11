@@ -22,3 +22,37 @@
 
 ## Expected-red source typecheck and bounded repair
 First combined source CI [38152816952](https://github.com/mikebuffan/Arbor/actions/runs/38152816952) proved 8/8 focused backend suites passing and the disposable PostgreSQL delete test passing, but TypeScript rejected the new 503 status in the pre-existing `RouteAccessError` union. The deletion broker now uses the existing fail-closed 500 error type, with unchanged non-success behavior. Await a new exact-head green run before source acceptance. No database or host change.
+
+## Source-only API + phone implementation, pending exact-head acceptance
+
+The existing private Grove broker now checks a proposed tombstone fence
+**whenever private Talk is enabled**, failing closed if the table is missing,
+unreadable or inconsistent; read-only conversation discovery excludes matching
+Grove-deleted IDs while leaving the shared Firefly conversation untouched.
+A separate `GROVE_PRIVATE_CONVERSATION_DELETE_ENABLED` backend switch,
+default OFF, gates the strict POST-only
+`/api/grove/chat/conversations/delete` route. It requires the literal
+`DELETE` confirmation and valid project/conversation UUIDs, then delegates to
+the existing owner+bridge+grant+Firefly-ownership broker and approved
+transactional Grove-only RPC. Other endpoints never interpret model text as
+permission to delete.
+
+The Grove phone adds a distinct
+`GROVE_PRIVATE_DELETE_CONVERSATION_PREVIEW` build-time switch (default OFF).
+When enabled in a separately approved build, the UI requires a confirmation
+dialog, explains that Firefly/other app copies and memories are untouched, and
+refuses Delete when unsent/pending/retained device drafts or uncertain replies
+exist. It clears stale displayed conversation data on uncertain network results
+and clears the selected local conversation only after host confirmation.
+
+**Acceptance state: NOT VERIFIED yet for this composed head.** The previous
+exact backend + disposable SQL revision [38152946378](https://github.com/mikebuffan/Arbor/actions/runs/38152946378)
+completed SUCCESS. The phone UI and strict response parser are added on top;
+their exact-head Flutter/backend/disposable CI must pass before any source
+DONE claim. Real host model, migration, permissions, phone installation and
+user deletion remain GATED and no new task IDs are created.
+
+**Release safety:** This branch is deployment-fenced, draft and unmerged.
+The Grove database still contains only its three existing access/grant tables.
+No private messages or account data were read/deleted for this work. Hard
+account deletion, memories and backup retention are separate owner decisions.
