@@ -105,6 +105,22 @@ jobs:
       - name: Typecheck unchanged private backend
         working-directory: apps/backend
         run: pnpm exec tsc --noEmit
+      - name: Build combined Next.js backend locally with private Talk and ARK execution OFF
+        if: github.ref == 'refs/heads/review/one-arbor-foundation-source-compose-20261011'
+        working-directory: apps/backend
+        timeout-minutes: 12
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'
+          GROVE_API_ENABLED: 'false'
+          GROVE_PRIVATE_CHAT_PREVIEW_ENABLED: 'false'
+          GROVE_PRIVATE_MODEL_TURN_ENABLED: 'false'
+          ARBOR_ARK_ENABLE_LIVE_EXECUTION: 'false'
+          ARBOR_ENABLE_ARK_EXECUTION: 'false'
+        run: |
+          set -euo pipefail
+          pnpm exec next build
+          echo "GROVE_ARK_COMBINED_BACKEND_BUILD=PASS; DEPLOYMENT=NONE; PRIVATE_TALK=OFF"
+
 
   private-phone-source:
     if: github.repository == 'mikebuffan/Arbor'
