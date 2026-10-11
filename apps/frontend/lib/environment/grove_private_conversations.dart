@@ -60,7 +60,13 @@ class GrovePrivateConversationChoices {
 }
 
 final RegExp _archiveCursor =
-    RegExp(r'^[A-Za-z0-9_-]{1,640}\.[0-9a-f]{64}
+    RegExp(r'^[A-Za-z0-9_-]{1,640}\.[0-9a-f]{64}$');
+
+GrovePrivateConversationChoices parseGrovePrivateConversations(
+  Map<String, dynamic>? payload, {
+  required String projectId,
+  bool archive = false,
+}) {
   if (!_validId(projectId) || payload?['ok'] != true ||
       payload?['projectId'] != projectId ||
       payload?['mayBeTruncated'] is! bool ||
