@@ -44,6 +44,35 @@ describe("integrated private Grove host isolation", () => {
     }
   });
 
+  it("dedicated Grove Vercel project fails closed when preview has no Grove switch", () => {
+    vi.stubEnv("VERCEL_PROJECT_ID", "prj_nw2X0SyLn4e8CXWZ83MEs4jwn1JN");
+    vi.stubEnv("GROVE_API_ENABLED", "");
+    for (const publicApp of ["", "true"]) {
+      vi.stubEnv("ARBOR_PUBLIC_APP_ENABLED", publicApp);
+      for (const [path, method] of [
+        ["/", "GET"], ["/api/chat", "POST"],
+        ["/api/ark/status", "GET"], ["/api/public/chat", "GET"],
+        ["/api/grove/chat", "POST"], ["/api/grove/ark/projects", "GET"],
+        ["/_next/static/chunks/main.js", "GET"],
+        ["/api/grove/chat", "OPTIONS"],
+      ]) {
+        const response = middleware(request(path, method));
+        expect(response.status).toBe(404);
+        expect(response.headers.get("cache-control")).toBe("no-store");
+        expect(response.headers.get("access-control-allow-origin")).toBeNull();
+        expect(response.headers.get("x-middleware-next")).toBeNull();
+      }
+    }
+  });
+
+  it("does not impose the dedicated project fence on another host", () => {
+    vi.stubEnv("VERCEL_PROJECT_ID", "prj_other_project");
+    vi.stubEnv("GROVE_API_ENABLED", "");
+    vi.stubEnv("ARBOR_PUBLIC_APP_ENABLED", "");
+    const response = middleware(request("/api/chat"));
+    expect(response.headers.get("x-middleware-next")).toBe("1");
+  });
+
   it("includes framework asset paths in the private-host security matcher", () => {
     expect(config.matcher).toEqual(["/:path*"]);
   });

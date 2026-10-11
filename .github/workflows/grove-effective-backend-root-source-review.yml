@@ -68,3 +68,32 @@ jobs:
           console.log('GROVE_EFFECTIVE_BACKEND_NO_CRON_SOURCE=PASS;');
           console.log('DEDICATED_HOST_ROOT_CHANGE=HOLD; ACTUAL_DEPLOYMENT=NONE');
           NODE
+
+  grove-preview-fail-closed:
+    if: github.repository == 'mikebuffan/Arbor'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    env:
+      CI: 'true'
+      NEXT_TELEMETRY_DISABLED: '1'
+      GROVE_API_ENABLED: 'false'
+      GROVE_PRIVATE_CHAT_PREVIEW_ENABLED: 'false'
+      GROVE_PRIVATE_MODEL_TURN_ENABLED: 'false'
+      ARBOR_ARK_ENABLE_LIVE_EXECUTION: 'false'
+      AWS_EC2_METADATA_DISABLED: 'true'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Resolve existing locked dependencies
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.30.3 --activate
+          pnpm install --frozen-lockfile
+      - name: Test Grove project-identity fail-closed routing without preview keys
+        run: pnpm --filter firefly-backend exec vitest run lib/grove/__tests__/privateHostIsolation.test.ts
+      - name: Compile proposed private Grove backend with disabled features
+        run: pnpm --filter firefly-backend build
