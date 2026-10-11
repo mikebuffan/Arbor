@@ -68,3 +68,34 @@ This is source-only review; no production merge, migration, deployment,
 user data, paid model, worker activation or owner permission change.
 The 97-task master and six-group overlay are unchanged. Check exact-head
 CI before marking this code-only pass GREEN.
+
+
+## Existing conversation picker pagination — source review 2026-10-11
+
+- The existing /api/grove/chat/conversations GET retains its original first-20
+  response. Explicit page=archive opts into signed keyset pages, with a
+  nextCursor that expires after 15 minutes. A request bearing a cursor without
+  page=archive is rejected.
+- The cursor binds the verified Grove owner, mapped Firefly owner, granted
+  project, and updated_at + id anchor. Its server-side HMAC uses a
+  domain-separated derivation of the existing Grove service credential, not a
+  user-supplied bearer. Old cursors are invalid if scope changes.
+- Every request redoes owner invitation / project grant / Firefly ownership,
+  validates returned raw rows, orders by updated_at then ID, and queries the
+  Grove tombstone store for the selected raw page. The 21st row is lookahead:
+  it is validated but never accidentally displayed if a hidden chat occupies
+  an earlier slot. The next cursor uses the 20th RAW record so a deleted
+  conversation can neither resurrect nor cause a legitimate older chat to
+  be silently skipped.
+- No broad owner listing, private body read, model inference, automatic TTL,
+  new engine, migration or live activation. The preview-phone conversation
+  picker has not yet been wired to request the next page.
+- New broker and route regressions cover 20+ records, deleted/hidden middle
+  entries, scopes, forgery and expiry, malformed order, grant revocation,
+  HTTP opt-in and compatibility. Do not mark this exact source head verified
+  until all offline source CI jobs pass.
+
+The existing 97-task master is unchanged. Real Grove hosting, older-message
+search from natural-language prompts, full restore deletion-state custody,
+database migrations, model receiver and installed-phone acceptance still
+require their independent gated reviews.
