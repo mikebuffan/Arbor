@@ -307,6 +307,44 @@ void main() {
     expect(fake.calls, 0);
   });
 
+  test('private Grove deletion requires exact signed host response and scope', () async {
+    final api = FakeApi(apiUrl)..postResult = {
+      'ok': true, 'deleted': true,
+      'projectId': project, 'conversationId': conversation,
+      'scope': 'grove_saved_transcript_only',
+      'grantsExecution': false, 'verifiesCompletion': false,
+    };
+    final client = GrovePrivateConversationClient(
+      api: api, config: config, enabled: true,
+    );
+    await client.deleteSaved(projectId: project, conversationId: conversation);
+    expect(api.path, '/api/grove/chat/conversations/delete');
+    expect(api.sent, {
+      'projectId': project, 'conversationId': conversation,
+      'confirmation': 'DELETE',
+    });
+    final count = api.calls;
+    await expectLater(client.deleteSaved(
+      projectId: project, conversationId: 'foreign'), throwsFormatException);
+    expect(api.calls, count);
+    for (final response in [
+      {...api.postResult!, 'deleted': false},
+      {...api.postResult!, 'conversationId': '00000000-0000-4000-8000-000000000006'},
+      {...api.postResult!, 'scope': 'all_apps'},
+      {...api.postResult!, 'grantsExecution': true},
+      {...api.postResult!, 'verifiesCompletion': true},
+      {...api.postResult!, 'workReceipts': ['fake-proof']},
+    ]) {
+      api.postResult = response;
+      await expectLater(client.deleteSaved(
+        projectId: project, conversationId: conversation),
+        throwsFormatException);
+    }
+    final off = GrovePrivateConversationClient(api: api, config: config);
+    await expectLater(off.deleteSaved(
+      projectId: project, conversationId: conversation), throwsStateError);
+  });
+
   test('enabled client uses only verified Grove scope and fixed endpoints',
       () async {
     final api = FakeApi(apiUrl)

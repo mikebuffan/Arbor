@@ -311,6 +311,33 @@ class GrovePrivateConversationClient {
     );
   }
 
+  /// Explicitly user-initiated deletion of Grove transcript ONLY, not Firefly.
+  Future<void> deleteSaved({
+    required String projectId,
+    required String conversationId,
+  }) async {
+    _requireReady();
+    if (!_validId(projectId) || !_validId(conversationId))
+      throw const FormatException('Invalid Grove conversation deletion scope');
+    final result = await _api.post('/api/grove/chat/conversations/delete',
+      body: {
+        'projectId': projectId,
+        'conversationId': conversationId,
+        'confirmation': 'DELETE',
+      });
+    if (result['ok'] != true || result['deleted'] != true ||
+        result['projectId'] != projectId ||
+        result['conversationId'] != conversationId ||
+        result['scope'] != 'grove_saved_transcript_only' ||
+        result['grantsExecution'] != false ||
+        result['verifiesCompletion'] != false ||
+        (result['workReceipts'] != null &&
+            (result['workReceipts'] is! List ||
+             (result['workReceipts'] as List).isNotEmpty))) {
+      throw const FormatException('Private Grove deletion was not verified');
+    }
+  }
+
   Future<GrovePrivateHistory> loadRecent({
     required String projectId,
     required String conversationId,
