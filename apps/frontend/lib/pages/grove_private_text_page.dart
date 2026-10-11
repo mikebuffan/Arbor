@@ -231,6 +231,9 @@ class GrovePrivateTextPanel extends StatefulWidget {
 class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel>
     with WidgetsBindingObserver {
   final _input = TextEditingController();
+  final _searchInput = TextEditingController();
+  GrovePrivateHistory? _searchResults;
+  String? _searchedPhrase;
   GrovePrivateConversationChoices? _choices;
   GrovePrivateHistory? _history;
   bool _turnArchiveStarted = false;
@@ -399,6 +402,7 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel>
       _changingDraft = false; _draftStatus = null; _sending = false;
       _choices = null;
       _history = null;
+      _searchResults = null; _searchedPhrase = null; _searchInput.clear();
       _selected = null;
       _pendingId = null;
       _pendingText = null;
@@ -435,6 +439,7 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel>
       final previousStillSelected = previousId != null && previousId == selected;
       setState(() {
         _choices = choices;
+        _searchResults = null; _searchedPhrase = null;
         _loading = selected != null;
         if (!previousStillSelected) {
           _draftTimer?.cancel();
@@ -531,6 +536,7 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel>
       _loading = true;
       _selected = null;
       _history = null;
+      _searchResults = null; _searchedPhrase = null; _searchInput.clear();
       _turnArchiveStarted = false; _olderTurnCursor = null;
       _pendingId = null;
       _pendingText = null;
@@ -671,6 +677,44 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel>
         _history = null; _selected = null; _loading = false;
         _turnArchiveStarted = false; _olderTurnCursor = null;
         _error = 'Could not verify older messages. Refresh conversations to reopen.';
+      });
+    }
+  }
+
+
+  /// Explicit local-display search of the currently authorized conversation.
+  /// No results are passed as model context or stored on the device.
+  Future<void> _searchSavedMessages() async {
+    final id = _selected;
+    final phrase = _searchInput.text.trim();
+    if (!_valid || _loading || _sending || _draftBlocked ||
+        _changingDraft || _pendingId != null || id == null ||
+        _history == null || phrase.length < 3 || phrase.length > 64) return;
+    final generation = ++_generation;
+    setState(() { _loading = true; _error = null; });
+    try {
+      await _saveDraft();
+      if (!_valid || generation != _generation) return;
+      final matches = await widget.client.findSavedPhrase(
+        projectId: widget.projectId, conversationId: id, phrase: phrase,
+      ).timeout(_groveReadDeadline);
+      if (!_valid || generation != _generation) return;
+      if (matches.projectId != widget.projectId ||
+          matches.conversationId != id) {
+        throw StateError('Private search scope changed');
+      }
+      setState(() {
+        _searchResults = matches;
+        _searchedPhrase = phrase;
+        _loading = false;
+      });
+    } catch (_) {
+      if (!_valid || generation != _generation) return;
+      // Rejection could mean revocation: never preserve old sensitive views.
+      setState(() {
+        _searchResults = null; _searchedPhrase = null;
+        _history = null; _selected = null; _loading = false;
+        _error = 'Private search access could not be verified. Refresh conversations.';
       });
     }
   }
@@ -834,6 +878,7 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel>
       if (!_valid || generation != _generation) return;
       setState(() {
         _history = history ?? _history;
+        _searchResults = null; _searchedPhrase = null;
         if (history != null) {
           _turnArchiveStarted = false; _olderTurnCursor = null;
         }
@@ -864,6 +909,7 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel>
     ++_generation;
     _input.removeListener(_draftChanged);
     _input.dispose();
+    _searchInput.dispose();
     super.dispose();
   }
 
@@ -974,6 +1020,29 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel>
                               ? null : _loadOlderMessages,
                           child: const Text('Load older messages'),
                         ),
+                      if (_searchResults != null) ...[
+                        Text('Saved matches for: ${_searchedPhrase ?? ''}',
+                          style: const TextStyle(color: Colors.white70)),
+                        if (_searchResults!.mayBeTruncated)
+                          const Text('Showing up to six newest matches. More may exist.',
+                            style: TextStyle(color: Colors.white70)),
+                        if (_searchResults!.turnsNewestFirst.isEmpty)
+                          const Text('No saved matches in this conversation.',
+                            style: TextStyle(color: Colors.white70)),
+                        for (final match in _searchResults!.turnsNewestFirst)
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Card(child: Padding(
+                                padding: const EdgeInsets.all(12),
+                                child: Text(match.userText))),
+                              Card(child: Padding(
+                                padding: const EdgeInsets.all(12),
+                                child: Text(match.assistantText))),
+                            ],
+                          ),
+                        const Divider(),
+                      ],
                       for (final turn in _history!.turnsNewestFirst.reversed)
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -995,6 +1064,22 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel>
                   ),
             ),
             if (_selected != null) ...[
+              TextField(
+                controller: _searchInput,
+                enabled: !_loading && !_sending && !_draftBlocked &&
+                    !_changingDraft && _pendingId == null,
+                maxLength: 64,
+                decoration: const InputDecoration(
+                  labelText: 'Search saved messages in this conversation',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              TextButton(
+                onPressed: _loading || _sending || _draftBlocked ||
+                    _changingDraft || _pendingId != null
+                    ? null : _searchSavedMessages,
+                child: const Text('Search saved messages'),
+              ),
               if (widget.pendingStore != null)
                 CheckboxListTile(
                   dense: true,
