@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   createSupabaseGrovePrivateTranscriptStore,
+  validateGrovePrivateSearchPhrase,
   issueGrovePrivateHistoryCursor, readGrovePrivateHistoryCursor,
   selectPrivateModelHistory, transcriptRowToUnverifiedReply,
   type GrovePrivateTranscriptRow, type GrovePrivateTranscriptStore,
@@ -1176,5 +1177,81 @@ describe("Grove archive microsecond boundary", () => {
     value = "2026-09-23T12:00:00.123457Z";
     await expect(store.listHistoryPage!(scope, before))
       .rejects.toThrow("grove_private_history_page_out_of_range");
+  });
+});
+
+describe("Grove requested historical phrase search, read-only and scoped", () => {
+  it("only accepts bounded literal text, never wildcard/filter syntax", () => {
+    expect(validateGrovePrivateSearchPhrase("Ever After")).toBe("Ever After");
+    expect(validateGrovePrivateSearchPhrase("Laila school")).toBe("Laila school");
+    for (const bad of ["", "a", " hello", "hello ", "%secret%", "_secret",
+      "hi,assistant_text.ilike.%", "a.b", "x(y)", "what?", "a\nb",
+      "<script>", "a".repeat(65)]) {
+      expect(() => validateGrovePrivateSearchPhrase(bad))
+        .toThrow("grove_private_history_search_invalid");
+    }
+  });
+
+  it("uses the same three-identity scope plus safe literal match, 7-row lookahead", async () => {
+    const matches = Array.from({length: 7}, (_, i) => ({
+      ...row({
+        requestId: "00000000-0000-4000-8000-" +
+          (200 + i).toString().padStart(12, "0"),
+        userText: "Did we discuss Ever After?",
+        assistantText: "Yes, Ever After.",
+      }),
+      created_at: "2025-06-" + String(30 - i).padStart(2, "0") + "T12:00:00Z",
+    }));
+    const chain: any = {
+      select: vi.fn(), eq: vi.fn(), or: vi.fn(), order: vi.fn(),
+      limit: vi.fn(async () => ({data: matches, error: null})),
+    };
+    for (const method of ["select","eq","or","order"])
+      chain[method].mockReturnValue(chain);
+    const store = createSupabaseGrovePrivateTranscriptStore({
+      from: vi.fn(() => chain),
+    } as never);
+    const page = await store.findSavedPhrase!(scope, "Ever After");
+    expect(page).toEqual({rows: matches.slice(0, 6), hasMore: true});
+    expect(chain.or).toHaveBeenCalledWith(
+      "user_text.ilike.%Ever After%,assistant_text.ilike.%Ever After%");
+    expect(chain.eq).toHaveBeenCalledWith("grove_user_id", groveUserId);
+    expect(chain.eq).toHaveBeenCalledWith("firefly_project_id", projectId);
+    expect(chain.eq).toHaveBeenCalledWith("firefly_conversation_id", conversationId);
+    expect(chain.limit).toHaveBeenCalledWith(7);
+    expect(chain.order).toHaveBeenCalledWith("created_at", {ascending:false});
+    await expect(store.findSavedPhrase!({
+      ...scope,conversationId:"not-an-id",
+    }, "Ever After")).rejects.toThrow("grove_transcript_scope_invalid");
+  });
+
+  it("fails closed on unverified rows, provider mismatch, duplicates, or out-of-order results", async () => {
+    const original = row({ requestId:firstId, userText:"Laila school attendance",
+      assistantText:"We discussed attendance" });
+    const chain: any = {
+      select: vi.fn(), eq: vi.fn(), or: vi.fn(), order: vi.fn(),
+      limit: vi.fn(async () => ({ data:[original], error:null })),
+    };
+    for (const method of ["select","eq","or","order"])
+      chain[method].mockReturnValue(chain);
+    const store = createSupabaseGrovePrivateTranscriptStore({
+      from: vi.fn(() => chain),
+    } as never);
+    expect((await store.findSavedPhrase!(scope,"Laila school")).rows).toHaveLength(1);
+    for (const [data, error] of [
+      [[{...original, grove_user_id:otherConversation}], "grove_transcript_scope_invalid"],
+      [[{...original, user_text:"Unrelated",assistant_text:"Also unrelated"}],
+        "grove_private_history_search_unmatched"],
+      [[original,original], "grove_private_history_search_duplicate"],
+      [[{...original,request_id:firstId, created_at:"2025-01-01T00:00:00Z"},
+        {...original,request_id:secondId,created_at:"2026-01-01T00:00:00Z"}],
+        "grove_private_history_search_out_of_order"],
+    ] as const) {
+      chain.limit.mockResolvedValueOnce({data, error:null});
+      await expect(store.findSavedPhrase!(scope, "Laila school"))
+        .rejects.toThrow(error);
+    }
+    chain.limit.mockResolvedValueOnce({data:[],error:{message:"private SQL details"}});
+    await expect(store.findSavedPhrase!(scope,"Laila school")).rejects.toBeTruthy();
   });
 });
