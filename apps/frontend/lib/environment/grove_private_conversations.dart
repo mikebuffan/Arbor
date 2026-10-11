@@ -50,15 +50,22 @@ class GrovePrivateConversationChoices {
     required this.projectId,
     required this.conversations,
     required this.mayBeTruncated,
+    this.nextCursor,
   });
   final String projectId;
   final List<GrovePrivateConversationChoice> conversations;
   final bool mayBeTruncated;
+  /// Null on the final archive page or a legacy first-page response.
+  final String? nextCursor;
 }
+
+final RegExp _archiveCursor =
+    RegExp(r'^[A-Za-z0-9_-]{1,640}\.[0-9a-f]{64}$');
 
 GrovePrivateConversationChoices parseGrovePrivateConversations(
   Map<String, dynamic>? payload, {
   required String projectId,
+  bool archive = false,
 }) {
   if (!_validId(projectId) || payload?['ok'] != true ||
       payload?['projectId'] != projectId ||
@@ -67,6 +74,15 @@ GrovePrivateConversationChoices parseGrovePrivateConversations(
       payload?['grantsExecution'] != false ||
       payload?['conversations'] is! List) {
     throw const FormatException('Private Grove conversation list unavailable');
+  }
+  if (archive) {
+    final cursor = payload!['nextCursor'];
+    if (!payload.containsKey('nextCursor') ||
+        (cursor != null && (cursor is! String ||
+          cursor.length > 768 || !_archiveCursor.hasMatch(cursor))) ||
+        payload['mayBeTruncated'] != (cursor != null)) {
+      throw const FormatException('Invalid private Grove archive cursor');
+    }
   }
   final list = payload!['conversations'] as List;
   if (list.length > 20) {
@@ -90,6 +106,7 @@ GrovePrivateConversationChoices parseGrovePrivateConversations(
     projectId: projectId,
     conversations: List.unmodifiable(choices),
     mayBeTruncated: payload['mayBeTruncated'] as bool,
+    nextCursor: archive ? payload['nextCursor'] as String? : null,
   );
 }
 
@@ -140,11 +157,14 @@ class GrovePrivateHistory {
     required this.conversationId,
     required this.mayBeTruncated,
     required this.turnsNewestFirst,
+    this.nextCursor,
   });
   final String projectId;
   final String conversationId;
   final bool mayBeTruncated;
-  /// Six latest complete pairs, NOT the entire personal history.
+  /// Only on explicitly requested archive pages.
+  final String? nextCursor;
+  /// Legacy reads remain the six latest pairs; user-requested pages may append.
   final List<GrovePrivateCompleteTurn> turnsNewestFirst;
 }
 
@@ -156,6 +176,8 @@ GrovePrivateHistory parseGrovePrivateHistory(
   Map<String, dynamic>? payload, {
   required String projectId,
   required String conversationId,
+  bool archive = false,
+  bool search = false,
 }) {
   if (!_validId(projectId) || !_validId(conversationId) ||
       payload?['ok'] != true ||
@@ -169,6 +191,22 @@ GrovePrivateHistory parseGrovePrivateHistory(
       payload['workReceipts'] is! List ||
       payload['turns'] is! List) {
     throw const FormatException('Private Grove history unavailable');
+  }
+  if (search && (payload['searchMode'] != 'literal_phrase' ||
+      payload['searchedOnlyThisConversation'] != true ||
+      payload['searchMayBeTruncated'] is! bool ||
+      payload['historyMayBeTruncated'] != payload['searchMayBeTruncated'] ||
+      payload.containsKey('nextCursor'))) {
+    throw const FormatException('Private Grove search result not verified');
+  }
+  if (archive) {
+    final cursor = payload['nextCursor'];
+    if (!payload.containsKey('nextCursor') ||
+        (cursor != null && (cursor is! String ||
+            cursor.length > 768 || !_archiveCursor.hasMatch(cursor))) ||
+        payload['historyMayBeTruncated'] != (cursor != null)) {
+      throw const FormatException('Invalid private Grove history archive');
+    }
   }
   final raw = payload['turns'] as List;
   if (raw.length > 6) {
@@ -208,6 +246,7 @@ GrovePrivateHistory parseGrovePrivateHistory(
     conversationId: conversationId,
     mayBeTruncated: payload['historyMayBeTruncated'] as bool,
     turnsNewestFirst: List.unmodifiable(turns),
+    nextCursor: archive ? payload['nextCursor'] as String? : null,
   );
 }
 
@@ -294,6 +333,28 @@ class GrovePrivateConversationClient {
     return parseGrovePrivateConversations(payload, projectId: projectId);
   }
 
+  /// Archive browsing is user-initiated. No automatic model-history expansion,
+  /// no Firefly body read, no cross-project fallback.
+  Future<GrovePrivateConversationChoices> listArchive(
+    String projectId, {String? cursor,
+  }) async {
+    _requireReady();
+    if (!_validId(projectId) ||
+        (cursor != null && (cursor.length > 768 ||
+            !_archiveCursor.hasMatch(cursor)))) {
+      throw const FormatException('Invalid Grove archive scope or cursor');
+    }
+    final payload = await _api.get('/api/grove/chat/conversations',
+      queryParameters: {
+        'projectId': projectId,
+        'page': 'archive',
+        if (cursor != null) 'cursor': cursor,
+      },
+    );
+    return parseGrovePrivateConversations(payload,
+        projectId: projectId, archive: true);
+  }
+
   /// Called ONLY on an explicit user action, never automatically on empty
   /// discovery/restart or as a retry. A lost response may have created a
   /// conversation, so callers must refresh listExisting before trying again.
@@ -309,6 +370,33 @@ class GrovePrivateConversationClient {
     return parseGrovePrivateCreatedConversation(
       payload, projectId: projectId,
     );
+  }
+
+  /// Explicitly user-initiated deletion of Grove transcript ONLY, not Firefly.
+  Future<void> deleteSaved({
+    required String projectId,
+    required String conversationId,
+  }) async {
+    _requireReady();
+    if (!_validId(projectId) || !_validId(conversationId))
+      throw const FormatException('Invalid Grove conversation deletion scope');
+    final result = await _api.post('/api/grove/chat/conversations/delete',
+      body: {
+        'projectId': projectId,
+        'conversationId': conversationId,
+        'confirmation': 'DELETE',
+      });
+    if (result['ok'] != true || result['deleted'] != true ||
+        result['projectId'] != projectId ||
+        result['conversationId'] != conversationId ||
+        result['scope'] != 'grove_saved_transcript_only' ||
+        result['grantsExecution'] != false ||
+        result['verifiesCompletion'] != false ||
+        (result['workReceipts'] != null &&
+            (result['workReceipts'] is! List ||
+             (result['workReceipts'] as List).isNotEmpty))) {
+      throw const FormatException('Private Grove deletion was not verified');
+    }
   }
 
   Future<GrovePrivateHistory> loadRecent({
@@ -327,6 +415,55 @@ class GrovePrivateConversationClient {
     );
     return parseGrovePrivateHistory(payload,
       projectId: projectId, conversationId: conversationId);
+  }
+
+  /// Explicit literal lookup of saved exchanges in ONE verified conversation.
+  /// This does not send conversation content to an LM or an outside index.
+  Future<GrovePrivateHistory> findSavedPhrase({
+    required String projectId,
+    required String conversationId,
+    required String phrase,
+  }) async {
+    _requireReady();
+    if (!_validId(projectId) || !_validId(conversationId) ||
+        phrase.length < 3 || phrase.length > 64 || phrase.trim() != phrase ||
+        !RegExp(r'^[A-Za-z0-9][A-Za-z0-9 -]*[A-Za-z0-9]$')
+            .hasMatch(phrase)) {
+      throw const FormatException('Invalid private Grove search phrase');
+    }
+    final payload = await _api.get('/api/grove/chat/history',
+      queryParameters: {
+        'projectId': projectId,
+        'conversationId': conversationId,
+        'search': phrase,
+      },
+    );
+    return parseGrovePrivateHistory(payload,
+      projectId: projectId, conversationId: conversationId, search: true);
+  }
+
+  /// Manual saved-turn archive only. No model input, search, or new storage.
+  Future<GrovePrivateHistory> loadArchive({
+    required String projectId,
+    required String conversationId,
+    String? cursor,
+  }) async {
+    _requireReady();
+    if (!_validId(projectId) || !_validId(conversationId) ||
+        (cursor != null && (cursor.length > 768 ||
+            !_archiveCursor.hasMatch(cursor)))) {
+      throw const FormatException('Invalid private Grove history archive scope');
+    }
+    final payload = await _api.get('/api/grove/chat/history',
+      queryParameters: {
+        'projectId': projectId,
+        'conversationId': conversationId,
+        'page': 'archive',
+        if (cursor != null) 'cursor': cursor,
+      },
+    );
+    return parseGrovePrivateHistory(payload,
+      projectId: projectId, conversationId: conversationId, archive: true);
   }
 
   /// Caller MUST reuse the same requestId on a network retry with identical
@@ -354,3 +491,4 @@ class GrovePrivateConversationClient {
     return parseGrovePrivateReply(payload, requestId: requestId);
   }
 }
+

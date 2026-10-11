@@ -185,3 +185,53 @@ describe("Grove explicitly requested NEW conversation endpoint", () => {
       .not.toMatch(/private-service-key|user email/);
   });
 });
+
+
+describe("Grove older conversation list page — HTTP opt-in", () => {
+  it("requests older records only with page=archive and adds cursor only to that result", async () => {
+    const token = "mock-signed-cursor";
+    mocks.read.mockResolvedValueOnce({
+      projectId, conversations: [], mayBeTruncated: true, nextCursor: token,
+    });
+    const request = req("projectId=" + projectId + "&page=archive");
+    const first = await GET(request);
+    expect(first.status).toBe(200);
+    const firstBody = await first.json();
+    expect(firstBody.nextCursor).toBe(token);
+    expect(mocks.read).toHaveBeenCalledWith(request, projectId, {
+      enabled: true, cursor: undefined,
+    });
+    const nextRequest = req("projectId=" + projectId + "&page=archive&cursor=" + token);
+    mocks.read.mockResolvedValueOnce({
+      projectId, conversations: [], mayBeTruncated: false, nextCursor: null,
+    });
+    const second = await GET(nextRequest);
+    expect(second.status).toBe(200);
+    expect((await second.json()).nextCursor).toBeNull();
+    expect(mocks.read).toHaveBeenLastCalledWith(nextRequest, projectId, {
+      enabled: true, cursor: token,
+    });
+  });
+
+  it("rejects duplicated/malformed archive selectors without reaching broker", async () => {
+    for (const query of [
+      "projectId=" + projectId + "&cursor=abc",
+      "projectId=" + projectId + "&page=archive&page=archive",
+      "projectId=" + projectId + "&page=unexpected",
+      "projectId=" + projectId + "&page=archive&cursor=",
+      "projectId=" + projectId + "&page=archive&ownerId=foreign",
+    ]) {
+      const response = await GET(req(query));
+      expect(response.status).toBe(400);
+    }
+    expect(mocks.read).not.toHaveBeenCalled();
+  });
+
+  it("rejects a broker response pretending to have a complete archive without a cursor field", async () => {
+    mocks.read.mockResolvedValueOnce({
+      projectId, conversations: [], mayBeTruncated: true,
+    });
+    const res = await GET(req("projectId=" + projectId + "&page=archive"));
+    expect(res.status).toBe(500);
+  });
+});

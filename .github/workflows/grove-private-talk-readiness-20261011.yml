@@ -1,0 +1,203 @@
+name: Grove private Talk readiness source gate
+
+on:
+  push:
+    branches:
+      - test/grove-private-talk-readiness-20261011
+
+permissions:
+  contents: read
+
+# Cancel superseded source-only checks instead of compiling multiple unused
+# synthetic APKs for successive review commits. No release or deploy jobs.
+concurrency:
+  group: grove-private-readiness-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  metadata-only:
+    if: github.repository == 'mikebuffan/Arbor'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      CI: 'true'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Existing private-host checker and no-deployment regressions
+        run: |
+          node --test ops/grove/verify-private-host.test.mjs ops/grove/source-only-ignore.test.mjs
+      - name: Offline pinned receiver source contracts
+        run: node --test ops/grove/local-lm/local-lm-prep.test.mjs
+      - name: Exact branch remains source-only for Vercel
+        run: |
+          VERCEL_GIT_COMMIT_REF=test/grove-private-talk-readiness-20261011 VERCEL_ENV=production node ops/grove/source-only-ignore.mjs
+
+  private-backend-source:
+    if: github.repository == 'mikebuffan/Arbor'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      CI: 'true'
+      OPENAI_API_KEY: ci-placeholder-not-a-real-key
+      AWS_EC2_METADATA_DISABLED: 'true'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install repository locked Node packages
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.30.3 --activate
+          pnpm install --frozen-lockfile
+      - name: Group 2 to 4 private broker, LM and transcript mock regressions
+        working-directory: apps/backend
+        run: >-
+          pnpm exec vitest run
+          lib/grove/__tests__/privateReadBroker.test.ts
+          lib/grove/__tests__/privateConversationDiscovery.test.ts
+          lib/grove/__tests__/privateHostIsolation.test.ts
+          lib/grove/__tests__/privateChatRoute.test.ts
+          lib/grove/__tests__/privateConversationDeleteRoute.test.ts
+          lib/grove/__tests__/privateConversationLoop.test.ts
+          lib/grove/__tests__/privateLmHostTransport.test.ts
+          lib/grove/__tests__/privateTranscriptStore.test.ts
+          lib/grove/__tests__/privateTranscriptRoute.test.ts
+          lib/grove/__tests__/groveDeploymentConfig.test.ts
+      - name: Typecheck unchanged private backend
+        working-directory: apps/backend
+        run: pnpm exec tsc --noEmit
+
+  private-phone-source:
+    if: github.repository == 'mikebuffan/Arbor'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      CI: 'true'
+      FLUTTER_SUPPRESS_ANALYTICS: 'true'
+      DART_SUPPRESS_ANALYTICS: 'true'
+      AWS_EC2_METADATA_DISABLED: 'true'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.47.6'
+          cache: true
+      - name: Resolve locked Flutter dependencies
+        working-directory: apps/frontend
+        run: flutter pub get --enforce-lockfile
+      - name: Confirm app lockfile unchanged
+        run: git diff --exit-code -- apps/frontend/pubspec.lock
+      - name: Group 5 private home, owner scope and device-state source tests
+        working-directory: apps/frontend
+        run: >-
+          timeout 300s flutter test --reporter expanded --concurrency=1
+          test/grove_house_navigation_test.dart
+          test/grove_talk_private_boundary_test.dart
+          test/grove_private_auth_boundary_test.dart
+          test/grove_private_project_gate_test.dart
+          test/grove_private_conversations_test.dart
+          test/grove_private_text_page_test.dart
+          test/grove_pending_turn_store_test.dart
+          test/grove_living_window_panel_test.dart
+      - name: Flutter static analysis, no build or device install
+        working-directory: apps/frontend
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+  conversation-delete-disposable:
+    if: github.repository == 'mikebuffan/Arbor'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    permissions:
+      contents: read
+    env:
+      CI: 'true'
+      AWS_EC2_METADATA_DISABLED: 'true'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Test proposed user-only deletion in isolated PostgreSQL 17.6
+        shell: bash
+        run: |
+          set -euo pipefail
+          name="grove-delete-disposable-$GITHUB_RUN_ID"
+          trap 'docker rm -f "$name" >/dev/null 2>&1 || true' EXIT
+          timeout 120s docker pull postgres:17.6
+          docker run --detach --name "$name" --network none \
+            --env POSTGRES_PASSWORD=synthetic-disposable-only \
+            --mount "type=bind,source=$GITHUB_WORKSPACE,target=/source,readonly" \
+            postgres:17.6
+          ready=false
+          for attempt in {1..30}; do
+            if docker exec "$name" pg_isready --host 127.0.0.1 --username postgres; then
+              ready=true
+              break
+            fi
+            sleep 1
+          done
+          test "$ready" = true
+          docker exec "$name" psql --username postgres --dbname postgres \
+            --set ON_ERROR_STOP=on \
+            --file /source/ops/grove/disposable-db/private-conversation-backup-replay-acceptance.sql
+      - name: Assert fixtures did not rewrite source
+        run: git diff --exit-code
+
+
+  grove-android-synthetic:
+    name: Grove Android debug compilation (offline, no artifact publication)
+    if: github.repository == 'mikebuffan/Arbor' && github.ref == 'refs/heads/test/grove-private-talk-readiness-20261011'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    env:
+      CI: 'true'
+      FLUTTER_SUPPRESS_ANALYTICS: 'true'
+      DART_SUPPRESS_ANALYTICS: 'true'
+      AWS_EC2_METADATA_DISABLED: 'true'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.47.6'
+          cache: true
+      - name: Keep private Grove source branch excluded from Vercel
+        run: |
+          VERCEL_GIT_COMMIT_REF=test/grove-private-talk-readiness-20261011 VERCEL_ENV=production node ops/grove/source-only-ignore.mjs
+      - name: Resolve existing locked Flutter packages
+        working-directory: apps/frontend
+        run: flutter pub get --enforce-lockfile
+      - name: Assert dependency lockfile unchanged
+        run: git diff --exit-code -- apps/frontend/pubspec.lock
+      - name: Compile unconfigured Grove debug APK only; private Talk OFF
+        working-directory: apps/frontend
+        run: >-
+          timeout 900s flutter build apk --debug --flavor grove
+          --dart-define=GROVE_STANDALONE=true
+          --dart-define=GROVE_PRIVATE_TALK_PREVIEW=false
+          --dart-define=GROVE_PRIVATE_NEW_CONVERSATION_PREVIEW=false
+      - name: Validate local binary and leave it unpublished
+        working-directory: apps/frontend
+        run: |
+          set -euo pipefail
+          test -s build/app/outputs/flutter-apk/app-grove-debug.apk
+          unzip -t -q build/app/outputs/flutter-apk/app-grove-debug.apk
+          echo "GROVE_SYNTHETIC_DEBUG_APK_SOURCE_COMPILE=PASS; OWNER_INSTALL=HOLD; PRIVATE_TALK=OFF"

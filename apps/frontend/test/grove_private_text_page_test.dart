@@ -32,9 +32,18 @@ class _FakePrivateClient extends GrovePrivateConversationClient {
 
   String availableConversationId = conversationId;
   int discoveries = 0;
+  int archiveReads = 0;
+  bool hasOlder = false;
   int historyReads = 0;
+  int archivedTurnReads = 0;
+  int phraseSearches = 0;
+  bool failPhraseSearch = false;
+  bool hasOlderMessages = false;
   int sends = 0;
   int creations = 0;
+  int deletions = 0;
+  bool deleted = false;
+  bool failDeletion = false;
   bool created = false;
   bool empty = false;
   bool failOnce = false;
@@ -57,14 +66,30 @@ class _FakePrivateClient extends GrovePrivateConversationClient {
       return delayed.future;
     }
     return GrovePrivateConversationChoices(
-      projectId: projectId, mayBeTruncated: false,
-      conversations: empty && !created ? [] : [
+      projectId: projectId, mayBeTruncated: hasOlder,
+      conversations: (empty && !created) || deleted ? [] : [
         GrovePrivateConversationChoice(
           conversationId: availableConversationId,
           createdAt: DateTime.utc(2026, 9, 23),
           updatedAt: DateTime.utc(2026, 9, 23, 1),
         ),
       ],
+    );
+  }
+
+  @override
+  Future<GrovePrivateConversationChoices> listArchive(
+    String projectId, {String? cursor,
+  }) async {
+    archiveReads++;
+    expect(cursor, isNull);
+    return GrovePrivateConversationChoices(
+      projectId: projectId, mayBeTruncated: false, nextCursor: null,
+      conversations: [GrovePrivateConversationChoice(
+        conversationId: replacementConversationId,
+        createdAt: DateTime.utc(2025, 6, 1),
+        updatedAt: DateTime.utc(2025, 6, 1),
+      )],
     );
   }
 
@@ -86,6 +111,18 @@ class _FakePrivateClient extends GrovePrivateConversationClient {
   }
 
   @override
+  Future<void> deleteSaved({
+    required String projectId,
+    required String conversationId,
+  }) async {
+    expect(projectId, expectedProjectId);
+    expect(conversationId, expectedConversationId);
+    deletions++;
+    if (failDeletion) throw StateError('synthetic unverified deletion');
+    deleted = true;
+  }
+
+  @override
   Future<GrovePrivateHistory> loadRecent({
     required String projectId,
     required String conversationId,
@@ -101,7 +138,7 @@ class _FakePrivateClient extends GrovePrivateConversationClient {
     return GrovePrivateHistory(
       projectId: projectId,
       conversationId: conversationId,
-      mayBeTruncated: false,
+      mayBeTruncated: hasOlderMessages,
       turnsNewestFirst: [
         if (showSaved) ...saved.reversed,
         GrovePrivateCompleteTurn(
@@ -110,6 +147,67 @@ class _FakePrivateClient extends GrovePrivateConversationClient {
           assistantText: 'Earlier private answer',
           replyVerification: 'unverified_model_text',
           createdAt: DateTime.utc(2026, 9, 23),
+        ),
+      ],
+    );
+  }
+
+  @override
+  Future<GrovePrivateHistory> loadArchive({
+    required String projectId,
+    required String conversationId,
+    String? cursor,
+  }) async {
+    archivedTurnReads++;
+    final latest = GrovePrivateCompleteTurn(
+      requestId: requestId,
+      userText: 'Earlier private question',
+      assistantText: 'Earlier private answer',
+      replyVerification: 'unverified_model_text',
+      createdAt: DateTime.utc(2026, 9, 23),
+    );
+    if (cursor == null) {
+      return GrovePrivateHistory(
+        projectId: projectId, conversationId: conversationId,
+        mayBeTruncated: true, nextCursor: 'fixture-signed-cursor',
+        turnsNewestFirst: [latest],
+      );
+    }
+    expect(cursor, 'fixture-signed-cursor');
+    return GrovePrivateHistory(
+      projectId: projectId, conversationId: conversationId,
+      mayBeTruncated: false,
+      turnsNewestFirst: [GrovePrivateCompleteTurn(
+        requestId: '00000000-0000-4000-8000-000000000009',
+        userText: 'Question from last year',
+        assistantText: 'Older saved answer',
+        replyVerification: 'unverified_model_text',
+        createdAt: DateTime.utc(2025, 6, 1),
+      )],
+    );
+  }
+
+  @override
+  Future<GrovePrivateHistory> findSavedPhrase({
+    required String projectId,
+    required String conversationId,
+    required String phrase,
+  }) async {
+    phraseSearches++;
+    expect(projectId, expectedProjectId);
+    expect(conversationId, expectedConversationId);
+    expect(phrase, 'Archive Plan');
+    if (failPhraseSearch) throw StateError('synthetic private access revoked');
+    return GrovePrivateHistory(
+      projectId: projectId, conversationId: conversationId,
+      mayBeTruncated: false,
+      turnsNewestFirst: [
+        GrovePrivateCompleteTurn(
+          requestId: '00000000-0000-4000-8000-000000000019',
+          userText: 'Archive Plan entry one',
+          assistantText: 'One saved matching passage',
+          replyVerification: 'unverified_model_text',
+          createdAt: DateTime.utc(2025, 6, 1),
         ),
       ],
     );
@@ -167,9 +265,11 @@ GrovePendingTurnStore pendingStore(FakeDeviceStringStore disk, {
 
 Widget recoveryPhone(_FakePrivateClient client, GrovePendingTurnStore store, {
   bool Function()? valid,
+  bool allowDelete = false,
 }) => MaterialApp(home: Scaffold(body: GrovePrivateTextPanel(
   client: client, projectId: projectId,
   initialConversationId: conversationId, pendingStore: store,
+  allowDeleteConversations: allowDelete,
   sessionStillValid: valid ?? () => true,
   onConversationSelected: (_) async {},
 )));
@@ -180,6 +280,115 @@ Future<void> roomForRecovery(WidgetTester tester) async {
 }
 
 void main() {
+  testWidgets('Grove searches saved text explicitly without sending to LM', (tester) async {
+    await roomForRecovery(tester);
+    final client = _FakePrivateClient();
+    await tester.pumpWidget(recoveryPhone(
+      client, pendingStore(FakeDeviceStringStore()),
+    ));
+    await tester.pumpAndSettle();
+    expect(client.phraseSearches, 0);
+    await tester.ensureVisible(find.text('Search saved messages'));
+    await tester.tap(find.text('Search saved messages'));
+    await tester.pumpAndSettle();
+    expect(find.text('Search this saved conversation'), findsOneWidget);
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Saved message phrase'), 'Archive Plan');
+    await tester.tap(find.text('Find matches'));
+    await tester.pumpAndSettle();
+    expect(client.phraseSearches, 1);
+    expect(find.text('Archive Plan entry one'), findsOneWidget);
+    expect(find.text('One saved matching passage'), findsOneWidget);
+    expect(client.sends, 0);
+  });
+
+  testWidgets('Grove manually pages older saved messages in existing private Text', (tester) async {
+    await roomForRecovery(tester);
+    final client = _FakePrivateClient()..hasOlderMessages = true;
+    await tester.pumpWidget(recoveryPhone(client, pendingStore(FakeDeviceStringStore())));
+    await tester.pumpAndSettle();
+    expect(find.text('Load older messages'), findsOneWidget);
+    expect(client.archivedTurnReads, 0);
+    await tester.tap(find.text('Load older messages'));
+    await tester.pumpAndSettle();
+    expect(client.archivedTurnReads, 1);
+    expect(find.text('Load older messages'), findsOneWidget);
+    await tester.tap(find.text('Load older messages'));
+    await tester.pumpAndSettle();
+    expect(client.archivedTurnReads, 2);
+    expect(find.text('Question from last year'), findsOneWidget);
+    expect(find.text('Older saved answer'), findsOneWidget);
+    expect(find.text('Load older messages'), findsNothing);
+    expect(client.sends, 0);
+  });
+
+  testWidgets('Grove manually loads an older authorized picker entry', (tester) async {
+    await roomForRecovery(tester);
+    final client = _FakePrivateClient()..hasOlder = true;
+    await tester.pumpWidget(recoveryPhone(client, pendingStore(FakeDeviceStringStore())));
+    await tester.pumpAndSettle();
+    expect(find.text('Load older conversations'), findsOneWidget);
+    expect(client.archiveReads, 0);
+    await tester.tap(find.text('Load older conversations'));
+    await tester.pumpAndSettle();
+    expect(client.archiveReads, 1);
+    final dropdown = tester.widget<DropdownButton<String>>(
+      find.byType(DropdownButton<String>));
+    expect(dropdown.items!.map((item) => item.value),
+      contains(replacementConversationId));
+    expect(find.text('Load older conversations'), findsNothing);
+    expect(client.historyReads, 1);
+  });
+
+  testWidgets('Grove delete is hidden in ordinary phone builds', (tester) async {
+    await roomForRecovery(tester);
+    final client = _FakePrivateClient();
+    await tester.pumpWidget(recoveryPhone(
+      client, pendingStore(FakeDeviceStringStore()),
+    ));
+    await tester.pumpAndSettle();
+    expect(find.text('Delete saved Grove conversation'), findsNothing);
+    expect(client.deletions, 0);
+  });
+  testWidgets('Grove Delete requires explicit user confirmation', (tester) async {
+    await roomForRecovery(tester);
+    final client = _FakePrivateClient();
+    await tester.pumpWidget(recoveryPhone(
+      client, pendingStore(FakeDeviceStringStore()), allowDelete: true,
+    ));
+    await tester.pumpAndSettle();
+    expect(find.text('Earlier private answer'), findsOneWidget);
+    await tester.tap(find.text('Delete saved Grove conversation'));
+    await tester.pumpAndSettle();
+    expect(client.deletions, 0);
+    expect(find.textContaining('It does not delete the underlying Firefly conversation'),
+        findsOneWidget);
+    await tester.tap(find.text('Keep conversation'));
+    await tester.pumpAndSettle();
+    expect(client.deletions, 0);
+    await tester.tap(find.text('Delete saved Grove conversation'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete from Grove'));
+    await tester.pumpAndSettle();
+    expect(client.deletions, 1);
+    expect(find.text('Earlier private answer'), findsNothing);
+    expect(find.textContaining('will not invent one'), findsOneWidget);
+  });
+  testWidgets('unconfirmed deletion cannot claim success', (tester) async {
+    await roomForRecovery(tester);
+    final client = _FakePrivateClient()..failDeletion = true;
+    await tester.pumpWidget(recoveryPhone(
+      client, pendingStore(FakeDeviceStringStore()), allowDelete: true,
+    ));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete saved Grove conversation'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete from Grove'));
+    await tester.pumpAndSettle();
+    expect(client.deletions, 1);
+    expect(find.text('Earlier private answer'), findsNothing);
+    expect(find.textContaining('could not verify deletion'), findsOneWidget);
+  });
   testWidgets('revoked conversation disappears immediately after list refresh',
       (tester) async {
     await roomForRecovery(tester);

@@ -22,3 +22,39 @@ This restores the previously reviewed no-cron Grove configuration contract from 
 5. Only after separate owner authorization, create a staged release, inspect effective cron list (must be empty), verify route/source/identity, and perform a bounded authenticated owner readback and Android close/reopen test.
 
 This file grants no production release, model call, schema mutation, runtime grant, Vercel config update, merge, or device install. 
+
+## Dedicated project source-layout hold (read-only 2026-10-11)
+
+The existing Vercel `grove-private-api` project metadata currently reports
+`rootDirectory = null` (repository root) and `framework = nextjs`.
+The repository-root `vercel.json` **has a Firefly heartbeat cron**. The
+`apps/backend/vercel.json` also **has a heartbeat cron**; the alternate
+`apps/backend/grove.vercel.json` and `vercel.grove.json` have zero crons
+but are **NOT automatically selected** as effective deployment configs.
+Neither deployment-root option is approved for Grove until the actual
+effective config is proven no-cron.
+
+The existing `verify-private-host.mjs` source preflight now computes a
+metadata-only fail-closed `inspectPrivateGroveReleaseLayout` outcome.
+Its offline tests read the actual checked-in root, backend and alternate
+configs, challenge both root choices, validate the alternate-file trap,
+reject wrong project/config shapes, and demonstrate that even a hypothetical
+valid no-cron root **STILL requires separate owner release approval**.
+
+This is NOT a deployment config change, project setting mutation, Vercel
+budget approval, signed-owner host acceptance, model connection or live
+Supabase schema change. Do not edit effective Firefly `vercel.json` or
+project root merely to turn a checker green; prepare a separately reviewed
+Grove-only effective config in its own authorized release later. All drafts
+remain build-fenced.
+
+## Concurrent owner-approved privacy policy — 2026-10-11
+
+While the source-only host layout remains blocked, the owner also approved
+**30 days maximum for encrypted backup snapshots**, distinct from keeping
+active conversations indefinitely until explicit user deletion. The
+`inspectGroveBackupSnapshotRetention` pure preflight exercises this policy
+without touching any provider backups. No automatic cleanup, backup job,
+provider retention setting, billing change or deployment has been activated.
+This decision does NOT lift the no-cron, migration, missing-key, private
+owner/device, model-budget or independently protected deletion-record gates.

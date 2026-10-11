@@ -307,6 +307,44 @@ void main() {
     expect(fake.calls, 0);
   });
 
+  test('private Grove deletion requires exact signed host response and scope', () async {
+    final api = FakeApi(apiUrl)..postResult = {
+      'ok': true, 'deleted': true,
+      'projectId': project, 'conversationId': conversation,
+      'scope': 'grove_saved_transcript_only',
+      'grantsExecution': false, 'verifiesCompletion': false,
+    };
+    final client = GrovePrivateConversationClient(
+      api: api, config: config, enabled: true,
+    );
+    await client.deleteSaved(projectId: project, conversationId: conversation);
+    expect(api.path, '/api/grove/chat/conversations/delete');
+    expect(api.sent, {
+      'projectId': project, 'conversationId': conversation,
+      'confirmation': 'DELETE',
+    });
+    final count = api.calls;
+    await expectLater(client.deleteSaved(
+      projectId: project, conversationId: 'foreign'), throwsFormatException);
+    expect(api.calls, count);
+    for (final response in [
+      {...api.postResult!, 'deleted': false},
+      {...api.postResult!, 'conversationId': '00000000-0000-4000-8000-000000000006'},
+      {...api.postResult!, 'scope': 'all_apps'},
+      {...api.postResult!, 'grantsExecution': true},
+      {...api.postResult!, 'verifiesCompletion': true},
+      {...api.postResult!, 'workReceipts': ['fake-proof']},
+    ]) {
+      api.postResult = response;
+      await expectLater(client.deleteSaved(
+        projectId: project, conversationId: conversation),
+        throwsFormatException);
+    }
+    final off = GrovePrivateConversationClient(api: api, config: config);
+    await expectLater(off.deleteSaved(
+      projectId: project, conversationId: conversation), throwsStateError);
+  });
+
   test('enabled client uses only verified Grove scope and fixed endpoints',
       () async {
     final api = FakeApi(apiUrl)
@@ -350,4 +388,131 @@ void main() {
       requestId: requestId, text: 'Continue'), throwsFormatException);
     expect(api.calls, count);
   });
+
+
+  test('manual archive pages require an exact cursor and retain no model authority', () async {
+    final cursor = 'c2NvcGVk'.padRight(64, 'a') + '.' + ('0' * 64);
+    final api = FakeApi(apiUrl)..getResult = {
+      ...choices(), 'mayBeTruncated': true, 'nextCursor': cursor,
+    };
+    final client = GrovePrivateConversationClient(
+      api: api, config: config, enabled: true,
+    );
+    final first = await client.listArchive(project);
+    expect(first.nextCursor, cursor);
+    expect(first.mayBeTruncated, isTrue);
+    expect(api.query, {'projectId': project, 'page': 'archive'});
+    api.getResult = {...choices(), 'nextCursor': null};
+    final next = await client.listArchive(project, cursor: cursor);
+    expect(next.nextCursor, isNull);
+    expect(api.query, {
+      'projectId': project, 'page': 'archive', 'cursor': cursor,
+    });
+    final calls = api.calls;
+    await expectLater(client.listArchive(project, cursor: 'not-signed'),
+        throwsFormatException);
+    expect(api.calls, calls);
+    for (final invalid in [
+      {...choices(), 'mayBeTruncated': true},
+      {...choices(), 'mayBeTruncated': true, 'nextCursor': null},
+      {...choices(), 'mayBeTruncated': false, 'nextCursor': cursor},
+      {...choices(), 'mayBeTruncated': true, 'nextCursor': 'bad'},
+      {...choices(), 'mayBeTruncated': false, 'nextCursor': 5},
+    ]) {
+      expect(() => parseGrovePrivateConversations(invalid,
+          projectId: project, archive: true), throwsFormatException);
+    }
+    final off = GrovePrivateConversationClient(api: api, config: config);
+    await expectLater(off.listArchive(project), throwsStateError);
+  });
+
+  test('manual saved-turn archive keeps page boundaries separate from model input', () async {
+    final cursor = 'c2NvcGU'.padRight(64, 'a') + '.' + ('f' * 64);
+    final api = FakeApi(apiUrl)..getResult = {
+      ...history(), 'historyMayBeTruncated': true, 'nextCursor': cursor,
+    };
+    final client = GrovePrivateConversationClient(
+      api: api, config: config, enabled: true,
+    );
+    final first = await client.loadArchive(
+      projectId: project, conversationId: conversation,
+    );
+    expect(first.nextCursor, cursor);
+    expect(first.turnsNewestFirst.single.userText, 'Continue our work.');
+    expect(api.query, {
+      'projectId': project, 'conversationId': conversation, 'page': 'archive',
+    });
+    api.getResult = {...history(), 'nextCursor': null};
+    final second = await client.loadArchive(
+      projectId: project, conversationId: conversation, cursor: cursor,
+    );
+    expect(second.nextCursor, isNull);
+    expect(api.query, {
+      'projectId': project, 'conversationId': conversation,
+      'page': 'archive', 'cursor': cursor,
+    });
+    final count = api.calls;
+    await expectLater(client.loadArchive(
+      projectId: project, conversationId: conversation, cursor: 'bad',
+    ), throwsFormatException);
+    expect(api.calls, count);
+    for (final invalid in [
+      {...history(), 'historyMayBeTruncated': true},
+      {...history(), 'historyMayBeTruncated': true, 'nextCursor': null},
+      {...history(), 'historyMayBeTruncated': false, 'nextCursor': cursor},
+      {...history(), 'historyMayBeTruncated': true, 'nextCursor': 'bad'},
+    ]) {
+      expect(() => parseGrovePrivateHistory(invalid,
+        projectId: project, conversationId: conversation, archive: true,
+      ), throwsFormatException);
+    }
+  });
+
+
+  test('saved phrase search validates exact Grove scope without sending to model', () async {
+    final api = FakeApi(apiUrl)..getResult = {
+      ...history(),
+      'searchMode': 'literal_phrase',
+      'searchedOnlyThisConversation': true,
+      'searchMayBeTruncated': false,
+    };
+    final client = GrovePrivateConversationClient(
+      api: api, config: config, enabled: true,
+    );
+    final result = await client.findSavedPhrase(
+      projectId: project, conversationId: conversation, phrase: 'Archive Plan',
+    );
+    expect(result.turnsNewestFirst.single.userText, 'Continue our work.');
+    expect(api.path, '/api/grove/chat/history');
+    expect(api.query, {
+      'projectId': project,
+      'conversationId': conversation,
+      'search': 'Archive Plan',
+    });
+    final calls = api.calls;
+    for (final bad in ['hi', 'foo%bar', 'a.b', '   ', 'hello,world', 'x' * 65]) {
+      await expectLater(client.findSavedPhrase(
+        projectId: project, conversationId: conversation, phrase: bad,
+      ), throwsFormatException);
+    }
+    expect(api.calls, calls);
+    for (final invalid in [
+      {...history(), 'searchedOnlyThisConversation': true},
+      {...history(), 'searchMode': 'literal_phrase',
+        'searchedOnlyThisConversation': false, 'searchMayBeTruncated': false},
+      {...history(), 'searchMode': 'literal_phrase',
+        'searchedOnlyThisConversation': true, 'searchMayBeTruncated': true},
+      {...history(), 'searchMode': 'literal_phrase',
+        'searchedOnlyThisConversation': true, 'searchMayBeTruncated': false,
+        'nextCursor': 'forged'},
+    ]) {
+      expect(() => parseGrovePrivateHistory(invalid,
+        projectId: project, conversationId: conversation, search: true,
+      ), throwsFormatException);
+    }
+    final off = GrovePrivateConversationClient(api: api, config: config);
+    await expectLater(off.findSavedPhrase(projectId: project,
+      conversationId: conversation, phrase: 'Archive Plan'), throwsStateError);
+  });
+
 }

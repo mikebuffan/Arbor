@@ -13,6 +13,10 @@ export const dynamic = "force-dynamic";
 const paramsSchema = z.object({
   projectId: z.string().uuid(),
 }).strict();
+const discoveryQuerySchema = paramsSchema.extend({
+  page: z.literal("archive").optional(),
+  cursor: z.string().min(1).max(768).optional(),
+}).strict().refine(value => !value.cursor || value.page === "archive");
 
 const json = (body: Record<string, unknown>, status: number) =>
   NextResponse.json(body, {
@@ -35,12 +39,18 @@ export async function GET(req: Request) {
         return json({ ok: false, error: "grove_private_project_scope_invalid" }, 400);
       values[key] = value;
     }
-    const { projectId } = paramsSchema.parse(values);
-    const result = await readPrivateGroveConversations(req, projectId);
+    const { projectId, page, cursor } = discoveryQuerySchema.parse(values);
+    const archive = page === "archive";
+    const result = archive
+      ? await readPrivateGroveConversations(req, projectId, { enabled: true, cursor })
+      : await readPrivateGroveConversations(req, projectId);
+    if (archive && !Object.prototype.hasOwnProperty.call(result, "nextCursor"))
+      throw new RouteAccessError(500, "grove_private_conversations_unavailable");
     return json({
       ok: true, projectId: result.projectId,
       conversations: result.conversations,
       mayBeTruncated: result.mayBeTruncated,
+      ...(archive ? { nextCursor: result.nextCursor } : {}),
       createsConversation: false,
       grantsExecution: false,
     }, 200);

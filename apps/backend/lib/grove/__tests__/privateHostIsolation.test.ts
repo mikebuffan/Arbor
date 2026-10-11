@@ -18,6 +18,7 @@ describe("integrated private Grove host isolation", () => {
       ["/api/grove/ark/projects", "GET"],
       ["/api/grove/chat/conversations", "GET"],
       ["/api/grove/chat/conversations", "POST"],
+      ["/api/grove/chat/conversations/delete", "POST"],
       ["/api/grove/chat/history", "GET"],
       ["/api/grove/chat", "POST"],
     ]) {
@@ -54,6 +55,9 @@ describe("integrated private Grove host isolation", () => {
       ["/api/grove/chat/history", "POST"],
       ["/api/grove/ark/projects", "POST"],
       ["/api/grove/chat/conversations", "DELETE"],
+      ["/api/grove/chat/conversations/delete", "GET"],
+      ["/api/grove/chat/conversations/delete", "OPTIONS"],
+      ["/api/grove/chat/conversations/delete", "DELETE"],
       ["/api/grove/chat/conversations", "OPTIONS"],
       ["/api/grove/ark/status", "OPTIONS"],
     ]) {
