@@ -6,15 +6,32 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../api/arbor_api_client.dart';
 import '../api/arbor_session.dart';
 import '../config/arbor_config.dart';
+import '../config/grove_private_config.dart';
 import 'environment_panel.dart';
 import 'environment_tokens.dart';
 import 'grove_ark_handoff.dart';
 import 'grove_app_mode.dart';
 import 'grove_private_conversations.dart';
 
+/// A standalone Grove handoff must validate its destination independently
+/// before obtaining the private session token. The public Arbor flavor keeps
+/// its existing backend and is not subject to the Grove host contract.
+bool grovePrivateHandoffHostApproved({
+  required bool standalone,
+  required GrovePrivateConfig config,
+  required String apiBaseUrl,
+}) => !standalone || (config.ready && apiBaseUrl == config.apiUrl);
+
 /// Foreground-only read of the active user's selected project's saved work.
 /// This neither claims an active worker nor starts one.
 Future<GroveArkHandoff> readCurrentGroveArkHandoff() async {
+  if (!grovePrivateHandoffHostApproved(
+    standalone: groveStandalone,
+    config: GrovePrivateConfig.fromBuild,
+    apiBaseUrl: ArborConfig.apiBaseUrl,
+  )) {
+    throw StateError('Private Grove handoff host is not approved.');
+  }
   final userId = Supabase.instance.client.auth.currentUser?.id;
   if (userId == null) throw StateError('Sign in to inspect the saved handoff.');
   final session = await ArborSession.instance.contextFor(userId);
