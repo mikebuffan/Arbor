@@ -1,0 +1,30 @@
+name: Grove private Talk readiness source gate
+
+on:
+  push:
+    branches:
+      - test/grove-private-talk-readiness-20261011
+
+permissions:
+  contents: read
+
+jobs:
+  metadata-only:
+    if: github.repository == 'mikebuffan/Arbor'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      CI: 'true'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Existing private-host checker and no-deployment regressions
+        run: |
+          node --test ops/grove/verify-private-host.test.mjs ops/grove/source-only-ignore.test.mjs
+      - name: Exact branch remains source-only for Vercel
+        run: |
+          VERCEL_GIT_COMMIT_REF=test/grove-private-talk-readiness-20261011 VERCEL_ENV=production node ops/grove/source-only-ignore.mjs

@@ -9,6 +9,68 @@
  */
 import { pathToFileURL } from "node:url";
 
+// A metadata-only readiness audit for the *existing* Grove host. This reads
+// environment VARIABLE NAMES and target stages, never values or credentials.
+// Presence is necessary but cannot prove values, ownership or a running LM.
+export const PRIVATE_GROVE_TALK_KEY_GROUPS = Object.freeze({
+  privateRealm: Object.freeze([
+    "GROVE_API_ENABLED", "GROVE_SUPABASE_URL",
+    "GROVE_SUPABASE_PUBLISHABLE_KEY", "GROVE_SERVICE_ROLE_KEY",
+    "GROVE_FIREFLY_SUPABASE_URL", "GROVE_FIREFLY_SERVICE_ROLE_KEY",
+    "GROVE_PUBLIC_API_ORIGIN",
+  ]),
+  conversationFlags: Object.freeze([
+    "GROVE_PRIVATE_CHAT_PREVIEW_ENABLED",
+    "GROVE_PRIVATE_MODEL_TURN_ENABLED",
+  ]),
+  independentModel: Object.freeze([
+    "ARBOR_LM_PRIVATE_URL", "ARBOR_GROVE_API_KEY",
+    "ARBOR_GROVE_BROKER_HMAC_KEY",
+  ]),
+  durableConversation: Object.freeze([
+    "GROVE_PRIVATE_TRANSCRIPT_ENABLED",
+    "GROVE_PRIVATE_CLAIM_ENABLED",
+  ]),
+});
+
+export function inspectPrivateGroveTalkKeyMetadata(records) {
+  if (!Array.isArray(records) || records.length > 500)
+    throw Error("grove_host_key_metadata_invalid");
+  const present = new Set();
+  for (const record of records) {
+    if (!record || typeof record !== "object" || Array.isArray(record) ||
+        typeof record.key !== "string" ||
+        !/^[A-Z][A-Z0-9_]{0,119}$/.test(record.key)) {
+      throw Error("grove_host_key_metadata_invalid");
+    }
+    const targets = Array.isArray(record.target)
+      ? record.target : typeof record.target === "string" ? [record.target] : [];
+    if (targets.includes("production")) present.add(record.key);
+  }
+  const missing = {};
+  for (const [group, required] of Object.entries(PRIVATE_GROVE_TALK_KEY_GROUPS)) {
+    missing[group] = required.filter(key => !present.has(key));
+  }
+  const missingCount = Object.values(missing).reduce((n, part) => n + part.length, 0);
+  return {
+    scope: "production_environment_key_names_only",
+    status: missingCount > 0
+      ? "HOLD_MISSING_KEY_NAMES" : "HOLD_RUNTIME_NOT_VERIFIED",
+    missing,
+    missingCount,
+    keyNamesOnly: true,
+    readyForDeployment: false,
+    requiresSeparateApproval: true,
+    // Even complete key names do not prove secret values, grants, the LM
+    // receiver, Vercel budget, a valid owner session or Android build.
+    unverified: [
+      "actual_values", "approved_api_hostname", "receiver_running",
+      "owner_identity_and_project_grants", "phone_configuration",
+      "cost_ceiling", "durable_storage_migrations",
+    ],
+  };
+}
+
 const foreignPublicPaths = [
   "/api/chat",
   "/api/public/chat",

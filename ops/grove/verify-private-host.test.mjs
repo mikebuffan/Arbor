@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   assertPrivateGroveOrigin, verifyPrivateGroveHost,
+  inspectPrivateGroveTalkKeyMetadata, PRIVATE_GROVE_TALK_KEY_GROUPS,
 } from "./verify-private-host.mjs";
 
 const origin = "https://grove-private-api.example.org";
@@ -96,4 +97,52 @@ test("cacheable private denials are HOLD", async () => {
     verifyPrivateGroveHost(origin,{request:f.request}),
     /grove_host_isolation_failed/,
   );
+});
+
+
+test("current Grove host production key names do not authorize private Talk", () => {
+  // Metadata names observed from existing Vercel project. No decrypted values.
+  const current = [
+    "GROVE_SERVICE_ROLE_KEY", "GROVE_FIREFLY_SERVICE_ROLE_KEY",
+    "GROVE_SUPABASE_PUBLISHABLE_KEY", "GROVE_API_ENABLED",
+    "GROVE_SUPABASE_URL", "GROVE_FIREFLY_SUPABASE_URL",
+    "GROVE_PUBLIC_API_ORIGIN",
+  ].map(key => ({key, target:["production"], value:"NOT_READ"}));
+  const result = inspectPrivateGroveTalkKeyMetadata(current);
+  assert.equal(result.status,"HOLD_MISSING_KEY_NAMES");
+  assert.deepEqual(result.missing.privateRealm,[]);
+  assert.deepEqual(result.missing.conversationFlags,
+    PRIVATE_GROVE_TALK_KEY_GROUPS.conversationFlags);
+  assert.deepEqual(result.missing.independentModel,
+    PRIVATE_GROVE_TALK_KEY_GROUPS.independentModel);
+  assert.deepEqual(result.missing.durableConversation,
+    PRIVATE_GROVE_TALK_KEY_GROUPS.durableConversation);
+  assert.equal(result.missingCount,7);
+  assert.equal(result.readyForDeployment,false);
+  assert.equal(result.requiresSeparateApproval,true);
+  assert.ok(!JSON.stringify(result).includes("NOT_READ"));
+});
+test("even all production names never count as host or model acceptance", () => {
+  const names=Object.values(PRIVATE_GROVE_TALK_KEY_GROUPS).flat();
+  const result=inspectPrivateGroveTalkKeyMetadata(names.map(key=>({key,target:["production"]})));
+  assert.equal(result.missingCount,0);
+  assert.equal(result.status,"HOLD_RUNTIME_NOT_VERIFIED");
+  assert.equal(result.readyForDeployment,false);
+  assert.ok(result.unverified.includes("receiver_running"));
+  assert.ok(result.unverified.includes("cost_ceiling"));
+});
+test("preview-only configuration cannot masquerade as production readiness", () => {
+  const names=Object.values(PRIVATE_GROVE_TALK_KEY_GROUPS).flat();
+  const metadata=names.map(key=>({key,target:["preview"]}));
+  metadata.push({key:"GROVE_API_ENABLED",target:["production"]});
+  const result=inspectPrivateGroveTalkKeyMetadata(metadata);
+  assert.equal(result.missing.privateRealm.includes("GROVE_API_ENABLED"),false);
+  assert.equal(result.missing.independentModel.length,3);
+  assert.equal(result.readyForDeployment,false);
+});
+test("malformed metadata fails closed without reading credential values", () => {
+  for (const input of [null,{},[{key:"ARBOR_LM_PRIVATE_URL",target:[],value:"secret"},
+    {key:"bad key",target:["production"]}],new Array(501).fill({key:"X"})]) {
+    assert.throws(()=>inspectPrivateGroveTalkKeyMetadata(input),/grove_host_key_metadata_invalid/);
+  }
 });

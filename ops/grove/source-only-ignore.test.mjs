@@ -334,3 +334,16 @@ test("authenticated CI outcome review branch never deploys", () => {
     }
   }
 });
+
+test("Grove private Talk key audit cannot deploy in any stage or project", () => {
+  const ref="test/grove-private-talk-readiness-20261011";
+  for (const stage of ["preview","production","development",""]) {
+    for (const id of ["prj_nw2X0SyLn4e8CXWZ83MEs4jwn1JN",
+        "prj_bliWIoBwJ053cXPIBB9uJzpW4PK6", ""]) {
+      assert.equal(exitCode({
+        VERCEL_ENV:stage, VERCEL_PROJECT_ID:id,
+        VERCEL_GIT_COMMIT_REF:ref,
+      }),0);
+    }
+  }
+});
