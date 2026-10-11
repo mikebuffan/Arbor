@@ -47,6 +47,7 @@ class _FakePrivateClient extends GrovePrivateConversationClient {
   bool created = false;
   bool empty = false;
   bool failOnce = false;
+  bool failDiscovery = false;
   bool staleHistoryOnce = false;
   bool lostReplyOnce = false;
   void Function()? afterSaved;
@@ -60,6 +61,7 @@ class _FakePrivateClient extends GrovePrivateConversationClient {
   @override
   Future<GrovePrivateConversationChoices> listExisting(String projectId) async {
     discoveries++;
+    if (failDiscovery) throw StateError('synthetic private grant revoked');
     final delayed = delayedChoices;
     if (delayed != null) {
       delayedChoices = null;
@@ -412,6 +414,40 @@ void main() {
     expect(find.text('Send'), findsNothing);
     expect(find.byType(TextField), findsNothing);
     expect(client.sends, 0);
+  });
+
+  testWidgets('failed or pending conversation re-verification hides stale private data',
+      (tester) async {
+    await roomForRecovery(tester);
+    final client = _FakePrivateClient();
+    await tester.pumpWidget(recoveryPhone(
+      client, pendingStore(FakeDeviceStringStore()),
+    ));
+    await tester.pumpAndSettle();
+    expect(find.text('Earlier private answer'), findsOneWidget);
+
+    final pending = Completer<GrovePrivateConversationChoices>();
+    client.delayedChoices = pending;
+    await tester.tap(find.text('Refresh conversations'));
+    await tester.pump();
+    // Old private content must disappear while a grant check is still open.
+    expect(find.text('Earlier private question'), findsNothing);
+    expect(find.text('Earlier private answer'), findsNothing);
+    expect(find.text('Send'), findsNothing);
+
+    pending.completeError(StateError('synthetic revoked access'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('could not be verified'), findsOneWidget);
+    expect(find.text('Earlier private question'), findsNothing);
+    expect(find.text('Earlier private answer'), findsNothing);
+    expect(find.text('Send'), findsNothing);
+    expect(client.sends, 0);
+
+    // A fresh successful owner-scoped read may reopen the same saved thread.
+    await tester.tap(find.text('Refresh conversations'));
+    await tester.pumpAndSettle();
+    expect(find.text('Earlier private answer'), findsOneWidget);
+    expect(find.text('Send'), findsOneWidget);
   });
 
   testWidgets('switching authorized conversation hides old text during pending history',
