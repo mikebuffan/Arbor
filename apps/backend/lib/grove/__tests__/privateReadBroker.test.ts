@@ -77,7 +77,9 @@ function query(table: string) {
     or: vi.fn((value: string) => {
       mocks.orFilters.push({ table, value }); return q;
     }),
-    in: vi.fn(() => q),
+    in: vi.fn(async () => mocks.lookup.get(table + ":list") ?? {
+      data: [], error: null,
+    }),
     order: vi.fn(),
     insert: vi.fn((values: unknown) => {
       mocks.insertedRows.push({ table, values }); return q;
