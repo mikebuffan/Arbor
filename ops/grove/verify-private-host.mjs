@@ -71,6 +71,75 @@ export function inspectPrivateGroveTalkKeyMetadata(records) {
   };
 }
 
+/** Offline, source-only recovery coverage CHECK, not a restore/export engine.
+ * The supplied "external" rows are UNTRUSTED until an independently
+ * authenticated ledger is actually provisioned and verified. No restore,
+ * release, backup read, SQL, signing authority or credentials here. */
+export function inspectGroveRestoreDeletionCoverage(input) {
+  const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  const groups = ["externalDeletions", "restoredTombstones",
+    "restoredTurns", "restoredClaims"];
+  if (!input || typeof input !== "object" || Array.isArray(input) ||
+      groups.some(key => !Array.isArray(input[key]) ||
+        input[key].length > 500)) {
+    throw Error("grove_restore_evidence_invalid");
+  }
+  // Only 3 bounded UUIDs per entry. No transcript text, secrets, identities
+  // from browser messages, backup contents or arbitrary object properties.
+  const parse = (rows, label) => {
+    const scopes = new Set();
+    for (const record of rows) {
+      if (!record || typeof record !== "object" || Array.isArray(record) ||
+          Object.keys(record).length !== 3 ||
+          !["groveUserId","projectId","conversationId"]
+            .every(key => typeof record[key] === "string" && uuid.test(record[key]))) {
+        throw Error("grove_restore_evidence_invalid");
+      }
+      const scope = [record.groveUserId,record.projectId,record.conversationId]
+        .map(x => x.toLowerCase()).join("/");
+      if (scopes.has(scope)) {
+        // Duplicate rows can be harmless in real tables, but this strictly
+        // scoped metadata preflight does not silently coalesce conflicting
+        // or incomplete backup inventories.
+        throw Error("grove_restore_evidence_duplicate_" + label);
+      }
+      scopes.add(scope);
+    }
+    return scopes;
+  };
+  const deleted = parse(input.externalDeletions,"external");
+  const markers = parse(input.restoredTombstones,"tombstone");
+  const turns = parse(input.restoredTurns,"turn");
+  const claims = parse(input.restoredClaims,"claim");
+  let missingMarkers=0, resurrectedTurns=0, resurrectedClaims=0;
+  for (const scope of deleted) {
+    if (!markers.has(scope)) missingMarkers++;
+    if (turns.has(scope)) resurrectedTurns++;
+    if (claims.has(scope)) resurrectedClaims++;
+  }
+  // A full snapshot may have more rows than this 500-scope review and no
+  // independent verified deletion ledger exists today. Return a structural
+  // disposition ONLY, never a deployment/restore permission.
+  const coverageConsistent = deleted.size > 0 &&
+    missingMarkers === 0 && resurrectedTurns === 0 &&
+    resurrectedClaims === 0;
+  return Object.freeze({
+    scope: "untrusted_restore_scope_metadata_only",
+    status: deleted.size === 0 ? "HOLD_MISSING_EXTERNAL_DELETION_EVIDENCE" :
+      coverageConsistent ? "HOLD_INDEPENDENT_ATTESTATION_AND_RESTORE_POLICY" :
+      "HOLD_DELETED_CONVERSATION_REAPPEARANCE",
+    coveredDeletionCount: deleted.size,
+    missingTombstoneCount: missingMarkers,
+    resurrectedTurnScopeCount: resurrectedTurns,
+    resurrectedClaimScopeCount: resurrectedClaims,
+    metadataCoverageConsistent: coverageConsistent,
+    externalLedgerVerified: false,
+    readyForRestore: false,
+    mayServePrivateContent: false,
+    requiresSeparateOwnerApproval: true,
+  });
+}
+
 const foreignPublicPaths = [
   "/api/chat",
   "/api/public/chat",

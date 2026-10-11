@@ -54,3 +54,36 @@ ledger or grant a new deletion engine.
 Source CI proves only the disposable logical-replay fence and the
 documented full-restore limitation. No production, paid model inference,
 Vercel build, migration, or real user-data access is authorized here.
+
+## Source-only restore coverage preflight — 2026-10-11
+
+We reused `ops/grove/verify-private-host.mjs`; there is **no new backup
+engine, deletion ledger, restore API or server daemon**. The pure function
+`inspectGroveRestoreDeletionCoverage` compares bounded scope-only
+metadata: proposed independently held deletion references, tombstones in a
+hypothetical restored state, and any resurrected turn/claim scopes.
+
+The checker rejects malformed/duplicated inputs, records missing deletion
+markers or surviving deleted scopes, and never handles message bodies. It
+**always returns readyForRestore=false**, even when synthetic sets align:
+input supplied as "external" is NOT an authenticated independent ledger and
+cannot prove source completeness, deletion watermark freshness or post-backup
+custody. A full snapshot missing the later deletion ledger remains UNSAFE.
+
+Offline tests cover: missing independent ledger, missing tombstones, restored
+old turns/claims, foreign scope, duplicates, extra content, and the
+non-authoritative "structurally consistent" case. The existing GitHub
+`metadata-only` job already runs the augmented host checker tests.
+
+### Unresolved owner + release decisions
+
+No automatic expiry applies to ACTIVE Grove conversations: they stay until
+explicit user deletion. Backup copy retention duration has NOT been chosen.
+Before any real restore, owner must approve a retention/erasure policy and an
+independent, integrity-verified deletion-state custody/replay and quarantine
+procedure that protects against an older database snapshot.
+
+This tool cannot issue restoration approval and changes no real Supabase
+database, storage policy, existing chat, model, worker, Vercel project, or
+phone installation. No actual user deletion evidence exists in current
+Grove production tables; proposed transcript/tombstone tables are not live.

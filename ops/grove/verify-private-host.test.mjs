@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   assertPrivateGroveOrigin, verifyPrivateGroveHost,
   inspectPrivateGroveTalkKeyMetadata, PRIVATE_GROVE_TALK_KEY_GROUPS,
+  inspectGroveRestoreDeletionCoverage,
 } from "./verify-private-host.mjs";
 
 const origin = "https://grove-private-api.example.org";
@@ -145,4 +146,73 @@ test("malformed metadata fails closed without reading credential values", () => 
     {key:"bad key",target:["production"]}],new Array(501).fill({key:"X"})]) {
     assert.throws(()=>inspectPrivateGroveTalkKeyMetadata(input),/grove_host_key_metadata_invalid/);
   }
+});
+
+
+const restoreScope = (last="00000000-0000-4000-8000-000000000005") => ({
+  groveUserId: "00000000-0000-4000-8000-000000000001",
+  projectId: "00000000-0000-4000-8000-000000000003",
+  conversationId: last,
+});
+const restoreFixture = (overrides={}) => ({
+  externalDeletions:[restoreScope()],
+  restoredTombstones:[restoreScope()],
+  restoredTurns:[],
+  restoredClaims:[],
+  ...overrides,
+});
+test("no independent deletion ledger always blocks a full restore", () => {
+  const result=inspectGroveRestoreDeletionCoverage(restoreFixture({
+    externalDeletions:[],
+  }));
+  assert.equal(result.status,"HOLD_MISSING_EXTERNAL_DELETION_EVIDENCE");
+  assert.equal(result.readyForRestore,false);
+  assert.equal(result.mayServePrivateContent,false);
+  assert.equal(result.externalLedgerVerified,false);
+});
+test("a backup missing a later deletion marker is unsafe even with no rows", () => {
+  const result=inspectGroveRestoreDeletionCoverage(restoreFixture({
+    restoredTombstones:[],
+  }));
+  assert.equal(result.status,"HOLD_DELETED_CONVERSATION_REAPPEARANCE");
+  assert.equal(result.missingTombstoneCount,1);
+  assert.equal(result.readyForRestore,false);
+});
+test("an old saved turn and an in-flight claim after deletion block restore", () => {
+  const result=inspectGroveRestoreDeletionCoverage(restoreFixture({
+    restoredTurns:[restoreScope()],
+    restoredClaims:[restoreScope()],
+  }));
+  assert.equal(result.resurrectedTurnScopeCount,1);
+  assert.equal(result.resurrectedClaimScopeCount,1);
+  assert.equal(result.metadataCoverageConsistent,false);
+  assert.equal(result.mayServePrivateContent,false);
+});
+test("consistent synthetic deletion metadata STILL cannot approve an actual restore", () => {
+  const result=inspectGroveRestoreDeletionCoverage(restoreFixture({
+    restoredTurns:[restoreScope("00000000-0000-4000-8000-000000000009")],
+  }));
+  assert.equal(result.metadataCoverageConsistent,true);
+  assert.equal(result.status,"HOLD_INDEPENDENT_ATTESTATION_AND_RESTORE_POLICY");
+  assert.equal(result.externalLedgerVerified,false);
+  assert.equal(result.readyForRestore,false);
+  assert.equal(result.requiresSeparateOwnerApproval,true);
+});
+test("foreign owner/project, malformed, duplicate and content-bearing metadata cannot bypass gate", () => {
+  for (const supplied of [
+    null,{},restoreFixture({restoredTombstones:[{...restoreScope(), userText:"private"}]}),
+    restoreFixture({externalDeletions:[restoreScope(),restoreScope()]}),
+    restoreFixture({restoredTurns:[{groveUserId:"foreign",projectId:restoreScope().projectId,
+      conversationId:restoreScope().conversationId}]}),
+    restoreFixture({restoredClaims:new Array(501).fill(restoreScope())}),
+  ]) {
+    assert.throws(()=>inspectGroveRestoreDeletionCoverage(supplied),
+      /grove_restore_evidence_(invalid|duplicate_external)/);
+  }
+  const differentOwner=inspectGroveRestoreDeletionCoverage(restoreFixture({
+    restoredTombstones:[{...restoreScope(),
+      groveUserId:"00000000-0000-4000-8000-000000000002"}],
+  }));
+  assert.equal(differentOwner.missingTombstoneCount,1);
+  assert.equal(differentOwner.readyForRestore,false);
 });
