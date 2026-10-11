@@ -155,3 +155,15 @@
 - Separate **source green**, **CI green**, **deployed**, **host accepted**, **physically/device accepted** and **user/author accepted**.
 - Group status labels do not change from this derived snapshot without task-specific receipt review. Every one of the 97 IDs remains exactly once in the canonical master.
 - Source anchors: [#434 review of 97 tasks](https://github.com/mikebuffan/Arbor/pull/434), [#442 receipt refresh](https://github.com/mikebuffan/Arbor/pull/442), [#450 composite source](https://github.com/mikebuffan/Arbor/pull/450), [#451 STOP repair](https://github.com/mikebuffan/Arbor/pull/451). Master provided in the user Library; do not silently overwrite it with this report.
+
+## Grove phone entry-point trace — next larger task (Groups 12–13)
+
+Read-only inspection of the exact source descendant on this review branch shows:
+
+- `apps/frontend/lib/main.dart` routes the private `GROVE_STANDALONE` build through `GrovePrivateConfig`, independent private Supabase auth and project gates, then `EnvironmentRuntimeBootstrap`. Missing private config shows a setup screen rather than inheriting Firefly credentials.
+- `apps/frontend/lib/environment/environment_runtime_host.dart` defaults Grove to **Home**. `arbor_environment_shell.dart` sends the existing house's `GroveRoomAction.arbor` to `EnvironmentDestination.conversation`; that destination mounts `GroveTalkPage`.
+- `apps/frontend/lib/pages/grove_talk_page.dart` selects the existing `GrovePrivateTextHost` only with `GROVE_PRIVATE_TALK_PREVIEW=true` **and** an approved, ready Grove private config. The default is OFF; otherwise a truthful unavailable screen appears. It never falls back to the old Firefly/public chat transport.
+- `apps/frontend/lib/config/grove_private_config.dart` requires the pinned private auth realm and exact approved HTTPS API hostname; no invented or unapproved host should be used.
+- Existing Flutter tests cover fail-closed private auth, explicit private Talk boundary, conversation reopen/retry, no duplicate inference, and owner scope (`grove_private_auth_boundary_test.dart`, `grove_talk_private_boundary_test.dart`, `grove_private_text_page_test.dart`). Their presence is **not** a fresh exact-head Flutter CI receipt or physical-device acceptance.
+
+**Consequence:** Grove's house and Arbor doorway are already source-wired; rebuilding them is unnecessary. The next missing proof is an **authorized configured private API + invitation + exact device build + owner sign-in + send/reopen acceptance**. Do not silently flip `GROVE_PRIVATE_TALK_PREVIEW`, provision a new realm or deploy anything just to make the UI look complete. This updates F02/F03/F04/F10/F11 review evidence only; no task-status promotion.
