@@ -93,3 +93,14 @@ Humor policy remains source-present but not wired to trusted seriousness,
 permission, callback or emotional risk context; avoid invented inputs or
 mandatory jokes. Host-wide real interruption and canceling already-dispatched
 provider calls remain separate acceptance blockers.
+
+## STOP vs ordinary provider failure (2026-10-11)
+Challenge found `acceptanceExecutor.ts` swallowing the exact
+`ark_lease_lost` sentinel during paid acceptance capture and representing
+revoked authority as an ordinary non-retryable provider failure. This could
+cause the worker to attempt `failTask` using a revoked lease. The narrow
+repair propagates lease loss unchanged; real provider/capture errors remain
+ordinary non-retryable failures. Added negative cases for STOP during
+paid-call entry, STOP during event capture, and runner suppression of stale
+failure/completion writes. These are mocked controls, not proof of real
+external API cancellation.

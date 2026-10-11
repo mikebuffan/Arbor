@@ -90,11 +90,27 @@ describe("ARK acceptance executor boundaries (mock storage/provider)", () => {
       await input.createResponse({ model: "synthetic-only", input: "fixture" });
       return { pairs: [{}], failures: [], status: "captured; unscored" };
     });
-    const result = await s.execute(s);
-    expect(result).toMatchObject({ status: "failed", retryable: false });
+    await expect(s.execute(s)).rejects.toThrow("ark_lease_lost");
     expect(mocks.claim).toHaveBeenCalledOnce();
     expect(mocks.create).not.toHaveBeenCalled();
     expect(mocks.complete).not.toHaveBeenCalled();
   });
+
+
+  it("propagates revoked lease during event capture, without a fake failure receipt", async () => {
+    const s = setup();
+    s.heartbeat.mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error("ark_lease_lost"));
+    mocks.run.mockImplementation(async (input: any) => {
+      await input.record({ type: "synthetic-event" });
+      return { pairs: [{}], failures: [], status: "captured; unscored" };
+    });
+    await expect(s.execute(s)).rejects.toThrow("ark_lease_lost");
+    expect(mocks.claim).toHaveBeenCalledOnce();
+    expect(s.q.insert).not.toHaveBeenCalled();
+    expect(mocks.create).not.toHaveBeenCalled();
+    expect(mocks.complete).not.toHaveBeenCalled();
+  });
+
 
 });

@@ -66,7 +66,11 @@ export function registerArkAcceptanceExecutor(input: { registry: ArkExecutorRegi
       await completeAgencyOperation({ supabase: input.supabase, userId: claim.task.userId,
         projectId: claim.task.projectId, key: claim.task.idempotencyKey, operation: ACCEPTANCE_TASK_KIND, result: output });
       return { status: "completed", result: output };
-    } catch {
+    } catch (error: unknown) {
+      // STOP revokes the task lease. Propagate that exact control boundary
+      // to the worker; never mislabel it a provider failure or try to
+      // write a failure/retry receipt against a cancelled task.
+      if (error instanceof Error && error.message === "ark_lease_lost") throw error;
       return { status: "failed", error: "ark_acceptance_capture_failed_or_budget_exhausted_inspect_owned_events", retryable: false };
     }
   });
