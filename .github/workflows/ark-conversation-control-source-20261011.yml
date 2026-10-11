@@ -39,6 +39,8 @@ jobs:
         working-directory: apps/backend
         run: >
           pnpm exec vitest run
+          lib/ark/__tests__/agencyToolExecutor.test.ts
+          lib/ark/__tests__/acceptanceExecutor.test.ts
           lib/ark/__tests__/runner.test.ts
           lib/ark/__tests__/stopSemantics.test.ts
           lib/ark/__tests__/cancelObjective.test.ts

@@ -63,3 +63,17 @@ side effect. Do not report true interruptible execution or perfect prevention
 of concurrent races. For greater authority, require per-capability safe
 interruption/cancellation controls, a separately authorized real host canary,
 and conservative failure receipts.
+
+## STOP during executor preparation (read-only source validation)
+Executor preparation may fetch tool metadata, check owner/grants, and reserve
+idempotency keys. The existing worker lease is revalidated before actual
+execution; this pass adds another revalidation **before reserving write or paid
+operations**, and makes the runner reject a revoked-lease error without
+issuing `failTask` on work it no longer owns. Tests challenge STOP just
+before and just after a durable operation claim, with zero external tool/model
+calls after failed heartbeats. An idempotency claim that precedes a later
+STOP can remain pending; it requires reconciliation, never blind replay.
+
+This is cooperative lease fencing, **not** a real-time cancellation channel.
+Provider requests already in flight may complete or have external effects.
+Actual hosted STOP semantics and action-specific cancellation remain blocked.

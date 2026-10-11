@@ -74,6 +74,11 @@ export function registerArkAgencyToolExecutor(input: {
       };
     }
 
+    // STOP may revoke the lease during capability lookup. Check ownership
+    // before reserving a write's idempotency key. The existing heartbeat
+    // below still checks again immediately before executing the tool.
+    await heartbeat();
+
     const operationKey =
       tool.risk === "reversible_write" ? claim.task.idempotencyKey : null;
 

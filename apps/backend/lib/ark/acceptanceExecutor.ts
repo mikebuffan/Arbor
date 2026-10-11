@@ -28,6 +28,9 @@ export function registerArkAcceptanceExecutor(input: { registry: ArkExecutorRegi
       .eq("id", claim.task.projectId).eq("user_id", claim.task.userId).maybeSingle();
     if (ownership.error || !ownership.data) return blocked("Acceptance project ownership is unavailable.");
     if (!process.env.OPENAI_API_KEY) return blocked("Host model credential is unavailable.");
+    // Scope checks can be slow. A revoked lease must not reserve a paid
+    // operation or trigger the model after STOP.
+    await heartbeat();
     const operation = await claimAgencyOperation({ supabase: input.supabase, userId: claim.task.userId,
       projectId: claim.task.projectId, key: claim.task.idempotencyKey, operation: ACCEPTANCE_TASK_KIND });
     if (!operation.acquired) {

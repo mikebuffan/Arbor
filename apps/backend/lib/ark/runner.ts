@@ -162,6 +162,9 @@ export async function runArkWorkerCycle(input: {
       });
 
     } catch (error: unknown) {
+      // Explicit STOP revokes the token. We no longer own this task, so
+      // don't try to fail, retry or overwrite its cancelled record.
+      if (error instanceof Error && error.message === "ark_lease_lost") throw error;
       const canRetry = claim.task.attemptCount < claim.task.maxAttempts;
       const retryAt = canRetry
         ? new Date(now().getTime() + retryDelayMs(claim.task.attemptCount)).toISOString()

@@ -234,4 +234,42 @@ describe("ARK Arbor tool boundary", () => {
     });
     expect(mocks.execute).not.toHaveBeenCalled();
   });
+
+  it("rejects a revoked lease before claiming any write operation", async () => {
+    mocks.get.mockReturnValue({
+      name: "write.tool", description: "safe fixture", parameters: {},
+      risk: "reversible_write", execute: vi.fn(),
+    });
+    const heartbeat = vi.fn(async () => { throw new Error("ark_lease_lost"); });
+    const registry = new ArkExecutorRegistry();
+    registerArkAgencyToolExecutor({ registry, supabase: {} as never });
+
+    await expect(registry.get("arbor.agency-tool")!({
+      claim: claim("write.tool"), heartbeat,
+    })).rejects.toThrow("ark_lease_lost");
+    expect(heartbeat).toHaveBeenCalledOnce();
+    expect(mocks.claimOperation).not.toHaveBeenCalled();
+    expect(mocks.execute).not.toHaveBeenCalled();
+  });
+
+  it("rejects STOP after idempotency claim but before side-effect execution", async () => {
+    mocks.get.mockReturnValue({
+      name: "write.tool", description: "safe fixture", parameters: {},
+      risk: "reversible_write", execute: vi.fn(),
+    });
+    const heartbeat = vi.fn()
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error("ark_lease_lost"));
+    const registry = new ArkExecutorRegistry();
+    registerArkAgencyToolExecutor({ registry, supabase: {} as never });
+
+    await expect(registry.get("arbor.agency-tool")!({
+      claim: claim("write.tool"), heartbeat,
+    })).rejects.toThrow("ark_lease_lost");
+    expect(mocks.claimOperation).toHaveBeenCalledOnce();
+    expect(heartbeat).toHaveBeenCalledTimes(2);
+    expect(mocks.execute).not.toHaveBeenCalled();
+    expect(mocks.completeOperation).not.toHaveBeenCalled();
+  });
+
 });
