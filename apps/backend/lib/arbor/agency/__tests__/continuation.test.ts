@@ -20,6 +20,40 @@ const prior: AgencyState = {
 describe("agency continuation", () => {
 
   it.each([
+    ["Please stop it.", "cancel_target"],
+    ["Can you stop that?", "cancel_target"],
+    ["Could you cancel this task?", "cancel_target"],
+    ["Would you please stop that?", "cancel_target"],
+    ["Stop, please.", "cancel_target"],
+    ["Stop working on that.", "cancel_target"],
+    ["Hold up.", "pause"],
+    ["Wait a minute.", "pause"],
+    ["Please pause this.", "pause"],
+    ["Pause the task, please.", "pause"],
+    ["Please don't continue.", "pause"],
+    ["Do not continue, please.", "pause"],
+    ["No, don't continue.", "pause"],
+    ["Can you pause that and keep the other?", "clarify"],
+    ["Can you cancel that and continue the other?", "clarify"],
+  ] as const)("respects natural phrasing of %s", (text, expected) => {
+    expect(classifyConversationWorkControl(text)).toBe(expected);
+    expect(shouldCarryGoal(text, prior)).toBe(false);
+    expect(() => buildAgencySessionState({ userText: text, prior }))
+      .toThrow("conversation_control_requires_hold_boundary");
+  });
+
+  it.each([
+    "Don't stop that",
+    "Do not stop that",
+    "Please don't stop this",
+    "Don't cancel it",
+    "Never pause that",
+    "Stop that. New task: review safe source",
+  ])("does not invert negated STOP or swallow an explicit switch: %s", text => {
+    expect(classifyConversationWorkControl(text)).toBeNull();
+  });
+
+  it.each([
     "go", "next", "keep going", "list prompt go", "anything else?",
     "your choice", "okay", "yes", "do your usual routine",
   ])("does not manufacture an agency goal from %s without unfinished work", message => {

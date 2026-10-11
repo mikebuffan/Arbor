@@ -51,14 +51,22 @@ const STOPWORDS = new Set([
  * separately scoped goal-switch path. Negated STOP is not treated as STOP. */
 export type ConversationWorkControl = "pause" | "cancel_target" | "clarify" | "refuse";
 export function classifyConversationWorkControl(userText: string): ConversationWorkControl | null {
-  const text = userText.trim().toLowerCase().replace(/\s+/g, " ").replace(/[.!?]+$/, "");
+  // Strip only conversational politeness around short *control commands*.
+  // Never erase negation or reinterpret arbitrary prose as a STOP instruction.
+  const text = userText.trim().toLowerCase().replace(/[’]/g, "'")
+    .replace(/\s+/g, " ")
+    .replace(/[.!?]+$/, "")
+    .replace(/[\s,]+please$/, "")
+    .replace(/^(?:(?:can|could|would) you(?: please)?|please)[\s,]+/, "")
+    .replace(/^please[\s,]+/, "")
+    .replace(/^no[\s,]+(?=(?:don't|do not|never|wait)\b)/, "");
   if (!text) return null;
 
   if (/^(?:no|nope|nah|no thanks)$/.test(text)) return "refuse";
   if (/^(?:not (?:that|this)(?: one)?|neither(?: of those)?)$/.test(text)) return "clarify";
   if (/^(?:do not|don't|never) (?:go|go ahead|continue|keep going|resume|proceed|do it)(?: (?:yet|with (?:that|this)))?$/.test(text)) return "pause";
-  if (/^(?:wait(?: a (?:sec|second))?|wait on (?:this|that|it)|hold on(?: (?:to|on) (?:this|that|it))?|pause(?: (?:this|that|it))?|no[ ,]+wait)$/.test(text)) return "pause";
-  if (/^(?:stop(?: now| (?:this|that|it|working|the task))?|cancel(?: (?:this|that|it|the task))?)$/.test(text)) return "cancel_target";
+  if (/^(?:wait(?: a (?:sec|second|minute|moment))?|wait on (?:this|that|it)|hold (?:up|it)|hold on(?: (?:to|on) (?:this|that|it))?|pause(?: (?:this|that|it|(?:the|this|that) task)| for a (?:moment|minute))?)$/.test(text)) return "pause";
+  if (/^(?:stop(?: now| (?:this|that|it|working|(?:the|this|that) task)| working on (?:this|that|it))?|cancel(?: (?:this|that|it|(?:the|this|that) task))?)$/.test(text)) return "cancel_target";
   if (/^(?:stop|cancel|pause) (?:this|that|it)(?: one)? (?:but|and) (?:keep|continue|resume)\b/.test(text)) return "clarify";
   return null;
 }
