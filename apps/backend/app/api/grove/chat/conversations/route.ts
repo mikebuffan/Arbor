@@ -41,9 +41,9 @@ export async function GET(req: Request) {
     }
     const { projectId, page, cursor } = discoveryQuerySchema.parse(values);
     const archive = page === "archive";
-    const result = await readPrivateGroveConversations(
-      req, projectId, archive ? { enabled: true, cursor } : undefined,
-    );
+    const result = archive
+      ? await readPrivateGroveConversations(req, projectId, { enabled: true, cursor })
+      : await readPrivateGroveConversations(req, projectId);
     if (archive && !Object.prototype.hasOwnProperty.call(result, "nextCursor"))
       throw new RouteAccessError(500, "grove_private_conversations_unavailable");
     return json({
