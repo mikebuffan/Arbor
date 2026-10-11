@@ -9,10 +9,13 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
-    await tester.pumpWidget(const MaterialApp(home: ArborEnvironmentShell()));
+    await tester.pumpWidget(const MaterialApp(home: ArborEnvironmentShell(
+      conversationLayer: Center(child: Text('CHAT READY')),
+    )));
     await tester.pump(const Duration(milliseconds: 150));
     final door = find.widgetWithText(OutlinedButton, 'Kitchen');
     await tester.ensureVisible(door);
+    await tester.pump(const Duration(milliseconds: 250));
     await tester.tap(door);
     await tester.pump(const Duration(milliseconds: 300));
     await tester.enterText(find.byType(TextField), 'Keep this scene note');
@@ -40,10 +43,13 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
-    await tester.pumpWidget(const MaterialApp(home: ArborEnvironmentShell()));
+    await tester.pumpWidget(const MaterialApp(home: ArborEnvironmentShell(
+      conversationLayer: Center(child: Text('CHAT READY')),
+    )));
     await tester.pump(const Duration(milliseconds: 150));
     final door = find.widgetWithText(OutlinedButton, 'Kitchen');
     await tester.ensureVisible(door);
+    await tester.pump(const Duration(milliseconds: 250));
     await tester.tap(door);
     await tester.pump(const Duration(milliseconds: 300));
     await tester.enterText(find.byType(TextField), 'An unsaved draft');
@@ -64,9 +70,11 @@ void main() {
     await tester.tap(find.text('Home').last);
     await tester.pump(const Duration(milliseconds: 300));
     await tester.ensureVisible(door);
+    await tester.pump(const Duration(milliseconds: 250));
     await tester.tap(door);
     await tester.pump(const Duration(milliseconds: 300));
     await tester.ensureVisible(find.text('Back to the Grove'));
+    await tester.pump(const Duration(milliseconds: 250));
     await tester.tap(find.text('Back to the Grove'));
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('Leave Annabelle’s kitchen?'), findsNothing);
@@ -75,10 +83,13 @@ void main() {
 
   testWidgets('Kitchen Android back also guards unsaved notes',
       (tester) async {
-    await tester.pumpWidget(const MaterialApp(home: ArborEnvironmentShell()));
+    await tester.pumpWidget(const MaterialApp(home: ArborEnvironmentShell(
+      conversationLayer: Center(child: Text('CHAT READY')),
+    )));
     await tester.pump(const Duration(milliseconds: 150));
     final door = find.widgetWithText(OutlinedButton, 'Kitchen');
     await tester.ensureVisible(door);
+    await tester.pump(const Duration(milliseconds: 250));
     await tester.tap(door);
     await tester.pump(const Duration(milliseconds: 300));
     await tester.enterText(find.byType(TextField), 'Back button note');

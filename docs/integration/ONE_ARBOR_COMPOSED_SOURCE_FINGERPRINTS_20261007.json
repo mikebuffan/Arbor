@@ -98,7 +98,7 @@
     "apps/backend/lib/learning/__tests__/bodyCausalNegativeControls.test.ts": "8471a4c27e06b14fb8d761f9ecb523717e423d2c",
     "apps/backend/lib/memory/__tests__/patternHopSourceIndependence.test.ts": "c8028820f89345a75cdaa2f2c33f1f32097b54f9",
     "apps/backend/lib/memory/patternHopSourceIndependence.ts": "133143d522046eba89977c33a7fd0d4cb9a5cb57",
-    "apps/frontend/lib/environment/arbor_environment_shell.dart": "439b3a211125b40270ed86541301c80c50768763",
+    "apps/frontend/lib/environment/arbor_environment_shell.dart": "e15cd71fe0c7f2afcbda52cb6722515668be3c57",
     "apps/frontend/lib/environment/grove_diary_draft_view.dart": "7e981286f5d47ae03d91cddae0386c9ef9428c54",
     "apps/frontend/lib/environment/grove_room_inventory_panel.dart": "74a043f173ce10849a9702615d98fe0f4b97786f",
     "apps/frontend/lib/environment/professional_workspace_view.dart": "adcd36d23fb1b132abe3e164c3231f83194e6ea8",
