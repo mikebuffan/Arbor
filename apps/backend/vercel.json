@@ -1,9 +1,4 @@
 {
-  "crons": [
-    {
-      "path": "/api/admin/system/heartbeat",
-      "schedule": "0 0 * * *"
-    }
-  ],
+  "crons": [],
   "ignoreCommand": "node ../../ops/grove/source-only-ignore.mjs"
 }
