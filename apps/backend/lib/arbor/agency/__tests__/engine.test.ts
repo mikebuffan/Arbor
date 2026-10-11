@@ -102,7 +102,7 @@ describe("runAgency", () => {
     expect(result.agency.unresolvedWork).toEqual(["publish external change"]);
   });
 
-  it("retains a learned strategy correction only after repeated evidence", async () => {
+  it("does not retain a proposed repair from repeated failed verification", async () => {
     let rounds = 0;
 
     const runtime: AgencyRuntime<Shared> = {
@@ -163,11 +163,9 @@ describe("runAgency", () => {
     expect(
       result.agency.recurringWeaknesses,
     ).toContain("status narration");
-    expect(
-      result.agency.strategyNotes,
-    ).toContain(
-      "do not narrate instead of acting",
-    );
+    // Two failures are two warnings, not two successful demonstrations.
+    expect(result.agency.strategyNotes).toEqual([]);
+    expect(result.agency.status).toBe("checkpointed");
     expect(
       result.agency.strategyNotes.some(
         (note) =>
@@ -197,4 +195,32 @@ it("keeps restored pending learning across a replayed retained audit in the actu
   expect(readStrategyRetention(persisted[0]).pending).toEqual({ strategy: "strategy B", confirmations: 1 });
   expect(readStrategyRetention(result.agency.strategyNotes)).toEqual({ retained: ["strategy A", "strategy B"], pending: null });
   expect(result.agency.status).toBe("complete");
+});
+
+it("promotes a strategy only after distinct verified action outcomes", async () => {
+  const states: string[][] = [];
+  const result = await runAgency({ goal: "plan and execute synthetic work", runtime: {
+    async loadSharedState() { return { completed: 0 }; },
+    async assess({ shared }) {
+      return { complete: shared.completed >= 3,
+        unresolvedWork: shared.completed >= 3 ? [] : ["next safe verified step"] };
+    },
+    // A retry with a recycled action ID must not create new evidence.
+    async choose({ shared }) {
+      return { id: shared.completed === 1 ? "action-0" : `action-${shared.completed}`,
+        description: "synthetic reversible action", reversible: true };
+    },
+    async execute() { return 1; },
+    async integrate({ shared }) { return { completed: shared.completed + 1 }; },
+    async verify({ shared }) { return { ok: true, evidence: `checked-${shared.completed}` }; },
+    async selfAudit() { return { strategyChange: "group dependent tasks and verify before continuing" }; },
+    async persist({ agency }) { states.push([...agency.strategyNotes]); },
+  } });
+  expect(result.agency.status).toBe("complete");
+  expect(result.shared.completed).toBe(3);
+  expect(readStrategyRetention(states[0]).pending?.confirmations).toBe(1);
+  expect(readStrategyRetention(states[1]).pending?.confirmations).toBe(1);
+  expect(readStrategyRetention(states[2]).retained)
+    .toEqual(["group dependent tasks and verify before continuing"]);
+  expect(readStrategyRetention(result.agency.strategyNotes).pending).toBeNull();
 });
