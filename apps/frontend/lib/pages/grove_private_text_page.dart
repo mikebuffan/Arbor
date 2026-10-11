@@ -16,6 +16,10 @@ import '../environment/grove_pending_turn_store.dart';
 const bool _groveNewConversationEnabled = bool.fromEnvironment(
   'GROVE_PRIVATE_NEW_CONVERSATION_PREVIEW', defaultValue: false,
 );
+// This owner-delete preview is OFF in ordinary Grove APKs.
+const bool _groveDeleteConversationEnabled = bool.fromEnvironment(
+  'GROVE_PRIVATE_DELETE_CONVERSATION_PREVIEW', defaultValue: false,
+);
 
 // Recovery deadlines release this screen, not the server request. A late
 // response is ignored; uncertain sends retain their original retry identity.
@@ -151,8 +155,19 @@ class _GrovePrivateTextHostState extends State<GrovePrivateTextHost> {
         authOrigin: GrovePrivateConfig.fromBuild.authUrl,
       ),
       allowNewConversations: _groveNewConversationEnabled,
+      allowDeleteConversations: _groveDeleteConversationEnabled,
       initialConversationId: _selectedId,
       sessionStillValid: () => _sameSession(id, token, project),
+      onConversationDeleted: (conversationId) async {
+        if (!_sameSession(id, token, project))
+          throw StateError('Private scope changed after Grove deletion');
+        if (ArborSession.instance.peek(id)?.conversationId == conversationId) {
+          // Clear this app selection, NOT Firefly's conversation record.
+          await ArborSession.instance.startNewThread(
+            userId: id, projectId: project,
+          );
+        }
+      },
       onConversationSelected: (conversationId) async {
         if (!_sameSession(id, token, project)) {
           throw StateError('Private scope changed');
@@ -195,6 +210,8 @@ class GrovePrivateTextPanel extends StatefulWidget {
     this.initialConversationId,
     this.pendingStore,
     this.allowNewConversations = false,
+    this.allowDeleteConversations = false,
+    this.onConversationDeleted,
   });
 
   final GrovePrivateConversationClient client;
@@ -202,6 +219,8 @@ class GrovePrivateTextPanel extends StatefulWidget {
   final String? initialConversationId;
   final GrovePendingTurnStore? pendingStore;
   final bool allowNewConversations;
+  final bool allowDeleteConversations;
+  final Future<void> Function(String conversationId)? onConversationDeleted;
   final bool Function() sessionStillValid;
   final Future<void> Function(String conversationId) onConversationSelected;
 
@@ -521,6 +540,70 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel>
     }
   }
 
+  /// User-initiated Grove-only saved conversation deletion.
+  /// NEVER erase while a draft/uncertain send is present or without consent.
+  Future<void> _deleteSelected() async {
+    if (!widget.allowDeleteConversations || !_valid || _loading || _sending ||
+        _changingDraft || _draftBlocked || _pendingId != null ||
+        _keepDraft || _unsavedReply != null || _input.text.trim().isNotEmpty)
+      return;
+    final id = _selected;
+    if (id == null) return;
+    final beforeDialog = _generation;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete this saved Grove conversation?'),
+        content: const Text(
+          'This permanently removes its saved private Grove messages. '
+          'It does not delete the underlying Firefly conversation, '
+          'other-app records or separate memories. This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Keep conversation'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Delete from Grove'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !_valid || beforeDialog != _generation ||
+        _selected != id || _sending || _keepDraft || _pendingId != null ||
+        _input.text.trim().isNotEmpty) return;
+    final action = ++_generation;
+    setState(() { _loading = true; _error = null; });
+    try {
+      await widget.client.deleteSaved(
+        projectId: widget.projectId, conversationId: id,
+      ).timeout(_groveReadDeadline);
+      if (!_valid || action != _generation) return;
+      // Never display the deleted transcript while clearing saved selection.
+      setState(() {
+        _draftTimer?.cancel();
+        _selected = null; _history = null; _choices = null;
+        _pendingId = null; _pendingText = null; _unsavedReply = null;
+        _keepDraft = false; _draftBlocked = false; _draftStatus = null;
+        _setInput('');
+      });
+      await widget.onConversationDeleted?.call(id);
+      if (_valid && action == _generation) await _discover();
+    } catch (_) {
+      if (!_valid || action != _generation) return;
+      // A failed network response is uncertain, not deletion failure proof.
+      // Hide stale content and refuse to claim a completed delete.
+      setState(() {
+        _selected = null; _history = null; _choices = null;
+        _loading = false;
+        _error = 'Grove could not verify deletion. Refresh conversations '
+            'before trying again; it may already have been removed.';
+      });
+    }
+  }
+
   Future<void> _createNew() async {
     if (!widget.allowNewConversations ||
         !_valid || _loading || _sending || _choices == null ||
@@ -702,6 +785,18 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel>
                         _changingDraft ? null : _discover,
                     child: const Text('Refresh conversations'),
                   ),
+                  if (widget.allowDeleteConversations && _selected != null)
+                    ValueListenableBuilder<TextEditingValue>(
+                      valueListenable: _input,
+                      builder: (context, value, _) => OutlinedButton(
+                        onPressed: _sending || _loading || _changingDraft ||
+                            _draftBlocked || _keepDraft ||
+                            _pendingId != null || _unsavedReply != null ||
+                            value.text.trim().isNotEmpty
+                            ? null : _deleteSelected,
+                        child: const Text('Delete saved Grove conversation'),
+                      ),
+                    ),
                 ],
               ),
             if (!_loading && choices != null &&
