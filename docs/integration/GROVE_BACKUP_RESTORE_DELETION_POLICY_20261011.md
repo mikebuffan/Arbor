@@ -115,19 +115,19 @@ is authorized by the tests. Keep actual Grove host, model and migrations OFF.
 ## Quarantined full-restore design and custody contract — source-only review (2026-10-11)
 
 **Rehearsal only:** Existing disposable PostgreSQL acceptance now also includes
-\`ops/grove/disposable-db/private-conversation-restore-quarantine-acceptance.sql\`.
+`ops/grove/disposable-db/private-conversation-restore-quarantine-acceptance.sql`.
 It simulates a backed-up old turn after removing a newer tombstone, reapplies
 a *synthetic known deleted scope* before any hypothetical read, checks the
 deleted turns and pending claims are absent, retains an unrelated saved chat,
 then rolls the entire simulated restore back with a PostgreSQL exception
 subtransaction. The rehearsal must emit
-\`GROVE_RESTORE_QUARANTINE_SYNTHETIC_REAPPLY=PASS\` and **still HOLD live
+`GROVE_RESTORE_QUARANTINE_SYNTHETIC_REAPPLY=PASS` and **still HOLD live
 restore**. This is not a second restoration engine, no host endpoint, and not
 evidence an external deletion ledger is deployed.
 
 ### Independent deletion-state custody (NOT IMPLEMENTED)
 
-The source-only checker \`inspectGroveRestoreDeletionCoverage\` compares
+The source-only checker `inspectGroveRestoreDeletionCoverage` compares
 metadata sets but **never authenticates the alleged "external" ledger**.
 Before a real owner Delete button or physical restore is accepted, a *separate
 reviewed provider/custody mechanism* must supply all of:
@@ -172,7 +172,7 @@ reviewed provider/custody mechanism* must supply all of:
    require separate approval.
 
 **Important hosting hazard:** Supabase documents that cloning/restoring a
-physical project backup can re-activate restored \`pg_cron\`, \`pg_net\`,
+physical project backup can re-activate restored `pg_cron`, `pg_net`,
 webhooks or wrappers as soon as the clone comes online; a separate project
 alone does not guarantee a safely silent quarantine. Do **not** run a binary
 clone or point-in-time restore for this test. Require an explicitly isolated,
