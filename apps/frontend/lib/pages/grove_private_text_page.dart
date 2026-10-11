@@ -420,7 +420,14 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel>
         (_loading && _choices != null)) return;
     final previousId = _selected;
     final generation = ++_generation;
-    setState(() { _loading = true; _error = null; });
+    // A fresh authorization read may fail because the grant was revoked.
+    // Hide the last transcript and search results BEFORE any network await.
+    // Preserve the selected ID just long enough to save an opted-in draft.
+    setState(() {
+      _loading = true; _error = null;
+      _history = null;
+      _searchResults = null; _searchedPhrase = null;
+    });
     try {
       await _saveDraft();
       if (!_valid || generation != _generation) return;
@@ -460,8 +467,16 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel>
       if (selected != null) await _choose(selected, generation: generation);
     } catch (_) {
       if (!_valid || generation != _generation) return;
+      // Rejection, timeout or revoked project access is not permission to keep
+      // the last verified list, transcript, archive, search or send controls.
+      // An opted-in local draft is written above before the access request.
       setState(() {
         _loading = false;
+        _choices = null; _selected = null; _history = null;
+        _searchResults = null; _searchedPhrase = null;
+        _archiveStarted = false; _olderCursor = null;
+        _turnArchiveStarted = false; _olderTurnCursor = null;
+        _unsavedReply = null;
         _error = 'Private Grove conversations could not be verified.';
       });
     }
@@ -1100,7 +1115,7 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel>
                     ],
                   ),
             ),
-            if (_selected != null) ...[
+            if (_selected != null && !_loading) ...[
               TextButton(
                 onPressed: _loading || _sending || _draftBlocked ||
                     _changingDraft || _pendingId != null
