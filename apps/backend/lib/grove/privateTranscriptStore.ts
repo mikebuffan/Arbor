@@ -123,7 +123,7 @@ function assertHistoryKey(key: GrovePrivateHistoryKey): void {
       key.createdAt.length > 40 || !historyTimestamp.test(key.createdAt) ||
       !Number.isFinite(Date.parse(key.createdAt)) ||
       typeof key.requestId !== "string" || !uuid.test(key.requestId))
-    throw new RouteAccessError(400, "grove_private_history_cursor_invalid");
+    throw new RouteAccessError(409, "grove_private_history_cursor_invalid");
 }
 function historyCursorSignature(
   encoded: string, scope: GrovePrivateTranscriptScope, secret: string,
@@ -165,7 +165,7 @@ export function readGrovePrivateHistoryCursor(input: {
   assertScope(input.scope);
   assertCursorSecret(input.secret);
   const reject = (): never => {
-    throw new RouteAccessError(400, "grove_private_history_cursor_invalid");
+    throw new RouteAccessError(409, "grove_private_history_cursor_invalid");
   };
   if (typeof input.cursor !== "string" || input.cursor.length > 768 ||
       !/^[A-Za-z0-9_-]{1,640}\.[0-9a-f]{64}$/.test(input.cursor)) reject();
