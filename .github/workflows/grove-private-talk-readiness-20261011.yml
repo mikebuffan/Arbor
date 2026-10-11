@@ -174,7 +174,7 @@ jobs:
 
   grove-android-synthetic:
     name: Grove Android debug compilation (offline, no artifact publication)
-    if: github.repository == 'mikebuffan/Arbor' && github.ref == 'refs/heads/test/grove-private-talk-readiness-20261011'
+    if: github.repository == 'mikebuffan/Arbor' && (github.ref == 'refs/heads/test/grove-private-talk-readiness-20261011' || github.ref == 'refs/heads/review/one-arbor-foundation-source-compose-20261011')
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
