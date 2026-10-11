@@ -32,6 +32,8 @@ class _FakePrivateClient extends GrovePrivateConversationClient {
 
   String availableConversationId = conversationId;
   int discoveries = 0;
+  int archiveReads = 0;
+  bool hasOlder = false;
   int historyReads = 0;
   int sends = 0;
   int creations = 0;
@@ -60,7 +62,7 @@ class _FakePrivateClient extends GrovePrivateConversationClient {
       return delayed.future;
     }
     return GrovePrivateConversationChoices(
-      projectId: projectId, mayBeTruncated: false,
+      projectId: projectId, mayBeTruncated: hasOlder,
       conversations: (empty && !created) || deleted ? [] : [
         GrovePrivateConversationChoice(
           conversationId: availableConversationId,
@@ -68,6 +70,22 @@ class _FakePrivateClient extends GrovePrivateConversationClient {
           updatedAt: DateTime.utc(2026, 9, 23, 1),
         ),
       ],
+    );
+  }
+
+  @override
+  Future<GrovePrivateConversationChoices> listArchive(
+    String projectId, {String? cursor,
+  }) async {
+    archiveReads++;
+    expect(cursor, isNull);
+    return GrovePrivateConversationChoices(
+      projectId: projectId, mayBeTruncated: false, nextCursor: null,
+      conversations: [GrovePrivateConversationChoice(
+        conversationId: replacementConversationId,
+        createdAt: DateTime.utc(2025, 6, 1),
+        updatedAt: DateTime.utc(2025, 6, 1),
+      )],
     );
   }
 
@@ -197,6 +215,24 @@ Future<void> roomForRecovery(WidgetTester tester) async {
 }
 
 void main() {
+  testWidgets('Grove manually loads an older authorized picker entry', (tester) async {
+    await roomForRecovery(tester);
+    final client = _FakePrivateClient()..hasOlder = true;
+    await tester.pumpWidget(recoveryPhone(client, pendingStore(FakeDeviceStringStore())));
+    await tester.pumpAndSettle();
+    expect(find.text('Load older conversations'), findsOneWidget);
+    expect(client.archiveReads, 0);
+    await tester.tap(find.text('Load older conversations'));
+    await tester.pumpAndSettle();
+    expect(client.archiveReads, 1);
+    final dropdown = tester.widget<DropdownButton<String>>(
+      find.byType(DropdownButton<String>));
+    expect(dropdown.items!.map((item) => item.value),
+      contains(replacementConversationId));
+    expect(find.text('Load older conversations'), findsNothing);
+    expect(client.historyReads, 1);
+  });
+
   testWidgets('Grove delete is hidden in ordinary phone builds', (tester) async {
     await roomForRecovery(tester);
     final client = _FakePrivateClient();
