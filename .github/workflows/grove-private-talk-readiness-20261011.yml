@@ -89,6 +89,10 @@ jobs:
           lib/arbor/agency/__tests__/sessionInterruption.reconciliation.test.ts
           lib/chat/__tests__/chatRoute.contract.test.ts
           lib/arbor/pragmatics/__tests__/humorPolicy.test.ts
+      - name: Full backend regression on composed Grove + ARK foundation only
+        if: github.ref == 'refs/heads/review/one-arbor-foundation-source-compose-20261011'
+        working-directory: apps/backend
+        run: timeout 720s pnpm exec vitest run
       - name: Typecheck unchanged private backend
         working-directory: apps/backend
         run: pnpm exec tsc --noEmit
@@ -128,6 +132,10 @@ jobs:
           test/grove_private_text_page_test.dart
           test/grove_pending_turn_store_test.dart
           test/grove_living_window_panel_test.dart
+      - name: Full Flutter regression on composed Grove + ARK foundation only
+        if: github.ref == 'refs/heads/review/one-arbor-foundation-source-compose-20261011'
+        working-directory: apps/frontend
+        run: timeout 420s flutter test --reporter expanded --concurrency=2
       - name: Flutter static analysis, no build or device install
         working-directory: apps/frontend
         run: flutter analyze --no-fatal-infos --no-fatal-warnings
