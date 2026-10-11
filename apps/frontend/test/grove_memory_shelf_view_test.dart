@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:frontend/environment/grove_app_mode.dart';
 import 'package:frontend/environment/grove_memory_shelf.dart';
 import 'package:frontend/environment/grove_memory_shelf_view.dart';
 
@@ -46,6 +47,13 @@ Future<void> showShelf(
 ));
 
 void main() {
+  test('private Grove never authorizes Firefly-only saved-memory routes', () {
+    expect(() => requireFireflyShelfRoutes(standalone: true),
+        throwsStateError);
+    expect(() => requireFireflyShelfRoutes(standalone: false),
+        returnsNormally);
+  });
+
   testWidgets('shows only actual loaded saved memory cards', (tester) async {
     await showShelf(tester, () async => snapshot(
       'project-a', memories: [saved('one')],

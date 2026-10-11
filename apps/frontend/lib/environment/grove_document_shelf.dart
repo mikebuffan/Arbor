@@ -1,4 +1,5 @@
 import '../api/arbor_api_client.dart';
+import 'grove_app_mode.dart';
 
 class GroveDocument {
   const GroveDocument({
@@ -90,6 +91,8 @@ class GroveDocumentShelfReader {
     required String projectId,
     String? after,
   }) async {
+    // Do not send a private Grove token to this Firefly-only API route.
+    requireFireflyShelfRoutes();
     final result = await api.get('/api/chat/attachments/grove-list',
       queryParameters: {
         'projectId': projectId,
