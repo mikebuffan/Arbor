@@ -68,6 +68,7 @@ beforeEach(() => {
     fireflyAdmin: { privateClient: "firefly" },
   });
   vi.stubEnv("GROVE_SERVICE_ROLE_KEY", "grove-test-only-private-archive-key");
+  vi.stubEnv("GROVE_PRIVATE_HISTORY_SEARCH_ENABLED", "true");
   mocks.createStore.mockReturnValue({
     listRecent: mocks.listRecent, listHistoryPage: mocks.listHistoryPage,
     findSavedPhrase: mocks.findSavedPhrase,
@@ -292,6 +293,16 @@ describe("Grove archive HTTP opt-in — legacy context never widens", () => {
 });
 
 describe("Grove saved phrase lookup: explicit, scoped and non-executing", () => {
+  it("keeps historical text search OFF before owner and private DB access", async () => {
+    vi.stubEnv("GROVE_PRIVATE_HISTORY_SEARCH_ENABLED", "");
+    const res = await GET(req("&search=Ever%20After"));
+    expect(res.status).toBe(404);
+    expect((await res.json()).error)
+      .toBe("grove_private_history_search_not_enabled");
+    expect(mocks.authorize).not.toHaveBeenCalled();
+    expect(mocks.createStore).not.toHaveBeenCalled();
+    expect(mocks.findSavedPhrase).not.toHaveBeenCalled();
+  });
   it("finds only matching private turns in one reauthorized conversation", async () => {
     const request = req("&search=Continue%20what");
     const result = await GET(request);
