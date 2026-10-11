@@ -420,6 +420,7 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel>
         (_loading && _choices != null)) return;
     final previousId = _selected;
     final generation = ++_generation;
+    var draftPreserved = false;
     // A fresh authorization read may fail because the grant was revoked.
     // Hide the last transcript and search results BEFORE any network await.
     // Preserve the selected ID just long enough to save an opted-in draft.
@@ -430,6 +431,7 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel>
     });
     try {
       await _saveDraft();
+      draftPreserved = true;
       if (!_valid || generation != _generation) return;
       final choices = await widget.client.listExisting(widget.projectId)
           .timeout(_groveReadDeadline);
@@ -472,12 +474,21 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel>
       // An opted-in local draft is written above before the access request.
       setState(() {
         _loading = false;
-        _choices = null; _selected = null; _history = null;
+        _choices = null; _history = null;
+        // A failed local draft write is different from a denied server read.
+        // Keep the unsent text and selected ID in memory for an explicit
+        // retry; the unverified transcript and SEND authority stay hidden.
+        if (draftPreserved) {
+          _selected = null;
+          _unsavedReply = null;
+        }
         _searchResults = null; _searchedPhrase = null;
         _archiveStarted = false; _olderCursor = null;
         _turnArchiveStarted = false; _olderTurnCursor = null;
-        _unsavedReply = null;
-        _error = 'Private Grove conversations could not be verified.';
+        _error = draftPreserved
+            ? 'Private Grove conversations could not be verified.'
+            : 'The device draft could not be saved. '
+              'Keep this screen open and retry refresh before sending.';
       });
     }
   }
@@ -881,7 +892,9 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel>
   Future<void> _send() async {
     final id = _selected;
     final message = _input.text.trim();
-    if (_sending || _loading || _draftBlocked || _changingDraft || !_valid || id == null ||
+    if (_sending || _loading || _draftBlocked || _changingDraft ||
+        !_valid || id == null || _history == null ||
+        !(_choices?.conversations.any((c) => c.conversationId == id) ?? false) ||
         message.isEmpty || message.length > 3000) return;
     if (_pendingId != null && _pendingText != message) {
       setState(() => _error = 'Retry the original unchanged message, or discard it explicitly.');
@@ -1157,7 +1170,8 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel>
                 alignment: Alignment.centerRight,
                 child: FilledButton(
                   onPressed: _sending || _loading || _draftBlocked ||
-                      _changingDraft ? null : _send,
+                      _changingDraft || _history == null || _choices == null
+                      ? null : _send,
                   child: Text(_sending ? 'Waiting for Arbor…' : 'Send'),
                 ),
               ),
