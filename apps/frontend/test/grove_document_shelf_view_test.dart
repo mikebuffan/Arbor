@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:frontend/environment/grove_app_mode.dart';
 import 'package:frontend/environment/grove_document_shelf.dart';
 import 'package:frontend/environment/grove_document_shelf_view.dart';
 
@@ -32,6 +33,13 @@ Future<void> show(
 }
 
 void main() {
+  test('private Grove never authorizes Firefly-only attachment shelf routes', () {
+    expect(() => requireFireflyShelfRoutes(standalone: true),
+        throwsStateError);
+    expect(() => requireFireflyShelfRoutes(standalone: false),
+        returnsNormally);
+  });
+
   testWidgets('shows real metadata as unopened attachments', (tester) async {
     await show(tester, (_) async => page('project-a',
       docs: [file('one', 'project-a')]));
