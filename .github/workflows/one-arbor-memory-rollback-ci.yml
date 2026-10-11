@@ -8,6 +8,9 @@ name: One Arbor memory function forward-reverse rehearsal (disposable)
       - '.github/workflows/one-arbor-memory-rollback-ci.yml'
       - 'ops/integration/disposable-db/one-arbor-memory-*.sql'
       - 'supabase/migrations/20261007013000_restore_conversation_aware_match_memories_v3.sql'
+      - 'ops/integration/disposable-db/one-arbor-ark-stop-reverse.sql'
+      - 'supabase/migrations/20261006093000_ark_stop_and_resume_controls.sql'
+      - 'supabase/migrations/20261007005500_add_ark_cancel_objective.sql'
 
 permissions:
   contents: read
@@ -72,5 +75,15 @@ jobs:
           grep -q '^ONE_ARBOR_MEMORY_FUNCTION_FORWARD_REVERSE_SYNTHETIC_PASS$' \
             /tmp/one-arbor-memory-rehearsal.txt
           echo 'ONE_ARBOR_MEMORY_ROLLBACK_REHEARSAL=PASS; HOSTED_DATABASE_CHANGES=NONE'
+          docker exec "$name" psql -U postgres -d postgres \
+            --set ON_ERROR_STOP=on \
+            --file /source/ops/integration/disposable-db/one-arbor-ark-stop-reverse.sql \
+            | tee /tmp/one-arbor-ark-rehearsal.txt
+          grep -q '^ONE_ARBOR_ARK_STOP_RESUME_FORWARD_REVERSE_SYNTHETIC_PASS
+      - name: Ensure reviewed source files were not changed
+        run: git diff --exit-code
+ \
+            /tmp/one-arbor-ark-rehearsal.txt
+          echo 'ONE_ARBOR_ARK_STOP_RESUME_ROLLBACK_REHEARSAL=PASS; HOSTED_DATABASE_CHANGES=NONE'
       - name: Ensure reviewed source files were not changed
         run: git diff --exit-code
