@@ -5,6 +5,32 @@
 -- grove_private_ark_project_grants (grove_user_id,firefly_project_id) PK.
 BEGIN;
 
+-- A single transaction-ordered scope lock for BOTH model writes and deletes.
+-- Deliberate hash collisions serialize extra scopes, never grant access.
+-- Put it in the turns proposal so claim/complete fixtures also have it.
+CREATE FUNCTION public.grove_private_lock_conversation(
+  p_grove_user_id uuid, p_project_id uuid, p_conversation_id uuid
+) RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = ''
+AS $scope_lock$
+BEGIN
+  IF p_grove_user_id IS NULL OR p_project_id IS NULL OR
+     p_conversation_id IS NULL THEN
+    RAISE EXCEPTION 'grove_private_scope_invalid' USING ERRCODE='23514';
+  END IF;
+  PERFORM pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(
+      p_grove_user_id::text || '/' || p_project_id::text || '/' ||
+      p_conversation_id::text, 0::bigint
+    )
+  );
+END;
+$scope_lock$;
+REVOKE ALL ON FUNCTION public.grove_private_lock_conversation(uuid,uuid,uuid)
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.grove_private_lock_conversation(uuid,uuid,uuid)
+  TO service_role;
+
 CREATE TABLE IF NOT EXISTS public.grove_private_turns (
   grove_user_id uuid NOT NULL
     REFERENCES public.grove_private_owner_access(user_id) ON DELETE RESTRICT,

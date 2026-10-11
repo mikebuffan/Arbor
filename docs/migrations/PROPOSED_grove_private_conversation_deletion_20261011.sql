@@ -31,6 +31,11 @@ SECURITY DEFINER
 SET search_path = ''
 AS $guard$
 BEGIN
+  -- The older direct tombstone SELECT was racy while deletion had not
+  -- committed; serialize before visibility check on the same exact scope.
+  PERFORM public.grove_private_lock_conversation(
+    NEW.grove_user_id, NEW.firefly_project_id,
+    NEW.firefly_conversation_id);
   IF EXISTS (
     SELECT 1 FROM public.grove_private_conversation_tombstones
       WHERE grove_user_id=NEW.grove_user_id
@@ -71,6 +76,11 @@ BEGIN
      p_conversation_id IS NULL THEN
     RETURN jsonb_build_object('status', 'invalid');
   END IF;
+
+  -- Serialize with every accepted claim/complete/turn write BEFORE any row
+  -- locks, preventing deadlocks and stale snapshot resurrection.
+  PERFORM public.grove_private_lock_conversation(
+    p_grove_user_id,p_project_id,p_conversation_id);
 
   -- Lock the current authorization row against concurrent grant revocation.
   PERFORM 1 FROM public.grove_private_owner_access o
