@@ -141,6 +141,6 @@ jobs:
           test "$ready" = true
           docker exec "$name" psql --username postgres --dbname postgres \
             --set ON_ERROR_STOP=on \
-            --file /source/ops/grove/disposable-db/private-conversation-concurrency-acceptance.sql
+            --file /source/ops/grove/disposable-db/private-conversation-backup-replay-acceptance.sql
       - name: Assert fixtures did not rewrite source
         run: git diff --exit-code
