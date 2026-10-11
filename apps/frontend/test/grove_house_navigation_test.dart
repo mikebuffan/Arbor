@@ -151,7 +151,9 @@ void main() {
     await tester.ensureVisible(find.text('Back to the Grove'));
     await tester.pump(const Duration(milliseconds: 200));
     await tester.tap(find.text('Back to the Grove'));
-    await tester.pumpAndSettle();
+    // The real Grove house clock keeps ticking: pumpAndSettle would wait
+    // forever for the clock, even when the confirmation dialog is correct.
+    await tester.pump(const Duration(milliseconds: 300));
     // Deliberate confirmation, never a silent note loss.
     expect(find.text('Leave Annabelle’s kitchen?'), findsOneWidget);
     expect(find.text('unsaved scene note'), findsOneWidget);
