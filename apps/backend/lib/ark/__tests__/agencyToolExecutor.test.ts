@@ -272,4 +272,27 @@ describe("ARK Arbor tool boundary", () => {
     expect(mocks.completeOperation).not.toHaveBeenCalled();
   });
 
+
+  it("passes the trusted lease-check callback to the real recovery boundary", async () => {
+    mocks.get.mockReturnValue({
+      name: "read.tool", description: "read fixture", parameters: {},
+      risk: "read", execute: vi.fn(),
+    });
+    const heartbeat = vi.fn(async () => undefined);
+    mocks.execute.mockImplementation(async ({ beforeAttempt }: {
+      beforeAttempt?: () => Promise<void>;
+    }) => {
+      expect(beforeAttempt).toBe(heartbeat);
+      await beforeAttempt?.();
+      return { ok: true, result: { observed: true }, attempts: 1 };
+    });
+    const registry = new ArkExecutorRegistry();
+    registerArkAgencyToolExecutor({ registry, supabase: {} as never });
+    const response = await registry.get("arbor.agency-tool")!({
+      claim: claim("read.tool"), heartbeat,
+    });
+    expect(response.status).toBe("completed");
+    expect(heartbeat).toHaveBeenCalledTimes(3);
+  });
+
 });

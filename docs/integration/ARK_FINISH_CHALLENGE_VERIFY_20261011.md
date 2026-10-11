@@ -77,3 +77,19 @@ STOP can remain pending; it requires reconciliation, never blind replay.
 This is cooperative lease fencing, **not** a real-time cancellation channel.
 Provider requests already in flight may complete or have external effects.
 Actual hosted STOP semantics and action-specific cancellation remain blocked.
+
+## Parallel source lanes — STOP read-retry hold (2026-10-11)
+Independent source inspections ran across (1) ARK STOP/lease behavior, (2)
+behavior/humor contextual wiring, and (3) existing regression/CI coverage.
+Found one bounded STOP gap: a read tool's automatic recovery retry did not
+recheck an ARK worker lease between attempts. Added an **optional, trusted**
+`beforeAttempt` gate to the existing tool recovery loop, outside provider
+failure handling; the ARK executor passes its existing worker heartbeat
+through that gate. A revoked lease aborts the retry and cannot be disguised
+as a transient provider failure. Standalone/non-ARK callers without that
+callback retain their prior behavior.
+
+Humor policy remains source-present but not wired to trusted seriousness,
+permission, callback or emotional risk context; avoid invented inputs or
+mandatory jokes. Host-wide real interruption and canceling already-dispatched
+provider calls remain separate acceptance blockers.

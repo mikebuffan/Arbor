@@ -44,6 +44,7 @@ jobs:
           lib/ark/__tests__/runner.test.ts
           lib/ark/__tests__/stopSemantics.test.ts
           lib/ark/__tests__/cancelObjective.test.ts
+          lib/arbor/agency/__tests__/toolExecution.test.ts
           lib/arbor/agency/__tests__/continuation.test.ts
           lib/arbor/agency/__tests__/conversationHoldRoundTrip.test.ts
           lib/arbor/continuity/__tests__/longitudinalShorthand.integration.test.ts

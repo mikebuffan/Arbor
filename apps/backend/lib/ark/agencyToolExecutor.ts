@@ -119,6 +119,9 @@ export function registerArkAgencyToolExecutor(input: {
         turnId: payloadString(claim.task.payload, "turnId"),
       },
       attemptedRoutes: [],
+      // Revalidate before *every* attempt, including automatic read retry.
+      // The prior heartbeat still guards the initial claim-to-execute window.
+      beforeAttempt: heartbeat,
     });
 
     if (!outcome.ok) {
