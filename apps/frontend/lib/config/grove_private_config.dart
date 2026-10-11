@@ -61,7 +61,7 @@ class GrovePrivateConfig {
         auth.userInfo.isEmpty &&
         api.userInfo.isEmpty &&
         // Approving a host does not approve an alternate network port.
-        // Even an explicit default port must be reviewed as a new origin.
+        // Dart normalizes :443 to the default HTTPS origin; reject alternate ports.
         !auth.hasPort &&
         !api.hasPort &&
         auth.host.isNotEmpty &&

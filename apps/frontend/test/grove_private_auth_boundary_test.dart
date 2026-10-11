@@ -85,7 +85,7 @@ void main() {
   test('approved Grove endpoints reject any explicit port', () {
     const auth = 'https://fqjqpuaoifgbweiguacf.supabase.co';
     const api = 'https://grove-private.example.org';
-    for (final port in [':443', ':8443']) {
+    for (final port in [':8443', ':9443']) {
       expect(GrovePrivateConfig(
         authUrl: '$auth$port',
         publishableKey: privateRealm.publishableKey,
@@ -99,6 +99,13 @@ void main() {
         approvedApiHost: 'grove-private.example.org',
       ).ready, isFalse, reason: 'API port $port');
     }
+    // HTTPS :443 is the same network origin, not an alternate service.
+    expect(const GrovePrivateConfig(
+      authUrl: 'https://fqjqpuaoifgbweiguacf.supabase.co:443',
+      publishableKey: 'sb_publishable_test-value',
+      apiUrl: 'https://grove-private.example.org:443',
+      approvedApiHost: 'grove-private.example.org',
+    ).ready, isTrue);
     expect(privateRealm.ready, isTrue);
   });
 

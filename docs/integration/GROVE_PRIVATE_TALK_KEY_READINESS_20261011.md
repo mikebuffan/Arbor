@@ -154,11 +154,20 @@ the pinned Grove authentication hostname and the separately approved Grove API
 hostname could be reached with an explicit nonstandard TCP port. Approval was
 for the expected HTTPS hostname and default endpoint, **not a different
 network service on the same host**. Source now rejects explicit ports on
-either URL, even `:443`; the existing pinned realm, exact host, HTTPS,
+either URL when a **non-default** port is requested; Dart normalizes explicit `:443` to the same HTTPS origin. The pinned realm, exact host, HTTPS,
 path/query/fragment, no-userinfo and public-service restrictions remain.
-A focused Flutter regression tests `:443` and `:8443` on both auth and
-API endpoints, and preserves the valid default private configuration.
+A focused Flutter regression rejects `:8443` and `:9443` on both auth and
+API endpoints, accepts the equivalent default `:443` origin, and preserves
+the valid private configuration.
 
 This is a **source-only protection** of the existing phone configuration,
 not an installed-phone test or approval to enable private Talk. It does not
 change the existing 30-step statuses or any server-side host settings.
+
+### Expected-red test correction
+First [Actions 38149897128](https://github.com/mikebuffan/Arbor/actions/runs/38149897128)
+correctly exposed that Dart treats explicit HTTPS `:443` as the default
+origin (`Uri.hasPort == false`), so the initial test expecting rejection of
+`:443` failed. The security requirement is narrower: forbid **alternate
+ports**, not the equivalent default TLS port. The regression now checks that
+distinction. The earlier run is RED, not proof of acceptance.
