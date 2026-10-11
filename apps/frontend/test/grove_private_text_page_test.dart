@@ -450,6 +450,40 @@ void main() {
     expect(find.text('Send'), findsOneWidget);
   });
 
+  testWidgets('failed local draft write preserves unsent text but cannot send',
+      (tester) async {
+    await roomForRecovery(tester);
+    final disk = FakeDeviceStringStore();
+    final client = _FakePrivateClient();
+    await tester.pumpWidget(recoveryPhone(client, pendingStore(disk)));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(Checkbox));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'Unsent private draft');
+    await tester.pump(const Duration(milliseconds: 350));
+    disk.failWrites = true;
+
+    await tester.tap(find.text('Refresh conversations'));
+    await tester.pumpAndSettle();
+    expect(find.text('Earlier private answer'), findsNothing);
+    expect(find.textContaining('device draft could not be saved'), findsOneWidget);
+    expect(find.text('Unsent private draft'), findsOneWidget);
+    final send = tester.widget<FilledButton>(find.widgetWithText(
+        FilledButton, 'Send'));
+    expect(send.onPressed, isNull);
+    expect(client.sends, 0);
+    expect(client.discoveries, 1);
+
+    // Retry the same local draft write; only a fresh verified owner read
+    // permits the original unsent text to be restored without auto-send.
+    disk.failWrites = false;
+    await tester.tap(find.text('Refresh conversations'));
+    await tester.pumpAndSettle();
+    expect(find.text('Earlier private answer'), findsOneWidget);
+    expect(find.text('Unsent private draft'), findsOneWidget);
+    expect(client.sends, 0);
+  });
+
   testWidgets('switching authorized conversation hides old text during pending history',
       (tester) async {
     await roomForRecovery(tester);
