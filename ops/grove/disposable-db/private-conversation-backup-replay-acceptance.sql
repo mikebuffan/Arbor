@@ -107,3 +107,6 @@ BEGIN
     'GROVE_LOGICAL_REPLAY_WITH_TOMBSTONE=PASS; FULL_SNAPSHOT_WITHOUT_TOMBSTONE=UNSAFE; LIVE_RESTORE=HOLD';
 END;
 $restore_replay_acceptance$;
+
+-- Group 1: combine history-query index eligibility with deletion/restore regression.
+\ir private-history-search-performance-acceptance.sql
