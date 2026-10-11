@@ -14,10 +14,10 @@ class AnnabelleKitchenView extends StatefulWidget {
   final VoidCallback onOpenConversation;
 
   @override
-  State<AnnabelleKitchenView> createState() => _AnnabelleKitchenViewState();
+  State<AnnabelleKitchenView> createState() => AnnabelleKitchenViewState();
 }
 
-class _AnnabelleKitchenViewState extends State<AnnabelleKitchenView> {
+class AnnabelleKitchenViewState extends State<AnnabelleKitchenView> {
   final GroveHouseClock _clock = GroveHouseClock.shared;
   final TextEditingController _scratchpad = TextEditingController();
 
@@ -38,6 +38,31 @@ class _AnnabelleKitchenViewState extends State<AnnabelleKitchenView> {
     _clock.detach();
     _scratchpad.dispose();
     super.dispose();
+  }
+
+
+  /// Navigation through the shell also protects this visit-only scratchpad.
+  Future<bool> confirmNavigationAway() async {
+    if (_scratchpad.text.isEmpty) return true;
+    final discard = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Leave Annabelle’s kitchen?'),
+        content: const Text('Your scratchpad has not been saved. '
+            'Leaving will discard it. Choose Keep writing to copy your notes first.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Keep writing'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Leave without saving'),
+          ),
+        ],
+      ),
+    );
+    return mounted && discard == true;
   }
 
   @override
