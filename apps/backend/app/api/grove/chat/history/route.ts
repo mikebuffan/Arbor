@@ -18,7 +18,11 @@ const querySchema = z.object({
   conversationId: z.string().uuid(),
   page: z.literal("archive").optional(),
   cursor: z.string().min(1).max(768).optional(),
-}).strict().refine(values => !values.cursor || values.page === "archive");
+  search: z.string().min(3).max(64).optional(),
+}).strict().refine(values =>
+  (!values.cursor || values.page === "archive") &&
+  (!values.search || (!values.page && !values.cursor)),
+);
 
 const json = (body: Record<string, unknown>, status: number) =>
   NextResponse.json(body, {
@@ -69,6 +73,7 @@ export async function GET(req: Request) {
     // Historical browsing never expands the bounded six-pair LM context.
     // Legacy phone reads retain their original window and response shape.
     const archive = scope.page === "archive";
+    const searching = scope.search !== undefined;
     const secret = archive ? process.env.GROVE_SERVICE_ROLE_KEY ?? "" : "";
     const before = archive && scope.cursor
       ? readGrovePrivateHistoryCursor({
@@ -76,7 +81,10 @@ export async function GET(req: Request) {
         }) : undefined;
     if (archive && !store.listHistoryPage)
       throw new RouteAccessError(500, "grove_private_history_unavailable");
-    const page = archive ? await store.listHistoryPage!(storeScope, before) : null;
+    if (searching && !store.findSavedPhrase)
+      throw new RouteAccessError(500, "grove_private_history_search_unavailable");
+    const page = archive ? await store.listHistoryPage!(storeScope, before)
+      : searching ? await store.findSavedPhrase!(storeScope, scope.search!) : null;
     const rows = page ? page.rows : await store.listRecent(storeScope);
     if (!Array.isArray(rows) || rows.length > 6 ||
         (page && (typeof page.hasMore !== "boolean" ||
@@ -102,6 +110,11 @@ export async function GET(req: Request) {
       order: "newest_first",
       windowLimit: 6,
       historyMayBeTruncated: page ? page.hasMore : rows.length === 6,
+      ...(searching ? {
+        searchMode: "literal_phrase",
+        searchedOnlyThisConversation: true,
+        searchMayBeTruncated: page!.hasMore,
+      } : {}),
       ...(archive ? { nextCursor: page!.hasMore
         ? issueGrovePrivateHistoryCursor({
             scope: storeScope,
