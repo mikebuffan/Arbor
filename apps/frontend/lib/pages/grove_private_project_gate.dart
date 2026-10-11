@@ -87,9 +87,13 @@ class _GrovePrivateProjectGateState extends State<GrovePrivateProjectGate>
   }
 
   Future<List<String>> _discover() async {
+    final config = GrovePrivateConfig.fromBuild;
+    if (!config.ready) {
+      throw StateError('Private Grove project host is not approved.');
+    }
     // The same private no-redirect transport protects owner project discovery.
     final client = ArborApiClient(
-      baseUrl: GrovePrivateConfig.fromBuild.apiUrl,
+      baseUrl: config.apiUrl,
       httpClient: GrovePrivateNoRedirectClient(),
     );
     try {

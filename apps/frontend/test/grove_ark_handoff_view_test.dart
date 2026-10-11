@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:frontend/config/grove_private_config.dart';
 import 'package:frontend/environment/grove_ark_handoff.dart';
 import 'package:frontend/environment/grove_ark_handoff_view.dart';
 
@@ -44,6 +45,37 @@ Future<void> showHandoff(
 }
 
 void main() {
+  test('private handoff must approve the exact Grove host before any read', () {
+    const approved = GrovePrivateConfig(
+      authUrl: 'https://fqjqpuaoifgbweiguacf.supabase.co',
+      publishableKey: 'sb_publishable_synthetic-test',
+      apiUrl: 'https://grove-private.example.org',
+      approvedApiHost: 'grove-private.example.org',
+    );
+    const unapproved = GrovePrivateConfig(
+      authUrl: 'https://fqjqpuaoifgbweiguacf.supabase.co',
+      publishableKey: 'sb_publishable_synthetic-test',
+      apiUrl: 'https://grove-private.example.org',
+      approvedApiHost: 'outside.example.org',
+    );
+    expect(approved.ready, isTrue);
+    expect(grovePrivateHandoffHostApproved(
+      standalone: true, config: approved, apiBaseUrl: approved.apiUrl,
+    ), isTrue);
+    expect(grovePrivateHandoffHostApproved(
+      standalone: true, config: unapproved, apiBaseUrl: unapproved.apiUrl,
+    ), isFalse);
+    expect(grovePrivateHandoffHostApproved(
+      standalone: true, config: approved,
+      apiBaseUrl: 'https://firefly-coral.vercel.app',
+    ), isFalse);
+    // Existing public Arbor handoff behavior must not be altered.
+    expect(grovePrivateHandoffHostApproved(
+      standalone: false, config: unapproved,
+      apiBaseUrl: 'https://firefly-coral.vercel.app',
+    ), isTrue);
+  });
+
   testWidgets('does not read or claim running in background before tap',
       (tester) async {
     var calls = 0;
