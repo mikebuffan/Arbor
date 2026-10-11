@@ -60,6 +60,18 @@ describe("chat Milestone 1A contract", () => {
     expect(source).not.toMatch(/memoryBlock/);
   });
 
+  it("never presents pending capability verification as completed action evidence", () => {
+    const routePath = fileURLToPath(
+      new URL("../../../app/api/chat/route.ts", import.meta.url),
+    );
+    const source = fs.readFileSync(routePath, "utf8");
+
+    // These are outstanding obligations, not independently verified receipts.
+    expect(source).toContain("verify capability result: ");
+    expect(source).not.toMatch(/priorActionEvidence:\s*agencyState\.unresolvedWork/);
+    expect(source).not.toContain('} completed successfully`');
+  });
+
   it("requires a UUID turnId without changing the success response shape", () => {
     const routePath = fileURLToPath(
       new URL("../../../app/api/chat/route.ts", import.meta.url),

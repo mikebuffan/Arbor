@@ -17,6 +17,21 @@ describe("AgencyToolRegistry", () => {
     expect(advertised).not.toHaveProperty("mayRunBeforeProtectedBoundary");
   });
 
+  it("requires a version precondition for every Annabelle writing and restore tool", () => {
+    const registry = buildArborAgencyTools({ supabase: {} as never });
+    for (const name of [
+      "annabelle_set_list_section",
+      "annabelle_set_working_delta",
+      "annabelle_restore_previous_workspace",
+    ]) {
+      const tool = registry.get(name);
+      expect(tool.risk).toBe("reversible_write");
+      expect(tool.parameters.required).toContain("expectedVersion");
+      expect((tool.parameters.properties as Record<string, unknown>)).toHaveProperty("expectedVersion");
+    }
+    expect(registry.get("annabelle_read_workspace").risk).toBe("read");
+  });
+
   it("allows read and reversible-write capabilities through the agency loop", () => {
     const registry = new AgencyToolRegistry()
       .register({

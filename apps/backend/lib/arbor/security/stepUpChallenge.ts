@@ -37,7 +37,12 @@ export function stepUpResultToIdentityEvidence(
   result: StepUpVerificationResult,
 ): IdentityEvidence[] {
   // Reject untrusted runtime input even if it bypasses the TypeScript type.
-  if (result.verified !== true || !TRUSTED_STEP_UP_ISSUERS.has(result.issuer)) {
+  if (!result || typeof result !== "object" ||
+      result.verified !== true || !TRUSTED_STEP_UP_ISSUERS.has(result.issuer) ||
+      typeof result.challengeId !== "string" ||
+      !result.challengeId.trim() || result.challengeId.length > 200 ||
+      typeof result.observedAt !== "string" ||
+      !Number.isFinite(Date.parse(result.observedAt))) {
     return [];
   }
 
@@ -90,6 +95,8 @@ export function stepUpResultToIdentityEvidence(
         },
       ];
   }
+  // Runtime JSON can bypass the TypeScript method union; never return undefined.
+  return [];
 }
 
 export function validateStepUpChallenge(

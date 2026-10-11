@@ -12,14 +12,26 @@ const workspace = {
 };
 const missing = { code: "42P01", message: "relation does not exist" };
 
-function database(results: Record<string, { data?: unknown; error?: unknown }>) {
+function database(
+  results: Record<string, { data?: unknown; error?: unknown }>,
+  options: { dropWorkspaceWrite?: boolean } = {},
+) {
   const writes = vi.fn();
+  let workspaceRow: Record<string, unknown> | null = null;
   const from = vi.fn((table: string) => {
     const result = { data: null, error: null, ...results[table] };
     const chain: any = {
       select: () => chain, eq: () => chain, order: () => chain, limit: () => chain,
-      maybeSingle: async () => result,
-      upsert: async (...args: unknown[]) => { writes(table, ...args); return result; },
+      maybeSingle: async () =>
+        table === "annabelle_workspace_state" && !result.error && result.data === null
+          ? { data: workspaceRow, error: null }
+          : result,
+      upsert: async (...args: unknown[]) => {
+        writes(table, ...args);
+        if (table === "annabelle_workspace_state" && !result.error && !options.dropWorkspaceWrite)
+          workspaceRow = structuredClone(args[0]) as Record<string, unknown>;
+        return result;
+      },
       insert: async (...args: unknown[]) => { writes(table, ...args); return result; },
     };
     return chain;
@@ -66,5 +78,19 @@ describe("Annabelle durable workspace failures", () => {
     expect(db.writes.mock.calls.map(call => call[0])).toEqual([
       "annabelle_workspace_revisions", "annabelle_workspace_state",
     ]);
+  });
+
+  it("rejects an upsert that reports success while dropping the draft", async () => {
+    const db = database({}, { dropWorkspaceWrite: true });
+    await expect(persistAnnabelleWorkspace({
+      ...scope, ...db, workspace: { ...workspace, workingDelta: "Synthetic draft only" },
+    })).rejects.toThrow("annabelle_workspace_save_readback_mismatch");
+  });
+
+  it("reads back an exact saved synthetic revision, including protected fields", async () => {
+    const db = database({});
+    const draft = { ...workspace, workingDelta: "Synthetic draft only" };
+    await persistAnnabelleWorkspace({ ...scope, ...db, workspace: draft });
+    expect(await loadAnnabelleWorkspace({ ...scope, ...db })).toEqual(draft);
   });
 });

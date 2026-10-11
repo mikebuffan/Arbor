@@ -27,6 +27,42 @@ function toStrings(value: unknown): string[] {
     .filter(Boolean);
 }
 
+// Atomic mode stays OFF until a separately approved hosted schema migration.
+export function annabelleAtomicWorkspaceEnabled(): boolean {
+  return process.env.ANNABELLE_ATOMIC_WORKSPACE_ENABLED === "true";
+}
+
+function equalWorkspace(a: AnnabelleWorkspace, b: AnnabelleWorkspace): boolean {
+  const same = (x: string[], y: string[]) =>
+    x.length === y.length && x.every((value, index) => value === y[index]);
+  return same(a.canon, b.canon) && same(a.lockedPassages, b.lockedPassages) &&
+    same(a.sceneState, b.sceneState) && same(a.unresolvedDecisions, b.unresolvedDecisions) &&
+    a.workingDelta === b.workingDelta;
+}
+
+// Fail closed when the migration is absent. Never invent version zero on SQL errors.
+export async function loadVersionedAnnabelleWorkspace(input: {
+  supabase: SupabaseClient; userId: string; projectId: string;
+}): Promise<{ workspace: AnnabelleWorkspace; editVersion: number }> {
+  const { data, error } = await input.supabase.from("annabelle_workspace_state")
+    .select("canon,locked_passages,scene_state,unresolved_decisions,working_delta,edit_version")
+    .eq("user_id", input.userId).eq("project_id", input.projectId).maybeSingle();
+  if (error) throw error;
+  if (!data) return { workspace: structuredClone(EMPTY_WORKSPACE), editVersion: 0 };
+  if (!Number.isSafeInteger(data.edit_version) || data.edit_version < 0)
+    throw new Error("annabelle_atomic_version_invalid");
+  return {
+    workspace: {
+      canon: toStrings(data.canon),
+      lockedPassages: toStrings(data.locked_passages),
+      sceneState: toStrings(data.scene_state),
+      unresolvedDecisions: toStrings(data.unresolved_decisions),
+      workingDelta: typeof data.working_delta === "string" ? data.working_delta : null,
+    },
+    editVersion: data.edit_version,
+  };
+}
+
 export async function loadAnnabelleWorkspace(input: {
   supabase: SupabaseClient;
   userId: string;
@@ -67,6 +103,8 @@ export async function persistAnnabelleWorkspace(input: {
   projectId: string;
   workspace: AnnabelleWorkspace;
 }): Promise<void> {
+  if (annabelleAtomicWorkspaceEnabled())
+    throw new Error("annabelle_atomic_direct_workspace_write_forbidden");
   const { error } = await input.supabase
     .from("annabelle_workspace_state")
     .upsert(
@@ -86,6 +124,26 @@ export async function persistAnnabelleWorkspace(input: {
   if (error) {
     throw error;
   }
+
+  // Require exact owner-scoped readback before claiming that a draft was saved.
+  const { data: saved, error: readError } = await input.supabase
+    .from("annabelle_workspace_state")
+    .select("canon,locked_passages,scene_state,unresolved_decisions,working_delta")
+    .eq("user_id", input.userId)
+    .eq("project_id", input.projectId)
+    .maybeSingle();
+  if (readError) throw readError;
+  const sameArray = (actual: unknown, expected: string[]) =>
+    Array.isArray(actual) && actual.length === expected.length &&
+    actual.every((item, index) => item === expected[index]);
+  if (!saved ||
+    !sameArray(saved.canon, input.workspace.canon) ||
+    !sameArray(saved.locked_passages, input.workspace.lockedPassages) ||
+    !sameArray(saved.scene_state, input.workspace.sceneState) ||
+    !sameArray(saved.unresolved_decisions, input.workspace.unresolvedDecisions) ||
+    saved.working_delta !== input.workspace.workingDelta) {
+    throw new Error("annabelle_workspace_save_readback_mismatch");
+  }
 }
 
 export async function persistAnnabelleWorkspaceRevision(input: {
@@ -95,6 +153,8 @@ export async function persistAnnabelleWorkspaceRevision(input: {
   workspace: AnnabelleWorkspace;
   reason: string;
 }): Promise<void> {
+  if (annabelleAtomicWorkspaceEnabled())
+    throw new Error("annabelle_atomic_direct_revision_write_forbidden");
   const { error } = await input.supabase
     .from("annabelle_workspace_revisions")
     .insert({
@@ -117,9 +177,42 @@ export async function updateAnnabelleWorkspace(
     userId: string;
     projectId: string;
     reason: string;
+    expectedVersion?: number;
+    requestId?: string;
   },
   mutate: (current: AnnabelleWorkspace) => AnnabelleWorkspace,
 ): Promise<AnnabelleWorkspace> {
+  if (annabelleAtomicWorkspaceEnabled()) {
+    if (!Number.isSafeInteger(input.expectedVersion) || (input.expectedVersion ?? -1) < 0)
+      throw new Error("annabelle_atomic_expected_version_required");
+    if (!input.requestId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(input.requestId))
+      throw new Error("annabelle_atomic_request_id_required");
+    const { workspace: current, editVersion } = await loadVersionedAnnabelleWorkspace(input);
+    if (editVersion !== input.expectedVersion)
+      throw new Error("annabelle_atomic_version_conflict");
+    const next = mutate(current);
+    const { data, error } = await input.supabase.rpc("annabelle_save_workspace_atomic", {
+      p_project_id: input.projectId,
+      p_request_id: input.requestId,
+      p_expected_version: editVersion,
+      p_canon: next.canon,
+      p_locked_passages: next.lockedPassages,
+      p_scene_state: next.sceneState,
+      p_unresolved_decisions: next.unresolvedDecisions,
+      p_working_delta: next.workingDelta,
+      p_reason: input.reason,
+    });
+    if (error) throw error;
+    if (!data || !["committed", "replayed"].includes(data.status) ||
+        data.editVersion !== editVersion + 1)
+      throw new Error("annabelle_atomic_receipt_invalid");
+    const verified = await loadVersionedAnnabelleWorkspace(input);
+    if (verified.editVersion !== editVersion + 1 ||
+        !equalWorkspace(verified.workspace, next))
+      throw new Error("annabelle_atomic_readback_mismatch");
+    return next;
+  }
+  // Legacy mode is retained only until the approved migration and cutover.
   // A read-only compatibility fallback must never become a successful write.
   const current = await loadAnnabelleWorkspace({ ...input, requireStorage: true });
 
@@ -142,21 +235,28 @@ export async function restoreLatestAnnabelleWorkspaceRevision(input: {
   supabase: SupabaseClient;
   userId: string;
   projectId: string;
+  expectedVersion?: number;
+  requestId?: string;
 }): Promise<AnnabelleWorkspace> {
-  const { data, error } = await input.supabase
+  const revisions = input.supabase
     .from("annabelle_workspace_revisions")
     .select("snapshot")
     .eq("user_id", input.userId)
-    .eq("project_id", input.projectId)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .eq("project_id", input.projectId);
+  // Postgres timestamps reflect transaction start, not necessarily the final
+  // serialization order. Atomic restoration must follow committed versions.
+  const ordered = annabelleAtomicWorkspaceEnabled()
+    ? revisions.order("resulting_version", { ascending: false, nullsFirst: false })
+    : revisions.order("created_at", { ascending: false });
+  const { data, error } = await ordered.limit(1).maybeSingle();
 
   if (error) {
     throw error;
   }
 
   if (!data?.snapshot || typeof data.snapshot !== "object") {
+    if (annabelleAtomicWorkspaceEnabled())
+      throw new Error("annabelle_atomic_revision_not_found");
     return loadAnnabelleWorkspace(input);
   }
 
@@ -171,6 +271,12 @@ export async function restoreLatestAnnabelleWorkspaceRevision(input: {
         ? snapshot.workingDelta
         : null,
   };
+
+  if (annabelleAtomicWorkspaceEnabled())
+    return updateAnnabelleWorkspace(
+      { ...input, reason: "restore previous Annabelle workspace" },
+      () => restored,
+    );
 
   await persistAnnabelleWorkspace({
     ...input,

@@ -1,12 +1,15 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { AgencyToolRegistry } from "./tools";
+import { createHash } from "node:crypto";
+import { AgencyToolRegistry, type AgencyToolContext } from "./tools";
 import {
   loadSubsystemState,
   appendAcousticCorrection,
   persistVoiceId,
 } from "@/lib/arbor/subsystem/state";
 import {
+  annabelleAtomicWorkspaceEnabled,
   loadAnnabelleWorkspace,
+  loadVersionedAnnabelleWorkspace,
   restoreLatestAnnabelleWorkspaceRevision,
   updateAnnabelleWorkspace,
 } from "@/lib/arbor/subsystem/annabelleWorkspace";
@@ -33,6 +36,23 @@ function nullableString(value: unknown): string | null {
     throw new Error("agency_tool_invalid_nullable_string");
   }
   return value;
+}
+
+// Trusted turn identity plus operation + exact arguments: stable across the
+// same tool-call retry, distinct across different Annabelle changes in a turn.
+function annabelleOperationRequestId(
+  context: AgencyToolContext, operation: string, args: Record<string, unknown>,
+): string {
+  const h = createHash("sha256").update(JSON.stringify({
+    owner: context.userId, project: context.projectId,
+    turn: context.turnId, operation, args,
+  })).digest("hex");
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-4${h.slice(13, 16)}-a${h.slice(17, 20)}-${h.slice(20, 32)}`;
+}
+
+function annabelleVersionArgument(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0
+    ? value : undefined;
 }
 
 export function buildArborAgencyTools(input: {
@@ -139,11 +159,16 @@ export function buildArborAgencyTools(input: {
         additionalProperties: false,
       },
       async execute(_args, context) {
-        return loadAnnabelleWorkspace({
+        const scope = {
           supabase: input.supabase,
           userId: context.userId,
           projectId: context.projectId,
-        });
+        };
+        if (annabelleAtomicWorkspaceEnabled()) {
+          const { workspace, editVersion } = await loadVersionedAnnabelleWorkspace(scope);
+          return { ...workspace, editVersion };
+        }
+        return loadAnnabelleWorkspace(scope);
       },
     })
     .register({
@@ -167,13 +192,16 @@ export function buildArborAgencyTools(input: {
             type: "array",
             items: { type: "string" },
           },
+          expectedVersion: {
+            type: ["integer", "null"], minimum: 0,
+          },
           reason: {
             type: "string",
             minLength: 1,
             maxLength: 500,
           },
         },
-        required: ["section", "values", "reason"],
+        required: ["section", "values", "reason", "expectedVersion"],
         additionalProperties: false,
       },
       async execute(args, context) {
@@ -198,6 +226,8 @@ export function buildArborAgencyTools(input: {
             userId: context.userId,
             projectId: context.projectId,
             reason,
+            expectedVersion: annabelleVersionArgument(args.expectedVersion),
+            requestId: annabelleOperationRequestId(context, "annabelle_set_list_section", args),
           },
           (current) => ({
             ...current,
@@ -219,13 +249,16 @@ export function buildArborAgencyTools(input: {
           workingDelta: {
             type: ["string", "null"],
           },
+          expectedVersion: {
+            type: ["integer", "null"], minimum: 0,
+          },
           reason: {
             type: "string",
             minLength: 1,
             maxLength: 500,
           },
         },
-        required: ["workingDelta", "reason"],
+        required: ["workingDelta", "reason", "expectedVersion"],
         additionalProperties: false,
       },
       async execute(args, context) {
@@ -237,6 +270,8 @@ export function buildArborAgencyTools(input: {
             userId: context.userId,
             projectId: context.projectId,
             reason: String(args.reason),
+            expectedVersion: annabelleVersionArgument(args.expectedVersion),
+            requestId: annabelleOperationRequestId(context, "annabelle_set_working_delta", args),
           },
           (current) => ({
             ...current,
@@ -254,15 +289,19 @@ export function buildArborAgencyTools(input: {
       risk: "reversible_write",
       parameters: {
         type: "object",
-        properties: {},
-        required: [],
+        properties: {
+          expectedVersion: { type: ["integer", "null"], minimum: 0 },
+        },
+        required: ["expectedVersion"],
         additionalProperties: false,
       },
-      async execute(_args, context) {
+      async execute(args, context) {
         return restoreLatestAnnabelleWorkspaceRevision({
           supabase: input.supabase,
           userId: context.userId,
           projectId: context.projectId,
+          expectedVersion: annabelleVersionArgument(args.expectedVersion),
+          requestId: annabelleOperationRequestId(context, "annabelle_restore_previous_workspace", args),
         });
       },
     })

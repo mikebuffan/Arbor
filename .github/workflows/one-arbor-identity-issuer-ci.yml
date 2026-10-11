@@ -20,6 +20,10 @@ on:
       - fix/one-arbor-correction-count-saturation-20261010
       - review/one-arbor-440-receipt-refresh-20261010
       - review/one-arbor-grove-440-441-compose-20261010
+      - fix/d10-e09-pending-protection-20261010
+      - test/d10-e09-reviewed-outcome-recommendation-20261010
+      - review/d10-e09-authenticated-ci-readback-20261010
+      - review/one-arbor-grove-d10-e09-compose-20261010
 
 permissions:
   contents: read
@@ -77,6 +81,7 @@ jobs:
           lib/arbor/runtime/__tests__/correctionObservationIdentity.test.ts
           lib/arbor/runtime/__tests__/correctionObservationReopen.test.ts
           lib/arbor/runtime/__tests__/correctionObservationSaturation.test.ts
+          lib/arbor/agency/__tests__/backlogContinuation.test.ts
       - name: Type-check existing backend
         working-directory: apps/backend
         run: pnpm exec tsc --noEmit
@@ -109,16 +114,26 @@ jobs:
           node-version: '22'
       - name: Verify GitHub receipt discovery negative controls
         run: node --test ops/integration/__tests__/one-arbor-github-run-discovery.test.mjs
+      - name: Check external CI evidence verification failures (no network)
+        run: node --test ops/integration/__tests__/one-arbor-ci-outcome-readback.test.mjs
       - name: Read exact successful GitHub CI receipts and emit reassessment only
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           node ops/integration/one-arbor-github-run-discovery.mjs > one-arbor-unlock-review.json
           node -e 'const r=require("./one-arbor-unlock-review.json"); console.log("Verified source events: "+r.verifiedReceiptEvents+"; review flags: "+r.review.flaggedTasks.length+"; actions: "+r.review.actionsStarted.length+"; not yet verified: "+r.notYetVerified.length)'
+      - name: Read pinned real GitHub CI outcomes without changing work
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          node ops/integration/one-arbor-ci-outcome-readback.mjs > one-arbor-external-ci-outcome.json
+          node -e 'const r=require("./one-arbor-external-ci-outcome.json"); console.log("Real GitHub CI readback: "+r.outcomes.map(x=>x.runId+"="+x.status).join(", ")+"; model proof: "+r.realModelDecisionProved+"; actions: "+r.grantsExecution)'
       - name: Preserve bounded review artifact
         uses: actions/upload-artifact@v4
         with:
           name: one-arbor-unlock-review
-          path: one-arbor-unlock-review.json
+          path: |
+            one-arbor-unlock-review.json
+            one-arbor-external-ci-outcome.json
           if-no-files-found: error
           retention-days: 7

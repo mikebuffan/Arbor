@@ -40,6 +40,37 @@ class _AnnabelleKitchenViewState extends State<AnnabelleKitchenView> {
     super.dispose();
   }
 
+  Future<void> _confirmLeave(VoidCallback navigate) async {
+    // The kitchen preview has no durable workspace write. An ordinary room
+    // change must not silently discard notes before the author copies them.
+    if (_scratchpad.text.isEmpty) {
+      navigate();
+      return;
+    }
+    final leave = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Leave Annabelle’s kitchen?'),
+        content: const Text(
+          'Your scratchpad has not been saved. Leaving will discard it. '
+          'Choose Keep writing to copy your notes first.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Keep writing'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Leave without saving'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted || leave != true) return;
+    navigate();
+  }
+
   @override
   Widget build(BuildContext context) {
     final now = _clock.localNow;
@@ -117,12 +148,12 @@ class _AnnabelleKitchenViewState extends State<AnnabelleKitchenView> {
           label: const Text('Copy notes'),
         ),
         OutlinedButton.icon(
-          onPressed: widget.onOpenConversation,
+          onPressed: () => _confirmLeave(widget.onOpenConversation),
           icon: const Icon(Icons.chat_bubble_outline),
           label: const Text('Existing Talk (Arbor)'),
         ),
         FilledButton.icon(
-          onPressed: widget.onReturnHome,
+          onPressed: () => _confirmLeave(widget.onReturnHome),
           icon: const Icon(Icons.home_outlined),
           label: const Text('Back to the Grove'),
         ),
