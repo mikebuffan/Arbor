@@ -1,10 +1,12 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { issueGrovePrivateHistoryCursor } from "../privateTranscriptStore";
 
 const mocks = vi.hoisted(() => ({
   flags: vi.fn(),
   authorize: vi.fn(),
   createStore: vi.fn(),
   listRecent: vi.fn(),
+  listHistoryPage: vi.fn(),
 }));
 vi.mock("@/lib/grove/privateConversationLoop", () => ({
   grovePrivateTurnFeatures: mocks.flags,
@@ -63,9 +65,15 @@ beforeEach(() => {
     groveAdmin: { privateClient: "grove" },
     fireflyAdmin: { privateClient: "firefly" },
   });
-  mocks.createStore.mockReturnValue({ listRecent: mocks.listRecent });
+  vi.stubEnv("GROVE_SERVICE_ROLE_KEY", "grove-test-only-private-archive-key");
+  mocks.createStore.mockReturnValue({
+    listRecent: mocks.listRecent, listHistoryPage: mocks.listHistoryPage,
+  });
   mocks.listRecent.mockResolvedValue([row]);
+  mocks.listHistoryPage.mockResolvedValue({ rows: [row], hasMore: false });
 });
+
+afterEach(() => vi.unstubAllEnvs());
 
 describe("Grove transcript REST read — independent private scope", () => {
   it("is invisible before authorization when either flag is OFF", async () => {
@@ -205,5 +213,76 @@ describe("Grove transcript REST read — independent private scope", () => {
     expect(response.status).toBe(500);
     expect(JSON.stringify(await response.json()))
       .not.toContain("secret private sentence");
+  });
+});
+
+
+describe("Grove archive HTTP opt-in — legacy context never widens", () => {
+  it("returns a scoped next cursor and pages older saved replies without changing six-turn default", async () => {
+    const six = Array.from({ length: 6 }, (_, i) => ({
+      ...row,
+      request_id: "00000000-0000-4000-8000-" + (i + 100).toString().padStart(12, "0"),
+      created_at: "2025-06-" + String(20 - i).padStart(2, "0") + "T10:00:00Z",
+    }));
+    mocks.listHistoryPage.mockResolvedValueOnce({ rows: six, hasMore: true });
+    const result = await GET(req("&page=archive"));
+    const payload = await result.json();
+    expect(result.status).toBe(200);
+    expect(payload.turns).toHaveLength(6);
+    expect(payload.historyMayBeTruncated).toBe(true);
+    expect(payload.nextCursor).toMatch(/^[A-Za-z0-9_-]+\.[0-9a-f]{64}$/);
+    expect(mocks.listRecent).not.toHaveBeenCalled();
+    expect(mocks.listHistoryPage).toHaveBeenCalledWith({
+      groveUserId: ids.groveUserId,
+      projectId: ids.projectId,
+      conversationId: ids.conversationId,
+    }, undefined);
+    const second = await GET(req("&page=archive&cursor=" +
+      encodeURIComponent(payload.nextCursor)));
+    expect(second.status).toBe(200);
+    expect((await second.json()).nextCursor).toBeNull();
+    expect(mocks.listHistoryPage).toHaveBeenLastCalledWith({
+      groveUserId: ids.groveUserId,
+      projectId: ids.projectId,
+      conversationId: ids.conversationId,
+    }, { createdAt: six[5].created_at, requestId: six[5].request_id });
+    expect(mocks.authorize).toHaveBeenCalledTimes(4);
+    const legacy = await GET(req());
+    expect(legacy.status).toBe(200);
+    expect((await legacy.json())).not.toHaveProperty("nextCursor");
+    expect(mocks.listRecent).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects forged, expired, cross-scope and unrequested archive tokens", async () => {
+    const cursor = issueGrovePrivateHistoryCursor({
+      scope: { groveUserId: ids.groveUserId,
+        projectId: ids.projectId, conversationId: ids.conversationId },
+      key: { createdAt: row.created_at, requestId: row.request_id },
+      secret: "grove-test-only-private-archive-key",
+      now: Date.now() - 16 * 60 * 1000,
+    });
+    for (const suffix of [
+      "&cursor=" + encodeURIComponent(cursor),
+      "&page=archive&cursor=" + encodeURIComponent(cursor),
+      "&page=archive&cursor=forged",
+      "&page=archive&cursor=" + encodeURIComponent(cursor) + "&cursor=another",
+    ]) {
+      const response = await GET(req(suffix));
+      expect(response.status).toBe(400);
+    }
+    expect(mocks.listHistoryPage).not.toHaveBeenCalled();
+  });
+
+  it("does not leak an archive page if the user grant is revoked mid-fetch", async () => {
+    mocks.authorize.mockResolvedValueOnce({
+      access: "read-only", groveUserId: ids.groveUserId,
+      fireflyUserId: ids.fireflyOwner,
+      projectId: ids.projectId, conversationId: ids.conversationId,
+      groveAdmin: { privateClient: "grove" },
+    }).mockRejectedValueOnce(new Error("internal revocation detail"));
+    const response = await GET(req("&page=archive"));
+    expect(response.status).toBe(500);
+    expect(JSON.stringify(await response.json())).not.toContain("revocation detail");
+    expect(mocks.listHistoryPage).toHaveBeenCalledTimes(1);
   });
 });
