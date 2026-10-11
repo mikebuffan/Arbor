@@ -77,6 +77,7 @@ jobs:
       CI: 'true'
       NEXT_TELEMETRY_DISABLED: '1'
       GROVE_API_ENABLED: 'false'
+      OPENAI_API_KEY: 'ci-placeholder-not-a-real-key'
       GROVE_PRIVATE_CHAT_PREVIEW_ENABLED: 'false'
       GROVE_PRIVATE_MODEL_TURN_ENABLED: 'false'
       ARBOR_ARK_ENABLE_LIVE_EXECUTION: 'false'
