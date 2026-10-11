@@ -64,6 +64,10 @@ export type GrovePrivateTranscriptStore = {
   /** Archive-only, not model context. An absent adapter must fail closed. */
   listHistoryPage?(scope: GrovePrivateTranscriptScope, before?: GrovePrivateHistoryKey):
     Promise<GrovePrivateHistoryPage>;
+  /** Explicit human-requested phrase search within ONE authorized conversation.
+   * Not automatically passed to the model and never a global archive sweep. */
+  findSavedPhrase?(scope: GrovePrivateTranscriptScope, phrase: string):
+    Promise<GrovePrivateHistoryPage>;
   persistCompleted(input: GrovePrivateTranscriptScope & {
     requestId: string;
     /** Must be the current DB-issued claim token; never browser-provided. */
@@ -201,6 +205,18 @@ function compareHistoryTimes(a: string, b: string): number {
   return microRemainder(a) - microRemainder(b);
 }
 
+/** Safe PostgREST grammar subset: no filter punctuation, wildcards, markup,
+ * quotes, newlines or control characters. Literal case-insensitive phrase,
+ * not search syntax and NOT permission to read another conversation. */
+export function validateGrovePrivateSearchPhrase(input: unknown): string {
+  if (typeof input !== "string" || input.length < 3 || input.length > 64 ||
+      input.trim() !== input ||
+      !/^[\\p{L}\\p{N}][\\p{L}\\p{N} -]*[\\p{L}\\p{N}]$/u.test(input)) {
+    throw new RouteAccessError(409, "grove_private_history_search_invalid");
+  }
+  return input;
+}
+
 function scopedQuery(supabase: SupabaseClient, scope: GrovePrivateTranscriptScope) {
   return supabase.from("grove_private_turns")
     .select(fields)
@@ -308,6 +324,38 @@ export function createSupabaseGrovePrivateTranscriptStore(
           if (!(timeOrder < 0 || (timeOrder === 0 &&
               id < previous.request_id.toLowerCase())))
             throw new Error("grove_private_history_page_out_of_order");
+        }
+        previous = row;
+      }
+      return { rows: rows.slice(0, 6), hasMore: rows.length > 6 };
+    },
+    async findSavedPhrase(scope, phrase) {
+      assertScope(scope);
+      const literal = validateGrovePrivateSearchPhrase(phrase);
+      const { data, error } = await scopedQuery(groveServiceClient, scope)
+        .or("user_text.ilike.%" + literal + "%,assistant_text.ilike.%" + literal + "%")
+        .order("created_at", { ascending: false })
+        .order("request_id", { ascending: false })
+        .limit(7);
+      if (error) throw error;
+      if (!Array.isArray(data) || data.length > 7)
+        throw new Error("grove_private_history_search_unavailable");
+      const rows = data as GrovePrivateTranscriptRow[];
+      const seen = new Set<string>();
+      let previous: GrovePrivateTranscriptRow | null = null;
+      for (const row of rows) {
+        assertRow(row, scope);
+        if (!row.user_text.toLocaleLowerCase().includes(literal.toLocaleLowerCase()) &&
+            !row.assistant_text.toLocaleLowerCase().includes(literal.toLocaleLowerCase()))
+          throw new Error("grove_private_history_search_unmatched");
+        const id = row.request_id.toLowerCase();
+        if (seen.has(id)) throw new Error("grove_private_history_search_duplicate");
+        seen.add(id);
+        if (previous) {
+          const ordering = compareHistoryTimes(row.created_at, previous.created_at);
+          if (!(ordering < 0 || (ordering === 0 &&
+              id < previous.request_id.toLowerCase())))
+            throw new Error("grove_private_history_search_out_of_order");
         }
         previous = row;
       }
