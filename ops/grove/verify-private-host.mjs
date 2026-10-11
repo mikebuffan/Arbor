@@ -184,7 +184,7 @@ export function inspectPrivateGroveReleaseLayout({
     candidateNoCron,
     sourceNoCronVerified: effectiveNoCron,
     status: !candidateNoCron ? "HOLD_CANDIDATE_HAS_CRONS" :
-      !effectiveNoCron ? "HOLD_INHERITED_FIRE FLY_CONFIG".replace(" ","") :
+      !effectiveNoCron ? "HOLD_INHERITED_FIREFLY_CONFIG" :
       "HOLD_OWNER_RELEASE_AUTHORIZATION",
     readyForDeployment: false,
     readyForPrivateModel: false,
