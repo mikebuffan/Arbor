@@ -25,6 +25,82 @@ jobs:
       - name: Existing private-host checker and no-deployment regressions
         run: |
           node --test ops/grove/verify-private-host.test.mjs ops/grove/source-only-ignore.test.mjs
+      - name: Offline pinned receiver source contracts
+        run: node --test ops/grove/local-lm/local-lm-prep.test.mjs
       - name: Exact branch remains source-only for Vercel
         run: |
           VERCEL_GIT_COMMIT_REF=test/grove-private-talk-readiness-20261011 VERCEL_ENV=production node ops/grove/source-only-ignore.mjs
+
+  private-backend-source:
+    if: github.repository == 'mikebuffan/Arbor'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      CI: 'true'
+      OPENAI_API_KEY: ci-placeholder-not-a-real-key
+      AWS_EC2_METADATA_DISABLED: 'true'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install repository locked Node packages
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.30.3 --activate
+          pnpm install --frozen-lockfile
+      - name: Group 2 to 4 private broker, LM and transcript mock regressions
+        working-directory: apps/backend
+        run: >-
+          pnpm exec vitest run
+          lib/grove/__tests__/privateReadBroker.test.ts
+          lib/grove/__tests__/privateHostIsolation.test.ts
+          lib/grove/__tests__/privateChatRoute.test.ts
+          lib/grove/__tests__/privateConversationLoop.test.ts
+          lib/grove/__tests__/privateLmHostTransport.test.ts
+          lib/grove/__tests__/privateTranscriptStore.test.ts
+          lib/grove/__tests__/groveDeploymentConfig.test.ts
+      - name: Typecheck unchanged private backend
+        working-directory: apps/backend
+        run: pnpm exec tsc --noEmit
+
+  private-phone-source:
+    if: github.repository == 'mikebuffan/Arbor'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      CI: 'true'
+      FLUTTER_SUPPRESS_ANALYTICS: 'true'
+      DART_SUPPRESS_ANALYTICS: 'true'
+      AWS_EC2_METADATA_DISABLED: 'true'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.47.6'
+          cache: true
+      - name: Resolve locked Flutter dependencies
+        working-directory: apps/frontend
+        run: flutter pub get --enforce-lockfile
+      - name: Confirm app lockfile unchanged
+        run: git diff --exit-code -- apps/frontend/pubspec.lock
+      - name: Group 5 private home, owner scope and device-state source tests
+        working-directory: apps/frontend
+        run: >-
+          timeout 300s flutter test --reporter expanded --concurrency=1
+          test/grove_house_navigation_test.dart
+          test/grove_talk_private_boundary_test.dart
+          test/grove_private_auth_boundary_test.dart
+          test/grove_private_project_gate_test.dart
+          test/grove_private_conversations_test.dart
+          test/grove_private_text_page_test.dart
+          test/grove_pending_turn_store_test.dart
+          test/grove_living_window_panel_test.dart
+      - name: Flutter static analysis, no build or device install
+        working-directory: apps/frontend
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
