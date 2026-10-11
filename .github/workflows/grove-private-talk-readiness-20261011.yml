@@ -8,6 +8,12 @@ on:
 permissions:
   contents: read
 
+# Cancel superseded source-only checks instead of compiling multiple unused
+# synthetic APKs for successive review commits. No release or deploy jobs.
+concurrency:
+  group: grove-private-readiness-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   metadata-only:
     if: github.repository == 'mikebuffan/Arbor'
