@@ -468,4 +468,51 @@ void main() {
     }
   });
 
+
+  test('saved phrase search validates exact Grove scope without sending to model', () async {
+    final api = FakeApi(apiUrl)..getResult = {
+      ...history(),
+      'searchMode': 'literal_phrase',
+      'searchedOnlyThisConversation': true,
+      'searchMayBeTruncated': false,
+    };
+    final client = GrovePrivateConversationClient(
+      api: api, config: config, enabled: true,
+    );
+    final result = await client.findSavedPhrase(
+      projectId: project, conversationId: conversation, phrase: 'Ever After',
+    );
+    expect(result.turnsNewestFirst.single.userText, 'Continue our work.');
+    expect(api.path, '/api/grove/chat/history');
+    expect(api.query, {
+      'projectId': project,
+      'conversationId': conversation,
+      'search': 'Ever After',
+    });
+    final calls = api.calls;
+    for (final bad in ['hi', 'foo%bar', 'a.b', '   ', 'hello,world', 'x' * 65]) {
+      await expectLater(client.findSavedPhrase(
+        projectId: project, conversationId: conversation, phrase: bad,
+      ), throwsFormatException);
+    }
+    expect(api.calls, calls);
+    for (final invalid in [
+      {...history(), 'searchedOnlyThisConversation': true},
+      {...history(), 'searchMode': 'literal_phrase',
+        'searchedOnlyThisConversation': false, 'searchMayBeTruncated': false},
+      {...history(), 'searchMode': 'literal_phrase',
+        'searchedOnlyThisConversation': true, 'searchMayBeTruncated': true},
+      {...history(), 'searchMode': 'literal_phrase',
+        'searchedOnlyThisConversation': true, 'searchMayBeTruncated': false,
+        'nextCursor': 'forged'},
+    ]) {
+      expect(() => parseGrovePrivateHistory(invalid,
+        projectId: project, conversationId: conversation, search: true,
+      ), throwsFormatException);
+    }
+    final off = GrovePrivateConversationClient(api: api, config: config);
+    await expectLater(off.findSavedPhrase(projectId: project,
+      conversationId: conversation, phrase: 'Ever After'), throwsStateError);
+  });
+
 }
