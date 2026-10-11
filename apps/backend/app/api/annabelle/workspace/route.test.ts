@@ -94,7 +94,9 @@ describe("Annabelle synthetic editor API boundary", () => {
   });
 
   it("routes an approved fictional edit through the actual atomic workspace owner", async () => {
-    mocks.loadVersionedAnnabelleWorkspace.mockResolvedValue({ workspace, editVersion: 1 });
+    mocks.loadVersionedAnnabelleWorkspace.mockResolvedValue({
+      workspace: { ...workspace, workingDelta: "Synthetic prose." }, editVersion: 1,
+    });
     const result = await POST(request("POST", {
       action: "save", projectId, requestId, expectedVersion: 0,
       workingDelta: "Synthetic prose.",
