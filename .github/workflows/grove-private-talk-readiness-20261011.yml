@@ -56,6 +56,7 @@ jobs:
         run: >-
           pnpm exec vitest run
           lib/grove/__tests__/privateReadBroker.test.ts
+          lib/grove/__tests__/privateConversationDiscovery.test.ts
           lib/grove/__tests__/privateHostIsolation.test.ts
           lib/grove/__tests__/privateChatRoute.test.ts
           lib/grove/__tests__/privateConversationDeleteRoute.test.ts
