@@ -9,6 +9,8 @@ import '../config/arbor_config.dart';
 import 'environment_panel.dart';
 import 'environment_tokens.dart';
 import 'grove_ark_handoff.dart';
+import 'grove_app_mode.dart';
+import 'grove_private_conversations.dart';
 
 /// Foreground-only read of the active user's selected project's saved work.
 /// This neither claims an active worker nor starts one.
@@ -22,7 +24,12 @@ Future<GroveArkHandoff> readCurrentGroveArkHandoff() async {
   if (Supabase.instance.client.auth.currentUser?.id != userId) {
     throw StateError('Signed-in user changed before handoff read.');
   }
-  final api = ArborApiClient(baseUrl: ArborConfig.apiBaseUrl);
+  // Standalone Grove must not send its private bearer token through redirects.
+  // Preserve the public Arbor flavor's existing networking behavior.
+  final api = ArborApiClient(
+    baseUrl: ArborConfig.apiBaseUrl,
+    httpClient: groveStandalone ? GrovePrivateNoRedirectClient() : null,
+  );
   try {
     final result = await GroveArkHandoffReader(api).read(session.projectId);
     final activeUser = Supabase.instance.client.auth.currentUser?.id;
