@@ -347,3 +347,25 @@ test("Grove private Talk key audit cannot deploy in any stage or project", () =>
     }
   }
 });
+
+test("Grove and ARK STOP drafts are BOTH source-only on every project/stage", () => {
+  const protectedBranches = [
+    "test/grove-private-talk-readiness-20261011",
+    "fix/ark-conversation-control-hold-20261011",
+  ];
+  for (const ref of protectedBranches) {
+    for (const stage of ["preview", "production", "development", ""]) {
+      for (const id of [
+        "", "prj_nw2X0SyLn4e8CXWZ83MEs4jwn1JN",
+        project, "prj_JArYlugmdFovY10CxZ0LEJmcrsKC",
+      ]) {
+        assert.equal(exitCode({
+          VERCEL_ENV: stage, VERCEL_PROJECT_ID: id,
+          VERCEL_GIT_COMMIT_REF: ref,
+        }), 0, ref + " " + stage + " " + id);
+      }
+    }
+  }
+  // Reaffirm unrelated production refs were NOT disabled while merging fences.
+  assert.equal(exitCode({ VERCEL_GIT_COMMIT_REF: "main" }), 1);
+});
