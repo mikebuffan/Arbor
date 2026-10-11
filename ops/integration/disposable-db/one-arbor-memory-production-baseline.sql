@@ -52,7 +52,7 @@ AS $function$
     mi.pinned desc,
     mi.importance desc
   limit greatest(1, least(coalesce(p_match_count, 24), 100));
-$function$
+$function$;
 
 REVOKE ALL ON FUNCTION public.match_memories_v3(uuid,uuid,uuid,vector,integer) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.match_memories_v3(uuid,uuid,uuid,vector,integer) TO anon, authenticated, service_role;
