@@ -1,5 +1,7 @@
 import "server-only";
 
+import { createHmac, timingSafeEqual } from "node:crypto";
+
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { RouteAccessError } from "@/lib/auth/routeAuthorization";
 import {
@@ -372,7 +374,86 @@ export type GrovePrivateConversationsResult = {
   projectId: string;
   conversations: GrovePrivateConversationChoice[];
   mayBeTruncated: boolean;
+  /** Archive-only, never included on the legacy discovery route. */
+  nextCursor?: string | null;
 };
+type ConversationArchiveScope = {
+  groveUserId: string; fireflyUserId: string; projectId: string;
+};
+type ConversationArchiveKey = { updatedAt: string; conversationId: string };
+const CONVERSATION_CURSOR_TTL_MS = 15 * 60 * 1000;
+const timestampPattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$/;
+function assertArchiveKey(key: ConversationArchiveKey): void {
+  if (!key || typeof key.updatedAt !== "string" ||
+      key.updatedAt.length > 40 || !timestampPattern.test(key.updatedAt) ||
+      !Number.isFinite(Date.parse(key.updatedAt)) ||
+      typeof key.conversationId !== "string" || !validUuid.test(key.conversationId))
+    throw new RouteAccessError(409, "grove_private_conversations_cursor_invalid");
+}
+function archiveSignature(payload: string, scope: ConversationArchiveScope, secret: string): string {
+  const derived = createHmac("sha256", secret).update("grove-conversation-discovery-v1").digest();
+  return createHmac("sha256", derived)
+    .update([scope.groveUserId.toLowerCase(), scope.fireflyUserId.toLowerCase(),
+      scope.projectId.toLowerCase(), payload].join(":"))
+    .digest("hex");
+}
+function assertArchiveSecret(secret: string): void {
+  if (typeof secret !== "string" || secret.length < 16)
+    throw new RouteAccessError(500, "grove_private_conversations_unavailable");
+}
+/** Cursor only locates a page. Each request still requires fresh full owner authorization. */
+export function issueGroveConversationArchiveCursor(input: {
+  scope: ConversationArchiveScope; key: ConversationArchiveKey;
+  secret: string; now?: number;
+}): string {
+  assertArchiveKey(input.key); assertArchiveSecret(input.secret);
+  const now = input.now ?? Date.now();
+  if (!Number.isSafeInteger(now) || now < 0)
+    throw new RouteAccessError(500, "grove_private_conversations_unavailable");
+  const payload = Buffer.from(JSON.stringify({
+    v: 1, t: input.key.updatedAt,
+    id: input.key.conversationId.toLowerCase(),
+    exp: now + CONVERSATION_CURSOR_TTL_MS,
+  }), "utf8").toString("base64url");
+  return payload + "." + archiveSignature(payload, input.scope, input.secret);
+}
+export function readGroveConversationArchiveCursor(input: {
+  scope: ConversationArchiveScope; cursor: string;
+  secret: string; now?: number;
+}): ConversationArchiveKey {
+  assertArchiveSecret(input.secret);
+  const reject = (): never => {
+    throw new RouteAccessError(409, "grove_private_conversations_cursor_invalid");
+  };
+  if (typeof input.cursor !== "string" || input.cursor.length > 768 ||
+      !/^[A-Za-z0-9_-]{1,640}\.[0-9a-f]{64}$/.test(input.cursor)) reject();
+  const [payload, signature] = input.cursor.split(".");
+  const expected = archiveSignature(payload, input.scope, input.secret);
+  if (!timingSafeEqual(Buffer.from(signature, "hex"), Buffer.from(expected, "hex"))) reject();
+  let decoded: unknown;
+  try { decoded = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")); }
+  catch { reject(); }
+  if (!decoded || typeof decoded !== "object" || Array.isArray(decoded)) reject();
+  const data = decoded as Record<string, unknown>;
+  const now = input.now ?? Date.now();
+  if (data.v !== 1 || typeof data.exp !== "number" ||
+      !Number.isSafeInteger(data.exp) || data.exp <= now ||
+      data.exp > now + CONVERSATION_CURSOR_TTL_MS ||
+      typeof data.t !== "string" || typeof data.id !== "string") reject();
+  const key = { updatedAt: data.t as string, conversationId: data.id as string };
+  assertArchiveKey(key);
+  return key;
+}
+function compareArchiveTime(a: string, b: string): number {
+  const whole = Date.parse(a) - Date.parse(b);
+  if (whole) return whole;
+  const remainder = (value: string): number => {
+    const digits = /:\d{2}\.(\d{1,6})(?:Z|[+-]\d{2}:\d{2})$/.exec(value)?.[1] ?? "";
+    return Number(digits.padEnd(6, "0").slice(3) || "0");
+  };
+  return remainder(a) - remainder(b);
+}
+
 /**
  * Explicit NEW-conversation action, not a new conversation or memory system.
  * Reuses the existing Firefly conversations schema, but ONLY from the verified
@@ -460,15 +541,29 @@ export async function deletePrivateGroveConversation(
 export async function readPrivateGroveConversations(
   req: Request,
   projectId: string,
+  archive?: { enabled: true; cursor?: string },
 ): Promise<GrovePrivateConversationsResult> {
   if (!validUuid.test(projectId))
     throw new RouteAccessError(404, "grove_invalid_project_scope");
   const { fireflyAdmin, fireflyUserId, groveUserId, groveAdmin } =
     await authorizedPrivateGroveProject(req, projectId);
-  const { data, error } = await fireflyAdmin.from("conversations")
+  const archiveScope = { groveUserId, fireflyUserId, projectId };
+  const secret = archive?.enabled ? process.env.GROVE_SERVICE_ROLE_KEY ?? "" : "";
+  const before = archive?.cursor
+    ? readGroveConversationArchiveCursor({
+        scope: archiveScope, cursor: archive.cursor, secret,
+      }) : undefined;
+  // Use a keyset before the ORDER/LIMIT, never an unbounded OFFSET.
+  let query = fireflyAdmin.from("conversations")
     .select("id,user_id,project_id,created_at,updated_at")
     .eq("user_id", fireflyUserId)
-    .eq("project_id", projectId)
+    .eq("project_id", projectId);
+  if (before) {
+    query = query.or("updated_at.lt." + before.updatedAt +
+      ",and(updated_at.eq." + before.updatedAt +
+      ",id.lt." + before.conversationId + ")");
+  }
+  const { data, error } = await query
     .order("updated_at", { ascending: false })
     .order("id", { ascending: false })
     .limit(21);
@@ -477,11 +572,14 @@ export async function readPrivateGroveConversations(
   // The shared Firefly conversation may remain after Grove-only deletion.
   // Once private Talk is enabled, an absent/failed tombstone schema HOLDS
   // discovery rather than accidentally resurrecting deleted Grove chats.
+  // The 21st row is LOOKAHEAD, not part of the current archive page.
+  // Always validate it, but never allow a cursor to skip a hidden raw row.
+  const viewed = archive?.enabled ? data.slice(0, 20) : data;
   const hidden = new Set<string>();
   if ((process.env.GROVE_PRIVATE_CHAT_PREVIEW_ENABLED === "true" ||
        process.env.GROVE_PRIVATE_CONVERSATION_DELETE_ENABLED === "true") &&
-      data.length > 0) {
-    const ids = data.map(row => row?.id);
+      viewed.length > 0) {
+    const ids = viewed.map(row => row?.id);
     if (ids.some(id => typeof id !== "string" || !validUuid.test(id)))
       throw new RouteAccessError(500, "grove_private_delete_fence_unavailable");
     const { data: tombstones, error: tombstoneError } = await groveAdmin
@@ -510,18 +608,35 @@ export async function readPrivateGroveConversations(
     throw new RouteAccessError(403, "grove_private_access_changed");
   const seen = new Set<string>();
   const records: GrovePrivateConversationChoice[] = [];
+  let previous: { updated_at: string; id: string } | null = null;
   for (const row of data) {
     if (!row || row.user_id !== fireflyUserId ||
         row.project_id !== projectId ||
         typeof row.id !== "string" || !validUuid.test(row.id) ||
-        seen.has(row.id) ||
+        seen.has(row.id.toLowerCase()) ||
         typeof row.created_at !== "string" ||
         !Number.isFinite(Date.parse(row.created_at)) ||
         typeof row.updated_at !== "string" ||
         !Number.isFinite(Date.parse(row.updated_at)))
       throw new RouteAccessError(500, "grove_private_conversations_unavailable");
-    seen.add(row.id);
-    if (hidden.has(row.id.toLowerCase())) continue;
+    seen.add(row.id.toLowerCase());
+    if (archive?.enabled) {
+      if (before) {
+        const timeOrder = compareArchiveTime(row.updated_at, before.updatedAt);
+        if (!(timeOrder < 0 || (timeOrder === 0 &&
+            row.id.toLowerCase() < before.conversationId.toLowerCase())))
+          throw new RouteAccessError(500, "grove_private_conversations_unavailable");
+      }
+      if (previous) {
+        const timeOrder = compareArchiveTime(row.updated_at, previous.updated_at);
+        if (!(timeOrder < 0 || (timeOrder === 0 &&
+            row.id.toLowerCase() < previous.id.toLowerCase())))
+          throw new RouteAccessError(500, "grove_private_conversations_unavailable");
+      }
+    }
+    previous = row;
+    if (hidden.has(row.id.toLowerCase()) || (archive?.enabled && records.length >= 20))
+      continue;
     if (records.length < 20)
       records.push({
         conversationId: row.id,
@@ -534,6 +649,13 @@ export async function readPrivateGroveConversations(
     conversations: records,
     // 21st raw row or a tombstone near the front can hide older accessible
     // conversations; never claim a complete listing in that case.
-    mayBeTruncated: data.length > 20 || hidden.size > 0,
+    mayBeTruncated: archive?.enabled ? data.length > 20 :
+      data.length > 20 || hidden.size > 0,
+    ...(archive?.enabled ? { nextCursor: data.length > 20
+      ? issueGroveConversationArchiveCursor({
+          scope: archiveScope,
+          key: { updatedAt: data[19].updated_at, conversationId: data[19].id },
+          secret,
+        }) : null } : {}),
   };
 }
