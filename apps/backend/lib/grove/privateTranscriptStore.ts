@@ -195,7 +195,7 @@ function compareHistoryTimes(a: string, b: string): number {
   const whole = Date.parse(a) - Date.parse(b);
   if (whole) return whole;
   const microRemainder = (value: string): number => {
-    const fraction = /:\\d{2}\\.(\\d{1,6})(?:Z|[+-]\\d{2}:\\d{2})$/.exec(value)?.[1] ?? "";
+    const fraction = /:\d{2}\.(\d{1,6})(?:Z|[+-]\d{2}:\d{2})$/.exec(value)?.[1] ?? "";
     return Number(fraction.padEnd(6, "0").slice(3) || "0");
   };
   return microRemainder(a) - microRemainder(b);
