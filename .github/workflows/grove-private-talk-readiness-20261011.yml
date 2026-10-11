@@ -104,3 +104,42 @@ jobs:
       - name: Flutter static analysis, no build or device install
         working-directory: apps/frontend
         run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+  conversation-delete-disposable:
+    if: github.repository == 'mikebuffan/Arbor'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    permissions:
+      contents: read
+    env:
+      CI: 'true'
+      AWS_EC2_METADATA_DISABLED: 'true'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Test proposed user-only deletion in isolated PostgreSQL 17.6
+        shell: bash
+        run: |
+          set -euo pipefail
+          name="grove-delete-disposable-$GITHUB_RUN_ID"
+          trap 'docker rm -f "$name" >/dev/null 2>&1 || true' EXIT
+          timeout 120s docker pull postgres:17.6
+          docker run --detach --name "$name" --network none \
+            --env POSTGRES_PASSWORD=synthetic-disposable-only \
+            --mount "type=bind,source=$GITHUB_WORKSPACE,target=/source,readonly" \
+            postgres:17.6
+          ready=false
+          for attempt in {1..30}; do
+            if docker exec "$name" pg_isready --host 127.0.0.1 --username postgres; then
+              ready=true
+              break
+            fi
+            sleep 1
+          done
+          test "$ready" = true
+          docker exec "$name" psql --username postgres --dbname postgres \
+            --set ON_ERROR_STOP=on \
+            --file /source/ops/grove/disposable-db/private-conversation-deletion-acceptance.sql
+      - name: Assert fixtures did not rewrite source
+        run: git diff --exit-code
