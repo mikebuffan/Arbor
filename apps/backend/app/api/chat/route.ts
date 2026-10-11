@@ -239,25 +239,6 @@ export async function POST(req: Request) {
       userText,
     });
 
-    // Arbor v1 automatic-learning signal ingest. This is deliberately
-    // best-effort: memory learning may fail without taking chat down.
-    await ingestMemorySignals({
-      projectId,
-      userId,
-      threadId: convoId,
-      messageId: resolvedTurn.ids.userMessageId,
-      text: userText,
-    }).catch((error) => {
-      console.warn("[memory:signals] ingest failed", {
-        projectId,
-        conversationId: convoId,
-        error:
-          error instanceof Error
-            ? error.message
-            : "unknown",
-      });
-    });
-
     const completedTurn = await getCompletedAssistantTurn({
       store: turnStore,
       messageId: resolvedTurn.ids.assistantMessageId,
@@ -311,6 +292,27 @@ export async function POST(req: Request) {
         { status: 200, headers: getCorsHeaders(req) },
       );
     }
+
+    // A conversational pause/refusal must bypass routine memory processing.
+    // Arbor v1 automatic-learning signal ingest. This is deliberately
+    // best-effort: memory learning may fail without taking chat down.
+    await ingestMemorySignals({
+      projectId,
+      userId,
+      threadId: convoId,
+      messageId: resolvedTurn.ids.userMessageId,
+      text: userText,
+    }).catch((error) => {
+      console.warn("[memory:signals] ingest failed", {
+        projectId,
+        conversationId: convoId,
+        error:
+          error instanceof Error
+            ? error.message
+            : "unknown",
+      });
+    });
+
 
     let agencyState = await beginAgencySession({
       supabase,
