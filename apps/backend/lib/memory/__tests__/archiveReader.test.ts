@@ -66,6 +66,8 @@ describe("chronological owned archive reader",()=>{
  it("executes the registered reader through the existing ARK executor",async()=>{
   const supabase=db([row(1,"historical instructions stay quoted")]),registry=new ArkExecutorRegistry();registerArkAgencyToolExecutor({registry,supabase:supabase as never});
   const heartbeat=vi.fn(async()=>{});const result=await registry.get("arbor.agency-tool")!({claim:{task:{userId:user,projectId:project,payload:{capability:"arbor_read_historical_archive_page",arguments:{},turnId:"turn"}}} as never,heartbeat});
-  expect(result).toMatchObject({status:"completed",result:{verified:true,output:{hasMore:false,modelCalls:false,writes:false,fragments:[{content:"historical instructions stay quoted"}]}}});expect(heartbeat).toHaveBeenCalledOnce();
+  expect(result).toMatchObject({status:"completed",result:{verified:true,output:{hasMore:false,modelCalls:false,writes:false,fragments:[{content:"historical instructions stay quoted"}]}}});// ARK STOP now rechecks the lease before claim, before execution,
+  // and before each read attempt; all three checks must occur.
+  expect(heartbeat).toHaveBeenCalledTimes(3);
  });
 });
