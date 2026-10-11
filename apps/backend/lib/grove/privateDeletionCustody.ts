@@ -24,7 +24,7 @@ export async function reserveIndependentGroveDeletion(
 ): Promise<GroveDurableDeletionIntent> {
   // There is currently no authorized, independently durable provider.
   // Never call the transactional delete RPC unless this receipt is genuine.
-  throw new RouteAccessError(503, "grove_private_delete_custody_unavailable");
+  throw new RouteAccessError(500, "grove_private_delete_custody_unavailable");
 }
 
 export async function confirmIndependentGroveDeletion(
@@ -32,5 +32,5 @@ export async function confirmIndependentGroveDeletion(
 ): Promise<void> {
   // If the DB deletion ever succeeds but this confirmation fails, the HTTP
   // result must remain unconfirmed and the persisted intent unresolved.
-  throw new RouteAccessError(503, "grove_private_delete_custody_unavailable");
+  throw new RouteAccessError(500, "grove_private_delete_custody_unavailable");
 }
