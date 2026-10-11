@@ -35,6 +35,8 @@ class _FakePrivateClient extends GrovePrivateConversationClient {
   int archiveReads = 0;
   bool hasOlder = false;
   int historyReads = 0;
+  int archivedTurnReads = 0;
+  bool hasOlderMessages = false;
   int sends = 0;
   int creations = 0;
   int deletions = 0;
@@ -134,7 +136,7 @@ class _FakePrivateClient extends GrovePrivateConversationClient {
     return GrovePrivateHistory(
       projectId: projectId,
       conversationId: conversationId,
-      mayBeTruncated: false,
+      mayBeTruncated: hasOlderMessages,
       turnsNewestFirst: [
         if (showSaved) ...saved.reversed,
         GrovePrivateCompleteTurn(
@@ -145,6 +147,41 @@ class _FakePrivateClient extends GrovePrivateConversationClient {
           createdAt: DateTime.utc(2026, 9, 23),
         ),
       ],
+    );
+  }
+
+  @override
+  Future<GrovePrivateHistory> loadArchive({
+    required String projectId,
+    required String conversationId,
+    String? cursor,
+  }) async {
+    archivedTurnReads++;
+    final latest = GrovePrivateCompleteTurn(
+      requestId: requestId,
+      userText: 'Earlier private question',
+      assistantText: 'Earlier private answer',
+      replyVerification: 'unverified_model_text',
+      createdAt: DateTime.utc(2026, 9, 23),
+    );
+    if (cursor == null) {
+      return GrovePrivateHistory(
+        projectId: projectId, conversationId: conversationId,
+        mayBeTruncated: true, nextCursor: 'fixture-signed-cursor',
+        turnsNewestFirst: [latest],
+      );
+    }
+    expect(cursor, 'fixture-signed-cursor');
+    return GrovePrivateHistory(
+      projectId: projectId, conversationId: conversationId,
+      mayBeTruncated: false,
+      turnsNewestFirst: [GrovePrivateCompleteTurn(
+        requestId: '00000000-0000-4000-8000-000000000009',
+        userText: 'Question from last year',
+        assistantText: 'Older saved answer',
+        replyVerification: 'unverified_model_text',
+        createdAt: DateTime.utc(2025, 6, 1),
+      )],
     );
   }
 
@@ -215,6 +252,26 @@ Future<void> roomForRecovery(WidgetTester tester) async {
 }
 
 void main() {
+  testWidgets('Grove manually pages older saved messages in existing private Text', (tester) async {
+    await roomForRecovery(tester);
+    final client = _FakePrivateClient()..hasOlderMessages = true;
+    await tester.pumpWidget(recoveryPhone(client, pendingStore(FakeDeviceStringStore())));
+    await tester.pumpAndSettle();
+    expect(find.text('Load older messages'), findsOneWidget);
+    expect(client.archivedTurnReads, 0);
+    await tester.tap(find.text('Load older messages'));
+    await tester.pumpAndSettle();
+    expect(client.archivedTurnReads, 1);
+    expect(find.text('Load older messages'), findsOneWidget);
+    await tester.tap(find.text('Load older messages'));
+    await tester.pumpAndSettle();
+    expect(client.archivedTurnReads, 2);
+    expect(find.text('Question from last year'), findsOneWidget);
+    expect(find.text('Older saved answer'), findsOneWidget);
+    expect(find.text('Load older messages'), findsNothing);
+    expect(client.sends, 0);
+  });
+
   testWidgets('Grove manually loads an older authorized picker entry', (tester) async {
     await roomForRecovery(tester);
     final client = _FakePrivateClient()..hasOlder = true;
