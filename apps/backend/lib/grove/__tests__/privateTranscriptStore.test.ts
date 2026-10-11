@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   createSupabaseGrovePrivateTranscriptStore,
+  issueGrovePrivateHistoryCursor, readGrovePrivateHistoryCursor,
   selectPrivateModelHistory, transcriptRowToUnverifiedReply,
   type GrovePrivateTranscriptRow, type GrovePrivateTranscriptStore,
 } from "../privateTranscriptStore";
@@ -1060,5 +1061,95 @@ describe("Supabase Grove service store scope (no real database)", () => {
     await expect(store.getCompleted({
       ...scope,conversationId:"wrong",requestId:firstId,
     })).rejects.toThrow("grove_transcript_scope_invalid");
+  });
+});
+
+
+describe("private Grove archive pages — scope, expiry and no LM widening", () => {
+  const secret = "test-only-grove-private-service-key-never-live";
+  it("round-trips a tamper-evident 15-minute cursor bound to exact verified scope", () => {
+    const marker = { createdAt: "2025-06-01T10:00:00.123456+00:00", requestId: firstId };
+    const token = issueGrovePrivateHistoryCursor({
+      scope, key: marker, secret, now: 1_000_000,
+    });
+    expect(token).not.toContain("Private user");
+    expect(readGrovePrivateHistoryCursor({
+      scope, cursor: token, secret, now: 1_000_001,
+    })).toEqual(marker);
+    const changedScope = { ...scope, conversationId: otherConversation };
+    expect(() => readGrovePrivateHistoryCursor({
+      scope: changedScope, cursor: token, secret, now: 1_000_001,
+    })).toThrow("grove_private_history_cursor_invalid");
+    expect(() => readGrovePrivateHistoryCursor({
+      scope, cursor: token.slice(0, -1) + (token.endsWith("0") ? "1" : "0"),
+      secret, now: 1_000_001,
+    })).toThrow("grove_private_history_cursor_invalid");
+    expect(() => readGrovePrivateHistoryCursor({
+      scope, cursor: token, secret, now: 1_900_000,
+    })).toThrow("grove_private_history_cursor_invalid");
+    expect(() => readGrovePrivateHistoryCursor({
+      scope, cursor: token, secret: "other-secret-key-for-testing",
+      now: 1_000_001,
+    })).toThrow("grove_private_history_cursor_invalid");
+  });
+
+  it("reads six older rows using a seven-row keyset lookahead under all three scope filters", async () => {
+    const data = Array.from({ length: 7 }, (_, i) => ({
+      ...row({
+        requestId: "00000000-0000-4000-8000-" + (i + 100).toString().padStart(12, "0"),
+        userText: "Saved user " + i, assistantText: "Saved reply " + i,
+      }),
+      created_at: "2026-09-" + String(30 - i).padStart(2, "0") + "T12:00:00Z",
+    }));
+    const chain: any = {
+      select: vi.fn(), eq: vi.fn(), or: vi.fn(), order: vi.fn(),
+      limit: vi.fn(async () => ({ data, error: null })),
+    };
+    chain.select.mockReturnValue(chain);
+    chain.eq.mockReturnValue(chain);
+    chain.or.mockReturnValue(chain);
+    chain.order.mockReturnValue(chain);
+    const from = vi.fn(() => chain);
+    const store = createSupabaseGrovePrivateTranscriptStore({ from } as never);
+    const first = await store.listHistoryPage!(scope);
+    expect(first.rows).toHaveLength(6);
+    expect(first.hasMore).toBe(true);
+    expect(chain.limit).toHaveBeenCalledWith(7);
+    expect(chain.eq).toHaveBeenCalledWith("grove_user_id", scope.groveUserId);
+    expect(chain.eq).toHaveBeenCalledWith("firefly_project_id", scope.projectId);
+    expect(chain.eq).toHaveBeenCalledWith("firefly_conversation_id", scope.conversationId);
+    expect(chain.or).not.toHaveBeenCalled();
+    const before = { createdAt: "2026-10-01T12:00:00Z", requestId: firstId };
+    await store.listHistoryPage!(scope, before);
+    expect(chain.or).toHaveBeenCalledWith(
+      "created_at.lt.2026-10-01T12:00:00Z,and(created_at.eq.2026-10-01T12:00:00Z,request_id.lt." + firstId + ")",
+    );
+    expect(from).toHaveBeenCalledWith("grove_private_turns");
+  });
+
+  it("rejects misplaced, repeated, nonchronological or foreign provider rows", async () => {
+    const normal = row({ requestId: firstId, userText: "Saved", assistantText: "Reply" });
+    const chain: any = {
+      select: vi.fn(), eq: vi.fn(), order: vi.fn(),
+      limit: vi.fn(async () => ({ data: [normal], error: null })),
+    };
+    chain.select.mockReturnValue(chain);
+    chain.eq.mockReturnValue(chain);
+    chain.order.mockReturnValue(chain);
+    const store = createSupabaseGrovePrivateTranscriptStore({
+      from: vi.fn(() => chain),
+    } as never);
+    const before = { createdAt: "2026-09-22T12:00:00Z", requestId: firstId };
+    chain.or = vi.fn(() => chain);
+    await expect(store.listHistoryPage!(scope, before))
+      .rejects.toThrow("grove_private_history_page_out_of_range");
+    chain.limit.mockResolvedValueOnce({ data: [normal, normal], error: null });
+    await expect(store.listHistoryPage!(scope))
+      .rejects.toThrow("grove_private_history_duplicate");
+    chain.limit.mockResolvedValueOnce({
+      data: [{ ...normal, grove_user_id: otherConversation }], error: null,
+    });
+    await expect(store.listHistoryPage!(scope))
+      .rejects.toThrow("grove_transcript_scope_invalid");
   });
 });
