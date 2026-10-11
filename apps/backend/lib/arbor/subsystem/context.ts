@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadEditorialContext, editorialContextToPromptBlock, chapterNumberFromRequest } from "../annabelle/editorialContext";
+import { ANNABELLE_INTIMACY_SCENE_RULES } from "../annabelle/intimacyMechanics";
 import { resolveSubsystemCue } from "./cues";
 import {
   loadSubsystemState,
@@ -105,6 +106,7 @@ export function composeArborSystemInjection(input: {
     input.activeSubsystem === "annabelle"
       ? ANNABELLE_RULES
       : ARBOR_RULES,
+    input.activeSubsystem === "annabelle" ? ANNABELLE_INTIMACY_SCENE_RULES : "",
     input.annabelleWorkspaceBlock ?? "",
     input.activeSubsystem === "annabelle" ? input.editorialContextBlock ?? "" : "",
   ]

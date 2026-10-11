@@ -151,6 +151,11 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
     await tester.tap(find.text('Back to the Grove'));
     await tester.pump(const Duration(milliseconds: 300));
+    // The shell now protects every exit route; confirm loss deliberately.
+    expect(find.text('Leave Annabelle’s kitchen?'), findsOneWidget);
+    expect(find.text('unsaved scene note'), findsOneWidget);
+    await tester.tap(find.text('Leave without saving'));
+    await tester.pump(const Duration(milliseconds: 300));
     await tester.ensureVisible(find.widgetWithText(OutlinedButton, 'Kitchen'));
     await tester.pump(const Duration(milliseconds: 200));
     await tester.tap(find.widgetWithText(OutlinedButton, 'Kitchen'));

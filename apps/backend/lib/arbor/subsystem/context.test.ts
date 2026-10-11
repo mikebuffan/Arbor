@@ -39,4 +39,30 @@ describe("canonical Arbor injection ordering", () => {
     );
     expect(rendered).toContain("do not create a separate Annabelle identity");
   });
+
+  it("keeps intimate scene craft in Annabelle only, after canonical identity", () => {
+    const annabelle = composeArborSystemInjection({
+      activeSubsystem: "annabelle",
+      canonicalSelfModelBlock: "CANONICAL_SELF_MODEL",
+      annabelleWorkspaceBlock: "SCOPED_ANNABELLE_WORKSPACE",
+    });
+    const arbor = composeArborSystemInjection({
+      activeSubsystem: "arbor",
+      canonicalSelfModelBlock: "CANONICAL_SELF_MODEL",
+    });
+    const cue = "ANNABELLE — ADULT INTIMACY / SEXUAL FELT-LIFE SCENE CRAFT";
+    expect(annabelle).toContain(cue);
+    expect(annabelle.indexOf("CANONICAL_SELF_MODEL")).toBeLessThan(
+      annabelle.indexOf(cue),
+    );
+    expect(annabelle.indexOf(cue)).toBeLessThan(
+      annabelle.indexOf("SCOPED_ANNABELLE_WORKSPACE"),
+    );
+    expect(annabelle).toContain("prior assent");
+    expect(annabelle).toContain("STOP ends the interaction");
+    expect(annabelle).toContain("not permission for autonomous manuscript edits");
+    expect(arbor).not.toContain(cue);
+    expect(arbor).toContain("ACTIVE SUBSYSTEM: ARBOR.");
+  });
+
 });

@@ -2,6 +2,7 @@
 // One existing isolated test project may build this exact branch as Preview.
 // This exception grants no runtime credentials, database access or model budget.
 const branches = new Set([
+  "fix/annabelle-sexual-felt-life-sequence-20261010",
   "test/grove-android-debug-20261010",
   "fix/grove-private-refresh-revocation-20261009",
   "test/grove-group5-rooms-20261010",
