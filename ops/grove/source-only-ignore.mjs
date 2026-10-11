@@ -5,6 +5,7 @@ const branches = new Set([
   "test/grove-private-talk-readiness-20261011",
   "fix/ark-conversation-control-hold-20261011",
   "review/one-arbor-foundation-source-compose-20261011",
+  "review/grove-private-backend-no-cron-20261011",
   "fix/one-arbor-plan-first-workflow-20261010",
   "review/d10-e09-authenticated-ci-readback-20261010",
   "test/d10-e09-reviewed-outcome-recommendation-20261010",
