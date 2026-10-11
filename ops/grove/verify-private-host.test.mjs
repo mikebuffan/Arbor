@@ -4,6 +4,7 @@ import {
   assertPrivateGroveOrigin, verifyPrivateGroveHost,
   inspectPrivateGroveTalkKeyMetadata, PRIVATE_GROVE_TALK_KEY_GROUPS,
   inspectGroveRestoreDeletionCoverage, inspectPrivateGroveReleaseLayout,
+  inspectGroveBackupSnapshotRetention, GROVE_BACKUP_MAX_RETENTION_DAYS,
 } from "./verify-private-host.mjs";
 
 const origin = "https://grove-private-api.example.org";
@@ -284,5 +285,73 @@ test("wrong project, unsupported path, missing config or bad ignore fails closed
       assert.equal(inspectPrivateGroveReleaseLayout(input).status,
         "HOLD_CANDIDATE_HAS_CRONS");
     }
+  }
+});
+
+
+const backupNow = "2026-10-11T12:00:00.000Z";
+const backup = (snapshotId, createdAtUtc, encryptedAtRest=true) =>
+  ({snapshotId,createdAtUtc,encryptedAtRest});
+test("backup policy is thirty days but active conversation content never expires here",()=>{
+  assert.equal(GROVE_BACKUP_MAX_RETENTION_DAYS,30);
+  const result=inspectGroveBackupSnapshotRetention({
+    nowUtc:backupNow,
+    snapshots:[
+      backup("today","2026-10-11T12:00:00.000Z"),
+      backup("thirty-days","2026-09-11T12:00:00.000Z"),
+    ],
+  });
+  assert.equal(result.maxSnapshotRetentionDays,30);
+  assert.equal(result.activeConversationAgeLimitDays,null);
+  assert.equal(result.expiredSnapshotCount,0);
+  assert.equal(result.metadataWithinPolicy,true);
+  assert.equal(result.approvedForRestore,false);
+  assert.equal(result.automatedCleanupImplemented,false);
+  assert.equal(result.verifiedProviderErasure,false);
+});
+test("31-day backup is marked for cleanup, not silently deleted",()=>{
+  const result=inspectGroveBackupSnapshotRetention({
+    nowUtc:backupNow,
+    snapshots:[backup("old","2026-09-10T12:00:00.000Z")],
+  });
+  assert.equal(result.status,"HOLD_EXPIRED_BACKUPS_REQUIRE_CLEANUP");
+  assert.equal(result.expiredSnapshotCount,1);
+  assert.equal(result.cleanupAuthorized,false);
+  assert.equal(result.mayServePrivateContent,false);
+});
+test("unencrypted copies and future-dated backup stamps fail closed",()=>{
+  const plain=inspectGroveBackupSnapshotRetention({
+    nowUtc:backupNow,
+    snapshots:[backup("plain","2026-10-10T12:00:00.000Z",false)],
+  });
+  assert.equal(plain.unencryptedSnapshotCount,1);
+  assert.equal(plain.status,"HOLD_BACKUPS_NOT_ENCRYPTED");
+  const future=inspectGroveBackupSnapshotRetention({
+    nowUtc:backupNow,
+    snapshots:[backup("tomorrow","2026-10-12T12:00:00.000Z")],
+  });
+  assert.equal(future.status,"HOLD_INVALID_SNAPSHOT_TIMELINE");
+  assert.equal(future.approvedForRestore,false);
+});
+test("no inventory cannot be misrepresented as encrypted provider backup compliance",()=>{
+  const result=inspectGroveBackupSnapshotRetention({
+    nowUtc:backupNow, snapshots:[],
+  });
+  assert.equal(result.status,"HOLD_NO_BACKUP_EVIDENCE");
+  assert.equal(result.verifiedProviderErasure,false);
+  assert.equal(result.approvedForRestore,false);
+});
+test("reject malformed, duplicate, content-bearing or oversized backup metadata",()=>{
+  for (const input of [
+    null,{nowUtc:"today",snapshots:[]},
+    {nowUtc:"2026-02-30T12:00:00.000Z",snapshots:[]},
+    {nowUtc:backupNow,snapshots:[backup("a","2026-10-10T12:00:00.000Z"),backup("a","2026-10-10T12:00:00.000Z")]},
+    {nowUtc:backupNow,snapshots:[{...backup("a","2026-10-10T12:00:00.000Z"),messageText:"private"}]},
+    {nowUtc:backupNow,snapshots:[backup("http://secret.example","2026-10-10T12:00:00.000Z")]},
+    {nowUtc:backupNow,snapshots:[backup("a","2026-10-32T12:00:00.000Z")]},
+    {nowUtc:backupNow,snapshots:Array.from({length:101},(_,i)=>backup("id"+i,backupNow))},
+  ]) {
+    assert.throws(()=>inspectGroveBackupSnapshotRetention(input),
+      /grove_backup_metadata_invalid/);
   }
 });

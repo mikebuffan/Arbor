@@ -40,9 +40,7 @@ ledger or grant a new deletion engine.
 ## Safe release order
 
 1. Keep private chat/delete OFF in the live Grove host.
-2. Separately approve exact-schema migration and owner-private backup policy,
-   including whether encrypted backup copies may temporarily retain deleted
-   text and what their retention/deletion period is.
+2. Owner has chosen a **maximum 30-day retention window for encrypted Grove-managed backup snapshots**, not active messages. Before release verify actual backup provider supports expiry, encryption, backup erasure/retention, and a safe treatment of user-deleted text inside immutable copies.
 3. Design and test independent deletion-state custody for full restoration
    before approving a hosted restore or a real owner deletion.
 4. Recheck exact Grove Auth/invitation, Firefly ownership, scoped grants,
@@ -78,7 +76,12 @@ non-authoritative "structurally consistent" case. The existing GitHub
 ### Unresolved owner + release decisions
 
 No automatic expiry applies to ACTIVE Grove conversations: they stay until
-explicit user deletion. Backup copy retention duration has NOT been chosen.
+explicit user deletion. **Owner-approved snapshot copy maximum: 30 days** from
+snapshot creation. This is a PRODUCT RULE, not a live provider setting or an
+implemented automatic cleanup job. Backups older than that must be withheld
+from use and securely removed under a separately authorized provider procedure.
+A deleted conversation must never be exposed through a backup restore; a 30-day
+retention ceiling does not itself establish verified provider-side erasure.
 Before any real restore, owner must approve a retention/erasure policy and an
 independent, integrity-verified deletion-state custody/replay and quarantine
 procedure that protects against an older database snapshot.
@@ -87,3 +90,24 @@ This tool cannot issue restoration approval and changes no real Supabase
 database, storage policy, existing chat, model, worker, Vercel project, or
 phone installation. No actual user deletion evidence exists in current
 Grove production tables; proposed transcript/tombstone tables are not live.
+
+## 30-day backup-only contract and source checks — 2026-10-11
+
+The user has explicitly approved keeping encrypted Grove recovery copies for
+**up to 30 days**, while leaving the main conversation store and saved memories
+under the existing **until explicitly deleted** rule.
+
+Existing `ops/grove/verify-private-host.mjs` now includes the pure
+`inspectGroveBackupSnapshotRetention` metadata check (no scheduler,
+deletion engine or new restore service). With a caller-supplied UTC snapshot
+inventory it recognizes the inclusive 30-day boundary, flags snapshots older
+than 30 days, disallows unencrypted and future-dated snapshots, and rejects
+untrusted/colliding metadata or content-bearing fields. It **always** leaves
+provider encryption/expiry and actual deletion unverified and restore
+unauthorized. This is NOT evidence any provider has applied those settings.
+
+The release must still prove the backup provider's actual encryption,
+retention, removal/expiration and handling of previously user-deleted text,
+the independent deletion-state custody across physical restores, and
+appropriate provenance/rollback. No silent automatic cleanup of real backups
+is authorized by the tests. Keep actual Grove host, model and migrations OFF.

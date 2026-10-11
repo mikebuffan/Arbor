@@ -47,3 +47,14 @@ Supabase schema change. Do not edit effective Firefly `vercel.json` or
 project root merely to turn a checker green; prepare a separately reviewed
 Grove-only effective config in its own authorized release later. All drafts
 remain build-fenced.
+
+## Concurrent owner-approved privacy policy — 2026-10-11
+
+While the source-only host layout remains blocked, the owner also approved
+**30 days maximum for encrypted backup snapshots**, distinct from keeping
+active conversations indefinitely until explicit user deletion. The
+`inspectGroveBackupSnapshotRetention` pure preflight exercises this policy
+without touching any provider backups. No automatic cleanup, backup job,
+provider retention setting, billing change or deployment has been activated.
+This decision does NOT lift the no-cron, migration, missing-key, private
+owner/device, model-budget or independently protected deletion-record gates.

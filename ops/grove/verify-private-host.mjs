@@ -194,6 +194,74 @@ export function inspectPrivateGroveReleaseLayout({
   });
 }
 
+/** Owner-approved Grove backup COPY policy; no provider calls or cleanup.
+ * Active transcripts and separately saved memories NEVER age out here.
+ * Metadata from a caller is not verified custody or retention compliance. */
+export const GROVE_BACKUP_MAX_RETENTION_DAYS = 30;
+
+export function inspectGroveBackupSnapshotRetention(input) {
+  if (!input || typeof input !== "object" || Array.isArray(input) ||
+      !Array.isArray(input.snapshots) || input.snapshots.length > 100 ||
+      typeof input.nowUtc !== "string" ||
+      !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/.test(input.nowUtc)) {
+    throw Error("grove_backup_metadata_invalid");
+  }
+  const now = Date.parse(input.nowUtc);
+  if (!Number.isFinite(now) ||
+      new Date(now).toISOString() !== input.nowUtc)
+    throw Error("grove_backup_metadata_invalid");
+
+  const seen = new Set();
+  let expiredCount=0, unencryptedCount=0, futureCount=0;
+  const maxAgeMs=GROVE_BACKUP_MAX_RETENTION_DAYS*24*60*60*1000;
+  for (const row of input.snapshots) {
+    if (!row || typeof row !== "object" || Array.isArray(row) ||
+        Object.keys(row).length !== 3 ||
+        typeof row.snapshotId !== "string" ||
+        !/^[a-zA-Z0-9_-]{1,64}$/.test(row.snapshotId) ||
+        typeof row.createdAtUtc !== "string" ||
+        !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/.test(row.createdAtUtc) ||
+        typeof row.encryptedAtRest !== "boolean" ||
+        seen.has(row.snapshotId)) {
+      throw Error("grove_backup_metadata_invalid");
+    }
+    const created = Date.parse(row.createdAtUtc);
+    if (!Number.isFinite(created) ||
+        new Date(created).toISOString() !== row.createdAtUtc) {
+      throw Error("grove_backup_metadata_invalid");
+    }
+    seen.add(row.snapshotId);
+    if (created > now) futureCount++;
+    if (now-created > maxAgeMs) expiredCount++;
+    if (!row.encryptedAtRest) unencryptedCount++;
+  }
+  const metadataWithinPolicy = expiredCount === 0 &&
+    unencryptedCount === 0 && futureCount === 0;
+  return Object.freeze({
+    scope: "untrusted_backup_snapshot_metadata_only",
+    maxSnapshotRetentionDays: GROVE_BACKUP_MAX_RETENTION_DAYS,
+    activeConversationAgeLimitDays: null,
+    snapshotCount: seen.size,
+    expiredSnapshotCount: expiredCount,
+    unencryptedSnapshotCount: unencryptedCount,
+    futureDatedSnapshotCount: futureCount,
+    metadataWithinPolicy,
+    status: futureCount > 0 ? "HOLD_INVALID_SNAPSHOT_TIMELINE" :
+      unencryptedCount > 0 ? "HOLD_BACKUPS_NOT_ENCRYPTED" :
+      expiredCount > 0 ? "HOLD_EXPIRED_BACKUPS_REQUIRE_CLEANUP" :
+      seen.size === 0 ? "HOLD_NO_BACKUP_EVIDENCE" :
+      "HOLD_PROVIDER_RETENTION_NOT_VERIFIED",
+    // No backup or database runtime currently enforces 30 days. This
+    // function never deletes, authorizes restoration, or infers source proof.
+    automatedCleanupImplemented: false,
+    verifiedProviderErasure: false,
+    verifiedExternalDeletionLedger: false,
+    approvedForRestore: false,
+    mayServePrivateContent: false,
+    cleanupAuthorized: false,
+  });
+}
+
 const foreignPublicPaths = [
   "/api/chat",
   "/api/public/chat",
