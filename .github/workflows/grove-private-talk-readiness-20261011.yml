@@ -62,6 +62,7 @@ jobs:
           lib/grove/__tests__/privateConversationLoop.test.ts
           lib/grove/__tests__/privateLmHostTransport.test.ts
           lib/grove/__tests__/privateTranscriptStore.test.ts
+          lib/grove/__tests__/privateTranscriptRoute.test.ts
           lib/grove/__tests__/groveDeploymentConfig.test.ts
       - name: Typecheck unchanged private backend
         working-directory: apps/backend
