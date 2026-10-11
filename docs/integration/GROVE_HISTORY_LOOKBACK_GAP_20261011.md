@@ -35,3 +35,36 @@ stabilization gates, not evidence the capability already exists.
 a durable primary store and safe search/read access, not a year of snapshots.
 This is a review note under the existing One Arbor/Grove task ownership,
 not a new task family or permission to deploy.
+
+
+## Source-only archive paging follow-on — 2026-10-11
+
+The original gap above remains the deployed reality. An opt-in backend
+archive page has now been added on the existing draft #452 source branch.
+
+- GET /api/grove/chat/history with projectId, conversationId and page=archive
+  returns up to six complete pairs plus nextCursor (null at the end).
+  Follow-up requests supply cursor and page=archive. The legacy GET and
+  its six-pair model-context read are unchanged.
+- The cursor is HMAC-bound to verified Grove user/project/conversation,
+  signed with a domain-separated derivation of the existing server-only
+  Grove service key, expires in 15 minutes and contains no transcript text.
+  Malformed/expired/tampered/other-scope cursors fail closed.
+- Existing scoped transcript storage performs timestamp/request-ID keyset
+  pagination, seven-row lookahead, complete-row validation, duplicate/order
+  rejection and microsecond-safe comparisons. Owner/grant checks and the
+  deletion-tombstone fence run before and after each content fetch.
+- Source tests cover expiry/tampering/foreign scope, page boundaries,
+  bad provider rows, legacy read compatibility and mid-read revocation.
+  The source-only workflow now runs the route test as well as store tests.
+
+**Still gated:** Firefly conversation discovery stops at 20; the phone has no
+archive paging UI; a plain year-ago user prompt has no verified search API.
+A restored full backup still needs independently protected deletion custody.
+Actual Grove transcript schema, receiver, host, phone, owner acceptance
+and budget approval remain separate live dependencies.
+
+This is source-only review; no production merge, migration, deployment,
+user data, paid model, worker activation or owner permission change.
+The 97-task master and six-group overlay are unchanged. Check exact-head
+CI before marking this code-only pass GREEN.
