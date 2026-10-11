@@ -8,6 +8,7 @@ import { grovePrivateTurnFeatures } from "@/lib/grove/privateConversationLoop";
 import {
   createSupabaseGrovePrivateTranscriptStore,
   issueGrovePrivateHistoryCursor, readGrovePrivateHistoryCursor,
+  validateGrovePrivateSearchPhrase,
 } from "@/lib/grove/privateTranscriptStore";
 
 export const runtime = "nodejs";
@@ -57,6 +58,8 @@ export async function GET(req: Request) {
       params[key] = value;
     }
     const scope = querySchema.parse(params);
+    const phrase = scope.search === undefined ? undefined :
+      validateGrovePrivateSearchPhrase(scope.search);
     const authorized = await authorizePrivateGroveConversation(
       req, scope.projectId, scope.conversationId,
     );
@@ -84,7 +87,7 @@ export async function GET(req: Request) {
     if (searching && !store.findSavedPhrase)
       throw new RouteAccessError(500, "grove_private_history_search_unavailable");
     const page = archive ? await store.listHistoryPage!(storeScope, before)
-      : searching ? await store.findSavedPhrase!(storeScope, scope.search!) : null;
+      : searching ? await store.findSavedPhrase!(storeScope, phrase!) : null;
     const rows = page ? page.rows : await store.listRecent(storeScope);
     if (!Array.isArray(rows) || rows.length > 6 ||
         (page && (typeof page.hasMore !== "boolean" ||
