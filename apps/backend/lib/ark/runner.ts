@@ -116,6 +116,20 @@ export async function runArkWorkerCycle(input: {
       }
     };
 
+    // A claim may have been revoked after it was issued (explicit ARK STOP,
+    // expired lease, or a competing worker). Revalidate the lease before
+    // invoking any executor. Do not call failTask on a lease we no longer own.
+    // This closes the claim -> dispatch gap, but an external side effect
+    // already underway still requires capability-specific cancellation.
+    const leaseStillOwned = await input.store.heartbeat({
+      taskId: claim.task.id,
+      workerId: input.workerId,
+      leaseToken: claim.task.leaseToken ?? "",
+      leaseMs,
+      now: now().toISOString(),
+    });
+    if (!leaseStillOwned) throw new Error("ark_lease_lost_before_execute");
+
     const executor = input.executors.get(claim.task.kind);
     if (!executor) {
       await input.store.blockTask({

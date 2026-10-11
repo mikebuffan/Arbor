@@ -49,3 +49,17 @@ Ideas unrelated to the current fix go on the future-work list.
 - Current narrow repair adds a source guard and regression checks; real
   authenticated hosted interruption/resume, in-flight external action fencing,
   and dispatch cancellation remain distinct acceptance obligations.
+
+## In-flight STOP challenge (2026-10-11)
+The actual ARK database RPC cancels task statuses and revokes lease tokens;
+completion requires an unexpired matching lease. The runtime did not
+revalidate a claim at the immediate pre-executor boundary. Source-only review
+adds a heartbeat/lease check before invoking the executor.
+
+**Limit:** This only prevents starting execution when STOP already revoked
+the lease. It cannot retract a network request or other effect after executor
+entry. A revoked token prevents a later *completion record*, not the physical
+side effect. Do not report true interruptible execution or perfect prevention
+of concurrent races. For greater authority, require per-capability safe
+interruption/cancellation controls, a separately authorized real host canary,
+and conservative failure receipts.
