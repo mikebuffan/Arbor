@@ -79,19 +79,19 @@ No main merge, production, feature toggle, API secret retrieval or paid calls.
 | # | Source assessment | Exact evidence or blocker |
 |---|---|---|
 | 06 | PARTIAL | Dedicated grove-private-api exists and has a verified domain; effective live no-cron root/config not proven |
-| 07 | SOURCE_TEST_PENDING | Private route isolation, missing-auth rejection, no-cron proposal covered in existing backend mock suites; run exact-head CI |
+| 07 | DONE_SOURCE_TEST | Private route isolation, missing-auth rejection, no-cron proposal covered in existing backend mock suites; run exact-head CI |
 | 08 | DONE_METADATA | Seven existing production key names; seven additional Chat/LM/Transcript names missing; values NOT read |
 | 09 | PARTIAL | Grove private auth realm and broker host restrictions source-owned; real invitation/grants not inspected |
-| 10 | SOURCE_TEST_PENDING | Revocation/foreign-project and broker scope mocked regression queued for exact-head CI |
+| 10 | DONE_SOURCE_TEST | Revocation/foreign-project and broker scope mocked regression queued for exact-head CI |
 
 ### Group 03 Independent LM
 
 | # | Source assessment | Exact evidence or blocker |
 |---|---|---|
 | 11 | PARTIAL | Receiver source/manifest and expected adapter card identified; actual receiver alive/not reachable NOT RUN |
-| 12 | SOURCE_TEST_PENDING | Pinned manifest/HMAC/context/receiver protocol contracts in existing offline suites; exact-head CI |
-| 13 | SOURCE_TEST_PENDING | Fake execution receipts, mismatched response ID and contradictory read claims tests in mock suite |
-| 14 | SOURCE_TEST_PENDING | Failure, timeout and no unsafe replay tests in existing mock suites |
+| 12 | DONE_SOURCE_TEST | Pinned manifest/HMAC/context/receiver protocol contracts in existing offline suites; exact-head CI |
+| 13 | DONE_SOURCE_TEST | Fake execution receipts, mismatched response ID and contradictory read claims tests in mock suite |
+| 14 | DONE_SOURCE_TEST | Failure, timeout and no unsafe replay tests in existing mock suites |
 | 15 | GATED | No live LM runtime, spending ceiling or provider allowance confirmed; paid inference forbidden |
 
 ### Group 04 Conversation persistence
@@ -99,20 +99,20 @@ No main merge, production, feature toggle, API secret retrieval or paid calls.
 | # | Source assessment | Exact evidence or blocker |
 |---|---|---|
 | 16 | PARTIAL | Existing private transcript and conversation code read; Grove actual schema has ONLY owner-access, bridge, project-grant tables |
-| 17 | SOURCE_TEST_PENDING | Request-ID replay/duplicate suppression mocked tests scheduled |
-| 18 | SOURCE_TEST_PENDING | Owner project switch, grant revocation and stale-return tests scheduled |
-| 19 | SOURCE_TEST_PENDING | Unsent draft/read-back/reopen recovery Flutter tests scheduled |
+| 17 | DONE_SOURCE_TEST | Request-ID replay/duplicate suppression mocked tests scheduled |
+| 18 | DONE_SOURCE_TEST | Owner project switch, grant revocation and stale-return tests scheduled |
+| 19 | DONE_SOURCE_TEST | Unsent draft/read-back/reopen recovery Flutter tests scheduled |
 | 20 | GATED | Grove live transcript/claim schema NOT INSTALLED; offline SQL proposal exists, migration/retention requires explicit approval |
 
 ### Group 05 Grove phone
 
 | # | Source assessment | Exact evidence or blocker |
 |---|---|---|
-| 21 | SOURCE_TEST_PENDING | Main→Grove private auth→Home→Arbor doorway→Talk source inspected, navigation test scheduled |
+| 21 | DONE_SOURCE_TEST | Main→Grove private auth→Home→Arbor doorway→Talk source inspected, navigation test scheduled |
 | 22 | PARTIAL | Exact Grove approved API host and private Talk build flags source-fenced, not enabled in installed APK |
-| 23 | SOURCE_TEST_PENDING | Flutter widget tests+static analysis in exact-head CI |
+| 23 | DONE_SOURCE_TEST | Flutter widget tests+static analysis in exact-head CI |
 | 24 | NOT_RUN | Synthetic Android debug build not repeated on #452; do not imply a phone install |
-| 25 | SOURCE_TEST_PENDING | Private Talk unavailable/recovery and revoked-scope screens tested in Flutter fixtures |
+| 25 | DONE_SOURCE_TEST | Private Talk unavailable/recovery and revoked-scope screens tested in Flutter fixtures |
 
 ### Group 06 Hosted acceptance
 
@@ -128,6 +128,21 @@ No main merge, production, feature toggle, API secret retrieval or paid calls.
 
 - Groups 1–5 can be audited concurrently where files do not conflict; underlying edits stay single-owner and serialized. #451 STOP branch remains a sibling of #452, NOT automatically integrated.
 - The Grove Supabase `fqjqpuaoifgbweiguacf` current `public` schema was inspected **by table name only**. It shows `grove_private_owner_access`, `grove_private_firefly_bridge`, `grove_private_ark_project_grants`; **no `grove_private_turns` table**. Previous offline transcript SQL acceptance is NOT proof it is installed. Do not issue migrations or read owner data.
-- Exact-head GitHub CI (see PR #452) executes backend mock contract checks, pinned offline receiver fixtures, Flutter navigation/draft/retry tests and TypeScript. Until results exist, retain SOURCE_TEST_PENDING; no inherited parent CI is a new acceptance.
+- Exact-head GitHub CI (see PR #452) executes backend mock contract checks, pinned offline receiver fixtures, Flutter navigation/draft/retry tests and TypeScript. Exact source head `a045e2617e6e67f78e0cfe15a71795f72c6c7532` was independently tested in [Actions 38149208307](https://github.com/mikebuffan/Arbor/actions/runs/38149208307), **COMPLETED SUCCESS**: Group 1/2 private-host and 5 pinned local-LM Node tests 48 passed; Groups 2–4 private backend mock source 168 passed across 7 files, TypeScript passed; Group 5 Flutter 70 tests passed and static analyzer passed. Test scopes overlap some previously reviewed master source, do not promote host/device acceptance.
 - Android debug build is **NOT RUN on this branch**, even if prior #450 source/phone CI succeeded. Live host, LM and physical device tests in group 6 stay gated.
 - Private host remains Vercel build-skipped until an exact approved release, no production alias, no worker, no grants, no paid inference.
+
+### Result of this execution pass (source vs real world)
+
+Verified original workflow CI [38149208307](https://github.com/mikebuffan/Arbor/actions/runs/38149208307) at code SHA `a045e2617e6e67f78e0cfe15a71795f72c6c7532`:
+
+- Group 01 source/ownership baseline documented. Draft siblings #451 and #452 were NOT silently merged.
+- Group 02: **168** offline backend tests across 7 mock suites passed; current Grove database table *names* showed owner/bridge/project grants but **no transcript/claim table**.
+- Group 03: **5** local receiver manifest/HMAC tests passed plus backend LM transport suite. This is an offline receiver contract check, not real inference.
+- Group 04: transcript, retry/revocation and no-duplicate tests passed offline; real durable replay cannot pass without approved migration/grants.
+- Group 05: **70 Flutter tests passed** across private home, Talk, owner-project auth, drafts and saved-history simulations, and `flutter analyze` passed. Actual debug APK compilation on THIS branch was **NOT RUN**.
+- Group 06: all five hosted acceptance checks remain **GATED**; Vercel credits were not established, live model not called and no real account/device involved.
+
+**30-step disposition:** 17 narrowly completed source/metadata checks, 5 partial source/host distinctions, 7 externally gated actions, 1 exact-head APK compile NOT RUN. These are **execution-step** statuses, not 17 newly accepted original tasks or an authorization to unlock flags. No premium inference, hosted deployment, mutation, new permissions or private data retrieval.
+
+**Next exact safe item:** Group 05 #24, unconfigured debug APK compilation in a disposable source-only runner if GitHub Actions allowance is confirmed appropriate; otherwise leave explicitly NOT RUN and prioritize no-cost source/document readiness. The first real blocked milestone is Group 02 missing dedicated private host configuration and Group 04 migration/LM approval; live Group 06 must wait for a separately authorized capped deployment.
