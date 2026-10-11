@@ -1182,8 +1182,8 @@ describe("Grove archive microsecond boundary", () => {
 
 describe("Grove requested historical phrase search, read-only and scoped", () => {
   it("only accepts bounded literal text, never wildcard/filter syntax", () => {
-    expect(validateGrovePrivateSearchPhrase("Ever After")).toBe("Ever After");
-    expect(validateGrovePrivateSearchPhrase("Laila school")).toBe("Laila school");
+    expect(validateGrovePrivateSearchPhrase("Archive Plan")).toBe("Archive Plan");
+    expect(validateGrovePrivateSearchPhrase("Project notes")).toBe("Project notes");
     for (const bad of ["", "a", " hello", "hello ", "%secret%", "_secret",
       "hi,assistant_text.ilike.%", "a.b", "x(y)", "what?", "a\nb",
       "a-b", "a b", "1 2 3",
@@ -1198,8 +1198,8 @@ describe("Grove requested historical phrase search, read-only and scoped", () =>
       ...row({
         requestId: "00000000-0000-4000-8000-" +
           (200 + i).toString().padStart(12, "0"),
-        userText: "Did we discuss Ever After?",
-        assistantText: "Yes, Ever After.",
+        userText: "Did we discuss Archive Plan?",
+        assistantText: "Yes, Archive Plan.",
       }),
       created_at: "2025-06-" + String(30 - i).padStart(2, "0") + "T12:00:00Z",
     }));
@@ -1212,10 +1212,10 @@ describe("Grove requested historical phrase search, read-only and scoped", () =>
     const store = createSupabaseGrovePrivateTranscriptStore({
       from: vi.fn(() => chain),
     } as never);
-    const page = await store.findSavedPhrase!(scope, "Ever After");
+    const page = await store.findSavedPhrase!(scope, "Archive Plan");
     expect(page).toEqual({rows: matches.slice(0, 6), hasMore: true});
     expect(chain.or).toHaveBeenCalledWith(
-      "user_text.ilike.%Ever After%,assistant_text.ilike.%Ever After%");
+      "user_text.ilike.%Archive Plan%,assistant_text.ilike.%Archive Plan%");
     expect(chain.eq).toHaveBeenCalledWith("grove_user_id", groveUserId);
     expect(chain.eq).toHaveBeenCalledWith("firefly_project_id", projectId);
     expect(chain.eq).toHaveBeenCalledWith("firefly_conversation_id", conversationId);
@@ -1223,11 +1223,11 @@ describe("Grove requested historical phrase search, read-only and scoped", () =>
     expect(chain.order).toHaveBeenCalledWith("created_at", {ascending:false});
     await expect(store.findSavedPhrase!({
       ...scope,conversationId:"not-an-id",
-    }, "Ever After")).rejects.toThrow("grove_transcript_scope_invalid");
+    }, "Archive Plan")).rejects.toThrow("grove_transcript_scope_invalid");
   });
 
   it("fails closed on unverified rows, provider mismatch, duplicates, or out-of-order results", async () => {
-    const original = row({ requestId:firstId, userText:"Laila school attendance",
+    const original = row({ requestId:firstId, userText:"Project notes attendance",
       assistantText:"We discussed attendance" });
     const chain: any = {
       select: vi.fn(), eq: vi.fn(), or: vi.fn(), order: vi.fn(),
@@ -1238,7 +1238,7 @@ describe("Grove requested historical phrase search, read-only and scoped", () =>
     const store = createSupabaseGrovePrivateTranscriptStore({
       from: vi.fn(() => chain),
     } as never);
-    expect((await store.findSavedPhrase!(scope,"Laila school")).rows).toHaveLength(1);
+    expect((await store.findSavedPhrase!(scope,"Project notes")).rows).toHaveLength(1);
     for (const [data, error] of [
       [[{...original, grove_user_id:otherConversation}], "grove_transcript_scope_invalid"],
       [[{...original, user_text:"Unrelated",assistant_text:"Also unrelated"}],
@@ -1249,10 +1249,10 @@ describe("Grove requested historical phrase search, read-only and scoped", () =>
         "grove_private_history_search_out_of_order"],
     ] as const) {
       chain.limit.mockResolvedValueOnce({data, error:null});
-      await expect(store.findSavedPhrase!(scope, "Laila school"))
+      await expect(store.findSavedPhrase!(scope, "Project notes"))
         .rejects.toThrow(error);
     }
     chain.limit.mockResolvedValueOnce({data:[],error:{message:"private SQL details"}});
-    await expect(store.findSavedPhrase!(scope,"Laila school")).rejects.toBeTruthy();
+    await expect(store.findSavedPhrase!(scope,"Project notes")).rejects.toBeTruthy();
   });
 });
