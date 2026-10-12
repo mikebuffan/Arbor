@@ -284,4 +284,17 @@ jobs:
             exit 1
           fi
           echo "GROVE_TEXT_ONLY_MICROPHONE_PERMISSION=ABSENT"
+          # Verify Grove cannot be configured to replace either existing app.
+          # Configuration-only: no release target, keystore or APK publication.
+          cd android
+          for occupied_id in com.example.arbor com.example.arbor.publicalpha; do
+            if GROVE_ANDROID_APPLICATION_ID="$occupied_id" bash ./gradlew :app:help --offline --no-daemon \
+                > "$RUNNER_TEMP/grove-package-id-guard.log" 2>&1; then
+              echo "GROVE_PACKAGE_ID_ISOLATION=FAIL"
+              exit 1
+            fi
+            grep -Fq 'Grove application ID conflicts with an existing Arbor flavor' \
+              "$RUNNER_TEMP/grove-package-id-guard.log"
+          done
+          echo "GROVE_PACKAGE_ID_ISOLATION=PASS"
           echo "GROVE_SYNTHETIC_DEBUG_APK_SOURCE_COMPILE=PASS; OWNER_INSTALL=HOLD; PRIVATE_TALK=OFF"
