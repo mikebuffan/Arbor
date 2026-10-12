@@ -186,11 +186,12 @@ export async function loadContinuityStateSafe(
 ): Promise<ArborContinuityState> {
   try {
     return await loadContinuityState(input);
-  } catch (error) {
-    console.warn(
-      "[arbor:continuity] fallback",
-      error,
-    );
+  } catch {
+    // Provider failures can embed private messages or credentials in their
+    // error objects. Keep fallback diagnostics metadata-only.
+    console.warn("[arbor:continuity] fallback", {
+      subsystem: "continuity", operation: "safe_fallback",
+    });
 
     return buildContinuityState({
       activeSubsystem: "arbor",
