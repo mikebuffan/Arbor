@@ -57,6 +57,24 @@ describe("chronological owned archive reader",()=>{
  });
  it("checks ownership before touching the archive",async()=>{const supabase=db([],false);await expect(readHistoricalArchivePage({supabase:supabase as never,userId:user,projectId:project})).rejects.toThrow("project_not_found");expect(supabase.from.mock.calls.map(c=>c[0])).toEqual(["projects"]);});
  it("rejects foreign cursors before any database access",async()=>{const supabase=db([]);await expect(readHistoricalArchivePage({supabase:supabase as never,userId:user,projectId:project,cursor:{userId:project,projectId:project,id:row(1,"").id,contentSha256:"a".repeat(64),offset:0}})).rejects.toThrow("scope_mismatch");expect(supabase.from).not.toHaveBeenCalled();});
+ it("refuses a resumed page if the original speaker or chronology changes",async()=>{
+  const rows=[row(1,"original quoted text ".repeat(25))],supabase=db(rows);
+  const first=await readHistoricalArchivePage({supabase:supabase as never,userId:user,projectId:project,maxCharacters:200});
+  expect(first.nextCursor).toMatchObject({role:"user",occurredAt:"2026-01-01T00:00:00.000Z"});
+  rows[0].role="assistant";
+  await expect(readHistoricalArchivePage({supabase:supabase as never,userId:user,projectId:project,cursor:first.nextCursor,maxCharacters:200})).rejects.toThrow("archive_cursor_message_metadata_changed");
+  rows[0].role="user";rows[0].occurred_at="2026-01-02T00:00:00.000Z";
+  await expect(readHistoricalArchivePage({supabase:supabase as never,userId:user,projectId:project,cursor:first.nextCursor,maxCharacters:200})).rejects.toThrow("archive_cursor_message_metadata_changed");
+ });
+ it("continues an existing v2 cursor lacking the new metadata fields",async()=>{
+  const supabase=db([row(1,"a".repeat(450))]);
+  const first=await readHistoricalArchivePage({supabase:supabase as never,userId:user,projectId:project,maxCharacters:200});
+  const {role,occurredAt,...previouslyIssuedV2}=first.nextCursor!;
+  expect(role).toBe("user");expect(occurredAt).toBe("2026-01-01T00:00:00.000Z");
+  const resumed=await readHistoricalArchivePage({supabase:supabase as never,userId:user,projectId:project,cursor:previouslyIssuedV2,maxCharacters:200});
+  expect(resumed.fragments[0].offset).toBe(200);
+  expect(resumed.nextCursor).toMatchObject({role:"user",occurredAt:"2026-01-01T00:00:00.000Z",offset:400});
+ });
  it("rejects changed anchor content instead of silently resuming another text",async()=>{const rows=[row(1,"a".repeat(300))],supabase=db(rows);const first=await readHistoricalArchivePage({supabase:supabase as never,userId:user,projectId:project,maxCharacters:200});rows[0].content="changed";await expect(readHistoricalArchivePage({supabase:supabase as never,userId:user,projectId:project,cursor:first.nextCursor})).rejects.toThrow("content_changed");});
  it("binds new cursors to source conversation message position and reader version",async()=>{const rows=[row(1,"a".repeat(500))],supabase=db(rows);const first=await readHistoricalArchivePage({supabase:supabase as never,userId:user,projectId:project,maxCharacters:200});expect(first.nextCursor).toMatchObject({version:2,source:"export",sourceThreadId:"thread",sourceMessageId:"message-1",sourceMessageIndex:1});await expect(readHistoricalArchivePage({supabase:supabase as never,userId:user,projectId:project,cursor:{...first.nextCursor!,sourceMessageId:"forged"}})).rejects.toThrow("source_identity_changed");});
  it("accepts a verified legacy cursor once and upgrades the next checkpoint to v2",async()=>{const rows=[row(1,"a".repeat(500))],supabase=db(rows);const first=await readHistoricalArchivePage({supabase:supabase as never,userId:user,projectId:project,maxCharacters:200});const {version,source,sourceThreadId,sourceMessageId,sourceMessageIndex,...legacy}=first.nextCursor!;expect(version).toBe(2);const resumed=await readHistoricalArchivePage({supabase:supabase as never,userId:user,projectId:project,cursor:legacy,maxCharacters:200});expect(resumed.nextCursor).toMatchObject({version:2,source:"export",sourceThreadId:"thread",sourceMessageId:"message-1",sourceMessageIndex:1,offset:400});});
