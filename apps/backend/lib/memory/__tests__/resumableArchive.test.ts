@@ -17,6 +17,23 @@ describe("resumable archive transport preparation",()=>{
   const c=conversation("thread","x".repeat(3000));c.mapping.m.parent="a" as any;(c.mapping as any).a={parent:null,message:{id:"earlier",author:{role:"assistant"},create_time:1,content:{parts:["first"]}}};
   const files=[await file([c]),await file([c],"copy.json")];const p=await prepareResumableArchive({files,target,maxBytes:1000});expect(p.manifest.uniqueTurns).toBe(2);expect(p.manifest.duplicateTurns).toBe(2);expect(p.turns.map(t=>t.sourceMessageIndex)).toEqual([0,1]);expect(p.turns[1].content.length).toBe(3000);expect(p.manifest.batches[1].oversizedSingleMessage).toBe(true);expect(p.manifest.batches.map(b=>b.count).reduce((a,b)=>a+b,0)).toBe(2);
  });
+ it("never reports completed archive transport for a valid but empty export",async()=>{
+  for(const source of [[],[{}]]){
+    const fileName=await file(source);
+    await expect(prepareResumableArchive({files:[fileName],target}))
+      .rejects.toThrow("archive_no_normalized_turns");
+    const sink=destination();let checkpointCalls=0;
+    // No manifest exists to pass into transport; no destination writes or
+    // checkpoint advancement are possible after preparation fails.
+    expect(sink.writes).toBe(0);expect(checkpointCalls).toBe(0);
+  }
+  // Empty auxiliary exports are allowed when another source contains turns.
+  const ready=await prepareResumableArchive({
+    files:[await file([],"empty.json"),await file([conversation()],"nonempty.json")],target,
+  });
+  expect(ready.manifest.uniqueTurns).toBe(1);
+  expect(ready.manifest.batches.length).toBe(1);
+ });
  it("rejects conflicts, cross-thread message collisions and ambiguous source names",async()=>{
   await expect(prepareResumableArchive({files:[await file([conversation()]),await file([conversation("thread","changed")],"b.json")],target})).rejects.toThrow("preflight_failed");
   await expect(prepareResumableArchive({files:[await file([conversation(),conversation("other")])],target})).rejects.toThrow("cross_thread_message_collision");
