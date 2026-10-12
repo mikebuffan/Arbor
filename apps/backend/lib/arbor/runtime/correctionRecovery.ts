@@ -85,9 +85,16 @@ async function retryTransient(operation: () => Promise<void>, pause: (ms: number
     }
   }
 }
+// Provider-controlled error codes may contain private identifiers or tokens.
+// Retain only known diagnostic values; never serialize an arbitrary code.
+const SAFE_RECOVERY_CODES = new Set([
+  "40001", "40P01", "55P03", "42501", "23505", "PGRST003",
+  "ECONNRESET", "ETIMEDOUT", "EAI_AGAIN",
+]);
 function safeCode(error: unknown): string {
-  const code = String((error as { code?: unknown } | null)?.code ?? "recovery_failed");
-  return /^[a-z0-9_]{1,32}$/i.test(code) ? code : "recovery_failed";
+  const code = (error as { code?: unknown } | null)?.code;
+  return typeof code === "string" && SAFE_RECOVERY_CODES.has(code)
+    ? code : "recovery_failed";
 }
 
 /** Bounded replay from the existing ledger; no worker or execution activation.
