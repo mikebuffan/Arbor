@@ -4,7 +4,15 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+val arborApplicationId = "com.example.arbor"
 val groveApplicationId = System.getenv("GROVE_ANDROID_APPLICATION_ID")?.trim().orEmpty()
+if (groveApplicationId == arborApplicationId ||
+    groveApplicationId == "$arborApplicationId.publicalpha") {
+    throw GradleException(
+        "Grove application ID conflicts with an existing Arbor flavor; " +
+            "choose a separate owner-approved package ID."
+    )
+}
 val groveKeystorePath = System.getenv("GROVE_ANDROID_KEYSTORE_PATH")?.trim().orEmpty()
 val groveKeystorePassword = System.getenv("GROVE_ANDROID_KEYSTORE_PASSWORD")?.trim().orEmpty()
 val groveKeyAlias = System.getenv("GROVE_ANDROID_KEY_ALIAS")?.trim().orEmpty()
@@ -45,7 +53,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.arbor"
+        applicationId = arborApplicationId
         manifestPlaceholders["arborAppLabel"] = "arbor"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
