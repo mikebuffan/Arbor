@@ -114,7 +114,13 @@ function combinedCorrection(
     // original conservative legacy behavior until host event IDs are known.
     const sameObservation = Date.parse(next.observedAt) === Date.parse(prior.observedAt) &&
       next.kind === prior.kind && next.value === prior.value && next.source === prior.source;
-    const occurrences = fromSnapshot || sameObservation || incomingCount > 1
+    // Out-of-order legacy snapshots do not prove a fresh observation.
+    // Keep the newer correction authoritative without manufacturing feedback.
+    // Identified observations use the provenance-aware branch below.
+    const staleUnkeyed = Number.isFinite(Date.parse(prior.observedAt)) &&
+      Number.isFinite(Date.parse(next.observedAt)) &&
+      Date.parse(next.observedAt) < Date.parse(prior.observedAt);
+    const occurrences = fromSnapshot || sameObservation || staleUnkeyed || incomingCount > 1
       ? Math.max(priorCount, incomingCount) : priorCount + 1;
     if (!Number.isSafeInteger(occurrences))
       throw new Error("arbor_correction_occurrence_overflow");
