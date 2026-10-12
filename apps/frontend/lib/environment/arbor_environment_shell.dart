@@ -62,6 +62,7 @@ class _ArborEnvironmentShellState extends State<ArborEnvironmentShell> {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
   final _focusNode = FocusNode();
   final _kitchenKey = GlobalKey<AnnabelleKitchenViewState>();
+  final _diaryKey = GlobalKey<GroveDiaryDraftViewState>();
   bool _navigationPending = false;
   late EnvironmentDestination selected;
 
@@ -81,9 +82,12 @@ class _ArborEnvironmentShellState extends State<ArborEnvironmentShell> {
   Widget build(BuildContext context) {
     final objective = widget.objective ?? EnvironmentFixture.houseHasWalls();
     return PopScope(
-      canPop: selected != EnvironmentDestination.kitchen,
+      canPop: selected != EnvironmentDestination.kitchen &&
+          selected != EnvironmentDestination.diary,
       onPopInvokedWithResult: (didPop, result) {
-        if (!didPop && selected == EnvironmentDestination.kitchen) {
+        if (!didPop &&
+            (selected == EnvironmentDestination.kitchen ||
+                selected == EnvironmentDestination.diary)) {
           _select(EnvironmentDestination.home);
         }
       },
@@ -124,6 +128,7 @@ class _ArborEnvironmentShellState extends State<ArborEnvironmentShell> {
                     conversationLayer: widget.conversationLayer,
                     onRoomAction: _openRoom,
                     kitchenKey: _kitchenKey,
+                    diaryKey: _diaryKey,
                     onSelect: _select,
                   ),
                 ),
@@ -190,6 +195,18 @@ class _ArborEnvironmentShellState extends State<ArborEnvironmentShell> {
       _navigationPending = true;
       try {
         if (!await kitchen.confirmNavigationAway() || !mounted) return;
+        setState(() => selected = value);
+      } finally {
+        _navigationPending = false;
+      }
+      return;
+    }
+    if (selected == EnvironmentDestination.diary) {
+      final diary = _diaryKey.currentState;
+      if (diary == null) return; // Never bypass an unmounted guard.
+      _navigationPending = true;
+      try {
+        if (!await diary.confirmNavigationAway() || !mounted) return;
         setState(() => selected = value);
       } finally {
         _navigationPending = false;
@@ -295,6 +312,7 @@ class _Surface extends StatelessWidget {
     this.conversationLayer,
     required this.onRoomAction,
     required this.kitchenKey,
+    required this.diaryKey,
     required this.onSelect,
   });
   final EnvironmentDestination selected;
@@ -306,6 +324,7 @@ class _Surface extends StatelessWidget {
   final Widget? conversationLayer;
   final ValueChanged<GroveRoomAction> onRoomAction;
   final GlobalKey<AnnabelleKitchenViewState> kitchenKey;
+  final GlobalKey<GroveDiaryDraftViewState> diaryKey;
   final ValueChanged<EnvironmentDestination> onSelect;
 
   @override
@@ -379,7 +398,7 @@ class _Surface extends StatelessWidget {
                   onSelect(EnvironmentDestination.conversation),
             )
           else if (selected == EnvironmentDestination.diary)
-            const GroveDiaryDraftView()
+            GroveDiaryDraftView(key: diaryKey)
           else if (selected == EnvironmentDestination.objective)
             ObjectiveWorkspace(objective: objective)
           else if (selected == EnvironmentDestination.queue)
