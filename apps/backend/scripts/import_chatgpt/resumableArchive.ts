@@ -36,6 +36,10 @@ export async function prepareResumableArchive(input:{files:string[];target:Archi
     throw Error("archive_sources_missing_or_ambiguous");
   const inventory=await preflightHistoricalSources(input.files);
   if(!inventory.ready)throw Error("archive_preflight_failed");
+  // A structurally valid but empty export must never issue a false
+  // transportComplete=true receipt with zero verified destination batches.
+  // Preserve read-only preflight diagnostics; reject only preparation/import.
+  if(inventory.uniqueTurns===0)throw Error("archive_no_normalized_turns");
   const unique=new Map<string,HistoricalTurnInput>(),messageOwners=new Map<string,string>();let duplicateTurns=0;
   for(const [i,file] of [...input.files].sort().entries()){
     const bytes=await fs.readFile(file);
