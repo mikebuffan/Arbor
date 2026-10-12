@@ -269,4 +269,19 @@ jobs:
           set -euo pipefail
           test -s build/app/outputs/flutter-apk/app-grove-debug.apk
           unzip -t -q build/app/outputs/flutter-apk/app-grove-debug.apk
+          # Check the compiled APK, not just the source overlay: plugins may
+          # contribute permissions during manifest merging.
+          apk=build/app/outputs/flutter-apk/app-grove-debug.apk
+          aapt_tool=""
+          for tool in "${ANDROID_HOME}"/build-tools/*/aapt; do
+            if [ -x "$tool" ]; then aapt_tool="$tool"; fi
+          done
+          test -n "$aapt_tool"
+          permissions="$("$aapt_tool" dump permissions "$apk")"
+          printf '%s\n' "$permissions" | grep -F 'android.permission.INTERNET'
+          if printf '%s\n' "$permissions" | grep -Fq 'android.permission.RECORD_AUDIO'; then
+            echo "GROVE_TEXT_ONLY_MICROPHONE_PERMISSION=FAIL"
+            exit 1
+          fi
+          echo "GROVE_TEXT_ONLY_MICROPHONE_PERMISSION=ABSENT"
           echo "GROVE_SYNTHETIC_DEBUG_APK_SOURCE_COMPILE=PASS; OWNER_INSTALL=HOLD; PRIVATE_TALK=OFF"
