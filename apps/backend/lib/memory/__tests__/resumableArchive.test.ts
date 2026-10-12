@@ -22,10 +22,7 @@ describe("resumable archive transport preparation",()=>{
     const fileName=await file(source);
     await expect(prepareResumableArchive({files:[fileName],target}))
       .rejects.toThrow("archive_no_normalized_turns");
-    const sink=destination();let checkpointCalls=0;
-    // No manifest exists to pass into transport; no destination writes or
-    // checkpoint advancement are possible after preparation fails.
-    expect(sink.writes).toBe(0);expect(checkpointCalls).toBe(0);
+    // No accepted manifest or empty-batch success receipt can be generated.
   }
   // Empty auxiliary exports are allowed when another source contains turns.
   const ready=await prepareResumableArchive({
