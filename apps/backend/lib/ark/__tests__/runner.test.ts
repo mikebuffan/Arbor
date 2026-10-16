@@ -558,3 +558,84 @@ describe("ARK worker limit validation before store access", () => {
     expect([...store.tasks.values()][0]?.attemptCount).toBe(0);
   });
 });
+
+
+describe("ARK in-flight STOP at the worker boundary", () => {
+  it("rejects a task canceled after claim and before executor, without an external effect", async () => {
+    const store = new MemoryArkStore();
+    const objective = await store.enqueueObjective({ ...draft(), tasks: [draft().tasks[0]] });
+    const execute = vi.fn(async () => ({ status: "completed" as const, result: { external: true } }));
+    const registry = new ArkExecutorRegistry().register("test", execute);
+    const heartbeat = store.heartbeat.bind(store);
+    vi.spyOn(store, "heartbeat").mockImplementationOnce(async input => {
+      const task = store.tasks.get(input.taskId)!;
+      task.status = "cancelled";
+      task.leaseOwner = null;
+      task.leaseToken = null;
+      store.objectives.get(task.objectiveId)!.status = "cancelled";
+      return heartbeat(input);
+    });
+    const complete = vi.spyOn(store, "completeTask");
+    const fail = vi.spyOn(store, "failTask");
+
+    await expect(runArkWorkerCycle({
+      store, executors: registry, workerId: "worker-stopped-before-action",
+      now: () => new Date(START),
+    })).rejects.toThrow("ark_lease_lost_before_execute");
+
+    expect(execute).not.toHaveBeenCalled();
+    expect(complete).not.toHaveBeenCalled();
+    expect(fail).not.toHaveBeenCalled();
+    expect(store.objectives.get(objective.id)?.status).toBe("cancelled");
+    expect([...store.tasks.values()][0]?.status).toBe("cancelled");
+  });
+
+
+  it("never writes failTask after an executor reports STOP lease revocation", async () => {
+    const store = new MemoryArkStore();
+    const objective = await store.enqueueObjective({ ...draft(), tasks: [draft().tasks[0]] });
+    const failTask = vi.spyOn(store, "failTask");
+    const completeTask = vi.spyOn(store, "completeTask");
+    const registry = new ArkExecutorRegistry().register("test", async ({ claim }) => {
+      const task = store.tasks.get(claim.task.id)!;
+      task.status = "cancelled";
+      task.leaseOwner = null;
+      task.leaseToken = null;
+      store.objectives.get(task.objectiveId)!.status = "cancelled";
+      throw new Error("ark_lease_lost");
+    });
+    await expect(runArkWorkerCycle({
+      store, executors: registry, workerId: "worker-cancel-during-acceptance",
+      now: () => new Date(START),
+    })).rejects.toThrow("ark_lease_lost");
+    expect(failTask).not.toHaveBeenCalled();
+    expect(completeTask).not.toHaveBeenCalled();
+    expect(store.objectives.get(objective.id)?.status).toBe("cancelled");
+    expect([...store.tasks.values()][0]?.status).toBe("cancelled");
+  });
+
+  it("cannot erase an effect already begun, but rejects a stale completion receipt", async () => {
+    const store = new MemoryArkStore();
+    const objective = await store.enqueueObjective({ ...draft(), tasks: [draft().tasks[0]] });
+    const actualExternalEffects: string[] = [];
+    const registry = new ArkExecutorRegistry().register("test", async ({ claim }) => {
+      actualExternalEffects.push("began_external_action");
+      const task = store.tasks.get(claim.task.id)!;
+      task.status = "cancelled";
+      task.leaseOwner = null;
+      task.leaseToken = null;
+      store.objectives.get(task.objectiveId)!.status = "cancelled";
+      return { status: "completed", result: { claimed: "complete" } };
+    });
+    await expect(runArkWorkerCycle({
+      store, executors: registry, workerId: "worker-stopped-during-action",
+      now: () => new Date(START),
+    })).rejects.toThrow("ark_lease_lost");
+    expect(actualExternalEffects).toEqual(["began_external_action"]);
+    expect(store.objectives.get(objective.id)?.status).toBe("cancelled");
+    expect([...store.tasks.values()][0]).toMatchObject({
+      status: "cancelled",
+      result: null,
+    });
+  });
+});

@@ -1,10 +1,13 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { issueGrovePrivateHistoryCursor } from "../privateTranscriptStore";
 
 const mocks = vi.hoisted(() => ({
   flags: vi.fn(),
   authorize: vi.fn(),
   createStore: vi.fn(),
   listRecent: vi.fn(),
+  listHistoryPage: vi.fn(),
+  findSavedPhrase: vi.fn(),
 }));
 vi.mock("@/lib/grove/privateConversationLoop", () => ({
   grovePrivateTurnFeatures: mocks.flags,
@@ -12,7 +15,8 @@ vi.mock("@/lib/grove/privateConversationLoop", () => ({
 vi.mock("@/lib/grove/privateReadBroker", () => ({
   authorizePrivateGroveConversation: mocks.authorize,
 }));
-vi.mock("@/lib/grove/privateTranscriptStore", () => ({
+vi.mock("@/lib/grove/privateTranscriptStore", async importOriginal => ({
+  ...(await importOriginal<typeof import("@/lib/grove/privateTranscriptStore")>()),
   createSupabaseGrovePrivateTranscriptStore: mocks.createStore,
 }));
 
@@ -63,9 +67,18 @@ beforeEach(() => {
     groveAdmin: { privateClient: "grove" },
     fireflyAdmin: { privateClient: "firefly" },
   });
-  mocks.createStore.mockReturnValue({ listRecent: mocks.listRecent });
+  vi.stubEnv("GROVE_SERVICE_ROLE_KEY", "grove-test-only-private-archive-key");
+  vi.stubEnv("GROVE_PRIVATE_HISTORY_SEARCH_ENABLED", "true");
+  mocks.createStore.mockReturnValue({
+    listRecent: mocks.listRecent, listHistoryPage: mocks.listHistoryPage,
+    findSavedPhrase: mocks.findSavedPhrase,
+  });
   mocks.listRecent.mockResolvedValue([row]);
+  mocks.listHistoryPage.mockResolvedValue({ rows: [row], hasMore: false });
+  mocks.findSavedPhrase.mockResolvedValue({ rows: [row], hasMore: false });
 });
+
+afterEach(() => vi.unstubAllEnvs());
 
 describe("Grove transcript REST read — independent private scope", () => {
   it("is invisible before authorization when either flag is OFF", async () => {
@@ -205,5 +218,169 @@ describe("Grove transcript REST read — independent private scope", () => {
     expect(response.status).toBe(500);
     expect(JSON.stringify(await response.json()))
       .not.toContain("secret private sentence");
+  });
+});
+
+
+describe("Grove archive HTTP opt-in — legacy context never widens", () => {
+  it("returns a scoped next cursor and pages older saved replies without changing six-turn default", async () => {
+    const six = Array.from({ length: 6 }, (_, i) => ({
+      ...row,
+      request_id: "00000000-0000-4000-8000-" + (i + 100).toString().padStart(12, "0"),
+      created_at: "2025-06-" + String(20 - i).padStart(2, "0") + "T10:00:00Z",
+    }));
+    mocks.listHistoryPage.mockResolvedValueOnce({ rows: six, hasMore: true });
+    const result = await GET(req("&page=archive"));
+    const payload = await result.json();
+    expect(result.status).toBe(200);
+    expect(payload.turns).toHaveLength(6);
+    expect(payload.historyMayBeTruncated).toBe(true);
+    expect(payload.nextCursor).toMatch(/^[A-Za-z0-9_-]+\.[0-9a-f]{64}$/);
+    expect(mocks.listRecent).not.toHaveBeenCalled();
+    expect(mocks.listHistoryPage).toHaveBeenCalledWith({
+      groveUserId: ids.groveUserId,
+      projectId: ids.projectId,
+      conversationId: ids.conversationId,
+    }, undefined);
+    const second = await GET(req("&page=archive&cursor=" +
+      encodeURIComponent(payload.nextCursor)));
+    expect(second.status).toBe(200);
+    expect((await second.json()).nextCursor).toBeNull();
+    expect(mocks.listHistoryPage).toHaveBeenLastCalledWith({
+      groveUserId: ids.groveUserId,
+      projectId: ids.projectId,
+      conversationId: ids.conversationId,
+    }, { createdAt: six[5].created_at, requestId: six[5].request_id });
+    expect(mocks.authorize).toHaveBeenCalledTimes(4);
+    const legacy = await GET(req());
+    expect(legacy.status).toBe(200);
+    expect((await legacy.json())).not.toHaveProperty("nextCursor");
+    expect(mocks.listRecent).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects forged, expired, cross-scope and unrequested archive tokens", async () => {
+    const cursor = issueGrovePrivateHistoryCursor({
+      scope: { groveUserId: ids.groveUserId,
+        projectId: ids.projectId, conversationId: ids.conversationId },
+      key: { createdAt: row.created_at, requestId: row.request_id },
+      secret: "grove-test-only-private-archive-key",
+      now: Date.now() - 16 * 60 * 1000,
+    });
+    for (const [suffix, expectedStatus] of [
+      ["&cursor=" + encodeURIComponent(cursor), 400],
+      ["&page=archive&cursor=" + encodeURIComponent(cursor), 409],
+      ["&page=archive&cursor=forged", 409],
+      ["&page=archive&cursor=" + encodeURIComponent(cursor) + "&cursor=another", 400],
+    ] as const) {
+      const response = await GET(req(suffix));
+      expect(response.status).toBe(expectedStatus);
+    }
+    expect(mocks.listHistoryPage).not.toHaveBeenCalled();
+  });
+
+  it("does not leak an archive page if the user grant is revoked mid-fetch", async () => {
+    mocks.authorize.mockResolvedValueOnce({
+      access: "read-only", groveUserId: ids.groveUserId,
+      fireflyUserId: ids.fireflyOwner,
+      projectId: ids.projectId, conversationId: ids.conversationId,
+      groveAdmin: { privateClient: "grove" },
+    }).mockRejectedValueOnce(new Error("internal revocation detail"));
+    const response = await GET(req("&page=archive"));
+    expect(response.status).toBe(500);
+    expect(JSON.stringify(await response.json())).not.toContain("revocation detail");
+    expect(mocks.listHistoryPage).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("Grove saved phrase lookup: explicit, scoped and non-executing", () => {
+  it("keeps historical text search OFF before owner and private DB access", async () => {
+    vi.stubEnv("GROVE_PRIVATE_HISTORY_SEARCH_ENABLED", "");
+    const res = await GET(req("&search=Ever%20After"));
+    expect(res.status).toBe(404);
+    expect((await res.json()).error)
+      .toBe("grove_private_history_search_not_enabled");
+    expect(mocks.authorize).not.toHaveBeenCalled();
+    expect(mocks.createStore).not.toHaveBeenCalled();
+    expect(mocks.findSavedPhrase).not.toHaveBeenCalled();
+  });
+  it("finds only matching private turns in one reauthorized conversation", async () => {
+    const request = req("&search=Continue%20what");
+    const result = await GET(request);
+    expect(result.status).toBe(200);
+    const data = await result.json();
+    expect(data.turns).toHaveLength(1);
+    expect(data.searchMode).toBe("literal_phrase");
+    expect(data.searchedOnlyThisConversation).toBe(true);
+    expect(data.searchMayBeTruncated).toBe(false);
+    expect(data.grantsExecution).toBe(false);
+    expect(data.liveExecutionVerified).toBe(false);
+    expect(data).not.toHaveProperty("nextCursor");
+    expect(mocks.findSavedPhrase).toHaveBeenCalledExactlyOnceWith({
+      groveUserId: ids.groveUserId, projectId: ids.projectId,
+      conversationId: ids.conversationId,
+    }, "Continue what");
+    expect(mocks.authorize).toHaveBeenCalledTimes(2);
+    expect(mocks.listRecent).not.toHaveBeenCalled();
+    expect(mocks.listHistoryPage).not.toHaveBeenCalled();
+  });
+
+  it("truthfully advertises six matches and that older matches may exist", async () => {
+    mocks.findSavedPhrase.mockResolvedValueOnce({
+      rows: Array.from({length:6},(_,i)=>({
+        ...row,
+        request_id: "00000000-0000-4000-8000-" +
+          (i + 200).toString().padStart(12, "0"),
+      })), hasMore:true,
+    });
+    const result = await GET(req("&search=Continue"));
+    const data = await result.json();
+    expect(result.status).toBe(200);
+    expect(data.turns).toHaveLength(6);
+    expect(data.searchMayBeTruncated).toBe(true);
+    expect(data.historyMayBeTruncated).toBe(true);
+  });
+
+  it("rejects injection syntax, duplicate query and mixed archive modes before provider access", async () => {
+    for (const suffix of [
+      "&search=x", "&search=" + encodeURIComponent("%secret%"),
+      "&search=" + encodeURIComponent("x,assistant_text.ilike."),
+      "&search=Ever&search=After",
+      "&search=Ever&page=archive",
+      "&search=Ever&cursor=arbitrary",
+      "&search=" + encodeURIComponent("a\nb"),
+    ]) {
+      const res = await GET(req(suffix));
+      expect([400,409]).toContain(res.status);
+    }
+    expect(mocks.authorize).not.toHaveBeenCalled();
+    expect(mocks.findSavedPhrase).not.toHaveBeenCalled();
+  });
+
+  it("withholds search results when grant changes mid-read", async () => {
+    mocks.authorize.mockRejectedValueOnce(new Error("private invitation denied"));
+    const first = await GET(req("&search=Continue"));
+    expect(first.status).toBe(500);
+    expect(JSON.stringify(await first.json())).not.toContain("invitation denied");
+    expect(mocks.findSavedPhrase).not.toHaveBeenCalled();
+    mocks.authorize.mockResolvedValueOnce({
+      access:"read-only", groveUserId:ids.groveUserId,
+      fireflyUserId:ids.fireflyOwner, projectId:ids.projectId,
+      conversationId:ids.conversationId, groveAdmin:{privateClient:"grove"},
+    }).mockRejectedValueOnce(new Error("private revoked while searching"));
+    const second = await GET(req("&search=Continue"));
+    expect(second.status).toBe(500);
+    expect(JSON.stringify(await second.json())).not.toContain("revoked while");
+    expect(mocks.findSavedPhrase).toHaveBeenCalledTimes(1);
+  });
+
+  it("fails closed when no approved search adapter or provider search fails", async () => {
+    mocks.createStore.mockReturnValueOnce({listRecent:mocks.listRecent});
+    const absent = await GET(req("&search=Continue"));
+    expect(absent.status).toBe(500);
+    mocks.findSavedPhrase.mockRejectedValueOnce(
+      new Error("private saved question not for client display"));
+    const bad = await GET(req("&search=Continue"));
+    expect(bad.status).toBe(500);
+    expect(JSON.stringify(await bad.json())).not.toContain("private saved question");
   });
 });

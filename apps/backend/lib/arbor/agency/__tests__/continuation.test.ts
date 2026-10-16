@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { AgencyState } from "../engine";
+import { classifyConversationWorkControl, isStandaloneContinuationCue, shouldCarryGoal } from "../../continuity/longitudinalPolicy";
+import { buildAgencySessionState } from "../session";
 import {
   resolveAgencyGoal,
   shouldResumeAgencyGoal,
@@ -16,6 +18,92 @@ const prior: AgencyState = {
 };
 
 describe("agency continuation", () => {
+
+  it.each([
+    ["Please stop it.", "cancel_target"],
+    ["Can you stop that?", "cancel_target"],
+    ["Could you cancel this task?", "cancel_target"],
+    ["Would you please stop that?", "cancel_target"],
+    ["Stop, please.", "cancel_target"],
+    ["Stop working on that.", "cancel_target"],
+    ["Hold up.", "pause"],
+    ["Wait a minute.", "pause"],
+    ["Please pause this.", "pause"],
+    ["Pause the task, please.", "pause"],
+    ["Please don't continue.", "pause"],
+    ["Do not continue, please.", "pause"],
+    ["No, don't continue.", "pause"],
+    ["Can you pause that and keep the other?", "clarify"],
+    ["Can you cancel that and continue the other?", "clarify"],
+  ] as const)("respects natural phrasing of %s", (text, expected) => {
+    expect(classifyConversationWorkControl(text)).toBe(expected);
+    expect(shouldCarryGoal(text, prior)).toBe(false);
+    expect(() => buildAgencySessionState({ userText: text, prior }))
+      .toThrow("conversation_control_requires_hold_boundary");
+  });
+
+  it.each([
+    "Don't stop that",
+    "Do not stop that",
+    "Please don't stop this",
+    "Don't cancel it",
+    "Never pause that",
+    "Stop that. New task: review safe source",
+  ])("does not invert negated STOP or swallow an explicit switch: %s", text => {
+    expect(classifyConversationWorkControl(text)).toBeNull();
+  });
+
+  it.each([
+    "go", "next", "keep going", "list prompt go", "anything else?",
+    "your choice", "okay", "yes", "do your usual routine",
+  ])("does not manufacture an agency goal from %s without unfinished work", message => {
+    expect(isStandaloneContinuationCue(message)).toBe(true);
+    expect(shouldCarryGoal(message, null)).toBe(false);
+    expect(() => buildAgencySessionState({ userText: message, prior: null }))
+      .toThrow("continuation_without_unfinished_goal");
+    expect(() => buildAgencySessionState({
+      userText: message, prior: { ...prior, status: "complete" },
+    })).toThrow("continuation_without_unfinished_goal");
+    expect(() => buildAgencySessionState({
+      userText: message, prior: { ...prior, unresolvedWork: [] },
+    })).toThrow("continuation_without_unfinished_goal");
+  });
+
+  it("does not turn a conversational question into a blocked continuation", () => {
+    expect(isStandaloneContinuationCue("What's next?")).toBe(false);
+    expect(isStandaloneContinuationCue("Please explain what happened")).toBe(false);
+  });
+
+
+  it.each([
+    ["Pause that", "pause"],
+    ["Wait on this", "pause"],
+    ["Hold on", "pause"],
+    ["No, wait", "pause"],
+    ["Do not continue", "pause"],
+    ["Don't go ahead", "pause"],
+    ["Cancel it", "cancel_target"],
+    ["Stop that", "cancel_target"],
+    ["Stop", "cancel_target"],
+    ["Not that one", "clarify"],
+    ["Stop that one but keep the other", "clarify"],
+    ["No", "refuse"],
+    ["No thanks", "refuse"],
+  ] as const)("holds %s before starting or resuming work", (text, expected) => {
+    expect(classifyConversationWorkControl(text)).toBe(expected);
+    expect(shouldCarryGoal(text, prior)).toBe(false);
+    expect(() => buildAgencySessionState({ userText: text, prior }))
+      .toThrow("conversation_control_requires_hold_boundary");
+  });
+
+  it.each([
+    "go", "next", "keep going", "list prompt go", "don't stop that",
+    "Don't stop this; keep going", "do not change the goal",
+    "Stop that. New task: review safe source",
+  ])("keeps explicit continuations, negated STOP, and switches distinct: %s", text => {
+    expect(classifyConversationWorkControl(text)).toBeNull();
+  });
+
   it.each([
     "go",
     "okay",

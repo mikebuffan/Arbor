@@ -6,7 +6,7 @@ const mocks = vi.hoisted(() => ({
 }));
 vi.mock("@/lib/arbor/agency/state", () => ({ loadAgencyState: mocks.agency }));
 vi.mock("@/lib/arbor/subsystem/state", () => ({ loadSubsystemState: mocks.subsystem }));
-import { loadContinuityState } from "../store";
+import { loadContinuityState, loadContinuityStateSafe } from "../store";
 
 const userId="synthetic-owner",projectId="synthetic-project",conversationId="synthetic-conversation";
 const row=(role: string, content: unknown, overrides: Record<string, unknown> = {}) => ({
@@ -85,5 +85,19 @@ describe("B10 continuity scope and stale-content readback",()=>{
     const state=await loadContinuityState({...input,supabase:db.supabase});
     expect(state.lastMeaningfulUserTurn).toBe("Future safe message");
     expect(state.lastMeaningfulArborTurn).toBe("Future safe answer");
+  });
+
+  it("safe fallback never logs private provider error contents",async()=>{
+    const secret="synthetic-private-continuity-text-and-bearer-token";
+    const warn=vi.spyOn(console,"warn").mockImplementation(()=>{});
+    try {
+      mocks.agency.mockRejectedValueOnce(new Error(secret));
+      const db=client([row("user","Synthetic private context")],[]);
+      const state=await loadContinuityStateSafe({...input,supabase:db.supabase});
+      expect(state).toBeDefined();
+      expect(JSON.stringify(warn.mock.calls)).toContain("[arbor:continuity] fallback");
+      expect(JSON.stringify(warn.mock.calls)).not.toContain(secret);
+      expect(JSON.stringify(state)).not.toContain(secret);
+    } finally {warn.mockRestore();}
   });
 });

@@ -52,6 +52,10 @@ BEGIN
       p_user_text_sha256 !~ '^[a-f0-9]{64}$' THEN
     RETURN jsonb_build_object('status','invalid_hash');
   END IF;
+  -- Acquire the shared scope lock BEFORE any claim/row lock. A deletion
+  -- serialized ahead of this request cannot be bypassed by a stale worker.
+  PERFORM public.grove_private_lock_conversation(
+    p_grove_user_id,p_project_id,p_conversation_id);
   IF NOT EXISTS (
     SELECT 1 FROM public.grove_private_owner_access o
       JOIN public.grove_private_firefly_bridge b
@@ -160,6 +164,9 @@ BEGIN
     OR p_lease_token IS NULL THEN
     RETURN 'invalid';
   END IF;
+  -- Use the SAME lock order as claim and deletion before locking a claim row.
+  PERFORM public.grove_private_lock_conversation(
+    p_grove_user_id,p_project_id,p_conversation_id);
   -- Lock this request across independent serverless workers. Claim renewal/
   -- reclaim waits here until the winning completion commits.
   SELECT * INTO v_claim FROM public.grove_private_turn_claims

@@ -1,4 +1,5 @@
 import '../api/arbor_api_client.dart';
+import 'grove_app_mode.dart';
 
 /// A claim saved by Firefly's memory system, NOT a primary-source document.
 /// The API response is already owner-checked; this projection additionally
@@ -131,6 +132,8 @@ class GroveMemoryShelfReader {
     String? conversationId,
     String? after,
   }) async {
+    // The private Grove host has no approved memory-shelf endpoint yet.
+    requireFireflyShelfRoutes();
     final response = await api.get(
       '/api/memory/items',
       queryParameters: {

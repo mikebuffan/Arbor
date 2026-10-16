@@ -1,5 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
+    <!-- Grove's current private Talk is text-only; inherited RECORD_AUDIO
+         would request microphone capability before separately accepted Voice. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO"
+        tools:node="remove" />
     <!-- Grove is a separate launcher/install from the original Arbor diary UI. -->
     <application
         android:label="The Grove"

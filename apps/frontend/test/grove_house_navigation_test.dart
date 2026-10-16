@@ -280,4 +280,32 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+
+  testWidgets('Grove house Arbor door mounts the actual conversation destination',
+      (tester) async {
+    tester.view.physicalSize = const Size(390, 840);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    // Inject a harmless conversation surface: this proves the full house ->
+    // shell -> Talk route without touching an owner realm or private model.
+    await tester.pumpWidget(const MaterialApp(
+      home: ArborEnvironmentShell(
+        conversationLayer: Center(child: Text('Synthetic private Talk destination')),
+      ),
+    ));
+    await tester.pump(const Duration(milliseconds: 150));
+    expect(find.text('THE GROVE • HOME'), findsOneWidget);
+    expect(find.text('Synthetic private Talk destination'), findsNothing);
+
+    await tester.ensureVisible(find.widgetWithText(OutlinedButton, 'Arbor'));
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Arbor'));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('Synthetic private Talk destination'), findsOneWidget);
+    expect(find.text('THE GROVE • HOME'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
 }

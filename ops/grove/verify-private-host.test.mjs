@@ -2,6 +2,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   assertPrivateGroveOrigin, verifyPrivateGroveHost,
+  inspectPrivateGroveTalkKeyMetadata, PRIVATE_GROVE_TALK_KEY_GROUPS,
+  inspectGroveRestoreDeletionCoverage, inspectPrivateGroveReleaseLayout,
+  inspectGroveBackupSnapshotRetention, GROVE_BACKUP_MAX_RETENTION_DAYS,
 } from "./verify-private-host.mjs";
 
 const origin = "https://grove-private-api.example.org";
@@ -96,4 +99,259 @@ test("cacheable private denials are HOLD", async () => {
     verifyPrivateGroveHost(origin,{request:f.request}),
     /grove_host_isolation_failed/,
   );
+});
+
+
+test("current Grove host production key names do not authorize private Talk", () => {
+  // Metadata names observed from existing Vercel project. No decrypted values.
+  const current = [
+    "GROVE_SERVICE_ROLE_KEY", "GROVE_FIREFLY_SERVICE_ROLE_KEY",
+    "GROVE_SUPABASE_PUBLISHABLE_KEY", "GROVE_API_ENABLED",
+    "GROVE_SUPABASE_URL", "GROVE_FIREFLY_SUPABASE_URL",
+    "GROVE_PUBLIC_API_ORIGIN",
+  ].map(key => ({key, target:["production"], value:"NOT_READ"}));
+  const result = inspectPrivateGroveTalkKeyMetadata(current);
+  assert.equal(result.status,"HOLD_MISSING_KEY_NAMES");
+  assert.deepEqual(result.missing.privateRealm,[]);
+  assert.deepEqual(result.missing.conversationFlags,
+    PRIVATE_GROVE_TALK_KEY_GROUPS.conversationFlags);
+  assert.deepEqual(result.missing.independentModel,
+    PRIVATE_GROVE_TALK_KEY_GROUPS.independentModel);
+  assert.deepEqual(result.missing.durableConversation,
+    PRIVATE_GROVE_TALK_KEY_GROUPS.durableConversation);
+  assert.equal(result.missingCount,7);
+  assert.equal(result.readyForDeployment,false);
+  assert.equal(result.requiresSeparateApproval,true);
+  assert.ok(!JSON.stringify(result).includes("NOT_READ"));
+});
+test("even all production names never count as host or model acceptance", () => {
+  const names=Object.values(PRIVATE_GROVE_TALK_KEY_GROUPS).flat();
+  const result=inspectPrivateGroveTalkKeyMetadata(names.map(key=>({key,target:["production"]})));
+  assert.equal(result.missingCount,0);
+  assert.equal(result.status,"HOLD_RUNTIME_NOT_VERIFIED");
+  assert.equal(result.readyForDeployment,false);
+  assert.ok(result.unverified.includes("receiver_running"));
+  assert.ok(result.unverified.includes("cost_ceiling"));
+});
+test("preview-only configuration cannot masquerade as production readiness", () => {
+  const names=Object.values(PRIVATE_GROVE_TALK_KEY_GROUPS).flat();
+  const metadata=names.map(key=>({key,target:["preview"]}));
+  metadata.push({key:"GROVE_API_ENABLED",target:["production"]});
+  const result=inspectPrivateGroveTalkKeyMetadata(metadata);
+  assert.equal(result.missing.privateRealm.includes("GROVE_API_ENABLED"),false);
+  assert.equal(result.missing.independentModel.length,3);
+  assert.equal(result.readyForDeployment,false);
+});
+test("malformed metadata fails closed without reading credential values", () => {
+  for (const input of [null,{},[{key:"ARBOR_LM_PRIVATE_URL",target:[],value:"secret"},
+    {key:"bad key",target:["production"]}],new Array(501).fill({key:"X"})]) {
+    assert.throws(()=>inspectPrivateGroveTalkKeyMetadata(input),/grove_host_key_metadata_invalid/);
+  }
+});
+
+
+const restoreScope = (last="00000000-0000-4000-8000-000000000005") => ({
+  groveUserId: "00000000-0000-4000-8000-000000000001",
+  projectId: "00000000-0000-4000-8000-000000000003",
+  conversationId: last,
+});
+const restoreFixture = (overrides={}) => ({
+  externalDeletions:[restoreScope()],
+  restoredTombstones:[restoreScope()],
+  restoredTurns:[],
+  restoredClaims:[],
+  ...overrides,
+});
+test("no independent deletion ledger always blocks a full restore", () => {
+  const result=inspectGroveRestoreDeletionCoverage(restoreFixture({
+    externalDeletions:[],
+  }));
+  assert.equal(result.status,"HOLD_MISSING_EXTERNAL_DELETION_EVIDENCE");
+  assert.equal(result.readyForRestore,false);
+  assert.equal(result.mayServePrivateContent,false);
+  assert.equal(result.externalLedgerVerified,false);
+});
+test("a backup missing a later deletion marker is unsafe even with no rows", () => {
+  const result=inspectGroveRestoreDeletionCoverage(restoreFixture({
+    restoredTombstones:[],
+  }));
+  assert.equal(result.status,"HOLD_DELETED_CONVERSATION_REAPPEARANCE");
+  assert.equal(result.missingTombstoneCount,1);
+  assert.equal(result.readyForRestore,false);
+});
+test("an old saved turn and an in-flight claim after deletion block restore", () => {
+  const result=inspectGroveRestoreDeletionCoverage(restoreFixture({
+    restoredTurns:[restoreScope()],
+    restoredClaims:[restoreScope()],
+  }));
+  assert.equal(result.resurrectedTurnScopeCount,1);
+  assert.equal(result.resurrectedClaimScopeCount,1);
+  assert.equal(result.metadataCoverageConsistent,false);
+  assert.equal(result.mayServePrivateContent,false);
+});
+test("consistent synthetic deletion metadata STILL cannot approve an actual restore", () => {
+  const result=inspectGroveRestoreDeletionCoverage(restoreFixture({
+    restoredTurns:[restoreScope("00000000-0000-4000-8000-000000000009")],
+  }));
+  assert.equal(result.metadataCoverageConsistent,true);
+  assert.equal(result.status,"HOLD_INDEPENDENT_ATTESTATION_AND_RESTORE_POLICY");
+  assert.equal(result.externalLedgerVerified,false);
+  assert.equal(result.readyForRestore,false);
+  assert.equal(result.requiresSeparateOwnerApproval,true);
+});
+test("foreign owner/project, malformed, duplicate and content-bearing metadata cannot bypass gate", () => {
+  for (const supplied of [
+    null,{},restoreFixture({restoredTombstones:[{...restoreScope(), userText:"private"}]}),
+    restoreFixture({externalDeletions:[restoreScope(),restoreScope()]}),
+    restoreFixture({restoredTurns:[{groveUserId:"foreign",projectId:restoreScope().projectId,
+      conversationId:restoreScope().conversationId}]}),
+    restoreFixture({restoredClaims:new Array(501).fill(restoreScope())}),
+  ]) {
+    assert.throws(()=>inspectGroveRestoreDeletionCoverage(supplied),
+      /grove_restore_evidence_(invalid|duplicate_external)/);
+  }
+  const differentOwner=inspectGroveRestoreDeletionCoverage(restoreFixture({
+    restoredTombstones:[{...restoreScope(),
+      groveUserId:"00000000-0000-4000-8000-000000000002"}],
+  }));
+  assert.equal(differentOwner.missingTombstoneCount,1);
+  assert.equal(differentOwner.readyForRestore,false);
+});
+
+
+const repoRoot = new URL("../../", import.meta.url);
+const configs = await Promise.all([
+  import("node:fs/promises").then(m =>
+    m.readFile(new URL("vercel.json",repoRoot),"utf8").then(JSON.parse)),
+  import("node:fs/promises").then(m =>
+    m.readFile(new URL("apps/backend/vercel.json",repoRoot),"utf8").then(JSON.parse)),
+  import("node:fs/promises").then(m =>
+    m.readFile(new URL("apps/backend/grove.vercel.json",repoRoot),"utf8").then(JSON.parse)),
+]);
+const releaseFixture = (overrides={}) => ({
+  projectId:"prj_nw2X0SyLn4e8CXWZ83MEs4jwn1JN",
+  rootDirectory:null,
+  repositoryConfig:configs[0],backendConfig:configs[1],
+  groveCandidateConfig:configs[2],
+  ...overrides,
+});
+test("current dedicated Grove root metadata cannot inherit Firefly cron",()=>{
+  const result=inspectPrivateGroveReleaseLayout(releaseFixture());
+  assert.equal(result.evaluatedRoot,"repository-root");
+  assert.equal(result.effectiveConfigPath,"vercel.json");
+  assert.ok(result.effectiveCronCount>0);
+  assert.equal(result.candidateNoCron,true);
+  assert.equal(result.status,"HOLD_INHERITED_FIREFLY_CONFIG");
+  assert.equal(result.readyForDeployment,false);
+});
+test("pointing Grove at apps/backend also inherits an existing heartbeat",()=>{
+  const result=inspectPrivateGroveReleaseLayout(
+    releaseFixture({rootDirectory:"apps/backend"}));
+  assert.equal(result.effectiveConfigPath,"apps/backend/vercel.json");
+  assert.ok(result.effectiveCronCount>0);
+  assert.equal(result.status,"HOLD_INHERITED_FIREFLY_CONFIG");
+  assert.equal(result.readyForDeployment,false);
+});
+test("review-only no-cron alternate filename is NOT effective Vercel config",()=>{
+  const result=inspectPrivateGroveReleaseLayout(releaseFixture());
+  assert.equal(result.candidateNoCron,true);
+  assert.equal(result.alternateCandidateIsEffective,false);
+  assert.equal(result.sourceNoCronVerified,false);
+  assert.equal(result.readyForPrivateModel,false);
+});
+test("even hypothetical exact no-cron effective config never authorizes deploy",()=>{
+  const result=inspectPrivateGroveReleaseLayout(releaseFixture({
+    rootDirectory:"apps/backend",backendConfig:configs[2],
+  }));
+  assert.equal(result.effectiveCronCount,0);
+  assert.equal(result.sourceNoCronVerified,true);
+  assert.equal(result.status,"HOLD_OWNER_RELEASE_AUTHORIZATION");
+  assert.equal(result.readyForDeployment,false);
+  assert.equal(result.readyForSchemaMigration,false);
+});
+test("wrong project, unsupported path, missing config or bad ignore fails closed",()=>{
+  for (const input of [
+    releaseFixture({projectId:"unrelated"}),
+    releaseFixture({rootDirectory:"apps/frontend"}),
+    releaseFixture({backendConfig:null}),
+    releaseFixture({repositoryConfig:{crons:[],ignoreCommand:"echo build"}}),
+    releaseFixture({groveCandidateConfig:{crons:[{path:"/api/heartbeat",schedule:"* * * * *"}],ignoreCommand:"node ops/grove/source-only-ignore.mjs"}}),
+  ]) {
+    if (input.projectId==="unrelated"||input.rootDirectory==="apps/frontend"||
+      input.backendConfig===null||input.repositoryConfig?.ignoreCommand==="echo build") {
+      assert.throws(()=>inspectPrivateGroveReleaseLayout(input),
+        /grove_release_(layout_metadata|config)_invalid/);
+    } else {
+      assert.equal(inspectPrivateGroveReleaseLayout(input).status,
+        "HOLD_CANDIDATE_HAS_CRONS");
+    }
+  }
+});
+
+
+const backupNow = "2026-10-11T12:00:00.000Z";
+const backup = (snapshotId, createdAtUtc, encryptedAtRest=true) =>
+  ({snapshotId,createdAtUtc,encryptedAtRest});
+test("backup policy is thirty days but active conversation content never expires here",()=>{
+  assert.equal(GROVE_BACKUP_MAX_RETENTION_DAYS,30);
+  const result=inspectGroveBackupSnapshotRetention({
+    nowUtc:backupNow,
+    snapshots:[
+      backup("today","2026-10-11T12:00:00.000Z"),
+      backup("thirty-days","2026-09-11T12:00:00.000Z"),
+    ],
+  });
+  assert.equal(result.maxSnapshotRetentionDays,30);
+  assert.equal(result.activeConversationAgeLimitDays,null);
+  assert.equal(result.expiredSnapshotCount,0);
+  assert.equal(result.metadataWithinPolicy,true);
+  assert.equal(result.approvedForRestore,false);
+  assert.equal(result.automatedCleanupImplemented,false);
+  assert.equal(result.verifiedProviderErasure,false);
+});
+test("31-day backup is marked for cleanup, not silently deleted",()=>{
+  const result=inspectGroveBackupSnapshotRetention({
+    nowUtc:backupNow,
+    snapshots:[backup("old","2026-09-10T12:00:00.000Z")],
+  });
+  assert.equal(result.status,"HOLD_EXPIRED_BACKUPS_REQUIRE_CLEANUP");
+  assert.equal(result.expiredSnapshotCount,1);
+  assert.equal(result.cleanupAuthorized,false);
+  assert.equal(result.mayServePrivateContent,false);
+});
+test("unencrypted copies and future-dated backup stamps fail closed",()=>{
+  const plain=inspectGroveBackupSnapshotRetention({
+    nowUtc:backupNow,
+    snapshots:[backup("plain","2026-10-10T12:00:00.000Z",false)],
+  });
+  assert.equal(plain.unencryptedSnapshotCount,1);
+  assert.equal(plain.status,"HOLD_BACKUPS_NOT_ENCRYPTED");
+  const future=inspectGroveBackupSnapshotRetention({
+    nowUtc:backupNow,
+    snapshots:[backup("tomorrow","2026-10-12T12:00:00.000Z")],
+  });
+  assert.equal(future.status,"HOLD_INVALID_SNAPSHOT_TIMELINE");
+  assert.equal(future.approvedForRestore,false);
+});
+test("no inventory cannot be misrepresented as encrypted provider backup compliance",()=>{
+  const result=inspectGroveBackupSnapshotRetention({
+    nowUtc:backupNow, snapshots:[],
+  });
+  assert.equal(result.status,"HOLD_NO_BACKUP_EVIDENCE");
+  assert.equal(result.verifiedProviderErasure,false);
+  assert.equal(result.approvedForRestore,false);
+});
+test("reject malformed, duplicate, content-bearing or oversized backup metadata",()=>{
+  for (const input of [
+    null,{nowUtc:"today",snapshots:[]},
+    {nowUtc:"2026-02-30T12:00:00.000Z",snapshots:[]},
+    {nowUtc:backupNow,snapshots:[backup("a","2026-10-10T12:00:00.000Z"),backup("a","2026-10-10T12:00:00.000Z")]},
+    {nowUtc:backupNow,snapshots:[{...backup("a","2026-10-10T12:00:00.000Z"),messageText:"private"}]},
+    {nowUtc:backupNow,snapshots:[backup("http://secret.example","2026-10-10T12:00:00.000Z")]},
+    {nowUtc:backupNow,snapshots:[backup("a","2026-10-32T12:00:00.000Z")]},
+    {nowUtc:backupNow,snapshots:Array.from({length:101},(_,i)=>backup("id"+i,backupNow))},
+  ]) {
+    assert.throws(()=>inspectGroveBackupSnapshotRetention(input),
+      /grove_backup_metadata_invalid/);
+  }
 });

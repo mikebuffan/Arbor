@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../api/arbor_api_client.dart';
 import '../api/arbor_session.dart';
 import '../config/grove_private_config.dart';
+import '../environment/grove_private_conversations.dart';
 
 /// Strict parsing: do not treat a malformed, partial or foreign response as
 /// permission to restore an old Firefly project from local preferences.
@@ -86,8 +87,15 @@ class _GrovePrivateProjectGateState extends State<GrovePrivateProjectGate>
   }
 
   Future<List<String>> _discover() async {
-    final client =
-        ArborApiClient(baseUrl: GrovePrivateConfig.fromBuild.apiUrl);
+    final config = GrovePrivateConfig.fromBuild;
+    if (!config.ready) {
+      throw StateError('Private Grove project host is not approved.');
+    }
+    // The same private no-redirect transport protects owner project discovery.
+    final client = ArborApiClient(
+      baseUrl: config.apiUrl,
+      httpClient: GrovePrivateNoRedirectClient(),
+    );
     try {
       return parseGroveGrantedProjectIds(
         await client.get('/api/grove/ark/projects'),

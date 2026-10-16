@@ -11,10 +11,10 @@ class GroveDiaryDraftView extends StatefulWidget {
   const GroveDiaryDraftView({super.key});
 
   @override
-  State<GroveDiaryDraftView> createState() => _GroveDiaryDraftViewState();
+  State<GroveDiaryDraftView> createState() => GroveDiaryDraftViewState();
 }
 
-class _GroveDiaryDraftViewState extends State<GroveDiaryDraftView> {
+class GroveDiaryDraftViewState extends State<GroveDiaryDraftView> {
   final _title = TextEditingController();
   final _entry = TextEditingController();
   final _context = TextEditingController();
@@ -75,6 +75,34 @@ class _GroveDiaryDraftViewState extends State<GroveDiaryDraftView> {
     );
     if (!mounted || discard != true) return;
     _clear();
+  }
+
+  /// The draft is intentionally not persisted; every navigation path must
+  /// explicitly confirm before abandoning nonempty writing.
+  Future<bool> confirmNavigationAway() async {
+    if (_title.text.trim().isEmpty &&
+        _entry.text.trim().isEmpty &&
+        _context.text.trim().isEmpty) return true;
+    final discard = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Leave unsaved diary draft?'),
+        content: const Text(
+          'This draft has not been saved. Leaving will discard it.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Keep writing'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Leave without saving'),
+          ),
+        ],
+      ),
+    );
+    return mounted && discard == true;
   }
 
   @override

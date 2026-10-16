@@ -133,6 +133,19 @@ describe("durable correction recovery on authenticated chat",()=>{
   expect(db.calls.filter(c=>c.table==="memory_items"&&c.mode==="insert")).toHaveLength(1);
   expect(JSON.stringify(vi.mocked(console.warn).mock.calls)).not.toContain("private token");
  });
+ it("does not log a secret-looking provider error code during correction recovery",async()=>{
+  const db=new BehaviorCorrectionDatabase();await stage(db);
+  const warn=vi.spyOn(console,"warn").mockImplementation(()=>{});
+  const syntheticSecret="secret_access_token_27";
+  db.fault=(table,mode)=>table==="memory_items"&&mode==="insert"
+    ?{code:syntheticSecret,message:"synthetic private correction text"}:null;
+  expect(await recover(db)).toMatchObject({completed:0,failed:1});
+  const diagnostic=JSON.stringify(warn.mock.calls);
+  expect(diagnostic).toContain("recovery_failed");
+  expect(diagnostic).not.toContain(syntheticSecret);
+  expect(diagnostic).not.toContain("synthetic private correction text");
+  expect(db.tables.memory_pending[0].event_type).toContain("_pending");
+ });
  it("cannot revive a revoked rule from a durable pending job",async()=>{
   const db=new BehaviorCorrectionDatabase();await stage(db);await recover(db);
   db.tables.memory_pending[0].event_type="behavior_correction_promotion_pending";

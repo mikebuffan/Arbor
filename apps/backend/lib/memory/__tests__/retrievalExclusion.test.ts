@@ -48,7 +48,10 @@ describe("memory exclusion across retrieval routes",()=>{
   const ordinary=row("ordinary");
   const trigger={...row("trigger"),tier:"normal" as const,user_trigger_only:true,value:{text:"secret trigger phrase"}};
   const sensitive={...row("sensitive"),tier:"sensitive" as const,value:{text:"private fact"}};
-  const d=db([{data:[ordinary,trigger,sensitive],error:null},{data:[ordinary,trigger,sensitive],error:null}]);
+  const coreTrigger={...row("core-trigger"),tier:"core" as const,user_trigger_only:true,
+   value:{text:"only after owner cue"}};
+  const all=[ordinary,trigger,sensitive,coreTrigger];
+  const d=db([{data:all,error:null},{data:all,error:null}]);
   const anchors=await getAlwaysIncludedMemoryAnchors({...scope,supabase:d.client});
   expect(anchors.map(x=>x.id)).toEqual(["ordinary"]);
   expect(d.queries[0].eq).toHaveBeenCalledWith("user_trigger_only",false);
@@ -56,6 +59,11 @@ describe("memory exclusion across retrieval routes",()=>{
   // Explicitly triggered recall remains available behind the prompt selection gate.
   const recalled=await getMemoryContext({...scope,supabase:d.client});
   expect(recalled.keysUsed).toContain("trigger");
+  // Pinned sensitive items and trigger-only core items must not leak through
+  // the unconditional core bucket, even when the DB read returned them.
+  expect(recalled.core.map(x=>x.id)).toEqual(["ordinary"]);
+  expect(recalled.sensitive.map(x=>x.id)).toEqual(["trigger","sensitive","core-trigger"]);
+  expect(recalled.normal).toEqual([]);
   expect(selectItemsForPrompt(recalled.sensitive,"unrelated question")).toEqual([]);
   expect(selectItemsForPrompt(recalled.sensitive,"secret trigger phrase").map(x=>x.id)).toContain("trigger");
  });

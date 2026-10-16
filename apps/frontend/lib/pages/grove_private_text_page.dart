@@ -16,6 +16,10 @@ import '../environment/grove_pending_turn_store.dart';
 const bool _groveNewConversationEnabled = bool.fromEnvironment(
   'GROVE_PRIVATE_NEW_CONVERSATION_PREVIEW', defaultValue: false,
 );
+// This owner-delete preview is OFF in ordinary Grove APKs.
+const bool _groveDeleteConversationEnabled = bool.fromEnvironment(
+  'GROVE_PRIVATE_DELETE_CONVERSATION_PREVIEW', defaultValue: false,
+);
 
 // Recovery deadlines release this screen, not the server request. A late
 // response is ignored; uncertain sends retain their original retry identity.
@@ -94,7 +98,10 @@ class _GrovePrivateTextHostState extends State<GrovePrivateTextHost> {
           !_sameSession(id, token, scope.projectId)) {
         throw StateError('No verified Grove project');
       }
-      final api = ArborApiClient(baseUrl: config.apiUrl);
+      final api = ArborApiClient(
+        baseUrl: config.apiUrl,
+        httpClient: GrovePrivateNoRedirectClient(),
+      );
       if (!mounted || generation != _generation) {
         api.close();
         return;
@@ -151,8 +158,19 @@ class _GrovePrivateTextHostState extends State<GrovePrivateTextHost> {
         authOrigin: GrovePrivateConfig.fromBuild.authUrl,
       ),
       allowNewConversations: _groveNewConversationEnabled,
+      allowDeleteConversations: _groveDeleteConversationEnabled,
       initialConversationId: _selectedId,
       sessionStillValid: () => _sameSession(id, token, project),
+      onConversationDeleted: (conversationId) async {
+        if (!_sameSession(id, token, project))
+          throw StateError('Private scope changed after Grove deletion');
+        if (ArborSession.instance.peek(id)?.conversationId == conversationId) {
+          // Clear this app selection, NOT Firefly's conversation record.
+          await ArborSession.instance.startNewThread(
+            userId: id, projectId: project,
+          );
+        }
+      },
       onConversationSelected: (conversationId) async {
         if (!_sameSession(id, token, project)) {
           throw StateError('Private scope changed');
@@ -195,6 +213,8 @@ class GrovePrivateTextPanel extends StatefulWidget {
     this.initialConversationId,
     this.pendingStore,
     this.allowNewConversations = false,
+    this.allowDeleteConversations = false,
+    this.onConversationDeleted,
   });
 
   final GrovePrivateConversationClient client;
@@ -202,6 +222,8 @@ class GrovePrivateTextPanel extends StatefulWidget {
   final String? initialConversationId;
   final GrovePendingTurnStore? pendingStore;
   final bool allowNewConversations;
+  final bool allowDeleteConversations;
+  final Future<void> Function(String conversationId)? onConversationDeleted;
   final bool Function() sessionStillValid;
   final Future<void> Function(String conversationId) onConversationSelected;
 
@@ -212,8 +234,15 @@ class GrovePrivateTextPanel extends StatefulWidget {
 class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel>
     with WidgetsBindingObserver {
   final _input = TextEditingController();
+  final _searchInput = TextEditingController();
+  GrovePrivateHistory? _searchResults;
+  String? _searchedPhrase;
   GrovePrivateConversationChoices? _choices;
   GrovePrivateHistory? _history;
+  bool _turnArchiveStarted = false;
+  String? _olderTurnCursor;
+  bool _archiveStarted = false;
+  String? _olderCursor;
   String? _selected;
   String? _pendingId;
   String? _pendingText;
@@ -376,6 +405,7 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel>
       _changingDraft = false; _draftStatus = null; _sending = false;
       _choices = null;
       _history = null;
+      _searchResults = null; _searchedPhrase = null; _searchInput.clear();
       _selected = null;
       _pendingId = null;
       _pendingText = null;
@@ -390,13 +420,24 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel>
         (_loading && _choices != null)) return;
     final previousId = _selected;
     final generation = ++_generation;
-    setState(() { _loading = true; _error = null; });
+    var draftPreserved = false;
+    // A fresh authorization read may fail because the grant was revoked.
+    // Hide the last transcript and search results BEFORE any network await.
+    // Preserve the selected ID just long enough to save an opted-in draft.
+    setState(() {
+      _loading = true; _error = null;
+      _history = null;
+      _searchResults = null; _searchedPhrase = null;
+    });
     try {
       await _saveDraft();
+      draftPreserved = true;
       if (!_valid || generation != _generation) return;
       final choices = await widget.client.listExisting(widget.projectId)
           .timeout(_groveReadDeadline);
       if (!_valid || generation != _generation) return;
+      _archiveStarted = false;
+      _olderCursor = null;
       final preferred = previousId ?? widget.initialConversationId;
       final selected = choices.conversations.any((c) =>
           c.conversationId == preferred)
@@ -410,6 +451,7 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel>
       final previousStillSelected = previousId != null && previousId == selected;
       setState(() {
         _choices = choices;
+        _searchResults = null; _searchedPhrase = null;
         _loading = selected != null;
         if (!previousStillSelected) {
           _draftTimer?.cancel();
@@ -427,9 +469,78 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel>
       if (selected != null) await _choose(selected, generation: generation);
     } catch (_) {
       if (!_valid || generation != _generation) return;
+      // Rejection, timeout or revoked project access is not permission to keep
+      // the last verified list, transcript, archive, search or send controls.
+      // An opted-in local draft is written above before the access request.
       setState(() {
         _loading = false;
-        _error = 'Private Grove conversations could not be verified.';
+        _choices = null; _history = null;
+        // A failed local draft write is different from a denied server read.
+        // Keep the unsent text and selected ID in memory for an explicit
+        // retry; the unverified transcript and SEND authority stay hidden.
+        if (draftPreserved) {
+          _selected = null;
+          _unsavedReply = null;
+        }
+        _searchResults = null; _searchedPhrase = null;
+        _archiveStarted = false; _olderCursor = null;
+        _turnArchiveStarted = false; _olderTurnCursor = null;
+        _error = draftPreserved
+            ? 'Private Grove conversations could not be verified.'
+            : 'The device draft could not be saved. '
+              'Keep this screen open and retry refresh before sending.';
+      });
+    }
+  }
+
+
+  /// Manual archive pagination only; never auto-walk every conversation or
+  /// append saved bodies to a model prompt. Preserve user draft/selection.
+  Future<void> _loadOlder() async {
+    if (!_valid || _loading || _sending || _pendingId != null ||
+        _draftBlocked || _changingDraft || _choices == null ||
+        (_archiveStarted && _olderCursor == null)) return;
+    final generation = ++_generation;
+    final before = _archiveStarted ? _olderCursor : null;
+    setState(() { _loading = true; _error = null; });
+    try {
+      await _saveDraft();
+      if (!_valid || generation != _generation) return;
+      final page = await widget.client.listArchive(
+        widget.projectId, cursor: before,
+      ).timeout(_groveReadDeadline);
+      if (!_valid || generation != _generation) return;
+      if (page.projectId != widget.projectId)
+        throw StateError('Grove conversation archive scope changed');
+      final existing = _choices!;
+      final seen = existing.conversations
+          .map((choice) => choice.conversationId.toLowerCase()).toSet();
+      final merged = [...existing.conversations];
+      for (final choice in page.conversations) {
+        if (seen.add(choice.conversationId.toLowerCase())) {
+          merged.add(choice);
+        }
+      }
+      setState(() {
+        _choices = GrovePrivateConversationChoices(
+          projectId: widget.projectId,
+          conversations: List.unmodifiable(merged),
+          mayBeTruncated: page.nextCursor != null,
+          nextCursor: page.nextCursor,
+        );
+        _archiveStarted = true;
+        _olderCursor = page.nextCursor;
+        _loading = false;
+      });
+    } catch (_) {
+      if (!_valid || generation != _generation) return;
+      // A failed private read may mean revocation. Do not leave content
+      // onscreen under an unverified owner/project/conversation scope.
+      setState(() {
+        _loading = false;
+        _choices = null; _selected = null; _history = null;
+        _archiveStarted = false; _olderCursor = null;
+        _error = 'Could not verify older Grove conversations. Refresh to retry.';
       });
     }
   }
@@ -454,6 +565,8 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel>
       _loading = true;
       _selected = null;
       _history = null;
+      _searchResults = null; _searchedPhrase = null; _searchInput.clear();
+      _turnArchiveStarted = false; _olderTurnCursor = null;
       _pendingId = null;
       _pendingText = null;
       _unsavedReply = null;
@@ -495,6 +608,7 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel>
         if (!_valid || current != _generation) return;
         setState(() {
           _selected = id; _history = history; _loading = false;
+          _turnArchiveStarted = false; _olderTurnCursor = null;
           _draftBlocked = true;
           _error = 'A saved device draft could not be recovered. '
               'Sending is blocked until you erase it explicitly.';
@@ -505,6 +619,7 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel>
       setState(() {
         _selected = id;
         _history = history;
+        _turnArchiveStarted = false; _olderTurnCursor = null;
         _keepDraft = draft != null;
         _pendingId = draft?.requestId;
         _pendingText = draft?.requestId == null ? null : draft!.text;
@@ -517,6 +632,216 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel>
       setState(() {
         _loading = false;
         _error = 'Grove could not open that private conversation.';
+      });
+    }
+  }
+
+
+  /// Manual older-message browsing, never a model-memory injection. A fresh
+  /// private authorization and tombstone check happens for EACH page.
+  Future<void> _loadOlderMessages() async {
+    final id = _selected;
+    final existing = _history;
+    if (!_valid || _loading || _sending || _pendingId != null ||
+        _draftBlocked || _changingDraft || id == null || existing == null ||
+        (_turnArchiveStarted ? _olderTurnCursor == null :
+          !existing.mayBeTruncated)) return;
+    final generation = ++_generation;
+    final before = _turnArchiveStarted ? _olderTurnCursor : null;
+    setState(() { _loading = true; _error = null; });
+    try {
+      await _saveDraft();
+      if (!_valid || generation != _generation) return;
+      final page = await widget.client.loadArchive(
+        projectId: widget.projectId, conversationId: id,
+        cursor: before,
+      ).timeout(_groveReadDeadline);
+      if (!_valid || generation != _generation) return;
+      if (page.projectId != widget.projectId || page.conversationId != id)
+        throw StateError('Private historical message scope changed');
+      final merged = [...existing.turnsNewestFirst];
+      if (before == null) {
+        // First archive page must agree with the already-opened recent view.
+        // Otherwise a concurrent new turn requires a fresh owner-scoped reopen.
+        if (page.turnsNewestFirst.length != merged.length)
+          throw StateError('Private history shifted during archive read');
+        for (var i = 0; i < merged.length; i++) {
+          final a = merged[i], b = page.turnsNewestFirst[i];
+          if (a.requestId.toLowerCase() != b.requestId.toLowerCase() ||
+              a.userText != b.userText || a.assistantText != b.assistantText ||
+              a.replyVerification != b.replyVerification ||
+              a.createdAt != b.createdAt) {
+            throw StateError('Private history changed during archive read');
+          }
+        }
+      } else {
+        final known = merged.map((turn) => turn.requestId.toLowerCase()).toSet();
+        final oldest = merged.last;
+        for (final turn in page.turnsNewestFirst) {
+          final earlier = turn.createdAt.isBefore(oldest.createdAt) ||
+              (turn.createdAt == oldest.createdAt &&
+                turn.requestId.toLowerCase().compareTo(
+                    oldest.requestId.toLowerCase()) < 0);
+          if (!earlier || !known.add(turn.requestId.toLowerCase()))
+            throw StateError('Private archive page overlaps another message');
+          merged.add(turn);
+        }
+      }
+      setState(() {
+        _history = GrovePrivateHistory(
+          projectId: widget.projectId, conversationId: id,
+          turnsNewestFirst: List.unmodifiable(merged),
+          mayBeTruncated: page.nextCursor != null,
+          nextCursor: page.nextCursor,
+        );
+        _turnArchiveStarted = true;
+        _olderTurnCursor = page.nextCursor;
+        _loading = false;
+      });
+    } catch (_) {
+      if (!_valid || generation != _generation) return;
+      // A rejected/expired cursor or revoked grant never leaves old private
+      // content visible under an unverified session.
+      setState(() {
+        _history = null; _selected = null; _loading = false;
+        _turnArchiveStarted = false; _olderTurnCursor = null;
+        _error = 'Could not verify older messages. Refresh conversations to reopen.';
+      });
+    }
+  }
+
+
+  /// Search input is modal so normal Grove Talk retains its single message
+  /// field and the user must deliberately opt into reading old saved text.
+  Future<void> _openSearchDialog() async {
+    if (!_valid || _loading || _sending || _draftBlocked ||
+        _changingDraft || _pendingId != null || _selected == null) return;
+    _searchInput.clear();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Search this saved conversation'),
+        content: TextField(
+          controller: _searchInput,
+          maxLength: 64,
+          autofocus: true,
+          decoration: const InputDecoration(
+            labelText: 'Saved message phrase',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel search'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Find matches'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && _valid) await _searchSavedMessages();
+  }
+
+  /// Explicit local-display search of the currently authorized conversation.
+  /// No results are passed as model context or stored on the device.
+  Future<void> _searchSavedMessages() async {
+    final id = _selected;
+    final phrase = _searchInput.text.trim();
+    if (!_valid || _loading || _sending || _draftBlocked ||
+        _changingDraft || _pendingId != null || id == null ||
+        _history == null || phrase.length < 3 || phrase.length > 64) return;
+    final generation = ++_generation;
+    setState(() { _loading = true; _error = null; });
+    try {
+      await _saveDraft();
+      if (!_valid || generation != _generation) return;
+      final matches = await widget.client.findSavedPhrase(
+        projectId: widget.projectId, conversationId: id, phrase: phrase,
+      ).timeout(_groveReadDeadline);
+      if (!_valid || generation != _generation) return;
+      if (matches.projectId != widget.projectId ||
+          matches.conversationId != id) {
+        throw StateError('Private search scope changed');
+      }
+      setState(() {
+        _searchResults = matches;
+        _searchedPhrase = phrase;
+        _loading = false;
+      });
+    } catch (_) {
+      if (!_valid || generation != _generation) return;
+      // Rejection could mean revocation: never preserve old sensitive views.
+      setState(() {
+        _searchResults = null; _searchedPhrase = null;
+        _history = null; _selected = null; _loading = false;
+        _error = 'Private search access could not be verified. Refresh conversations.';
+      });
+    }
+  }
+
+  /// User-initiated Grove-only saved conversation deletion.
+  /// NEVER erase while a draft/uncertain send is present or without consent.
+  Future<void> _deleteSelected() async {
+    if (!widget.allowDeleteConversations || !_valid || _loading || _sending ||
+        _changingDraft || _draftBlocked || _pendingId != null ||
+        _keepDraft || _unsavedReply != null || _input.text.trim().isNotEmpty)
+      return;
+    final id = _selected;
+    if (id == null) return;
+    final beforeDialog = _generation;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete this saved Grove conversation?'),
+        content: const Text(
+          'This permanently removes its saved private Grove messages. '
+          'It does not delete the underlying Firefly conversation, '
+          'other-app records or separate memories. This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Keep conversation'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Delete from Grove'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !_valid || beforeDialog != _generation ||
+        _selected != id || _sending || _keepDraft || _pendingId != null ||
+        _input.text.trim().isNotEmpty) return;
+    final action = ++_generation;
+    setState(() { _loading = true; _error = null; });
+    try {
+      await widget.client.deleteSaved(
+        projectId: widget.projectId, conversationId: id,
+      ).timeout(_groveReadDeadline);
+      if (!_valid || action != _generation) return;
+      // Never display the deleted transcript while clearing saved selection.
+      setState(() {
+        _draftTimer?.cancel();
+        _selected = null; _history = null; _choices = null;
+        _pendingId = null; _pendingText = null; _unsavedReply = null;
+        _keepDraft = false; _draftBlocked = false; _draftStatus = null;
+        _setInput('');
+      });
+      await widget.onConversationDeleted?.call(id);
+      if (_valid && action == _generation) await _discover();
+    } catch (_) {
+      if (!_valid || action != _generation) return;
+      // A failed network response is uncertain, not deletion failure proof.
+      // Hide stale content and refuse to claim a completed delete.
+      setState(() {
+        _selected = null; _history = null; _choices = null;
+        _loading = false;
+        _error = 'Grove could not verify deletion. Refresh conversations '
+            'before trying again; it may already have been removed.';
       });
     }
   }
@@ -547,6 +872,7 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel>
           ].take(20).toList(growable: false),
           mayBeTruncated: current.mayBeTruncated ||
               current.conversations.length >= 20,
+          nextCursor: current.nextCursor,
         );
       });
       await _choose(created.conversationId, generation: generation);
@@ -566,7 +892,9 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel>
   Future<void> _send() async {
     final id = _selected;
     final message = _input.text.trim();
-    if (_sending || _loading || _draftBlocked || _changingDraft || !_valid || id == null ||
+    if (_sending || _loading || _draftBlocked || _changingDraft ||
+        !_valid || id == null || _history == null ||
+        !(_choices?.conversations.any((c) => c.conversationId == id) ?? false) ||
         message.isEmpty || message.length > 3000) return;
     if (_pendingId != null && _pendingText != message) {
       setState(() => _error = 'Retry the original unchanged message, or discard it explicitly.');
@@ -615,6 +943,10 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel>
       if (!_valid || generation != _generation) return;
       setState(() {
         _history = history ?? _history;
+        _searchResults = null; _searchedPhrase = null;
+        if (history != null) {
+          _turnArchiveStarted = false; _olderTurnCursor = null;
+        }
         _unsavedReply = reply.persisted ? null : reply.text;
         _setInput('');
         _pendingId = null;
@@ -642,6 +974,7 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel>
     ++_generation;
     _input.removeListener(_draftChanged);
     _input.dispose();
+    _searchInput.dispose();
     super.dispose();
   }
 
@@ -702,6 +1035,18 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel>
                         _changingDraft ? null : _discover,
                     child: const Text('Refresh conversations'),
                   ),
+                  if (widget.allowDeleteConversations && _selected != null)
+                    ValueListenableBuilder<TextEditingValue>(
+                      valueListenable: _input,
+                      builder: (context, value, _) => OutlinedButton(
+                        onPressed: _sending || _loading || _changingDraft ||
+                            _draftBlocked || _keepDraft ||
+                            _pendingId != null || _unsavedReply != null ||
+                            value.text.trim().isNotEmpty
+                            ? null : _deleteSelected,
+                        child: const Text('Delete saved Grove conversation'),
+                      ),
+                    ),
                 ],
               ),
             if (!_loading && choices != null &&
@@ -710,9 +1055,14 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel>
               const Text('New private conversations are not enabled in '
                   'this Grove build.',
                 style: TextStyle(color: Colors.white70)),
-            if (choices?.mayBeTruncated == true)
-              const Text('Showing the latest 20 conversations only.',
-                  style: TextStyle(color: Colors.white70)),
+            if (!_loading && choices != null &&
+                (_archiveStarted ? _olderCursor != null :
+                  choices.mayBeTruncated))
+              TextButton(
+                onPressed: _sending || _pendingId != null || _draftBlocked ||
+                    _changingDraft ? null : _loadOlder,
+                child: const Text('Load older conversations'),
+              ),
             if (_error != null)
               Text(_error!, style: const TextStyle(
                   color: Colors.orangeAccent)),
@@ -724,9 +1074,40 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel>
                 : ListView(
                     key: ValueKey(_selected),
                     children: [
-                      if (_history!.mayBeTruncated)
-                        const Text('Showing six recent complete turns only.',
+                      if (!_turnArchiveStarted && _history!.mayBeTruncated)
+                        const Text('Older saved messages are available to browse.',
                           style: TextStyle(color: Colors.white70)),
+                      if (!_loading && (_turnArchiveStarted
+                          ? _olderTurnCursor != null : _history!.mayBeTruncated))
+                        TextButton(
+                          onPressed: _sending || _pendingId != null ||
+                              _draftBlocked || _changingDraft
+                              ? null : _loadOlderMessages,
+                          child: const Text('Load older messages'),
+                        ),
+                      if (_searchResults != null) ...[
+                        Text('Saved matches for: ${_searchedPhrase ?? ''}',
+                          style: const TextStyle(color: Colors.white70)),
+                        if (_searchResults!.mayBeTruncated)
+                          const Text('Showing up to six newest matches. More may exist.',
+                            style: TextStyle(color: Colors.white70)),
+                        if (_searchResults!.turnsNewestFirst.isEmpty)
+                          const Text('No saved matches in this conversation.',
+                            style: TextStyle(color: Colors.white70)),
+                        for (final match in _searchResults!.turnsNewestFirst)
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Card(child: Padding(
+                                padding: const EdgeInsets.all(12),
+                                child: Text(match.userText))),
+                              Card(child: Padding(
+                                padding: const EdgeInsets.all(12),
+                                child: Text(match.assistantText))),
+                            ],
+                          ),
+                        const Divider(),
+                      ],
                       for (final turn in _history!.turnsNewestFirst.reversed)
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -747,7 +1128,13 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel>
                     ],
                   ),
             ),
-            if (_selected != null) ...[
+            if (_selected != null && !_loading) ...[
+              TextButton(
+                onPressed: _loading || _sending || _draftBlocked ||
+                    _changingDraft || _pendingId != null
+                    ? null : _openSearchDialog,
+                child: const Text('Search saved messages'),
+              ),
               if (widget.pendingStore != null)
                 CheckboxListTile(
                   dense: true,
@@ -783,7 +1170,8 @@ class _GrovePrivateTextPanelState extends State<GrovePrivateTextPanel>
                 alignment: Alignment.centerRight,
                 child: FilledButton(
                   onPressed: _sending || _loading || _draftBlocked ||
-                      _changingDraft ? null : _send,
+                      _changingDraft || _history == null || _choices == null
+                      ? null : _send,
                   child: Text(_sending ? 'Waiting for Arbor…' : 'Send'),
                 ),
               ),
