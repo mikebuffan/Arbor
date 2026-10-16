@@ -175,6 +175,51 @@ describe("Grove explicitly requested NEW conversation endpoint", () => {
     expect(mocks.create).not.toHaveBeenCalled();
   });
 
+  it("rejects spoofed length and UTF-8 byte overflow before new-thread creation", async () => {
+    const wide = JSON.stringify({ projectId, extra: "界".repeat(350) });
+    expect(wide.length).toBeLessThan(1024);
+    expect(new TextEncoder().encode(wide).byteLength).toBeGreaterThan(1024);
+    const req = new Request(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json", "Content-Length": "10",
+      },
+      body: wide,
+    });
+    expect((await POST(req)).status).toBe(413);
+    expect(mocks.create).not.toHaveBeenCalled();
+  });
+
+  it("stops consuming a huge new-thread stream without reading its remainder", async () => {
+    let pulls = 0;
+    let cancelled = false;
+    const body = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        pulls++;
+        if (pulls > 32) controller.close();
+        else controller.enqueue(new Uint8Array(400).fill(0x61));
+      },
+      cancel() { cancelled = true; },
+    });
+    const req = new Request(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json", "Content-Length": "10",
+      },
+      body, duplex: "half",
+    } as RequestInit & {duplex: "half"});
+    expect((await POST(req)).status).toBe(413);
+    expect(pulls).toBeLessThan(8);
+    expect(cancelled).toBe(true);
+    expect(mocks.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects JSON-prefix impostors on new-thread creation", async () => {
+    expect((await POST(createRequest({ projectId },
+      "application/json-injected"))).status).toBe(415);
+    expect(mocks.create).not.toHaveBeenCalled();
+  });
+
   it("keeps grant rejection and underlying provider details private", async () => {
     mocks.create.mockRejectedValueOnce(
       new Error("private-service-key and user email"),
