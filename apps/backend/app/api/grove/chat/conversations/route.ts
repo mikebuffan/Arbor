@@ -75,7 +75,7 @@ class GroveCreateBodyError extends Error {
  * Content-Length is advisory: it may be absent, false or attacker-supplied. */
 async function boundedCreateBody(req: Request): Promise<unknown> {
   const declared = req.headers.get("content-length");
-  if (declared !== null && /^\\d+$/.test(declared) &&
+  if (declared !== null && /^\d+$/.test(declared) &&
       Number(declared) > MAX_CREATE_REQUEST_BYTES)
     throw new GroveCreateBodyError(413);
   if (!req.body) throw new GroveCreateBodyError(400);
@@ -116,7 +116,7 @@ export async function POST(req: Request) {
   if (process.env.GROVE_PRIVATE_NEW_CONVERSATION_ENABLED !== "true")
     return json({ ok: false, error: "grove_private_creation_not_enabled" }, 404);
   try {
-    if (!/^application\\/json(?:;|$)/i.test(
+    if (!/^application\/json(?:;|$)/i.test(
       req.headers.get("content-type")?.trim() ?? "",
     ))
       return json({ ok: false, error: "grove_private_json_required" }, 415);
