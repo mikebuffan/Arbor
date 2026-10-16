@@ -14,8 +14,14 @@ export async function POST(req: Request) {
   if (process.env.GROVE_API_ENABLED !== "true" || process.env.GROVE_PRIVATE_CORRECTION_WRITE_ENABLED !== "true")
     return json({ ok: false, error: "grove_correction_write_not_enabled" }, 404);
   try {
-    if (!(req.headers.get("content-type") ?? "").toLowerCase().startsWith("application/json"))
+    if (!/^application\/json(?:;|$)/i.test(
+      req.headers.get("content-type")?.trim() ?? "",
+    ))
       return json({ ok: false, error: "grove_correction_json_required" }, 415);
+    const declared = req.headers.get("content-length");
+    if (declared !== null && /^\d+$/.test(declared) &&
+        Number(declared) > 12288)
+      return json({ ok: false, error: "grove_correction_body_too_large" }, 413);
     const reader = req.body?.getReader();
     if (!reader) return json({ ok: false, error: "grove_correction_body_invalid" }, 400);
     const chunks: Uint8Array[] = []; let size = 0;
