@@ -1,0 +1,100 @@
+name: Grove effective backend no-cron candidate (source only)
+
+on:
+  push:
+    branches:
+      - review/grove-private-backend-no-cron-20261011
+
+permissions:
+  contents: read
+
+concurrency:
+  group: grove-no-cron-source-review
+  cancel-in-progress: true
+
+jobs:
+  private-host-layout-source:
+    if: github.repository == 'mikebuffan/Arbor'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify effective backend config and original Firefly root without deployment
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import {readFileSync} from 'node:fs';
+          import {spawnSync} from 'node:child_process';
+          const read = path => JSON.parse(readFileSync(path, 'utf8'));
+          const root = read('vercel.json');
+          const backend = read('apps/backend/vercel.json');
+          const reviewed = read('apps/backend/vercel.grove.json');
+          assert.ok(root.crons.some(x => x.path === '/api/admin/system/heartbeat'),
+            'Shared Firefly root must retain its scheduled job');
+          assert.deepEqual(backend, reviewed,
+            'Grove backend effective candidate must match the reviewed zero-cron proposal');
+          assert.deepEqual(backend.crons, []);
+          assert.equal(backend.ignoreCommand,
+            'node ../../ops/grove/source-only-ignore.mjs');
+          const branch = 'review/grove-private-backend-no-cron-20261011';
+          for (const stage of ['preview', 'production', 'development']) {
+            for (const id of [
+              'prj_nw2X0SyLn4e8CXWZ83MEs4jwn1JN',
+              'prj_JArYlugmdFovY10CxZ0LEJmcrsKC',
+              'prj_bliWIoBwJ053cXPIBB9uJzpW4PK6',
+            ]) {
+              const child = spawnSync(process.execPath,
+                ['ops/grove/source-only-ignore.mjs'], {
+                  encoding:'utf8', env: {VERCEL_PROJECT_ID:id,
+                    VERCEL_GIT_COMMIT_REF:branch, VERCEL_ENV:stage},
+                });
+              assert.equal(child.status, 0,
+                'Review branch MUST remain source-only: ' + id + ' ' + stage);
+            }
+          }
+          const main = spawnSync(process.execPath,
+            ['ops/grove/source-only-ignore.mjs'], {
+              encoding:'utf8', env: {VERCEL_GIT_COMMIT_REF:'main'}
+            });
+          assert.equal(main.status, 1,
+            'Preserve ordinary Firefly main build decision');
+          console.log('GROVE_EFFECTIVE_BACKEND_NO_CRON_SOURCE=PASS;');
+          console.log('DEDICATED_HOST_ROOT_CHANGE=HOLD; ACTUAL_DEPLOYMENT=NONE');
+          NODE
+
+  grove-preview-fail-closed:
+    if: github.repository == 'mikebuffan/Arbor'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    env:
+      CI: 'true'
+      NEXT_TELEMETRY_DISABLED: '1'
+      GROVE_API_ENABLED: 'false'
+      OPENAI_API_KEY: 'ci-placeholder-not-a-real-key'
+      GROVE_PRIVATE_CHAT_PREVIEW_ENABLED: 'false'
+      GROVE_PRIVATE_MODEL_TURN_ENABLED: 'false'
+      ARBOR_ARK_ENABLE_LIVE_EXECUTION: 'false'
+      AWS_EC2_METADATA_DISABLED: 'true'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Resolve existing locked dependencies
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.30.3 --activate
+          pnpm install --frozen-lockfile
+      - name: Test Grove project-identity fail-closed routing without preview keys
+        run: pnpm --filter firefly-backend exec vitest run lib/grove/__tests__/privateHostIsolation.test.ts
+      - name: Compile proposed private Grove backend with disabled features
+        run: pnpm --filter firefly-backend build

@@ -40,6 +40,15 @@ export function middleware(req: NextRequest) {
   const groveMode = process.env.GROVE_API_ENABLED === "true";
   const publicMode = process.env.ARBOR_PUBLIC_APP_ENABLED === "true";
 
+  // The dedicated Vercel Grove project must never fall through to Firefly's
+  // public/legacy middleware if preview configuration omits GROVE_API_ENABLED.
+  // This is an extra deployment-identity fence, not a substitute for private
+  // project credentials or provider verification.
+  if (process.env.VERCEL_PROJECT_ID ===
+      "prj_nw2X0SyLn4e8CXWZ83MEs4jwn1JN" && !groveMode) {
+    return deny();
+  }
+
   // These are different products and must never share one active backend realm.
   if (groveMode && publicMode) return deny();
 
