@@ -1,5 +1,34 @@
 # Grove dedicated private host release preflight — review only, October 10 2026
 
+
+> **CURRENT AUTHORITATIVE READBACK — 2026-10-16.** This document was written
+> before the two protected release candidates diverged. The Vercel project
+> API currently **omits** the `rootDirectory` property. This is NOT
+> `rootDirectory: null`, is NOT proof of a repository-root selection,
+> and is NOT proof that `apps/backend` is selected. Both possibilities
+> remain **UNVERIFIED** until directly observed in project settings.
+>
+> Foundation draft [#453](https://github.com/mikebuffan/Arbor/pull/453)
+> retains Firefly cron in `apps/backend/vercel.json`; dedicated Grove-only
+> draft [#454](https://github.com/mikebuffan/Arbor/pull/454)
+> has `apps/backend/vercel.json` with `crons: []` plus strict
+> dedicated-project middleware fail-closed protection. Both drafts preserve
+> the shared root `vercel.json` Firefly cron. Grove's no-cron configuration
+> is **SOURCE-ONLY** and could be effective only if the approved host selects
+> the matching backend directory. Never merge #454's configuration into
+> Firefly or deploy it merely to discover Root Directory.
+>
+> The Vercel Grove project is `live=false`, newest reviews CANCELED,
+> and `ssoProtection.enabled=true` with
+> `deploymentType=all_except_custom_domains`. Its current default
+> `grove-private-api.vercel.app` domain is not independently accepted as
+> a working native Grove API origin. Preserve the phone's exact approved
+> host pin and no-redirect JWT handling. No SSO bypass credential may be
+> embedded in the app. Signed model, independent deletion custody,
+> schema migration/rollback, provider snapshot retention and capped
+> release approval remain separate GATED prerequisites.
+
+
 **Status: SOURCE CANDIDATE ONLY. Not the effective deployed configuration.**
 
 This restores the previously reviewed no-cron Grove configuration contract from source PR #258 without touching either existing Firefly `vercel.json`. The purpose is to prevent a future dedicated Grove release from unintentionally inheriting the root or backend Firefly heartbeat scheduler.
@@ -23,14 +52,18 @@ This restores the previously reviewed no-cron Grove configuration contract from 
 
 This file grants no production release, model call, schema mutation, runtime grant, Vercel config update, merge, or device install. 
 
-## Dedicated project source-layout hold (read-only 2026-10-11)
+## Dedicated project source-layout hold (2026-10-11 historical; superseded)
 
-The existing Vercel `grove-private-api` project metadata currently reports
-`rootDirectory = null` (repository root) and `framework = nextjs`.
-The repository-root `vercel.json` **has a Firefly heartbeat cron**. The
-`apps/backend/vercel.json` also **has a heartbeat cron**; the alternate
-`apps/backend/grove.vercel.json` and `vercel.grove.json` have zero crons
-but are **NOT automatically selected** as effective deployment configs.
+The 2026-10-11 note previously inferred `rootDirectory = null` from an
+**omitted** Vercel API field. That inference was incorrect: the currently
+selected Root Directory has **not been established**. Framework `nextjs`
+is reported, but no effective deployment configuration is verified.
+The repository-root `vercel.json` retains Firefly's heartbeat cron.
+Foundation #453 `apps/backend/vercel.json` retains the Firefly daily cron;
+isolated Grove #454 `apps/backend/vercel.json` has `crons: []`.
+Neither file is proven effective without the actual Root Directory.
+The alternate `apps/backend/grove.vercel.json` and
+`apps/backend/vercel.grove.json` are not automatically selected.
 Neither deployment-root option is approved for Grove until the actual
 effective config is proven no-cron.
 
