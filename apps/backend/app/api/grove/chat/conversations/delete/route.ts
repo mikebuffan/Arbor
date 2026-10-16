@@ -19,6 +19,40 @@ const json = (body: Record<string,unknown>, status: number) =>
       "X-Content-Type-Options": "nosniff" },
   });
 
+const MAX_DELETE_REQUEST_BYTES = 1024;
+
+async function boundedDeleteBody(req: Request): Promise<unknown> {
+  const declared = req.headers.get("content-length");
+  if (declared !== null && /^\d+$/.test(declared) &&
+      Number(declared) > MAX_DELETE_REQUEST_BYTES)
+    throw new RouteAccessError(413, "grove_private_delete_body_too_large");
+  if (!req.body)
+    throw new RouteAccessError(400, "grove_private_delete_body_invalid");
+
+  const reader = req.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  try {
+    while (true) {
+      const chunk = await reader.read();
+      if (chunk.done) break;
+      size += chunk.value.byteLength;
+      if (size > MAX_DELETE_REQUEST_BYTES) {
+        // Reject before buffering the remainder, even if Content-Length lies.
+        await reader.cancel().catch(() => undefined);
+        throw new RouteAccessError(413, "grove_private_delete_body_too_large");
+      }
+      chunks.push(chunk.value);
+    }
+    return JSON.parse(Buffer.concat(chunks).toString("utf8")) as unknown;
+  } catch (error) {
+    if (error instanceof RouteAccessError) throw error;
+    throw new RouteAccessError(400, "grove_private_delete_body_invalid");
+  } finally {
+    reader.releaseLock();
+  }
+}
+
 /** Delete GROVE-SAVED private conversation only, never Firefly records.
  * Explicit request, independent owner+conversation authorization and
  * transactional service-role RPC. Disabled in every ordinary deployment. */
@@ -28,20 +62,13 @@ export async function POST(req: Request) {
       process.env.GROVE_PRIVATE_CONVERSATION_DELETE_ENABLED !== "true") {
     return json({ ok: false, error: "grove_private_deletion_not_enabled" },404);
   }
-  if (!(req.headers.get("content-type") ?? "").toLowerCase()
-      .startsWith("application/json"))
+  if (!/^application\/json(?:;|$)/i.test(
+    req.headers.get("content-type")?.trim() ?? "",
+  ))
     return json({ ok: false, error: "grove_private_json_required" },415);
   try {
-    const len = Number(req.headers.get("content-length") ?? "0");
-    if (len > 1024) return json({ ok: false, error: "grove_private_delete_body_too_large" },413);
-    const source = await req.text();
-    if (source.length > 1024)
-      return json({ ok: false, error: "grove_private_delete_body_too_large" },413);
-    let body: unknown;
-    try { body = JSON.parse(source); } catch {
-      return json({ ok:false,error:"grove_private_delete_body_invalid" },400);
-    }
-    const { projectId, conversationId } = bodySchema.parse(body);
+    const { projectId, conversationId } =
+      bodySchema.parse(await boundedDeleteBody(req));
     await deletePrivateGroveConversation(req, projectId, conversationId);
     return json({
       ok: true, deleted: true, projectId, conversationId,
