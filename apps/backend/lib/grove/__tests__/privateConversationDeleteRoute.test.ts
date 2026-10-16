@@ -85,7 +85,41 @@ describe("explicit Grove-only saved conversation deletion", () => {
   });
   it("requires JSON and denies oversized bodies before broker calls",async()=>{
     expect((await POST(request(scope,{"Content-Type":"text/plain"}))).status).toBe(415);
+    expect((await POST(request(scope,{"Content-Type":"application/json-wrong"}))).status).toBe(415);
     expect((await POST(request("x".repeat(1100)))).status).toBe(413);
+    expect(mock.delete).not.toHaveBeenCalled();
+  });
+  it("counts actual UTF-8 bytes, even if declared length understates them", async () => {
+    const bytesOverLimit = JSON.stringify({...scope, extra:"界".repeat(350)});
+    expect(bytesOverLimit.length).toBeLessThan(1024);
+    expect(new TextEncoder().encode(bytesOverLimit).byteLength).toBeGreaterThan(1024);
+    const res = await POST(request(bytesOverLimit, {"Content-Length":"10"}));
+    expect(res.status).toBe(413);
+    expect(mock.delete).not.toHaveBeenCalled();
+  });
+  it("stops consuming a large streaming request before reading it all", async () => {
+    let pulls = 0;
+    let cancelled = false;
+    const body = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        pulls += 1;
+        if (pulls > 32) controller.close();
+        else controller.enqueue(new Uint8Array(400).fill(0x61));
+      },
+      cancel() { cancelled = true; },
+    });
+    const req = new Request(
+      "https://grove-private.example.org/api/grove/chat/conversations/delete",
+      {
+        method: "POST",
+        headers: {"Content-Type":"application/json", "Content-Length":"10"},
+        body, duplex:"half",
+      } as RequestInit & {duplex:"half"},
+    );
+    const res = await POST(req);
+    expect(res.status).toBe(413);
+    expect(pulls).toBeLessThan(8);
+    expect(cancelled).toBe(true);
     expect(mock.delete).not.toHaveBeenCalled();
   });
 });
