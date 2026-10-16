@@ -21,13 +21,19 @@ const json = (body: Record<string,unknown>, status: number) =>
 
 const MAX_DELETE_REQUEST_BYTES = 1024;
 
+class GroveDeleteBodyError extends Error {
+  constructor(readonly status: 400 | 413, readonly code: string) {
+    super(code);
+  }
+}
+
 async function boundedDeleteBody(req: Request): Promise<unknown> {
   const declared = req.headers.get("content-length");
   if (declared !== null && /^\d+$/.test(declared) &&
       Number(declared) > MAX_DELETE_REQUEST_BYTES)
-    throw new RouteAccessError(413, "grove_private_delete_body_too_large");
+    throw new GroveDeleteBodyError(413, "grove_private_delete_body_too_large");
   if (!req.body)
-    throw new RouteAccessError(400, "grove_private_delete_body_invalid");
+    throw new GroveDeleteBodyError(400, "grove_private_delete_body_invalid");
 
   const reader = req.body.getReader();
   const chunks: Uint8Array[] = [];
@@ -40,14 +46,14 @@ async function boundedDeleteBody(req: Request): Promise<unknown> {
       if (size > MAX_DELETE_REQUEST_BYTES) {
         // Reject before buffering the remainder, even if Content-Length lies.
         await reader.cancel().catch(() => undefined);
-        throw new RouteAccessError(413, "grove_private_delete_body_too_large");
+        throw new GroveDeleteBodyError(413, "grove_private_delete_body_too_large");
       }
       chunks.push(chunk.value);
     }
     return JSON.parse(Buffer.concat(chunks).toString("utf8")) as unknown;
   } catch (error) {
-    if (error instanceof RouteAccessError) throw error;
-    throw new RouteAccessError(400, "grove_private_delete_body_invalid");
+    if (error instanceof GroveDeleteBodyError) throw error;
+    throw new GroveDeleteBodyError(400, "grove_private_delete_body_invalid");
   } finally {
     reader.releaseLock();
   }
@@ -78,6 +84,8 @@ export async function POST(req: Request) {
   } catch (error) {
     if (error instanceof z.ZodError)
       return json({ ok:false,error:"grove_private_delete_body_invalid" },400);
+    if (error instanceof GroveDeleteBodyError)
+      return json({ ok:false,error:error.code },error.status);
     if (error instanceof RouteAccessError)
       return json({ ok:false,error:error.code },error.status);
     return json({ ok:false,error:"grove_private_delete_unavailable" },503);
